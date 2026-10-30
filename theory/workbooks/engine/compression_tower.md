@@ -55,7 +55,7 @@ z stops after floor 6, t after floor 7, and y and x reach one at floor 8. The dr
 
 **What the recursion costs.** While all four axes are still longer than one, each floor's block is about a sixteenth of the one before it: every axis halves, rounded up. The blocks in the table sum to 419,430,400 + 26,214,400 + 1,638,400 + 106,496 + 7,168 + 512 + 32 + 4 = 447,397,412 lanes, 1,066 per mille of the sample. So depth is paid in blocks that shrink, not in passes over the whole: the seven floors above the first add 27,967,012 lanes to the first floor's 419,430,400.
 
-**What the tower holds.** Every floor's high-pass coefficients, and the one coefficient at the top. There are exactly as many coefficients as voxels (419,430,400 for a 44b6 sample), and the tower is a one-to-one map of the sample onto them. Nothing is merged, averaged or dropped. The coefficients can be wider than sixteen bits, and they are held below ENGINE_COEFFICIENT_LIMIT, 2^30 in magnitude (§2.4).
+**What the tower holds.** Every floor's high-pass coefficients, and the one coefficient at the top. There are exactly as many coefficients as voxels (419,430,400 for a 44b6 sample), and the tower is a one-to-one map of the sample onto them. Nothing is merged, averaged or dropped. The coefficients can be wider than sixteen bits, and they are kept below ENGINE_COEFFICIENT_LIMIT, 2^30 in magnitude (§2.4).
 
 **Read back down.** `tower_lower` undoes the floors from the top, each floor's axes in the reverse of the order they were lifted. The sample comes back voxel for voxel.
 
@@ -72,7 +72,7 @@ z stops after floor 6, t after floor 7, and y and x reach one at floor 8. The dr
 | a 100 × 64 × 256 × 256 sample reaches one coefficient in 8 floors | proved: the floor rule gives 8, and the driver printed 8 floors for every sample it ingested (`logs/iapx_all.log`) |
 | the blocks of a 44b6 sample's eight floors hold 447,397,412 lanes, 1,066 per mille of its voxels | by the floor rule's arithmetic, block by block |
 | the recursion holds the residue whole, nothing merged or dropped | proved: one coefficient per voxel, and the rebuild is exact |
-| the drafts' floor −4 is a floor of this tower | not so: the tower's floors count up to one coefficient; floor −4 is the residue's measured floor, held in the high-pass coefficients |
+| the drafts' floor −4 is a floor of this tower | not so: the tower's floors count up to one coefficient; floor −4 is the residue's measured floor, stored in the high-pass coefficients |
 | the whole tower imprinted as one key by its impulse | not so: the lift is not linear; (0, 0, 1) and (1, 0, 0) each give high-pass coefficient 0, their sum gives −1 |
 | the floors dissolved into one operation | theory: not by imprint, by the line above; no other route is built |
 
@@ -188,7 +188,7 @@ Two samples with equal CRCs are equal pixel for pixel, short of a chance of 2^�
 |---|---|
 | the CRC folded into the widen equals the byte by byte CRC | proved: 44b6_0113de3b, both 363bf8bdffac8f29 |
 | a segment join by GF(2) advance operators, one a level | proved: the fold above; and `crc.h` holds a fold of "1234" across "56789" to the message in order by `static_assert` |
-| every .kcr rebuilt and held to its CRC from the file alone | proved: 25 of 25, set CRC 091daa41e1aceb7e |
+| every .kcr rebuilt and checked against its CRC from the file alone | proved: 25 of 25, set CRC 091daa41e1aceb7e |
 | one sample re-ingested gives a byte identical .kcr | proved: `maint/prove_codec.sh` on 44b6_0113de3b, run by the session that split the codec (ledger) |
 | 23 join levels for a 44b6 sample; any message below 2^48 bytes in reach of the key | by the code's arithmetic: 6,553,600 segments; operators 2^7 to 2^29; the key's last operator is 2^47 |
 | a fold keeps its accumulator one size | proved for the CRC-64: 64 bits over every sample and over the set |

@@ -481,7 +481,7 @@ def faults_caught(points, live):
 
     Three of the four move a letter by more than a millionth. The fourth writes the record at six
     significant figures, which cannot touch an indicator weight and does touch a graded one. It
-    is held to moving something at all.
+    is limited to moving something at all.
     """
     faults = fault_residuals(points, live)
     if not all(faults[name]["letter"] > 1e-6 for name in STRUCTURAL_FAULTS):
@@ -639,7 +639,7 @@ def _check():
         for axis, value in decided:
             say("    on a carried dot product of %+.3e against face %d, whose plain coordinate is"
                 % (value, axis))
-            say("    exactly zero. It held its arm by the sign of a rounding residual.")
+            say("    exactly zero. It kept its arm by the sign of a rounding residual.")
         say("    The reading is stable here and the reason it is stable is thin.")
         say("")
 

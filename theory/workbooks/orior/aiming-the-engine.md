@@ -58,7 +58,7 @@ known short program from none. Its verdict was empty and the claim would have be
 zlib.
 
 Every instrument gets one: pi for algorithmic structure, a planted relation for a relation search, a
-held-out range for anything selected, a known-answer vector for any reader, planted structure of each
+withheld range for anything selected, a known-answer vector for any reader, planted structure of each
 class for a scanner. If the control does not fire, the null is about the tool.
 
 ## Draw the bar, never derive it
@@ -115,7 +115,7 @@ the spatial class and a second over the algebraic class, and report which fired.
 
 A residual that STOPS at 1e-16 is float64. A residual that FALLS with the width belongs to the
 object. Only fixed point can tell those apart, and the difference is not academic: an invariance
-measured in a double reported 1e-14 and could not say whether the theorem held exactly or merely sat
+measured in a double reported 1e-14 and could not say whether the theorem was satisfied exactly or merely sat
 where a double runs out. Recomputed in fixed point it read 2^-60, 2^-92 and 2^-123 at widths of 64,
 96 and 128 - tracking the width, which shows the invariance is exact.
 
@@ -125,7 +125,7 @@ where a double runs out. Recomputed in fixed point it read 2^-60, 2^-92 and 2^-1
 
 A mod 2^32 ring IS the function; widening it computes a different one and fails silently. But the
 statistics computed OVER that ring grow without bound and must not share its width - an accumulator
-held in a thirty-two bit integer was nine bits from silently wrapping, in analysis code, while the
+stored in a thirty-two bit integer was nine bits from silently wrapping, in analysis code, while the
 argument for keeping the ring narrow was being made about the same number.
 
 **The definition fixes a width. Everything else is arbitrary precision.**

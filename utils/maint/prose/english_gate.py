@@ -67,7 +67,7 @@ _reference = None
 
 
 def reference():
-    """The English byte pair reference, built once and held."""
+    """The English byte pair reference, built once and kept."""
     global _reference
     if _reference is None:
         counts, total, lines = english_reference()

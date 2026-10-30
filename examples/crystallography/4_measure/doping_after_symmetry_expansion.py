@@ -51,7 +51,7 @@
 # places. Carrying an R centered operation through the decimal scale would displace every copy it
 # generates. Coordinates here are integers in units of 1/(24 * 10**SCALE_DIGITS), and an operation
 # whose denominator does not divide 24 raises instead of rounding. Over this corpus nothing raised:
-# 24 held every operation the deposits published.
+# 24 satisfied every operation the deposits published.
 #
 # WHAT A FAMILY IS HERE
 #
@@ -210,7 +210,7 @@ def main():
         "  errored, a denominator not dividing %d   %d\n" % (symmetry.UNITS, error)
     )
     out.write(
-        "  held back, over %d placements        %d\n" % (MOST_PLACEMENTS, held_back)
+        "  deferred, over %d placements        %d\n" % (MOST_PLACEMENTS, held_back)
     )
     if skipped_sites:
         out.write(

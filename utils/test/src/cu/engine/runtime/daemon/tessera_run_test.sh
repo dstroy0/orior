@@ -53,7 +53,7 @@ burn_ended()
     fi
 }
 
-# the description, then the status of the condition already tested: 0 when it held
+# the description, then the status of the condition already tested: 0 when it passed
 check()
 {
     CHECKS=$((CHECKS + 1))

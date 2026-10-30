@@ -11,7 +11,7 @@ Subdividing does not repair the reading, and the argument settling it is countin
 \begin{center}
 \begin{tabular}{@{}rrr@{}}
 \toprule
-\(k\) & cells & mean placement slots per cell \\
+\(k\) & cells & mean placement points per cell \\
 \midrule
 0 & 8 & 32 \\
 1 & 32 & 8 \\
@@ -21,9 +21,9 @@ Subdividing does not repair the reading, and the argument settling it is countin
 \end{tabular}
 \end{center}
 
-The slots per cell are means. Midpoint subdivision gives unequal cells: at \(k = 1\) an octant's center triangle has area \(0.551\) and each corner triangle \(0.340\), a ratio of \(1.62\), and the four sum to the octant's \(\pi/2\).
+The placement points per cell are means. Midpoint subdivision gives unequal cells: at \(k = 1\) an octant's center triangle has area \(0.551\) and each corner triangle \(0.340\), a ratio of \(1.62\), and the four sum to the octant's \(\pi/2\).
 
-At \(k = 3\) there are twice as many cells as placement points, and at least half the cells can never be written at all: the alphabet carries dead symbols. At \(k = 2\) the cell count equals the typical lit count, each cell holds two placement slots on average, and the reading has stopped being a coarse-graining: it is close to a permuted list of which bits are lit. On a 256-point placement \(k = 2\) is the last depth meaning anything, and by then the object being read is no longer a distribution over regions.
+At \(k = 3\) there are twice as many cells as placement points, and at least half the cells can never be written at all: the alphabet carries dead symbols. At \(k = 2\) the cell count equals the typical lit count, each cell holds two placement points on average, and the reading has stopped being a coarse-graining: it is close to a permuted list of which bits are lit. On a 256-point placement \(k = 2\) is the last depth meaning anything, and by then the object being read is no longer a distribution over regions.
 
 Raising the placement's point count moves the ceiling but not the problem, since the redraw level below is set by the ratio of cells to lit points and the subdivision changes that ratio.
 

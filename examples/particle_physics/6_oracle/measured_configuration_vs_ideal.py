@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: PP-6-001
 #
-# The ideal Madelung filling held against the published ground states. The aufbau exceptions are read
+# The ideal Madelung filling compared against the published ground states. The aufbau exceptions are read
 # and not asserted.
 #
 #   Usage:  python examples/particle_physics/6_oracle/measured_configuration_vs_ideal.py
 #
 # The represent stage carries the ideal filling, Madelung order under Hund's rule, and says it is the
-# model. This is the measurement it is held against: the ground-state configurations from the NIST
+# model. This is the measurement it is compared against: the ground-state configurations from the NIST
 # Atomic Spectra Database, fetched by utils/maint/data/fetch/fetch_nist_ground_states.py. Where a real atom
 # fills against the order, the two disagree, and that disagreement is an aufbau exception the oracle
 # reports and not a list this file carries.

@@ -168,7 +168,7 @@ LAYER = {
     "gloss": DERIVED,
     "commentary": DERIVED,
     "appendix": DERIVED,
-    # Kept and marked, held out of the ingestion stream until someone has classified it.
+    # Kept and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 

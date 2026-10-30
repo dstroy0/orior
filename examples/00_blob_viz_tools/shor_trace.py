@@ -299,7 +299,7 @@ def _report(digits=DIGITS):
         print("  not a property of the algorithm. The circuit or the transform is wrong.")
     print("")
 
-    print("  AND THE STRUCTURAL PREDICTION HELD. The controlled modular multiplications are")
+    print("  AND THE STRUCTURAL PREDICTION WAS CONFIRMED. The controlled modular multiplications are")
     print("  permutations of the amplitude list. They carried no arithmetic and contributed")
     print("  nothing to the error. Whatever departure the norm shows above came from the inverse")
     print("  transform, the only stage in this circuit that touches an irrational.")

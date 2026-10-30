@@ -239,7 +239,7 @@ def build_pdf(canvas, title, producer):
 
 
 def measure_horizon(order):
-    """The horizon numbers from the example itself: modes held, outside two boxes, and the reach."""
+    """The horizon numbers from the example itself: modes kept, outside two boxes, and the reach."""
     datum = torus.generic_field()
     velocities, _ = torus.taylor_velocity(datum, torus.VISCOSITY, order)
     return [
@@ -443,7 +443,7 @@ def main():
         % "  ".join("%4d" % step for step in range(order + 1))
     )
     out.write(
-        "    modes held:           %s\n" % "  ".join("%4d" % row[0] for row in rows)
+        "    modes kept:           %s\n" % "  ".join("%4d" % row[0] for row in rows)
     )
     out.write(
         "    outside |k|_inf <= 1: %s\n" % "  ".join("%4d" % row[1] for row in rows)

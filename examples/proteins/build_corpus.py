@@ -10,7 +10,7 @@
 #   Usage:  python examples/proteins/build_corpus.py [how many]
 #
 # The draw is the same one the oracle uses: every X-ray protein entry in the Protein Data Bank,
-# shuffled by a held seed. A smaller number is a prefix of that shuffle and a larger one extends it.
+# shuffled by a fixed seed. A smaller number is a prefix of that shuffle and a larger one extends it.
 # A corpus of 10000 contains the oracle's 1000 and every number between. The oracle already cached
 # the id list under build/rama; this reads it and never re-asks the search.
 #
@@ -47,7 +47,7 @@ TARGET = 10000
 
 
 def pool():
-    """The held-seed shuffle of every matching entry id, read from the oracle's cached list."""
+    """The fixed-seed shuffle of every matching entry id, read from the oracle's cached list."""
     import json
 
     with open(IDS, encoding="utf-8", errors="replace") as handle:

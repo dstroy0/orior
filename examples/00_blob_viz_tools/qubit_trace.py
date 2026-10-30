@@ -501,7 +501,7 @@ def entangling_sweep(steps, qubits=QUBITS):
 def _elsewhere():
     """Is the coherence destroyed, or is it somewhere this instrument is not looking?
 
-    The claim: incoherent information need not be held stable here, because it is coherent
+    The claim: incoherent information need not be kept stable here, because it is coherent
     elsewhere, and for that reason qubits resist being expressed.
 
     The physics half of that is right and is testable in one table. Decoherence is not destruction,

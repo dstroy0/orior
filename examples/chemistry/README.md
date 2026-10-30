@@ -75,7 +75,7 @@ it is authored once by the atomic-structure subject in a shared `representation/
 consumes it and does not transcribe it, because a second element table is a second source of truth for
 a fact chemistry did not establish. Stage two, and the geometric measures of stage four, need a molecule reader in
 `representation/structure` beside the protein and crystal readers, that imports that ledger and places
-atoms as points in space, and stage six needs `oracle/chemistry`, the bond lengths held as facts apart
+atoms as points in space, and stage six needs `oracle/chemistry`, the bond lengths stored as facts apart
 from the language family trees, which the oracle README already reserves a directory for. Stage one
 above stops at the connectivity precisely because the coordinate a stage-two reading needs is a bond
 length, and a bond length is that oracle. Those are coordinated additions, not this subject's to write

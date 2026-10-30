@@ -4,7 +4,7 @@
 each with a picture under pictures/; every motion found; and the long animation frames with their scripts.
 
 A finding on one motion is pictured as its progress over its own time from 0 to 1, a dot each frame, beside CSS's
-`ease` in grey, the frames the finding names marked. A pair the reading held to each other is pictured on one scale:
+`ease` in gray, the frames the finding names marked. A pair the reading paired with each other is pictured on one scale:
 a track's way in and way out, or a step's repeats, each over its own time from 0 to 1; two parts' motions in one step
 over the step's time in milliseconds."""
 
@@ -30,7 +30,7 @@ PAIRED = ("in and out differ", "repeat differs")
 
 def plane(title):
     """A picture's ground, its frame and its title; and the point of a place on it, x and y from 0 to 1, y from -0.1
-    to 1.15 so an overshoot and a reversal show."""
+    to 1.15 to let an overshoot and a reversal show."""
     picture = Image.new("RGB", (WIDTH, HEIGHT), GROUND)
     draw = ImageDraw.Draw(picture)
     font = ImageFont.load_default()

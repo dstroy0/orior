@@ -120,7 +120,7 @@ def redraw_level(points, lit_count, seed=9, tries=200):
 
     Without this the delta is a number with no scale. Eight letters over 256 bits is a coarse
     alphabet, and two unrelated states of the same weight already differ by a few percent in it just
-    from the counting noise, and a measured delta only means something held against that. A reading
+    from the counting noise, and a measured delta only means something measured against that. A reading
     sitting at this level is saturated: it is reporting noise at full volume and has no room left to
     show the mixing taking hold.
     """

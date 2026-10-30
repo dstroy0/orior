@@ -26,9 +26,9 @@ WHY THIS IS CLEAN
 Every nonce in the range is hashed and every valid one is kept. No search order and no mining
 habit enters. The valid set is the hash's own, and a departure from Poisson is the hash's own too.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import hashlib

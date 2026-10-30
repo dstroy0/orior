@@ -32,9 +32,9 @@ rotation of itself, which must read a small spacing and a real alignment, and a 
 independent one, which must sit in the null band. If the control does not fire, a null here is about
 the instrument.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import os

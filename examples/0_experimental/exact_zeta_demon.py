@@ -9,7 +9,7 @@
 # rises, and its u = theta / pi + 1 lies between the first point's theta / pi less its bound and the second's more its
 # bound, plus 1: an exact interval of integers at 2^-62. A close pair no point falls between is found where |Z| dips
 # and keeps its sign, listed again 64 times finer by pairs with the same brackets. The zeros placed must number N's
-# difference between two F's, N held by Turing's method or given where a run of the machine closes over them.
+# difference between two F's, N certified by Turing's method or given where a run of the machine closes over them.
 #
 # Each pair of zeros within 8 has its difference as the interval the two zeros' intervals give, and each eighth of u
 # its pairs whose interval lies in it and those whose interval meets it and another. The steering is by those

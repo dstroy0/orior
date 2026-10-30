@@ -240,7 +240,7 @@ with (2) enforced by Leray's projection. Nothing is rounded.
   | ------------------------ | --- | --- | --- | --- | --- |
   | largest `\|k\|_1`        | 1   | 2   | 3   | 4   | 5   |
   | largest `\|k\|_inf`      | 1   | 1   | 2   | 3   | 4   |
-  | modes held               | 6   | 18  | 42  | 88  | 170 |
+  | modes kept               | 6   | 18  | 42  | 88  | 170 |
   | outside `\|k\|_inf <= 1` | 0   | 0   | 16  | 62  | 144 |
   | outside `\|k\|_inf <= 2` | 0   | 0   | 0   | 16  | 66  |
 

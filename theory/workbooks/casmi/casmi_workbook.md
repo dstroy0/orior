@@ -10,7 +10,7 @@ Every claim carries one status, and the status says what backs it:
 | status | what it means |
 |---|---|
 | **proved** | an exact check ran over the whole set and found no exception; the count is given |
-| **measured** | a number was taken on named files; the number is given, and whether it held up |
+| **measured** | a number was taken on named files; the number is given, and whether it survived |
 | **built** | the code exists and runs; no measurement yet says whether it helps |
 | **theory** | stated, not built |
 | **refuted** | measured, and the measurement went against it; kept, with the number, and not tried again blind |
@@ -63,7 +63,7 @@ Every design decision weighed, with what decided it.
 | **H5. The match kept on the device** | The match builds its index, runs its program, counts and sorts its kept lanes and gathers them on the device, and copies back only the kept lanes. | On `test.parquet` 62.8 billion lanes reduce to 8,859,804 kept lanes on the device; only those cross back to the host. | **measured** |
 | **H6. Sweeps in pieces within a byte budget** | Each sweep runs its lanes in pieces of at most 1 GiB, uploads only the records its lanes read, shares one copy among members passed the same records, and lays the group sums as three planes read with no index. | Device peak fell from 5.26 GB to 1.89 GB on the test run, under the declaration, with the submission byte-identical. | **measured** |
 | **H7. Ingest the whole file** | `--ingest` seals every member of the parquet file (the footer and each leaf of each row group) as a crystal of a set through the engine's ingest, nothing dropped and nothing reshaped. | The engine's parquet source seals each member as the stored bytes and rebuilds it lane for lane. On the device: `test.parquet` 13 of 13 and `train.parquet` 379 of 379 members sealed and rebuilt lane for lane, 0 checks failed. | **measured** |
-| **H8. Pick columns into forms before the math** | Read a chosen subset of columns into layouts of the ranker's own and seal those. | This reshapes the data the program is held not to reshape: it drops columns and organizes the file into forms before the math. | **not taken** |
+| **H8. Pick columns into forms before the math** | Read a chosen subset of columns into layouts of the ranker's own and seal those. | This reshapes the data the program is required not to reshape: it drops columns and organizes the file into forms before the math. | **not taken** |
 | **H9. The misses are isomers** | The answers the ranker misses lose to a structure of their own formula, whose spectrum the cosine cannot tell from theirs. | On `train.parquet` validate, 34 of the 45 misses lose to a structure of the same formula; 18 of the 19 that lose by less than 1% of cosine squared do. | **measured** |
 | **H10. The score is the cosine** | The score program's M² over Q·R is cos². | The match's inside reads 4 where the peaks match: M² over Q·R is 16 cos² on every pair. Lists and the MRR are unchanged by the constant; the miss lines divide it out. | **not so** (it is 16 cos²) |
 

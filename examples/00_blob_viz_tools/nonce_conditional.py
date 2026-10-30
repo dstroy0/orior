@@ -29,9 +29,9 @@ is drawn instead of derived. Shuffle the region labels against the groups many t
 information each shuffle gives. Real dependence clears that band; a value inside it is the estimator's
 own bias and not structure.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import math

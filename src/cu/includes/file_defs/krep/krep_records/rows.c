@@ -150,7 +150,7 @@ void krep_text_row(KrepFile *file, unsigned int number)
                     file->text_length[number - 1u], QRY_ORDINARY);
 }
 
-// the slot of the text of `length` bytes at `bytes` in `file`'s table: the one containing it, or the empty one it would
+// the bucket of the text of `length` bytes at `bytes` in `file`'s table: the one containing it, or the empty one it would
 // be put in
 unsigned int krep_text_slot(const KrepFile *file, const char *bytes, unsigned long long length)
 {

@@ -1,6 +1,6 @@
 # Walk back
 
-**Purpose:** The rule every tracker stage is held to: it can be walked back to what it came from.
+**Purpose:** The rule every tracker stage must satisfy: it can be walked back to what it came from.
 **Scope:** every stage of the driver ([cell_tracking_table.md](cell_tracking_table.md), its driver section).
 
 Ruled: "The whole point of the tracker is to track cells. If you can't walk back something you did you built it wrong."

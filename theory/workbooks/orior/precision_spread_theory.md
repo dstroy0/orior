@@ -1,7 +1,7 @@
 # Precision spread: exact identities over a set of quantities
 
 **Purpose:** State when an exact identity carries precision from one quantity to another. That a few
-computed constants raise the precision held over many, and mark the three regimes where that does and
+computed constants raise the precision kept over many, and mark the three regimes where that does and
 does not multiply accuracy. **Scope:** the set of exact quantities the engine and its domains carry,
 the identities among them, and `examples/0_experimental/exact_identities_spread_precision.py`, which
 runs the mathematical case.
@@ -37,7 +37,7 @@ The quantities are not only positive reals. `Q` carries every exact number type 
 the spread runs over each. The rationals are exact as a numerator over a denominator, the form game
 theory carries its outcome distributions in. The algebraic irrationals are exact at any scale:
 `sqrt(n)` from an integer square root, and the roots of unity that build a transform's twiddle table,
-exact elements of the integers modulo a prime. The transcendentals are held at any scale with no
+exact elements of the integers modulo a prime. The transcendentals are represented at any scale with no
 quantum imposed from this end, and a real is carried to any number of places, the sense in which
 `representation.exact` refuses a second quantum. The imaginaries are exact where their parts are
 rational: a Gaussian rational `a + b i`, and the unit complex number a plane rotation multiplies by,

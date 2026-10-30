@@ -555,7 +555,7 @@ def main():
         session_rows = curve(session, size)
         show("MACHINE POLE, own transcript", session_rows, session.size)
 
-        # SIZE IS THE NUISANCE PARAMETER AND IT HAS TO BE HELD FIXED.
+        # SIZE IS THE NUISANCE PARAMETER AND IT HAS TO BE KEPT FIXED.
         #
         # The poles differ by eleven times in length and their shuffle floors differ by five times -
         # 0.098 bits against 0.519 - because MI bias grows as a corpus shrinks and its joint table

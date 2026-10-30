@@ -31,9 +31,9 @@ The analytic 2^-d is the wrong floor. The floor is drawn: shuffle the nonces aga
 many times and read the agreement each shuffle gives. A real link clears the shuffled band; a number
 sitting inside it is the mining skew and not a hash weakness.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import hashlib

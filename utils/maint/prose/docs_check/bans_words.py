@@ -12,13 +12,6 @@ WORDS = (
     # slot stands only in an accepted engineering context. Every one is reported, and a person
     # decides the site.
     r"\bslots?\b",
-    r"\btap(?:s|ped|ping)?\b",
     r"\brelay(?:s|ed|ing)?\b",
-    r"\bbatch(?:es|ed|ing)?\b",
-    r"\bpending\b",
-    r"\bflush(?:es|ed|ing)?\b",
-    r"\bcorrupt(?:s|ed|ion)?\b",
-    r"\bdestinations?\b",
-    r"\bimpl(?:y|ies|ied|ying|ication|ications)\b",
     r"\bunjudged\b",
 )

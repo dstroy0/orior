@@ -77,14 +77,14 @@ envelope falls, and requiring each radius to beat the one before it fails on a c
 0.0902, 0.1736, 0.0028, 0.0256 percent. Taken over a band of radii instead of at a point, the
 envelope comes down by a factor of forty-eight.
 
-## A fourth defect: the wrong quantity held small
+## A fourth defect: the wrong quantity kept small
 
-The packing gap has to be small against the shape's own geometry. It was instead held to a fraction
+The packing gap has to be small against the shape's own geometry. It was instead bounded by a fraction
 of the typical distance between two points on the surface, and in high dimensions those are not the
 same requirement at all.
 
 The separation between two points drawn on a sphere concentrates near root two whatever the
-dimension is. A gap held at half of that is half the radius of curvature, and a cap that wide is
+dimension is. A gap fixed at half of that is half the radius of curvature, and a cap that wide is
 nothing like the flat disc the count assumes it is. A cube's facets are flat and suffer none of it;
 the two shapes part company and the answer reads as shape-dependence. On the device that
 criterion passed a twelve dimensional run whose constants spread by 2.1 times: sphere 5.37, cube
@@ -258,7 +258,7 @@ number below came from `boundary_read.py --check` and `octant_lex.py --check`.
 On a golden placement, shifting every index by the same amount comes to a rigid screw: a turn of
 `n gamma`, an axial slide of `-2n/N`, and a pitch of `-2/(N gamma)`.
 
-| held to | measured |
+| bounded by | measured |
 |---|---|
 | the turn the screw predicts | worst error 9.9e-14 radians |
 | the slide the screw predicts | worst error exactly 0 |

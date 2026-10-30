@@ -7,7 +7,7 @@
 #   Usage:  python maint/data/fetch/fetch_nist_ground_states.py [--refresh]
 #
 # The particle_physics oracle stage reads these. The ideal Madelung filling in
-# representation/atom/element.py is the model, and this is the measurement it is held against: where a
+# representation/atom/element.py is the model, and this is the measurement it is compared against: where a
 # real atom fills against the order, chromium and the rest, the two disagree, and that disagreement is
 # the aufbau exception the oracle reports.
 #

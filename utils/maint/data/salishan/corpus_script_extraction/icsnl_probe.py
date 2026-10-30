@@ -46,7 +46,7 @@ WANTED = ("reduplicat", "lexical suffix", "affix", "paradigm", "morphem", "trans
 
 
 def download(url, target):
-    """The file at a URL, kept on disk, skipped where it is already held."""
+    """The file at a URL, kept on disk, skipped where it is already present."""
     if os.path.isfile(target) and (os.path.getsize(target) > 100000):
         return os.path.getsize(target), "already held"
     request = urllib.request.Request(url, headers=AGENT)

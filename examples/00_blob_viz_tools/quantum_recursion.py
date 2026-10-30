@@ -30,9 +30,9 @@ coin flip the recursion collapses to plain Grover's root N, the Bennett-Bernstei
 optimum for a black box. Recursion buys the dimensional split only where the descent leaks, and the
 descent does not leak.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import cmath

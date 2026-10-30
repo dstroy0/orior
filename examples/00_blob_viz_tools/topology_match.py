@@ -49,9 +49,9 @@ two longitudes per latitude. A field limited to degree L varies on scales no fin
 Four samples a degree resolves it without a resolution being chosen by eye. Neighbors are the
 eight surrounding samples, with longitude wrapping and the pole rows meeting across the pole.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number this writes is about SHA-256 and sits under the fail-closed partition as HELD.
+Every number this writes is about SHA-256 and sits under the fail-closed partition as WITHHELD.
 """
 
 import math

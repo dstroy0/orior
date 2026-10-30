@@ -68,7 +68,7 @@ sit inside it.
 \section{The derived timeout}
 
 \begin{definition}[Derived timeout]
-From \(k\) held runs with largest cost \(t_{\max}\) and least \(t_{\min}\), on a clock whose least
+From \(k\) satisfied runs with largest cost \(t_{\max}\) and least \(t_{\min}\), on a clock whose least
 resolvable step is \(g\),
 \[
   \beta = t_{\max} + (t_{\max} - t_{\min}) + g.
@@ -76,7 +76,7 @@ resolvable step is \(g\),
 \end{definition}
 
 The count \(k\) is not fixed in advance. Runs are doubled until a whole step of them lands under
-the timeout, and before each cycle a held run is checked against it again. The timeout only grows,
+the timeout, and before each cycle a satisfied run is checked against it again. The timeout only grows,
 since a new run can raise the largest or lower the least and never the reverse.
 
 This has the shape of TCP's retransmission timeout \cite{src:RFC6298},
@@ -110,7 +110,7 @@ noise; a cost is measured and carries noise. Decide which candidates hold first,
 survivors, and never add the two into one score.
 
 \begin{definition}[Gate]
-A relation \(r\) is held on cases \(K = \{k_1, \ldots, k_m\}\). A candidate \(c\) \emph{survives}
+A relation \(r\) is checked on cases \(K = \{k_1, \ldots, k_m\}\). A candidate \(c\) \emph{survives}
 when \(c(k) = r(k)\) for every \(k \in K\).
 \end{definition}
 

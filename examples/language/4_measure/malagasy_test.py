@@ -87,7 +87,7 @@ def main():
 
     names = sorted(held)
     if ("malagasy" not in held) or (len(names) < 5):
-        out.write("  not enough held\n")
+        out.write("  not enough loaded\n")
         out.flush()
         return 0
 

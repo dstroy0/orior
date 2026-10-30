@@ -53,7 +53,7 @@ WANTED = [
     (26, "english_1667_milton_epic.txt", "English epic verse, single work, 1667"),
     (6130, "english_1720_pope_iliad_epic.txt", "English epic verse, single work, 1720"),
     # Section 4.13.08 cannot separate a drift rate from a change of genre. These three translate one
-    # book. The subject is held fixed instead of merely matched. The first two are two years apart
+    # book. The subject is kept fixed instead of merely matched. The first two are two years apart
     # by rival translators, which measures what translator choice alone costs, and the third is 389
     # years after the second.
     (8300, "english_1609_douay_bible.txt", "English, same subject, 1609"),

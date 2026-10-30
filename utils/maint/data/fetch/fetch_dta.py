@@ -89,7 +89,7 @@ def main():
     for century, url, size in found:
         target = os.path.join(CORPORA, "dta_%s.zip" % century)
         if os.path.isfile(target) and (os.path.getsize(target) >= (size * 0.9)):
-            out.write("  %s already held\n" % century)
+            out.write("  %s already present\n" % century)
             continue
         try:
             request = urllib.request.Request(url, headers=AGENT)

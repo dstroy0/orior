@@ -14,7 +14,7 @@
 #
 # An encyclopedia carries all of them. It is ala different kind of writing from a novel, and comparing
 # encyclopedia text in one language against a novel in another would put that difference inside every
-# comparison without it being visible. So languages already held from the book catalog are fetched here as
+# comparison without it being visible. So languages already stored from the book catalog are fetched here as
 # well, and the gap between a language's two readings is the size of the genre effect, measured instead of
 # assumed. Anything fetched here is named so its source is never in doubt.
 
@@ -48,7 +48,7 @@ PAUSE = 1.1
 RETRIES = 2
 
 MISSING = ("vi", "ur", "hi", "bn", "ta", "ko", "id", "uk", "ar", "fa", "th", "sw", "tr", "ms")
-# Held from the book catalog as well. The difference between an encyclopedia and a novel is a number
+# Stored from the book catalog as well. The difference between an encyclopedia and a novel is a number
 CONTROLS = ("de", "es", "zh", "ja", "fi", "el")
 
 NAMES = {

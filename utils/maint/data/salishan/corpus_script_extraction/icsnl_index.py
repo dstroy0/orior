@@ -8,7 +8,7 @@
 #   Usage:  python maint/data/salishan/corpus_script_extraction/icsnl_index.py [page url]
 #
 # The conference has met every year since 1966 and the University of British Columbia posts the whole run,
-# with the volumes from 1966 to 1999 held as the Kinkade Collection and the rest published since. That is
+# with the volumes from 1966 to 1999 kept as the Kinkade Collection and the rest published since. That is
 # fifty and more volumes of description of a family with no annotated corpus anywhere, and that makes the
 # archive the corpus.
 #

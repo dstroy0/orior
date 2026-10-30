@@ -70,9 +70,9 @@ MEASURED at 4000 samples per seed, degrees 1 to 12, 1000 drawn pairs: the band i
 105.8 degrees. All three curves carry through round 20 and sit in the band from round 21. Past the
 break the tails hold 0 and 2, 1 and 0, 1 and 2 readings of 43 or 44, against 1.1 each by chance.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number this writes is about SHA-256 and sits under the fail-closed partition as HELD. No row
+Every number this writes is about SHA-256 and sits under the fail-closed partition as WITHHELD. No row
 is added for it anywhere.
 """
 

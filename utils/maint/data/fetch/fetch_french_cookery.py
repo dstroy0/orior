@@ -7,7 +7,7 @@
 #
 #   Usage:  python maint/data/fetch/fetch_french_cookery.py
 #
-# The cookery books already held were fetched with the language fixed to English, which was written into
+# The cookery books already stored were fetched with the language fixed to English, which was written into
 # the search and never reconsidered. The consequence showed up as a property of the corpus instead of a
 # property of that choice: fourteen books with author dates, spanning 1588 to 1858 and clustered in the
 # nineteenth century, and a test of how procedure recording changed over centuries run against a corpus

@@ -84,7 +84,7 @@ The extraction doubles a combining mark on four phonetic forms. Those four are c
 
 \subsection{Elicited roots}
 
-Lyon's survey of how 48 Nsyilxcn roots inchoativize \cite{src:Lyon-2025} is elicited from ɬk̓mxnalqs Delphine Derrickson-Armstrong and c̓əskʕáknaʔ Dave Michele of stq̓aʔtkʷɬniw̓t. Its hand extraction is 537 rows and verifies in both directions. Most cells of its two tables are starred, a form the linguist built and the speakers rejected, and those are held out of the gold standard corpus: a smaller corpus is better than one seeded with words the language does not have. The extractor files the Spokane, Secwepemctsín, Lillooet, nxaʔamxčín, Thompson and Coeur d'Alene cognates under their own languages.
+Lyon's survey of how 48 Nsyilxcn roots inchoativize \cite{src:Lyon-2025} is elicited from ɬk̓mxnalqs Delphine Derrickson-Armstrong and c̓əskʕáknaʔ Dave Michele of stq̓aʔtkʷɬniw̓t. Its hand extraction is 537 rows and verifies in both directions. Most cells of its two tables are starred, a form the linguist built and the speakers rejected, and those are excluded from the gold standard corpus: a smaller corpus is better than one seeded with words the language does not have. The extractor files the Spokane, Secwepemctsín, Lillooet, nxaʔamxčín, Thompson and Coeur d'Alene cognates under their own languages.
 
 The paper stands at 99.5 percent coverage, and neither of the two missing tokens is a word. Closing the space after a glottalization mark welds \texttt{√pul̕} and \texttt{púl̕} on page 9 onto the \texttt{qt:\{} that opens the dictionary quotation after them. The welded tokens hold a brace, the record delimits its spans with braces, and the coverage check splits them on the way back out. They exist in neither the page nor any corpus.
 
@@ -115,9 +115,9 @@ How each automatic extractor fares against its table is reported per paper in th
 
 \textbf{Verification separates the author from the speaker.} In Hilbert's paper \cite{src:Hilbert-1983} the coverage check is 100 percent, and the hand extraction still corrects two things. Vi Hilbert wrote the paper; the twenty-one examples were said by her aunt \textbf{Susie Sampson Peter} of the Upper Skagit and by \textbf{Martha LaMont}, recorded by Leon Metcalf between 1950 and 1958 and by Thom Hess in 1963. And example 2's English translation is a single line, ``High class, high class was Raven.'' The extraction welds the next eleven lines of Hilbert's commentary onto it. The typescript sets examples in an indented column and the essay at full width; the extraction drops the indent and the width recovers it.
 
-\textbf{Six of the PDFs break words in half.} They leave a space after a stacked diacritic: \texttt{K̓weswapáw̓} arrives as \texttt{K̓} and \texttt{weswapáw̓}. The counts are Hall and Phillips 996, Garcia 943, LaFontaine and Janzen 478, Mellesmoen and Kye 298, Matthewson and Redan 169, Mary George 159. The coverage check cannot see it, because it puts both sides through the same repair and a word broken on both sides matches itself. A repair closes it; \texttt{ʷ} is held out, because it is a spacing letter and a space after one is a real boundary.
+\textbf{Six of the PDFs break words in half.} They leave a space after a stacked diacritic: \texttt{K̓weswapáw̓} arrives as \texttt{K̓} and \texttt{weswapáw̓}. The counts are Hall and Phillips 996, Garcia 943, LaFontaine and Janzen 478, Mellesmoen and Kye 298, Matthewson and Redan 169, Mary George 159. The coverage check cannot see it, because it puts both sides through the same repair and a word broken on both sides matches itself. A repair closes it; \texttt{ʷ} is excluded, because it is a spacing letter and a space after one is a real boundary.
 
-The stress accents are held out of that repair. A word can end in a stressed vowel, and \texttt{ntes neʔé e sqyéytn} in LaFontaine and Janzen would close to \texttt{neʔée}, which the language does not have. Mellesmoen and Kye passes its own wider set, because that PDF prints two spaces at a real boundary and a lone space after an acute there is always the inserted one.
+The stress accents are excluded from that repair. A word can end in a stressed vowel, and \texttt{ntes neʔé e sqyéytn} in LaFontaine and Janzen would close to \texttt{neʔée}, which the language does not have. Mellesmoen and Kye passes its own wider set, because that PDF prints two spaces at a real boundary and a lone space after an acute there is always the inserted one.
 
 Matthewson and Redan carries a second form of the same damage that no rule can close safely. The PDF also breaks \emph{before} a marked letter: \texttt{cácl̓ep} arrives as \texttt{các l̓ep}. The same shape is a real word boundary at \texttt{lta q̓íl̓qa}, and nothing in the characters separates the two. The extractor leaves both alone; the hand extraction has the true forms.
 
@@ -125,7 +125,7 @@ Matthewson and Redan carries a second form of the same damage that no rule can c
 
 \section{Papers whose extracted text is not the page}
 
-Six of the 146 PDFs held carry a font that renumbers its glyph codes with an \texttt{/Encoding /Differences} array and declares no \texttt{/ToUnicode} map. An extractor is then handed code numbers with nothing to turn them into, reads them in a default encoding, and what can land in the text is the font's private alphabet.
+Six of the 146 PDFs stored carry a font that renumbers its glyph codes with an \texttt{/Encoding /Differences} array and declares no \texttt{/ToUnicode} map. An extractor is then handed code numbers with nothing to turn them into, reads them in a default encoding, and what can land in the text is the font's private alphabet.
 
 Each of the six is opened against its own rendered pages, and they come out four different ways.
 
@@ -316,7 +316,7 @@ The purity of both sources is the constraint everything else answers to. The tar
 
 \textbf{A paper holding eighteen languages has no single gold standard stream.} Every other extractor writes the lines of one language, because every other paper is one speaker telling one story, or one language under analysis. Wolfe cites lexical suffixes from published dictionaries of Sliammon, Sechelt, Squamish, three kinds of Halkomelem, three kinds of Straits, Klallam, Lushootseed, Twana, Tillamook, Quinault and two Tsamosan languages. Pouring those into one file builds a corpus of no language at all, and it would be a corpus the screening is then measured against, where that mistake cannot be recovered from. Its extractor writes its gold standard lines keyed by language, and the paper joins no profile.
 
-Two further things are held out. A reconstruction is a form the author worked out and nobody has ever said, the same distinction as between a transcription and a segmentation line, applied to a proto-form. And the predicted reflexes of Tables 6 and 8, which give for each language the form expected if the reconstruction was stressed, the form expected if it was not, and the form attested; the extraction does not keep those three columns apart reliably. Nothing is lost, because the attested forms of both tables are printed again in examples (1) and (6) where the columns are unambiguous.
+Two further things are excluded. A reconstruction is a form the author worked out and nobody has ever said, the same distinction as between a transcription and a segmentation line, applied to a proto-form. And the predicted reflexes of Tables 6 and 8, which give for each language the form expected if the reconstruction was stressed, the form expected if it was not, and the form attested; the extraction does not keep those three columns apart reliably. Nothing is lost, because the attested forms of both tables are printed again in examples (1) and (6) where the columns are unambiguous.
 
 The hand extractions can also be turned on themselves. Each is verified against its own paper. They should agree with each other about what these languages look like, and one can be measured against the rest taken together as the reference corpus. A row that sits oddly against everything else verified is one of two things: a slip in the transcription, or a real property of that paper nobody has noticed. Both are worth opening the paper for, and neither is visible from inside one table. At the language level this runs: each dialect is measured against the other five pooled, the question the screening is actually asked, and all six stand off the pool. Per row it does not run, and per row it would name a paper to open.
 
@@ -388,14 +388,14 @@ Recordings named in papers and not published with them:
 
 \begin{itemize}
 \item Qwa7yán'ak, Graveyard Valley narrative. Just over half an hour, recorded by Henry Davis at Nxwísten on 7 July 2025.
-\item K̓weswapáw̓ (Linda Redan). Three minutes twenty-eight seconds, told over Zoom on 31 October 2025. Audio and video are held by her.
+\item K̓weswapáw̓ (Linda Redan). Three minutes twenty-eight seconds, told over Zoom on 31 October 2025. Audio and video are kept by her.
 \item George Lezard, 1966, recorded by Randy Bouchard.
 \item Nellie Guitterez, 1978 or 1979, recorded by Yvonne Hébert at an Elders' Gathering in Quilchena.
 \end{itemize}
 
 \section{Unread papers}
 
-152 extracted paper texts are held, and 146 of the PDFs they came from. Eighteen have an extractor and a hand extraction, and seven more have a hand extraction alone. Six of the 146 are in the font class above, and their texts are the font's encoding. Fifty of the papers are about Lushootseed or Skagit.
+152 extracted paper texts are stored, and 146 of the PDFs they came from. Eighteen have an extractor and a hand extraction, and seven more have a hand extraction alone. Six of the 146 are in the font class above, and their texts are the font's encoding. Fifty of the papers are about Lushootseed or Skagit.
 
 The screening reads each paper's front matter for the names the literature uses for each language and attributes a paper where it names one and no other. Over 154 texts it attributes 122 and leaves 32, which are the comparative papers and are correctly left. Lushootseed leads at 43 papers, Nuxalk follows at 32.
 

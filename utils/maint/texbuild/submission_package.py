@@ -146,7 +146,7 @@ OUT_ARXIV = os.path.join(ROOT, "build", "arxiv")
 # The files every research paper shares, which sat in theory/ and not in any research paper. These are copied into the
 # submission root and the lines that reach up for them are rewritten to name them plainly.
 #
-# dedication.tex is here for the same reason preamble.tex is. One wording reaches every research paper, held
+# dedication.tex is here for the same reason preamble.tex is. One wording reaches every research paper, kept
 # in one place so it cannot drift between them.
 #
 # Every research paper now carries its own preamble.tex, and theory/ holds none of the three. A shared file

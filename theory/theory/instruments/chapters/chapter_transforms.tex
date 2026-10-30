@@ -8,7 +8,7 @@ Seven transforms carry this work. They look unrelated and they do one thing: the
 
 \textbf{The bitpack.} An integer and a run of 32-bit limbs are the same bytes named twice. Converting one to the other is not a computation; the two are two vocabularies for one object. This lets a number be handed to a device that only knows arrays, without anything being computed.
 
-\textbf{Fixed point.} A real to whatever depth is paid for, held as an integer scaled by a power of two. The reals are the human coordinate and the integer is the machine's, and the translation is exact in both directions. The whole floor question turns on this: a residual stopping at \(10^{-16}\) is speaking float64, and one falling with the width is speaking the object.
+\textbf{Fixed point.} A real to whatever depth is paid for, stored as an integer scaled by a power of two. The reals are the human coordinate and the integer is the machine's, and the translation is exact in both directions. The whole floor question turns on this: a residual stopping at \(10^{-16}\) is speaking float64, and one falling with the width is speaking the object.
 
 \textbf{The number-theoretic transform.} Coefficients to evaluations and back. A polynomial of \(n\) coefficients evaluated at \(n\) points costs \(n^2\) pointwise and \(n \log n\) through the transform, because the transform shares work between the points that pointwise evaluation repeats.
 

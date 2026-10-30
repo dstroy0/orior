@@ -219,7 +219,7 @@ def main():
 
     stoppers = sum(1 for one in things if one["stops"] > 0.5)
     print("%s" % out)
-    print("  %d lights held by a %s, inside a %s room, from %s" % (len(things), core, shell, source))
+    print("  %d lights contained by a %s, inside a %s room, from %s" % (len(things), core, shell, source))
     print("  %d of them stop a beam at half energy" % stoppers)
     return 0
 

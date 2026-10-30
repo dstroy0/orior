@@ -236,7 +236,7 @@ equations do not survive it; a note that rests on an equation says so.
   (1942) 302; Rayleigh, Phil. Mag. 34 (1917) 94; Plesset, J. Appl. Mech. 16 (1949) 277;
   Prosperetti, Quart. Appl. Math. 34 (1977) 339; Schwinger, PNAS 90 (1993) 2105, 7285.
 
-What changes. I11 was scored on the abstract and section 1 and stands. I12 gains a source held and
+What changes. I11 was scored on the abstract and section 1 and stands. I12 gains a source obtained and
 read: section 10 states the gas forms "a dense ionized region" whose free electrons radiate the
 light, and names this the most complete candidate while calling it far from satisfactory. That is
 a statement of the claim by the source, short of a measurement; I12 is to be scored on it, and the
@@ -341,10 +341,10 @@ interleaves the neighboring letters on the same pages; only this letter is noted
   could also be due to ion–electron recombination, which is likely to be present in a dense
   plasma."
 
-What changes. I12 now has a measurement held and read. The light is emitted by species that only
+What changes. I12 now has a measurement obtained and read. The light is emitted by species that only
 a plasma can excite, and the source concludes there is a hot plasma core. That is the author's
 claim, measured: I12 is to be scored a hit on this source. It also bears on I11: light and heat
-come together, the plasma at 15,000 K in a liquid held at room temperature.
+come together, the plasma at 15,000 K in a liquid kept at room temperature.
 
 ## Leray, Acta Mathematica 63 (1934) 193--248, in Terrell's translation, arXiv:1604.02484
 
@@ -510,12 +510,12 @@ magnitude in two ways. Ladyzhenskaya replaced the constant viscosity with one th
 the rate of deformation, and proved existence, uniqueness and stability in the large for every
 time; for equation (1) it is open. She also wrote that she would not argue for the
 systems on physical grounds. The proved regularity is bought by a stress law that is chosen instead of
-measured. The 1968 LOMI paper and the 1969 book are not held.
+measured. The 1968 LOMI paper and the 1969 book are not obtained.
 
 ## Ladyzhenskaya, *The Mathematical Theory of Viscous Incompressible Flow*, second English edition
 
 Gordon and Breach, translated by Richard A. Silverman and John Chu; preface dated Leningrad,
-autumn 1968; the file held is a later printing. A scan with no text layer, rendered and read four
+autumn 1968; the file obtained is a later printing. A scan with no text layer, rendered and read four
 pages to a sheet. This is the third of the sources Lienstromberg, Schiffer and Schubert cite.
 
 - Dedication: to her father, to V. I. Smirnov, "and Jean Leray".
@@ -775,7 +775,7 @@ derivation of it.
 problem for the Navier--Stokes equations in the presence of axial symmetry), MathNet.ru
 `znsl2240`. Read in the Russian from rendered page images, 23 pages. This is not the paper of the
 same volume that Lienstromberg, Schiffer and Schubert cite, *Modifications of the Navier--Stokes
-equations for large gradients of the velocities*, pages 126--154; that one is still not held.
+equations for large gradients of the velocities*, pages 126--154; that one is still not obtained.
 
 - Opening. At the 1966 Moscow Congress she announced unique solvability in the large of the Cauchy
   problem and one initial-boundary problem for Navier--Stokes "in the case of axial symmetry (in
@@ -807,7 +807,7 @@ the turning is what removes the guarantee.
 
 The article at en.wikipedia.org/wiki/Heaviside_step_function, read through. A tertiary source:
 it states the definitions and names Heaviside's operational calculus as the origin; it is not
-Heaviside's own text, which is still not held.
+Heaviside's own text, which is still not obtained.
 
 - Definition. $H(x) = 1$ for $x \ge 0$ and $0$ for $x < 0$; the value at zero is a convention, $1$
   (right-continuous), $0$ (left-continuous) or $\tfrac12$ (so that $H(x) = \tfrac12(1 + \mathrm{sgn}
@@ -835,7 +835,7 @@ What it bears on.
 
 ## Ożański and Pooley, arXiv:1708.09787v1, a modern review of Leray's paper
 
-Held as a guide to Leray's paper, and read at its abstract, introduction and Section 1.
+Kept as a guide to Leray's paper, and read at its abstract, introduction and Section 1.
 
 - Introduction. Leray studied the equations on the whole space $\mathbb{R}^3$ with explicit kernels;
   later authors adopted Faedo--Galerkin methods. Hopf (1951) treated bounded domains;
@@ -982,7 +982,7 @@ survive; the words do, and the notes follow them.
   $r \ne 0$, "as in the analysis of real vectors" this cannot be concluded.
 
 What changes. The research paper says the first texts of vector analysis were not read. Gibbs's
-*Elements* is now read; Heaviside is not held. Two things bear on the research paper: the
+*Elements* is now read; Heaviside is not obtained. Two things bear on the research paper: the
 Laplacian of the viscous term is, in Gibbs's words, an excess over an average on a small sphere;
 and the split into solenoidal and irrotational parts is unique only on all of space, with decay at
 infinity: the setting without a box.
@@ -1525,7 +1525,7 @@ the text layer.
   represents a potential mechanism for mechanical failure of viscoelastic solids." Onset "is
   controlled by only two dimensionless combinations of physical parameters." Thermal diffusion
   "leads to continuous and extreme localization of the strain and temperature profiles in space".
-- The model is a Maxwell slab between clamped walls held at the background temperature, with an
+- The model is a Maxwell slab between clamped walls kept at the background temperature, with an
   Arrhenius viscosity, $\eta = A^{-1}e^{E/RT}\tau^{1-n}$, and an energy equation with the shear
   heating. A slightly warmer central zone of width $h$ starts it.
 - Adiabatic case: runaway above a critical stress $\tau_c$, and the temperature rise is the stored
@@ -1724,7 +1724,7 @@ lower stress than either slips on a wall. The source does not vary how unlike th
 technique and sono-luminescence.* Read in full from the text layer.
 
 - The rig. Water forced through nozzles of 0.4 to 0.6 mm into a chamber of water, at up to 450
-  bar upstream and 1 to 5 bar downstream, with the water temperature held to within 1 °C. In the
+  bar upstream and 1 to 5 bar downstream, with the water temperature kept to within 1 °C. In the
   cases shown the jet leaves at 147 to 191 m/s, with cavitation numbers from 0.0063 to 0.025.
 - Introduction, from the work it reviews. "The inception bubbles grew intensively in the shear
   layer and developed into cloudlike coherent structures", and "the instabilities of the shear

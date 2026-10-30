@@ -30,9 +30,9 @@ meeting the anchor does not already have, and this reports that with the winner'
 non-winners' at every round. The avalanche makes the second prediction the likely one; the point is
 to measure it in this representation and not assume it.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import os

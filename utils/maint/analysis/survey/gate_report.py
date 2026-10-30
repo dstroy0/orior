@@ -9,7 +9,7 @@
 #
 # The gate exists because two corpora were measured for hours before anyone looked at them, and both were
 # found by accident. Now that there is one path that opens a corpus, the first thing worth doing is
-# running everything already held through it, since every file gathered before the gate existed was
+# running everything already stored through it, since every file gathered before the gate existed was
 # gathered without one.
 #
 # Nothing here is changed on disk. This says what each file is, and which of them have been carrying

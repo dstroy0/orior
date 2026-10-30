@@ -19,7 +19,7 @@
 #
 # Null two deletes the connectivity: keep each atom's degree exactly equal to its valence, rewire
 # which atoms are joined by drawing a random matching of the bond stubs. Every rewire closes the
-# octet, because the octet counts degree and the degree is held fixed by construction. So the octet
+# octet, because the octet counts degree and the degree is kept fixed by construction. So the octet
 # does not depart from this null at all, and the rewires it admits include self-bonded and
 # disconnected graphs that are not molecules.
 #
@@ -45,7 +45,7 @@ import manifest  # noqa: E402,F401
 from reference.shuffles import SEED, permuted  # noqa: E402
 
 # Chemistry's own valence layer: the covalent bonds a neutral, closed-shell atom forms. Not the
-# element ledger, which carries proton counts and electron sets and is consumed instead of held here.
+# element ledger, which carries proton counts and electron sets and is consumed instead of stored here.
 VALENCE = {"H": 1, "C": 4, "N": 3, "O": 2, "F": 1, "Cl": 1}
 
 Molecule = collections.namedtuple("Molecule", ("name", "atoms", "bonds"))

@@ -49,7 +49,7 @@ from representation.structure import crystal  # noqa: E402
 
 CACHE = os.path.join(ROOT, "build", "cod")
 
-# Held, which keeps a rerun reporting the same background. The draw belongs to the universe and not
+# Fixed, which keeps a rerun reporting the same background. The draw belongs to the universe and not
 # to the run.
 SEED = 0x51F7
 

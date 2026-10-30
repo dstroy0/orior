@@ -112,7 +112,7 @@ lying to itself, and both look like using the precepts. `precepts.h` and `word_w
 may be read to form a question, and to check a derivation after it has run. Nothing that derives may read them
 to fill a form in.
 
-A count of precepts held is not a score either, and the reason is separate from the one above. Put five cases
+A count of precepts satisfied is not a score either, and the reason is separate from the one above. Put five cases
 to the ladder's candidate set and one of them decides it on its own; the other four are surplus, and every one
 of the five is then implied by the rest. A count over a set like that weights one fact several times, at
 weights nobody set. Check the set down to its deciding subset before any count is taken off it.
@@ -176,7 +176,7 @@ another, no file is read before another, and no line's place in its file decides
 **Absurdities are found in layers, and the layers are a web.** Each file is read alone first and its absurdities
 found there. Then the relations between the files a target reads together, then the whole set against the schema,
 then the map from one target's set to another's, each layer built on the one before. The first look at a set is an
-experiment: the files loaded in Python and held against each other until the absurdities show. What the experiments
+experiment: the files loaded in Python and checked against each other until the absurdities show. What the experiments
 find is then the reader's own logic (`ruleset_core_relation.h`), which reads any combination of files, knows no
 target, and holds no container of the standard library: its memory is the caller's, sized from the files.
 
@@ -185,7 +185,7 @@ is then a verdict on whatever part of a set is read. A relation of absence holds
 known to be whole: it is open, and never a verdict.
 
 **The query protocol is taught the absurdities.** The text witnesses that two names are one operation, and only the
-part witnesses that they are two. What the text leaves open is put to the part as a slot's forms are, in the
+part witnesses that they are two. What the text leaves open is put to the part as a position's forms are, in the
 descent's order: the first case apart closes a pair as two operations, and a pair alike on every case asked stays
 open with its count of cases (Q19, P10 in the query protocol table). Its questions and answers are written to
 `Lstar.klq`, and each language's operations read off them to that language's `.klm`. A finding goes into the query protocol or into
@@ -275,8 +275,8 @@ reads has changed.
    order writes a 12293-step program as 17 MB of C source in one function, and the host's compiler does not finish
    it inside the harness's 1800 s. interface_sass puts its asks against the machine file the tree
    holds, 63 checks, 0 failed: 36 questions in the part's own code answer as each says, and 26 of the 27 kernels
-   written again answer as the toolchain's did. The 27th, wide_div, calls the toolchain's division and is held off
-   the part. The three codings weighed run in a loop and are held off the part, and the clock reads nothing. With
+   written again answer as the toolchain's did. The 27th, wide_div, calls the toolchain's division and is withheld from
+   the part. The three codings weighed run in a loop and are withheld from the part, and the clock reads nothing. With
    `SASS_LEARN` set it learns the machine again through the disassembler, bit by bit, and prints nothing the harness
    sees for more than 1800 s: the harness ends it. It alone
    puts cubins our own assembler wrote on the part, and every one is read on the host first: `cubin_safe`
@@ -288,7 +288,7 @@ reads has changed.
    `interface_sass_fields.sh` puts 7360 turned-bit cubins over the 75 forms to the part through the gate in 26
    minutes: the gate refuses none, no pass hangs, and the 590 bits whose key holds a branch or a wait are skipped
    before a cubin is written. A loop ask
-   branches by its nature and is held off the part until a rule says when a loop ends.
+   branches by its nature and is withheld from the part until a rule says when a loop ends.
 
 7. **One function of 132 runs on the device.** `src/cu/includes/types/integerfloats/double_fields/double_fields.cu` holds
     `double_fields.c`'s four functions as one record program, encoded, laid out and loaded by the calls

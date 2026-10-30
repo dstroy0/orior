@@ -6,22 +6,22 @@
 #
 #   Usage:  python utils/maint/texbuild/check_partition.py [repository_root]
 #
-# The partition is a rule about which measurements reach the general public. Held as a rule someone
+# The partition is a rule about which measurements reach the general public. Kept as a rule someone
 # remembers, it survives exactly as long as nobody builds a research paper without thinking about it. The name
 # guard in hooks/pre-commit makes this argument about a product name and the argument is the same
-# here, with a larger blast radius: a name in a banner is embarrassing, and a held chapter bound into
+# here, with a larger blast radius: a name in a banner is embarrassing, and a withheld chapter bound into
 # a published PDF cannot be recalled from anyone who downloaded it.
 #
 # WHAT THIS CATCHES
 #
 # theory/theory/cryptography/sha256/main.tex includes eleven chapters. Six were published from orior.
-# Five postdate them and are held. Nothing in the build errors on that combination, and `build_theory.sh`
+# Five postdate them and are withheld. Nothing in the build errors on that combination, and `build_theory.sh`
 # produces one PDF carrying both halves and looking finished. That is the defect this exists for.
 #
 # HOW IT FAILS
 #
-# Closed, in three directions. An unlisted artifact is HELD, and a new document is private until
-# somebody classifies it and never public by being forgotten. PENDING is HELD, and an undecided
+# Closed, in three directions. An unlisted artifact is WITHHELD, and a new document is private until
+# somebody classifies it and never public by being forgotten. PENDING is WITHHELD, and an undecided
 # judgment call cannot reach a public build by nobody getting round to the decision. A missing or
 # unreadable manifest errors on the run outright, because a gate that skips itself when its input moves
 # is worse than no gate: every build after that passes while still looking gated.
@@ -49,7 +49,7 @@ MANIFEST = os.path.join("theory", "PARTITION.tsv")
 # An unknown class is NOT silently ranked. `strictest` used to reach into this table directly, and a
 # typo in the manifest would have produced a KeyError at best and a wrong rank at worst; classify()
 # now errors on a class this table does not name.
-RANK = {"PUBLIC": 0, "EXTERNAL": 0, "PENDING": 1, "HELD": 2}
+RANK = {"PUBLIC": 0, "EXTERNAL": 0, "PENDING": 1, "WITHHELD": 2}
 
 # \include{chapters/foo} and \input{../macros.tex}. The argument is a path with the extension
 # usually left off, the way LaTeX writes it.
@@ -68,7 +68,7 @@ def read_manifest(root):
 
     Returns None when the manifest cannot be read, which the caller turns into an error. A parse
     that quietly returns an empty mapping would classify the entire tree as unlisted, and unlisted
-    is HELD, and the run would report every file as a finding and bury the real cause.
+    is WITHHELD, and the run would report every file as a finding and bury the real cause.
     """
     full = os.path.join(root, MANIFEST)
     if not os.path.isfile(full):
@@ -84,24 +84,24 @@ def read_manifest(root):
             if len(fields) < 3:
                 continue
             # AN UNKNOWN CLASS IS REPORTED INSTEAD OF SKIPPED. Skipping it silently is fail-closed, since
-            # the row then falls through to unlisted-is-HELD - but it is also invisible, and a
+            # the row then falls through to unlisted-is-WITHHELD - but it is also invisible, and a
             # class defined under a wrong name holds a file while its author believes it was classified. That bit
             # for real: the fifteen EXTERNAL rows added on 2026-09-11 were dropped by this line
             # until RANK learned the class, and nothing said so.
             #
-            # A file quietly held is the safe direction and still the wrong outcome, because the
+            # A file quietly withheld is the safe direction and still the wrong outcome, because the
             # manifest is the record of a decision and a decision that did not take is not recorded.
             if fields[1] == "class":
                 continue                      # the column header, which carries no leading hash
             if fields[1] not in RANK:
-                print("  MANIFEST: unknown class %r for %s, treated as unlisted and therefore HELD"
+                print("  MANIFEST: unknown class %r for %s, treated as unlisted and therefore WITHHELD"
                       % (fields[1], fields[0]))
                 continue
 
             # A SECOND ROW FOR ONE PATH IS REPORTED. This dict silently keeps the last row for a
             # path, and two rows disagreeing about a file resolve to whichever sits lower with no
             # sign that the other existed. That happened: docs/twiddle-proof.md was appended as
-            # EXTERNAL while an older HELD row for it stood twelve lines up, and the file's class
+            # EXTERNAL while an older WITHHELD row for it stood twelve lines up, and the file's class
             # then depended on line order alone.
             #
             # Silent last-write-wins is the wrong failure whichever way it lands. If the later row is
@@ -121,8 +121,8 @@ def normalize(path):
 
 
 def classify(path, manifest):
-    """The class of one artifact. Unlisted is HELD, stated here once so the default is visible."""
-    return manifest.get(normalize(path), ("HELD", "not listed in the manifest"))
+    """The class of one artifact. Unlisted is WITHHELD, stated here once so the default is visible."""
+    return manifest.get(normalize(path), ("WITHHELD", "not listed in the manifest"))
 
 
 def resolve(argument, build_dir, root):
@@ -145,7 +145,7 @@ def reachable(research_paper, root, seen=None, build_dir=None):
     """Every file a research paper pulls in, following includes through as many levels as they go.
 
     A chapter that includes a fragment puts that fragment in the research paper, and a check reading only the
-    top level would pass a research paper whose held material sits one level down.
+    top level would pass a research paper whose withheld material sits one level down.
     """
     if seen is None:
         seen = []
@@ -245,7 +245,7 @@ def main(argv):
     unlisted = [p for p in walk_prose(root) if p not in manifest]
     if unlisted:
         print("")
-        print("  %d prose artifacts are not in the manifest. Each is HELD until classified:" % len(unlisted))
+        print("  %d prose artifacts are not in the manifest. Each is WITHHELD until classified:" % len(unlisted))
         for path in unlisted:
             print("          %s" % path)
         findings += len(unlisted)

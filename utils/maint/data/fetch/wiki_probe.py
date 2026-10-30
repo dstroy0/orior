@@ -11,7 +11,7 @@
 # takes hours to say so. That is a fault in how it was written and not a fact about the source.
 #
 # One request settles which. If it answers, the pacing was the problem and a slower fetch will work. If it
-# errors, the earlier run with six at once is still being held against this address and the wait has to
+# errors, the earlier run with six at once is still being counted against this address and the wait has to
 # be longer than any of this is worth.
 
 import io

@@ -60,7 +60,7 @@ The round is written out in the order the arithmetic actually forces:
     7  a = T1 + T2, and the register shifts
 
 Nothing is reordered and nothing is skipped. Operation 6 writes exactly d + T1, the new e,
-and operation 7 writes T1 + T2 and moves the six carried words, using the values they held before
+and operation 7 writes T1 + T2 and moves the six carried words, using the values they contained before
 the write. The digest that falls out at the end is the digest, and the run prints it so that can be
 checked against any other implementation and not taken on trust.
 
@@ -123,7 +123,7 @@ K = [
 
 H0 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
 
-# The range of depths the room splits into bands, and the depth the state is held at inside it.
+# The range of depths the room splits into bands, and the depth the state is fixed at inside it.
 #
 # HOLD is a single number. The state is eight words of thirty-two bits at every operation. Its
 # size carries no information and must not move. Depth stays a setting because the boundary reading
@@ -194,7 +194,7 @@ def trace(block, rounds):
 
     The round is serialized exactly as STEPS describes it and no value is invented along the way:
     operation six writes d + T1, the new e, and operation seven writes T1 + T2 and moves
-    the six carried words using the values they held before that write. Running the whole thing and
+    the six carried words using the values they contained before that write. Running the whole thing and
     reading the digest off the end is what checks that, and main prints it.
     """
     words = schedule(block)

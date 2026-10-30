@@ -33,9 +33,9 @@ first hash's finished output as its message, and that output already depends on 
 second-hash round is supported from the start. The elision window lives in the first hash's second
 block, and that is where this looks.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import os

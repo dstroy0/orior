@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: PRO-x-005
 #
-# The Ramachandran rules, held in one place so the protein stages read them the same way.
+# The Ramachandran rules, kept in one place so the protein stages read them the same way.
 #
 #   Usage:  from ramachandran_rules import angle, load_contours, region, score
 #

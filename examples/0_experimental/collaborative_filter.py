@@ -75,7 +75,7 @@ def predict_item(matrix, row, column):
 
 def additive_table(users, items, hold_out):
     """value[r][c] = u[r] + v[c], with effects shared across several rows and columns so neighbors
-    exist, and a held-out set of entries set MISSING. Returns the holed table and the clean values.
+    exist, and a withheld set of entries set MISSING. Returns the holed table and the clean values.
     """
     u = [((r % users) + 1) * 10 for r in range(users * 2)]  # two rows per user effect
     v = [((c % items) + 1) * 3 for c in range(items * 2)]  # two columns per item effect
@@ -98,7 +98,7 @@ def main():
     )
     out.write("  collaborative filtering: the group-mean over a table with holes\n")
     out.write(
-        "  declared inputs: user effects=4 item effects=4, every 5th entry held out\n\n"
+        "  declared inputs: user effects=4 item effects=4, every 5th entry withheld\n\n"
     )
 
     holed, clean, held = additive_table(4, 4, hold_out=5)
@@ -114,7 +114,7 @@ def main():
         agree += pu == pi
     filled = len(held) - declined
     out.write(
-        "  positive control (row effect + column effect), %d held-out entries:\n"
+        "  positive control (row effect + column effect), %d withheld entries:\n"
         % len(held)
     )
     out.write("    user-based recovered exactly:  %d / %d\n" % (user_ok, filled))

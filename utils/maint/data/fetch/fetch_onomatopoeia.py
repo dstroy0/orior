@@ -106,7 +106,7 @@ def main():
         if os.path.isfile(target):
             with open(target, encoding="utf-8") as handle:
                 held = [line.strip() for line in handle if line.strip()]
-            out.write("  %-14s %-38s %-8d already held\n" % (language, why, len(held)))
+            out.write("  %-14s %-38s %-8d already present\n" % (language, why, len(held)))
             landed += 1
             continue
 

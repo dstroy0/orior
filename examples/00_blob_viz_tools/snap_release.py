@@ -472,7 +472,7 @@ def _entropy(qubits=8):
     THE THREE MEASURES ARE INDEPENDENT. They could easily have been three forms of one number,
     and if they were, two of them would be waste:
 
-        RANK      mean entanglement over every balanced cut of ONE graph. What correlation is held.
+        RANK      mean entanglement over every balanced cut of ONE graph. What correlation is retained.
         FAMILY    log2 of the local complementation orbit. How many descriptions are the same
                   state. How much of the representation is convention.
         TENSION   the second moment of the EDGE COUNT response to a twist. How hard the binding is
@@ -569,7 +569,7 @@ def _entropy(qubits=8):
             print("  one quantity defined three ways and two of them are redundant here.")
         else:
             print("  The three orderings differ. Each measure carries something the other two do")
-            print("  not: held correlation, description freedom, and resistance to being twisted are")
+            print("  not: retained correlation, description freedom, and resistance to being twisted are")
             print("  separate properties of the same graph.")
     return 0
 

@@ -115,7 +115,7 @@ def main():
         if os.path.isfile(target):
             with open(target, encoding="utf-8") as handle:
                 held = [line for line in handle if line.strip()]
-            out.write("  %-12s %-9s %-9d already held\n" % (language, "", len(held)))
+            out.write("  %-12s %-9s %-9d already present\n" % (language, "", len(held)))
             continue
 
         with open(source, encoding="utf-8") as handle:

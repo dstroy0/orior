@@ -183,7 +183,7 @@ def summarize(args, out):
         out.write("  ERROR: shards %s of %d are missing.\n\n" % (absent, whole))
         return 1
     if walked != total:
-        out.write("  ERROR: the shards walked %d entries and the cache held %d.\n\n" % (walked, total))
+        out.write("  ERROR: the shards walked %d entries and the cache contained %d.\n\n" % (walked, total))
         return 1
 
     out.write("\n  %d entries in the cache, every one walked\n" % total)

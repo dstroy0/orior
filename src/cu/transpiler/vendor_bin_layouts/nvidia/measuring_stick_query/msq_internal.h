@@ -30,7 +30,7 @@
 static const unsigned char s_nop[16] = {0x18u, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
                                         0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc0u, 0x0fu, 0x00u};
 
-// the operations that transfer control or wait, which a question's slot must never be (cubin_safe.c, the same list)
+// the operations that transfer control or wait, which a question's position must never be (cubin_safe.c, the same list)
 static const char *const s_control[] = {"BRA",   "BRX",   "JMP",  "JMX",      "CALL",   "RET",   "EXIT",   "BSSY",
                                         "BSYNC", "BREAK", "BMOV", "WARPSYNC", "YIELD",  "BAR",   "DEPBAR", "NANOSLEEP",
                                         "BPT",   "RTT",   "KILL", "RPCMOV",   "RETIRE", "PMTRIG"};
@@ -46,7 +46,7 @@ static const char *const s_control[] = {"BRA",   "BRX",   "JMP",  "JMX",      "C
 
 static const char s_illegal_why[] = "the vendor reads an illegal instruction our gate's key passed";
 
-// a slot's reading: none where the vendor printed no instruction at its offset, its operation and its text past the
+// a position's reading: none where the vendor printed no instruction at its offset, its operation and its text past the
 // guard where it read one, or illegal
 typedef enum
 {
@@ -88,7 +88,7 @@ typedef struct
     unsigned long long size;
 } MsqBytes;
 
-// a question: its answers' stem, its code's name, its slot, the registers its kernel allots, its container's code, and
+// a question: its answers' stem, its code's name, its position, the registers its kernel allots, its container's code, and
 // its probe instruction as the part would be handed it, where the code contains the probe
 typedef struct
 {
@@ -150,7 +150,7 @@ typedef struct
     int readable;
 } MsqFrame;
 
-// one piece the cross reads: a distinct slot encoding, a frame, or a distinct tail, all of them read together as one
+// one piece the cross reads: a distinct position encoding, a frame, or a distinct tail, all of them read together as one
 // accumulated run (msq_accumulated_read)
 typedef enum
 {
@@ -200,7 +200,7 @@ typedef struct
 } MsqPool;
 
 // what the cross records, stored as it goes: the gated list, the report, the lines it reports of each refusal, the
-// refusals the teacher reads, and the slots it read clear, a line `<stem> <operation>` each, for a conference the gate
+// refusals the teacher reads, and the positions it read clear, a line `<stem> <operation>` each, for a conference the gate
 // may call
 typedef struct
 {

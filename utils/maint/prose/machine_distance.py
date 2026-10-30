@@ -17,7 +17,7 @@
 # utils/maint/prose/fixtures/machine_reference.md is the other pole. It is a page written deliberately
 # in the machine register, at full strength, by the machine, about the work being done in this
 # repository. Matching the subject makes it usable, because it is not a distance to a 1667 epic or
-# to a linguistics paper. Genre, locale and era are all held fixed and the only thing left free
+# to a linguistics paper. Genre, locale and era are all kept fixed and the only thing left free
 # to vary is the register.
 #
 # THE SPLIT boundary_check ALREADY USES
@@ -278,7 +278,7 @@ def halves(text):
 # is not the difference of two small ones. The number was doing duty it could not do at either end:
 # too strict on a short file and far too lenient on a long one.
 #
-# Measured instead. Half the papers held out as the reference pole, the other half cut into disjoint
+# Measured instead. Half the papers withheld as the reference pole, the other half cut into disjoint
 # blocks, each block scored the way a repository file is scored. Every block is human. The spread
 # is what the instrument does to a text of that length. Reference pole 372,922 words, probe pool
 # 366,833 words, machine pole 35,303 words, the two poles 0.3356 apart.
@@ -340,7 +340,7 @@ def band_at(count):
 def measure_band(out, machine_text, human_text):
     """Measure HUMAN_BAND again, for when either pole changes.
 
-    The reference pole has to be held out of the blocks it scores. Sentences alternate into a
+    The reference pole has to be excluded from the blocks it scores. Sentences alternate into a
     reference half and a probe half, the probe half is cut into disjoint blocks, and each block is
     scored the way a repository file is. Alternating and not cutting at the midpoint, for the reason
     recorded on halves: a midpoint cut lands on a paper boundary and reports the distance between

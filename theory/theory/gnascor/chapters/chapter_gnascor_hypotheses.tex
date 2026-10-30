@@ -37,13 +37,13 @@ dependent chain cheaper than its depth times the instruction latency.
 \label{sec:h2}
 
 \textbf{Hypothesis.} The states of the machine fall into two classes. States decided by which
-sides held (lead, rite, void, wait, gray, blok) are reproducible exactly from run to run. States
+sides satisfied (lead, rite, void, wait, gray, blok) are reproducible exactly from run to run. States
 decided by cost (busy against dual, tilt against drop, fuse against drop) vary with the host's load
 and are reproducible only as rates. The gate and rank rule of Chapter~\ref{ch:protocol} holds
 inside the state alphabet itself.
 
 \textbf{Evidence.} Over 80 runs of one scenario every bit-decided state repeated in every run,
-and every difference between runs was a both-held cycle reading busy in place of dual, at 5\% in
+and every difference between runs was a both-satisfied cycle reading busy in place of dual, at 5\% in
 one batch and 9.4\% in the other (Section~\ref{sec:repeat}). Both sides of a pair came in past the
 busy edge together 3.4 times as often as independence predicts. A slow moment of the host slows
 both sides at once. busy reads load common to the pair, the common-mode noise of a measurement

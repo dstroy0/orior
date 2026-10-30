@@ -16,7 +16,7 @@ uniquely and one of the two was never read.
 
 WHY THE TABLE IS A SEPARATE FILE
 
-A rewrite table has to quote the banned text it replaces. Held inside this module, that put those
+A rewrite table has to quote the banned text it replaces. Kept inside this module, that put those
 phrases into a checked Python file and the gate flagged the tool for containing the very strings it
 exists to remove. The table is data. It sits in prose_fixes.tsv, which the gate does not read, and
 this module stays prose the gate can hold to its own standard.

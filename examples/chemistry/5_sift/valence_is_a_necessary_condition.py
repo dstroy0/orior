@@ -121,7 +121,7 @@ def handshake_ok(atoms, bonds):
 def null_pass_rate(atoms, bonds, draws):
     """Fraction of element-label permutations, drawn by the engine's shuffle, that still close.
 
-    The bond graph is held and the multiset of elements is held; the deleted part is which element
+    The bond graph is kept and the multiset of elements is kept; the deleted part is which element
     sits at which atom. permuted preserves every count exactly. Each draw is a genuine
     rearrangement of the same atoms and never invents or loses one.
     """
@@ -217,7 +217,7 @@ def main():
     out.write(
         "\n  %s\n"
         % (
-            "every control held."
+            "every control passed."
             if ok
             else "a control did not hold; read the rows above."
         )

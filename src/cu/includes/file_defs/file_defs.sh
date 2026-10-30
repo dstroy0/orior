@@ -28,7 +28,7 @@ FILE_DEFS_CXX="$(dirname "$(command -v cc)")/c++"
 
 # MMgr, which the formats write their text through (verba_scribo.h): FILE_DEFS_MMGR, its include folders and settings
 # and its modules' sources, for a program that links MMgr and none of the formats, and in FILE_DEFS with the formats'.
-# The compiler takes an include folder and a setting for every source it is given wherever they stand among them, so a
+# The compiler takes an include folder and a setting for every source it is given wherever they stand among them, and a
 # program that links the formats and includes MMgr itself is built with them too
 FILE_DEFS_MMGR_TOP="$FILE_DEFS_SOURCE/../mmgr"
 FILE_DEFS_MMGR_FLAGS=(-I "$FILE_DEFS_MMGR_TOP/include" -I "$FILE_DEFS_MMGR_TOP/src"

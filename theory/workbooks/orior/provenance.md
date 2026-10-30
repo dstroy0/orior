@@ -11,7 +11,7 @@ instrument answers which claim, and say which proposed mechanisms do not work.
 | claim | plain statement | instrument | secret needed to verify |
 |---|---|---|---|
 | authorship | this work is mine | a signature over a manifest | none, the public key verifies |
-| priority | I held it before anyone else | a timestamp nobody can move | none, the chain verifies |
+| priority | I had it before anyone else | a timestamp nobody can move | none, the chain verifies |
 | terms | derivatives stay open | the AGPL | none, it is a license |
 
 The three fail independently, and an instrument for one is worthless for the others. A signature
@@ -64,7 +64,7 @@ work of the whole chain from that point forward. The consequence is the property
 That is the correct use of the chain for this purpose, and it is the instrument that answers *no one
 can be first ahead of me*. The digest goes on chain. Nothing else does.
 
-**Add independent third-party records.** Each carries its own date, held by a body with no stake in
+**Add independent third-party records.** Each carries its own date, kept by a body with no stake in
 the claim:
 
 * the Wayback Machine, for the published pages
@@ -110,7 +110,7 @@ because a forgery is indistinguishable from a genuine signature by construction.
 withdraws future trust and un-signs nothing, and a key committed once is in every clone and every
 archive from then on.
 
-The claim in section 3 depends on the key being held by one person. A shipped key removes the
+The claim in section 3 depends on the key being owned by one person. A shipped key removes the
 authorship claim entirely, and it removes it retroactively.
 
 ### 5.2 A passphrase in an answer file

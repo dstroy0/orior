@@ -766,7 +766,7 @@ def word_gaps(document):
 
 def calibrated_share(document):
     """A word-space threshold for this paper's own setting: 0.02 em over the 99.9th percentile of
-    its gaps inside words, held between 0.1 and 0.18. Brown's gaps inside words reach 0.113 em at
+    its gaps inside words, kept between 0.1 and 0.18. Brown's gaps inside words reach 0.113 em at
     the 99.9th and its word spaces open at 0.18, where a justified line sets wil precedes 0.17 apart."""
     inside, spaced = word_gaps(document)
     if not inside:

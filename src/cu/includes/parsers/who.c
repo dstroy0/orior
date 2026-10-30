@@ -165,7 +165,7 @@ static unsigned int who_source_number(const char *file)
 }
 
 // the number of the program's own source: the last source the table gives whose name without its kind is the
-// program's, a header after every other; 0 where none is. The table only grows, so a source given a new path stands
+// program's, a header after every other; 0 where none is. The table only grows: a source given a new path stands
 // after the row its old path retains
 static unsigned int who_program_number(void)
 {

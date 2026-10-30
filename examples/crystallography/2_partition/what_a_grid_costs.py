@@ -15,7 +15,7 @@
 # all, because a dense grid grows as the cube of its side and a large cell will not fit under the cap.
 #
 # The exact partition sets neither. Points are integers at 1e-1024 angstroms and only the occupied
-# places are held. A large cell then costs what its sites cost, and nothing decides a smallest
+# places are stored. A large cell then costs what its sites cost, and nothing decides a smallest
 # difference.
 #
 # Both arms are swept here against the published edges, and the scale is swept on top of the exact

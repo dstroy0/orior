@@ -60,7 +60,7 @@ def main():
     header, rows = lines_of[0], lines_of[1:]
     paper = gen.Paper(stem)
     held = spans(paper)
-    out = ['"""The oracle of %s, its rows as a person read them off the page, each form held to the page' % stem,
+    out = ['"""The oracle of %s, its rows as a person read them off the page, each form bound to the page' % stem,
            'line it stands on where the page text holds it."""',
            "import os", "import sys", "", 'sys.path.insert(0, os.environ["SALISHAN_TOOLS"])',
            'sys.stdout.reconfigure(encoding="utf-8")', "import gen  # noqa: E402", "",
@@ -79,7 +79,7 @@ def main():
     out += [")", "for row, lines in ROWS:", "    paper.keep(row, lines)", "paper.write_oracle(HEADER)", ""]
     with open(target, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("\n".join(out))
-    print("%s: %d rows, %d held to no line" % (target, len(rows), loose))
+    print("%s: %d rows, %d bound to no line" % (target, len(rows), loose))
 
 
 if __name__ == "__main__":

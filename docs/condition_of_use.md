@@ -40,13 +40,13 @@ That band is where a native speaker belongs. The question there is _is this mine
 
     For a language with few remaining speakers, publishing a form drawn from outside the distribution as though it were the language is not a recoverable harm.
 
-## What is held closed
+## What is kept closed
 
-In many traditions a language or a story is held under restriction, open to some people and closed to the rest, and it cannot be separated from law and country. A repository serving a file is not permission to use what is in it, and the license on this code says nothing about it.
+In many traditions a language or a story is kept under restriction, open to some people and closed to the rest, and it cannot be separated from law and country. A repository serving a file is not permission to use what is in it, and the license on this code says nothing about it.
 
 Use of that material needs the permission of the people who hold it, on their terms. Where their terms say no, the answer is no.
 
-The method strips the meaning out of a text, and one instrument can then read a script nobody can read and a protein chain alike. Where a language is held as sacred, that step does not miss part of the thing. It mistakes what the thing is, and every number it returns would be about something else.
+The method strips the meaning out of a text, and one instrument can then read a script nobody can read and a protein chain alike. Where a language is regarded as sacred, that step does not miss part of the thing. It mistakes what the thing is, and every number it returns would be about something else.
 
 ## People named by their writing
 

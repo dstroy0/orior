@@ -22,7 +22,7 @@ between the two files is the separation the two stages buy.
 EVERY VALUE IS THREE INTEGERS: a quotient, a remainder and a divisor, the value q + r/d with
 0 <= r < d. Integer adds and integer division move them, and every operation carries its remainder
 forward. Nothing is rounded at any width. No floating point value is formed anywhere here. The
-noise is a sum of fair coins, every solve is fraction-free integer elimination, and a spread is held
+noise is a sum of fair coins, every solve is fraction-free integer elimination, and a spread is kept
 as its square. No root is taken. Each figure prints its quotient and its remainder over its
 divisor, and every figure is written in full to build/engine/measure_check.tsv.
 
@@ -65,7 +65,7 @@ FIGURES = []
 
 
 class Exact:
-    """A value held as three integers: quotient, remainder and divisor, q + r/d with 0 <= r < d."""
+    """A value stored as three integers: quotient, remainder and divisor, q + r/d with 0 <= r < d."""
 
     __slots__ = ("q", "r", "d")
 
@@ -251,7 +251,7 @@ def ladder_squares(truth, got, repeats):
 
 
 def solve(matrix, rhs):
-    """Fraction-free integer elimination. Each unknown is held[i] / divisor; a divisor of 0 is a singular system."""
+    """Fraction-free integer elimination. Each unknown is numerators[i] / divisor; a divisor of 0 is a singular system."""
     size = len(matrix)
     rows = [list(matrix[at]) + [rhs[at]] for at in range(size)]
     previous = 1
@@ -267,14 +267,14 @@ def solve(matrix, rhs):
             rows[at] = [((pivot * rows[at][col]) - (factor * rows[step][col])) // previous for col in range(size + 1)]
         previous = pivot
     divisor = rows[size - 1][size - 1]
-    held = [0] * size
+    numerators = [0] * size
     for at in range(size - 1, -1, -1):
-        rest = (divisor * rows[at][size]) - sum(rows[at][col] * held[col] for col in range(at + 1, size))
+        rest = (divisor * rows[at][size]) - sum(rows[at][col] * numerators[col] for col in range(at + 1, size))
         quotient, remainder = divmod(rest, rows[at][at])
         if remainder != 0:
             raise ArithmeticError("elimination left a remainder at row %d" % at)
-        held[at] = quotient
-    return divisor, held
+        numerators[at] = quotient
+    return divisor, numerators
 
 
 def columns_of(masks, links):
@@ -319,8 +319,8 @@ def subset_squares(truth, rng, runs):
         masks.append(mask if mask != 0 else 1 << rng.randrange(LINKS))
     seen = [covered_sum(mask, truth) + noise(rng, 1) for mask in masks]
     matrix, rhs = normal_system(masks, seen, LINKS)
-    divisor, held = solve(matrix, rhs)
-    squares = sum((value - (divisor * cost)) ** 2 for value, cost in zip(held, truth))
+    divisor, numerators = solve(matrix, rhs)
+    squares = sum((value - (divisor * cost)) ** 2 for value, cost in zip(numerators, truth))
     return Exact(squares, divisor * divisor * UNIT * UNIT)
 
 
@@ -343,8 +343,8 @@ def check_adjacent(say, rng, trials):
         truth = truth_of(rng)
         got = ladder_read(truth, rng)
         squares = squares + ladder_squares(truth, got, 1)
-        held, total = kendall(truth, got)
-        agree += held
+        concordant, total = kendall(truth, got)
+        agree += concordant
         pairs += total
         best += int(first_most(got) == first_most(truth))
         worst += int(first_least(got) == first_least(truth))
@@ -371,7 +371,7 @@ def check_adjacent(say, rng, trials):
 def check_repetition(say, rng, trials):
     """2. Repetition fixes check 1, and the descent through repeat counts says how far it carries.
 
-    The steering the engine does, put to repetition. One population of chains is held, and each
+    The steering the engine does, put to repetition. One population of chains is kept, and each
     level reads every chain again at more repeats. The pairs a level orders wrongly are the ones
     still standing, and a level counts only when it leaves strictly fewer standing than the level
     above it. The first level that does not prune ends the descent, and every level below it is
@@ -380,7 +380,7 @@ def check_repetition(say, rng, trials):
     say("2. HOW FAR REPETITION CARRIES")
     say("")
     population = [truth_of(rng) for _ in range(max(40, trials // 8))]
-    say("   %d chains held, read again at every level." % len(population))
+    say("   %d chains kept, read again at every level." % len(population))
     say("")
     say("   repeats    noise/link squared    pairs ordered    most expensive found    misordered")
     standing = None
@@ -579,8 +579,8 @@ def check_known_against_drawn(say, rng, trials):
     say("   The known order wins on every row and wins by more the further out the row is.")
     say("   %d of %d draws came apart not at all and cost the whole pass." % (lost, trials))
     say("")
-    say("   An engine answering every time is held to its worst case. A drawn order has no worst")
-    say("   case to be held to, and a known one is the same every pass by construction.")
+    say("   An engine answering every time is bounded by its worst case. A drawn order has no worst")
+    say("   case to be bounded by, and a known one is the same every pass by construction.")
     return ratios, lost
 
 
@@ -656,7 +656,7 @@ def check_additive(say, rng, trials):
             term = sum(terms, Exact(0)) / count
             after = sum((one for one, _, _ in fixed), Exact(0)) / count
             if spread is None:
-                # the term's spread at no contention, held as its square: the mean square less the square of the mean
+                # the term's spread at no contention, stored as its square: the mean square less the square of the mean
                 spread = (sum((value * value for value in terms), Exact(0)) / count) - (term * term)
                 base = hurt
                 base_after = after
@@ -737,7 +737,7 @@ def main():
     say("5  the known order wins by %s at the median worst-link error, %s at the 95th and %s"
         % tuple(show(ratio) for ratio in ratios))
     say("   at the worst, and %d drawn orders came apart not at all. An engine answering every" % lost)
-    say("   time is held to its worst case.")
+    say("   time is bounded by its worst case.")
     say("6  where links contend the costs do not add. Over the asks sweeping the count covered:")
     for hundredths, damage, fires, after in swept:
         say("   at %d hundredths a pair the answers are %s as far off, the term fires on %s%%, and"

@@ -20,13 +20,13 @@ The standard gate set `{X, Y, Z, S, H, CNOT, CZ, controlled-T}` needs only a sho
 
 and an element is four exact rationals. The field is closed under `+ - * /`, and every amplitude a
 circuit over that gate set can reach stays inside it. `H`'s `1/sqrt2 = (1/2)*sqrt2` and the
-controlled phase's `(1+i)/sqrt2` are held exactly and never decay. The ring `Z[1/sqrt2, i]` inside
+controlled phase's `(1+i)/sqrt2` are represented exactly and never decay. The ring `Z[1/sqrt2, i]` inside
 this field is where exact Clifford+T synthesis is carried out [2]. The reference
 implementation carries the quadruple as four exact rationals and uses no numeric library.
 
 ## Compact form (matrix product state)
 
-The state is held as one small tensor per qubit, joined by bonds, as in a matrix product state [3].
+The state is stored as one small tensor per qubit, joined by bonds, as in a matrix product state [3].
 The bond across a cut is the exact Schmidt rank there. After every two-qubit gate the bond is
 trimmed by a rank-revealing factorization `M = C*F` computed by exact Gaussian elimination over the
 field. No singular value is ever formed. Cost scales with the entanglement actually present instead of

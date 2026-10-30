@@ -37,7 +37,7 @@ import lexical_suffix_origins  # noqa: E402
 
 TARGET = os.path.join(ROOT, "build", "salishan_gold", "lexical_suffix_origins.in")
 
-# lexical_suffix_origins.py's own settings: P1 was read at 5000 shuffles, and a language is held with
+# lexical_suffix_origins.py's own settings: P1 was read at 5000 shuffles, and a language is kept with
 # 3 or more suffixes and 10 or more nouns. It seeds its shuffles with SEED.
 PERMUTATIONS = 5000
 SEED = 1998

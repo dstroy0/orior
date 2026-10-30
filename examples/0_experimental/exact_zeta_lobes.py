@@ -5,7 +5,7 @@
 #
 # The two device stages of exact_zeta_lobes.cu driven over one cell: the curves the Riemann-Siegel remainder R holds
 # at every point, and the logarithm the main sum's phase turns by. One lane a point, each stage checked against the
-# host word for word, each output held against the exact value it stands for.
+# host word for word, each output checked against the exact value it stands for.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_lobes.py [binary]
 #
@@ -19,11 +19,11 @@
 #
 # THE CURVE STAGE
 #
-# C_n(z) is the sum over j of g_(n,j) z^j, each g a Taylor coefficient of C_n held as an integer at the binary scale
+# C_n(z) is the sum over j of g_(n,j) z^j, each g a Taylor coefficient of C_n stored as an integer at the binary scale
 # 2^E, read by Horner's rule as H_n = sum over j of g_(n,j) Zt^j 2^(b (J_n - 1 - j)). Curve n's part of R x^(1/2) is
 # s C_n(z) x^(-n), and over the common denominator X^K it is the integer T_n = s H_n 2^(b n) X^(K - n), each output
 # at its own binary exponent. The coefficients come from Gabcke's generator in exact_zeta_riemann_siegel.py, trimmed
-# where they fall below the scale, and each lane's C_n(z) read back from the device is held against c_at's exact
+# where they fall below the scale, and each lane's C_n(z) read back from the device is checked against c_at's exact
 # rational.
 #
 # THE LOG STAGE
@@ -32,7 +32,7 @@
 # the least common multiple of the odd numbers below 2L, the first L terms sum to 2 l S / (Lambda D^(2L - 1)) with
 # S = sum over k < L of c_k l^(2k) D^(2(L - 1 - k)). The stage outputs the four integers l S, D^(2L - 1), l^(2L + 1)
 # and D^2 - l^2: A lies at or above 2 l S / (Lambda D^(2L - 1)) and below that plus the tail
-# 2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2)). Each lane's bracket is held against zz's exact 2 artanh(l / D).
+# 2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2)). Each lane's bracket is checked against zz's exact 2 artanh(l / D).
 
 import array
 import os

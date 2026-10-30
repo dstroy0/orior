@@ -8,7 +8,7 @@
 #   Usage:  python maint/data/fetch/fetch_treebanks.py
 #
 # Polish humor turns on using a word correctly to use it incorrectly, and the structural reason
-# is that Polish forms are shared across grammatical slots. Seven cases over three genders collapse into
+# is that Polish forms are shared across grammatical cells. Seven cases over three genders collapse into
 # far fewer distinct forms than the paradigm allows. One written word is often correct under two or
 # three different parses at once. English cannot do this from its morphology, having almost none left, and
 # has to find two unrelated words that happen to sound alike.
@@ -87,7 +87,7 @@ def fetch(url):
 def fetch_train(repository, filename):
     """The training file, or the lettered parts a large treebank splits it into, joined in order.
 
-    Czech and Russian are held as cs_pdt-ud-train-a.conllu through -c and similar, and asking for
+    Czech and Russian are stored as cs_pdt-ud-train-a.conllu through -c and similar, and asking for
     the plain name gives a 404 that reads as a missing treebank when the treebank is there.
     """
     base = "%s/%s/master/" % (BASE, repository)
@@ -124,7 +124,7 @@ def main():
         if os.path.isfile(target) and (os.path.getsize(target) > 200000):
             with open(target, encoding="utf-8", errors="replace") as handle:
                 tokens = sum(1 for line in handle if line and line[0].isdigit())
-            out.write("  %-12s %-34s %-10d already held\n" % (language, note, tokens))
+            out.write("  %-12s %-34s %-10d already present\n" % (language, note, tokens))
             landed += 1
             continue
 

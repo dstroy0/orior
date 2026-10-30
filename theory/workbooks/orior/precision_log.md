@@ -59,7 +59,7 @@ Two notes from that check:
 ### The wrap finding, reproduced
 
 `theory/theory/cryptography/twiddle_constants/main.tex` line 205: the first device kernel agreed with the host
-on `2013265921` and differed in every slot on the other two, because two residues below a modulus
+on `2013265921` and differed in every element on the other two, because two residues below a modulus
 above `2^31` sum past `2^32` and wrap silently in `uint32`, and the borrow in the difference does the
 same. Reproduced here: for two residues just under the modulus, the `uint32`-wrapped sum reduced mod
 `p` equals the true sum mod `p` for `2013265921` (below `2^31`) and disagrees for both `2281701377`
@@ -160,7 +160,7 @@ floor:
   per field, decimal inputs read by `representation.exact`; no fraction or math library, after Douglas
   refused a first build that used both. The ABC solution reproduced by the velocity recurrence and by
   the vorticity recurrence to the integer at orders 0 to 4; a generic datum's Taylor coefficients measured to
-  outrun any fixed mode horizon (`|k|_1` climbs by one per order, 6, 18, 42, 88, 170 modes held); the
+  outrun any fixed mode horizon (`|k|_1` climbs by one per order, 6, 18, 42, 88, 170 modes kept); the
   energy identity exact at `t = 0`; the time and space scalings exact; the viscosity and force removals
   shown on instances; the countable island of nameable fields inside the data class (8).
 - `evidence/proofs/posits/proof_boundary_inheritance.py`: the boundary kind read off each object by two

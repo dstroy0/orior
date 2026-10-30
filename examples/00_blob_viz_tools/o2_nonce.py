@@ -34,9 +34,9 @@ that nonce and looks for it in the window around it. A run is believed only when
 that nonce and the nonce reproduces the block's own id. A cheap condition that breaks this is
 reported instead of trusted.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import hashlib

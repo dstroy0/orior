@@ -4,7 +4,7 @@
 # Catalog: EXP-x-029
 #
 # Harish-Chandra's spherical function of the hyperbolic plane, by two routes on the device, over a grid of the
-# spectral parameter r and u = sinh^2(d / 2), held against each other within a bound on each, and against the exact
+# spectral parameter r and u = sinh^2(d / 2), checked against each other within a bound on each, and against the exact
 # rational series at the grid's corners.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_spherical.py <binary> [r_bits] [u_bits]

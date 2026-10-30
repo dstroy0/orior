@@ -24,7 +24,7 @@ Directives are HTML comments, each alone on its line, and the generator removes 
     <!--PART object.js-->     a file of the unit's own, read from beside the template
 
 Pieces go into the script in the order their directives appear. A tool another tool requires goes
-in once, ahead of its first use. Three slots receive the result:
+in once, ahead of its first use. Three placeholders receive the result:
 
     /*SCRIPT*/               the namespace line and every JS piece, each under `// ---- label ----`,
                              closed by `// ---- end ----`
@@ -32,11 +32,11 @@ in once, ahead of its first use. Three slots receive the result:
                              `/* ---- end ---- */`
     /*DATA*/ null            the builder's data as JSON; the null keeps an unbuilt template parsing
 
-The closing label ends the last piece. A template's own code after a slot is never read as part of
+The closing label ends the last piece. A template's own code after a placeholder is never read as part of
 a tool.
 
-A data slot may hold any whitespace between the marker and its null. A template carries at most one
-data slot, and data handed to a template with none is refused instead of dropped. A template that
+A data placeholder may hold any whitespace between the marker and its null. A template carries at most one
+data placeholder, and data handed to a template with none is refused instead of dropped. A template that
 leaves a script element open is refused: published, the closing tags after it land inside the script
 as a syntax error and the whole page is dead, while the file opened on its own still runs.
 

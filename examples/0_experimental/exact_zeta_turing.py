@@ -57,7 +57,7 @@
 #
 # THE CELLS BELOW 168 PI
 #
-# With em, cells `first` to `last` run by Euler-Maclaurin, from cell 1 up, and N at cell `last` + 1's F, T_a, is held
+# With em, cells `first` to `last` run by Euler-Maclaurin, from cell 1 up, and N at cell `last` + 1's F, T_a, is certified
 # by Riemann-Siegel over cells `last` to `last` + 2. Where the certified sign changes in (cell `first`'s F, T_a] number
 # N(T_a), every zero up to T_a is on the line and simple.
 #
@@ -78,9 +78,9 @@
 #
 # THE MACHINE
 #
-# N is held at F of every cell, with the window back to F of the cell before and the one on to F of the cell after.
+# N is certified at F of every cell, with the window back to F of the cell before and the one on to F of the cell after.
 # A cell whose certified zeros fall short of the difference of N at its F and the next cell's F, and the cells about
-# an F where N is not held to one value, are run again on a lattice four times finer, and the counts are taken again. Where every cell closes, every zero from the second
+# an F where N is not certified to one value, are run again on a lattice four times finer, and the counts are taken again. Where every cell closes, every zero from the second
 # cell's F to the last cell's is a certified sign change: on the line, and simple.
 #
 # With refine, each cell runs by the multiple evaluation with F', and Z' = 2 Re(exp(i theta) F (i theta' + F'/F)) at
@@ -90,7 +90,7 @@
 # by pairs at the points listed with their own Z' (the device's method 4), and again inside it where a fine step is
 # not clean, to REFINE_DEPTH times. With check, a step whose ends change sign closes only where the cubic's slope
 # clears the steepness and Z crosses it once, and a run holding one that does not is certified again the same way.
-# Every zero it adds is a certified sign change, held between two certified points, and a cell still short runs
+# Every zero it adds is a certified sign change, bracketed between two certified points, and a cell still short runs
 # again on the whole lattice four times finer.
 #
 # Positive control: the device's Z at two points of the first cell against the house's main sum and remainder,
@@ -146,7 +146,7 @@ CURVES = 1 + min(range(len(GABCKE)), key=lambda k: GABCKE[k] ** 4 / Fraction(200
 
 
 def floor_at_scale(value):
-    """A value held at WORK, floored to 2^62."""
+    """A value stored at WORK, floored to 2^62."""
     return value >> GUARD_BITS
 
 
@@ -288,7 +288,7 @@ def transform_error(nu, p, e_theta, e_held, weighted=False):
     the sum over k of q_k / (z_h - w_k), each pole's charge q_k = -a_k (1 - exp(-2 pi i pos_k)) w_k / P at most
     2 k^(-1/2) / P in size. The poles as the device holds them, pos_k and a_k each within its error, are poles of the
     same kind: F over them is F over the true poles within the sum over k of e_a + 2 pi k^(-1/2) (2 nu + 1) e_ln, and
-    what follows is the error on F over the poles held.
+    what follows is the error on F over the poles kept.
 
     Truncation: a pole of a source box S at level l, carried to a target box T of its interaction list, |T - S| >= 3
     boxes, is 1 / (z - w) = (1 / (sigma_S D)) sum of binom(m + n, n) x^n y^m, |x|, |y| <= rho / |D|, rho = pi / 2^l,
@@ -528,7 +528,7 @@ class Control:
     C(p) = T(p) + (1 - exp(-mu(p))) C(q), q the next lattice up, T(p) the time a run at 2^p points takes. The points
     cost T, the misses cost the run they force, and p is the least C, moved at most one a cell.
 
-    c is held as the ratio of the zeros missed to the sum of Z / r^3 over the cells measured, starting from the GUE's
+    c is taken as the ratio of the zeros missed to the sum of Z / r^3 over the cells measured, starting from the GUE's
     value with the weight of PRIOR cells' worth of misses; a cell's misses are the shortfall N holds it to.
     T(p) = f + a 2^p, f and a fit by least squares to the runs timed, f from FIXED and a from the first run until two
     lattices are timed. None of it touches the proof: the count certifies whatever lattice a cell runs on."""
@@ -853,7 +853,7 @@ def refine(binary, constants, cell, spans, check=False):
     with `check` where Z crosses it once; a span closes where all its steps do. Each zero lies between two certified fine points, and the sums
     take the earlier point's S rounded down to the cell's lattice and the later one's rounded up: a later point than
     the zero's makes N's upper bound looser and an earlier one its lower bound, both still bounds. A zero the device's
-    count already holds in a span, held at the span's coarse ends, stands for the first found in it. A span still open
+    count already holds in a span, certified at the span's coarse ends, stands for the first found in it. A span still open
     after the last lattice gives the zero its ends' signs certify, where they change. Returns the points listed, the
     zeros added, the spans still open and the host checks that failed."""
     listed, added, failed = 0, 0, 0
@@ -981,7 +981,7 @@ def control_em(cell, other=None, bounds_sum=None):
 
 def main_em(binary, first, last, rate):
     """Every zero up to T_a, cell `last` + 1's F, by Euler-Maclaurin over cells `first` to `last`, against N(T_a)
-    held by Turing's method over cells `last`, `last` + 1 and `last` + 2 by Riemann-Siegel.
+    certified by Turing's method over cells `last`, `last` + 1 and `last` + 2 by Riemann-Siegel.
 
     A dead reckoning walk: each point's Z is a fix, its bound the error about it, and a point clearing its bound is a
     certified sign. Where the count falls short, a cell with a mark of two uncertified points, or every cell where
@@ -1071,7 +1071,7 @@ def main():
         return cell, bound
 
     def shortfall(nu):
-        """The zeros cell nu misses, from N held at its F and the next cell's: 0 where it closes."""
+        """The zeros cell nu misses, from N certified at its F and the next cell's: 0 where it closes."""
         low = math.ceil(below(cells[nu], cells[nu - 1]))
         high = math.floor(above(cells[nu + 1], cells[nu + 2]))
         return max(0, high - low - between(cells[nu], cells[nu + 1]))
@@ -1111,7 +1111,7 @@ def main():
         loose = [nu for nu, (low, high) in held.items() if low != high]
         short = [nu for nu in range(first + 1, last) if held[nu + 1][1] - held[nu][0] > between(cells[nu], cells[nu + 1])]
         count = sum(between(cells[nu], cells[nu + 1]) for nu in range(first + 1, last))
-        print("  round %d: %d zeros certified, %d cells short %s, %d points where N is not held to one value" %
+        print("  round %d: %d zeros certified, %d cells short %s, %d points where N is not certified to one value" %
               (round_, count, len(short), short[:12], len(loose)))
         if not short or round_ == ROUNDS:
             break

@@ -51,7 +51,7 @@ RANKS = 64
 CLICKS = "cxq"
 
 AFRICAN = ("zulu", "xhosa", "shona", "somali", "wolof", "afrikaans")
-# Latin written languages held on the same translated text, for what those letters usually do
+# Latin written languages loaded on the same translated text, for what those letters usually do
 BESIDE = (
     "para_english",
     "para_spanish",
@@ -85,7 +85,7 @@ def main():
                 held[name[5:]] = text[:SAME_LENGTH]
 
     if len(held) < 6:
-        out.write("  only %d languages held\n" % len(held))
+        out.write("  only %d languages loaded\n" % len(held))
         out.flush()
         return 0
 

@@ -59,7 +59,7 @@ def main():
 
     packed = read()
     if not packed:
-        sys.stderr.write("sources.csv held nothing usable\n")
+        sys.stderr.write("sources.csv contained nothing usable\n")
         return 1
 
     payload = {"rounds": ROUNDS, "sources": {}}

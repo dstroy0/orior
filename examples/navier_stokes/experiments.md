@@ -2,16 +2,16 @@
 
 The matched core of Duraiswami (arXiv 2609.17642, Section 7) is the leading-order system of OpenAI 2026, eq. (4.13),
 in the paper's profile variables, solved from data on the axis and joined to the heat exterior by a blend psi. The
-goal is to show that the system, the family and the six matching functions held here are the paper's, as exact
+goal is to show that the system, the family and the six matching functions stored here are the paper's, as exact
 relations, with no number in the comparison.
 
 ## Rules for every experiment
 
-- Nothing infinite is summed. A series is held as the rule that gives its coefficient of order k, and a coefficient
+- Nothing infinite is summed. A series is represented as the rule that gives its coefficient of order k, and a coefficient
   is computed only where one is asked for. No series is cut at an order, no sum is taken to a length, and no value is
   written to a number of places.
 - A function that is not a polynomial, the core's fields as functions of X, psi, w, E1 and e^(-1/s) among them, is a
-  held term carried with the exact relations that define it, and is never evaluated.
+  symbolic term carried with the exact relations that define it, and is never evaluated.
 - A check passes or fails only where the answer is exact: an identity reduces to 0 or it does not. An identity over
   the orders of a series is checked at a general order k, never for k up to a bound.
 - No printed decimal of the paper enters. The paper's numbers are rounded, and a comparison with them is not exact.
@@ -19,16 +19,16 @@ relations, with no number in the comparison.
 
 ## 0. What the tree holds
 
-`term_form` holds exact forms in held terms, e at a rational power. `eta_function` holds exact functions of eta over
+`term_form` holds exact forms in symbolic terms, e at a rational power. `eta_function` holds exact functions of eta over
 powers of L = 1 - 2 h eta^2. `decay_integral` writes int_0^b s^k e^(-n/s) ds as two terms. `witness_cube`, `record`
 and `run_cfg` measure, write and read.
 
-## 1. Series held by their rule
+## 1. Series represented by their rule
 
 A series in X is the sum over k of its entries a_k X^k. An expression in the entries at a general order k is a sum of
 parts. A part is a factor times one entry at k plus a fixed shift, or a Cauchy product: the sum over i of a factor
 times one entry at i and one at k + c - i, an entry at a negative order being 0. A factor is a polynomial in eta, h,
-k and i over a power of L, and an entry carries a derivative in eta of its field. Each expression is held in one
+k and i over a power of L, and an entry carries a derivative in eta of its field. Each expression is stored in one
 normal form, and two are equal exactly when their difference is 0.
 
 The operations are X f, d/dX, X d/dX, the product of two series, a shift of k, and the eta operators L^-1, eta,
@@ -52,14 +52,14 @@ Check (`core_rule`): the coefficient of X^k of each of the four equations, taken
 1, equals the rule's at a general k: the rule solves the system at every order at once. With one part of the rule
 changed it does not. The rule takes F_0 and P_0 even in eta and U_0 odd to F_k and P_k even and U_k odd at every k.
 
-## 3. Held functions and their relations
+## 3. Symbolic functions and their relations
 
-F, U, v0 and Pi as functions of (X, eta), psi, w, E1 and e^(-1/s) are held terms, each with the relations that define
+F, U, v0 and Pi as functions of (X, eta), psi, w, E1 and e^(-1/s) are symbolic terms, each with the relations that define
 it: the system of 2, psi' = psi (1 - 2 s) / (s (1 - s))^2, Kummer's equation for w, and E1' = -e^(-x) / x. An integral
-of a product of held functions is a held term of its own, with its derivative and the relation integration by parts
+of a product of symbolic functions is a symbolic term of its own, with its derivative and the relation integration by parts
 gives.
 
-An expression is held in one normal form (`jet_rule`): eta^2 is written as 1 - d, the powers of X, d and 2 are held
+An expression is stored in one normal form (`jet_rule`): eta^2 is written as 1 - d, the powers of X, d and 2 are kept
 with exponents a + b h, and every derivative a relation reaches is written through it.
 
 Check (`matching_rule`): the exterior F_ext = (c / sqrt 2) (2d)^(-1-h) w(X / (2d)), with Kummer's equation for w,
@@ -68,9 +68,9 @@ solves T_{-(A+1/2)} F - 2 (X F)_XX = 0 exactly, and X F_ext does not.
 ## 4. The six matching functions
 
 The net torque X tau_theta(X_b), the net force sqrt(X) tau_z(X_b), M(inf), J(inf), S(inf) with the exterior tail taken
-off, and int_0^inf (H - H_pow) dX, each an exact form in the held terms of 3.
+off, and int_0^inf (H - H_pow) dX, each an exact form in the symbolic terms of 3.
 
-Check (`matching_rule`): with V = X v0 and Pi held by V_X = L^-1 (2 A eta U - d U_eta + 2 eta X U_X) and Pi_X = F^2,
+Check (`matching_rule`): with V = X v0 and Pi defined by V_X = L^-1 (2 A eta U - d U_eta + 2 eta X U_X) and Pi_X = F^2,
 the torque int X R_theta and the force int R_z each equal a boundary bracket and a local integrand for any F and U,
 and with one part changed they do not. The tail of H, int (z w - z^(-h)) dz = (z^2 (w' - w) + z^(1-h)) / (h - 1), the
 tail of S, int X F_ext^2 dX = -c^2 X^(-2h) / (4h) + (c^2 / 2) (2d)^(-2h) int (z w^2 - z^(-1-2h)) dz, and
@@ -79,14 +79,14 @@ does not. No order of the core and no length of a blend enters.
 
 ## 5. The pressure datum
 
-The datum Pi_0 = G(Pi_0) is stated as a relation on a held function Pi_0 of eta, never taken by steps. Whether it has
+The datum Pi_0 = G(Pi_0) is stated as a relation on a symbolic function Pi_0 of eta, never taken by steps. Whether it has
 exactly one solution is the lemma of the workbook's chapter on terms to put back. G reads the core out to X_b, and the
 first thing the lemma needs is a radius in X the core's series is proved to reach, every bound of the proof exact.
 
 Check (`core_radius`): on the ellipses E_rho over the segment [-1, 1], one scale per order,
 |f|_k = sup ||f||_rho (rho0 - rho)^k, the rule of 2 bounds |F_k|_k, |U_k|_k, |P_k|_k and |v_k|_(k+1) order by order
 from the data: a witness, exact to an order N. Two inequalities at N carry x_k <= B r^-k / (k + 1) to every order past
-N, and the series reaches X < r (rho0 - rho_min). The derivative d f' is held at the feet eta = -1 and eta = +1, where
+N, and the series reaches X < r (rho0 - rho_min). The derivative d f' is fixed at the feet eta = -1 and eta = +1, where
 d is 0: (1 - eta^2) T_m' = m (T_(m-1) - T_(m+1)) / 2 bounds it with no rho_min, and that bound proves three to nine
 times the radius the bound through f' alone does.
 
@@ -187,7 +187,7 @@ estimates. The data are the cfg's, F_0 = 1, and not the matched datum of 5: ever
 
 The datum's right side G(Pi_0) = -int_0^(X_b) F_blend^2 dX - int_(X_b)^inf F_ext^2 dX holds the exterior, and the
 exterior is not analytic at eta = -1 and +1: F_ext is the second solution U of Kummer's equation at X / (2d), and
-its expansion as d falls to 0 diverges. G therefore leaves every space of functions analytic on an ellipse about [-1, 1], and the datum is held on
+its expansion as d falls to 0 diverges. G therefore leaves every space of functions analytic on an ellipse about [-1, 1], and the datum is defined on
 a cut |eta| <= a < 1, where the exterior is analytic. The rule is local in eta, its integrals all in X, and the cut
 problem is closed.
 

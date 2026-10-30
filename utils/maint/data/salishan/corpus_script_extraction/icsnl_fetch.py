@@ -133,7 +133,7 @@ def main():
         landed += 1
         out.flush()
 
-    out.write("\n  %d papers held, text beside each PDF in %s\n" % (landed, PAPERS))
+    out.write("\n  %d papers stored, text beside each PDF in %s\n" % (landed, PAPERS))
     out.flush()
     return 0
 

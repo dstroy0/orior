@@ -6,7 +6,7 @@
 #
 #   Usage:  python maint/data/fetch/fetch_authors.py
 #
-# Nothing held here has two works by one writer. Every English text in the corpus is one book by one
+# Nothing stored here has two works by one writer. Every English text in the corpus is one book by one
 # person. A comparison between two of them is a comparison between two writers as much as anything
 # else, and a language reading taken across them carries whoever wrote them inside it.
 #

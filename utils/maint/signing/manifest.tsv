@@ -8,7 +8,7 @@
 # Then anchor the signature: `ots stamp manifest.tsv.asc`. The signature says
 # who and the anchor says when, and neither answers the other's question.
 #
-# KEEP THIS FILE PRIVATE WHILE THE WORK IS HELD. The anchor is over a digest and
+# KEEP THIS FILE PRIVATE WHILE THE WORK IS WITHHELD. The anchor is over a digest and
 # discloses nothing; this file names paths and therefore does.
 #
 # tree	path	bytes	sha256

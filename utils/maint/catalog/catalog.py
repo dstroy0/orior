@@ -256,7 +256,7 @@ def stamp(text, number):
 
     Returning None carries the difference. A file
     already carrying the right number returns its text unchanged. The caller could not tell a file it had nothing to
-    do to from a file it could not write to, and reported both as stamped. The registry then held a
+    do to from a file it could not write to, and reported both as stamped. The registry then contained a
     number for a file whose header would never carry it, --check reported it adrift forever, and the
     remedy --check named was the run that had just silently skipped it.
     """

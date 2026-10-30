@@ -12,7 +12,7 @@
 | `4_measure`   | `regeneration_limit.py`                 | how much of a set a summary can put back                                                  |
 | `4_measure`   | `scale_ladder.py`                       | separating what was made from how it was recorded, across scales                          |
 | `4_measure`   | `fixed_pattern_removed_to_the_bit.py`   | fixed-pattern video noise removed to the bit                                              |
-| `4_measure`   | `noise_across_formats_and_qualities.py` | the same removal held across image formats and kinds of noise                             |
+| `4_measure`   | `noise_across_formats_and_qualities.py` | the same removal verified across image formats and kinds of noise                             |
 | `4_measure`   | `classify_reject_recover.py`            | classify the noise on a stack, reject it, return the clean subject with exact uncertainty |
 
 Stages three, five and six are not present for this subject.

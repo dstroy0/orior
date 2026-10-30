@@ -125,7 +125,7 @@ const refresh = (count = 1) => {
     ready.forEach((timer) => timer.fn());
   }
 };
-// Time passing with the frame clock held, as a browser holds it for a hidden page or a stopped loop.
+// Time passing with the frame clock stopped, as a browser holds it for a hidden page or a stopped loop.
 const wait = (ms) => {
   now += ms;
   const ready = timers.filter((timer) => timer.at <= now);
@@ -151,7 +151,7 @@ out.throws = health();
 out.throwsShown = made.some((one) => one.id === "loopAlarm" && !one.hidden);
 
 fresh();
-EV.watchLoop("held", () => {}).wake();
+EV.watchLoop("stopped", () => {}).wake();
 wait(1600);
 out.dead = health();
 

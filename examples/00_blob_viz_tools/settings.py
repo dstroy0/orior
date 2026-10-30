@@ -17,7 +17,7 @@ that opens in the wrong state looks like a bug in the viewer.
 
 One definition per setting serves both the --set command and the shared control bar. A unit names
 the settings its bar carries and hands `schema` the names; the bar draws a control per entry from
-the kind, the range and the fallback held here. The command and the bar read one source, and a
+the kind, the range and the fallback stored here. The command and the bar read one source, and a
 setting cannot mean one thing on the command line and another in the bar.
 
 A unit whose control covers less than a setting's full range narrows it to a sub-range here, never

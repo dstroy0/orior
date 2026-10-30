@@ -56,6 +56,6 @@ The code generator writes each program's lane from a ruleset, with one `.krs` fi
 | [`src/cu/transpiler/lstar/interface/`](https://github.com/dstroy0/orior/tree/main/src/cu/transpiler/lstar/interface)     | the cell, a probe runner: a probe asks the target one question in a child process the cell can lose                                                                 |
 | [`examples/qasm/`](https://github.com/dstroy0/orior/tree/main/examples/qasm)                                         | exact qubit states, read from OpenQASM                                                                                                                              |
 
-The method works like this: write C source, read the SASS it compiles to, and compare that with what NVIDIA's compiler writes for the same program (Q17). Every slot that a `.krs` file fills in by hand is checked by asking the part, the same way `loop_back_if` is asked of sm_86 (Q16).
+The method works like this: write C source, read the SASS it compiles to, and compare that with what NVIDIA's compiler writes for the same program (Q17). Every field that a `.krs` file fills in by hand is checked by asking the part, the same way `loop_back_if` is asked of sm_86 (Q16).
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

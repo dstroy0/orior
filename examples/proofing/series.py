@@ -110,7 +110,7 @@ def divide(product, top, bottom, places):
 
 
 def divide_binary(product, top, bottom, bits):
-    """floor(top * 2^bits / bottom). The same routine in the base the fixed point is held in.
+    """floor(top * 2^bits / bottom). The same routine in the base the fixed point is stored in.
 
     Kept beside the decimal one instead of folded into it because the two are used in different
     places and a single function taking a base would put a branch in front of every call for no

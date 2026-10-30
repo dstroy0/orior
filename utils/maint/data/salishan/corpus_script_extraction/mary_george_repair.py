@@ -6,7 +6,7 @@
 #
 #   Usage:  from mary_george_repair import repaired
 #
-# Held in one file because the reader, the hand extraction check and the coverage check all apply it.
+# Kept in one file because the reader, the hand extraction check and the coverage check all apply it.
 # Two copies drift, and a check then reports as a hole every word one copy put together.
 #
 # THE GRAVE IS GLOTTALIZATION HERE, NOT STRESS

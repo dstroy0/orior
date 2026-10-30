@@ -1,7 +1,7 @@
 # The compression state deforming a boundary, twenty five slices
 
 Twenty five frames of `sha_clock_view.html` at one fixed camera, one frame per listed round, with
-every other input held still. The sequence exists because the surface visibly changes shape across
+every other input kept still. The sequence exists because the surface visibly changes shape across
 the clock, and a sequence taken under stated conditions is the difference between that being an
 observation and being a measurement.
 
@@ -59,7 +59,7 @@ continuously and does not jump.
 ## The intervention, which establishes the cause
 
 An observation that the picture changes when the clock advances does not say what changed it,
-because the clock advances everything. So the beam was moved instead, with the state held still:
+because the clock advances everything. So the beam was moved instead, with the state kept still:
 
 | condition | mean radius | `d_z` | `q_zz` |
 | --- | ---: | ---: | ---: |

@@ -52,7 +52,7 @@ It binds this class only. A skipping search decides ranges from one read and nev
 
 ### F6. The trichotomy
 
-A descent stops, recurses, or refuses. It stops when the destroy test fires, recurses when a level prunes, and refuses when the question is malformed. There is no branch in which it revisits a state it already held.
+A descent stops, recurses, or refuses. It stops when the destroy test fires, recurses when a level prunes, and refuses when the question is malformed. There is no branch in which it revisits a state it was already in.
 
 **Check:** `test_adversarial` case 12. Seven malformed questions refused, each against a sentinel filled buffer, a refusal that returned zero after writing would be caught. Placed offsets required pairwise distinct, since placing an already placed probe leaves the survivor set unchanged and would be a revisit.
 
@@ -277,7 +277,7 @@ The oracle column is flat across a 65536 fold increase in sigma, with no trend. 
 
 **The crossover is at roughly six times the corpus length.** Fitting the table above 2^20 gives about `0.16 + 1.78e-6 * sigma` ms, meeting the oracle's 1.6 ms near sigma 809000 against a corpus of 131072. Table wins below it, oracle wins above and keeps winning.
 
-**The durable claim is about memory.** Sigma 2^32 is not measured and was not allocated: 16.0 GB of counters at four bytes a slot. The timing carries a caveat, and that caveat is the reason to prefer the memory claim. The table route in the bench callocs and frees its counters every iteration, and a real caller searching many needles against one fixed corpus builds the census once and amortizes it, which widens the table's time advantage and means the time column overstates the oracle's case. Memory does not amortize. 16 GB is 16 GB whether it is paid once or a thousand times.
+**The durable claim is about memory.** Sigma 2^32 is not measured and was not allocated: 16.0 GB of counters at four bytes a counter. The timing carries a caveat, and that caveat is the reason to prefer the memory claim. The table route in the bench callocs and frees its counters every iteration, and a real caller searching many needles against one fixed corpus builds the census once and amortizes it, which widens the table's time advantage and means the time column overstates the oracle's case. Memory does not amortize. 16 GB is 16 GB whether it is paid once or a thousand times.
 
 **One behavioral note from the same run.** `placed` came back 2 at sigma 2^8 and 2^12 and 1 from 2^16 up: at a large alphabet the first probe cuts the survivors far enough that a second adds nothing. That also explains why the oracle's small sigma rows are its slowest. The extra time there is the second probe's work.
 

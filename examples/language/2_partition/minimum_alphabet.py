@@ -75,7 +75,7 @@ def main():
             held[label] = text[:SAME_LENGTH]
 
     if len(held) < 6:
-        out.write("  only %d languages held\n" % len(held))
+        out.write("  only %d languages loaded\n" % len(held))
         out.flush()
         return 0
 

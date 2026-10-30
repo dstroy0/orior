@@ -50,7 +50,7 @@ static void check_that(int passed, const char *what)
 
 // the rooms a file read or a record rendered is stored in, so that four stand at once, and the bytes each contains. A
 // file is at most what a record contains, but its text form is not bounded by it: a word of one byte in the record can
-// be sixteen hex digits in the text, so a room grows to what it is required to contain
+// be sixteen hex digits in the text, and a room grows to what it is required to contain
 static char *s_room[4];
 static size_t s_room_bytes[4];
 

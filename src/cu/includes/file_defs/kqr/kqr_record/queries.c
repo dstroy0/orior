@@ -142,7 +142,7 @@ static int kqr_identity_matches(const KrepRecord *entry, const KqrIdentity *iden
            (memcmp(entry->word, words, (KQR_QUERY_WORDS - 1u) * sizeof(unsigned long long)) == 0);
 }
 
-// the slot of `identity`: the one containing it, or the empty one it would be put in
+// the bucket of `identity`: the one containing it, or the empty one it would be put in
 unsigned int kqr_slot_of(const KqrRecord *record, const KqrIdentity *identity)
 {
     unsigned int at = (unsigned int)(kqr_identity_hash(identity) & (KQR_SLOTS - 1u));
@@ -274,7 +274,7 @@ unsigned int kqr_sample_words(KqrRecord *record, const KqrSample *sample, unsign
     return count;
 }
 
-// every slot, sample and the pairs' start that stands at the record `from` or past it moved `by` records on
+// every bucket, sample and the pairs' start that stands at the record `from` or past it moved `by` records on
 void kqr_shifted(KqrRecord *record, unsigned int from, unsigned int by)
 {
     for (unsigned int at = 0u; at < KQR_SLOTS; at += 1u)

@@ -54,7 +54,7 @@ import numpy
 
 
 class GraphMachine(object):
-    """n qubits, entanglement held as one bit per pair.
+    """n qubits, entanglement stored as one bit per pair.
 
     The adjacency is the state. There is no amplitude array, and so the cost is quadratic in
     the qubit count and not exponential.

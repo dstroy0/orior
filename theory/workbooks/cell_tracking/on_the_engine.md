@@ -7,13 +7,13 @@
 
 ### M2. The residual operator
 
-The unit sweeps against the key: **proved**, 0 of 419,430,400 lanes differ on 44b6_0113de3b's 100 frames and 0 on 400 more frames (6bba_48816121, 6bba_09961292, 6bba_cdcfe533, 44b6_0b24845f); 14.0 ms a frame against the key's 29.0 on 44b6_0113de3b, 14.3 against 28.1 on the four (**measured**). Held again after every error-wiring build of proved on 100 frames, 0 lanes differ.
+The unit sweeps against the key: **proved**, 0 of 419,430,400 lanes differ on 44b6_0113de3b's 100 frames and 0 on 400 more frames (6bba_48816121, 6bba_09961292, 6bba_cdcfe533, 44b6_0b24845f); 14.0 ms a frame against the key's 29.0 on 44b6_0113de3b, 14.3 against 28.1 on the four (**measured**). Confirmed again after every error-wiring build of proved on 100 frames, 0 lanes differ.
 
 The cell program's scan runs it on the 25 at 34 bits in and 10 limbs out, 20.1 ms a frame (**measured**; cell table, S1).
 
 ### M5. The correlation operator C
 
-The box (`--box`) on 44b6_0113de3b: **proved**. C is read at the 27 shifts around every climbed lag and at the drift for 726,273 climbers (every forward pair and every null draw): 20,335,644 cells, 30,196,969 entries, 15.3 s. A cell meeting more labels than the kernel's table (10,507 cells) writes its raw pieces and the host merges them, with no cap. At the climbed lag, C sums to the climb's held count on all 726,273; the climbed lag is the highest of its 27 neighbors on all 726,273; at the drift, C equals `body_overlap` on all 80,697 labels.
+The box (`--box`) on 44b6_0113de3b: **proved**. C is read at the 27 shifts around every climbed lag and at the drift for 726,273 climbers (every forward pair and every null draw): 20,335,644 cells, 30,196,969 entries, 15.3 s. A cell meeting more labels than the kernel's table (10,507 cells) writes its raw pieces and the host merges them, with no cap. At the climbed lag, C sums to the climb's retained count on all 726,273; the climbed lag is the highest of its 27 neighbors on all 726,273; at the drift, C equals `body_overlap` on all 80,697 labels.
 
 ### M9. The files
 
@@ -29,7 +29,7 @@ Every wiring build checked on 44b6_0113de3b: 38/0/12 edges and 0 lanes differ, b
 
 ### M14. The scheduler
 
-`track_driver` submits through it: `--ingest` is one job and each `--run` part is one; the signum is the part's name and the whole effective request; the declaration is the largest sample's lattice in 16-bit lanes, from the source's description for `--ingest` (`engine_source_lanes`, which reads no voxel) and from the `.iapx` head otherwise; the times are 2 s holding, 20 ms sweep and 5 s idle; a job that is not taken, or is held and lost, fails its part. **Measured** on 44b6_0113de3b, with the driver and the daemon built to `build/verify_driver` (exit 0) and run in a scratch `TESSERA_STATE`. The ingest is granted its declaration of 838,860,800 bytes and peaks at 5,091,037,184 (25,392 ms), sample root ad3d9846…, set root b68d522c…. Two proves in a row are each granted 838,860,800 and peak at 3,958,566,912 and 3,962,761,216, with the same roots. The history is then 128 bytes, two records and the seal, and the daemon ends once idle. A second run on the real state gives the same declarations and ingest peak, and the two prove peaks in the other order: identical requests measure 4,194,304 bytes (2^22) apart.
+`track_driver` submits through it: `--ingest` is one job and each `--run` part is one; the signum is the part's name and the whole effective request; the declaration is the largest sample's lattice in 16-bit lanes, from the source's description for `--ingest` (`engine_source_lanes`, which reads no voxel) and from the `.iapx` head otherwise; the times are 2 s holding, 20 ms sweep and 5 s idle; a job that is not taken, or is withheld and lost, fails its part. **Measured** on 44b6_0113de3b, with the driver and the daemon built to `build/verify_driver` (exit 0) and run in a scratch `TESSERA_STATE`. The ingest is granted its declaration of 838,860,800 bytes and peaks at 5,091,037,184 (25,392 ms), sample root ad3d9846…, set root b68d522c…. Two proves in a row are each granted 838,860,800 and peak at 3,958,566,912 and 3,962,761,216, with the same roots. The history is then 128 bytes, two records and the seal, and the daemon ends once idle. A second run on the real state gives the same declarations and ingest peak, and the two prove peaks in the other order: identical requests measure 4,194,304 bytes (2^22) apart.
 
 ## From the tessera scheduler: the driver submits (24 September)
 
@@ -39,7 +39,7 @@ Every wiring build checked on 44b6_0113de3b: 38/0/12 edges and 0 lanes differ, b
 - **The declaration** is the largest sample's lattice in 16-bit lanes. For `--ingest` it comes from the source's description (`engine_source_lanes`, which reads no voxel); for every other part, from the `.iapx` head.
 - **The times** are 2 s holding, 20 ms sweep and 5 s idle.
 - **The daemon** is `tessera_daemon` beside the driver, which the driver starts when none answers.
-- **A part fails** if its job is not taken, or is held and lost; `--override` admits a held job on its declaration.
+- **A part fails** if its job is not taken, or is withheld and lost; `--override` admits a withheld job on its declaration.
 
 Measured on 44b6_0113de3b, in a scratch state directory:
 
@@ -49,7 +49,7 @@ Measured on 44b6_0113de3b, in a scratch state directory:
 | `--run iapx-prove` | 838,860,800 | 3,958,566,912 |
 | `--run iapx-prove` again | 838,860,800 | 3,962,761,216 |
 
-The history then held two records and the seal (128 bytes), and the daemon ended once idle. A second run on the real state gave the same declarations and ingest peak, with the two prove peaks in the other order.
+The history then contained two records and the seal (128 bytes), and the daemon ended once idle. A second run on the real state gave the same declarations and ingest peak, with the two prove peaks in the other order.
 
 The two findings these runs gave are the scheduler's, in [tessera_scheduler.md](../engine/tessera_scheduler.md).
 
@@ -82,7 +82,7 @@ The two findings these runs gave are the scheduler's, in [tessera_scheduler.md](
 
 ### §17. The floor laid down first: the driver
 
-The `.cfg`'s `floor` section names where each sample's noise keys are held (`--floor <dir>` on the command line).
+The `.cfg`'s `floor` section names where each sample's noise keys are stored (`--floor <dir>` on the command line).
 
 | claim | status |
 |---|---|
@@ -116,7 +116,7 @@ So every body the tree finds already carries its ℓ ≤ 2 fingerprint as exact 
 | a precision floor of 10^−68 | not so: the arithmetic is exact, with no floor |
 | a split is a boundary discontinuity, confirmed over the whole sample by an entropy bump that settles; a lysis by one that bleeds out | theory; bodies' fates are built, the entropy test is not; the division term (0.1 of the score) is 0 today |
 | mitosis and lysis change fluidics far around them | theory |
-| each body's ℓ ≤ 2 harmonics held exactly | built: mass, first and second moments per body in the component tree |
+| each body's ℓ ≤ 2 harmonics stored exactly | built: mass, first and second moments per body in the component tree |
 | linking bodies by their ℓ ≤ 2 fingerprint wins back the neighboring node losses | theory; the direct test against 19.6% on the five 6bba samples |
 | spherical harmonics above ℓ = 2 | theory; they need the body's surface, not only its moments |
 

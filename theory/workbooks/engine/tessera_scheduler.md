@@ -22,7 +22,7 @@ Let the device hold C bytes. At time τ, the driver reports U(τ) bytes in use o
 - r_j, its reservation: r_j starts at d_j and only grows;
 - u_j(τ), the bytes its process holds now, measured by pid.
 
-The bytes held by processes outside tessera are
+The bytes occupied by processes outside tessera are
 
   O(τ) = U(τ) − Σ_j u_j(τ)
 
@@ -56,7 +56,7 @@ is kept under its signum σ_j, the BLAKE3 root of its request. The engine is det
 
 - **The ledger** (`tessera_ledger.{c,h}`) is pure: the accounting, backfill and the deadline heap, with no socket, clock or device. Every rule above is a function of its inputs, and the suite proves it without a GPU.
   - Proved: 143,808 cases, 0 failed. The headroom identity holds on 2,000 random states. The deadlines fire in time order. Budget, hold, override and lost pass their 18 checks. Idle teardown passes its 4. Backfill never moved the head's shadow later, over 121,586 admissions in 20,000 random scenarios, every one of which ran to completion.
-  - Found by the suite: a run released before its first measure had recorded a peak of 0, and every later run of that signum was held as over budget. A peak now enters the history only if the run was measured at least once.
+  - Found by the suite: a run released before its first measure had recorded a peak of 0, and every later run of that signum was withheld as over budget. A peak now enters the history only if the run was measured at least once.
 - **The frame** (`tessera.h`) is 128 bytes, little-endian, the same on every platform: magic, version, kind, the override, the device's UUID (16 bytes) and LUID, the request's signum, its declared bytes, its three times, and the bytes, measure and identity of a reply.
   - Asks: submit, override, release, precalc saved.
   - Tells: admitted, asked, grew, lost, released, refused.
@@ -84,8 +84,8 @@ is kept under its signum σ_j, the BLAKE3 root of its request. The engine is det
   - A waiting job k behind the head is admitted now if d_k ≤ H and either it ends before the shadow (now + t_σk ≤ S) or it fits in the spare (d_k ≤ X, and then X falls by d_k).
   - A job whose signum has no history has no duration: it can never be proved not to delay the head, and it is not backfilled. It waits its turn, and its first run records (p_σ, t_σ).
   - If a job overruns its expected end, the head's shadow moves later. That is measured and reported like a growth, never hidden.
-- **Time: the soonest change is the root.** "what I want is the shortest time to change of anything to be the root because that is most likely event, in order". Every deadline goes into one min-heap keyed by the time until it changes something: each live job's next sweep, each held job's holding expiry, the idle teardown. The daemon waits on its socket for at most the root's remaining time, handles the root, pushes that item's next deadline and takes the new root. Events are handled strictly in time order, and nothing is polled on a fixed tick. The shortest sweep among live jobs falls out of the heap without being chosen.
-- **Lost and found keeps the work.** When a held job stalls past its grace time, the daemon appends its ticket (identity, signum, pid, declared, peak, measured, times, reason) to `hst/lnf.log` as a sealed block and tells the client, with the log's path. The client keeps its precalc and says so; the daemon then appends a sealed note for that identity. The job can be resumed and not recomputed.
+- **Time: the soonest change is the root.** "what I want is the shortest time to change of anything to be the root because that is most likely event, in order". Every deadline goes into one min-heap keyed by the time until it changes something: each live job's next sweep, each withheld job's holding expiry, the idle teardown. The daemon waits on its socket for at most the root's remaining time, handles the root, pushes that item's next deadline and takes the new root. Events are handled strictly in time order, and nothing is polled on a fixed tick. The shortest sweep among live jobs falls out of the heap without being chosen.
+- **Lost and found keeps the work.** When a withheld job stalls past its grace time, the daemon appends its ticket (identity, signum, pid, declared, peak, measured, times, reason) to `hst/lnf.log` as a sealed block and tells the client, with the log's path. The client keeps its precalc and says so; the daemon then appends a sealed note for that identity. The job can be resumed and not recomputed.
 
 **The seal.** The seal is `obsignatio_seal`, BLAKE3 keyed at the file level (`OBSIGNATIO_LEVEL_FILE`), and it runs on the host. The daemon still makes no CUDA call and holds no device context.
 
@@ -105,7 +105,7 @@ A program's driver runs every job through tessera, one job a part. Its signum, i
 - **The declaration** is the largest sample's lattice in 16-bit lanes. For `--ingest` it comes from the source's description (`engine_source_lanes`, which reads no voxel); for every other part, from the `.kcr` head.
 - **The times** are 2 s holding, 20 ms sweep and 5 s idle.
 - **The daemon** is `tessera_daemon` beside the driver, which the driver starts when none answers.
-- **A part fails** if its job is not taken, or is held and lost; `--override` admits a held job on its declaration.
+- **A part fails** if its job is not taken, or is withheld and lost; `--override` admits a withheld job on its declaration.
 
 Measured on 44b6_0113de3b, in a scratch state directory:
 
@@ -115,7 +115,7 @@ Measured on 44b6_0113de3b, in a scratch state directory:
 | `--run kcr-prove` | 838,860,800 | 3,958,566,912 |
 | `--run kcr-prove` again | 838,860,800 | 3,962,761,216 |
 
-The history then held two records and the seal (128 bytes), and the daemon ended once idle. A second run on the real state gave the same declarations and ingest peak, with the two prove peaks in the other order.
+The history then contained two records and the seal (128 bytes), and the daemon ended once idle. A second run on the real state gave the same declarations and ingest peak, with the two prove peaks in the other order.
 
 Two findings, both measured:
 

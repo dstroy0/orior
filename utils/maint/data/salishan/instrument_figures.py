@@ -11,7 +11,7 @@
 # chapters/figures_orior_salishan.tex, and each macro is read from the check that measures it:
 #   coverage_check.py   the hand extractions, the automatic extractors and the papers fully accounted for;
 #   sift_extract.py     the papers screened, the lines nearer the language and the residue;
-#   corpus_admit.py     the admission table and the languages held only as candidates;
+#   corpus_admit.py     the admission table and the languages kept only as candidates;
 #   boundary_check.py   how much more text the whole-distribution comparison needs at the dialect border;
 #   gold_readings.cu    every distance, split-half distance, verdict and median, exact on the record
 #                       machine, read from build/salishan_gold/gold_figures.tex, which
@@ -30,7 +30,7 @@
 # midpoint split-half distance above the alternating one for every corpus; every pair of languages
 # reading at the alternating split; no paper reading from its screened lines, and none too small to
 # ask; at least one paper reading from its tool extraction, and every one that reads agreeing with its
-# prose; Lushootseed admitting every candidate; at least one corpus refusing all of its own. Each is held here, and where one fails nothing is written and the file
+# prose; Lushootseed admitting every candidate; at least one corpus refusing all of its own. Each is stored here, and where one fails nothing is written and the file
 # exits 1, since a figure set into a sentence that no longer holds is wrong.
 #
 # The macros file is rewritten only where its text changes, and each path rewritten is printed as
@@ -108,7 +108,7 @@ def gold_macros(path=GOLD):
 
 
 def admission():
-    """The admission table's rows and the languages held only as candidates."""
+    """The admission table's rows and the languages kept only as candidates."""
     text = reported(corpus_admit)
     rows = [
         (name.strip(), pure, candidates, admitted, before, after, cells)

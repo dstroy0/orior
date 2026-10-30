@@ -10,10 +10,10 @@ beam_read.py prints the result and the print is the record. This draws it, becau
 result is the argument and a column of numbers does not show a shape: everything sits on the floor
 until round 64, where it jumps. The jump means something only against the floor.
 
-THE PAGE IS SELF CONTAINED AND HELD
+THE PAGE IS SELF CONTAINED AND WITHHELD
 
 One file, no network, no CDN, no interpreter. Same convention as the other pages in this directory.
-The subject is SHA-256 and a real header. It is HELD: it is built to a local path and it does not
+The subject is SHA-256 and a real header. It is WITHHELD: it is built to a local path and it does not
 go anywhere, and for that reason it is drawn with hand-written SVG and not a chart library.
 
 WHAT IT MUST NOT DO
@@ -328,7 +328,7 @@ TEMPLATE = """<title>Eyes on the State</title>
   %(levels)d distinct values with a spread of %(spread).4f.</p>
 
   <footer>Built from beam_read.py over %(nonces)d nonces on one real header shape. One
-  self-contained file, no network and no interpreter. HELD: the subject is SHA-256 and the object is
+  self-contained file, no network and no interpreter. WITHHELD: the subject is SHA-256 and the object is
   a block header.</footer>
 </div>
 """

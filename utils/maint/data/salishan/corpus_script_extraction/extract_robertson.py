@@ -344,7 +344,7 @@ def main():
         handle.write(
             "# are Chinook Jargon, which is a pidgin and a language of its own, and they\n"
         )
-        handle.write("# are recorded here and held out of the pure stream.\n")
+        handle.write("# are recorded here and excluded from the pure stream.\n")
         handle.write(
             "# The pipa row is Mayoos' own shorthand transliterated letter for letter. It\n"
         )

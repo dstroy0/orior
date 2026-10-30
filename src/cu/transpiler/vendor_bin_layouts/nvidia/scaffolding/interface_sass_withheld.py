@@ -3,13 +3,13 @@
 # The scaffolding's cubins read against the vendor's own disassembler before any reaches the part: the airlock the
 # scaffolding shares with the carrier. Each cubin a list names is decoded as one raw run (nvdisasm --binary), and an
 # encoding the vendor calls illegal, which our gate's operation key passed while the operation it probes is still
-# unlearned, is held off the part. The kernel the scaffolding writes is a real listing with one slot instruction varied,
+# unlearned, is withheld from the part. The kernel the scaffolding writes is a real listing with one slot instruction varied,
 # so a legal pattern decodes whole and only an illegal slot stops the reader. Nothing here runs on the part.
 #
-#     interface_sass_held.py <list> <nvdisasm> <architecture> <folder> <held>
+#     interface_sass_withheld.py <list> <nvdisasm> <architecture> <folder> <withheld>
 #
 # The list is a line a cubin, `<cubin-path> <kernel>` (interface_sass_run's own list); a `skip` line is passed over.
-# <held> is the feedback interface_sass_run reads next (--gated): a line `<low> <high>` an encoding to hold off the part.
+# <withheld> is the feedback interface_sass_run reads next (--gated): a line `<low> <high>` an encoding to hold off the part.
 # Exits 1 where the vendor holds one or more, 0 where none, 2 where a tool or file was not reached.
 import os, re, struct, subprocess, sys
 
@@ -61,7 +61,7 @@ def illegal_indices(reader, words):
     """the indices of `words`, each a 16-byte encoding, the vendor calls illegal: read as one raw run and split past
     each stop, since the reader stops at the first illegal encoding and names its address, every encoding before it
     read as legal"""
-    held = set()
+    withheld = set()
     segments = [(0, words)]
     while segments:
         base, run = segments.pop()
@@ -69,7 +69,7 @@ def illegal_indices(reader, words):
             continue
         status, printed = reader.read(run)
         if not reader.reached:
-            return held
+            return withheld
         if status == 0:
             continue
         stop = re.search(r"at address 0x([0-9a-f]+)", printed)
@@ -77,29 +77,29 @@ def illegal_indices(reader, words):
             # a refusal naming no encoding in the run: halve it to find the one, a single encoding read on its own word
             if len(run) == 1:
                 if "Illegal instruction found" in printed:
-                    held.add(base)
+                    withheld.add(base)
                 continue
             middle = len(run) // 2
             segments.append((base + middle, run[middle:]))
             segments.append((base, run[:middle]))
             continue
         place = int(stop.group(1), 16) // 16
-        held.add(base + place)
+        withheld.add(base + place)
         segments.append((base + place + 1, run[place + 1:]))
-    return held
+    return withheld
 
 
 def main(argv):
     if len(argv) != 6:
-        sys.stderr.write("interface_sass_held.py <list> <nvdisasm> <architecture> <folder> <held>\n")
+        sys.stderr.write("interface_sass_withheld.py <list> <nvdisasm> <architecture> <folder> <withheld>\n")
         return 2
-    listing, nvdisasm, architecture, folder, held = argv[1:6]
+    listing, nvdisasm, architecture, folder, withheld = argv[1:6]
     if not os.path.exists(listing):
         sys.stderr.write("  the list %s was not found\n" % listing)
         return 2
     os.makedirs(folder, exist_ok=True)
     reader = Reader(nvdisasm, architecture, folder)
-    # every cubin's encodings in one order, each word remembered by its place: an illegal one is held by its encoding
+    # every cubin's encodings in one order, each word remembered by its place: an illegal one is withheld by its encoding
     words = []
     cubins = 0
     with open(listing) as lines:
@@ -126,7 +126,7 @@ def main(argv):
         if (low, high) not in seen:
             seen.add((low, high))
             encodings.append((low, high))
-    with open(held, "w", newline="\n") as out:
+    with open(withheld, "w", newline="\n") as out:
         for low, high in encodings:
             out.write("%016x %016x\n" % (low, high))
     sys.stdout.write("  cross: %d cubin(s) read, the vendor holds %d encoding(s) off the part\n"

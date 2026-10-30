@@ -141,7 +141,7 @@ def literal(node):
 
 
 # The directories a repository path can start with. A write whose target begins with one of these,
-# behind whatever local name held the repository root, is resolved to it.
+# behind whatever local name contained the repository root, is resolved to it.
 TOP = (
     "build",
     "docs",

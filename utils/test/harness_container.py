@@ -25,7 +25,7 @@ C:\\top, copied with robocopy, and runs only while Docker's engine is Windows', 
 macOS runs as a virtual machine under KVM in a Linux container, dockurr/macos: its viewer is at
 http://localhost:8006, its disk on the volume orior-ui-macos-storage, and the tree is shared read-only at /shared,
 which macOS mounts with `sudo -S mount_9p shared`. Its first start installs macOS through the viewer, and what runs in
-it is reached there, never by exec or sync. Apple's licence for macOS allows it on Apple's hardware alone."""
+it is reached there, never by exec or sync. Apple's license for macOS allows it on Apple's hardware alone."""
 
 import json
 import os

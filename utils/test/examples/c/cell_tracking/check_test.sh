@@ -56,7 +56,7 @@ rm -rf "$SET"
 
 CHECKS=0
 FAILED=0
-# held <case> <want exit> <exit> <log> <pattern>: the case's exit, and the pattern found in its output
+# checked <case> <want exit> <exit> <log> <pattern>: the case's exit, and the pattern found in its output
 held() {
     local name=$1 want=$2 status=$3 log=$4 pattern=$5 found=0
     CHECKS=$((CHECKS + 1))

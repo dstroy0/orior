@@ -11,7 +11,7 @@
 # similarity" to it, then argues that a set of nouns in every language, which he calls [C + LS] forms,
 # are the source: a consonant, sometimes a vowel, then a string equal to the lexical suffix of the
 # same meaning, as Upper Chehalis mus 'eye' beside =us. He found 6 to 14 per language by hand, and
-# Mithun (1984, as Kinkade quotes her) held that no derivational relation between the suffixes and
+# Mithun (1984, as Kinkade quotes her) argued that no derivational relation between the suffixes and
 # independent nouns is discernible. The two claims make opposite predictions about a large sample.
 #
 # What is counted. For each Salish language, a suffix is a cited affix row whose form begins with - or

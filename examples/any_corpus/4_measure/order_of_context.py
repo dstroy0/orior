@@ -13,7 +13,7 @@
 #
 # The first answer was wrong and the way it was wrong is the useful part. Over 400000 characters the
 # increments rose to order 4 and fell, which was recorded as closure at a finite depth. Over six
-# million they rise to order 5, and the value there is larger than order 4 held before. The peak
+# million they rise to order 5, and the value there is larger than order 4 reached before. The peak
 # moved with the amount of data. That is a measurement running out of samples, and never a text
 # doing anything.
 #

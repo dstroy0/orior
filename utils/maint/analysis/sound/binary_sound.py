@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Write the binary sound representation of every held recording.
+# Write the binary sound representation of every stored recording.
 #
 #   Usage:  python utils/maint/analysis/sound/binary_sound.py [<stem> ...]
 #
@@ -126,14 +126,14 @@ from perceived_sound import (
 
 # The prefixes of the segment field the delta is also reported at. 6 bits is 64 states, which a
 # four minute recording covers hundreds of times over, and 14 is where the state count passes the
-# frame count on the shortest recording held.
+# frame count on the shortest recording stored.
 WIDTHS = (6, 8, 10, 12, 14)
 
 
 def mono(path):
     """One recording as a single channel of samples, and its rate.
 
-    Averaged across channels. Two of the three held recordings are stereo and neither carries a
+    Averaged across channels. Two of the three stored recordings are stereo and neither carries a
     different take on the two sides. The average is the recording and not a mixdown of two.
     """
     samples, rate = soundfile.read(path, dtype="float64", always_2d=True)
@@ -144,7 +144,7 @@ def recordings():
     """Every recording under speech/, as its filename against its full path.
 
     One directory per source. That ties a file to the row in SPEECH.tsv saying
-    what it is held under. A recording sitting loose at the top of speech/ is one nothing can
+    what it is stored under. A recording sitting loose at the top of speech/ is one nothing can
     place. It is read and reported by name with no source behind it.
     """
     held = []

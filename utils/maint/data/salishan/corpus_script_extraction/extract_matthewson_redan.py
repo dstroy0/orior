@@ -151,7 +151,7 @@ LAYER = {
     "gloss": DERIVED,
     "stage direction": DERIVED,
     "cited example": DERIVED,
-    # Kept and marked, held out of the ingestion stream until someone has classified it.
+    # Kept and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -214,7 +214,7 @@ def main():
     # This PDF leaves a space after every glottalization mark, 169 of them, and K̓weswapáw̓ arrives
     # as two tokens. Closed on the way in. That everything reading these lines sees one word.
     # The hand extraction is what caught it: reading the paper by eye gives K̓weswapáw̓, and the
-    # record held K̓ and weswapáw̓ while coverage_check reported this paper at 100 percent.
+    # record contained K̓ and weswapáw̓ while coverage_check reported this paper at 100 percent.
     with open(SOURCE, encoding="utf-8", errors="replace") as handle:
         lines = [closed_spaces(one) for one in handle.read().splitlines()]
 
@@ -226,7 +226,7 @@ def main():
     #
     # Joined into one string before it is read. The line breaks here are the PDF's page width
     # alone: her first sentence runs across two of them and her fifth starts halfway through
-    # a third. Read line by line, the record held fragments, and the hand extraction of this paper,
+    # a third. Read line by line, the record contained fragments, and the hand extraction of this paper,
     # which is one row per sentence, matched none of them.
     whole = " ".join(" ".join(one.split()) for one in held.get("2", []) if one.strip())
     for kind, piece in split_brackets(whole):
@@ -365,7 +365,7 @@ def main():
             "# Lisa transcribed, translated and glossed it; the transcription and the\n"
         )
         handle.write(
-            "# translation were checked with Linda. Audio and video are held by her.\n"
+            "# translation were checked with Linda. Audio and video are kept by her.\n"
         )
         handle.write("#\n")
         handle.write(

@@ -15,7 +15,7 @@
 //     the trailer: the file's size, KSG_LINE_MOST and the count of leaves, eight bytes each, low byte first, then the
 //     root
 //
-// The leaves come before the counts so a writer hands each leaf on as the line it seals is written, retaining none
+// The leaves come before the counts: a writer hands each leaf on as the line it seals is written, retaining none
 // (ksg_seal.c)
 #ifndef KSG_H
 #define KSG_H
@@ -31,7 +31,7 @@ extern "C"
 #define KSG_KIND "KSG\0"
 #define KSG_SUFFIX ".ksg"
 #define KSG_SIGNUM_BYTES 32u
-// the most bytes of one leaf, one chunk of obsignatio's, so a leaf is one chunk's compressions and a seal carries at
+// the most bytes of one leaf, one chunk of obsignatio's, and a leaf is one chunk's compressions and a seal carries at
 // most one between the pieces it is handed
 #define KSG_LINE_MOST 1024u
 // the most nodes waiting to be joined, one for each bit of a count of leaves
@@ -49,7 +49,7 @@ extern "C"
 
     // A seal being made: the three keys, where each leaf goes, the line carried until its line feed or KSG_LINE_MOST
     // bytes of it, the nodes waiting to be joined and how many, the leaves so far, the bytes sealed so far, the line
-    // feeds sealed so far, which is the number of the line carried, and 0 once a leaf could not be made or did not go
+    // feeds sealed so far, the number of the line carried, and 0 once a leaf could not be made or did not go
     typedef struct
     {
         unsigned char row_key[KSG_SIGNUM_BYTES];

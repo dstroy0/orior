@@ -490,7 +490,7 @@ def figure_of(papers, readers, path):
 
     right.axvspan(min(sizes), standing, color="#1f5f8b", alpha=0.07, zorder=0)
     right.annotate(
-        "corpus held",
+        "corpus stored",
         (standing, 0.94),
         textcoords="offset points",
         xytext=(-76, 0),
@@ -679,7 +679,7 @@ def settled(papers, carried):
         unfound = sum(one["unfound"] for one in ahead)
         tokens = sum(one["tokens"] for one in ahead)
         missed = sum(one["missed"] for one in ahead)
-        # The coverage channel is not per paper in the same order. That channel is held at what it
+        # The coverage channel is not per paper in the same order. That channel is kept at what it
         # is and the two directions carry the movement. Mixing a fixed term into a running one
         # would flatten the curve and report a settling that did not happen.
         held = sum(one["tokens"] for one in carried)
@@ -893,7 +893,7 @@ def main():
             "distance from the other corpora pooled into one reference corpus clears "
             "twice their resolution. The arm starts at zero, because a small corpus "
             "resolves nothing, and it crosses the manual arm at %.3g byte pairs, which is "
-            "smaller than the corpus already held. Both arms are drawn: byte pairs alone, "
+            "smaller than the corpus already stored. Both arms are drawn: byte pairs alone, "
             "and byte pairs with the dialect's own alphabet applied first. Setting an "
             "algorithm given nothing beside a person given a page is not a fair "
             "comparison, and the alphabet is the first part of what the extraction "
@@ -1118,7 +1118,7 @@ def main():
             "Lushootseed is not one dialect. The northern and southern varieties have "
             "known land and family borders, and Mellesmoen and Kye's stress paper labels "
             "every form it cites with which one it came from. The hand extraction copied "
-            "that into the speaker column. The border is held as a fact published "
+            "that into the speaker column. The border is taken as a fact published "
             "by a linguist.\n\n"
         )
         handle.write(
@@ -1132,7 +1132,7 @@ def main():
             "the byte pair distribution nor the word web separates them, and a blind "
             "partition scores no better than the majority class. The check prints what "
             "that route would need: about 2.9 times the labeled Lushootseed now "
-            "held.\n\n"
+            "stored.\n\n"
         )
         if standing:
             handle.write(
@@ -1147,7 +1147,7 @@ def main():
                 "itself instead of enough of the language.\n\n"
             )
             handle.write(
-                "The concept is held fixed while this is asked, over the %d concepts both "
+                "The concept is kept fixed while this is asked, over the %d concepts both "
                 "varieties name, using the word web's gloss edge. Without that control a "
                 "run can separate the two sets because the varieties differ or because "
                 "different words were cited, and those are not the same finding.\n\n"

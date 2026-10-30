@@ -7,7 +7,7 @@ Nothing here reads a corpus to answer a research question. That is `examples/`. 
 
 ## Every script sits in a category and none sit loose
 
-A directory with no membership rule collects whatever nobody had a better place for, and `tools/` was that directory until it held fifty three files. Each category below states a rule, and a stated rule is what a directory needs to stay sorted. A script that satisfies no rule means the rule set is incomplete, and the fix is a new category carrying its own stated rule.
+A directory with no membership rule collects whatever nobody had a better place for, and `tools/` was that directory until it contained fifty three files. Each category below states a rule, and a stated rule is what a directory needs to stay sorted. A script that satisfies no rule means the rule set is incomplete, and the fix is a new category carrying its own stated rule.
 
 | directory    | what belongs in it                                                                                              |
 | ------------ | --------------------------------------------------------------------------------------------------------------- |
@@ -22,7 +22,7 @@ A directory with no membership rule collects whatever nobody had a better place 
 | `texbuild/`  | building the theory research papers                                                                             |
 | `data/`      | fetching, converting, transcribing or repairing somebody else's material                                        |
 | `analysis/`  | a corpus read through `src/`, for a survey a research paper asked for                                           |
-| `claims/`    | every public claim held against the latest result in the theory                                                 |
+| `claims/`    | every public claim checked against the latest result in the theory                                                 |
 
 ## What each holds
 

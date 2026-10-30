@@ -8,7 +8,7 @@
 #   Usage:  python maint/data/salishan/corpus_script_extraction/salish_purity.py
 #
 # Van Eijk lists the Lillooet resonants and the extraction returned "m   n   l   ḷ   γ   ʕ   ʕw w   y  z",
-# where every gap held a glottalized consonant that is now gone. Those are phonemes. Two words that differ
+# where every gap contained a glottalized consonant that is now gone. Those are phonemes. Two words that differ
 # only in glottalization are one word after that loss, and every count taken on the file is a count on a
 # language with a smaller inventory than Lillooet has. Robertson's paper in the same volume came through
 # with ɬəw̓ál̓məš whole, combining marks and all. This is a property of the file and not of the family.

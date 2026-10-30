@@ -65,7 +65,7 @@ def main():
         name = WANTED[code]
         target = os.path.join(CORPORA, "drav_%s.txt" % name)
         if os.path.isfile(target) and (os.path.getsize(target) >= LEAST):
-            out.write("  %-14s %-10d already held\n" % (name, os.path.getsize(target)))
+            out.write("  %-14s %-10d already present\n" % (name, os.path.getsize(target)))
             landed += 1
             continue
         try:

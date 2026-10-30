@@ -110,7 +110,7 @@ short-lived arrays a second.
 retrace stutters the picture somewhere unrelated to its cause.
 
 **All six fixed**, reused buffers with named comparators. One caution recorded with the fix: a
-reused Legendre buffer must be cleared to its used length, because a stale value in a slot the
+reused Legendre buffer must be cleared to its used length, because a stale value in an element the
 recursion does not reach becomes a wrong harmonic, and a quiet one.
 
 ### 1.7 Two independent times on one slider
@@ -147,7 +147,7 @@ bundle wanting more. It reads as suspicious and is now correct.
 **`stoppers.count` and `passers.count`** are bounded. Both meshes are sized `COUNT`, and every bit
 lands in exactly one of the two lists. The two counts total `COUNT` and neither can exceed it.
 
-**`buildBeamField` and `sized()`** allocate only when the requested width differs from the held
+**`buildBeamField` and `sized()`** allocate only when the requested width differs from the stored
 one. That is the correct pattern and never a finding. An audit reports them because a pattern cannot
 see the guard.
 

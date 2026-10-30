@@ -20,12 +20,12 @@
 # alignment is a real occurrence, the next stage misses an occurrence the construction guarantees,
 # and the failure is one of correctness.
 #
-# No headroom factor is chosen. A store holds whole slots, ceil(h * predicted) of them, and it holds
+# No headroom factor is chosen. A store holds whole entries, ceil(h * predicted) of them, and it holds
 # n survivors exactly when h exceeds (n - 1) / predicted. The multiple each rule needs is that bound
 # taken over every needle, computed and printed. The table below it steps the store through powers
 # of two up to the largest multiple any rule needed, and the verdict reads those numbers.
 #
-# Controls. A store of zero slots must drop every planted occurrence, which shows the drop count can
+# Controls. A store of zero entries must drop every planted occurrence, which shows the drop count can
 # move at all. The discarded regime must drop none, as the filter's soundness requires. Every
 # survivor list is taken twice: once by intersecting position sets, once by walking the occurrences
 # of one anchor symbol and comparing the other anchors in place. The two routes share no code, and a
@@ -103,7 +103,7 @@ def by_scan(seats, needle, offsets, counts):
 
 
 def needed_multiple(rows):
-    """The least h, as a strict lower bound, at which ceil(h * predicted) slots hold every survivor."""
+    """The least h, as a strict lower bound, at which ceil(h * predicted) entries hold every survivor."""
     bound = 0.0
     for kept, _, predicted in rows:
         if len(kept) > 1:
@@ -116,7 +116,7 @@ def capacity(multiple, predicted):
 
 
 def overflowed(rows, multiple):
-    """Needles whose survivors do not fit a store of ceil(multiple * predicted) slots."""
+    """Needles whose survivors do not fit a store of ceil(multiple * predicted) entries."""
     return sum(1 for kept, _, predicted in rows if len(kept) > capacity(multiple, predicted))
 
 
@@ -183,7 +183,7 @@ def report(out, label, seats, controls):
 
     needed = {rule: needed_multiple(table[(rule, "from corpus")] + table[(rule, "independent")])
               for rule in RULES}
-    out.write("  buffered: survivors are stored in ceil(h * predicted) slots before the next stage\n")
+    out.write("  buffered: survivors are stored in ceil(h * predicted) entries before the next stage\n")
     out.write("    %-12s %s\n" % ("rule", "store multiple h needed to drop nothing"))
     for rule in RULES:
         out.write("    %-12s %.2f\n" % (rule, needed[rule]))
@@ -200,7 +200,7 @@ def report(out, label, seats, controls):
                                                   real_dropped(table[(rule, "from corpus")], multiple))))
         out.write("    2^%-8d " % exponent + "".join(cells) + "\n")
 
-    # The same detector the table uses, at a store of zero slots, where every planted occurrence
+    # The same detector the table uses, at a store of zero entries, where every planted occurrence
     # has to fall past the end. A detector that miscounts rank or capacity reports fewer here.
     for rule in RULES:
         rows = table[(rule, "from corpus")]
@@ -254,7 +254,7 @@ def main():
     out.write("controls:\n")
     out.write("  routes disagree on %d needles (must be 0)\n" % len(controls["disagreements"]))
     out.write("  real occurrences dropped when discarded: %d (must be 0)\n" % controls["discard_dropped"])
-    out.write("  a zero slot store dropped every planted occurrence: %s\n"
+    out.write("  a zero entry store dropped every planted occurrence: %s\n"
               % ("no" if controls["zero_store_failed"] else "yes"))
     out.flush()
     failed = controls["disagreements"] or controls["discard_dropped"] or controls["zero_store_failed"]

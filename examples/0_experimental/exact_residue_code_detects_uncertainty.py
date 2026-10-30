@@ -102,7 +102,7 @@ def detect_and_correct(residues, moduli, information):
 def redundant_check(residues, moduli, information):
     """The second route: reconstruct from the information residues alone, recompute the redundant
     residues from that value, and compare to the stored ones. Independent of the range test, and it
-    needs no knowledge of the original value. A corrupted residue, in an information slot or a redundant
+    needs no knowledge of the original value. A corrupted residue, in an information modulus or a redundant
     one, leaves the recomputed redundant residues disagreeing with the stored ones.
     """
     value_from_information = crt(residues[:information], moduli[:information])

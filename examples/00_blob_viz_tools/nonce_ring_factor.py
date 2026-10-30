@@ -29,9 +29,9 @@ prime folds the whole value through the ring the twiddle proof establishes, a st
 spread in the raw bits can concentrate in the residue. That folding is the point of reading it in the
 ring and not as an integer.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import os

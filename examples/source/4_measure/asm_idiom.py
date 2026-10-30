@@ -12,7 +12,7 @@
 # Assembly needs no such argument. An instruction set states exactly what each encoding does, and for
 # several operations more than one encoding does the identical thing: zeroing a register, testing it
 # against zero, adding one to it. The processor cannot tell which was written. So the ratio between them
-# carries no machine information whatever, and whatever it is measures a convention held by whoever or
+# carries no machine information whatever, and whatever it is measures a convention followed by whoever or
 # whatever emitted the text.
 #
 # Comments are the same case taken to the limit, since an assembler discards them entirely.

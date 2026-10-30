@@ -92,7 +92,7 @@ def main():
         counts.setdefault(language, []).append(source)
     several = sorted(language for language, held in counts.items() if len(held) >= 2)
     if len(several) < 5:
-        out.write("\n  only %d languages are held from more than one place\n" % len(several))
+        out.write("\n  only %d languages are sourced from more than one place\n" % len(several))
         out.flush()
         return 0
 
@@ -127,7 +127,7 @@ def main():
 
     one = statistics.fmean(same_language)
     two = statistics.fmean(same_source)
-    out.write("\n  %d languages held from more than one place\n" % len(several))
+    out.write("\n  %d languages sourced from more than one place\n" % len(several))
     out.write("  one language read from two places      %.4f\n" % one)
     out.write("  two languages read from one place      %.4f\n" % two)
     out.write("  ratio, lower means it belongs to the language   %.3f\n" % (one / two))

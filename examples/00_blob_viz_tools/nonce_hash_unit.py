@@ -35,9 +35,9 @@ The diff between the nonce's own local order and the hash tail's, per block, acr
 nonce and its hash tail share a local-entropy relationship, the diff is narrower than a shuffled
 pairing of nonces with other blocks' hash tails gives. The shuffle is the null.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import math

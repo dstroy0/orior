@@ -87,7 +87,7 @@ def link_target(url, chapter):
             and target.stem in chapter.chapters
         ):
             return r"\hyperref[" + label(target.stem) + "]{", "}"
-    # A link out of the research paper, to code or to a file held back, keeps its words and loses its target.
+    # A link out of the research paper, to code or to a file withheld, keeps its words and loses its target.
     return "", ""
 
 

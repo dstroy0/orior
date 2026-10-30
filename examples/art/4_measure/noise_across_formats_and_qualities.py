@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: ART-4-006
 #
-# Fixed-pattern removal, held to the bit across image formats and across qualities of noise.
+# Fixed-pattern removal, exact to the bit across image formats and across qualities of noise.
 #
 #   Usage:  python examples/art/4_measure/noise_across_formats_and_qualities.py
 #

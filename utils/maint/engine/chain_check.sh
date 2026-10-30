@@ -21,7 +21,7 @@
 #   krf_check        holds the .krf's reader and writer to what its users read of it: a row a k-file let go kept with
 #                    its type, the run's name, the reason and its text, under a who line
 #   frame_check      holds the frame's walk, orior_krs_write's head and fixed lines, the kernel mode's place and a
-#                    register's reading at the slot to the .ksc's rows, and orior_krs_write's frame lines to the table of
+#                    register's reading at the position to the .ksc's rows, and orior_krs_write's frame lines to the table of
 #                    frame forms and the named ruleset
 #   frame_relation_check  holds the frame relations' host answers, their tuple places and the thread their fields are
 #                    read at, and the channel's fill word and block to the carrier's own
@@ -196,7 +196,7 @@ fi
 "$OUT/constant_check" || exit 1
 "$OUT/naming_check" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv" || exit 1
 "$OUT/cubin_listing_check" || exit 1
-# R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are held
+# R's check, the who's and the rows' in a run of their own, whose writer writes the records and the file they are stored
 # to, ended with the subshell
 (
     source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"

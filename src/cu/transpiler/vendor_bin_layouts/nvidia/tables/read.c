@@ -628,7 +628,7 @@ static int tables_condition_name_char(char character)
 }
 
 // a constant after the backquote, `` `Register@RZ ``, `` `SZ_U8_S8_U16_S16_32_64@"64" ``: the registers' own by
-// name, a choice of the class's size list by its place in the list, and anything else unjudged
+// name, a choice of the class's size list by its place in the list, and anything else left undecided
 static long long tables_condition_constant(TablesCondition *condition)
 {
     char list[TABLES_NAME];
@@ -713,7 +713,7 @@ static long long tables_condition_constant(TablesCondition *condition)
 static long long tables_condition_implies(TablesCondition *condition);
 
 // a primary: a parenthesized condition, a number, a constant after a backquote, a register count after a percent,
-// or an operand of the class read off the encoding; anything else is unjudged
+// or an operand of the class read off the encoding; anything else is left undecided
 static long long tables_condition_primary(TablesCondition *condition)
 {
     tables_condition_spaces(condition);

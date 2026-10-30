@@ -23,7 +23,7 @@
 # set, and costs everything.
 #
 # The comparison is a correlation against the original, and beside it the count of numbers each rebuild
-# needed. That ratio is the answer to how densely a set can be held and put back.
+# needed. That ratio is the answer to how densely a set can be stored and put back.
 
 import io
 import os
@@ -46,7 +46,7 @@ CORPORA = os.path.join(ROOT, "build", "corpora")
 
 SEED = 0x51F7
 # Steps around the circle each angle is rounded to, since an angle is knowable and the question is at what
-# precision it has to be held
+# precision it has to be stored
 BITS = (1, 2, 3, 4, 6)
 
 

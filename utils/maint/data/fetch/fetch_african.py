@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Fetch African languages on the text already held in 43 others, for Section 4.13 of
+# Fetch African languages on the text already stored in 43 others, for Section 4.13 of
 # theory/workbooks/orior.
 #
 #   Usage:  python maint/data/fetch/fetch_african.py
@@ -76,7 +76,7 @@ def main():
         target = os.path.join(CORPORA, "afr_%s.txt" % name)
         if os.path.isfile(target) and (os.path.getsize(target) >= LEAST):
             out.write(
-                "  %-14s %-22s %-10d already held\n"
+                "  %-14s %-22s %-10d already present\n"
                 % (name, family, os.path.getsize(target))
             )
             landed += 1
@@ -127,7 +127,7 @@ def main():
         out.flush()
 
     out.write(
-        "\n  %d languages landed on the text already held in 43 others\n" % landed
+        "\n  %d languages landed on the text already stored in 43 others\n" % landed
     )
     out.flush()
     return 0

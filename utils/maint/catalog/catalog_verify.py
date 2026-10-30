@@ -136,22 +136,22 @@ SAYS_FETCH = re.compile(
 
 def header_of(text):
     """The comment block above the first import, which is where a script describes itself."""
-    held = []
+    lines = []
     for line in text.split("\n"):
         bare = line.strip()
         if bare.startswith("#") or not bare:
-            held.append(bare.lstrip("#").strip())
+            lines.append(bare.lstrip("#").strip())
             continue
         if bare.startswith('"""'):
-            held.append(bare.strip('"').strip())
+            lines.append(bare.strip('"').strip())
             continue
         break
-    return "\n".join(held)
+    return "\n".join(lines)
 
 
 def theory_sections():
     """Every section number the theory research papers actually carry."""
-    held = set()
+    sections = set()
     # Every research paper sits under theory/.
     roots = (os.path.join(ROOT, "theory"),)
     for base, dirs, names in itertools.chain.from_iterable(
@@ -169,21 +169,21 @@ def theory_sections():
             # first: \paragraph{4.13.09 Frequency-Stratified Structure}. Reading only the first
             # form reported every real subsection as missing.
             for found in SECTION.finditer(body):
-                held.add(found.group(1))
+                sections.add(found.group(1))
             for found in HEADING_NUMBER.finditer(body):
-                held.add(found.group(1))
-            for one in list(held):
+                sections.add(found.group(1))
+            for one in list(sections):
                 # A heading numbered 4.13.05 alanswers a citation to 4.13.
                 parts = one.split(".")
                 if len(parts) > 2:
-                    held.add(".".join(parts[:2]))
-    return held
+                    sections.add(".".join(parts[:2]))
+    return sections
 
 
 def registry():
-    held = {}
+    catalogs = {}
     if not os.path.isfile(REGISTRY):
-        return held
+        return catalogs
     with io.open(REGISTRY, encoding="utf-8") as handle:
         header = None
         for line in handle:
@@ -196,8 +196,8 @@ def registry():
                 continue
             row = dict(zip(header, parts))
             if row.get("path"):
-                held[row["path"]] = row["catalog"]
-    return held
+                catalogs[row["path"]] = row["catalog"]
+    return catalogs
 
 
 def main():

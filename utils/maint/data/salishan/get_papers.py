@@ -23,7 +23,7 @@
 #
 # pypdf reads a page in the order the PDF stores it, the order the readers were written
 # against. That was checked. Converting Mellesmoen_Kye_ICSNL61.pdf here gives 1462 lines identical,
-# in order, to the copy the readers were built on, and all 146 PDFs on disk reproduce their held
+# in order, to the copy the readers were built on, and all 146 PDFs on disk reproduce their stored
 # text exactly.
 #
 # WHERE THE ADDRESSES COME FROM
@@ -213,7 +213,7 @@ def converted(source, target):
     import pypdf
 
     reader = pypdf.PdfReader(source)
-    # The blank line the held texts open with. Every reader counts lines from it, and a text that
+    # The blank line the stored texts open with. Every reader counts lines from it, and a text that
     # starts one line higher moves every position the coverage check reports.
     out = [""]
     for number, page in enumerate(reader.pages, 1):

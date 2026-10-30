@@ -397,7 +397,7 @@ def _exact():
 
     print("")
     print("  EVERY ROW ABOVE IS EXACTLY ZERO, and not merely small. Those moves are sign flips and swaps of")
-    print("  numbers already held. There is no arithmetic in them to round. That is true in")
+    print("  numbers already stored. There is no arithmetic in them to round. That is true in")
     print("  float32, in float64 and at a thousand decimal digits, and it is true forever: a")
     print("  floor of zero is not a precision setting and nothing can be lower.")
     print("")
@@ -424,7 +424,7 @@ def _exact():
     print("  reading scale for comparison: %.3e" % size)
     print("")
     print("  SO THE ANSWER IS A BOUNDARY. A null is exactly zero when the move is")
-    print("  exact in the representation the reading is held in: relabelings, sign flips, swaps,")
+    print("  exact in the representation the reading is stored in: relabelings, sign flips, swaps,")
     print("  quarter and half turns, the identity. It is the format's floor the moment the reading")
     print("  has to be rebuilt, because then one quantity is reached by two routes that round")
     print("  differently. The floor can be zero, and the reason is not that")

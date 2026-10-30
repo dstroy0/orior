@@ -50,7 +50,7 @@ import ramachandran_rules as rules  # noqa: E402
 CORPORA = os.path.join(ROOT, "build", "corpora")
 CACHE = os.path.join(ROOT, "build", "rama")
 
-# Held. A rerun reports the same background. The draw belongs to the universe and not to the run.
+# Fixed. A rerun reports the same background. The draw belongs to the universe and not to the run.
 SEED = 0x51F7
 
 

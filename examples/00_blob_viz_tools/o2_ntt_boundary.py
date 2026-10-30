@@ -29,9 +29,9 @@ winner's correlation pulls away from the losers around it is the meeting round, 
 Earlier than the round-61 anchor and a boundary-field question prunes what the anchor cannot; at 61
 or later it gives nothing new, and the exact number says which, with no float floor to hide behind.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import os

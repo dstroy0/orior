@@ -24,7 +24,7 @@ the shape's own geometry. Neither computation reads the other.
 
 Dividing one by the other has to give the same number every time. That is a real test because the
 two can disagree: a packing count that tracked the volume instead of the surface, or a shape whose
-corners held more readings than its faces, would show up as a constant that moves. Computing the
+corners contained more readings than its faces, would show up as a constant that moves. Computing the
 count as area over resolution squared and then checking it against area over resolution squared
 would show nothing at all. That is the version this avoids.
 
@@ -265,7 +265,7 @@ def _check():
           ("shape", "dims", "kept", "gap", "measure", "constant", "resolved"))
 
     # A packing count is only about the surface while there are candidates to spare. Past that the
-    # count stops being what the geometry allows and becomes what the pool held, and in high
+    # count stops being what the geometry allows and becomes what the pool contained, and in high
     # dimensions the pool gives out early: points drawn on a sphere in nineteen dimensions are
     # very nearly all at the same distance from one another. Nothing is learned about packing
     # from a few thousand of them however carefully they are counted.

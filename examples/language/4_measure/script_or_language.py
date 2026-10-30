@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: LNG-4-037
 #
-# Ask whether the reading follows the language or the writing, with one held fixed at a time, for
+# Ask whether the reading follows the language or the writing, with one kept fixed at a time, for
 # Section 4.13 of theory/workbooks/orior.
 #
 #   Usage:  python examples/language/4_measure/script_or_language.py
@@ -84,7 +84,7 @@ def main():
 
     names = sorted(held)
     if len(names) < 4:
-        out.write("  too few held\n")
+        out.write("  too few loaded\n")
         out.flush()
         return 0
 

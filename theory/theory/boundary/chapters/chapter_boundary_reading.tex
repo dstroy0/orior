@@ -131,6 +131,6 @@ The companion measurement is not a null. Torsion recovers a known angle to \(1.8
 
 \section{Testing the floors}
 
-Before it reports any floor, the floor measurement hands itself a move that is not a null while declaring that it is, and a genuine null of the same shape. It has to catch the first and stay quiet on the second, and it withholds every floor if either misbehaves. A checker that has never caught its own defect is untested. The redraw floor is measured at three levels, and four drawings that are not redraws are held against it first.
+Before it reports any floor, the floor measurement hands itself a move that is not a null while declaring that it is, and a genuine null of the same shape. It has to catch the first and stay quiet on the second, and it withholds every floor if either misbehaves. A checker that has never caught its own defect is untested. The redraw floor is measured at three levels, and four drawings that are not redraws are checked against it first.
 
 The readings, the placements and the floor measurement are implemented in Python with the standard library alone, and are in the orior repository, \texttt{https://github.com/dstroy0/orior}.

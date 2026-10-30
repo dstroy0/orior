@@ -27,7 +27,7 @@ still holds every commit it holds now.
 
 ## 2. The external set cannot build or verify as it stands
 
-Two dependencies reach out of the external set into held files. Both have to be resolved first or
+Two dependencies reach out of the external set into withheld files. Both have to be resolved first or
 `main` ships hollow. That is the thing the gatekeeping test forbids.
 
 **`bench_ntt_cuda.cu` must come along.** `gpu_multiply.py` runs `build/bench_ntt_cuda.exe` and says

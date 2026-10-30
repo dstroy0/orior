@@ -606,7 +606,7 @@
   }
   /* The label rides its target. Pinned to a screen corner it says the right words about the wrong
    place the moment the view turns, and the leader that has to reach it rakes across the object the
-   reader is trying to look at. Held near the thing instead, the leader is short and local. */
+   reader is trying to look at. Placed near the thing instead, the leader is short and local. */
   .tag {
     position: fixed;
     pointer-events: none;
@@ -1076,7 +1076,7 @@
 
   // The shadow is redrawn when something moved, and not once a frame because a frame happened. A
   // point light casts its shadow by rendering every caster six times into a cube map. Two carried
-  // sources are twelve scene renders. Held off here and raised in the loop only when the bodies
+  // sources are twelve scene renders. Disabled here and raised in the loop only when the bodies
   // stepped or a source moved.
   renderer.shadowMap.autoUpdate = false;
   stage.appendChild(renderer.domElement);
@@ -1097,7 +1097,7 @@
   var LAMP_SIZE = SHELL * 0.055; // a source, against the shells it lights
   var SMEAR_OUT = 1.012; // the trace sits outside the surface it landed on
 
-  // The observer's travel. Held as a ratio between the nearest and furthest standing points so the
+  // The observer's travel. Stored as a ratio between the nearest and furthest standing points so the
   // slider is geometric and not linear: at even spacing the interior is a sliver of the travel
   // and the empty room beyond the wall takes half of it.
   var NEAREST = SHELL * 0.22;
@@ -1164,7 +1164,7 @@
   // walking out through all of them and finding the same arrangement each time is the argument.
   //
   // The confinement takes a shape and a pair of half-extents. Several boundaries need no new
-  // physics. Each body belongs to one band and is held by the surface at the top of it, and by the
+  // physics. Each body belongs to one band and is bounded by the surface at the top of it, and by the
   // one below it where there is one: a body in the second band cannot fall into the first and cannot
   // leave through the second.
   // ---------------------------------------------------------------------------------------------
@@ -1226,7 +1226,7 @@
   var armSigns = []; // the sign triple when a direction is a cube diagonal, else null
 
   // The eight cube diagonals, in the order the octant index has always used: x is the four bit, y the
-  // two, z the one. Held an index into the arms is an index into the letters, unchanged.
+  // two, z the one. An index into the arms is an index into the letters, unchanged.
   function cubeDiagonalArms() {
     var out = [],
       signs = [],
@@ -1643,7 +1643,7 @@
   }
   var HALO = haloTexture();
 
-  // The cloud is held in plain arrays and drawn in a few calls. One mesh per light with one sprite
+  // The cloud is stored in plain arrays and drawn in a few calls. One mesh per light with one sprite
   // over it is 320 objects, and a point light casts its shadow by rendering the scene six times.
   // Every frame walks nineteen hundred draws before anything moves.
   var things = DATA.things;
@@ -1945,7 +1945,7 @@
     }
     trailHead = (trailHead + 1) % TRAIL;
 
-    // Age is counted back from the newest slot. The brightest end is always where the light is now.
+    // Age is counted back from the newest entry. The brightest end is always where the light is now.
     var life = state.dwell * TRAIL;
     for (var k2 = 0; k2 < COUNT; k2++) {
       for (var j = 0; j < TRAIL; j++) {
@@ -2059,7 +2059,7 @@
   // it is the reason the second source is worth what it costs.
   //
   // Its cost is the whole performance question. A cube shadow map is six scene renders for one
-  // source. The map is small and the redraw is held until something moves, and between those two the
+  // source. The map is small and the redraw is deferred until something moves, and between those two the
   // second source is affordable.
   // ---------------------------------------------------------------------------------------------
 
@@ -2172,7 +2172,7 @@
   //
   // Saturation falls as intensity rises. The pole reads close to white and the wings keep the blue.
   // That is how a real emitter renders: the hottest part of it is the least colored part. The
-  // lightness is held nearly flat across the range. Taking the color out of the middle does not
+  // lightness is kept nearly flat across the range. Taking the color out of the middle does not
   // also brighten it.
   (function () {
     var seed = 20260101;
@@ -2720,7 +2720,7 @@
     if (markMesh.instanceColor) {
       markMesh.instanceColor.needsUpdate = true;
     }
-    // A retrace lays a new set of deposits, any held boundary reading that summed the old ones is
+    // A retrace lays a new set of deposits, any stored boundary reading that summed the old ones is
     // out of date. The counter says so without the key having to name every deposit.
     transportGen++;
   }
@@ -3025,7 +3025,7 @@
     }
     shadowStale = true;
     // A source that moved changes where its beam deposits, and the deposits are part of the boundary
-    // field. The held reading is no longer the answer.
+    // field. The stored reading is no longer the answer.
     sourceGen++;
   }
 
@@ -3060,8 +3060,8 @@
     // A light the beam goes through is still there and still lit. Dimming it says which ones the beam
     // is stopped by; hiding it would say the beam decides what exists.
     //
-    // The color is one object held outside instead of one per call. Every three.js color, vector and
-    // matrix on a repeating path in this file is held that way.
+    // The color is one object allocated outside instead of one per call. Every three.js color, vector and
+    // matrix on a repeating path in this file is allocated that way.
     var shade = energyShade;
     var k2;
     for (k2 = 0; k2 < stopCount; k2++) {
@@ -3114,7 +3114,7 @@
   // How many bits are set at this operation. Counted off the trace and not off the stopping
   // powers. The row goes on saying what the state is even when the beam energy has been raised
   // past the point where a set bit still casts anything.
-  // The state at an operation. Held as the states the run passes through plus a tick to state map,
+  // The state at an operation. Stored as the states the run passes through plus a tick to state map,
   // because six operations in every eight leave the eight words alone and shipping the repeats would
   // be shipping the same string four times over.
   function frameAt(whole) {
@@ -3268,7 +3268,7 @@
   // write operations further down the round, where the bits change and not move.
   // Nothing in the object moves instantly. Information takes time to cross it, a bit leaves its
   // old place at rest, gathers speed, and arrives at rest, the way anything else carrying momentum
-  // does. Held linear the motion starts and stops on a corner, which reads as a jump with a slide in
+  // does. Kept linear, the motion starts and stops on a corner, which reads as a jump with a slide in
   // the middle; eased, it reads as a thing being carried. A smoothstep has zero slope at both ends.
   // The acceleration and the deceleration are both in it and neither has to be written twice.
   function ease(t) {
@@ -3376,8 +3376,8 @@
   // end clip, as a physical detector does.
   //
   // So there are two quantities and they are kept apart in the code and not merely used differently:
-  // one.held is linear and is the measurement, and this runs on the way to the color buffer and
-  // nowhere else. Anything deriving a curve must read one.held. Nothing should ever derive one from a
+  // one.averaged is linear and is the measurement, and this runs on the way to the color buffer and
+  // nowhere else. Anything deriving a curve must read one.averaged. Nothing should ever derive one from a
   // value that has been through here.
   //
   // 1 - e^-kx over 1 - e^-k. The range still lands exactly on nought and one, and k at zero
@@ -3412,7 +3412,7 @@
     }
     var out = legScratch;
     // Cleared to the used length only. The buffer is reused across orders and a stale value left in
-    // a slot the recursion does not reach this time is a wrong harmonic and not an obvious one.
+    // an element the recursion does not reach this time is a wrong harmonic and not an obvious one.
     for (var z = 0; z <= top; z++) {
       out[z] = 0;
     }
@@ -3606,7 +3606,7 @@
         mesh: skin,
         at: at,
         tone: tone,
-        held: new Float64Array(points),
+        averaged: new Float64Array(points),
         reach: bandOuter(s2),
         sens: SENS_START[s2] || 0.0008,
         span: 0,
@@ -3653,7 +3653,7 @@
       mesh: invSkin,
       at: invAt,
       tone: invTone,
-      held: new Float64Array(points),
+      averaged: new Float64Array(points),
       reach: SHELL * CASCADE,
       sens: 0.02,
       span: 0,
@@ -3663,7 +3663,7 @@
 
   // Scratch the surface sum reuses instead of allocating fresh every tick. A few megabytes of garbage
   // a second climbs and collects in a sawtooth that
-  // reads as a leak in the task manager and stutters the frame when the collector runs. Every slot
+  // reads as a leak in the task manager and stutters the frame when the collector runs. Every element
   // each of these carries is written before it is read, a buffer kept from the last tick carries
   // no stale value, and one is reallocated only when the ceiling the reader set changes its length.
   var scratchGain = null;
@@ -3704,7 +3704,7 @@
   // at a handful of operations a second, while this, run on every frame, recomputes the same field
   // from the same inputs sixty times a second and draws it identically each time.
   //
-  // So the passes are keyed on their inputs and the result is held. The retention blend runs every
+  // So the passes are keyed on their inputs and the result is cached. The retention blend runs every
   // frame, because that is the surface's own memory moving, one cheap pass with no coefficient loop
   // in it. Only arithmetic whose answer is already known is skipped. Two counters make the key honest.
   //
@@ -3725,7 +3725,7 @@
   // sixty a second, and an audit that looks for `new` and array literals does not catch it, because a
   // string concatenation is neither.
   //
-  // Held as a small array of the values themselves and compared element by element. Nothing is allocated, nothing is
+  // Stored as a small array of the values themselves and compared element by element. Nothing is allocated, nothing is
   // formatted, and there is no question about whether two different readings can format to one string.
   var paintFresh = true;
   var paintKeyNow = null;
@@ -3770,7 +3770,7 @@
 
   function paintSurface(whole, reach) {
     if (!surface) {
-      // Nothing here decided anything. The panels are left to paint. A held flag from a previous call
+      // Nothing here decided anything. The panels are left to paint. A stored flag from a previous call
       // would gate them on a decision never made.
       paintFresh = true;
       return;
@@ -3783,7 +3783,7 @@
 
     // The beam summed into the same field, when the reader has asked for any of it. The two sets of
     // coefficients add because the fields add: a boundary carries one field and has no way of saying
-    // which source put a given part of it there. Held at zero the field is the object alone, and that
+    // which source put a given part of it there. Fixed at zero, the field is the object alone, and that
     // control makes the rest of the coupling readable.
     if (state.beamField > 0 && depCount > 0) {
       var beam = buildBeamField(top, bandOuter(bandFor(reach)));
@@ -3819,7 +3819,7 @@
 
     var points = surfaceAt.length / 3;
 
-    // Held from the last time these inputs were seen. A match on the key means the arithmetic below
+    // Cached from the last time these inputs were seen. A match on the key means the arithmetic below
     // would produce the numbers already sitting in the
     // buffer, to the last bit.
     var fresh = keyChanged(whole, reach, carried);
@@ -3920,9 +3920,9 @@
       // The scale is symmetric about the mean for the same reason. Fitted to the two extremes
       // separately, a field that runs further hot than cold would draw its cold half at full contrast
       // and claim a depth it does not have.
-      // The lean, held per boundary. This is the expensive pass -- the same 2,701 by 121 product the
+      // The lean, cached per boundary. This is the expensive pass -- the same 2,701 by 121 product the
       // surface pays, once for every boundary -- and it answers the same question every frame until
-      // one of its inputs moves. Held, and recomputed only when the key says the answer changed.
+      // one of its inputs moves. Cached, and recomputed only when the key says the answer changed.
       one.lean = sized(one.lean, points);
       if (fresh) {
         var sum = 0;
@@ -3952,11 +3952,11 @@
       }
 
       // The blend runs on every frame whether the field moved or not, because this is the boundary's
-      // own memory settling and it moves under a held field too. One pass, no coefficient loop.
+      // own memory settling and it moves under a frozen field too. One pass, no coefficient loop.
       for (var v = 0; v < points; v++) {
         var lean = one.lean[v];
-        one.held[v] = one.held[v] * keep + lean * (1 - keep);
-        var shown = Math.max(-1, Math.min(1, one.held[v])) * litGain;
+        one.averaged[v] = one.averaged[v] * keep + lean * (1 - keep);
+        var shown = Math.max(-1, Math.min(1, one.averaged[v])) * litGain;
 
         // The ordinary boundaries paint color on a sphere at a fixed radius. The inverse boundary
         // DEFORMS instead, the same way the anisotropic envelope does: its radius is pushed out where
@@ -3972,7 +3972,7 @@
             // near the outer shell and only the hottest reaches deep, and the floor is set well inside
             // the innermost boundary a true funnel can converge toward a point instead of stopping
             // at a surface. A funnel that reaches the floor and holds is a one-dimensional superobject.
-            var along = (Math.max(-1, Math.min(1, one.held[v])) + 1) * 0.5;
+            var along = (Math.max(-1, Math.min(1, one.averaged[v])) + 1) * 0.5;
             along = along * along;
             rHere = one.reach - along * (one.reach - bandOuter(0) * 0.12);
           }
@@ -3982,7 +3982,7 @@
         }
 
         var toward = shown >= 0 ? HOT_SPOT : COLD_SPOT;
-        // The measurement is one.held and it stays linear. This is the display value, and it is
+        // The measurement is one.averaged and it stays linear. This is the display value, and it is
         // deliberately a second number and not the same one shown differently.
         var pull = saturated(Math.abs(shown));
         one.tone[v * 3] = MID_SPOT.r + (toward.r - MID_SPOT.r) * pull;
@@ -4758,7 +4758,7 @@
     }
     sticks.visible = on;
     // Draw them at once on the state showing now, instead of waiting for the clock to advance.
-    // Turning the box on while the clock is held is not a switch that appears to do nothing.
+    // Turning the box on while the clock is paused is not a switch that appears to do nothing.
     if (on && CLOCK) {
       updateSticks(
         frameAt(Math.max(0, Math.min(CLOCK.ticks - 1, Math.floor(state.tick)))),
@@ -4891,7 +4891,7 @@
     "saturateOut",
     function (raw) {
       saturateK = (SATURATE_MAX * raw) / 100;
-      // The reading is unchanged. Only the color has to be rewritten. It rides the same held field
+      // The reading is unchanged. Only the color has to be rewritten. It rides the same cached field
       // and the same bands; the cache's key does not name this, because nothing under it moved.
       if (CLOCK) {
         wantTick();
@@ -4911,7 +4911,7 @@
       //
       // The boundary already has an opacity control and this is not a second one. This covers
       // the panels sitting over the picture: eight boxes at nine tenths opaque cover a quarter of the
-      // scene. Held as a variable instead of set on each box, a box added later is covered without
+      // scene. Stored as a variable instead of set on each box, a box added later is covered without
       // being remembered.
       document.documentElement.style.setProperty(
         "--box-sheer",
@@ -5126,7 +5126,7 @@
         one.mesh.material = one.glass;
       }
     } else {
-      // Held just short of one so the surface never becomes a flat cut-out. A boundary is still a
+      // Clamped just short of one so the surface never becomes a flat cut-out. A boundary is still a
       // boundary when the faintest trace of what is behind it survives, and the topology reads
       // better against that than against a solid plate.
       one.solid.opacity =
@@ -5337,9 +5337,9 @@
 
   document.getElementById("core").value = DATA.core || "sphere";
   document.getElementById("core").addEventListener("change", function (event) {
-    // The shape the lights are held by, swapped under them while they are moving. Nothing about the
+    // The shape the lights are contained by, swapped under them while they are moving. Nothing about the
     // cloud is rebuilt: the same population carries on against a different wall, the only
-    // way to see that the wall being a different shape changes nothing about what is held.
+    // way to see that the wall being a different shape changes nothing about what is contained.
     state.core = event.target.value;
     setCore(state.core);
     shadowStale = true;
@@ -5505,7 +5505,7 @@
   })();
 
   // ---------------------------------------------------------------------------------------------
-  // The wall the lights are held by, whatever shape it has been given.
+  // The wall the lights are contained by, whatever shape it has been given.
   //
   // Each shape supplies one number that is under one inside and over one outside, and the outward
   // direction where it is over. That is all confinement needs, and writing it that way is the claim
@@ -5572,7 +5572,7 @@
 
   // A body turned back at a surface, whichever side of it the body is on. Outward is the direction
   // the measure grows in. The boundary below a band is the same test with the sign flipped: a body
-  // in the second band is held off the first from the outside exactly as it is held inside the
+  // in the second band is kept off the first from the outside exactly as it is kept inside the
   // second, and one routine does both.
   function turnBack(k, kind, a, b, fromInside) {
     var reach = measure(kind, atX[k], atY[k], atZ[k], a, b, norm);
@@ -5681,7 +5681,7 @@
   //
   // A label rides the thing it names. Pinned to a screen corner it goes on saying the right words
   // about the wrong place the moment the view turns, and the leader that has to reach it from there
-  // rakes diagonally across the object the reader is trying to look at. Held near its target the
+  // rakes diagonally across the object the reader is trying to look at. Placed near its target, the
   // leader is short, local, and touches the box instead of crossing it.
   //
   // The offset is carried in the object's own apparent scale and not in pixels. Pull back and the
@@ -6071,7 +6071,7 @@
           // share a row: "neutrino source" is 117px and "boundary 1" is 85px. Handing each the
           // other's left edge slides the wide one 32px into its neighbor. Anchoring to the span's
           // two ends instead -- the formerly right label to the left end, the formerly left label
-          // flush against the right end -- exchanges them without overlap, because a span that held
+          // flush against the right end -- exchanges them without overlap, because a span that contained
           // both with a gap between them still holds both when they change places.
           var wasOne = one.left,
             wasTwo = two.left;
@@ -6314,7 +6314,7 @@
     camera.up.copy(upVec);
     camera.lookAt(target);
 
-    // The single place the shadow is paid for. Held down while nothing moves, the difference
+    // The single place the shadow is paid for. Kept down while nothing moves, the difference
     // between twelve scene renders every frame and twelve when the reader does something.
     if (shadowStale) {
       renderer.shadowMap.needsUpdate = true;
@@ -6834,7 +6834,7 @@
       rounds +
       " rounds";
 
-    // The same index can name a different state after a recompute. The held paint key is cleared
+    // The same index can name a different state after a recompute. The cached paint key is cleared
     // and the next paint compares against nothing.
     if (paintKeyWas) {
       paintKeyWas.fill(Number.NaN);

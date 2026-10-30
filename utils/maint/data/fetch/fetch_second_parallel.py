@@ -15,7 +15,7 @@
 # This one is worth more than a second sample. The languages in it are translations of a work whose
 # original is classical Arabic, and that original is here too. The poetic source sits beside forty
 # renderings of itself. Earlier work here found that translation compresses a vocabulary, and this is the
-# case where that can be measured with the content held exactly fixed and only the act of translating
+# case where that can be measured with the content kept exactly fixed and only the act of translating
 # varying.
 #
 # The original is stored under its own name so it is never mistaken for one of the translations, since it
@@ -106,7 +106,7 @@ def main():
         stem = "source_arabic" if code == "ar" else "para2_%s" % name
         target = os.path.join(CORPORA, "%s.txt" % stem)
         if os.path.isfile(target) and (os.path.getsize(target) >= LEAST):
-            out.write("  %-14s %-10d already held\n" % (name, os.path.getsize(target)))
+            out.write("  %-14s %-10d already present\n" % (name, os.path.getsize(target)))
             landed += 1
             continue
         try:

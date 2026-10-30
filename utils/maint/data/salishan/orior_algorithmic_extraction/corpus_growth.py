@@ -179,7 +179,7 @@ def main():
             )
 
     out.write(
-        "\n\n  languages held only as candidates, with no hand-read corpus at all\n"
+        "\n\n  languages kept only as candidates, with no hand-read corpus at all\n"
     )
     for name in sorted(found):
         if name not in pure:

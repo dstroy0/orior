@@ -14,7 +14,7 @@
 # Widening it has to vary the writing system and the family separately, since they travel together in
 # western Europe and neither can be blamed while they do. What is fetched here covers Cyrillic, Greek,
 # Hebrew, Arabic and Japanese script alongside the Latin alphabet, and Slavic, Uralic, Turkic, Semitic,
-# Japonic and Sino-Tibetan alongside Romance and Germanic. Chinese is already held and is the case that
+# Japonic and Sino-Tibetan alongside Romance and Germanic. Chinese is already stored and is the case that
 # decides it, carrying thousands of symbols where the rest carry under two hundred.
 #
 # Texts come from a catalog that states its own language. Nothing here guesses at what a file is. They

@@ -112,7 +112,7 @@ defined `S_i` is a plan; apply Theorem 1. For the divergent case, `S_k` is a pla
 
 This is the theorem worth stating to anyone who has read the header's claim about halting
 ([`orior_descent.h:124-135`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L124-L135)). It says the
-planner slot accepts an arbitrary computation, including one that decides an undecidable question and
+planner callback accepts an arbitrary computation, including one that decides an undecidable question and
 therefore never returns, without the answer depending on it. The undecidability is real and it is
 confined to the planner, where nothing reads its result as a precondition for correctness.
 

@@ -13,7 +13,7 @@ Subdividing does not repair the reading, and the argument that settles it is cou
 statistics. The placement holds 256 points, and past a certain depth there are more cells than there
 are points to write into them.
 
-| `k` | cells | placement slots per cell |
+| `k` | cells | placement points per cell |
 |---|---|---|
 | 0 | 8 | 32 |
 | 1 | 32 | 8 |
@@ -22,7 +22,7 @@ are points to write into them.
 
 At `k = 3` there are twice as many cells as placement points, and most letters can never be written
 at all and the alphabet carries dead symbols. At `k = 2` the cell count equals the typical lit count,
-each cell holds two placement slots, and the reading has stopped being a coarse-graining: it is close
+each cell holds two placement points, and the reading has stopped being a coarse-graining: it is close
 to a permuted list of which bits are lit. On a 256-point placement `k = 2` is the last depth that
 means anything, and by then the object being read is no longer a distribution over regions.
 

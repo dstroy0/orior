@@ -1,7 +1,7 @@
-# Kolmogorov and Arnold, held exactly
+# Kolmogorov and Arnold, computed exactly
 
 **Purpose:** Set the Kolmogorov–Arnold representation theorem beside the engine, part by part. The engine already has the theorem's shape in several places, arrived at by accident: sums of functions of one variable, fed through functions of one variable, stacked. This file says where that shape is, where it stops, and what finishing it would take. The next build can then finish it by design.
-**Scope:** The theorem, the networks built on it (KANs), and the engine parts that take its form: the tower (M9), the residual and the component tree (M2, M3), the key and the cycle (M10), the crystal (M9, [compression_table.md](../compression/compression_table.md)), the root universal (M20), and the theorem's inner function held exactly (the `ka_psi` sim). Statuses follow [README.md](README.md).
+**Scope:** The theorem, the networks built on it (KANs), and the engine parts that take its form: the tower (M9), the residual and the component tree (M2, M3), the key and the cycle (M10), the crystal (M9, [compression_table.md](../compression/compression_table.md)), the root universal (M20), and the theorem's inner function computed exactly (the `ka_psi` sim). Statuses follow [README.md](README.md).
 
 ## The theorem, and what KANs did to it
 
@@ -13,7 +13,7 @@ The inner functions φ_{q,p} can be chosen once for every f; only the outer Φ_q
 
 **KANs** ([Liu et al., 2024](#src:Liu-et-al-2024)) take the shape and give up the exactness. A layer is a matrix of one-variable functions on the edges and plain sums at the nodes, x_{l+1,q} = Σ_p φ_{l,q,p}(x_{l,p}), stacked to any depth. Each φ is w · (SiLU(x) + Σ_i c_i B_i(x)), a smooth B-spline on a grid, and every coefficient is fitted in floating point by gradient descent. A KAN therefore approximates f. Its splines are truncated to a grid, its SiLU is a float, and every sum and product rounds.
 
-**The engine takes the other road.** It keeps the theorem's equality and gives up the fitting. Every function on an edge is an exact integer map, every node sum is exact in two's complement, and nothing rounds anywhere. That makes it not a KAN: it is the theorem's own form, held exactly, on the finite integer domain the data actually lives on. Where the engine is "imperfect", it is incomplete instead of approximate.
+**The engine takes the other road.** It keeps the theorem's equality and gives up the fitting. Every function on an edge is an exact integer map, every node sum is exact in two's complement, and nothing rounds anywhere. That makes it not a KAN: it is the theorem's own form, computed exactly, on the finite integer domain the data actually lives on. Where the engine is "imperfect", it is incomplete instead of approximate.
 
 ## On a finite domain the theorem is exact and one term suffices
 
@@ -40,7 +40,7 @@ It also says where the difficulty went. The one-term form moves the whole of f i
 | a sum node in the network | **the cycle's fold.** Every term of the imprinted key is summed into each output lane in two's complement, one launch | yes | **proved** (the key against the passes, above) |
 | a composed network is itself a function to compose again | **keys of keys.** A composed key is a step in another program (noise_sieve_tower.md §9) | yes | **proved** for linear keys |
 | a general nonlinear φ on an edge | **a pointwise step as a table on the lane's alphabet.** Every value a lane can hold is pushed through the step once, and the table is the function (noise_sieve_tower.md §2). On a finite alphabet any one-variable function is exactly a table. No spline is needed and nothing is fitted | yes, by construction | **proved** as the record machine's table step on x² and \|x − 30000\| + 100 (M10, A13 of [engine_table.md](engine_table.md); `record_table_test`, 4,096 lanes, device and host, 15 checks, 0 failed); on the tower's edges, as a bijection (M20, A14; `tower_edge_test`, 25 checks, 0 failed) |
-| KAN's SiLU base term, which takes whatever the spline does not | **the noise, determined and not absorbed**: the medium subtracted exactly, the residue held whole, and the floor measured per voxel and bit (the next section) | yes | **proved** (the residue lossless) and **measured** (the floor) |
+| KAN's SiLU base term, which takes whatever the spline does not | **the noise, determined and not absorbed**: the medium subtracted exactly, the residue stored whole, and the floor measured per voxel and bit (the next section) | yes | **proved** (the residue lossless) and **measured** (the floor) |
 | coefficients c_i fitted by gradient descent | nothing is fitted; a scale comes from the data (order = period, M2) or the request | nothing to round | absent, by the engine's rule (no chosen numbers) |
 
 ## Same skeleton, a different noise term
@@ -51,7 +51,7 @@ The skeleton is shared: one-variable functions on the edges, sums at the nodes, 
 
 **In the engine** the remainder is determined, three ways and exactly:
 - **Subtracted.** The residual takes the medium out whole: R = 2^{|b|} L_s − L_{s+b}, whose kernel sums to exactly zero: a constant background leaves R unchanged and nothing of it survives as error (A1; **proved**, 0 of 10,485,760,000 lanes differ).
-- **Held.** Every floor's high-pass coefficients, the residue, are kept whole in the crystal: never bounded, modeled or discarded, and rebuilt voxel for voxel (**proved**, 25 of 25).
+- **Stored.** Every floor's high-pass coefficients, the residue, are kept whole in the crystal: never bounded, modeled or discarded, and rebuilt voxel for voxel (**proved**, 25 of 25).
 - **Measured.** The entropy history measures the floor per voxel and per bit, as exact counts. On 44b6_0113de3b, bits 0 to 3 flip 499 to 500 times per thousand transitions in every window, at maximum entropy. Bits 5 to 10 fall from about 430 to about 20 where bodies hold them. The fixed pattern is the anchor bits, which never flip (**measured**; the counts **proved** on 2,000 voxels × 9 windows). The null draws read the field's own noise at a body's lag in frames far off in time. A body is real only where it stands above that reading (built).
 
 So where a KAN has one generic base term and an unexplained remainder, the engine names the remainder at every voxel and bit and keeps every bit of it. That is also what makes the compression floor measurable ([compression_table.md](../compression/compression_table.md), F4): the noise is a measured quantity with a place instead of a loss value.
@@ -60,7 +60,7 @@ So where a KAN has one generic base term and an unexplained remainder, the engin
 |---|---|
 | the engine and a KAN share the skeleton: edge functions, node sums, stacked layers | the engine's instances are **proved** (the tower, the residual, the cycle); the skeleton is the theorem's |
 | a KAN's base term is fixed and generic, and its remainder is minimized, never determined | the published construction (SiLU plus spline, fitted by loss) |
-| the engine determines the remainder: subtracted exactly, held whole, and its floor measured per voxel and bit | **proved** (subtraction, residue) and **measured** (the floor) |
+| the engine determines the remainder: subtracted exactly, stored whole, and its floor measured per voxel and bit | **proved** (subtraction, residue) and **measured** (the floor) |
 
 ## Where it is incomplete, and what finishes it
 
@@ -68,7 +68,7 @@ So where a KAN has one generic base term and an unexplained remainder, the engin
 2. **Outer functions beyond ⌊·/2^k⌋ and a threshold** (theory). The lifting's quotient and the residual's sign and rank are the outer functions in use. A general Φ is the same table machinery as item 1, applied after a sum.
 3. **Choosing the functions without fitting** (open, Doug's call). A KAN finds its φ by descent, and the engine's rule forbids a chosen or tuned number. Two exact routes are open. The data can name the function the way it already names an order (a period read off the data). Or a fit can be solved exactly in rationals: least squares on integers has an exact rational solution through its normal equations, and nothing rounds. Whether any fitted function belongs in the engine at all is Doug's ruling.
 4. **Many terms, or one** (theory). On the finite domain one term suffices (above), but its Φ is huge. Keeping the functions small is the point. The target is the fewest terms and the smallest tables that hold f exactly. That size is measurable, which is item 5.
-5. **The two Kolmogorovs meet in the crystal** (theory). The representation theorem is Kolmogorov 1957. The crystal's name, `.kcr`, is [Kolmogorov 1965](#src:Kolmogorov-1965) (Kolmogorov 1968 in English): the complexity K(x), the length of the shortest program that prints x. They meet here. A set held as an exact representation (the tables and sums of items 1 to 4) plus its exact residue is a two-part code: the model, then what the model does not predict. Its length bounds K(x) from above. An exact Kolmogorov–Arnold form of a set is therefore a compressor, and every table it saves is bytes off the crystal. That adds a rung to the ladder in [compression_table.md](../compression/compression_table.md): the two-part code, the representation's size plus the residue's F2.
+5. **The two Kolmogorovs meet in the crystal** (theory). The representation theorem is Kolmogorov 1957. The crystal's name, `.kcr`, is [Kolmogorov 1965](#src:Kolmogorov-1965) (Kolmogorov 1968 in English): the complexity K(x), the length of the shortest program that prints x. They meet here. A set stored as an exact representation (the tables and sums of items 1 to 4) plus its exact residue is a two-part code: the model, then what the model does not predict. Its length bounds K(x) from above. An exact Kolmogorov–Arnold form of a set is therefore a compressor, and every table it saves is bytes off the crystal. That adds a rung to the ladder in [compression_table.md](../compression/compression_table.md): the two-part code, the representation's size plus the residue's F2.
 
 | claim | status |
 |---|---|
@@ -89,7 +89,7 @@ The continuous theorem, in Sprecher's version, is built on one inner function ψ
 
 **The setting** (Braun and Griebel 2009, Theorem 2.1; A15 of [engine_table.md](engine_table.md)). Take integers n ≥ 2, m ≥ 2n, γ ≥ m + 2 and a = [γ(γ − 1)]⁻¹. Then f(x) = Σ_{q=0}^{m} Φ_q ∘ ξ(x_q), with ξ(x_q) = Σ_{p=1}^{n} α_p ψ(x_p + qa), α_1 = 1, α_p = Σ_{r≥1} γ^−(p−1)β(r) and β(r) = (nʳ − 1)/(n − 1). ψ is first defined on the terminating base-γ rationals D_k = { Σ_{r≤k} i_r γ^−r } and extended to [0, 1] as a limit. Here n = 2 and n = 3 with γ = 10, which meets γ ≥ 2n + 2.
 
-**The arithmetic** (proved by construction). Every value on a grid is an exact integer over 2^L · γ^β(L). At depth, a value is a sparse sum Σ c_j γ^−e_j: each c_j an exact rational, and each e_j = β(L) held as an integer and never expanded ("the exp is symbolic"). At level 60 for n = 2, β = 2^60 − 1 = 1,152,921,504,606,846,975, a number no expansion of digits could reach. A sign is decided exactly: the head is folded in until it outweighs a proven bound on the tail, and when the exponent gap is wide, bit lengths decide it. So every question of the form "is it past the limit" gets a true or false answer instead of a rounded one.
+**The arithmetic** (proved by construction). Every value on a grid is an exact integer over 2^L · γ^β(L). At depth, a value is a sparse sum Σ c_j γ^−e_j: each c_j an exact rational, and each e_j = β(L) stored as an integer and never expanded ("the exp is symbolic"). At level 60 for n = 2, β = 2^60 − 1 = 1,152,921,504,606,846,975, a number no expansion of digits could reach. A sign is decided exactly: the head is folded in until it outweighs a proven bound on the tail, and when the exponent gap is wide, bit lengths decide it. So every question of the form "is it past the limit" gets a true or false answer instead of a rounded one.
 
 1. **Sprecher's ψ fails, exactly.** Sprecher's ψ (Braun and Griebel's 2.4) at n = 2 and γ = 10 gives ψ(0.58999) = 2207/4000 = 0.55175 > ψ(0.59) = 11/20 = 0.55, the paper's (2.5) reproduced as exact rationals (**proved**). It is not increasing, and it descends between 10 of the 99,999 neighboring pairs of D_5, the first between 0.08999 and 0.09000 (**measured**). The paper's values need m_r = ⟨i_r⟩(1 + Σ_{s<r} [i_s] ⋯ [i_{r−1}]), the empty product counted as 1, as in Sprecher's own form; the sum as typeset in (2.4), with [i_1] = 0 and no leading 1, gives ψ(0.59) = 0.501. The sim takes the reading that reproduces (2.5), and an independent recount in exact fractions agrees on both values and on the 10 descents.
 2. **Köppen's ψ, in both of its readings.** Köppen's correction is recursive on D_k. A level-L point whose last digit is γ − 1 is carried: it takes a midpoint of the level-(L − 1) values ψ and ψ⁺ on either side. The paper gives that midpoint two ways. (2.9)/(2.10), the form its proofs use, is ψ_L = ½ψ_{L−1} + ½ψ⁺_{L−1} + (γ − 2)/(2γ^β(L)), symmetric in the cell. (2.7) as printed puts i_k = γ − 1 inside the half, (γ − 1)/(2γ^β(L)). Of the two, (2.9) averages ψ_L(d − γ^−L) with ψ_{L−1}(d + γ^−L). For n = 2 and n = 3 at γ = 10, on every point of D_1 to D_5 (10 to 100,000 points), in both readings (**proved**, exhaustively):
@@ -110,7 +110,7 @@ The continuous theorem, in Sprecher's version, is built on one inner function ψ
 - **The widest gap.** G_L = ½G_{L−1} − (s/2)u_L ≤ 2^−(L−1)/γ. Two points closer than γ^−L lie in one level-L cell or two neighboring ones. Between them ψ moves by at most 2G_L, and that goes to 0: ψ is continuous.
 - **The extension.** Between any x < y in [0, 1] lie two grid points d < d′ of some level, with ψ(d) < ψ(d′). The limit ψ on [0, 1] is therefore strictly increasing as well as continuous.
 
-**What it settles.** Both readings give a continuous, strictly increasing ψ; the (2.7)/(2.9) discrepancy changes only the widest gap. Sprecher's proof needed this step and his ψ does not give it. Köppen's ψ does, and Braun and Griebel prove it by bounds (Lemmas 2.3 and 2.4). Here it is held exactly to depth 60, with every inequality decided true or false.
+**What it settles.** Both readings give a continuous, strictly increasing ψ; the (2.7)/(2.9) discrepancy changes only the widest gap. Sprecher's proof needed this step and his ψ does not give it. Köppen's ψ does, and Braun and Griebel prove it by bounds (Lemmas 2.3 and 2.4). Here it is computed exactly to depth 60, with every inequality decided true or false.
 
 ### Separation
 

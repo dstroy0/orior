@@ -293,7 +293,7 @@ def main():
                 % (at, who or spot, kind, crossings, content)
             )
 
-    # The words alone. The underlying forms are held out by their kind, the starred ones by theirs,
+    # The words alone. The underlying forms are excluded by their kind, the starred ones by theirs,
     # and ʔayʔaǰuθəm and its suffix by the who column.
     pure = TARGET[:-4] + ".pure.txt"
     kept = 0

@@ -273,7 +273,7 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
     }
     ksg_print("\n");
     ksg_print_flush();
-    // the approvals are verified against the seal as it is stored, so a seal written again over a changed file
+    // the approvals are verified against the seal as it is stored, and a seal written again over a changed file
     // validates none
     const int approved = ksg_approvals_checked(path, stored_trailer, required, count);
     return seal_matches && approved;

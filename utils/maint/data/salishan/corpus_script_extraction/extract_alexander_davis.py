@@ -142,7 +142,7 @@ LAYER = {
     "gloss": DERIVED,
     "orthography chart": DERIVED,
     "glossing term": DERIVED,
-    # Kept and marked, held out of the ingestion stream until someone has classified it.
+    # Kept and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -295,7 +295,7 @@ def main():
             "# Davis transcribed, translated and analyzed it and wrote the introduction.\n"
         )
         handle.write(
-            "# It tells of the Bury the Hatchet ceremony held at Graveyard Valley in the\n"
+            "# It tells of the Bury the Hatchet ceremony that took place at Graveyard Valley in the\n"
         )
         handle.write(
             "# South Chilcotin Mountains on 19 July 2003 between the St'át'imc and the\n"

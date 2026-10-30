@@ -26,7 +26,7 @@
 #
 # WHY A RANDOM SAMPLE AND NOT THE BEST STRUCTURES
 #
-# The corpus is drawn at random from every X-ray protein entry in the archive, with a held seed so
+# The corpus is drawn at random from every X-ray protein entry in the archive, with a fixed seed so
 # the draw repeats. Sorting by resolution and taking the top of the list was the wrong control: the
 # best-resolved structures nearly all have an outlier rate of zero. An instrument that only ever
 # answered zero would have scored full marks against them and taught nothing. A random protein spans
@@ -92,7 +92,7 @@ TRIES = 3
 # not a slice off the top: the sweep draws from the shuffled pool until this many have graded.
 TARGET = 1000
 
-# Held. The random draw repeats. The corpus belongs to the seed and not to the run.
+# Fixed. The random draw repeats. The corpus belongs to the seed and not to the run.
 SEED = 0x51F7
 
 # Every X-ray protein entry, spanning the whole resolution range. The monomer floor drops
@@ -146,7 +146,7 @@ def cached_json(name, url, out, timeout=180):
 
 
 def pool(out):
-    """Every matching entry id, fetched once and shuffled by the held seed.
+    """Every matching entry id, fetched once and shuffled by the fixed seed.
 
     The whole id list is small next to the coordinate files it points at. It is fetched once and
     cached, and the shuffle is deterministic. Drawing from the front of this list is a uniform random

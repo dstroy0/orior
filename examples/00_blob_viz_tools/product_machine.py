@@ -54,7 +54,7 @@ BYTES_PER_QUBIT = BITS_PER_QUBIT // 8
 
 
 class ProductMachine(object):
-    """n qubits held as one direction each, at two float32 per qubit.
+    """n qubits stored as one direction each, at two float32 per qubit.
 
     The angles are the state. There is no amplitude array anywhere in this class, and so the
     qubit count is bounded by memory over eight bytes and not by an exponential.
@@ -130,7 +130,7 @@ def _report():
     machine = ProductMachine(4096)
     machine.hadamard_all()
     machine.phase_all(0.7)
-    print("    held in %d bytes, which is %.1f KB"
+    print("    stored in %d bytes, which is %.1f KB"
           % (machine.bytes_held(), machine.bytes_held() / 1024.0))
     print("    a state vector of the same 4096 qubits would be 1e1234 bytes")
     print("    probability qubit 0 reads one: %.6f" % machine.probability_one(0))
@@ -157,7 +157,7 @@ def _report():
     print("  AND THE COST OF GOING PART WAY IS KNOWN. A matrix product state at bond dimension")
     print("  chi holds entanglement up to log2(chi) per split and needs about 2 n chi^2 numbers:")
     print("")
-    print("  %8s %16s %24s" % ("chi", "entropy held", "numbers for 4096 qubits"))
+    print("  %8s %16s %24s" % ("chi", "entropy stored", "numbers for 4096 qubits"))
     for chi in (1, 2, 4, 16, 256):
         print("  %8d %16.1f %24.3e" % (chi, math.log2(chi), 2.0 * 4096 * chi * chi))
     print("")
@@ -172,7 +172,7 @@ def _width():
 
     The specification says 64 bits a qubit and that 32 would do. Both are measurable and not arguable: the
     angles are stored at a width and the state they describe carries whatever error that width
-    leaves. Graded against the same angles held at float64.
+    leaves. Graded against the same angles stored at float64.
     """
     generator = numpy.random.default_rng(17)
     qubits = 12

@@ -72,7 +72,7 @@ run_list() {
     local held="${answers%.txt}.gated.txt" first=0 guard=0 status last hung crossed
     # the airlock: the vendor reads every cubin of the list before any reaches the part, and the runner is handed that
     # verdict always; without it the runner holds every cubin off the part
-    "$PYTHON" "$HERE/interface_sass_held.py" "$list" "$CUDA/bin/nvdisasm" SM86 "$WIN_OUT/cross" "$held"
+    "$PYTHON" "$HERE/interface_sass_withheld.py" "$list" "$CUDA/bin/nvdisasm" SM86 "$WIN_OUT/cross" "$held"
     crossed=$?
     [ "$crossed" = 2 ] && { echo "  cross: the vendor's reader was not reached; nothing goes to the part"; return 1; }
     while :; do
@@ -129,7 +129,7 @@ for name in $(sed -n "s/^  \([a-z]*\) *the target's half written to .*/\1/p" "$D
 done
 "$OUT/interface_sass_writings" descent-read "$(cygpath -m "$HERE")/interface_sass_descent.md" "${PAIRS[@]}" || exit 1
 
-# the ruleset's forms for the word web's words held to the writings found; a form that does not hold is reported and
+# the ruleset's forms for the word web's words checked against the writings found; a form that does not hold is reported and
 # ends nothing
 "$OUT/interface_sass_writings" krs-read "$WIN_OUT" "$(cygpath -m "$TOP")/src/cu/transpiler/lstar/protocol/table/sass.krs" \
     "$(cygpath -m "$HERE")/interface_sass_krs.md"

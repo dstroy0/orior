@@ -87,7 +87,7 @@ extern "C" int engine_program_directory(char *out, size_t capacity)
     const size_t length = (size_t)written;
 #else
     const ssize_t written = readlink("/proc/self/exe", out, capacity - 1u);
-    // a failed read is -1 and is recorded as no length at all
+    // a failed read is -1, recorded as no length at all
     const size_t length = (written > 0) ? (size_t)written : 0u;
 #endif
     size_t directory_length = (length < capacity) ? length : 0u;

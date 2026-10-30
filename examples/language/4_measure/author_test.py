@@ -23,7 +23,7 @@
 # character level. At word level it is not negligible. The same drift that could not touch the
 # character reading is live here.
 #
-# Both are measured on the same texts, held out one at a time. Guessing gets one in seven.
+# Both are measured on the same texts, left out one at a time. Guessing gets one in seven.
 
 import io
 import os
@@ -74,7 +74,7 @@ def main():
 
     writers = sorted({row[0] for row in loaded})
     if len(writers) < 4:
-        out.write("  only %d writers held\n" % len(writers))
+        out.write("  only %d writers loaded\n" % len(writers))
         out.flush()
         return 0
 

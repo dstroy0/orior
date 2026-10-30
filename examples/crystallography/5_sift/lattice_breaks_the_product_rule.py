@@ -50,7 +50,7 @@ CACHE = os.path.join(ROOT, "build", "cod")
 ANCHORS = 3
 TRIALS = 40
 
-# Held, which keeps a rerun reporting the same draw.
+# Fixed, which keeps a rerun reporting the same draw.
 SEED = 0xC0FFEE
 
 

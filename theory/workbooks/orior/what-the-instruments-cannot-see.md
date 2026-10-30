@@ -30,7 +30,7 @@ variance carried through a logarithm, giving 0.0582 where shuffling gives 0.1015
 
 **A generator with a period.** Survey arms built as `at * (2*arm + 37) + 11 + 97*arm mod 256` are
 linear in the arm index, and both terms wrap together every 256 arms: arm 0 and arm 256 produced
-byte-identical headers. Nine hundred thirty one files held two hundred fifty six distinct arms, up
+byte-identical headers. Nine hundred thirty one files contained two hundred fifty six distinct arms, up
 to four copies each, and the duplication inflated the summed squared z from 256 to 942 - which read
 as a thirty sigma discovery and reproduced the duplication factor to within one per cent. Headers
 are now hashed from the arm index instead of stepped from it.

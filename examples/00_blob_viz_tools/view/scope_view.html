@@ -498,7 +498,7 @@ function litSet(r) {
 }
 const hotCount = (r) => litSet(r).reduce((a, v) => a + v, 0);
 
-/* Dwell: how many rounds a bit has held its value. Frozen bits and churning bits separate. */
+/* Dwell: how many rounds a bit has kept its value. Frozen bits and churning bits separate. */
 const dwellCache = new Map();
 function dwellAt(r) {
   if (dwellCache.has(r)) return dwellCache.get(r);

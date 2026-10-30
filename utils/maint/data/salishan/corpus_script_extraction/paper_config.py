@@ -17,7 +17,7 @@
 # reading it, the same way the alphabet is, and because a name is not something to derive from a
 # column with a heuristic. Where a paper cites a published dictionary and never says who spoke, the
 # entry is empty and the index says so. That is the honest answer, and the linguist does not go in
-# the slot.
+# the field.
 #
 # WHAT AN ALPHABET IS FOR
 #
@@ -316,7 +316,7 @@ GIVENS_HALL_FLATTENED = (
 #
 # The speakers are named from the papers themselves. Where a paper cites a published dictionary and
 # never says who spoke, the list is empty and the index prints that. A linguist's name never goes in
-# the slot: they wrote the paper down, and the language is not theirs.
+# the field: they wrote the paper down, and the language is not theirs.
 PAPERS = (
     Paper(
         "Mellesmoen_Kye_ICSNL61",

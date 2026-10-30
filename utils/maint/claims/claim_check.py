@@ -32,7 +32,7 @@
 #   both         the marked blocks weigh a third of the whole or more
 #   nowhere      the theory does not hold it at all; numbers and pairs only, since a phrase alone
 #                is too loose to stand for a claim
-#   held         anything else; shown with --all
+#   supported    anything else; shown with --all
 #
 # A surface block that is itself marked, or that says a claim was killed, is telling the reader
 # about the take back, and its keys are never answered taken back or both.
@@ -231,7 +231,7 @@ def joined(body):
 
 def index(skip):
     """Every key the theory holds, with each place: (path, line, marked, words of its block)."""
-    held = {}
+    claims = {}
     for path in theory_files(skip):
         tex = path.endswith(".tex")
         for first, body, marked in blocks(path):
@@ -240,8 +240,8 @@ def index(skip):
             for key in keys(text, tex):
                 if about is None:
                     about = words(text, tex)
-                held.setdefault(key, []).append((path, first, marked, about))
-    return held
+                claims.setdefault(key, []).append((path, first, marked, about))
+    return claims
 
 
 def taken(place, places):
@@ -277,12 +277,12 @@ def answer(kind, places, about):
     unmarked = sum(score for score, place in near if not place[2])
     shown = [place for score, place in near if place[2]]
     if marked == 0:
-        return "held", [place for score, place in scored][:1]
+        return "supported", [place for score, place in scored][:1]
     if marked >= unmarked:
         return "taken back", shown
     if marked * 2 >= unmarked:
         return "both", shown
-    return "held", [place for score, place in near if not place[2]][:1]
+    return "supported", [place for score, place in near if not place[2]][:1]
 
 
 def read_rows():
@@ -305,14 +305,14 @@ def main():
     parser = argparse.ArgumentParser(description="Hold every public claim against the theory.")
     parser.add_argument("surface", nargs="*",
                         help="pages to read; with none given, README.md, docs/ and every abstract")
-    parser.add_argument("--all", action="store_true", help="show held keys as well")
+    parser.add_argument("--all", action="store_true", help="show supported keys as well")
     parser.add_argument("--strict", action="store_true", help="end with 1 on a number or pair the theory does not hold")
     args = parser.parse_args()
 
     pages = surfaces(args.surface)
-    held = index(set(pages))
+    claims = index(set(pages))
     silenced = read_rows()
-    findings = {"taken back": [], "both": [], "nowhere": [], "held": []}
+    findings = {"taken back": [], "both": [], "nowhere": [], "supported": []}
     quiet = 0
     for page in pages:
         tex = page.endswith(".tex")
@@ -321,17 +321,17 @@ def main():
             about = words(text, tex)
             telling = marked or bool(KILLED.search(text))
             for kind, key in sorted(keys(text, tex)):
-                verdict, places = answer(kind, held.get((kind, key), []), about)
+                verdict, places = answer(kind, claims.get((kind, key), []), about)
                 if verdict is None:
                     continue
                 if telling and verdict in ("taken back", "both"):
-                    verdict = "held"
+                    verdict = "supported"
                 if (where(page), key, verdict) in silenced:
                     quiet += 1
                     continue
                 findings[verdict].append((where(page), first, kind, key, places))
 
-    for verdict in ("taken back", "both", "nowhere") + (("held",) if args.all else ()):
+    for verdict in ("taken back", "both", "nowhere") + (("supported",) if args.all else ()):
         rows = findings[verdict]
         if not rows:
             continue
@@ -339,11 +339,11 @@ def main():
         for page, number, kind, key, places in rows:
             print("  %s:%d  %s  %s" % (page, number, kind, key))
             for path, line, marked, _ in places[:2]:
-                print("      %s %s:%d" % ("marked" if marked else "held", where(path), line))
+                print("      %s %s:%d" % ("marked" if marked else "supported", where(path), line))
     total = sum(len(rows) for rows in findings.values())
-    print("%d key(s) over %d page(s): %d taken back, %d both, %d nowhere, %d held, %d already read in %s"
+    print("%d key(s) over %d page(s): %d taken back, %d both, %d nowhere, %d supported, %d already read in %s"
           % (total + quiet, len(pages), len(findings["taken back"]), len(findings["both"]),
-             len(findings["nowhere"]), len(findings["held"]), quiet, where(READ)))
+             len(findings["nowhere"]), len(findings["supported"]), quiet, where(READ)))
     failed = findings["taken back"] or findings["both"] or (args.strict and findings["nowhere"])
     return 1 if failed else 0
 

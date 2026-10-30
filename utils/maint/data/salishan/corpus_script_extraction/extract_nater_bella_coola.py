@@ -123,7 +123,7 @@ LAYER = {
     "translation": SPOKEN,
     "gloss": DERIVED,
     "symbol note": DERIVED,
-    # Kept and marked, held out of the ingestion stream until someone has classified it.
+    # Kept and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -178,7 +178,7 @@ def main():
 
         # Section 1 names the two genres this story sits between, and section 2 lists every
         # preposition, article, deictic and enclitic adverb the text uses, each with its gloss in
-        # quotes. Both are the language. Kept as whole lines, the record held forty-odd forms inside
+        # quotes. Both are the language. Kept as whole lines, the record contained forty-odd forms inside
         # six blobs of prose, and the hand extraction of this paper, which has one row per form,
         # matched none of them.
         if section in ("1", "2") and carries_language(trimmed):

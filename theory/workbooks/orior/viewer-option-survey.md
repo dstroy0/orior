@@ -10,9 +10,9 @@ only records what is.
 
 ## The lead finding: every builder writes through one generator
 
-Every template holds its data in one slot, `var DATA = /*DATA*/ null;`, and every builder with a
-template hands its data to `generate_template.py`, which writes it into that slot as JSON. A template
-with no slot, with two, or with a script element left open is refused, and no page is written.
+Every template holds its data in one placeholder, `var DATA = /*DATA*/ null;`, and every builder with a
+template hands its data to `generate_template.py`, which writes it into that placeholder as JSON. A template
+with no placeholder, with two, or with a script element left open is refused, and no page is written.
 
 | outcome | what happens | builders |
 |---|---|---|
@@ -175,5 +175,5 @@ share. Every page that draws frame by frame runs its loop under `toolbox/core/wa
 
 ## Next
 
-The WGSL raster arm is M16's unbuilt leg, held to the same byte-for-byte contract as the device and
+The WGSL raster arm is M16's unbuilt leg, bound to the same byte-for-byte contract as the device and
 host arms once it is built.

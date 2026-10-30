@@ -505,7 +505,7 @@ def _reach():
     print("  else, and one decade further out leaves nothing at all. A thousand-digit reader is")
     print("  not exempt, it is only further along the same curve.")
     print("")
-    print("  NOW DIMENSION, HELD AT ONE DISTANCE, because it enters differently.")
+    print("  NOW DIMENSION, FIXED AT ONE DISTANCE, because it enters differently.")
     print("")
     print("  %10s %14s %14s %16s" % ("dimension", "reach @55", "per degree", "numbers @55"))
     for dimension in (3, 4, 5, 8, 16, 32):

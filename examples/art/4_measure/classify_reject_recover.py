@@ -31,7 +31,7 @@
 #                          KEEP. The noise is the per-frame deviation. Reject it by per-pixel consensus,
 #                          exact where a strict majority survives; a class with no majority is the floor.
 # Running fixed-pattern removal on a repeat erases the subject, and running consensus on a varying
-# subject returns nothing any frame held. The mode is the guard against both, and there is no default
+# subject returns nothing any frame contained. The mode is the guard against both, and there is no default
 # that guesses it.
 #
 # THE UNCERTAINTY. Two independent exact routes are run for the reject. Where they land on the same
@@ -108,7 +108,7 @@ def fixed_pattern(frame, amplitude, seed):
 
 
 def repeating_subject(frame, frames, seed):
-    """One image held identical in every frame: the case --mode repeat is written for."""
+    """One image kept identical in every frame: the case --mode repeat is written for."""
     rng = random.Random(seed)
     one = [rng.randint(0, 200) for _ in range(frame)]
     return [one[index % frame] for index in range(frame * frames)], one

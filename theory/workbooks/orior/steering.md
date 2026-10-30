@@ -11,7 +11,7 @@ Each probe tests whether the corpus at some offset carries the needle's own byte
 
 Two different invariants follow, and keeping them apart matters. Reordering a probe set leaves the surviving set itself identical, because conjunction commutes. Moving a probe or changing its shape gives a different probe set, which is a different conjunction and a different surviving set: the survivors of one probe strictly contain the survivors of that probe and a second. What stays identical across every probe set is the COUNT, because every surviving set contains all the true occurrences and the full compare removes the rest.
 
-The survivor count depending on which probe is placed is the steering signal itself, measured in `steer_truthy_after_probe` (`src/cu/engine/nbody/orior/orior_steer_plan.c`). A reading that held the surviving set fixed across different probe sets would leave the planner with nothing to rank.
+The survivor count depending on which probe is placed is the steering signal itself, measured in `steer_truthy_after_probe` (`src/cu/engine/nbody/orior/orior_steer_plan.c`). A reading that kept the surviving set fixed across different probe sets would leave the planner with nothing to rank.
 
 This tree calls a move that cannot change the answer a null. Reordering is a null on the surviving set, and every probe set whatever is a null on the count.
 
@@ -151,7 +151,7 @@ What follows separates what is settled from what is open, and the open part is m
 
 ### What is settled
 
-**The trichotomy.** A descent stops, recurses, or refuses to run. It stops when the destroy test fires. It recurses when a level prunes. It refuses, returning zero and writing nothing, when a pointer is null, when the count exceeds `ORIOR_STEER_ANCHORS`, when the needle length is zero or exceeds the corpus, or when the survivor buffer does not reach the alignment count (`src/cu/engine/nbody/orior/orior_steer_plan.c`). A malformed question does not run. There is no fourth branch in which it revisits a state it has already held.
+**The trichotomy.** A descent stops, recurses, or refuses to run. It stops when the destroy test fires. It recurses when a level prunes. It refuses, returning zero and writing nothing, when a pointer is null, when the count exceeds `ORIOR_STEER_ANCHORS`, when the needle length is zero or exceeds the corpus, or when the survivor buffer does not reach the alignment count (`src/cu/engine/nbody/orior/orior_steer_plan.c`). A malformed question does not run. There is no fourth branch in which it revisits a state it has already been in.
 
 **Soundness does not depend on which branch is taken.** `T` is contained in `S(P)` for the probe set placed right now, and that statement never mentions how `P` was reached or whether the process reaching it will stop. The answer is exact at every instant of a process that need not terminate. The anytime property is not a convenience attached to a terminating computation; it makes a non-terminating one useful.
 

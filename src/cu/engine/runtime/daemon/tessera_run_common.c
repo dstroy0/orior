@@ -106,7 +106,7 @@ size_t run_own_path(char *path, size_t capacity)
     const size_t length = (size_t)GetModuleFileNameA(NULL, path, (DWORD)capacity);
 #else
     const ssize_t read = readlink("/proc/self/exe", path, capacity - 1u);
-    // a failed read is -1 and is recorded as no length at all
+    // a failed read is -1, recorded as no length at all
     const size_t length = (read > 0) ? (size_t)read : 0u;
 #endif
     if ((length == 0u) || (length >= capacity))

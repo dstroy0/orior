@@ -19,7 +19,7 @@ So the transform is both complete and cheaper. That is the usual shape of using 
 
 OUT OF SAMPLE STILL APPLIES
 
-The transform is complete over masks. There is no held-out mask space. The held-out axis is the
+The transform is complete over masks. There is no withheld mask space. The withheld axis is the
 nonces: the best alpha is found on one range and its bias is then measured on a disjoint range it
 never saw. A real approximation holds there and a selection artifact does not, and over 2^k masks
 the largest is always large by construction.
@@ -38,7 +38,7 @@ import struct
 def build_signs(first, span, beta):
     """g[x] = +1 or -1 by the parity of digest(first + x) AND beta.
 
-    The array is arbitrary-width. An earlier version held these in array("i"), which is
+    The array is arbitrary-width. An earlier version stored these in array("i"), which is
     a thirty-two bit signed C integer, and the transform below sums them: after k stages a value can
     reach the full span. At a span of 2^31 the accumulator wraps and the transform returns
     nonsense that looks like data. That is the same fault as the uint32 overflow found in
@@ -73,7 +73,7 @@ def walsh(signs, bits):
 
 
 def measure_direct(first, span, alpha, beta):
-    """The bias of one mask pair over a range, counted plainly. Used for the held-out check."""
+    """The bias of one mask pair over a range, counted plainly. Used for the withheld check."""
     total = 0
     for offset in range(span):
         nonce = first + offset
@@ -101,7 +101,7 @@ def main():
     # carry a bias if anything does.
     betas = [(1 << (255 - position), position) for position in range(0, given.outputs * 40, 40)]
 
-    print("    output bit   best input mask   bias (sd)   held-out (sd)   verdict")
+    print("    output bit   best input mask   bias (sd)   withheld (sd)   verdict")
     bar = math.sqrt(2.0 * math.log(span))     # the loudest of 2^bits under the null
     for beta, position in betas:
         signs = build_signs(0, span, beta)
@@ -112,7 +112,7 @@ def main():
                 best_at, best = alpha, signs[alpha]
         found_sd = best / math.sqrt(span)
 
-        # The held-out range: the same mask pair on nonces the transform never touched.
+        # The withheld range: the same mask pair on nonces the transform never touched.
         check = measure_direct(span, span // 4, best_at, beta)
         check_sd = check / math.sqrt(span // 4)
         verdict = "SURVIVES" if abs(check_sd) >= 4.0 else "selection"
@@ -124,7 +124,7 @@ def main():
           % (format(span, ","), bar))
     print()
     print("    The found column is the maximum over every mask: it is large by construction and")
-    print("    carries no information on its own. The held-out column is the whole test: a real")
+    print("    carries no information on its own. The withheld column is the whole test: a real")
     print("    approximation predicts nonces it never saw, and a selection artifact does not.")
     return 0
 

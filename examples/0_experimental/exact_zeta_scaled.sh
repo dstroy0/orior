@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Builds exact_zeta_scaled, the held record programs of Turing's method, with the record compiler and the tessera client
+# Builds exact_zeta_scaled, the bracketed record programs of Turing's method, with the record compiler and the tessera client
 # beside it, and prints the binary's path on its last line.
 #
 #   Usage:  bash examples/0_experimental/exact_zeta_scaled.sh [sm_NN ...]

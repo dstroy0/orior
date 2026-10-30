@@ -10,8 +10,8 @@ depends entirely on which third of a block id you read, and the difference is ei
 hundred times the floor. Drawn, that is one glance. Written, it is a table somebody has to be told
 how to read.
 
-SELF CONTAINED AND HELD. One file, no network, no interpreter. The subject is the chain and a real
-block corpus. It is HELD and it is built to a local path.
+SELF CONTAINED AND WITHHELD. One file, no network, no interpreter. The subject is the chain and a real
+block corpus. It is WITHHELD and it is built to a local path.
 """
 
 import argparse
@@ -264,7 +264,7 @@ TEMPLATE = """<title>Illuminating With The Chain</title>
   the bias is the thing that made them expensive.</p>
 
   <footer>Built from examples/00_blob_viz_tools/beam_illuminate.py against utils/maint/chain/blocks_deep.json. One
-  self-contained file, no network and no interpreter. HELD: the subject is the chain and the object
+  self-contained file, no network and no interpreter. WITHHELD: the subject is the chain and the object
   is a real block corpus.</footer>
 </div>
 """

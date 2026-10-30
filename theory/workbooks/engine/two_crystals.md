@@ -78,7 +78,7 @@ Derived. An operation G factors through π_w when WRAP(G(x), w) is a function of
 - **The kernel computes c⁻¹.** Derived from `cycle.cu` (`cycle_record_exact_quotient`).
   - It shifts the numerator and the divisor past the divisor's low zero bits.
   - It grows the odd part's inverse modulo 2^{32 · work} by Newton's x ← x(2 − cx) from one word, where work is the larger of the numerator's limbs and the quotient's.
-  - Newton converges 2-adically. An odd c = 2m + 1 has c² = 4m(m + 1) + 1 ≡ 1 mod 8: it is its own inverse to 3 bits. If cx ≡ 1 mod 2^b, then c · x(2 − cx) = 1 − (1 − cx)² ≡ 1 mod 2^{2b}. In one word, four rounds give 6, 12, 24 and 48 bits, past the word's 32. The held limbs then double each round up to work.
+  - Newton converges 2-adically. An odd c = 2m + 1 has c² = 4m(m + 1) + 1 ≡ 1 mod 8: it is its own inverse to 3 bits. If cx ≡ 1 mod 2^b, then c · x(2 − cx) = 1 − (1 − cx)² ≡ 1 mod 2^{2b}. In one word, four rounds give 6, 12, 24 and 48 bits, past the word's 32. The stored limbs then double each round up to work.
   - The quotient is the low limbs of numerator · inverse, and the product back against the whole numerator proves it.
 - **The 2-adic reading.** Derived. The inverse register holds π_{32 · work}(c⁻¹), a window of an element of ℤ₂ outside ℤ for every odd c other than ±1. Without the product back, the low limbs of numerator · inverse are π_{32 · work}(v · c⁻¹) for any v, a window of a 2-adic integer. The check against the whole numerator makes the result the integer v / c, or refuses the lane.
 
@@ -264,7 +264,7 @@ Doug's definition of the higher-order and negative-order hypercomputer (points 1
 
 **The formalization.**
 
-- State: a crystal, a vector of 2-adic integers, held one window at a time.
+- State: a crystal, a vector of 2-adic integers, stored one window at a time.
 - Step: one floor stack F, made reversible. A shear (a, b) ↦ (a, b + g(a)) is a bijection for any g. A floor that merges states rides the Bennett embedding (x, y) ↦ (x, y ⊕ f(x)) (A14 in [engine_table.md](engine_table.md)).
 - Order k ∈ ℤ: the state is F^k(x), with F^{−k} = (F⁻¹)^k. The counter n ↦ n + 1 is a shear too. The orders load themselves as the naturals load, and running the inverse extends them to ℤ: Doug's point 4.
 - Order ±ω: at the limit each bit takes the lim sup of its history, the limit rule of Hamkins and Lewis (2000). +ω runs F, and −ω runs F⁻¹.
@@ -324,14 +324,14 @@ Doug's definition of the higher-order and negative-order hypercomputer (points 1
 - "Higher-order interference" has a standard meaning, Sorkin's hierarchy ([Sorkin 1994](#src:Sorkin-1994)). Quantum theory has second-order interference and none of third order.
 - The ask_state crossing rule's negative weights are second-order interference (A15 in [engine_table.md](engine_table.md)).
 
-## Goodstein: ω-towers held as finite objects
+## Goodstein: ω-towers stored as finite objects
 
 `goodstein` (engine/sims, a host sim in exact integers, 7 checks, 0 failed, run 20260924_191006). Doug asked for ω^ω^ω, then for the tetration of ω.
 
 - **The objects.**
   - n in hereditary base b: n written in base b, every exponent written in base b again, down to the digits.
   - A step writes every b as b + 1 (the bump) and subtracts 1. Goodstein's sequence G(n) runs the steps from base 2.
-  - A value is held as its hereditary tree and never expanded. b^L − 1 at a large L is held as one run of coefficient b − 1 over the exponents 0 … L − 1, each exponent written in the base the run was made at.
+  - A value is stored as its hereditary tree and never expanded. b^L − 1 at a large L is stored as one run of coefficient b − 1 over the exponents 0 … L − 1, each exponent written in the base the run was made at.
   - With b read as ω, the tree is an ordinal in Cantor normal form, below ε₀ = sup{ω, ω^ω, ω^ω^ω, …}. 2↑↑k reads as ω↑↑k: 4 is ω^ω, 16 is ω^ω^ω, 65536 is ω↑↑4.
 
 **Derived** (the standard proof, [Goodstein 1944](#src:Goodstein-1944)).
@@ -386,7 +386,7 @@ Posit.
 **The method** (exact, integers only).
 
 - π is bracketed by [Machin's formula](#src:Jones-1706) at 416 bits, 116 terms. floor(π·2^384) is one integer at both ends.
-- The turn is held as y_n = nA mod 2^384, with A = floor(α·2^384). A first hit is the descent above.
+- The turn is stored as y_n = nA mod 2^384, with A = floor(α·2^384). A first hit is the descent above.
 - The fill test at count n uses the three-gap theorem ([Sós 1958](#src:S-s-1958); [van Ravenstein 1988](#src:van-Ravenstein-1988)). Point i is followed by i + u, i − v or i + u − v, where u and v are the lowest and highest record steps below n. A gap from p holds a whole empty cell of size s exactly when (p mod s) + g ≥ 2s. p mod s is the turn by A mod s on s, and each gap kind is one first-hit query over an index range.
 - The least covering count is found by doubling, then halving.
 - The integer turn against the real one: α·2^384 lies in (A, A + 1), and step n's real place lies in (nA, nA + n). It changes cell only where (nA mod s) > s − n: one first-hit query per resolution.
@@ -504,7 +504,7 @@ What the model shows that bears on them (bounds, checked). Derived unless marked
 **Measured**, the billiard over 2^24 columns.
 
 - 69,484,394 segments: 16,777,216 side-wall hits and 52,707,178 floor-wall hits. The second is ⌊π·2^24⌋: the unfolded line crosses ⌊πN⌋ horizontals.
-- The lead in L changed hands 35,929,962 times and was never held longer than 2 segments.
+- The lead in L changed hands 35,929,962 times and was never kept longer than 2 segments.
   - Derived: the parity factor flips at every wall, and the raw sign flips only where the line passes a cell center's level, about once a column.
   - The steep path zig-zags floor to ceiling, and each bounce reverses its circulation about the center.
 - One side led on 34,742,196 of the 69,484,394 segments, the other on 34,742,198: a difference of 2.

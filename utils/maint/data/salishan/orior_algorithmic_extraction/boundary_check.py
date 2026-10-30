@@ -323,7 +323,7 @@ def main():
         out.write("\n    a run with a positive deviate is northern, a negative one southern\n")
 
     held_north, held_south, standing = shared_concepts(grouped, marks)
-    out.write("\n  the same question with the concept held fixed, over the %d concepts both\n"
+    out.write("\n  the same question with the concept kept fixed, over the %d concepts both\n"
               % standing)
     out.write("  varieties name, and a run difference is the variety and not a different word\n")
     out.write("    %-8s %-9s %-9s %-9s %-9s %s\n"
@@ -344,7 +344,7 @@ def main():
             out.write("    %-8d %-10s %-10.2f %-9d %d\n"
                       % (width, run, deviate, seen_first, seen_second))
     else:
-        out.write("\n    nothing clears the threshold once the concept is held fixed. What the\n")
+        out.write("\n    nothing clears the threshold once the concept is kept fixed. What the\n")
         out.write("    uncontrolled radix above found is which words were cited and not how a\n")
         out.write("    variety says them\n")
 

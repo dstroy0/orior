@@ -7,12 +7,12 @@
 #   Usage:  python maint/data/fetch/estonian_probe.py
 #
 # Estonian is one of the three languages in the test that separated descent from contact, and it behaved
-# worst of the three: its nearest of everything held was Romanian, which is neither its family nor a
+# worst of the three: its nearest of everything stored was Romanian, which is neither its family nor a
 # neighbor it borrowed from. A reading that close to noise looks like this. Finnish went to Swedish and
 # Hungarian to Czech, which are contact relationships and mean something. Romanian means nothing.
 #
 # So the Uralic result rests on two languages behaving sensibly and one behaving randomly, and the
-# Estonian held here is one short parallel text. Before that result is leaned on any further, Estonian
+# Estonian stored here is one short parallel text. Before that result is leaned on any further, Estonian
 # needs a corpus worth the name.
 #
 # The country keeps its records carefully and publishes them. This asks what its archives and language

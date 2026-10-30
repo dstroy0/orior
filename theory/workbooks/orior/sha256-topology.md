@@ -202,7 +202,7 @@ chain instead of the most mixed, which made every earlier depth a lower bound.
 | a canceling word is the sparsest, not the emptiest | W0 at W25: linearized weight 0, one bit 13% of the time | `bench_sparse` |
 | **merkle rolling reaches deeper than nonce rolling** | W25 at 13% against the nonce's W23 at 0.002% | `bench_sparse` |
 | floor is not reachability | W0 floors at 1 on W33 and was never once observed | `bench_sparse` |
-| forward round 10 is off, not small | 2.386 at 2^30 pairs against 9.706 if the slope held | `bench_depth_cuda` |
+| forward round 10 is off, not small | 2.386 at 2^30 pairs against 9.706 if the slope continued | `bench_depth_cuda` |
 | the slope extrapolation, on the control | predicted 8026.7 / 16053.5 / 32106.9, read 8022.4 / 16048.4 / 32095.5 | `bench_depth_cuda` |
 | the word statistic is not the blind one | no depth reads by bit position and not by word, either direction | `bench_depth_cuda` |
 | depth against weight, forward | 10, 9, 8, 7, 6 for weights 1, 2, 3–4, 5–8, 9–16 | `bench_depth_cuda` |
@@ -462,8 +462,8 @@ diffuse - holding to four decimal places for five rounds, then accelerating into
 **Verified at four times the sample**, because 2048 is 2^11 and the trials were 2^18: every clean
 power of two in that arithmetic came from the chosen sample size. At 2^20 the sigmas read 31546.74,
 27450.50 and 23354.13 - **exactly double**, sqrt(k) - with differences of 4096.24 and 4096.37:
-the absolute drop held at 1/32 while the sigma grew. That is the signature of signal, and the exact
-opposite of the refuted SAC dip which held its sigma and shrank its deviation.
+the absolute drop stayed at 1/32 while the sigma grew. That is the signature of signal, and the exact
+opposite of the refuted SAC dip which kept its sigma and shrank its deviation.
 
 **And the null past round 23 is now the strongest in this document**: 2.09, 2.07 and 2.04 against a
 2.63 peak, with 4096 cells behind each number instead of one - roughly sixty-four times the
@@ -528,7 +528,7 @@ exact taint and cone structure that priced the miner's two savings.
   against the published 0.508, then explained. Majority contributes no diffusion that Choose does
   not already provide. Measured therefore equals A while the independence model predicts about 2A and the
   ratio is one half by construction.
-- ~~Why the a half's per-slot depths looked irregular while the e half was clean.~~ Answered: both
+- ~~Why the a half's per-word depths looked irregular while the e half was clean.~~ Answered: both
   are exact chains, and the a half's offset depends on the chain length while the e half's does not.
 
 ### The cheesegrater, and what the field's own unknowns eliminate
@@ -709,7 +709,7 @@ these were structural for a while. Every row names the measurement that ended it
 | a floor of one means the path is reachable | **refuted** | W0 floors at 1 on W33 and was never observed in 2^25 pairs. The floor needs a carry-free chain and that chance falls with its length |
 | the dependency matrix carries sub-binomial variance, -4.10 sigmas | **refuted** | the 42 pooled depths shared one seed: one message set's fluctuation was counted 42 times and divided by sqrt(42). A seed per depth reads -22.5, which is -0.29 sigmas. The denominator was not the problem: the spread measured across 42 seeds is 452 against the analytic 512 |
 | the residual field is smooth, with a length scale | **refuted** | autocorrelation at eight lags on both axes reads max abs 2.40 against a max-of-sixteen null peak of 2.36, and a binomial-by-construction harness reads 2.15 on the same code. The field is white in SHA-256 and in the harness alike |
-| the harness control's 6.93x variance was a property of the matrix | **refuted** | it was an injected constant collision: the row seed offset was splitmix's own Weyl increment, making row b slot j+1 the identical draw to row b+1 slot j. Adjacent rows shared seven words of eight. Fixed, the control reads 469 against the analytic 512 |
+| the harness control's 6.93x variance was a property of the matrix | **refuted** | it was an injected constant collision: the row seed offset was splitmix's own Weyl increment, making row b column j+1 the identical draw to row b+1 column j. Adjacent rows shared seven words of eight. Fixed, the control reads 469 against the analytic 512 |
 | **the residue-26 ridge, and the 1/32 law as a rotational structure** | **refuted** | the fold never subtracted what all 32 classes share. Incomplete avalanche and the message-schedule light cone both offset every class equally, since neither depends on the output bit. Residue 26 sits at **-1.36 sigmas** from the class mean against a null peak of 2.63, on the *negative* side, and is never the loudest class. The 1/32 decay is real but it is the common mode's, which 26 tracked with a fixed offset. This was the largest claim in the body and it was in the research paper |
 
 ### What the residue fold holds once the common mode is removed
@@ -902,7 +902,7 @@ recover - no coherent integration in this work was losing anything to uncorrecte
 **The wall at 7 is real, and this matters because this body already had a fake one.** The earlier
 `depth = c - log2(w)` wall at 7 was a sampling floor and moved to 10 under 100x the pairs. This one
 does not move: at 64 times the sample the agreements are identical to four decimals and the sigmas
-grow as exactly sqrt(64) = 8 - 8.005, 8.005, 8.003, 8.02. Deviation held, sigma grew: signal.
+grow as exactly sqrt(64) = 8 - 8.005, 8.005, 8.003, 8.02. Deviation stayed, sigma grew: signal.
 
 **A halving law.** Agreement above chance runs 0.423, 0.214, 0.113 - halving each round to three
 digits - then accelerates away at 0.075 and 0.014. **Each round, the carry destroys half of what
@@ -1114,10 +1114,10 @@ nonces, and the lifetime counters read 1,310 anchors over 5.50 TH. 5.50e12 / 2^3
 and the observed rate is 1.02 times chance. An early exit running hot would be passing work it should
 cut; one running cold would be discarding nonces that might be shares. Neither is happening.
 
-**A wrong first attempt, kept.** The first version of this measurement swept all 64 schedule slots
+**A wrong first attempt, kept.** The first version of this measurement swept all 64 schedule words
 and reported that the first moving word was 3. Correct, and the wrong question: W[3] *is* the nonce,
 and the miner rewrites the sixteen message words per nonce and shares only the expansion above them.
-The measurement had to start at slot 16.
+The measurement had to start at word 16.
 
 ### Batch invariance, and a bound that was not one
 
@@ -1551,30 +1551,30 @@ should say so instead of pretend it is injective.
   three words per half, choice reads the entire high half and majority the entire low half, and the
   functions no longer select among words.
 
-  **The +2 is 3 minus 1, and reading each slot separately shows it.** Only two slots are mixed by
-  the round at all: slot zero takes T1 + T2 and slot `half` takes d + T1. Every other slot is
+  **The +2 is 3 minus 1, and reading each word separately shows it.** Only two words are mixed by
+  the round at all: word zero takes T1 + T2 and word `half` takes d + T1. Every other word is
   `state[i] = state[i-1]`, a copy that carries a difference through untouched. So the tail of
   the chain holds whatever the join produced `count-1` rounds earlier, and the wall should be a
-  mixing depth plus a transport delay. Measuring each slot's own death depth instead of the largest
-  across slots:
+  mixing depth plus a transport delay. Measuring each word's own death depth instead of the largest
+  across words:
 
-  | words | slots from the e join to the tail | dies at |
+  | words | words from the e join to the tail | dies at |
   |---|---|---|
   | 8 | 4, 5, 6, 7 | 7, 8, 9, 10 |
   | 10 | 5, 6, 7, 8, 9 | 8, 9, 10, 11, 12 |
   | 12 | 6, 7, 8, 9, 10, 11 | 9, 10, 11, 12, 13, 14 |
 
-  **Every slot at or below the e join dies at exactly k + 3.** The last slot is `count - 1`, and
+  **Every word at or below the e join dies at exactly k + 3.** The last word is `count - 1`, and
   `wall = (count - 1) + 3 = count + 2`. The 3 is the round function's mixing depth - how long T1 and
   T2 take to saturate a freshly computed word - and it does not depend on the word count:
   the wall tracked the count one for one. The -1 is that the chain is `count - 1` hops
   from the join to the tail instead of `count`.
 
-  The a half is not as clean - 6, 7, 7, 9 against 7, 8, 9, 10 at eight words - because those slots
+  The a half is not as clean - 6, 7, 7, 9 against 7, 8, 9, 10 at eight words - because those words
   feed majority and Sigma0 and are read back, which keeps them from being pure transport. The e half is, and it
   is the half that sets the wall.
 
-  This also makes the wall predictable instead of searchable: read slot `count - 1` alone, or
+  This also makes the wall predictable instead of searchable: read word `count - 1` alone, or
   measure the mixing depth once and compute any width from it.
 
 - **The schedule functions are not weaker, and rank says so exactly.** The suspicion was that the
@@ -1665,7 +1665,7 @@ should say so instead of pretend it is injective.
   cheap, and pointed at saturated ground.
 
   There is an architectural reason this is hard to spend even where it is real. A differential
-  between nonce n and n^(1<<b) is information that exists only when both are held at once, and a
+  between nonce n and n^(1<<b) is information that exists only when both are known at once, and a
   branchless memoryless nonce enumeration evaluates each nonce as an independent trial - it discards
   the relation by construction. Using it means computing a difference to avoid recomputing a value,
   which pays only when the shared part is large. The taint analysis prices that, and
@@ -2025,7 +2025,7 @@ still have missed. An unbounded null was being quoted as though it excluded ever
 `bench_walk.cpp` §5 now fixes that floor by injection instead of by argument. A known smooth
 gradient is added to the score - `alpha * set_bits(nonce)`, which moves by exactly one per single-bit
 step, and that makes alpha the gradient in the same units the readout carries - and faded until §1's own
-statistic loses it. Measured, with the unrelated-nonce control held beside it at every rung:
+statistic loses it. Measured, with the unrelated-nonce control run beside it at every rung:
 
 | alpha, bits per single-bit step | flip correlation | z | control z | |
 |---|---|---|---|---|

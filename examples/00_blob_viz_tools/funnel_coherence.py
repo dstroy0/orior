@@ -27,9 +27,9 @@ building funnels out of the incoherent part, and the elision dimension is not th
 THE NULL IS DRAWN. Two fair fields deblurred the same way give the coherence chance alone produces at
 each deblur strength, and a real coherence has to beat that.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import math

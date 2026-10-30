@@ -50,7 +50,7 @@ is the witness `2`.
 
 Because it is composite, `g^((p−1)/L)` had no particular order, the twiddles were wrong, and the
 transform returned numbers of the ordinary shape that were not the convolution of anything. The two
-correct moduli in the same set returned zero wrong slots out of thirty-two. The composite one
+correct moduli in the same set returned zero wrong elements out of thirty-two. The composite one
 returned thirty-two out of thirty-two, and the only reason anybody noticed is that the three were
 recombined against each other and disagreed.
 
@@ -237,7 +237,7 @@ below, each carrying its Proth witness in the source beside it:
 | 2281701377 | `17 · 2^27 + 1` | 3 | 2^27 |
 | 3892314113 | `29 · 2^27 + 1` | 3 | 2^27 |
 
-The first run of that kernel agreed with the host on the first modulus and differed in **every slot**
+The first run of that kernel agreed with the host on the first modulus and differed in **every element**
 on the other two. The property separating them is not primality, which all three have. It is that
 `2013265921` is below `2^31` and the other two are above it. In the butterfly
 

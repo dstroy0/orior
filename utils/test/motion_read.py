@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """The motions a recording of the window holds, read: each track a part's channel, as `bar.top` or
 `strip.--reveal-left`, its value on every frame motion.js kept; each motion a stretch of a track that moves, a few
-frames held still inside it kept as part of it; each motion checked on its own, and each pair of motions that should
-match held to each other.
+frames kept still inside it kept as part of it; each motion checked on its own, and each pair of motions that should
+match paired with each other.
 
 A motion's progress runs from 0 where it left its rest to 1 where it came to rest again. A smooth one leaves its rest
 without a jump, runs up to one top speed and down from it, and comes to rest without one; every frame inside it comes
-when the recording's frames come. What it is held to on its own:
+when the recording's frames come. What it is checked against on its own:
 
     late frame      a frame inside the motion FRAME_LATE of the recording's frames long or more
     stall           frames inside it where it stands still
@@ -49,7 +49,7 @@ SHAPE_POINTS = 32
 STEP = {"px": 0.02, "number": 1e-5, "area": 1.0}
 LEAST = {"px": 1.0, "number": 0.01, "area": 100.0}
 # The least speed a person sees, in each unit a millisecond: half a pixel a frame at sixty frames a second, and its
-# like for a number and an area. A frame held still, a hitch or two phases count only where the motion about them
+# like for a number and an area. A frame kept still, a hitch or two phases count only where the motion about them
 # runs at this or faster; slower, the layout's sixty-fourths of a pixel hold a slow tail still between its steps.
 VISIBLE = {"px": 0.03, "number": 0.0003, "area": 3.0}
 # How far a motion has gone when it is done to the eye: a part that starts after it, within TOGETHER frames of this,
@@ -215,7 +215,7 @@ def late_in(motion, frame_ms):
 
 
 def checked(motion, frame_ms):
-    """What one motion is held to on its own."""
+    """What one motion is checked against on its own."""
     out = []
     progress = motion.progress
     steps = [(progress[index] - progress[index - 1], motion.times[index] - motion.times[index - 1]) for index in range(1, len(progress))]
@@ -229,7 +229,7 @@ def checked(motion, frame_ms):
     pace = [abs(motion.values[index + 1] - motion.values[index]) / max(steps[index][1], 1e-9) for index in range(len(steps))]
 
     def seen_about(index):
-        """Whether the motion about a held step runs fast enough to be seen: the nearest moving steps either side."""
+        """Whether the motion about a paused step runs fast enough to be seen: the nearest moving steps either side."""
         before = next((pace[at] for at in range(index - 1, -1, -1) if moved[at]), 0.0)
         after = next((pace[at] for at in range(index + 1, len(steps)) if moved[at]), 0.0)
         return (before + after) / 2 >= VISIBLE[unit]
@@ -255,7 +255,7 @@ def checked(motion, frame_ms):
 
 def speed_checked(motion, steps, moved, peak):
     """A hitch or two phases in the motion's speed, read over its steps from the second to the one before its last,
-    up to its farthest point and up to its first step back, which the reversal says, a step held still or the step
+    up to its farthest point and up to its first step back, which the reversal says, a step kept still or the step
     after it left out, as the stall says them."""
     back = next((index for index, (part, _) in enumerate(steps) if part < 0), len(steps))
     kept = []
@@ -295,7 +295,7 @@ def curve_apart(one, other):
 
 def edge_of(step):
     """The edge a step comes in or goes out at, `top` of `top in` and of `top out`; the step itself where it names
-    neither, so two such steps pair only with each other."""
+    neither, and two such steps pair only with each other."""
     words = step.rsplit(" ", 1)
     return words[0] if len(words) == 2 and words[1] in ("in", "out") else step
 

@@ -55,7 +55,7 @@ def tree_top(start):
 def host_scratch():
     """The scratch root of a toolkit this tool has been fetched into, when there is one.
 
-    Held in a try, because the toolkit is absent in the tree these tools are written in and a
+    Wrapped in a try, because the toolkit is absent in the tree these tools are written in and a
     missing host is the normal case and never an error. A host that offers a root and then raises
     is treated the same as no host at all.
     """

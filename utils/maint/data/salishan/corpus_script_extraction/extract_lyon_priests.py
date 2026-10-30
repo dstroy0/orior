@@ -167,7 +167,7 @@ LAYER = {
     "segmentation": DERIVED,
     "gloss": DERIVED,
     "word gloss": DERIVED,
-    # Kept and marked, held out of the ingestion stream until someone has classified it.
+    # Kept and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -228,9 +228,9 @@ def four_line_words(block):
 
     A third breaks it and cannot be handled: a word given no English gloss takes three lines instead
     of four, and block 44 opens with one. Nothing in the lines themselves marks it, and every word
-    after it lands a slot early. That is caught and not repaired. An uppercase category label belongs
+    after it lands a position early. That is caught and not repaired. An uppercase category label belongs
     to a gloss and cannot stand in a spoken word or its segmentation. Finding one in either of those
-    slots is proof the count has slipped, and the caller is told.
+    positions is proof the count has slipped, and the caller is told.
 
     Returns the words, the free translation that closes the block, any line left over, and whether
     the cycle slipped.
@@ -260,10 +260,10 @@ def four_line_words(block):
         # The fourth line is an English word for the word above it, and the paper does not always
         # give one: block 44 opens with ixí P / ixíP / DEM and no fourth line. Where it is missing,
         # the next word's own first line stands in that place, and reading it as a gloss puts every
-        # word after it a slot early. A word gloss is English and carries none of the damaged
+        # word after it a position early. A word gloss is English and carries none of the damaged
         # orthography, and that separates you.all and priest from yaQyá;;Qt and t@twít.
         # A single-letter line does not close a block early, though l, p and t are proclitics and
-        # never an English gloss: a single letter stands in that slot often enough to matter.
+        # never an English gloss: a single letter stands in that position often enough to matter.
         if (slot == 3) and any(carries_orthography(one) for one in line.split()):
             close()
             slot = 0

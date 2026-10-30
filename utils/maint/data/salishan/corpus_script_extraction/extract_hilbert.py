@@ -120,7 +120,7 @@ SOURCE = os.path.join(PAPERS, "1983_Hilbert.txt")
 # <spoken by>_<original paper>_<who wrote it down>_Salish_<language without accents>_<year>_<mixed>
 #
 # The speaker comes first because the speaker is who the corpus is of. Vi Hilbert wrote this paper,
-# and the slot is not hers: the twenty-one examples in it were said by her aunt Susie Sampson Peter
+# and the field is not hers: the twenty-one examples in it were said by her aunt Susie Sampson Peter
 # of the Upper Skagit and by Martha LaMont, recorded by Leon Metcalf between 1950 and 1958 and by
 # Thom Hess in 1963, and transcribed and translated by Hilbert afterward.
 TARGET = os.path.join(
@@ -191,7 +191,7 @@ def examples(lines, ends_at):
     taken = set()
     number = None
     which = None
-    # Set when a marker opened a Lushootseed slot and carried no text with it. The typescript puts
+    # Set when a marker opened a Lushootseed field and carried no text with it. The typescript puts
     # such a marker in the left margin, part way down the previous example's English, and the OCR
     # flattened that into its own line. Example 3's English runs on for two lines after the bare
     # (4) that interrupts it, and those two lines are hers in English instead of the start of example 4.
@@ -227,7 +227,7 @@ def examples(lines, ends_at):
             if (number is None) or (which is None):
                 continue
             taken.add(at)
-            # A line with none of the typescript's marks, while a Lushootseed slot is still
+            # A line with none of the typescript's marks, while a Lushootseed field is still
             # waiting for its first line, is the previous example's English running past the
             # marker in the margin.
             if waiting and not carries_language(trimmed) and (previous is not None):

@@ -12,17 +12,17 @@
 # date: section 3 rules it out by name, because a commit date is written by the committer's own clock
 # exactly as a signature's date field is.
 #
-# THE PROPERTY THAT MAKES THIS SAFE TO DO WHILE THE WORK IS STILL HELD
+# THE PROPERTY THAT MAKES THIS SAFE TO DO WHILE THE WORK IS STILL WITHHELD
 #
 # An anchor is taken over a DIGEST. A digest discloses nothing: it is the same size for a sentence or
-# a corpus, it cannot be inverted, and it names no file. So the held material can be anchored today
+# a corpus, it cannot be inverted, and it names no file. So the withheld material can be anchored today
 # and revealed whenever, and the anchor still proves the bytes existed on the day it was made.
 #
 # That resolves the tension that would otherwise stall this. Holding the research back and
 # establishing priority over it are not in conflict, and waiting for publication to anchor is the
 # expensive mistake, because every day unanchored is a day a competing claim can predate.
 #
-# Keep manifest.tsv itself private while the work is held. Publishing it later is what converts the
+# Keep manifest.tsv itself private while the work is withheld. Publishing it later is what converts the
 # anchor from "these bytes existed" into "these bytes, and here they are".
 #
 # WHAT IS KEYLESS AND WHAT IS NOT
@@ -161,7 +161,7 @@ def main(argv):
         handle.write("# Then anchor the signature: `ots stamp manifest.tsv.asc`. The signature says\n")
         handle.write("# who and the anchor says when, and neither answers the other's question.\n")
         handle.write("#\n")
-        handle.write("# KEEP THIS FILE PRIVATE WHILE THE WORK IS HELD. The anchor is over a digest and\n")
+        handle.write("# KEEP THIS FILE PRIVATE WHILE THE WORK IS WITHHELD. The anchor is over a digest and\n")
         handle.write("# discloses nothing; this file names paths and therefore does.\n")
         handle.write("#\n")
         handle.write("# tree\tpath\tbytes\tsha256\n")

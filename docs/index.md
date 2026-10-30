@@ -117,7 +117,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     [:octicons-arrow-right-24: The stack](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/vertical_time_compression.md)
 
--   :material-package-down:{ .lg .middle } __Compression held to the noise of the camera__
+-   :material-package-down:{ .lg .middle } __Compression bounded by the noise of the camera__
 
     ---
 

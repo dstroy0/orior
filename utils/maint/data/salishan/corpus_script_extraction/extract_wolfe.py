@@ -24,7 +24,7 @@
 # the language it wants. The hand extraction carries the same information in its who column, the
 # column reader_check grades against.
 #
-# WHAT IS HELD OUT
+# WHAT IS EXCLUDED
 #
 # Reconstructions. A form marked with a star is what the author works out that PS or PCS must have
 # had, and nobody has ever said one. That is the same distinction salish_marking draws between a
@@ -32,7 +32,7 @@
 #
 # Predicted reflexes. Tables 6 and 8 give, for each language, the form expected if the reconstruction
 # was stressed, the form expected if it was not, and the form actually attested. The extraction does
-# not keep the columns apart reliably. Every cell of those two tables is held out. Nothing is lost:
+# not keep the columns apart reliably. Every cell of those two tables is excluded. Nothing is lost:
 # the attested forms of both tables are also printed in examples (1) and (6), where the columns are
 # unambiguous.
 
@@ -113,7 +113,7 @@ CORPORA = os.path.join(ROOT, "build", "corpora")
 SOURCE = os.path.join(PAPERS, "WolfeICSNL60.txt")
 
 # <spoken by>_<original paper>_<who wrote it down>_Salish_<language without accents>_<year>_<mixed>
-# The speaker slot is unstated because there is no speaker: every form is cited from a dictionary.
+# The speaker field is unstated because there is no speaker: every form is cited from a dictionary.
 TARGET = os.path.join(
     CORPORA,
     "unstated_LexicalSuffixesAndConnectivesInProtoCentralSalishAndBeyond_Wolfe"
@@ -148,7 +148,7 @@ LANGUAGES = {
     "Cz": "Cowlitz",
 }
 
-# The two reconstructed stages. Their forms are worked out, not attested, and are held out of the
+# The two reconstructed stages. Their forms are worked out, not attested, and are excluded from the
 # per-language data for that reason.
 RECONSTRUCTED = ("PCS", "PS")
 
@@ -167,7 +167,7 @@ EXAMPLE = re.compile(r"^\((\d{1,2})\)\s")
 TABLE = re.compile(r"^Table (\d{1,2}):")
 SECTION = re.compile(r"^(\d(?:\.\d)?)\s+(\S.*)$")
 
-# The two tables whose cells mix a prediction with an attested form. Held out whole.
+# The two tables whose cells mix a prediction with an attested form. Excluded whole.
 PREDICTED_TABLES = ("Table 6", "Table 8")
 
 LAYER = {
@@ -293,7 +293,7 @@ def main():
             "# Mark is language.layer.kind. A reconstruction is derived because nobody\n"
         )
         handle.write(
-            "# ever said one, and the predicted reflexes of Tables 6 and 8 are held out\n"
+            "# ever said one, and the predicted reflexes of Tables 6 and 8 are excluded\n"
         )
         handle.write("# for the same reason.\n")
         handle.write("line\twho\tkind\tswitches\tcontent\n")

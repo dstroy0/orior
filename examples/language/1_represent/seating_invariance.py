@@ -46,7 +46,7 @@ from representation.bit_volume import (
 
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# Symbols read from any one corpus, and the window widths the volume is swept over. Held here
+# Symbols read from any one corpus, and the window widths the volume is swept over. Kept here
 # because they are a property of this comparison and not of the primitive.
 CAP = 120000
 WIDTHS = tuple(range(2, 65))

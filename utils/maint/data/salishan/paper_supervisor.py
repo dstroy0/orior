@@ -5,7 +5,7 @@
 # Track every ICSNL paper from the archive index to converted text, one row per paper.
 #
 #   python maint/data/salishan/paper_supervisor.py --plan          write the work list
-#   python maint/data/salishan/paper_supervisor.py                 what is held and what is not
+#   python maint/data/salishan/paper_supervisor.py                 what is present and what is not
 #   python maint/data/salishan/paper_supervisor.py --adopt DIR     take PDFs from a download directory
 #   python maint/data/salishan/paper_supervisor.py --fetch         fetch what is missing, where it can
 #   python maint/data/salishan/paper_supervisor.py --remaining     print the addresses still needed
@@ -21,7 +21,7 @@
 # THE STATES
 #
 #   missing    in the index, not on disk
-#   held       the PDF is on disk
+#   present    the PDF is on disk
 #   text       the PDF is on disk and its text is beside it. The readers need this one
 #   errored on    the server answered with something that is not a PDF, and said why
 #

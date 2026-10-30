@@ -102,7 +102,7 @@ def main():
                 rows.append((language, name, values))
         middles = averaged(rows)
         if len(middles) < 6:
-            out.write("  %-34s %-9d %s\n" % (label, ranks, "too few languages held"))
+            out.write("  %-34s %-9d %s\n" % (label, ranks, "too few languages loaded"))
             continue
         right, scored, misses = score_against(middles, families)
         readings[label] = (middles, misses)

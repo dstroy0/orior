@@ -50,7 +50,7 @@ def repaired(text):
     """One line of the language, with every substitution applied.
 
     For a line known to be the language: a transcription or segmentation column, or the running
-    text of a story. Nothing is held back. Paks becomes ʔaks and Qip becomes ʕip.
+    text of a story. Nothing is withheld. Paks becomes ʔaks and Qip becomes ʕip.
     """
     for was, becomes in REPAIR:
         text = text.replace(was, becomes)
@@ -150,7 +150,7 @@ def english_word_shape(token):
 
 
 def repaired_english(text):
-    """One line of Lyon's own English, with every substitution that would break a word held back.
+    """One line of Lyon's own English, with every substitution that would break a word withheld.
 
     For a gloss, a translation, a commentary, an acknowledgment, or any line the reader has already
     decided is English. Here a capital at the front of a word is left alone, which repaired_prose
@@ -168,7 +168,7 @@ def repaired_english(text):
 
 
 def repaired_prose(text):
-    """One line that is not a language column, with the ambiguous substitutions held back.
+    """One line that is not a language column, with the ambiguous substitutions withheld.
 
     For a gloss, a translation, a commentary, or any of Lyon's own writing. A gloss label and an
     address keep every character they arrived with. Everything else is repaired, since a word of

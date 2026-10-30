@@ -25,7 +25,7 @@ NOISE = re.compile(r"elapsed|MH/s|GH/s|\brate\b|seconds\b|per second|\bin \d+(\.
 
 
 def readings(path):
-    """Returns {(line index, slot): value} for every number in the file."""
+    """Returns {(line index, position): value} for every number in the file."""
     found = {}
     for index, line in enumerate(path.read_text(errors="replace").splitlines()):
         if NOISE.search(line):

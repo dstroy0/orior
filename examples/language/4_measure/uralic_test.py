@@ -113,12 +113,12 @@ def main():
     present = sorted(middles)
     uralic = [name for name in URALIC if name in middles]
     if len(uralic) < 2:
-        out.write("  only %d uralic languages held\n" % len(uralic))
+        out.write("  only %d uralic languages loaded\n" % len(uralic))
         out.flush()
         return 0
 
     out.write(
-        "  %d languages held, %d of them uralic, each read from %d characters\n\n"
+        "  %d languages loaded, %d of them uralic, each read from %d characters\n\n"
         % (len(present), len(uralic), SAME_LENGTH)
     )
     for note in notes[:6]:

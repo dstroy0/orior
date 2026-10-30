@@ -158,7 +158,7 @@ def constant(shape, dims, gap, kept):
 #
 # The typical distance was the first criterion and it is worthless in high dimensions, where the
 # separation between two points drawn on a sphere concentrates near root two whatever the dimension
-# is. A gap held at half of that is half the radius of curvature, and a cap that wide is nothing
+# is. A gap fixed at half of that is half the radius of curvature, and a cap that wide is nothing
 # like the flat disc the count assumes. The cube's facets are flat and suffer no such thing. The
 # two shapes part company and the answer reads as shape-dependence. At twelve dimensions that
 # criterion passed a run whose constants spread by 2.1 times.

@@ -545,7 +545,7 @@ EV.SINE_DEGREES = [0, 286, 572, 857, 1143, 1428, 1713, 1997, 2280, 2563, 2845, 3
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Angles are held in sixteenths of a degree and turned through the integer sine table.
+// Angles are stored in sixteenths of a degree and turned through the integer sine table.
 
 // sin of an angle in sixteenths of a degree, scaled by 2^14, interpolated between whole-degree table entries.
 EV.sine16 = (angle) => {
@@ -779,7 +779,7 @@ EV.watchLoop = (label, step, options = {}) => {
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Every setting has a kind and a range, held in EV.VIEW_SCHEME by name. Applying a view is partial: names
+// Every setting has a kind and a range, stored in EV.VIEW_SCHEME by name. Applying a view is partial: names
 // it does not carry keep their values. A name the scheme does not have, a fraction, a value of the wrong kind
 // or one outside its range is reported by name and not applied.
 
@@ -1021,7 +1021,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   prefix[select(lay.pow2, slot, slot < lay.pow2)] = obj[at + 3u] * kept;
 }`;
 
-// One Sklansky level: every slot with the level's bit set adds the last slot of the half block below it.
+// One Sklansky level: every element with the level's bit set adds the last element of the half block below it.
 EV.LEVEL = EV.PRELUDE + `
 struct Level { bit: u32, spare0: u32, spare1: u32, spare2: u32 }
 @group(0) @binding(0) var<uniform> level: Level;
@@ -1037,7 +1037,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   prefix[select(lay.pow2, slot, slot < lay.pow2)] += prefix[min(source, lay.pow2)];
 }`;
 
-// Each run in range lands at its leaf's kept runs before it plus its place in its leaf; a run not kept lands in slot 0.
+// Each run in range lands at its leaf's kept runs before it plus its place in its leaf; a run not kept lands in position 0.
 EV.SCATTER = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
 @group(0) @binding(1) var<uniform> lay: Layout;
@@ -1371,7 +1371,7 @@ fn slice_paint(@builtin(position) at: vec4<f32>) -> Drawn {
   // The image: the volume itself laid flat on the plane. The square's pixel is a place on that plane, in the same
   // doubled and centered units the cells are turned in, and the ray behind it is walked back through the volume by
   // the camera's own turn read the other way round: what the cells' turn scatters out, this gathers in. The
-  // brightest voxel along the ray stands. So the whole volume is on the plane, and none of it is a box held still.
+  // brightest voxel along the ray stands. So the whole volume is on the plane, and none of it is a box kept still.
   // The plane is overhead and holds still. The pixel is the column straight under it, the image centered in
   // the square with row zero at the top. Nothing here turns; only what falls on the plane does.
   let column = vec2<i32>(i32(lay.width) / 2 + ((right - lay.slice_w / 2) * 256) / max(lay.slice_scale, 1),
@@ -2032,7 +2032,7 @@ EV.indexObject = (header, mapped) => {
 // Each cell's second moments about its centroid, from its runs, exact: six per cell, zz yy xx zy zx yx, in voxels
 // squared (z in layers) times 256, floored, with each voxel's own spread of 1/12 added on the diagonal. A run of length
 // n from x0 at row y, layer z adds n, n x0 + n(n-1)/2, and n x0^2 + x0 n(n-1) + (n-1)n(2n-1)/6 to its sums. The sums
-// of a view of 2^22 voxels stay below 2^53. They are held exactly; the covariance products are taken in BigInt.
+// of a view of 2^22 voxels stay below 2^53. They are represented exactly; the covariance products are taken in BigInt.
 EV.cellShapes = (header, all, cells) => {
   const total = header.cell_total;
   const sums = new Float64Array(total * 9);
@@ -2707,7 +2707,7 @@ EV.parseCfg = (text) => {
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The page's state and its clock. The .cfg view holds the targets; the live values ease toward them every frame.
-// A turn, a zoom, a spread, a choice and a frame change all move instead of jumping. Angles are held in sixteenths of
+// A turn, a zoom, a spread, a choice and a frame change all move instead of jumping. Angles are stored in sixteenths of
 // a degree and turned through the integer sine table.
 
 EV.$ = (id) => document.getElementById(id);

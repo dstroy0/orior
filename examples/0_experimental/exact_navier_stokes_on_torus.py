@@ -740,7 +740,7 @@ def report_horizon(out):
     out.write("    order:                 %s\n" % "  ".join("%4d" % step for step in range(ORDER + 1)))
     out.write("    largest |k|_1:         %s\n" % "  ".join("%4d" % reach for reach in reaches))
     out.write("    largest |k|_inf:       %s\n" % "  ".join("%4d" % radius for radius in radii))
-    out.write("    modes held:            %s\n" % "  ".join("%4d" % count for count in counts))
+    out.write("    modes kept:            %s\n" % "  ".join("%4d" % count for count in counts))
     for radius in (1, 2):
         missed = [modes_outside(velocities[step], radius) for step in range(ORDER + 1)]
         out.write("    outside |k|_inf <= %d:  %s\n" % (radius, "  ".join("%4d" % count for count in missed)))

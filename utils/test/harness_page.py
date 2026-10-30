@@ -224,7 +224,7 @@ class Page:
 
     def leave(self):
         """The page left and loaded fresh: marked as left, as the reload answers before the page it loads is there. A
-        crashed page takes no mark and is reloaded all the same, which is what brings it back."""
+        crashed page takes no mark and is reloaded all the same, and the reload brings it back."""
         try:
             self.conn.evaluate("window.__harnessLeft = true", timeout=10)
         except (RuntimeError, TimeoutError, ConnectionError):

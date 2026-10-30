@@ -20,7 +20,7 @@ rm -f "$OUT/ksg_check" "$OUT/ksg_check.exe" "$OUT/ksg" "$OUT/ksg.exe"
     "$TOP/src/cu/includes/file_defs/ksg/ksg_seal.c" "${FILE_DEFS_MMGR[@]}" || exit 1
 "$OUT/ksg_check" || exit 1
 
-# the ksg program on the tree's sm_86.gsm: sealed, held, a relation on line 5 changed and named, and held once more as
+# the ksg program on the tree's sm_86.gsm: sealed, checked, a relation on line 5 changed and named, and checked once more as
 # it was
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) RANDOMNESS=(-lbcrypt) ;;
@@ -50,7 +50,7 @@ else
     echo "  FAIL a sealed .gsm held, named its changed line alone and held again"
 fi
 
-# its approvals: an approver's keys made, the seal approved, held with the approver asked for; a second key that did
+# its approvals: an approver's keys made, the seal approved, checked with the approver asked for; a second key that did
 # not approve asked for and refused; the file changed and sealed again, its approval no longer holding; and two
 # approvers both holding
 approved=0

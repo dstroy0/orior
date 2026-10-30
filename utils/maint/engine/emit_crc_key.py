@@ -123,4 +123,4 @@ emit("crc_key.h", [
     "#endif",
 ])
 print("crc_key.h, crc_key_advance_low.h, crc_key_advance_high.h written: %d table entries, %d advance operators, "
-      "every check held" % (len(table), POWERS))
+      "every check passed" % (len(table), POWERS))

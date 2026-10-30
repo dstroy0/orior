@@ -4,7 +4,7 @@
 # Catalog: EXP-x-031
 #
 # The field's tension, read over the zeros Turing's machine certifies. Each cell runs once on the device by the
-# multiple evaluation, every point listed, on the lattice `extra` steps finer than four points a zero. N is held at
+# multiple evaluation, every point listed, on the lattice `extra` steps finer than four points a zero. N is certified at
 # the cells' F's by Turing's method, or given where a run of the machine closes over them; every zero is placed at a
 # change of sign of the device's Z between adjacent points, on the line through Z at the two, and a close pair no
 # point falls between is found where |Z| dips without a change of sign, listed again 64 times finer by pairs on the
@@ -136,7 +136,7 @@ def number_variance(positions, length, samples):
 
 
 def certified_zeros(binary, first, last, extra, given=None):
-    """The zeros from the first F where N is held to the last, every one placed: (zeros in s, N at the first F, the
+    """The zeros from the first F where N is certified to the last, every one placed: (zeros in s, N at the first F, the
     first F's cell, the last's). `given` is N at cells first and last's F, where a run of the machine closes over
     them."""
     constants = tm.Constants()
@@ -152,7 +152,7 @@ def certified_zeros(binary, first, last, extra, given=None):
             raise SystemExit("  N is not held to one value at two F's; give N at the first and last cells' F")
         start_nu, end_nu = tight[0], tight[-1]
         n_start, n_end = held[start_nu][0], held[end_nu][0]
-        print("  cells %d to %d, %d points; N held to one value at %d of %d F's" %
+        print("  cells %d to %d, %d points; N certified to one value at %d of %d F's" %
               (first, last, len(points), len(tight), len(held)))
     start = next(i for i, q in enumerate(points) if q[0] == start_nu and q[1] == cells[start_nu].first)
     end = next(i for i, q in enumerate(points) if q[0] == end_nu and q[1] == cells[end_nu].first)

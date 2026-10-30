@@ -304,7 +304,7 @@ of Nuxalk's excesses here.
   **What killed it:** the matching meanings were 'mother', 'father', 'child' and 'money'. Parent and
   child terms built on m, n, p, t match across unrelated languages, and 'money' is a loan. Those
   meanings and other post-contact ones are now excluded, a choice made after seeing this run; the P0
-  verdicts held after it, and the excess fell to +0.080 over 18.
+  verdicts stood after it, and the excess fell to +0.080 over 18.
 - **Withdrawn.** P2's first counts, which scored each word and read Nsyilxcən as disagreeing with Table 4
   (10 identical to 4 split). **What killed it:** one Nsyilxcən word was counted three times with footnote
   numbers stuck to it, and one doubled root was counted again in each derived word. Counting each root

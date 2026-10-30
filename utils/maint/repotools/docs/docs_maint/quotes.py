@@ -59,7 +59,7 @@ count.
 
 Not a pass/fail gate by default, for the same reason harness.py deps and unwired.py are not: a
 paraphrase in quotation marks is a real defect but it is a documentation defect, and failing a
-build on one would put pressure on the wrong thing. --check is there for when you want it held.
+build on one would put pressure on the wrong thing. --check is there for when you want it enforced.
 """
 
 import argparse

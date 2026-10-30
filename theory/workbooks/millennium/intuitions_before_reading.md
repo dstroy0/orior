@@ -2,7 +2,7 @@
 
 **Purpose:** Hold each intuition about the Navier-Stokes thought experiment in its author's words,
 with the source that would test it and what would count as a hit or a miss, before that source is
-held or read. A match afterwards is then a prediction that held, and a miss is on the record in the
+obtained or read. A match afterwards is then a prediction that succeeded, and a miss is on the record in the
 same place. **Scope:** this file, and the millennium workbook whose chapters score its entries.
 
 **Douglas Quigg (dstroy0).** Each entry is fixed when it is written. An entry is scored by adding
@@ -14,7 +14,7 @@ the person recording the entry and not by the author of the intuition, it says s
 Caupin and Herbert, *Cavitation in water: a review*, Comptes Rendus Physique 7 (2006), at its
 introduction, its nucleation theory, its sections on inclusions and the Berthelot method, and its
 section on acoustic cavitation. Nothing on seiches, on bubble growth after nucleation, on angular
-momentum in cavitation, on quantum foam, or on recovering a container from its modes was held or
+momentum in cavitation, on quantum foam, or on recovering a container from its modes was obtained or
 read.
 
 ## Entries, 2026-10-03
@@ -67,7 +67,7 @@ it. The recorder does not supply one in the author's name.
 
 **In the author's words:** "microcavitation is analagous to quantum foam."
 
-**Test and criterion.** None. It is an analogy, held here as an analogy.
+**Test and criterion.** None. It is an analogy, kept here as an analogy.
 
 ### I5. Spherical harmonics of the wave patterns recover the container
 
@@ -77,7 +77,7 @@ container until we start using spherical harmonics to decode the wave patterns w
 **Already known to the recorder when written, and stated here so it cannot be read into the result
 afterwards.** Kac asked in 1966 whether the shape of a drum can be heard from its frequencies, and
 Gordon, Webb and Wolpert answered in 1992 that two different plane domains can share every
-frequency. Neither paper was held or read. If that is right, the frequencies alone do not recover a
+frequency. Neither paper was obtained or read. If that is right, the frequencies alone do not recover a
 container, and the strongest form of this entry is a miss.
 
 **Test.** Those two papers, read, and a source on recovering a domain from its modes with more than
@@ -93,7 +93,7 @@ harmonics even then.
 of a column will have infinitesimally less space between them because of the mass of the fluid
 above them, and you can absolutely decrease the density of the bottom layer by stirring."
 
-**Already known when written.** IAPWS R6-95 (2018) is held and read, and it gives density as a
+**Already known when written.** IAPWS R6-95 (2018) is obtained and read, and it gives density as a
 function of pressure and temperature. Nothing has been computed from it for this entry yet.
 
 **What the recorder expects, stated before computing.** The first part holds: the weight of the
@@ -166,7 +166,7 @@ anywhere on it. Miss if it is denser anywhere on it.
 
 **The author's mechanism, given while this was being scored:** "we impart angular momentum, it
 imparts mass outward and away as magnitude." In a steady turning flow the push outward on each
-volume of fluid is $\rho|v|^2/r$, held by a pressure that rises outward, $dp/dr = \rho|v|^2/r$. It
+volume of fluid is $\rho|v|^2/r$, balanced by a pressure that rises outward, $dp/dr = \rho|v|^2/r$. It
 depends on the magnitude of the velocity and not on its direction: turning either way pushes mass
 outward by the same amount.
 
@@ -197,7 +197,7 @@ center and stops, the fluid pushes on itself and the pressure rises locally by a
 $\tfrac12\rho u^2$, with $u$ the speed of the inflow. Whether that local rise can exceed the drop of
 the core was not computed, and the speed of the inflow is in no source read.
 
-### I8. In an infinite fluid held at 20 C, stirring changes density only near the stirrer
+### I8. In an infinite fluid kept at 20 C, stirring changes density only near the stirrer
 
 **In the author's words:** "if we had infinite fluid that had infinite thermal reservoir and was
 for eternity 20 degrees C, would stirring it change its density at all? like if the column of water
@@ -209,7 +209,7 @@ compressibility, and turning pushes mass outward by $\rho|v|^2/r$.
 
 **What the recorder expects, stated before computing.** A rough estimate was made in thought while
 reading the statement, before this entry was written, and it is set down here so it is not taken
-for a blind prediction. With the temperature held fixed, density changes only through pressure.
+for a blind prediction. With the temperature kept fixed, density changes only through pressure.
 Around a turning stirrer the speed falls off as the inverse square of distance in the far field,
 and the pressure that holds the turning as the inverse fourth power. The change is largest at
 the stirrer and falls fast. For a stirrer the size of a spoon the recorder expects it to fall below
@@ -241,7 +241,7 @@ a turning body in an unbounded fluid the speed is $|L\times s|/(8\pi\eta s^3)$, 
 square of the distance $s$, with the torque on a sphere $L = 8\pi\eta a^3\Omega$ from the bulk
 rotational mobility they state. Both formulas hold for slow flow.
 
-**First part: hit.** With the temperature held, density changes only through pressure. The
+**First part: hit.** With the temperature fixed, density changes only through pressure. The
 pressure that holds the turning is of order $\rho v^2$, and with $v$ falling as $1/s^2$ the change of
 density falls as $1/s^4$: largest where the stirrer pushes and falling fast away from it. The order
 $\rho v^2$ is an estimate; the slow-flow solution itself carries no pressure at its leading order.
@@ -260,7 +260,7 @@ its axis, the L-shaped stirrer of I7 among them, pushes the fluid at its turning
 out pressure waves. A wave spreading from a source loses amplitude as $1/s$ and not as $1/s^4$, and
 at a few turns per second the absorption in water, set by its shear and bulk viscosity, is very
 small. Sound could carry a change of density from a stirrer to kilometers before it falls below the
-floor. No source on the sound a stirrer sends out is held, and this was not computed.
+floor. No source on the sound a stirrer sends out is obtained, and this was not computed.
 
 **Verdict.** The first part is a hit. The second is not scored: a slow, small, symmetric stirrer
 gives meters, a stirrer with more than about a newton meter of torque gives kilometers, and sound
@@ -278,7 +278,7 @@ Goldenfeld and Mailybaev on thermal noise; Caupin and Herbert on cavitation; I6 
 **What the recorder expects, stated before scoring.** The claim splits in two. That a real fluid
 cannot follow equation (1) to an unbounded value follows from what is already proved and read: the
 fluid leaves the description before the value is reached. That a singularity is not observed in
-real fluids is a claim about the whole record of observation, which no source held speaks to, and
+real fluids is a claim about the whole record of observation, which no source obtained speaks to, and
 an absence of observation is weak on its own, since a singularity below what an instrument
 resolves would go unseen.
 
@@ -287,13 +287,13 @@ that reviews the search for finite-time singularities in experiments on real flu
 
 **Criterion, written by the recorder.** First part: hit if every route to an unbounded value in
 equation (1) passes a scale or a level at which a member of $P_{\mathrm{all}}$ or $F_{\mathrm{all}}$
-that equation (1) drops is shown to act. Second part: hit if a source held reports that no
-finite-time singularity has been observed in a real fluid; open until one is held.
+that equation (1) drops is shown to act. Second part: hit if a source obtained reports that no
+finite-time singularity has been observed in a real fluid; open until one is obtained.
 
 ---
 
 **Scored, 2026-10-03, in the same writing as the entry above.** No hash of the entry alone was
-taken before scoring, and the score rests only on sources already held when the entry was written.
+taken before scoring, and the score rests only on sources already obtained when the entry was written.
 
 **First part: hit, for the routes this work has examined.** A solution of equation (1) that breaks
 down has a length of flow with no positive lower bound, Proposition 11, and passes lengths where a
@@ -306,7 +306,7 @@ finite pressure, Caupin and Herbert, where equation (1) holds no level of pressu
 Along each route a dropped member acts before the value becomes unbounded. Whether these are all the
 routes is not shown.
 
-**Second part: open.** No source held reports on the search for singularities in experiments on
+**Second part: open.** No source obtained reports on the search for singularities in experiments on
 real fluids. The extreme objects that are observed and read in this work, cavitation under tension
 and the standing and focused waves that produce it, all end at finite values.
 
@@ -331,16 +331,16 @@ build it were not read. Whether a vessel can supply that force depends on its sh
 its strength once the viscosity of water is fixed, and the recorder does not know these. The
 construction reaches every viscosity by rescaling space. For water the force may need lengths
 or strengths no vessel can give, or it may not. No prediction is made on that. That the breakdown
-is not seen in gem-growing vessels is a claim about those vessels, and no source on them is held.
+is not seen in gem-growing vessels is a claim about those vessels, and no source on them is obtained.
 
 **Test.** The sections of *Finite time blowup for Navier--Stokes* that define the force and its
-scales, read; and a source on the conditions inside the pressure vessels used to grow gems, held
+scales, read; and a source on the conditions inside the pressure vessels used to grow gems, obtained
 and read.
 
 **Criterion, written by the recorder.** Reproducible: hit if, at the viscosity of water, the force
 of the construction has a length, a strength and a duration that a laboratory vessel can supply;
-miss if any of the three is beyond one. Not seen: hit if a source held reports these conditions run
-without the breakdown; open until one is held.
+miss if any of the three is beyond one. Not seen: hit if a source obtained reports these conditions run
+without the breakdown; open until one is obtained.
 
 ---
 
@@ -380,7 +380,7 @@ about a picosecond left, moving near $1000$ m s$^{-1}$, against a speed of sound
 m s$^{-1}$. Condition (2) would fail at about the scale where the continuum does.
 
 **Not seen: open.** No source on the conditions inside the vessels used to grow gems, or on what
-is seen in them, is held.
+is seen in them, is obtained.
 
 ### I10. The breakdown is a pressure cooker opened without venting, and no city has fallen
 
@@ -412,7 +412,7 @@ if one side predicts a release of energy the other does not.
 
 ---
 
-**Scored, 2026-10-03, in the same writing as the entry above.** The score uses only what was held
+**Scored, 2026-10-03, in the same writing as the entry above.** The score uses only what was obtained
 and read when the entry was written.
 
 **Pressure cooker: hit.** Across a swirl the pressure rises outward as $\rho u^2/r$. For a core
@@ -428,7 +428,7 @@ lets the core go on, Proposition 13.
 **Nuclear: miss, for the construction.** The core energy goes to zero as $\tau^{1/2-3h}$ and the
 total stays bounded. The breakdown concentrates speed into a point that carries less and less
 energy, and releases nothing that was not put in by the force. What a collapsing cavitation bubble
-releases is a separate question, and no source on it is held.
+releases is a separate question, and no source on it is obtained.
 
 **Cities: not deciding.** A vessel that fails releases the energy stored in its compressed and
 superheated contents, which is bounded and large enough to do damage. Neither the author's reading
@@ -443,17 +443,17 @@ in I10: the energy is converted, and no city is leveled.
 **Already known when written.** Proposition 5: the rate of shear heating has no bound at the
 singular time. Page 16 of the forced construction: the core's integral of squared radial
 derivatives scales as $\tau^{-1/2-3h}$, without bound, in a core of volume $\tau^{3/2-h}$. No source
-on light from collapsing bubbles is held.
+on light from collapsing bubbles is obtained.
 
-**What the recorder expects, stated before reading.** Heat: a hit already, from what is held. Light:
+**What the recorder expects, stated before reading.** Heat: a hit already, from what is obtained. Light:
 a source on sonoluminescence will report light from the collapse of cavitation bubbles in water.
 Equation (1) carries no channel for light, and that is a further member of $F_{\mathrm{all}}$ and
 $P_{\mathrm{all}}$ it drops.
 
-**Test.** A review of sonoluminescence, held and read, and the scaling on page 16.
+**Test.** A review of sonoluminescence, obtained and read, and the scaling on page 16.
 
 **Criterion, written by the recorder.** Heat: hit if the heating per volume in the core has no
-bound. Light: hit if a source held reports light emitted when cavitation bubbles collapse in a
+bound. Light: hit if a source obtained reports light emitted when cavitation bubbles collapse in a
 liquid.
 
 ---
@@ -476,7 +476,7 @@ goes into "degrees of freedom, visible photons, which are not describable by the
 of fluid mechanics." The light is a member of $F_{\mathrm{all}}$ and $P_{\mathrm{all}}$ that
 equation (1) does not hold. The mechanism that emits it is stated as open.
 
-**Bearing on I1.** The bubble is held where the standing wave of a resonator puts its pressure
+**Bearing on I1.** The bubble is trapped where the standing wave of a resonator puts its pressure
 swing, and the flash repeats once each cycle in step with the sound: energy aligned. This bears on
 I1 and does not score it, since its criterion asks whether the threshold of cavitation depends on
 the alignment, and section 1 does not say.
@@ -486,14 +486,14 @@ the alignment, and section 1 does not say.
 **In the author's words:** "its generated by turning the gas in the bubble into plasma basically."
 
 **Already known when written, and so not a blind prediction.** The review of I11 had been read at
-its abstract and section 1. The recorder also knows by name, and has not read or held, a later
+its abstract and section 1. The recorder also knows by name, and has not read or obtained, a later
 paper by Flannigan and Suslick in Nature in 2005 reported as measuring plasma in a single
 collapsing bubble.
 
-**Test.** The review of I11; and the 2005 paper, once held and read.
+**Test.** The review of I11; and the 2005 paper, once obtained and read.
 
-**Criterion, written by the recorder.** Hit if a source held states that the gas in the collapsed
-bubble is ionized and that the light is emitted by the ionized gas; open if a source held names it
+**Criterion, written by the recorder.** Hit if a source obtained states that the gas in the collapsed
+bubble is ionized and that the light is emitted by the ionized gas; open if a source obtained names it
 only as a candidate.
 
 ---
@@ -504,12 +504,12 @@ only as a candidate.
 an imploding shock wave which ionizes the bubble contents so as to cause it to emit Bremsstrahlung
 radiation" as the best candidate theory, and states the theory of the light-emitting mechanism
 still open. Ionized gas is plasma, and the author's statement is the candidate the review prefers.
-It moves to a hit when the 2005 paper, or another measurement of the ionized gas, is held and
+It moves to a hit when the 2005 paper, or another measurement of the ionized gas, is obtained and
 read.
 
 ---
 
-**Scored, 2026-10-03, after the 2005 paper was held and read.**
+**Scored, 2026-10-03, after the 2005 paper was obtained and read.**
 
 **Hit.** Flannigan and Suslick, *Plasma formation and temperature measurement during single-bubble
 cavitation*, Nature 434 (2005) 52--55, read in full. In sulphuric acid under argon they measure
@@ -525,7 +525,7 @@ region" as its most complete candidate. Both meet the criterion.
 a sheet of water over another on a steam cushion."
 
 **Already known when written, and so not a blind prediction for the second half.** The recorder
-knows by name, and has not held or read, work on the Leidenfrost effect and on drag reduction by a
+knows by name, and has not obtained or read, work on the Leidenfrost effect and on drag reduction by a
 vapor layer around a hot sphere moving through water. Duraiswami, read in full, puts the viscous
 heating of the forced construction in water at about 0.01 K before the core cavitates. Barber and
 others, section 2, report that a stirrer opens voids in the liquid. Ladyzhenskaya (1968), read in
@@ -540,25 +540,25 @@ water properties, evaluated with the IAPWS formulations at $20\,^\circ$C and $0.
 
 - the speed at which the dropped term matches the kept one, the scaling estimate of the first
   workbook chapter, $U^* = \sqrt{k/(2\mu|(\ln\mu)'|)} = 110$ m/s;
-- the velocity jump across a layer whose walls are held at $20\,^\circ$C that heats its middle to
-  $100\,^\circ$C with the viscosity held fixed, $U = \sqrt{8k\,\Delta T/\mu} = 618$ m/s.
+- the velocity jump across a layer whose walls are kept at $20\,^\circ$C that heats its middle to
+  $100\,^\circ$C with the viscosity kept fixed, $U = \sqrt{8k\,\Delta T/\mu} = 618$ m/s.
 
 The recorder expects the runaway to start near the first speed and to reach steam below the
 second, since the viscosity falls as it heats. Where the pressure is already near the vapor
 pressure, $0.00234$ MPa at $20\,^\circ$C, as in the core of a turning column, almost no heating is
 needed, and the steam sheet and the cavitation of the core are one event.
 
-**Test.** For the second half: a source on drag reduction by a vapor layer in water, held and
+**Test.** For the second half: a source on drag reduction by a vapor layer in water, obtained and
 read. For the first half: a source on thermal runaway in plane shear of a liquid whose viscosity
-falls with temperature, held and read, and a source reporting vapor formed in water by shear
+falls with temperature, obtained and read, and a source reporting vapor formed in water by shear
 heating alone.
 
-**Criterion, written by the recorder.** Second half: hit if a source held reports that a vapor
+**Criterion, written by the recorder.** Second half: hit if a source obtained reports that a vapor
 layer between water and a moving body lowers the drag by a measured factor. First half: hit if a
-source held reports that shear heating in a liquid whose viscosity falls with temperature
+source obtained reports that shear heating in a liquid whose viscosity falls with temperature
 gathers into a thin layer with no steady state above a critical speed, and that in water that
 layer reaches vapor; open if only the runaway is reported and the vapor is not; miss if a source
-held shows the runaway does not occur in water at speeds the forced construction reaches before
+obtained shows the runaway does not occur in water at speeds the forced construction reaches before
 its core cavitates.
 
 ---
@@ -582,11 +582,11 @@ a uniform bulk.
 
 **Test.** A source on shear layers at a density or temperature step in a liquid, and a source on
 vapor or cavitation onset at the boundary between two liquids or at a dissolved-gas gradient,
-held and read.
+obtained and read.
 
-**Criterion, written by the recorder.** Hit if a source held reports the shear, the heating or the
+**Criterion, written by the recorder.** Hit if a source obtained reports the shear, the heating or the
 vapor onset concentrated at the boundary between layers that differ, and earlier than in a
-uniform liquid under the same drive; miss if a source held reports onset in the bulk first.
+uniform liquid under the same drive; miss if a source obtained reports onset in the bulk first.
 
 ---
 
@@ -605,20 +605,20 @@ drop of ethanol on its own vapor over a pool of hot oil at one kelvin of superhe
 highly mobile: one liquid riding another on a cushion of its vapor.
 
 **First half: miss.** The runaway is real. Gruntfest and Becker show that a liquid whose viscosity
-falls with temperature has no steady shear flow between walls held at a fixed temperature above
+falls with temperature has no steady shear flow between walls kept at a fixed temperature above
 $V_m = 4.27\,(k/(a\eta_0))^{1/2}$, and that above it the shear gathers in the middle. Braeck and
 others show the band narrowing as it runs away, in solids, toward melting. For water at
 $20\,^\circ$C $V_m$ is 666 m/s. Duraiswami puts the core of the forced construction in water at
 cavitation when the swirl reaches 10 to 17 m/s, with the viscous heating near 0.01 K. At 17 m/s the
 steady rise in Gruntfest's layer is 0.06 K. The runaway does not occur in water at the speeds the
 forced construction reaches before its core cavitates: the miss as written. The bound is
-for plane shear between walls held at a fixed temperature; under a fixed stress with no heat loss
+for plane shear between walls kept at a fixed temperature; under a fixed stress with no heat loss
 the same law runs away at any stress, in a time that grows as the stress falls.
 
 **The stated expectation, against the sources.** The runaway was expected near $U^* = 110$ m/s; the
 bound is $6.04\,U^*$. Steam was expected below 618 m/s; at 618 m/s the steady middle of the layer
 stands 44 K above the walls, near $64\,^\circ$C, and steady flow ends at $68\,^\circ$C with the
-middle still liquid. The vapor that a source held does put in a shear layer of water comes from
+middle still liquid. The vapor that a source obtained does put in a shear layer of water comes from
 the pressure and not the heat: Zamansky and Ham, and Brandao and Mahesh, put inception in the shear
 layer, in the cores of its stretched vortices, and not where the mean pressure is least. The
 expectation that near the vapor pressure the steam sheet and the cavitation of the core are one
@@ -635,7 +635,7 @@ either liquid alone under the same drive.
 
 The temperature difference is borne out by Maquet and others, a vapor cushion at a step of one
 kelvin between two liquids, without a uniform liquid under the same drive to compare. The density
-difference is not tested: no source held reports shear or vapor at a density step. In all three
+difference is not tested: no source obtained reports shear or vapor at a density step. In all three
 sources that score it the drive is heat or tension instead of shear.
 
 ---
@@ -651,7 +651,7 @@ water cannot put its stress on the sphere through the vapor; their slip length,
 $s \approx (\mu_L/\mu_V)\,\delta_V$, states that in Navier's terms. The claim is water riding
 water on steam made by the shear between them. Maquet and others have one liquid riding another,
 with the vapor made by the heat of the pool, and the liquids are ethanol and silicone oil. No
-source held shows water riding water on steam, or steam made by shear. The criterion above
+source obtained shows water riding water on steam, or steam made by shear. The criterion above
 accepted a case the claim does not make. It stays as written, and the hit under it is withdrawn.
 
 **A correction to the first-half reading.** Gruntfest and Becker reach $V_m$ by carrying the limit
@@ -670,7 +670,7 @@ on or through each other because they do not want to interact on a chemical leve
 **Already known when written, and so not a blind prediction in part.** Pfeiffer and others, read in
 full, show in simulation that water and a perfluorocarbon separate at their interface under
 tension and that dissolved gas gathers there. Pimenova and Goldobin, read in full, hold a thin
-vapor layer between two immiscible liquids. The recorder knows by name, and has not held or read,
+vapor layer between two immiscible liquids. The recorder knows by name, and has not obtained or read,
 molecular dynamics work on slip at the interface between two immiscible liquids and measurements
 of slip at the interface between two immiscible polymers. Berry and others, read in full, give the
 slip length of a vapor layer as $(\mu_L/\mu_V)\,\delta_V$.
@@ -686,18 +686,18 @@ gas or vapor film between the two, as in I13's addition, adds to the slip by the
 viscosities.
 
 **Test.** A source on slip at the interface between two immiscible liquids, by simulation or
-measurement, that varies how strongly the two attract each other, held and read.
+measurement, that varies how strongly the two attract each other, obtained and read.
 
-**Criterion, written by the recorder.** Hit if a source held reports a tangential velocity jump at
+**Criterion, written by the recorder.** Hit if a source obtained reports a tangential velocity jump at
 the interface between two immiscible liquids that grows as the attraction between unlike molecules
-weakens relative to like ones; miss if a source held reports no velocity jump at such an
+weakens relative to like ones; miss if a source obtained reports no velocity jump at such an
 interface, or one that does not depend on how unlike the liquids are.
 
 ---
 
 **Scored, 2026-10-03, after the entry above was fixed with SHA-256 `60b7f717`.** Read in full:
 Koplik and Banavar, arXiv:cond-mat/0508612; Komuro, Sukumaran, Sugimoto and Koyama, Rheologica
-Acta 53 (2014) 23--30. Not held: Telari, Tinti and Giacomello, J. Fluid Mech. (2022), on slip at
+Acta 53 (2014) 23--30. Not obtained: Telari, Tinti and Giacomello, J. Fluid Mech. (2022), on slip at
 liquid-liquid interfaces enriched with gas, which the publisher's site did not serve.
 
 **Sliding on each other: hit.** Koplik and Banavar, in simulations of two layers of liquid, find a
@@ -711,9 +711,9 @@ at which either slips on a wall.
 **The stated size.** The recorder expected a slip length near a nanometer for small molecules and
 much larger for long chains. Koplik and Banavar give their coefficient in argon units, $10^{-5}$
 m/(Pa s), three orders of magnitude larger than in polymer melts, and doubt their interactions;
-the size is not settled by what is held.
+the size is not settled by what is obtained.
 
-**Sliding through each other: open.** No source held follows one liquid moving through another and
+**Sliding through each other: open.** No source obtained follows one liquid moving through another and
 compares how unlike they are.
 
 ### I15. Water rides on itself on steam torn out by its own shear, in a narrow window
@@ -731,7 +731,7 @@ by the largest principal stress, after Joseph. Maquet and others, read in full, 
 ethanol ride on its vapor over hot silicone oil from one kelvin of superheat, and see none over
 oils more viscous than 150 mPa s. Pimenova and Goldobin, read in full, have the vapor layer between
 two liquids break away by buoyancy once it grows past a thickness of order $10^{-5}$ to $10^{-4}$ m.
-The recorder knows by name, and has not held or read, work on drops of a liquid kept from merging
+The recorder knows by name, and has not obtained or read, work on drops of a liquid kept from merging
 with a bath of the same liquid by a temperature difference, and on drops bouncing on a vibrated
 bath of the same liquid on a film of air.
 
@@ -747,13 +747,13 @@ faster.
 
 **Test.** A source on a liquid sheared along a boundary with the same liquid until vapor forms
 there, reporting whether the vapor makes a film the two sides slide on and under which conditions
-they merge, held and read.
+they merge, obtained and read.
 
-**Criterion, written by the recorder.** Hit if a source held reports a liquid riding on the same
+**Criterion, written by the recorder.** Hit if a source obtained reports a liquid riding on the same
 liquid on a film of its vapor made by its own shear, only within a range of temperature difference
-or composition bounded on both sides; miss if a source held reports such a film for every
+or composition bounded on both sides; miss if a source obtained reports such a film for every
 difference above one threshold, or with no difference in temperature or composition at all; open
-while no source held makes the film by shear.
+while no source obtained makes the film by shear.
 
 ---
 
@@ -767,7 +767,7 @@ the shear layer at cavitation numbers of 0.006 to 0.025, where Proposition 18 pu
 one kelvin.
 The vapor forms clouds of bubbles that break off, shed and collapse along the whole jet, and not a
 film the two sides slide on. No window of temperature or composition is reported for riding, and
-none for the vapor. The criterion asks for a film made by shear, and no source held has one.
+none for the vapor. The criterion asks for a film made by shear, and no source obtained has one.
 
 ---
 
@@ -787,6 +787,6 @@ recorder expects a film only where the flow on both sides is laminar, between ab
 $55$ m/s in water at $20\,^\circ$C and in a narrower range as the water warms, and fed faster than
 it breaks away; the turbulent jet scored above, with its clouds of bubbles, is outside it.
 
-**Criterion, written by the recorder.** Hit if a source held reports a vapor film between layers of
+**Criterion, written by the recorder.** Hit if a source obtained reports a vapor film between layers of
 one liquid that holds while the flow is laminar and breaks into bubbles when it turns turbulent;
-miss if a source held reports such a film held between turbulent layers.
+miss if a source obtained reports such a film sustained between turbulent layers.

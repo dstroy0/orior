@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/language/4_measure/register_bands.py
 #
-# Four kinds of writing are held here and they differ in one thing that can be stated plainly: how much of
+# Four kinds of writing are stored here and they differ in one thing that can be stated plainly: how much of
 # a procedure they are, and how formally it is written.
 #
 #   source code            a procedure written to be carried out exactly, by a machine that cannot ask

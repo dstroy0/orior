@@ -1,7 +1,7 @@
 # Viewers
 
 Each is a Python builder plus an HTML template. The builder computes its numbers and hands them to
-`generate_template.py`, which writes them into the template's one data slot as a JSON literal, inlines
+`generate_template.py`, which writes them into the template's one data placeholder as a JSON literal, inlines
 the shared tools the template names, and emits a single self-contained file: no server, no install,
 no fetch at run time. Standard library only.
 
@@ -303,7 +303,7 @@ The test is real because the two routes share no step. One counts by packing, dr
 surface and keeping those further than one resolution from everything already kept, a direct measure
 of how many distinguishable places the surface has. The other takes the measure in closed form from
 the shape's own geometry. Neither reads the other. A packing count that tracked the volume, or a
-shape whose corners held more readings than its faces, would show up as a constant that moves.
+shape whose corners contained more readings than its faces, would show up as a constant that moves.
 Checked on a sphere, a cube and an octahedron, and in dimensions two through six.
 
 ### torus_count.py -- the same law, exactly, on a shape that shares nothing with a sphere
@@ -392,7 +392,7 @@ reassigned, and the letter are all reported.
 
 **A clearance pre-check decides the rotated case before it is run.** Min over placement points of the
 distance to the nearest arm face is `0.000e+00` at index 0, structurally, at every size from 64 to 4096. A crossing is therefore available and a clean result is not established by clearance; under the
-carried rotation index 0 held its arm by a dot product of `+3.123e-17`, three parts in `1e17` from
+carried rotation index 0 kept its arm by a dot product of `+3.123e-17`, three parts in `1e17` from
 going the other way. The claim the module makes is therefore the narrow one: independent of its
 drawing for 255 points by measurement and for one by convention, printed as that split.
 
@@ -432,7 +432,7 @@ belongs to float64 and not to the reading.
 | `grid_error.py`         | The drawn picture standing in for the field. Measures the mesh against exact evaluation.                                                                       |
 | `script_check.py`       | A page whose script does not parse, and a page with a frame loop and no watch on it.                                                                           |
 | `parity_check.py`       | The bar and the scheme judging one setting two ways, and a frame watch that does not report a throw or a loop that stops.                                      |
-| `generate_template.py`  | A built page whose toolbox pieces differ from the toolbox, and a template with two data slots or a script left open.                                           |
+| `generate_template.py`  | A built page whose toolbox pieces differ from the toolbox, and a template with two data placeholders or a script left open.                                           |
 | `data_check.py`         | A page whose script reads a key its own data does not carry, with no guard on the read.                                                                        |
 | `inert_report.py`       | Refuses nothing. Prints which of a page's optional features came out inert, telling a reader before they open it.                                              |
 | `frame_audit.py`        | An allocation on the per-frame path, and a disposal of something built once.                                                                                   |

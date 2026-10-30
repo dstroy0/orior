@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the slots of the table a query is found by its identity in, a power of two past every query a record contains
+// the buckets of the table a query is found by its identity in, a power of two past every query a record contains
 #define KQR_SLOTS 1048576u
 
 // the words of a query's identity and answer in its record, before its answer's words or its refusal: the identity's

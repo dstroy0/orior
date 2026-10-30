@@ -56,12 +56,12 @@ def check_two_stage(say):
     """7. One combined score ships a wrong program. Two stages cannot."""
     say("7. GATE THEN RANK, AGAINST ONE SCORE")
     say("")
-    say("   arrangement        precepts held    cost")
+    say("   arrangement        precepts met     cost")
     for name, held, cost in ARRANGEMENTS:
         say("   %-18s %7d of %d    %6s" % (name, held, PRECEPT_COUNT, show(cost)))
     say("")
 
-    # One score: trade a held precept against cost on any exchange rate at all.
+    # One score: trade a met precept against cost on any exchange rate at all.
     say("   one score, over every exchange rate between a precept and a cost:")
     shipped = set()
     for weight in (Fraction(1), Fraction(10), Fraction(50), Fraction(100), Fraction(200)):
@@ -188,7 +188,7 @@ def check_independence(say):
     if implied:
         say("   %d of %d cases carry no information this set does not already hold. A set carrying"
             % (len(implied), len(CASES)))
-        say("   surplus looks like that from the inside. Counting precepts held then weights one")
+        say("   surplus looks like that from the inside. Counting precepts met then weights one")
         say("   fact several times over, at weights nobody set. Here is the second reason a count")
         say("   of precepts cannot be a score: it is not even a count of independent facts.")
     else:
@@ -293,7 +293,7 @@ def check_transplant(say):
     """11. An answer read outside what it was derived on, priced."""
     say("11. READING AN ANSWER OUTSIDE WHAT IT WAS DERIVED ON")
     say("")
-    say("   A foundation that held up three stories is not a foundation for a tower, and it is not")
+    say("   A foundation that supported three stories is not a foundation for a tower, and it is not")
     say("   a floor of some other building either. Both transplants are priced here.")
     say("")
 

@@ -13,7 +13,7 @@ under which any of them helps at all.
 `from_bytes` are not conversions; they are two vocabularies for one object. This identity lets a
 number be handed to a device that only knows arrays, without anything being computed.
 
-**Fixed point.** A real to whatever depth is paid for, held as an integer scaled by a power of two.
+**Fixed point.** A real to whatever depth is paid for, stored as an integer scaled by a power of two.
 The reals are the human coordinate and the integer is the machine's, and the translation is exact in
 both directions. The whole floor question turns on this: a residual that stops at 1e-16 is speaking
 float64, one that falls with the width is speaking the object.

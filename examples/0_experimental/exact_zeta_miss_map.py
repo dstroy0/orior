@@ -391,7 +391,7 @@ def median(values):
 
 def fold_cells(binary, constants, nu, count, rate):
     """Cells nu to nu + count - 1, each on a fine lattice, its coarse lattice every k-th fine point with k chosen for
-    `rate` points a zero: the misses, every coarse point's radius and turn, the rate held, and the zeros."""
+    `rate` points a zero: the misses, every coarse point's radius and turn, the rate kept, and the zeros."""
     misses, radii, turns, rates, zeros, failed = [], [], [], [], 0, 0
     for at in range(nu, nu + count):
         z = tm.rises(at)
@@ -639,7 +639,7 @@ def uniform_indices(count_fine, points):
 
 
 def misses_on(idx, fine):
-    """Each pair the coarse lattice of fine-indices `idx` hides: the two held coarse points it lies between and the two
+    """Each pair the coarse lattice of fine-indices `idx` hides: the two kept coarse points it lies between and the two
     fine zeros. The carrier-stepped form of misses_of, with an explicit index list in place of a uniform lift."""
     fine_zeros, _ = zeros_of(fine)
     coarse = [fine[i] for i in idx]
@@ -1242,7 +1242,7 @@ TWIST_RULES = ["reach 0.5", "reach 1", "reach 2", "Hermite", "the pole's model",
 
 def model_turns(w, ratio, z, clock, t_end, t_a, t_b, samples=32):
     """Whether the relational model from one end crosses zero inside the step while the ends agree in sign: F linear
-    through its source, F(t) = F_e (1 + (F'/F)_e (t - t_e)), the carrier turning at theta', and R held, giving
+    through its source, F(t) = F_e (1 + (F'/F)_e (t - t_e)), the carrier turning at theta', and R fixed, giving
     Z(t) =2 Re(w_e (1 + (F'/F)_e (t - t_e)) exp(i theta' (t - t_e))) + R_e. Spin, twist, swell and the level R / (2 |F|)
     each enter against the others; nothing is a threshold."""
     rest = z - 2 * w.real

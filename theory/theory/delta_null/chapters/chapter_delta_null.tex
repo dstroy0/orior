@@ -2,11 +2,11 @@
 
 \section{Finding where a pattern occurs}
 
-One read of one position settles every alignment whose pattern symbol differs from the symbol read. That is \(m(1-2^{-H_2})\) of the \(m\) alignments in expectation, and it held to within 0.7\% over 84 rows and three ways of choosing the position. The collision probability that sets how many candidates survive therefore also sets how far into a pattern the first mismatch is expected. The same quantity appears once as a rate and once as a length.
+One read of one position settles every alignment whose pattern symbol differs from the symbol read. That is \(m(1-2^{-H_2})\) of the \(m\) alignments in expectation, and it agreed to within 0.7\% over 84 rows and three ways of choosing the position. The collision probability that sets how many candidates survive therefore also sets how far into a pattern the first mismatch is expected. The same quantity appears once as a rate and once as a length.
 
 The number of candidates a probe finds is an estimator of the R\'enyi entropy of order two \cite{src:Renyi}, also called the collision entropy. In expectation it equals the plug-in estimator when the probe's own match is counted, and the standard unbiased estimator when it is not. Scored against published estimators on sources whose parameters are known, it is worse in both accuracy and running time at every setting tested. It approached the unbiased estimator as the number of probes approached the length of the corpus.
 
-Its one advantage is what it does without: it builds no histogram and never lists the alphabet. Correcting it means leaving out the case where a position is compared with itself, and applying the same correction again gives the unbiased estimators of the higher R\'enyi orders. At order two the correction is \((1-C)/((N-1)C\ln 2)\) bits for a plug-in collision probability \(C\), which held across nine sources spanning four orders of magnitude. The numerator is exactly zero when all the probability sits on one symbol. On a source with no entropy, the correction is zero at every order and every length.
+Its one advantage is what it does without: it builds no histogram and never lists the alphabet. Correcting it means leaving out the case where a position is compared with itself, and applying the same correction again gives the unbiased estimators of the higher R\'enyi orders. At order two the correction is \((1-C)/((N-1)C\ln 2)\) bits for a plug-in collision probability \(C\), which stayed constant across nine sources spanning four orders of magnitude. The numerator is exactly zero when all the probability sits on one symbol. On a source with no entropy, the correction is zero at every order and every length.
 
 Compared with the classic algorithms on the same corpus and the same counter, checking the rarest symbol first loses to a Horspool shift \cite{src:Horspool} on every corpus and pattern length, by 1.2 to 25 times. A check at offset \(a\) can move the search forward by at most \(a+1\) positions, and how far the search moves decides the number of symbol reads. How many candidates survive does not. Treating the two as factors of one product recovers the loss and comes out 11\% ahead on C source code. Replacing the frequency model with a running average of how far each offset moves the search, which needs no alphabet, comes out 13.2\% ahead, and beats a rule that is given the corpus histogram.
 
@@ -1365,19 +1365,19 @@ Austen 1813, Hugo 1862 & control & different languages & 0.0204 & 0.0132 \\
 \end{longtable}
 \normalsize
 
-The last row shows the measure behaves, since two languages share almost nothing and the figure goes to the floor. The first two rows show it cannot answer the question. Fifty three years with the form held fixed keeps more of the shared vocabulary than twelve years across a change of form. The genre term is larger than the time term, and one genre matched pair cannot separate them.
+The last row shows the measure behaves, since two languages share almost nothing and the figure goes to the floor. The first two rows show it cannot answer the question. Fifty three years with the form kept fixed keeps more of the shared vocabulary than twelve years across a change of form. The genre term is larger than the time term, and one genre matched pair cannot separate them.
 
 A second objection is stronger than the statistical one. A drift floor is a claim about a population living normal lifespans in one place, with nothing breaking the chain of transmission, and the only genre matched pair available spans the English Civil War, the regicide, the plague of 1665 and the fire of 1666. That interval is the opposite of the condition. 0.5625 is not a floor. Read as an upper bound on how fast the shared vocabulary moves, it says about 72 of the 100 most frequent words survived that half century unchanged.
 
 Measuring the floor needs several pairs matched for form at different separations, drawn from a period with no disaster and no displacement. This corpus holds no such series.
 
-Held against one 1611 reference, the English texts give 0.5038 at 1623, 0.4286 at 1667, 0.4184 at 1720 and 0.3699 at 1813 in the top 100 band, which falls at every step. The content band reverses once, rising from 0.1596 at 1623 to 0.1632 at 1667, and Milton is retelling the subject of the book being compared against. That reversal comes from the topic, and the date plays no part in it.
+Compared against one 1611 reference, the English texts give 0.5038 at 1623, 0.4286 at 1667, 0.4184 at 1720 and 0.3699 at 1813 in the top 100 band, which falls at every step. The content band reverses once, rising from 0.1596 at 1623 to 0.1632 at 1667, and Milton is retelling the subject of the book being compared against. That reversal comes from the topic, and the date plays no part in it.
 
 Turning the top 100 band into a loss per year gives 0.00171 across 1623 to 1667, 0.00019 across 1667 to 1720, and 0.00052 across 1720 to 1813. The first interval covers the civil war, the regicide, the plague and the fire, and it moves 8.9 times faster than the second, which covers the settled period after the Restoration. A drift rate that responded to disruption would produce that order.
 
 That order is not evidence of one. The 1667 to 1720 interval is the only pair in the series matched for form. The slowest interval is also the one where the largest confound was removed. The disruption term and the genre term take the same value on the same rows, and nothing measured here separates them. Whether a shock produces an oscillation is a further question this corpus cannot reach at all: five samples spread unevenly over 202 years are fewer than two per cycle for any cycle worth proposing. No period is detectable and none is ruled out.
 
-Holding the subject fixed removes the genre term by construction. Three translations of one book were measured against each other. The Douay Rheims of 1609 and the King James of 1611 are two years apart and were made by rival translators from different sources, which prices the translator's choices with the era held still. The World English Bible is 389 years after the King James.
+Holding the subject fixed removes the genre term by construction. Three translations of one book were measured against each other. The Douay Rheims of 1609 and the King James of 1611 are two years apart and were made by rival translators from different sources, which prices the translator's choices with the era kept still. The World English Bible is 389 years after the King James.
 
 \tiny
 \setlength{\tabcolsep}{2pt}
@@ -1417,7 +1417,7 @@ The filter recovered the object to the bit and recovered nothing of what it mean
 \label{fig:ajax-recovery}
 \end{figure}
 
-None of this makes the regularities fragile, and the reason is the only result in this section that came from a controlled destruction instead of a comparison. Section 4.13.1 permutes the Morse code table, the part a person designed and the part actually sent, and the correlation of word length against frequency returns at -0.550 against -0.652 for the intact table, while the Zipf slope does not move, -1.183 against -1.185. The assignment of codes to letters was destroyed and the measurements reassembled out of the wreckage, because they were never held in that assignment. They belong to the distribution of the words being encoded, and they reappear through any re-slicing of the symbols.
+None of this makes the regularities fragile, and the reason is the only result in this section that came from a controlled destruction instead of a comparison. Section 4.13.1 permutes the Morse code table, the part a person designed and the part actually sent, and the correlation of word length against frequency returns at -0.550 against -0.652 for the intact table, while the Zipf slope does not move, -1.183 against -1.185. The assignment of codes to letters was destroyed and the measurements reassembled out of the wreckage, because they were never encoded in that assignment. They belong to the distribution of the words being encoded, and they reappear through any re-slicing of the symbols.
 
 So these regularities are not transmitted and do not need a surviving channel between two instances of them. They are properties of whatever produces a message, and they recur wherever that kind of producer recurs. Three language families, two scripts, 265 years and one tapped-out medium give the same measures for that reason, and not because anything passed between them.
 
@@ -1449,7 +1449,7 @@ Homer, Iliad (Greek) & και κι του ο το να τον τα τους με
 \end{longtable}
 \normalsize
 
-Every commoner half carries words that refer to people. English has \texttt{her}, \texttt{i}, \texttt{she} and \texttt{it}, German has \texttt{ich}, \texttt{du} and \texttt{sie}, Finnish has \texttt{hän}, \texttt{he} and \texttt{hänen}, and Greek carries \texttt{του}, \texttt{τον} and \texttt{τους}. Each also carries a conjunction, and each carries a linking verb, a negation, or both. Finnish is the clearest case: it has no articles to fill those slots, and a proper name, \texttt{juhani}, takes one of them.
+Every commoner half carries words that refer to people. English has \texttt{her}, \texttt{i}, \texttt{she} and \texttt{it}, German has \texttt{ich}, \texttt{du} and \texttt{sie}, Finnish has \texttt{hän}, \texttt{he} and \texttt{hänen}, and Greek carries \texttt{του}, \texttt{τον} and \texttt{τους}. Each also carries a conjunction, and each carries a linking verb, a negation, or both. Finnish is the clearest case: it has no articles to fill those positions, and a proper name, \texttt{juhani}, takes one of them.
 
 The matching claim about the rarer half is that it carries the actions, and that needs counting. No part of speech tagger is available here. English verb endings stand in for one, and the stand-in is weak in one direction: a gerund used as a noun and an adjective built from a participle both carry these endings without being verbs. Every figure is an upper bound.
 
@@ -1503,7 +1503,7 @@ Single works occupy 0.758 to 0.833 over four languages and three centuries, coll
 
 Hugo is the lowest of the single works, and that supports the reading instead of straining it. \emph{Les Misérables} runs to five volumes and turns aside into Waterloo, the sewers of Paris and the history of a convent. It is the most varied single work measured here in what it is about, and it sits nearest the collection band.
 
-Every corpus in that table arrived already being one thing or the other. The reading rests on labels applied by hand and could be tracking whatever those labels happen to go with. Two manipulations settle it. Joining English single works into one corpus, with the total length held near 900000 characters so the change cannot be a length effect, gives 0.828 for one work, 0.685 for two and 0.626 for three. Cutting the 66 book collection into equal pieces moves the other way:
+Every corpus in that table arrived already being one thing or the other. The reading rests on labels applied by hand and could be tracking whatever those labels happen to go with. Two manipulations settle it. Joining English single works into one corpus, with the total length kept near 900000 characters so the change cannot be a length effect, gives 0.828 for one work, 0.685 for two and 0.626 for three. Cutting the 66 book collection into equal pieces moves the other way:
 
 \tiny
 \setlength{\tabcolsep}{2pt}
@@ -1522,7 +1522,7 @@ pieces & books per piece & mean & highest piece \\
 
 The climb continues at every cut, and at one book per piece the highest pieces reach 0.847, which is inside the band the single works occupy. The mean stays at 0.708 for two reasons that are properties of the cutting: the pieces are equal in length and therefore do not line up with book boundaries, most of them straddling two books; and a short piece has fewer words clearing the occurrence floor.
 
-So the quantity responds to subjects being added and removed while length is held fixed, which is a stronger statement than the table of labeled corpora supports on its own.
+So the quantity responds to subjects being added and removed while length is kept fixed, which is a stronger statement than the table of labeled corpora supports on its own.
 
 The measure is not a count on its own. Two English works joined give 0.685, close to the 0.667 of a corpus of 37 plays, because a novel and an epic poem stand further apart than two plays of one period do. The measure reads how far the vocabulary spreads across subjects, with the number of subjects and the distance between them both contributing and neither separated here.
 
@@ -1603,7 +1603,7 @@ Chinese decides it. Measured in within language standard deviations from the mea
 
 The results in Sections 4.13.05 and 4.13.1 hold over seven language families and two scripts for that reason. The measure was never reading which language it was given. A change of language had nothing in it to disturb. That also bounds what those results can mean: a quantity that cannot tell Finnish from Chinese cannot be evidence about any particular language, and Section 7.4 records separately that it is not evidence about language at all.
 
-\noindent\textbf{This conclusion is not new, and the credit is not this paper's.} Montemurro and Zanette \cite{src:Montemurro, src:Zanette} measure the entropy a text loses when its words are shuffled, the same shuffle used here, over 7077 texts in eight corpora spanning the Indo-European, Finno-Ugric, Austronesian, Afroasiatic and Sino-Tibetan families and the Sumerian isolate. They report the quantity held near 3.3 bits per word across all of them, with a relative variability of 0.07 against 0.23 for the entropy itself, and they name it a statistical universal of language. Their sample is two hundred times the size of this one and reaches Old Egyptian and Sumerian, which this one does not.
+\noindent\textbf{This conclusion is not new, and the credit is not this paper's.} Montemurro and Zanette \cite{src:Montemurro, src:Zanette} measure the entropy a text loses when its words are shuffled, the same shuffle used here, over 7077 texts in eight corpora spanning the Indo-European, Finno-Ugric, Austronesian, Afroasiatic and Sino-Tibetan families and the Sumerian isolate. They report the quantity staying near 3.3 bits per word across all of them, with a relative variability of 0.07 against 0.23 for the entropy itself, and they name it a statistical universal of language. Their sample is two hundred times the size of this one and reaches Old Egyptian and Sumerian, which this one does not.
 
 The statistic here is not theirs, since they measure a reduction in Shannon entropy in bits per word and this measures the spread of the gaps over the rarer half of the symbols, and the agreement of two unlike statistics is worth something. The finding is theirs.
 
@@ -1690,7 +1690,7 @@ A single number that sets a cost across every dimension and every alphabet is qu
 
 There is no collision entropy of a corpus. There is a collision entropy of a corpus read \(w\) bits at a time, and Section 4.10 measures \(H_2(w)/w\) falling from 0.984 to 0.600 on English between one bit and sixteen. Every figure in this paper uses \(w = 8\), because a byte is the unit the code happened to be written in.
 
-The clearest sign that the choice is doing work is the corpus this paper calls flat. It is \texttt{0x41} repeated, its bit pattern has period eight. A window of six bits or more takes exactly eight values and carries \(\log_2 8 = 3\) bits. Five separate instruments report zero on it, in Sections 4.3, 4.4, 4.4.1 and 4.5.1, and their agreement looked like independent confirmation. All five read bytes. The object carries three bits one bit narrower, and the five agreements are one assumption held five times.
+The clearest sign that the choice is doing work is the corpus this paper calls flat. It is \texttt{0x41} repeated, its bit pattern has period eight. A window of six bits or more takes exactly eight values and carries \(\log_2 8 = 3\) bits. Five separate instruments report zero on it, in Sections 4.3, 4.4, 4.4.1 and 4.5.1, and their agreement looked like independent confirmation. All five read bytes. The object carries three bits one bit narrower, and the five agreements are one assumption made five times.
 
 \subsubsection{5.4 Information beyond the collision probability}
 
@@ -1712,7 +1712,7 @@ The failure of the product rule carries over. Any structure that stacks cheap fi
 
 The estimator is a subsampled U-statistic and loses to a histogram estimator wherever one can be built. Its interest is that it can be computed when one cannot: no bins, no codebook, constant state, and free inside a search that was happening anyway.
 
-And the shape of the argument carries whether the algorithm does. Correctness was separated from cost at Section 2.2 and never rejoined it. Every claim in this paper that survived is one where that separation held, and every claim that fell is one where a cost measurement was allowed to stand in for a property of the thing.
+And the shape of the argument carries whether the algorithm does. Correctness was separated from cost at Section 2.2 and never rejoined it. Every claim in this paper that survived is one where that separation was kept, and every claim that fell is one where a cost measurement was allowed to stand in for a property of the thing.
 
 \subsection{6. Limits and what holds}
 
@@ -1728,7 +1728,7 @@ Symbols are drawn from an alphabet of at most 256 values in every bench, and the
 
 \subsubsection{6.3 Finite precision}
 
-The complex data's symbols are square roots of primes held in \texttt{double}. The stored values are rational approximations of irrationals. Equality is decided over the stored bytes. The approximation affects which symbols count as distinct and never whether the comparison is correct.
+The complex data's symbols are square roots of primes stored in \texttt{double}. The stored values are rational approximations of irrationals. Equality is decided over the stored bytes. The approximation affects which symbols count as distinct and never whether the comparison is correct.
 
 \subsubsection{6.4 Sensitivity to the entropy estimate}
 
@@ -2051,7 +2051,7 @@ The benches, the engine, the examples and the hash used as a test oracle are in 
 
 The SHA-256 implementation used here belongs to the test support and is not reached by the engine. A hash computed by the code under test agrees with that code whatever the code did, and the library is never its own test oracle.
 
-The implementation is held to five published vectors. RFC 6234 section 8.5 \cite{src:RFC-6234} supplies four that sit on the padding boundaries: \texttt{``abc''}, the 56 octet message whose padding overflows into a second block, 64 octets fed ten times so that padding forms a whole block alone, and one million \texttt{'a'} which pushes the length field past \(2^{23}\) bits over 15,625 compressions. The empty message is the fifth, which RFC 8448 section 3 prints as the TLS 1.3 transcript hash of the empty string.
+The implementation is checked against five published vectors. RFC 6234 section 8.5 \cite{src:RFC-6234} supplies four that sit on the padding boundaries: \texttt{``abc''}, the 56 octet message whose padding overflows into a second block, 64 octets fed ten times so that padding forms a whole block alone, and one million \texttt{'a'} which pushes the length field past \(2^{23}\) bits over 15,625 compressions. The empty message is the fifth, which RFC 8448 section 3 prints as the TLS 1.3 transcript hash of the empty string.
 
 The standard suites are run offline against stored copies of the published vectors, each copy's source and hash recorded and checked before a vector is read from it.
 

@@ -45,7 +45,7 @@ PAUSE = 0.3
 
 
 def fetch(url, target):
-    """One table, kept on disk, skipped where it is already held."""
+    """One table, kept on disk, skipped where it is already present."""
     if os.path.isfile(target) and (os.path.getsize(target) > 2000):
         return os.path.getsize(target), "already held"
     request = urllib.request.Request(url, headers=AGENT)

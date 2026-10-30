@@ -321,7 +321,7 @@ Within one fixed job and one fixed extranonce2, the frontier is:
 | round 3 onward | needs W[3] |
 | hash two's message | is hash one's output and needs all of it |
 
-Forward frontier: 3 rounds of 128, and only with extranonce2 and version held fixed. Moving either
+Forward frontier: 3 rounds of 128, and only with extranonce2 and version kept fixed. Moving either
 of those changes the midstate, and those 3 rounds have to be recomputed too. Backward frontier: 0
 rounds, because inverting round t needs `W[t]` and every schedule word past 15 is generated from the
 words being solved for.
@@ -335,7 +335,7 @@ has not been measured, and saying so is not the same as having shown it.
 **Verdict.** The obstruction is named exactly, and it is not loss of information. It is circularity.
 The inverse needs the message; the problem asks for the message. Invertible given the input is not
 the same as solvable for the input.
-**Consequence.** The ceiling is complete by round 10 and held for the remaining 118. That margin is
+**Consequence.** The ceiling is complete by round 10 and stayed there for the remaining 118. That margin is
 the design. Published preimage results reach about 52 of 64 rounds at complexity near 2^255, and SAT
 approaches about 20 to 24 rounds. Every projection tried in this tree dies inside rounds 0 to 9,
 the same seam.
@@ -403,7 +403,7 @@ rolling being actively spent as a search dimension. That is direct evidence for 
 
 ### H18 - There is no noise floor; stop quoting one
 
-**Claim.** The digest field carries no background noise, because the information is held elsewhere.
+**Claim.** The digest field carries no background noise, because the information is stored elsewhere.
 **Why it is right.** SHA-256 is deterministic, and that makes `H(digest | input)` exactly zero. The flatness
 is
 not a noisy signal averaging out; it is pseudorandomness with no stochastic component at all. H14
@@ -709,7 +709,7 @@ opposite of obfuscation.
 
 **Verdict.** That ratio is not an obstacle to the design, it is the design. So "if we know the
 nonce"
-is not a step toward the answer; it is the answer, already held.
+is not a step toward the answer; it is the answer, already known.
 **Result, transferability.** Block 125552's real nonce, with one merkle bit flipped, the
 least a different coinbase does: leading zeros fall from ~64 to **0**, against a target needing 60.
 The merkle root commits to the coinbase and the coinbase carries the payout address. Putting your

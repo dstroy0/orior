@@ -16,7 +16,7 @@
 // `<number> answered <w0> <w1> <w2> <w3>` added to the answers file. Given a cases file, one case a line as up to eight
 // words in hex, the kernel is run once over every case, a thread a case, and the line contains the first word of each
 // case's answer in the file's order. Given `most`, a pass runs that many lines at most and ends with exit 4 where lines
-// are left, which makes a pass short enough for a cap on its time to bound one cubin. A cubin the part refuses kills
+// are left, making a pass short enough for a cap on its time to bound one cubin. A cubin the part refuses kills
 // the context past recovery: resetting the part's primary context in place leaves the next launch failing. A refusal
 // adds `<number> refused <error>` and ends the process with exit 3, and the caller starts it again past that line. A
 // pause after each launch prevents a run of launches from flooding the part and taking the display down with it. Exit 0

@@ -15,7 +15,7 @@
 #
 # Two manipulations decide it. Joining single works into one corpus should walk the score down as works
 # are added, and cutting a collection into equal pieces should walk each piece up, since a piece spans
-# fewer of its books. Both are done on the same texts already measured, and length is held near constant
+# fewer of its books. Both are done on the same texts already measured, and length is kept near constant
 # in the joining arm so the walk cannot be a length effect.
 
 import os
@@ -62,7 +62,7 @@ def score(path):
 
 
 def main():
-    print("  joining single works, total length held near %d characters" % BUDGET)
+    print("  joining single works, total length kept near %d characters" % BUDGET)
     for count in range(1, len(JOINED) + 1):
         share = BUDGET // count
         text = "\n".join(read(name)[:share] for name in JOINED[:count])

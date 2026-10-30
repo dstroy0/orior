@@ -88,7 +88,7 @@ SHELLS = ("sphere", "cube", "hexagon", "octahedron", "dodecahedron")
 CORES = ("sphere", "cube", "octahedron", "cone")
 GLOWS = ("measured", "random", "flat")
 
-# The band the template divides bodies among is taken from the radius, over this drawn range. Held
+# The band the template divides bodies among is taken from the radius, over this drawn range. Kept
 # here so the rounds fill the range exactly instead of landing inside part of it, which would leave
 # an empty middle and an empty rim that mean nothing.
 INNER = 0.12

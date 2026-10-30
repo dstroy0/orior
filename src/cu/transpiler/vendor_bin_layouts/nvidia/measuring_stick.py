@@ -255,12 +255,12 @@ MULTIPLY_ADD = [
 ]
 
 
-# tasks of growing register pressure, each its count of values held at once and its rounds over them
+# tasks of growing register pressure, each its count of values live at once and its rounds over them
 PRESSURE = [(8, 8), (16, 8), (32, 8), (48, 8), (64, 8), (96, 8), (128, 8), (160, 8), (192, 8), (224, 8)]
 
 
 def pressure_text(values, rounds):
-    """`values` ints held at once over int a and int b: each a plus its own number, then every round each times the
+    """`values` ints live at once over int a and int b: each a plus its own number, then every round each times the
     next plus b, every value live through every round, and r every value taken together one statement a value"""
     names = ["v" + str(at) for at in range(values)]
     text = [f"int {name} = a + {at + 1};" for at, name in enumerate(names)]

@@ -2,7 +2,7 @@
 
 ## The constraint
 
-The tracker has no tuned parameter. Every threshold a decision needs is read from the same sample. A detection is kept where it stands above what the same procedure finds in frames where no correspondence exists, and a link is costed against the distribution of link lengths in that sample. The constraint excludes a learned model and any weight chosen on held-out data, and it makes each decision traceable to the voxels it came from.
+The tracker has no tuned parameter. Every threshold a decision needs is read from the same sample. A detection is kept where it stands above what the same procedure finds in frames where no correspondence exists, and a link is costed against the distribution of link lengths in that sample. The constraint excludes a learned model and any weight chosen on withheld data, and it makes each decision traceable to the voxels it came from.
 
 ## Hypothesis 1: a shape fingerprint carries identity
 

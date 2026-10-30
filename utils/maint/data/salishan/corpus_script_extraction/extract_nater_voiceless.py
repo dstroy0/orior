@@ -247,7 +247,7 @@ def main():
                 % (at, who or spot, kind, crossings, content)
             )
 
-    # The Bella Coola words alone, one per line. Heiltsuk is held out by the who column, which the
+    # The Bella Coola words alone, one per line. Heiltsuk is excluded by the who column, which the
     # column exists for.
     pure = TARGET[:-4] + ".pure.txt"
     kept = 0

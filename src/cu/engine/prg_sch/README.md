@@ -10,7 +10,7 @@ builds and runs it as written here.
 
 ## What a program is
 
-A program is a list of **steps** in order. Each step is one operation, and its value is held in a **register**
+A program is a list of **steps** in order. Each step is one operation, and its value is stored in a **register**
 named by the step's number. A step reads only steps before it. A program is straight-line and has no branch
 and no loop. A program runs once per **lane**. A lane reads one **record** from each of 1 to 3 **members**, the
 kinds of record the program takes in, and writes one output record. A sweep runs every lane at once.
@@ -159,7 +159,7 @@ The load also builds the program for the device (`compiler/cycle/cycle_compile_*
    as C source as well, and whichever of the two has the smaller frame runs; the other build is released.
 2. **C source.** Where the lane cannot be written in PTX, it is C source, each step one call into the operator block.
    NVRTC compiles it and nvJitLink links it the same way. Its registers lie in shared memory.
-3. **The interpreter.** Where neither builds, the interpreter runs the program. It is also the oracle both are held to.
+3. **The interpreter.** Where neither builds, the interpreter runs the program. It is also the oracle both are checked against.
 
 Each build is kept in a cache: `$CYCLE_CACHE`, else `%LOCALAPPDATA%\cycle` or `~/.cache/cycle`. A build is found
 by its text and used only where that text matches byte for byte.
@@ -273,7 +273,7 @@ they lie on the device and returns one sum a run to the host:
 - the host takes the carries through the columns and subtracts 2^bits for each negative field, once a run.
 
 The sum merges nothing. Each limb is its own exact column and the whole sum is kept; no lane is averaged, rounded or
-dropped, and each lane's record stays where it lies: a run's parts are there beside its total. A mean is that sum held
+dropped, and each lane's record stays where it lies: a run's parts are there beside its total. A mean is that sum taken
 over the run's length, an exact rational. The caller names the
 runs, and a run of one lane returns the lane itself. A request whose sums cannot hold `bits` and the bits of the run's
 length beside them, whose count is not a whole number of runs, or whose run passes 2^32 lanes errors before a record is
@@ -345,5 +345,5 @@ These are the machine's own limits, from `engine_config.h` and the code above:
 - a table index of at most 32 bits;
 - a wrap of fewer than `ENGINE_RECORD_WRAP_BITS_LEAST` (4) bits.
 
-The step count is not among them. A register's sign is held beside it in the file, and the step table is read
+The step count is not among them. A register's sign is stored beside it in the file, and the step table is read
 from device memory. A program can be as long as its register file allows.

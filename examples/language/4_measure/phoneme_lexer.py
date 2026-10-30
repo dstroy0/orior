@@ -88,7 +88,7 @@ def main():
         inventory[language] = (len(set(cut)), len(set(kept)), len(set(folded)))
 
     if len(readings["as written"]) < 5:
-        out.write("  too few languages held\n")
+        out.write("  too few languages loaded\n")
         out.flush()
         return 0
 

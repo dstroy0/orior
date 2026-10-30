@@ -11,8 +11,8 @@
 # its own and says nothing about whether that value picks it out from every other language. Those are
 # different claims and the second is the stronger one.
 #
-# It is also the one with a pass and a fail. Each text is held out in turn, the remaining texts of every
-# language give that language a value, and the held out text is assigned to whichever language it lands
+# It is also the one with a pass and a fail. Each text is left out in turn, the remaining texts of every
+# language give that language a value, and the left out text is assigned to whichever language it lands
 # nearest. If a language carries a constant that identifies it, its own texts come home. Guessing gets one
 # in however many languages are present.
 #

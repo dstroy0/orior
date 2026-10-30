@@ -5,4 +5,4 @@ This research paper proposes a tracker for the Biohub Cell Tracking During Devel
 | file | what it holds |
 | --- | --- |
 | [tracking_problem.md](tracking_problem.md) | the data, the output graph, the score, and the methods the proposal is set against |
-| [proposal.md](proposal.md) | the constraint the tracker is held to, its three hypotheses with the test that decides each, the solve they feed, and what is built |
+| [proposal.md](proposal.md) | the constraint the tracker must satisfy, its three hypotheses with the test that decides each, the solve they feed, and what is built |

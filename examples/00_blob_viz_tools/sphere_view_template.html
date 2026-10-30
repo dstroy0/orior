@@ -329,7 +329,7 @@
   var ringGroup = new THREE.Group();
   scene.add(ringGroup);
 
-  // The observer, held as an offset and an up vector so the axes are re-derived from where it
+  // The observer, stored as an offset and an up vector so the axes are re-derived from where it
   // actually is. Euler angles were tried first and they invert the drag past the pole, which reads
   // as the object fighting the hand.
   var target = new THREE.Vector3(0, 0, 0);

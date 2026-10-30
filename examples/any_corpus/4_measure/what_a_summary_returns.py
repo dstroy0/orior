@@ -51,7 +51,7 @@ SEED = 0x51F7
 
 
 def rebuilt_from_angles(series, bits):
-    """The series rebuilt with every angle held to a few steps around the circle."""
+    """The series rebuilt with every angle quantized to a few steps around the circle."""
     floats = series.astype(numpy.float64)
     middle = floats.mean()
     spectrum = numpy.fft.rfft(floats - middle)
@@ -82,7 +82,7 @@ def main():
 
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
     out.write("  each cell is the correlation, then the share of symbols returned exactly\n")
-    out.write("  angles held to a few steps around the circle, every amount kept\n\n")
+    out.write("  angles quantized to a few steps around the circle, every amount kept\n\n")
     out.write("  %-24s %-9s %s\n"
               % ("corpus", "spread", "  ".join("%13s" % ("%d bit" % bits) for bits in BITS)))
 

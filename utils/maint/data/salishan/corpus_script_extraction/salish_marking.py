@@ -145,7 +145,7 @@ DERIVED = "derived"
 # discardable, and nothing is known about it. It is not ingestible either. Naming the category
 # after the tool's own limit keeps that honest: it says a program failed to sort this, not that the
 # line is doubtful. Each extractor writes these to a file of their own beside its output. A person
-# can then work through them, and they are held out of the pure stream until someone has.
+# can then work through them, and they are excluded from the pure stream until someone has.
 UNCLASSIFIED = "unclassifiable by tool"
 
 

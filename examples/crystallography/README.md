@@ -164,7 +164,7 @@ expansion**, and they are worth more than the ratio is. Two are described below;
 with the corpus past 3744 and has not been inspected.
 
 6612 of those entries publish symmetry operations, none errored for a denominator not dividing
-24, and none was held back by the placement bound.
+24, and none was deferred by the placement bound.
 
 `1001125` puts Ta at (1/2, 1/2, 0.238) and W at (1/2, 1/2, -0.238). An operation taking z to -z
 carries one onto the other. Tantalum and tungsten substitute readily. This is an ordinary solid
@@ -214,7 +214,7 @@ would displace every copy they generate. A symmetry copy would land beside the a
 landed on, and the doping at that place would vanish silently. Coordinates in
 `representation/structure/symmetry.py` are therefore integers in units of 1/(24 · 10^1024), and an
 operation whose denominator does not divide 24 raises instead of rounding. Across the corpus nothing
-raised: 24 held every operation the deposits published, eighths included.
+raised: 24 satisfied every operation the deposits published, eighths included.
 
 ### What that cost to learn
 
@@ -276,7 +276,7 @@ The two censuses together show the error is structural. Amphibole grew
 from 307 entries to 363 and its admitted count stayed at 13. None of the 56 that arrived were
 admitted. Apatite grew from 286 to 303 and stayed at 7. Mica grew from 361 to 365 and stayed at 52.
 A family's crystal system is a fact about the mineral. A bigger sample of it does not arrive any
-more right angled than the sample already held.
+more right angled than the sample already contained.
 
 Carbonate is the exception, and its admitted share shows what the family column means. Carbonate
 went from 154 entries at 5.2% admitted to 403 at 30.3%. 114 of the 249 that arrived were

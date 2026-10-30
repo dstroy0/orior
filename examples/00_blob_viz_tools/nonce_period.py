@@ -194,7 +194,7 @@ def _report(samples=SAMPLES):
     print("  make the hash catastrophically broken and would have been found decades ago by")
     print("  everyone. The measurement above is aimed at a weak one, the thing that could")
     print("  plausibly have escaped notice, and it is the thing Shor would also need: the transform")
-    print("  peaks on a period held across the whole domain instead of on one holding sometimes.")
+    print("  peaks on a period sustained across the whole domain instead of on one holding sometimes.")
     return 0
 
 

@@ -110,4 +110,4 @@ out.append("")
 out.append("#endif /* CRC_KEY_H */")
 with open(os.path.join(HERE, "crc_key.h"), "w", encoding="utf-8", newline="\n") as target:
     target.write("\n".join(out) + "\n")
-print("crc_key.h written: %d table entries, %d advance operators, every check held" % (len(table), POWERS))
+print("crc_key.h written: %d table entries, %d advance operators, every check passed" % (len(table), POWERS))

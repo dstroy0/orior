@@ -118,7 +118,7 @@ def main():
         many[language] = square
 
     if len(two) < 10:
-        out.write("  only %d languages held\n" % len(two))
+        out.write("  only %d languages loaded\n" % len(two))
         out.flush()
         return 0
 

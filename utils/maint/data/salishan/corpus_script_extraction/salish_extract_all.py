@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Pull every line of Salish text out of every extracted paper held here, keeping all of it.
+# Pull every line of Salish text out of every extracted paper stored here, keeping all of it.
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/salish_extract_all.py
 #
@@ -116,7 +116,7 @@ def main():
             if held:
                 papers += 1
 
-    out.write("  %d papers held Salish characters, %d lines written to\n" % (papers, rows))
+    out.write("  %d papers contained Salish characters, %d lines written to\n" % (papers, rows))
     out.write("  %s\n" % target)
     out.write("\n  %-12s %s\n" % ("kind", "lines"))
     for kind in sorted(counted, key=lambda key: -counted[key]):

@@ -20,7 +20,7 @@
 # the anchor is taken over the signature. The signature has to exist first.
 #
 # THE ANCHOR DISCLOSES NOTHING. It is taken over a digest. That is the same size for a sentence or a
-# corpus and names no file. Held work can be anchored today and revealed whenever. Waiting for
+# corpus and names no file. Withheld work can be anchored today and revealed whenever. Waiting for
 # publication to anchor is the expensive mistake, because every unanchored day is a day a competing
 # claim can predate.
 
@@ -90,7 +90,7 @@ if ($LASTEXITCODE -ne 0)
 
 Write-Output ""
 Write-Output "  done. Three files now carry the claim:"
-Write-Output "      manifest.tsv        the digests, keep private while the work is held"
+Write-Output "      manifest.tsv        the digests, keep private while the work is withheld"
 Write-Output "      manifest.tsv.asc    who, verifiable against the published public key"
 Write-Output "      manifest.tsv.asc.ots  when, verifiable against any full node"
 Write-Output ""

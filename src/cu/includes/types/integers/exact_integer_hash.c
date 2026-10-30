@@ -103,7 +103,7 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
         return 0u;
     }
 
-    // The slot count is the power of two at or above twice `count`, which is below four times
+    // The bucket count is the power of two at or above twice `count`, which is below four times
     // `count`. Past this bound that product or its size in bytes wraps size_t, and the scan below
     // needs no allocation to answer.
     const size_t widest = SIZE_MAX / (4u * sizeof(size_t));
@@ -138,7 +138,7 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
         {
             slot = (slot + 1u) & mask;
         }
-        // An empty slot takes the entry. A slot already containing this position takes it too. The
+        // An empty bucket takes the entry. A bucket already containing this position takes it too. The
         // table ends up containing the last entry for every position.
         table[slot] = at;
     }

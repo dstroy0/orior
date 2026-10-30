@@ -20,7 +20,7 @@
 # parts of B_2j / (2j (2j - 1)) w^(1 - 2j), less every arg(z + k). Each arg is an arctangent of a
 # rational, by two series that must agree: Euler's, with its own pi from Euler's identity, and the
 # Taylor series about 1/2, with its own pi from Machin's. ln comes from the two series in
-# exact_zeta_zeros.py, and ln pi from the logarithm of pi's floor. pi is held as its real and its
+# exact_zeta_zeros.py, and ln pi from the logarithm of pi's floor. pi is represented as its real and its
 # operator: the floor at the places asked, and naturals.pi, asked again for more. Two routes run, at
 # M = K = N and at 2N, and where they disagree N doubles.
 #

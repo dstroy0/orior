@@ -325,7 +325,7 @@ class Paper(object):
         return out
 
     def on(self, lines, form):
-        """form, held to the page: lines is the line number it stands on, or the first and last of
+        """form, bound to the page: lines is the line number it stands on, or the first and last of
         the lines it runs over, and the page text there holds it with its line ends run together by
         a space or by none. A form the page text no longer holds there stops the generator."""
         first, last = (lines, lines) if isinstance(lines, int) else lines
@@ -1207,7 +1207,7 @@ class Paper(object):
                     # And a translation a space after its closing quote, (one on the boat).' 12.
                     if row[2] == "translation" and not alone:
                         alone = re.search(r"(?<=[’”]\s)%s$" % mark, row[3])
-                    # A source held whole in its parentheses, a notebook's page (EP4.44.7), carries
+                    # A source kept whole in its parentheses, a notebook's page (EP4.44.7), carries
                     # its digits and no mark inside them.
                     if row[2] == "citation" and re.fullmatch(r"\(\S+\)", row[3]):
                         alone = None
@@ -1853,7 +1853,7 @@ class Paper(object):
 
     def keep(self, row, lines=None):
         """A row a person read off the page, its fields as they stand, a row of four having no gloss,
-        and its form held to lines where lines is given."""
+        and its form bound to lines where lines is given."""
         if lines is not None:
             self.on(lines, row[3])
         self.rows.append(list(row))

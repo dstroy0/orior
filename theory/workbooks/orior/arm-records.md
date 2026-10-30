@@ -137,7 +137,7 @@ measuring it. Clearance at or under the rounding means the sign convention decid
 On this placement the clearance is exactly zero. Index 0 has longitude `0 * GOLDEN`, the sine of
 exactly zero is exactly zero, and its third coordinate is exactly zero at 64, 128, 256, 512, 1024
 and 4096 points alike. Under the rotated frame its carried dot product against that face came back
-at +3.123e-17: it held its arm by the sign of a rounding residual. The default lit set leaves
+at +3.123e-17: it kept its arm by the sign of a rounding residual. The default lit set leaves
 index 0 dark, and the letters could not have moved for it whatever the drawings did, and the check
 now runs the redraws a second time with the on-face points forced lit. They agree there too.
 
@@ -151,7 +151,7 @@ This also refuted a claim standing in `boundary_read.octant_share`, which said a
 zero on a placement of this kind. A face is measure zero for a placement drawn at random. The golden
 spiral is not drawn at random, and it puts a point on a face at every size.
 
-**Four drawings that are not redraws are held against the measurement first**, since a check that
+**Four drawings that are not redraws are checked against the measurement first**, since a check that
 has never caught anything has not been tested. Each is an implementation somebody would write.
 
 | drawing that is not a redraw | points reassigned | worst letter move |

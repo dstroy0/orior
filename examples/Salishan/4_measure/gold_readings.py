@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
 # Write the gold standard corpora and the screened papers as the input gold_readings.cu reads, every
-# line as it is held.
+# line as it is stored.
 #
 #   Usage:  python examples/Salishan/4_measure/gold_readings.py [OUTPUT] [screened|sifted]
 #
@@ -24,7 +24,7 @@
 # to clear a split-half distance by, and its second "least <pairs>", the fewest pairs a paper is read
 # at. Each corpus is then a line "corpus <name> <lines>" and each paper a line
 # "paper <stem> <language> <lines>", and that many lines of its text, byte for byte as
-# language_check.py holds them. A space in a stem is written as an underscore. A held line is stripped
+# language_check.py holds them. A space in a stem is written as an underscore. A stored line is stripped
 # and never empty. No line is blank.
 
 import io

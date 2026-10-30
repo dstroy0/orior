@@ -39,7 +39,7 @@ import os
 import random
 
 # Where the survey arms are written. Under build/, because they are intermediate data and not
-# authored files. Held against the repository so the default means the same thing from anywhere.
+# authored files. Resolved against the repository so the default means the same thing from anywhere.
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 ARM_DIR = os.path.join(ROOT, "build", "audit")
 POSITIONS = 256

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: EXP-x-023
 #
-# Z(t) by the Riemann-Siegel formula, with time held as a real and the delta between 0 and 1 left
+# Z(t) by the Riemann-Siegel formula, with time represented as a real and the delta between 0 and 1 left
 # free, by truthy and falsy verdicts on exact integers.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_riemann_siegel.py [height] [bits]
@@ -23,13 +23,13 @@
 #
 # The steer is u, and t = 2pi u^4. No square root is taken and nothing is divided by 2pi: N is the
 # floor of u^2, p = u^2 - N exactly, and (t / 2pi)^(-1/4 - k/2) = u^-(2k+1), an exact rational. t is
-# held as its real and its operator, pi's floor at the places asked and naturals.pi asked again for
+# represented as its real and its operator, pi's floor at the places asked and naturals.pi asked again for
 # more. The delta p is between 0 and 1 and is never fixed; a deeper reading asks it for more places.
 #
 # TWO MAGNITUDES FOR ONE PHASE
 #
 # Each term of the sum is the pair n^(-1/2) e^(-it ln n), from exact_zeta_zeros.py, and theta turns
-# the summed pair by e^(i theta). Psi is held as the pair of its numerator and its denominator, each a
+# the summed pair by e^(i theta). Psi is represented as the pair of its numerator and its denominator, each a
 # power series about p, and never divided: with d the denominator's first coefficient,
 # Psi^(j)(p) / j! = r_j / d^(j+1), and r_j comes from the two series by products alone. Every c_k is
 # carried times d^16 pi^10, a multiplier that is never negative, and Z with it: the sign of Z is
@@ -65,7 +65,7 @@
 # them is the jump of the terms R leaves out, the seam read by `seam`.
 #
 # Over each cell, with D = Z_RS - Z_EM and E = S - R, three sides: a = int |D| dp, b = int |E| dp, and
-# c = int |(D, E)| dp, the magnitude of the two held as one vector. c <= a + b and c >= b: the three
+# c = int |(D, E)| dp, the magnitude of the two taken as one vector. c <= a + b and c >= b: the three
 # close a triangle. c is read as b + delta, delta = int D^2 / (|(D, E)| + |E|) dp. c - b never
 # cancels, and the angle opposite c is cos gamma = (a^2 - 2b delta - delta^2) / 2ab. Where |D| follows
 # |E| across the cell the angle is right, and it is never less: the size of the integral of (|D|, |E|)
@@ -77,13 +77,13 @@
 #
 # Where S and R cross, E is zero and delta's integrand is a spike of height |D| and width |D / E'|,
 # about 10^-12 of p: no grid reaches it, and the trapezoid on it grows as ln(1 / h) with every
-# doubling. What grows is held as its relation. With D0 = D(p0) and k = |E'(p0)| at each crossing,
+# doubling. What grows is represented by its relation. With D0 = D(p0) and k = |E'(p0)| at each crossing,
 # the spike is g(u) = D0^2 / (sqrt(D0^2 + k^2 u^2) + k |u|), u = p - p0, and its integral from 0 to L is
 # (L D0^2 / (sqrt(D0^2 + k^2 L^2) + kL) + (D0^2 / k) asinh(kL / |D0|)) / 2, exact. delta is the sum of
 # those and the trapezoid of what is left, which no longer grows. The crossings are E's sign changes,
 # read from Riemann-Siegel alone and each halved to 2^-64.
 #
-# EVERY C_n, HELD AS ITS REAL AND ITS OPERATOR
+# EVERY C_n, REPRESENTED AS ITS REAL AND ITS OPERATOR
 #
 # With z = 1 - 2p and F(z) = Psi(p), Gabcke's generator (Table III and Satz 2.1.4 of his thesis) gives
 # every coefficient: C_n(z) = 2^(-2n) times the sum over k of d_k^(n) F^(3n-4k)(z) / ((3n - 4k)! pi^(2n-2k)),
@@ -91,7 +91,7 @@
 # (l + 1) lambda_(l+1) = sum over k of 2^(4k+1) |E_(2k+2)| lambda_(l-k) on the Euler numbers. Every d is an
 # integer. F is entire and even, F(z) = sum phi_j z^(2j), and phi_j is the product of the series of
 # cos(pi z^2 / 2 + 3pi/8) and of sec(pi z): rationals times pi^(2j - m) times sin(pi/8) or cos(pi/8), the
-# two being sqrt(2 -+ sqrt 2) / 2. So each C_n is held exactly, every Taylor coefficient a sum of rationals
+# two being sqrt(2 -+ sqrt 2) / 2. So each C_n is computed exactly, every Taylor coefficient a sum of rationals
 # times powers of pi and one of two square roots, and only reading it at a point asks for digits.
 #
 # A reading of C_n at a dyadic z sums its Taylor series on count and 2 count terms, the second at twice
@@ -561,8 +561,8 @@ def em_on_device(tail, keys):
     while open_points:
         routes = []
         for n in (n_sum, 2 * n_sum):
-            coefficients, held, _ = tail.coefficients([ts[i] for i in open_points], n, work)
-            same *= held
+            coefficients, certain, _ = tail.coefficients([ts[i] for i in open_points], n, work)
+            same *= certain
             routes.append(coefficients)
         records = []
         for at, i in enumerate(open_points):
@@ -685,7 +685,7 @@ class Triangle:
 
         Where S and R cross, E is zero and delta's integrand is a spike of height |D| and width |D / E'|,
         far below any grid: the trapezoid on it grows as ln(1 / h) and stops only where h reaches that
-        width. Each spike is held by its relation instead, g(p) = D0^2 / (sqrt(D0^2 + k^2 u^2) + k |u|) with
+        width. Each spike is represented by its relation instead, g(p) = D0^2 / (sqrt(D0^2 + k^2 u^2) + k |u|) with
         u = p - p0, D0 = D(p0) and k = |E'(p0)|, whose integral over the cell is exact (`spike_integral`).
         delta is the sum of those integrals and the trapezoid of what is left, f minus every g.
 
@@ -708,9 +708,9 @@ class Triangle:
             weight = 2 - NOT(j) - NOT(j - steps)
             a += weight * abs(d)
             b += weight * abs(e)
-            held = sum(spike_at(d0, k, ((j << (SPIKE_BITS - m)) - lo) * scale >> SPIKE_BITS, scale)
+            spike_sum = sum(spike_at(d0, k, ((j << (SPIKE_BITS - m)) - lo) * scale >> SPIKE_BITS, scale)
                        for lo, d0, k in spikes)
-            delta += weight * (d * d // (root + abs(e) + NOT(root + abs(e))) - held)
+            delta += weight * (d * d // (root + abs(e) + NOT(root + abs(e))) - spike_sum)
         a -= sum(corner(x, y) for x, y in zip(ds, ds[1:]))
         b -= sum(corner(x, y) for x, y in zip(es, es[1:]))
         exact = sum(spike_integral(d0, k, lo * scale >> SPIKE_BITS, scale)
@@ -758,7 +758,7 @@ class Triangle:
         return two, kappa_two, places, digits, m + 1
 
 
-# ---- every C_n, held as its real and its operator ----
+# ---- every C_n, represented as its real and its operator ----
 
 EULER = [1]
 LAMBDA = [1]
@@ -1040,7 +1040,7 @@ def main():
     out = sys.stdout
     height = units((sys.argv[1:] + ["285"])[0])
     bits = int((sys.argv[2:] + ["16"])[0])
-    out.write("  Z(t) by the Riemann-Siegel formula with t = 2pi u^4 held as a real, by truthy and falsy verdicts\n")
+    out.write("  Z(t) by the Riemann-Siegel formula with t = 2pi u^4 represented as a real, by truthy and falsy verdicts\n")
     out.write("  this reads the sign of Z at the Gram points it reaches and claims nothing about"
               " the Riemann hypothesis\n\n")
 
@@ -1056,9 +1056,9 @@ def main():
     out.write("  %-5s %-28s %-15s %s\n" % ("n", "u placed by %d bits" % bits, "published t", "2pi u^4 holds"))
     every = 1
     for (lo, h, n), published in zip(placed, gram.PUBLISHED):
-        held = holds(lo, h, published)
-        every *= held
-        out.write("  %-5d [%s, %s]  %-15s %s\n" % (n, decimal(lo, 10), decimal(h, 10), published, bool(held)))
+        verdict = holds(lo, h, published)
+        every *= verdict
+        out.write("  %-5d [%s, %s]  %-15s %s\n" % (n, decimal(lo, 10), decimal(h, 10), published, bool(verdict)))
     out.write("  %d theta values asked, the deepest at %d places, the widest at N = %d\n\n"
               % (walk.asked, walk.deepest, walk.widest))
     out.flush()
@@ -1163,7 +1163,7 @@ def signed(v, places):
 def omitted_side(nu, cut, terms, m, digits):
     """a over [nu, nu + 1] from the exact curves alone: the terms R through C_cut leaves out,
     C_k(1 - 2p) x^(-k - 1/2) for k = cut + 1 to cut + terms, integrated in |.| on 2^m parts with each
-    corner held. Times 2^(m+1) and at 10^(digits + GUARD): only ratios between cells are read."""
+    corner fixed. Times 2^(m+1) and at 10^(digits + GUARD): only ratios between cells are read."""
     steps = 1 << m
     scale = 10 ** (digits + GUARD)
     f = []
@@ -1265,7 +1265,7 @@ def omitted_exact(nu, cut, terms, digits):
 
 def omitted_main(first, last, cut, terms=3, digits=24, m=9):
     """a over cells first to last from the omitted exact curves in closed form, its exponent between
-    cells, and the trapezoid on 2^m parts with corners held as the second route."""
+    cells, and the trapezoid on 2^m parts with corners fixed as the second route."""
     out = sys.stdout
     sides = {}
     for nu in range(first, last + 1):
@@ -1527,7 +1527,7 @@ def factored(n):
 
 
 def turned(a, b, scale):
-    """The product of two complex numbers held as pairs at `scale`."""
+    """The product of two complex numbers stored as pairs at `scale`."""
     return (a[0] * b[0] - a[1] * b[1]) // scale, (a[0] * b[1] + a[1] * b[0]) // scale
 
 
@@ -1683,8 +1683,8 @@ def settle(left, right, k, bounds, scale, rho=0):
         return 1
     da, db = left["d"][k], right["d"][k]
     ed = max(left["e_d"], right["e_d"]) + r_one
-    held = ((da > 0) == (db > 0)) * (abs(da) > ed) * (abs(db) > ed) * (abs(da) + abs(db) - b_two * reach // scale > 2 * ed)
-    return [None, 1][held]
+    certain = ((da > 0) == (db > 0)) * (abs(da) > ed) * (abs(db) > ed) * (abs(da) + abs(db) - b_two * reach // scale > 2 * ed)
+    return [None, 1][certain]
 
 
 def certified_cell(nu, bits, digits, draws, deepest=12):
@@ -1807,9 +1807,9 @@ def motion_main(first, last, bits=9, draws=16, digits=20):
 #
 # At x = nu + p, z = 1 - 2p, Z is the sum over C_all = {w_1, ..., w_nu, c_0, ..., c_K, r_K}: the waves
 # w_n = 2 n^(-1/2) cos(theta - t ln n), the correction curves c_k = (-1)^(nu-1) C_k(z) x^(-k-1/2), and the
-# rest r_K, what the cut leaves out. Each member is held as its real and its operator: its floor at the
+# rest r_K, what the cut leaves out. Each member is represented as its real and its operator: its floor at the
 # places asked with the budget the floor carries, and the routine asked again for more. The rest has no
-# operator here and is held as Gabcke's bound, |r_1| <= 0.053 t^(-5/4) for t >= 200.
+# operator here and is represented by Gabcke's bound, |r_1| <= 0.053 t^(-5/4) for t >= 200.
 #
 # Two relations cancel members. Wave n's phase is theta - sum a_p t ln p over n = prod p^a_p. Each
 # composite wave is then the product of prime waves and only theta and the primes' phases remain. Every
@@ -1818,8 +1818,8 @@ def motion_main(first, last, bits=9, draws=16, digits=20):
 # Z = Phi(theta, {t ln p : p <= nu}, z, x), read from those generators alone.
 
 
-class Held:
-    """A member held as its real and its operator. operator(places) returns the floor at 10^-places and the
+class ComputableReal:
+    """A member represented as its real and its operator. operator(places) returns the floor at 10^-places and the
     budget it carries in units of 10^-places; real(places) asks once and keeps the reading."""
 
     def __init__(self, name, operator):
@@ -1831,7 +1831,7 @@ class Held:
 
 
 def curve_set(nu, p, cut):
-    """C_all at x = nu + p: the frame theta held once for every wave, the waves, the correction curves
+    """C_all at x = nu + p: the frame theta computed once for every wave, the waves, the correction curves
     through C_cut, and the rest."""
     big_p, q = p
     unit = 10 ** q
@@ -1844,17 +1844,17 @@ def curve_set(nu, p, cut):
         theta, n_sum = theta_at(t, work)
         return t, theta, zz.cos_sin(theta, work), theta_floor(t, n_sum, work)
 
-    held_frame = Held("theta", frame)
+    frame_member = ComputableReal("theta", frame)
 
     def wave(n):
         def operator(places):
             work = places + GUARD
             scale = 10 ** work
-            t, _, (c, s), drift = held_frame.real(places)
+            t, _, (c, s), drift = frame_member.real(places)
             a, b = zz.power_minus_s(n, LINE, t, work)[:2]
             budget = 2 * (20 * (t[0] // scale + 1) + 1000) + 2 * drift
             return 2 * ((c * a - s * b) // scale) // 10 ** GUARD, budget // 10 ** GUARD + 2
-        return Held("w_%d" % n, operator)
+        return ComputableReal("w_%d" % n, operator)
 
     def curve(k):
         def operator(places):
@@ -1862,15 +1862,15 @@ def curve_set(nu, p, cut):
             inv_root = naturals._integer_sqrt(scale * scale * unit // big_x)
             v = sign * c_at(k, unit - 2 * big_p, unit, places) * inv_root * unit ** k // (scale * big_x ** k)
             return v // 10 ** GUARD, 6
-        return Held("c_%d" % k, operator)
+        return ComputableReal("c_%d" % k, operator)
 
     def rest(places):
         t_low = 2 * big_x * big_x * 314159 // (100000 * unit * unit)
-        held = (cut == 1) * (t_low >= 200)
+        bounded = (cut == 1) * (t_low >= 200)
         bound = ceiling(Fraction(53, 1000) / (max(t_low, 1) * max(math.isqrt(math.isqrt(t_low)), 1)), 10 ** places)
-        return 0, [None, bound][held]
+        return 0, [None, bound][bounded]
 
-    return held_frame, [wave(n) for n in range(1, nu + 1)], [curve(k) for k in range(cut + 1)], Held("r_%d" % cut, rest)
+    return frame_member, [wave(n) for n in range(1, nu + 1)], [curve(k) for k in range(cut + 1)], ComputableReal("r_%d" % cut, rest)
 
 
 def generators(nu, p, cut, places):
@@ -1895,7 +1895,7 @@ def generators(nu, p, cut, places):
             "x": (big_x, unit)}
 
 
-def functional(nu, cut, held, places):
+def functional(nu, cut, members, places):
     """Z = Phi(theta, {t ln p}, z, x) from the generators alone, at `places`, and its budget: every wave the
     product of its primes' unit waves times n^(-1/2), turned by theta and doubled for 2 Re; every c_k from
     F's Taylor coefficients through Gabcke's d rows (Curve.gamma); Gabcke's bound on the rest at cut 1.
@@ -1905,23 +1905,23 @@ def functional(nu, cut, held, places):
     count and 2 count terms (c_at's verdict)."""
     work = places + GUARD
     scale = 10 ** work
-    cos_theta, sin_theta = zz.cos_sin(held["theta"], work)
+    cos_theta, sin_theta = zz.cos_sin(members["theta"], work)
     total = error = 0
     for n in range(1, nu + 1):
         unit_wave = (scale, 0)
         powers = factored(n)
         for prime, power in powers.items():
             for _ in range(power):
-                unit_wave = turned(unit_wave, held["primes"][prime], scale)
+                unit_wave = turned(unit_wave, members["primes"][prime], scale)
         size = naturals._integer_sqrt(scale * scale // n)
         re, im = unit_wave[0] * size // scale, unit_wave[1] * size // scale
         total += 2 * ((cos_theta * re - sin_theta * im) // scale)
-        error += 2 * (sum(powers.values()) * (held["budget"] + 2) + held["drift"] + 4)
-    big_x, unit = held["x"]
-    num, den = held["z"]
+        error += 2 * (sum(powers.values()) * (members["budget"] + 2) + members["drift"] + 4)
+    big_x, unit = members["x"]
+    num, den = members["z"]
     sign = 1 - 2 * ((nu - 1) % 2)
     for k in range(cut + 1):
-        total += sign * c_at(k, num, den, places) * held["inv_root"] * unit ** k // (scale * big_x ** k)
+        total += sign * c_at(k, num, den, places) * members["inv_root"] * unit ** k // (scale * big_x ** k)
         error += 6 * 10 ** GUARD
     return total // 10 ** GUARD, error // 10 ** GUARD + 2 * (nu + cut + 2)
 
@@ -1954,7 +1954,7 @@ def set_main(first, last, cut=1, places=24, points=4):
         allowed = [min(w[1][i] for w in worst) for i in range(3)]
         out.write("  cell %d  members %d (%d waves, %d correction curves, the rest)  what remains %d (theta, %d primes,"
                   " F, z, x, the rest)  members against Phi %d of %d allowed, against rs_cut_at %d of %d, Phi against"
-                  " rs_cut_at %d of %d, units of 10^-%d  the rest, every member not yet defined, held as %s  %d ms\n"
+                  " rs_cut_at %d of %d, units of 10^-%d  the rest, every member not yet defined, represented as %s  %d ms\n"
                   % (nu, nu + cut + 2, nu, cut + 1, len(primes) + 5, len(primes), gaps[0], allowed[0], gaps[1],
                      allowed[1], gaps[2], allowed[2], places,
                      ("Gabcke's bound %s" % signed(worst[0][2], places)) if worst[0][2] is not None else "open",

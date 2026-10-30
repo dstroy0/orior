@@ -537,7 +537,7 @@ EV.outline = (pen, at, color) => {
 // A signed value on a scale from -1 to 1: mint above zero, violet below, its alpha its size. Zero is the ground.
 EV.tone = (value, colors) => ({ color: value >= 0 ? colors.mint : colors.violet, alpha: Math.min(1, Math.abs(value)) });
 
-// The largest magnitude across every direction carried: one scale for each map, held for the whole page.
+// The largest magnitude across every direction carried: one scale for each map, fixed for the whole page.
 EV.scales = {
   weights: Math.max(1e-300, ...DATA.arrows.map((one) => Math.max(...one.weights.map(Math.abs)))),
   field: Math.max(1e-300, ...DATA.arrows.map((one) => Math.max(...one.field.map(Math.abs)))),
@@ -626,7 +626,7 @@ EV.drawField = (arrow, colors) => {
   EV.outline(box.pen, at, colors.hair);
 };
 
-// One slot per source direction, on a log axis with the floor as a line. A direction the reading answers is a bar
+// One column per source direction, on a log axis with the floor as a line. A direction the reading answers is a bar
 // to its singular value; a blind one, past the rank, answers nothing and is a mark at the floor. Carried directions
 // are dotted below, the chosen one brightest; a click picks the nearest carried direction.
 EV.drawSpectrum = (arrow, colors) => {

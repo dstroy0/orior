@@ -16,7 +16,7 @@ Read right to left, it is the engine's run order:
 | term | in the drafts | in the engine | status |
 |---|---|---|---|
 | L↓ | the rules, projected top down at once | the program: the scheduler's `.sch` and the run's `.cfg` | built |
-| W_local | the local runtime information | the atom: one frame, one sample, held as one exact integer | built |
+| W_local | the local runtime information | the atom: one frame, one sample, stored as one exact integer | built |
 | W_local & L↓ | rules applied to the local data by AND | a key is a pattern of AND masks; applying it selects shifted copies of the atom and sums them ([imprint_key_cycle.md](imprint_key_cycle.md) §2) | proved, linear steps only |
 | Key(·) | the imprint | the impulse pushed through the program once; `keymath_imprint` | proved |
 | LUT(·) | transform symbols compiled to binary lookup tables | a pointwise step imprinted on its alphabet: every value a lane can hold, pushed through once | built: the record machine's table step (M10, A13 of [engine_table.md](engine_table.md)), proved by `record_table_test` |
@@ -27,7 +27,7 @@ Read right to left, it is the engine's run order:
 
 **The idea.** Rules are non-local and act everywhere at once; data is local and causal. When the boundary moves, the rules are re-derived once at the top and every locale takes them without a step-by-step walk through space.
 
-**In the engine.** This is the split between the key and the atoms. The key is derived once, before any atom is seen, and fixes every lane width. The atoms then stream past it. "At once" means one cooperative launch per slab, with the grid held at a barrier between sweeps. It is not zero time: the residual's key runs in 31 ms a frame.
+**In the engine.** This is the split between the key and the atoms. The key is derived once, before any atom is seen, and fixes every lane width. The atoms then stream past it. "At once" means one cooperative launch per slab, with the grid synchronized at a barrier between sweeps. It is not zero time: the residual's key runs in 31 ms a frame.
 
 | claim | status |
 |---|---|
@@ -48,7 +48,7 @@ Read right to left, it is the engine's run order:
 | linear steps compile to AND masks and chain into one key | proved |
 | pointwise steps (square, square root, division) as masks from a generator the scheduler verifies | square **proved** as a table (x², 4,096 lanes, device and host; A13); square root and division as tables not tested |
 | exact division by an odd divisor through its limb inverse | theory in this engine; the arithmetic itself is standard (exact division by multiplicative inverse) |
-| a non-dividing quotient held as one repeating period of limbs | theory |
+| a non-dividing quotient stored as one repeating period of limbs | theory |
 
 ## 3. The beamformer and the 1D probability array
 
@@ -75,7 +75,7 @@ Read right to left, it is the engine's run order:
 
 **The idea.** Time is part of the tower: samples enter at the bottom and stack upward, and the time domain is written into the lattice. Every tower has a floor configuration and a master schedule by family of operation. Floor −4 is where the noise bits are at their smallest and become irreducible.
 
-**In the engine.** The .kcr tower lifts t, z, y and x together: time is a lifted axis instead of a loop. A whole 100×64×256×256 sample reaches one coefficient in 8 floors. What the program does not generate is every floor's high-pass coefficients, the residue. That residue is held whole and never bounded, modeled or discarded.
+**In the engine.** The .kcr tower lifts t, z, y and x together: time is a lifted axis instead of a loop. A whole 100×64×256×256 sample reaches one coefficient in 8 floors. What the program does not generate is every floor's high-pass coefficients, the residue. That residue is stored whole and never bounded, modeled or discarded.
 
 **The floor, measured.** The anchor count stacks every frame of a sample and counts, per voxel and per bit, the frames that carry the bit. In every one of the 25 44b6 samples, bits 0 to 4 are set in about 46% of frames at nearly every voxel: those planes carry no anchor, and they look alike in every sample. The anchors sit in bits 6 to 11 and differ between samples. That is the measured floor, and it answers the drafts' "noise bits minimised to their smallest state". It also says why floor −4 is sample bound: no voxel is anchored in every sample.
 
@@ -126,7 +126,7 @@ The observer settling on hot bits, and the noise key fed back as the next cycle'
 | set | in the engine | status |
 |---|---|---|
 | true coherence | the residual's structure above the medium: bodies and their links | built; a program's links measured in the cell workbook |
-| the noise key | the residue: every floor's high-pass coefficients, held whole in the .kcr; the anchor counts per bit | proved lossless; measured |
+| the noise key | the residue: every floor's high-pass coefficients, stored whole in the .kcr; the anchor counts per bit | proved lossless; measured |
 | the construct kit | the program, its key (.imp), the schedule (.sch) and the configuration (.cfg) | built |
 
 ## 9. The elevator, recursion, identity and entropy
@@ -228,10 +228,10 @@ the four noise vectors draft takes the residual tensor F − I and splits it int
 
 - **Fixed pattern** is constant in time at a place: its bits never flip. It is the anchor bits, measured before the history: set in every frame at a voxel, and different in every sample.
 - **Shot, read and quantization** change every frame independently: their bits flip half the time, the maximum. On 44b6_0113de3b, bits 0 to 3 flip 499 to 500 times per thousand transitions in every window, and bit 4 flips 486 to 495 times.
-- **The bodies** sit between: bits 5 to 10 flip from about 430 down to about 20 per thousand. They are held low where a body is and move with it.
+- **The bodies** sit between: bits 5 to 10 flip from about 430 down to about 20 per thousand. They are kept low where a body is and move with it.
 - **A sample wide bump.** In window 4 (transitions 45 to 55) every bit from 5 to 10 flips more at once, bit 8 from about 122 to 153 per thousand. Then windows 5 to 8 fall below where they started. That is a rise in entropy across the whole sample followed by a move toward order.
 
-**The noise keys, stamped top down over w.** However many noise keys there are (each sample's floor, and its fixed pattern, shot, read and quantization terms as the history separates them), they are imprinted once and stamped on the whole set from the top, as the rules are in §1. They propagate to every coordinate w as the front of §12, not re-derived frame by frame. In the engine this is a cycle run: the keys held once, and every atom of the set passing under them in one launch. Each voxel is read against its own sample's noise before any membership is assigned.
+**The noise keys, stamped top down over w.** However many noise keys there are (each sample's floor, and its fixed pattern, shot, read and quantization terms as the history separates them), they are imprinted once and stamped on the whole set from the top, as the rules are in §1. They propagate to every coordinate w as the front of §12, not re-derived frame by frame. In the engine this is a cycle run: the keys stored once, and every atom of the set passing under them in one launch. Each voxel is read against its own sample's noise before any membership is assigned.
 
 | claim | status |
 |---|---|
@@ -245,7 +245,7 @@ Every noise term, these four and the rest Doug named has one row in [noise_vecto
 
 ## 17. The floor laid down first, entropy conserved, and the clock as the elevator
 
-**The floor is laid down first.** The noise keys are part of the run's configuration: the `.cfg` carries a `floor` section, written first after the version, naming where each sample's noise keys are held. A run with a floor lays it down before anything else runs. Each sample's entropy history is kept where it reads back whole and was projected from the sample's `.kcr` as it stands, and projected again where not. A run whose floor cannot be laid down stops there.
+**The floor is laid down first.** The noise keys are part of the run's configuration: the `.cfg` carries a `floor` section, written first after the version, naming where each sample's noise keys are stored. A run with a floor lays it down before anything else runs. Each sample's entropy history is kept where it reads back whole and was projected from the sample's `.kcr` as it stands, and projected again where not. A run whose floor cannot be laid down stops there.
 
 **Then it accumulates going forward, and entropy is conserved.** The flips accumulate window after window, and each bit's running total is carried to the last frame. Conservation is exact and checked at every voxel in the same pass. Over a voxel's whole line, the flips of a bit have the parity of that bit's net change: an even count where the first and last frames agree in it, odd where they differ. A voxel that breaks it would be a flip counted twice or missed, and the sample is refused.
 

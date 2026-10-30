@@ -6,7 +6,7 @@
 #
 #   Usage:  from mellesmoen_kye_repair import repaired
 #
-# Held in one file because three things apply them: the reader, the hand extraction check, and the
+# Kept in one file because three things apply them: the reader, the hand extraction check, and the
 # coverage check. Two copies of a repair drift, and the check then reports as a hole every word one
 # copy put together and the other did not.
 #

@@ -21,13 +21,13 @@ AND THE GATE SET SPLITS THE SAME WAY EVERYTHING ELSE IN THIS TREE SPLITS
                            are where precision enters and the only place it does.
 
 That is the same boundary as the four exact nulls in `deform_rate.py`: a move that is a relabeling
-of numbers already held is exact because there is nothing in it to round. A Clifford circuit built
+of numbers already stored is exact because there is nothing in it to round. A Clifford circuit built
 from the first row runs with zero error at any width, which is a stronger statement than "high
 precision" and is checked below and not asserted.
 
 OUR OWN CONSTANTS AND NO FALLBACK
 
-The Hadamard's 1/sqrt(2) comes from `dn_const/dn_constants.csv`, where root_two is held to a
+The Hadamard's 1/sqrt(2) comes from `dn_const/dn_constants.csv`, where root_two is stored to a
 thousand places and agreed by two routes. `math.sqrt(2)` is a double and would cap the whole
 simulator at sixteen digits through one number. The constants table exists to prevent that failure.
 """
@@ -263,7 +263,7 @@ def _report():
     import time
     print("  %d qubits, %d amplitudes, %d digits of working precision."
           % (QUBITS, 1 << QUBITS, DIGITS))
-    print("  1/sqrt(2) taken from dn_const, where root_two is held to a thousand places.")
+    print("  1/sqrt(2) taken from dn_const, where root_two is stored to a thousand places.")
     print("")
 
     began = time.perf_counter()
@@ -298,7 +298,7 @@ def _report():
     print("  probability qubit 15 reads one: %s" % str(state.probability_one(15))[:24])
     print("")
     print("  THE EXACT GATES CONTRIBUTED NOTHING TO THE ERROR, the structural point: they")
-    print("  are swaps and sign flips on numbers already held. There is no arithmetic in them to")
+    print("  are swaps and sign flips on numbers already stored. There is no arithmetic in them to")
     print("  round. Whatever departure is above came from the sixteen Hadamards and nowhere else.")
     return 0
 
@@ -326,7 +326,7 @@ def _exactgates():
     print("  THE DEPARTURE IS ZERO AND NOT MERELY SMALL, at every width and depth tried, because")
     print("  the gates permute and negate a list instead of computing anything. That is the same")
     print("  boundary as the four exact nulls in deform_rate: a move that relabels numbers already")
-    print("  held has nothing in it to be wrong.")
+    print("  stored has nothing in it to be wrong.")
     print("")
     print("  a Clifford circuit of any depth runs here with zero accumulated error. A float64")
     print("  simulator cannot say that: its Hadamards seed a floor and its swaps carry it forward.")
@@ -362,7 +362,7 @@ def worst_amplitude_gap(state, reference):
 
 
 def worst_float_gap(floated, reference):
-    """The same for a float64 run, with the reference held in Decimal.
+    """The same for a float64 run, with the reference stored in Decimal.
 
     The float amplitudes are lifted into Decimal instead of the reference being pushed down into
     float. The comparison is limited by float64's own error and not by the measurement.

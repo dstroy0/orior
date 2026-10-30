@@ -296,7 +296,7 @@ def one_dialect(text):
 
 
 def without_note(text):
-    """One table row with the note about how its /a/ surfaces taken out, and the form that note held.
+    """One table row with the note about how its /a/ surfaces taken out, and the form that note contained.
 
     Table 9's t̓ə́q̓ʷab row never closes its parenthesis. The note is matched on its own wording,
     and counting brackets is not used here.
@@ -896,7 +896,7 @@ def main():
             "# Recordings of Martha Lamont, Northern, and Annie Jack, Southern, made by\n"
         )
         handle.write(
-            "# Leon Metcalf in the 1950s and held by the Burke Museum, with forms also\n"
+            "# Leon Metcalf in the 1950s and kept by the Burke Museum, with forms also\n"
         )
         handle.write(
             "# from Bates, Hess and Hilbert 1994, Hess 1977 and Bianco 1995.\n"

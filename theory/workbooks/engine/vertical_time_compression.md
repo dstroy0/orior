@@ -75,7 +75,7 @@
   - At 1,024 and 16,384 lanes the stacked sweep takes the same time: the device is not yet full, and the batch costs one tower's depth.
   - From 262,144 lanes the time grows with the lanes, and the ratio settles near 21×. That ratio is the cost of the time between floors, which the stack removes.
   - At 1,048,576 lanes the stacked sweep evaluates 4.4 × 10^9 steps in 98.8 ms, about 4.5 × 10^10 steps a second.
-  - The measure's source is held outside the repository and has not been rerun from it.
+  - The measure's source is stored outside the repository and has not been rerun from it.
 
 ## What the stack is not
 

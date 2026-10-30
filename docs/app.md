@@ -69,7 +69,7 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | --- | --- |
 | complete the word at the cursor | Ctrl+Space; a hover over a word shows what it means |
 | add a cursor | Ctrl+Alt+Up or Ctrl+Alt+Down; Ctrl+D adds the next occurrence of the selection, Ctrl+Shift+L every one |
-| select a column | drag with Shift+Alt held, or turn on Selection, Column Selection Mode and drag |
+| select a column | drag with Shift+Alt pressed, or turn on Selection, Column Selection Mode and drag |
 | move or copy lines | Alt+Up and Alt+Down move them; Shift+Alt+Up and Shift+Alt+Down copy them |
 | rework lines | Selection holds Join Lines (Ctrl+J), Sort Lines Ascending and Descending, Delete Duplicate Lines, and the case changes. With nothing selected, sorting and duplicates take the whole text and a case change takes the word at the cursor. |
 | comment lines | Ctrl+/ |
@@ -79,7 +79,7 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | grow the selection | Shift+Alt+Right takes in the word, then the string or brackets around it, the line and each block out from there; Shift+Alt+Left gives each step back |
 | see a file twice | View, Split Right (Ctrl+\) or Split Down, or a tab's menu: a second editor on the file beside the first or under it, the text the same in both and the cursor and place each its own. The menus act on the one last pressed in. View, Unsplit, the × over it, or closing the file's tab closes it. |
 
-In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means; in Rust it asks rust-analyzer, and in Python Pyright. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the tool strip's Problems lists them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition.
+In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means; in Rust it asks rust-analyzer, and in Python Pyright. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the tool strip's Problems lists them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl pressed goes to a definition.
 
 | to | press |
 | --- | --- |
@@ -141,7 +141,7 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 | a symbol in the file | Ctrl+Shift+O, or `@` in Go to File. The Outline pane lists them all. |
 | a line | Ctrl+G, or `:` in Go to File |
 | the matching bracket | Ctrl+Shift+\ |
-| a definition, in C, C++ and CUDA | F12, or a click with Ctrl held |
+| a definition, in C, C++ and CUDA | F12, or a click with Ctrl pressed |
 | the next error or warning | F8, and Shift+F8 for the one before |
 | where the cursor was | Alt+Left, and Alt+Right to come back |
 | the tab shown last | Ctrl+Tab; hold Ctrl and press Tab again to step further back |
@@ -162,7 +162,7 @@ In the editor, the gutter marks each line added or changed since the last commit
 
 The Timeline pane lists the commits that touched the open file. Open shows the file as a commit left it, read only, in a tab of its own.
 
-Local History, under Commit on the tool strip, lists the open file as each save left it, newest first, with the text it held before the first of them. orior keeps these in its own folder, apart from git, the newest hundred of each file. A press on one shows it beside the file as it stands, and Revert to This in its menu puts it back as one edit, which Ctrl+Z takes back.
+Local History, under Commit on the tool strip, lists the open file as each save left it, newest first, with the text it contained before the first of them. orior keeps these in its own folder, apart from git, the newest hundred of each file. A press on one shows it beside the file as it stands, and Revert to This in its menu puts it back as one edit, which Ctrl+Z takes back.
 
 TODO, in the Explorer's … menu, lists every TODO, FIXME, XXX and HACK in the tree as a whole word, by file, each line a press from its place.
 

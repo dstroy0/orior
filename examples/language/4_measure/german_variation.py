@@ -22,7 +22,7 @@
 # apart only 35 percent of the time by this same reading. If both are small then most of what separates
 # two books is neither of them, and the residue has a size even where it has no name.
 #
-# Length is held equal because it has to be. A reading taken over more text is steadier. A long book
+# Length is kept equal because it has to be. A reading taken over more text is steadier. A long book
 # and a short one differ for that reason alone before anything about either of them is considered.
 
 import io

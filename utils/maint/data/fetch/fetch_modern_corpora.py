@@ -9,7 +9,7 @@
 #
 # Every English corpus measured so far came from Project Gutenberg. The collision entropy constant
 # of 3.800 bits could belong to that source's formatting instead of to the language. Two of the twelve
-# texts already turned out to be layout: their commonest symbol held a quarter of the corpus because
+# texts already turned out to be layout: their commonest symbol made up a quarter of the corpus because
 # they were set with short lines. A second source with different conventions is what tests the constant.
 #
 # The shards are 430 MB of Parquet each and the row data needed is a small fraction of one. Parquet

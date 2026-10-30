@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/language/4_measure/source_or_language.py
 #
-# Several languages are now held from four places that have nothing to do with each other: novels and
+# Several languages are now sourced from four places that have nothing to do with each other: novels and
 # other books, encyclopedia articles, and two separate works translated into many languages. Nothing is
 # shared between them: the subject, the century, the translator and the kind of writing all differ.
 #
@@ -65,12 +65,12 @@ def main():
         counts.setdefault(language, []).append(source)
     several = sorted(language for language, held in counts.items() if len(held) >= 2)
     if len(several) < 5:
-        out.write("  only %d languages are held from more than one place\n" % len(several))
+        out.write("  only %d languages are sourced from more than one place\n" % len(several))
         out.flush()
         return 0
 
-    out.write("  %d languages are held from more than one place\n" % len(several))
-    out.write("  %-16s %s\n" % ("language", "held from"))
+    out.write("  %d languages are sourced from more than one place\n" % len(several))
+    out.write("  %-16s %s\n" % ("language", "sourced from"))
     for language in several:
         out.write("  %-16s %s\n" % (language, ", ".join(sorted(counts[language]))))
 
@@ -97,7 +97,7 @@ def main():
               % (statistics.fmean(same_source), len(same_source)))
     out.write("  the smaller of those is what the reading belongs to\n")
 
-    # Named directly: for each language and each place it is held, whether its own reading elsewhere is
+    # Named directly: for each language and each place it is sourced from, whether its own reading elsewhere is
     # nearer than any other language's reading anywhere
     correct = 0
     total = 0

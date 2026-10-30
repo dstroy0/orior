@@ -72,9 +72,9 @@ def seat_tightest(symbols):
 
 
 def returned(series, bits):
-    """Share of symbols coming back exactly when every angle is held to a few steps.
+    """Share of symbols coming back exactly when every angle is quantized to a few steps.
 
-    Held in symbol positions and not in bytes. An alphabet of three thousand is treated the same way
+    Measured in symbol positions and not in bytes. An alphabet of three thousand is treated the same way
     as one of seventy.
     """
     floats = series.astype(numpy.float64)

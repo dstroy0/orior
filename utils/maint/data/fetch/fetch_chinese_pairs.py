@@ -69,7 +69,7 @@ def main():
     for corpus, code, name in WANTED:
         target = os.path.join(CORPORA, "%s.txt" % name)
         if os.path.isfile(target) and (os.path.getsize(target) >= LEAST):
-            out.write("  %-22s %-10d already held\n" % (name, os.path.getsize(target)))
+            out.write("  %-22s %-10d already present\n" % (name, os.path.getsize(target)))
             continue
         try:
             payload = json.loads(get(API + "?" + urllib.parse.urlencode(

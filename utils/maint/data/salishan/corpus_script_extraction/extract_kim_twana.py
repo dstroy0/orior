@@ -22,7 +22,7 @@
 #
 # The derivations are the bulk of the paper and their intermediate lines are underlying forms
 # nobody said: *soq̓ʷ-sóq̓ʷay, ʔas-bx̦-báx̦. The paper marks them with an asterisk where it cites one
-# and with the cent sign where the form is wrong outright. Both are held out of the pure stream.
+# and with the cent sign where the form is wrong outright. Both are excluded from the pure stream.
 
 import io
 import os

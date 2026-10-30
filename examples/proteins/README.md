@@ -140,7 +140,7 @@ domain that reads through it.
 A ladder stage reads one deposit. `derive_family_rules.py` reads the whole cached corpus at once and
 asks whether the proteins group by their own Ramachandran signature: the two-degree grid occupancy
 of each deposit, coarsened to the resolution a null supports. It writes each group's quirks to
-`family_rules.py`, beside the Ramachandran rules and held out of the engine the same way the oracle
+`family_rules.py`, beside the Ramachandran rules and kept out of the engine the same way the oracle
 keeps its archive fetch in the example.
 
 Three controls hold the grouping, and the generator carries all three:

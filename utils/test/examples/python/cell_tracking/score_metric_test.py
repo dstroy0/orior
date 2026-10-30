@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 import score_metric
 import truth_io
 
-# score_metric (cell_tracking/maint) held to the published metric's own tests. The cases and the counts they assert
+# score_metric (cell_tracking/maint) checked against the published metric's own tests. The cases and the counts they assert
 # are those of tests/test_division_sandbox_examples.py, tests/test_division_metrics.py and tests/test_metrics.py in
 # royerlab's competition scoring code at commit 075fc5f5a52d11077f9dc2b074644618f26939e2, each named as its test is. A
 # count marked "by hand" is this file's own, worked from the published code, where the published test asserts less.

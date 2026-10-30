@@ -16,7 +16,7 @@
 # Prose findings are a ratchet. utils/maint/prose/prose_ratchet.tsv holds the most prose findings each file
 # may carry. A commit that raises a staged file above its number is stopped. A commit that lowers one
 # writes the lower number into the ratchet and stages it with the commit. The backlog only shrinks.
-# Only staged files are held to it: the rest of the working tree is somebody else's work in
+# Only staged files are checked against it: the rest of the working tree is somebody else's work in
 # progress.
 #
 # The markdown case is read off the rendered page and not off the source. A --- typesets as an em

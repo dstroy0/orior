@@ -47,7 +47,7 @@ PLACEHOLDER = re.compile(r"/\*[A-Z][A-Z0-9_]*\*/(?!\s*null\b)")
 def filled(source):
     """The template with its placeholders replaced by a literal. It can be parsed.
 
-    A template's script slot, `/*SCRIPT*/`, and a data marker written without its null are not
+    A template's script placeholder, `/*SCRIPT*/`, and a data marker written without its null are not
     valid JavaScript until a build fills them, and node refuses them with "Unexpected token". A
     template reported as failing for that reason hides any real syntax error elsewhere in it.
 

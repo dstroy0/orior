@@ -228,7 +228,7 @@ def main():
     out.write(
         "\n  %s\n"
         % (
-            "every control held."
+            "every control passed."
             if ok
             else "a control did not hold; read the rows above."
         )

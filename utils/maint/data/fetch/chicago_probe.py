@@ -8,7 +8,7 @@
 #   Usage:  python maint/data/fetch/chicago_probe.py
 #
 # Testing whether a writer has a signature of their own needs several works by each of several writers,
-# and nothing held here has two works by one person. Scraping a book catalog by author name was the first
+# and nothing stored here has two works by one person. Scraping a book catalog by author name was the first
 # attempt and it is a poor basis: the search matches a name anywhere, the editions are prepared
 # differently from each other, and how many works a writer has in it follows their popularity and not
 # anything about them.

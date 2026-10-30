@@ -29,9 +29,9 @@ information. A sub-pattern in a handful is a feature those few share, and it is 
 carry a web with structure. The rarity ceiling is swept instead of chosen. The reading is a curve over
 how rare a shared pattern has to be to count.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import os

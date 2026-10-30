@@ -86,7 +86,7 @@ while IFS= read -r line; do
     [ -f "$OUT/list.txt" ] || continue
     rm -f "$ANSWERS"
     # the airlock: the vendor reads this form's cubins before any reaches the part, the runner handed the verdict always
-    "$PYTHON" "$HERE/interface_sass_held.py" "$(cygpath -m "$OUT")/list.txt" "$CUDA/bin/nvdisasm" SM86 \
+    "$PYTHON" "$HERE/interface_sass_withheld.py" "$(cygpath -m "$OUT")/list.txt" "$CUDA/bin/nvdisasm" SM86 \
         "$(cygpath -m "$OUT")/cross" "$(cygpath -m "$OUT")/gated.txt"
     [ "$?" = 2 ] && { echo "  cross: the vendor's reader was not reached; this form is passed over"; continue; }
     first=0

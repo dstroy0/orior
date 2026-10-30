@@ -27,7 +27,7 @@ WHAT IS MEASURED AND NOT ASSERTED
 
 A transfer matrix. For each input degree, build a source configuration whose reading has power in
 that degree alone, apply the operator to the sources in space, read the result, and report where the
-power went. A diagonal matrix means the layers held. Off-diagonal weight is mixing, and its fall-off
+power went. A diagonal matrix means the layers stayed separate. Off-diagonal weight is mixing, and its fall-off
 with separation in degree is the thing worth having, because it is 'resist' stated
 quantitatively.
 
@@ -155,7 +155,7 @@ def off_diagonal_share(transfer):
 
 def _report():
     print("  Transfer of power between degrees. Row l is where input degree l's power went.")
-    print("  A diagonal matrix means the layers held. Reading degree %d, %d sources."
+    print("  A diagonal matrix means the layers stayed separate. Reading degree %d, %d sources."
           % (DEGREE, COUNT))
     print("")
 

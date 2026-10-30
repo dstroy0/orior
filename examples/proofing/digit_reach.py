@@ -142,7 +142,7 @@ def _check():
     lines.append("    place 1     %s" % got)
     lines.append("    published   %s   %s" % (known[:16], "agree" if agree else "DIFFER"))
     if not agree:
-        # Report how far it held instead of a bare failure, since the tail is the format's.
+        # Report how far it reached instead of a bare failure, since the tail is the format's.
         held = 0
         for one, two in zip(got, known):
             if one != two:

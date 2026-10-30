@@ -11,7 +11,7 @@ writes the values into a vertex buffer, and lets the rasterizer fill the space b
 linear interpolation across two triangles per cell.
 
 The 121 numbers are exact. Every pixel between the vertices is a straight line drawn through a
-curve. The picture on screen is an approximation of a field held exactly. The approximation is
+curve. The picture on screen is an approximation of a field stored exactly. The approximation is
 worst in the middle of a cell and vanishes at every vertex, and that pattern is what prints a
 5 degree quilt on a smooth surface.
 

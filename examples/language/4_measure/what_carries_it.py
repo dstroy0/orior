@@ -21,7 +21,7 @@
 # far more than everything else does. Then those characters are removed and the naming is run again. A
 # naming that holds was structure. A naming that breaks was inventory.
 #
-# The test is run on every language held from one collection. The content is fixed and only the
+# The test is run on every language loaded from one collection. The content is fixed and only the
 # languages vary.
 
 import io
@@ -109,7 +109,7 @@ def main():
                     break
 
     if len(texts) < 8:
-        out.write("  only %d languages held\n" % len(texts))
+        out.write("  only %d languages loaded\n" % len(texts))
         out.flush()
         return 0
 

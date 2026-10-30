@@ -19,7 +19,7 @@ NONE OF THAT APPLIES HERE, and the reason is arithmetic and not clever.
 
     T = diag(1, exp(i pi / 4))    and    exp(i pi / 4) = (1 + i) / sqrt(2)
 
-sqrt(2) is row root_two of dn_constants.csv, held to a thousand places with two routes agreeing at
+sqrt(2) is row root_two of dn_constants.csv, stored to a thousand places with two routes agreeing at
 a zero gap. So the T gate's entire content is a multiplication by a number this tree already owns
 exactly. No distillation, no magic state, no ancilla, no fault tolerance budget.
 

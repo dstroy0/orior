@@ -404,7 +404,7 @@ def main():
                 % (at, who or spot, kind, crossings, content)
             )
 
-    # The Bella Coola words alone. The practical orthography is held out by its kind and every other
+    # The Bella Coola words alone. The practical orthography is excluded by its kind and every other
     # language by the who column. Both columns are there for that.
     pure = TARGET[:-4] + ".pure.txt"
     kept = 0

@@ -321,7 +321,7 @@ static unsigned int cfg_json_hex4(const char *text, size_t at, size_t end)
 }
 
 // the escape at `at`, its backslash first: the letter it writes, and its length into `step`; CFG_JSON_NO_LETTER where
-// it is not one JSON writes. A high surrogate followed by an escaped low one is the one letter the two write
+// it is not one JSON writes. A high surrogate followed by an escaped low one is the single letter the two write
 static unsigned int cfg_json_escape(const char *text, size_t at, size_t end, size_t *step)
 {
     const char next = (at + 1u < end) ? text[at + 1u] : '\0';

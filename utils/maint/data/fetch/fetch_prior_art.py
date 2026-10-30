@@ -5,7 +5,7 @@
 # Retrieve the prior art this work cites, from the archives that publish it openly.
 #
 #   python maint/data/fetch/fetch_prior_art.py            fetch what is missing
-#   python maint/data/fetch/fetch_prior_art.py --list     what is wanted and what is held
+#   python maint/data/fetch/fetch_prior_art.py --list     what is wanted and what is present
 #
 # WHAT THIS IS ALLOWED TO REACH
 #
@@ -185,7 +185,7 @@ def main():
     for one in WANTED:
         path = os.path.join(INTO, one["name"])
         if os.path.isfile(path):
-            out.write("  held      %s\n" % one["name"])
+            out.write("  present   %s\n" % one["name"])
             got.append(one)
             continue
         if listing:
@@ -224,7 +224,7 @@ def main():
         out.write("      confirmed\n")
         got.append(one)
 
-    out.write("\n  %d held, %d not retrieved\n" % (len(got), len(unmet)))
+    out.write("\n  %d present, %d not retrieved\n" % (len(got), len(unmet)))
 
     # The unmet list is the deliverable when a fetch fails. Every row carries what it is, why it was
     # wanted, and where a person should go. It is a worklist.

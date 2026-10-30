@@ -171,7 +171,7 @@ LAYER = {
     "speaker comment": SPOKEN,
     "segmentation": DERIVED,
     "gloss": DERIVED,
-    # Kept and marked, held out of the ingestion stream until someone has classified it.
+    # Kept and marked, excluded from the ingestion stream until someone has classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -344,7 +344,7 @@ def main():
                 rows.append(("N", count, story, number, "speaker comment", comment))
 
     # Every line of the paper no section reached, added to the record as unclassified. The marked
-    # file then holds every token of the language the paper printed. They are held out of the
+    # file then holds every token of the language the paper printed. They are excluded from the
     # pure stream and listed in the flag file. This
     # makes the record complete without pretending anything has been classified.
     missed = unreached(lines, covered_tokens(one[5] for one in rows))

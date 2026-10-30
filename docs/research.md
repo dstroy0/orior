@@ -25,7 +25,7 @@ The shift with the best match is the edge of the cell. Across 453 axes from the 
 
 **A hash.** Fold the dependency matrix onto (input bit − output bit) mod 32, and 4096 cells sit behind each number. Take out what every class shares, and the band left standing is residues 0, 6, 11, 25 and 31. Each one is a named operation: the diagonal, the three rotation amounts of Σ1, and −1 mod 32 for the carry. The shared part is what fades, by one thirty-second each round. After round twenty-three the fold reads 2.09, 2.07 and 2.04, against a baseline peak of 2.63. It finds nothing there. [SHA-256](https://github.com/dstroy0/orior/tree/main/theory/theory/cryptography/sha256)
 
-**A quantum state.** Every amplitude is an exact number, never a float. The state where 100 quantum bits are all 0 or all 1 together is held in 792 numbers, and the squares of its amplitudes sum to exactly 1. [Exact quantum states](https://github.com/dstroy0/orior/tree/main/theory/theory/exact_simulation)
+**A quantum state.** Every amplitude is an exact number, never a float. The state where 100 quantum bits are all 0 or all 1 together is stored in 792 numbers, and the squares of its amplitudes sum to exactly 1. [Exact quantum states](https://github.com/dstroy0/orior/tree/main/theory/theory/exact_simulation)
 
 **A negative.** Collision entropy does not change when the data is shuffled. No bound built from a histogram can tell a structured domain from a rearrangement of the same symbols. [Delta Null](https://github.com/dstroy0/orior/tree/main/theory/theory/delta_null)
 

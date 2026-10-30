@@ -17,7 +17,7 @@
 # linguist built and the speakers rejected, and nobody has ever said one. Putting them in a pure
 # corpus would seed it with words the language does not have, which is worse than leaving them out,
 # because the whole point of the corpus is to say what the language looks like. They are kept in the
-# record marked "impossible" and held out of the pure stream. The same goes for the marginal forms
+# record marked "impossible" and excluded from the pure stream. The same goes for the marginal forms
 # the paper marks with a question mark.
 #
 # WHAT IS NOT NSYILXCN

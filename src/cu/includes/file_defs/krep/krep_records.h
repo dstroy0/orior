@@ -64,7 +64,7 @@ extern "C"
     } KrepRecord;
 
     // A k-file of records stored in memory: its kind, its records in order, and its texts, each by its number less one
-    // with its length, and a table finding a text by its bytes, a power of two slots, each a text's number or 0; and
+    // with its length, and a table finding a text by its bytes, a power of two buckets, each a text's number or 0; and
     // where it is a view of a table of a run, the run, the table's name and the file's key, 0 where it is none's. A
     // file starts as zeros
     typedef struct

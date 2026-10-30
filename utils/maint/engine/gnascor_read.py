@@ -16,7 +16,7 @@ A side that was not asked is written as - for its kind and - for its cost.
 
 The tables are read out of src/cu/transpiler/gnascor.md each run and are never copied here.
 
-A side reads 1 where its ask held inside the bound, and 0 where it did not hold, ended its asker or
+A side reads 1 where its ask was satisfied inside the bound, and 0 where it did not hold, ended its asker or
 came in past the bound. A cycle's state follows from the two sides and from how they read:
 
     blok  a side ended its asker: a hard refusal
@@ -24,17 +24,17 @@ came in past the bound. A cycle's state follows from the two sides and from how 
 
 A transition the tables mark sync passes through the sync superstate: fuzz+in into it, fizz+out of it,
 the state it left and the state it reaches locked into the two labels.
-    wait  one side held and the other answered past the bound: it lags
-    busy  both held, each costing more than any held ask of the baseline cycles
-    dual  both held
-    lead  the left held and the right did not
-    rite  the right held and the left did not
-    void  neither held
+    wait  one side satisfied and the other answered past the bound: it lags
+    busy  both satisfied, each costing more than any satisfied ask of the baseline cycles
+    dual  both satisfied
+    lead  the left satisfied and the right did not
+    rite  the right satisfied and the left did not
+    void  neither satisfied
 
 The baseline is the trace's first cycles, put unbound or well inside their bound: the costs of every
-held ask in them. Nothing here writes a scale in. The edge busy reads against is the baseline's largest
-held cost, and the fraction of a cycle tilt reads against is that same cost: a side past its bound by
-no more than one held ask's cost lagged, and past it by more it timed out.
+satisfied ask in them. Nothing here writes a scale in. The edge busy reads against is the baseline's largest
+satisfied cost, and the fraction of a cycle tilt reads against is that same cost: a side past its bound by
+no more than one satisfied ask's cost lagged, and past it by more it timed out.
 
 A transition is its pair, the state left and the state reached. Where the tables name a pair more than
 one way, each name is a candidate and the cycle decides between them. tilt holds where the side that
@@ -84,7 +84,7 @@ def read_cycle(line):
 
 
 def baseline_of(cycles):
-    """The largest cost of any held ask in the baseline cycles, and 0 where none held."""
+    """The largest cost of any satisfied ask in the baseline cycles, and 0 where none was satisfied."""
     costs = [cost for left, right, _bound in cycles[:BASELINE_CYCLES]
              for kind, cost in (left, right) if kind == "SATISFIED"]
     return max(costs) if costs else 0
@@ -197,7 +197,7 @@ def stream(states, labels):
 
 
 def check():
-    """Every rule the reader states, held on traces whose answers are known. The count failed."""
+    """Every rule the reader states, checked on traces whose answers are known. The count failed."""
     failed = 0
     held = candidates_of()
     base = [("SATISFIED", 100), ("SATISFIED", 120)]
@@ -219,7 +219,7 @@ def check():
     dual = (("SATISFIED", 100), ("SATISFIED", 100), 1000)
     expect("lead then rite is the shift right", [lead, rite], "pass")
     expect("rite then lead is the shift left", [rite, lead], "back")
-    # A held side beside one a fraction past its bound is wait by the base states: a dual whose right side
+    # A satisfied side beside one a fraction past its bound is wait by the base states: a dual whose right side
     # lags reads dual to wait and never dual to lead: read off a trace, the lag tilt names arrives as wait
     expect("dual with the right side a fraction late reads as dual to wait",
            [dual, (("SATISFIED", 100), ("PAST_BOUND", 1050), 1000)], held_name(held, "dual", "wait"))
@@ -234,7 +234,7 @@ def check():
     states, labels = run([dual, tilt_right])
     if states[-1] != "wait":
         failed += 1
-        print("  FAILED: a held side beside one past its bound reads wait, read %s" % states[-1])
+        print("  FAILED: a satisfied side beside one past its bound reads wait, read %s" % states[-1])
     pairs = [
         ("dual to lead, the right side not held", "dual", "lead", (("SATISFIED", 100), ("UNSATISFIED", 0)), "drop"),
         ("dual to lead, the right side a fraction past the bound", "dual", "lead",
@@ -314,7 +314,7 @@ def held_name(held, past, now):
     return held[(past, now)][0]
 
 
-# The states a scenario's pair of side specs can read as. Both held reads dual, or busy where both runs came in heavy,
+# The states a scenario's pair of side specs can read as. Both satisfied reads dual, or busy where both runs came in heavy,
 # which a scenario does not choose
 IMPLIED = {
     ("satisfied", "satisfied"): ("dual", "busy"),

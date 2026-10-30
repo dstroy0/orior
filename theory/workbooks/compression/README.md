@@ -10,7 +10,7 @@ Every claim carries one status, and the status says what backs it:
 | status | what it means |
 |---|---|
 | **proved** | an exact check ran over the whole set and found no exception; the count is given |
-| **measured** | a number was taken on named samples; the number is given, and whether it held up |
+| **measured** | a number was taken on named samples; the number is given, and whether it survived |
 | **built** | the code exists and runs; no measurement yet says whether it helps |
 | **theory** | stated, not built |
 | **refuted** | measured, and the measurement went against it; kept, with the number, and not tried again blind |

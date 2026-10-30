@@ -158,7 +158,7 @@ fi
 if [ "$want_cuda" -eq 1 ]; then
     cmake -S "$src" -B "$build" $generator $compiler "${msvc_tools[@]}" -DCMAKE_BUILD_TYPE=Release >/dev/null
 else
-    # a CUDA compiler a configure before this one cached enables CUDA all the same, so it is let go
+    # a CUDA compiler a configure before this one cached enables CUDA all the same, and it is let go
     cmake -S "$src" -B "$build" $generator $compiler -DCMAKE_BUILD_TYPE=Release -UCMAKE_CUDA_COMPILER \
         -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON -DORIOR_SKIP_CUDA=ON >/dev/null
 fi

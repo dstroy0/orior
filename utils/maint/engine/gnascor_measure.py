@@ -21,9 +21,9 @@ H(pair) less H(pair | label) is the part of the transition the label keeps.
 --repeat puts gnascor_scenario.txt to the host as real asks the given number of times, through the
 gnascor_trace program utils/maint/engine/chain_check.sh builds, and reads every trace back. It reports how many
 cycles read as the scenario implies, how many asks the scenario holds came in past the bound their own run
-derived, how many both-held cycles read busy in place of dual, how many sides of those cycles come in past the
+derived, how many both-satisfied cycles read busy in place of dual, how many sides of those cycles come in past the
 busy edge alone and both at once against the count two independent sides would give, how many distinct coherence
-clocks the runs print, and the spread of the bound each run derives. A held ask past its bound is a spurious timeout: the bound is
+clocks the runs print, and the spread of the bound each run derives. A satisfied ask past its bound is a spurious timeout: the bound is
 estimated from a finite sample of the host's costs, and the host can still exceed it. The traces are written
 under build/engine/repeat/.
 
@@ -47,7 +47,7 @@ SCENARIO = os.path.join(HERE, "gnascor_scenario.txt")
 BUILT = os.path.join(TOP, "build", "engine")
 
 # the situations gnascor_read.py's own check decides every pair in: each kind at each cost, against a bound of
-# 1000 and a held edge of 120
+# 1000 and an edge of 120
 SITUATIONS = [(kind, cost) for kind in KINDS for cost in (0, 100, 1050, 5000)]
 BOUND = 1000
 EDGE = 120
@@ -171,8 +171,8 @@ def repeat(runs):
                 sys.stdout = saved
     bounds.sort()
     print("  %d runs of %d cycles, %d cycles read as other than the scenario implies" % (runs, len(specs), wrong))
-    print("  %d of %d held asks came in past the bound their run derived" % (spurious, runs * len(held_sides)))
-    print("  %d of %d both-held cycles read busy in place of dual" % (busy, runs * len(both_held)))
+    print("  %d of %d satisfied asks came in past the bound their run derived" % (spurious, runs * len(held_sides)))
+    print("  %d of %d both-satisfied cycles read busy in place of dual" % (busy, runs * len(both_held)))
     pairs = runs * len(both_held)
     share = sides_over / (2.0 * pairs)
     print("  %d of %d sides of those cycles past the edge, a share of %.4f; both at once %d, where sides apart from"

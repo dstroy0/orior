@@ -32,9 +32,9 @@ or it reports the weight and calls it structure. The null here draws random fiel
 field's own popcount. A field whose local order sits above that weight-matched band is locally more
 ordered than chance at its own weight; inside the band it is not, and the disturbance was the weight.
 
-WHAT IS HELD
+WHAT IS WITHHELD
 
-Every number here is about the nonce and sits under the fail-closed partition as HELD.
+Every number here is about the nonce and sits under the fail-closed partition as WITHHELD.
 """
 
 import math

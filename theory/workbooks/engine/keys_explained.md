@@ -1,6 +1,6 @@
 # Keys, explained from the ground up
 
-**Purpose:** Explain, from first principles and with this engine's own numbers, the ideas a programmer's defaults push against hardest: that a whole program becomes one small exact object, that applying it is AND and add, that any number of operations can fit in a key of fixed size, that a check costs no pass of its own, and that exact arithmetic has no floor. Each was resisted in this project before it was built, and each held once built. They are explained here thoroughly so the next reader does not have to be argued into them.
+**Purpose:** Explain, from first principles and with this engine's own numbers, the ideas a programmer's defaults push against hardest: that a whole program becomes one small exact object, that applying it is AND and add, that any number of operations can fit in a key of fixed size, that a check costs no pass of its own, and that exact arithmetic has no floor. Each was resisted in this project before it was built, and each worked once built. They are explained here thoroughly so the next reader does not have to be argued into them.
 **Scope:** orior's `src/cu/engine/analysis/keymath/`, `src/cu/engine/analysis/key_schedule/`, `src/cu/engine/analysis/cycle/`, `src/cu/includes/codecs/crc/`, every place a key is folded into a pass, and the hand-offs between modules: the plain structs in `src/cu/engine/engine_config.h` and their composition in the entry, `src/engine/engine_*.cu`. The ledger's statuses ([README.md](README.md)) apply to every claim.
 
 ## 0. Why these ideas get resisted
@@ -61,7 +61,7 @@ This is the claim that meets the most doubt on sight. Here it is exactly, with t
 
 **The CRC key: 2^48 steps in 24 KiB.** A CRC is linear over GF(2). Its advance across 2^k zero bytes is a 64 × 64 bit matrix, and squaring the matrix doubles the distance. The key holds 48 of them: 48 × 64 columns × 8 bytes = 24,576 bytes. With them the register is carried across any run of up to 2^48 bytes (about 281 trillion byte steps) in at most 48 matrix applications. How the tower folds it, segment by segment and joined one operator a level, is in [compression_tower.md](compression_tower.md) §3. **Proved:** the folded CRC of 44b6_0113de3b equals the CRC taken byte by byte, 363bf8bdffac8f29.
 
-**Periodic operations: infinitely many steps in one period.** Anything that repeats is known entirely from one period. Modulo is a wave. The mirror fold at a frame's edges repeats with period twice the line, and the cycle lays one period down once as a table and reads every tap from it. The two's complement expansion of 1/d, for odd d, is eventually periodic with period the order of 2 modulo d. Division by d is one period of limbs, repeated. In each case the operation applied without end is held completely in one period.
+**Periodic operations: infinitely many steps in one period.** Anything that repeats is known entirely from one period. Modulo is a wave. The mirror fold at a frame's edges repeats with period twice the line, and the cycle lays one period down once as a table and reads every tap from it. The two's complement expansion of 1/d, for odd d, is eventually periodic with period the order of 2 modulo d. Division by d is one period of limbs, repeated. In each case the operation applied without end is contained completely in one period.
 
 **Where it does not hold, stated plainly.** A key cannot be smaller than the program's reach. Smoothing of order n has a row of n + 1 taps, and a longer smoothing has a longer row. The reach sets the size of the key. How many times the key is applied, and how many steps it stands for, have no limit.
 
@@ -93,7 +93,7 @@ Two consequences follow, and both are used.
 
 ## 7. The noise is read, never modeled
 
-The residue left after the bodies are subtracted is the sample's own field noise. It is deterministic, constant for that sample, and unique to it. It is held whole in the .kcr, never bounded, fitted, thresholded or thrown away. Where the engine needs a background to stand a body against, it reads one. The null draws climb the same body toward frames far off in time, where only the field noise can answer. A body is real where it stands above that reading. No distribution is assumed, and no random number is drawn anywhere in the tracker.
+The residue left after the bodies are subtracted is the sample's own field noise. It is deterministic, constant for that sample, and unique to it. It is stored whole in the .kcr, never bounded, fitted, thresholded or thrown away. Where the engine needs a background to stand a body against, it reads one. The null draws climb the same body toward frames far off in time, where only the field noise can answer. A body is real where it stands above that reading. No distribution is assumed, and no random number is drawn anywhere in the tracker.
 
 **Measured:** across the 25 44b6 samples, the low five bit planes are set in about 46% of frames at nearly every voxel, with no anchor anywhere. That is the floor, read directly from the data, and it is the same test the entropy section of [noise_sieve_tower.md](noise_sieve_tower.md) states.
 
@@ -103,8 +103,8 @@ The residue left after the bodies are subtracted is the sample's own field noise
 |---|---|---|
 | the math | `keymath` | the program's vocabulary, the impulse, the imprint; exact integers as wide as they grow; no device |
 | the schedule | `key_schedule` | the key laid out for the machine: sweep order, every lane width proved, scratch, columns, weights |
-| the run | `cycle` | the laid out key held on the device and run over a set of atoms in one cooperative launch |
-| a key over GF(2) | `crc` | the CRC's byte table and advance operators, generated and held at compile time to the published check value |
+| the run | `cycle` | the laid out key stored on the device and run over a set of atoms in one cooperative launch |
+| a key over GF(2) | `crc` | the CRC's byte table and advance operators, generated and checked at compile time against the published check value |
 | a fold into a pass | `tower` | the CRC taken in the widen and the narrow, costing no pass of its own |
 | the composition | the entry | where stages meet: `engine_key_encode` composes the three above, and the codec is composed the same way ([compression_tower.md](compression_tower.md)); §9 says why nowhere else |
 
@@ -132,7 +132,7 @@ This rule was argued for before it was accepted, because the ordinary default ru
 |---|---|---|
 | `keymath_encode`  the program, a vector of `EngineStep`  `EngineKey`: the impulse pushed through the program once, exact integers as wide as they grow |
 | `key_schedule_layout` | `EngineKey` | `EngineKeyLayout`: the key laid out for the machine, every lane width proved from its own bounds |
-| `cycle_key_load` | `EngineKeyLayout` | `CycleKey`: the layout held on the device, a type only `cycle` sees inside |
+| `cycle_key_load` | `EngineKeyLayout` | `CycleKey`: the layout stored on the device, a type only `cycle` sees inside |
 
 Each producer releases what it made (`keymath_key_release`, `key_schedule_release`) as soon as the next stage has taken it. Ownership closes at every hand-off as well as the value.
 
@@ -144,11 +144,11 @@ Each producer releases what it made (`keymath_key_release`, `key_schedule_releas
 | `compression_encode` | the coefficients and their count | `EngineStream`: the chunks, the bits, each chunk's first bit and the stream's limbs |
 | `krep_crystal_write` / `krep_crystal_read` | `EngineStream` | the .kcr file / `EngineStream` again |
 | `compression_decode` | `EngineStream` | the coefficients, written into the capacity `tower_capacity` hands out |
-| `tower_lower` | the held coefficients | the rebuilt sample, its CRC-64, and the voxels that differ |
+| `tower_lower` | the stored coefficients | the rebuilt sample, its CRC-64, and the voxels that differ |
 
 None of these stages knows another exists. The tower does not know its coefficients are Rice coded, and the coder does not know they came from a tower. That let the compression step be split out of the tower with the .kcr coming out byte identical, and keymath and key_schedule be split out of the cycle with the tracker's edges identical ([ledger.md](ledger.md)). Each split was a regrouping of the chain in the entry, and every module stayed as it was.
 
-**Why `crc` is not a reach.** `crc/` is a key instead of a stage. It holds a constant (the byte table and 48 advance operators, generated by `maint/engine/emit_crc_key.py` and held to CRC-64/XZ's published check value by a `static_assert` at compile time) and pure inline functions over it. It keeps no state, takes no hand-off and hands nothing on. Including it is including a constant, the way every module includes `engine_config.h`. A key that any pass may fold in is what §5 asks for, and `crc/` is where that key lives, callable by anything.
+**Why `crc` is not a reach.** `crc/` is a key instead of a stage. It holds a constant (the byte table and 48 advance operators, generated by `maint/engine/emit_crc_key.py` and checked against CRC-64/XZ's published check value by a `static_assert` at compile time) and pure inline functions over it. It keeps no state, takes no hand-off and hands nothing on. Including it is including a constant, the way every module includes `engine_config.h`. A key that any pass may fold in is what §5 asks for, and `crc/` is where that key lives, callable by anything.
 
 **How it was checked.** `python maint/audit_reaching.py`, read every module's includes and named each one that reaches.
 
@@ -158,5 +158,5 @@ None of these stages knows another exists. The tower does not know its coefficie
 | the key chain (`keymath`, `key_schedule`, `cycle`) reaches nothing | proved: `audit_reaching.py` |
 | the codec (`tower`, `compression`, `krep`, `entropy_history`) reaches nothing but `crc` | proved: `audit_reaching.py`; `iapx` is gone, composed in the entry |
 | a split that regroups the chain in the entry changes no output | proved for three splits: compression from the tower (.kcr byte identical, set CRC 091daa41e1aceb7e), keymath and key_schedule from the cycle (edges identical), the driver split (edges and score rows identical) |
-| `crc` is a root | by the rule; it is a compile-time constant and pure functions, held to the published check value |
+| `crc` is a root | by the rule; it is a compile-time constant and pure functions, checked against the published check value |
 | the tracker's modules reach nothing | **not so yet**: 19 modules still reach and 18 reach nothing. `score_sample` reaches 14 modules; `binomial_basins`, `flatten` and `score_sample` reach up into `entry`; the rest reach `track` and one another. They are being split next, and each stays listed here until the audit clears it |

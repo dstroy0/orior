@@ -46,7 +46,7 @@ Anything periodic is imprinted the same way. Modulo is a wave: once one period i
 The key does not depend on the atom, and imprinting fixes every lane width before any atom is seen. Nothing about the set needs a second look. The set streams through:
 
 - One launch covers every lane of every atom in a slab.
-- The grid is held at a barrier between the sweeps.
+- The grid is synchronized at a barrier between the sweeps.
 - The last sweep folds every term into each output lane in two's complement.
 
 The key stays resident, the atoms flow past it, and the output of one slab is the input the next stage reads while the cycle moves on.
@@ -59,7 +59,7 @@ The wide background term is the medium's own scattering, its turbidity. Nephelom
 
 ## What a proof holds
 
-- **Imprint.** The residual imprints once to two terms. Its lanes need 286 bits and are held in 9 limbs (288).
+- **Imprint.** The residual imprints once to two terms. Its lanes need 286 bits and are stored in 9 limbs (288).
 - **Exact against the old residual.** Over all 25 samples, every lane of every frame was compared with the residual the smoothing passes and the transform computed. 0 of 10,485,760,000 lanes differ, over 2,500 frames. The passes and the transform are gone, and `engine_residual` now runs the same key.
 - **Speed.** 31 ms a frame, against 24.5 ms for the passes it replaced. The next saving is the scheduler's: keep the binomial key factored as [1 1]^n. A sweep is then neighbor additions with no multiplies, and the shared factor B_narrow is computed once for both terms.
 - **Built: the table step.** A pointwise step imprints on its alphabet: every value a lane can hold, pushed through once, and the table holds the results (M10 and A13 of [engine_table.md](engine_table.md)). The request carries the table (`EngineRecordTable`, an index of 1 to 32 bits); keymath refuses a table wider than its source (`keymath.cu`), the scheduler places it (`key_schedule.cu`) and the cycle reads it (`cycle.cu`, `ENGINE_RECORD_TABLE`). `test/engine/record_table_test` proves x² and \|x − 30000\| + 100 as tables, on 4,096 lanes of the 16-bit alphabet, device and host (`build/20260923_204007_record_table_test`, 15 checks, 0 failed). Division is built as exact record operations instead of as a table: quotient, remainder, gcd and exact quotient, operations 11 to 14 (`test/engine/record_divide_test`, `test/engine/exact_divide_test`). Division as a table is untested. Square root is not in the engine and is untested. No mask generator is built: the caller fills the table.

@@ -373,7 +373,7 @@ return true;"""
 
 
 def driven_move_to(session, x, y):
-    """The pointer moved to (x, y) in the viewport. WebDriver moves it to no point outside the viewport, so a point
+    """The pointer moved to (x, y) in the viewport. WebDriver moves it to no point outside the viewport, and a point
     outside is reached at the nearest edge, and the page is given the events of the pointer leaving the window there."""
     width, height = session.execute("return [window.innerWidth, window.innerHeight];", [])
     edge_x = min(max(x, 0), width - 1)

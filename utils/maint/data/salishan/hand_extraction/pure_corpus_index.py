@@ -17,7 +17,7 @@
 #
 # The names are read from the config and not derived from the who column. That column does several
 # jobs across twenty tables, and a first version of this file guessed at it and put linguists in the
-# speaker slot on eleven of them. Whose language a paper holds is a fact a person establishes by
+# speaker field on eleven of them. Whose language a paper holds is a fact a person establishes by
 # reading the paper, the same way its alphabet is. It is declared and not inferred. Where a paper
 # cites a published dictionary and never says who spoke, the entry is empty and this prints that.
 

@@ -182,7 +182,7 @@ def shown(value, digits, whole=1):
 def golden_angle(digits):
     """Pi times three less the square root of five, the placement angle, to `digits` places.
 
-    The angle one step of the index turns in the golden placement. Held as one number here because
+    The angle one step of the index turns in the golden placement. Stored as one number here because
     the placement's screw property depends on the step being the same move at every index, and a
     step assembled from two separately rounded constants is not exactly one move.
     """

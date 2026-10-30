@@ -22,7 +22,7 @@ A paper contributes trials only where its extracted text is what the page prints
 
 \textbf{Why the right panel is here.} The extraction has a lifetime. What carries it? Manual transcription reads a paper at a fixed accuracy however large the corpus gets. That arm is flat. The algorithm's accuracy is a function of corpus size. That arm climbs. Whether and where they cross decides whether the corpus is worth growing for its own sake, and the panel is what answers it.
 
-\textbf{What to read off it.} The algorithm arm is the fraction of dialects whose distance from the other corpora pooled into one reference corpus clears twice their resolution. The arm starts at zero, because a small corpus resolves nothing, and it crosses the manual arm at 1.73e+04 byte pairs, which is smaller than the corpus already held. Both arms are drawn: byte pairs alone, and byte pairs with the dialect's own alphabet applied first. Setting an algorithm given nothing beside a person given a page is not a fair comparison, and the alphabet is the first part of what the extraction already knows that it can be handed.
+\textbf{What to read off it.} The algorithm arm is the fraction of dialects whose distance from the other corpora pooled into one reference corpus clears twice their resolution. The arm starts at zero, because a small corpus resolves nothing, and it crosses the manual arm at 1.73e+04 byte pairs, which is smaller than the corpus already stored. Both arms are drawn: byte pairs alone, and byte pairs with the dialect's own alphabet applied first. Setting an algorithm given nothing beside a person given a page is not a fair comparison, and the alphabet is the first part of what the extraction already knows that it can be handed.
 
 \tiny
 \setlength{\tabcolsep}{2pt}
@@ -200,15 +200,15 @@ The web makes a language profile a concept expressed as a distribution instead o
 
 \subsection{7. The dialect border}
 
-Lushootseed is not one dialect. The northern and southern varieties have known land and family borders, and Mellesmoen and Kye's stress paper labels every form it cites with which one it came from. The hand extraction copied that into the speaker column. The border is held as a fact published by a linguist.
+Lushootseed is not one dialect. The northern and southern varieties have known land and family borders, and Mellesmoen and Kye's stress paper labels every form it cites with which one it came from. The hand extraction copied that into the speaker column. The border is taken as a fact published by a linguist.
 
 That makes it something a test of this algorithm almost never has: an answer that did not come from the algorithm. The border test loads the labels, sets them aside, and only compares at the end.
 
-Comparing whole distributions does not work at this size. The method resolves at 6707 bytes and the two varieties hold 1469 and 2768. Neither the byte pair distribution nor the word web separates them, and a blind partition scores no better than the majority class. The check prints what that route would need: about 2.9 times the labeled Lushootseed now held.
+Comparing whole distributions does not work at this size. The method resolves at 6707 bytes and the two varieties hold 1469 and 2768. Neither the byte pair distribution nor the word web separates them, and a blind partition scores no better than the majority class. The check prints what that route would need: about 2.9 times the labeled Lushootseed now stored.
 
 Asking for one term at a time does work, and it is the same move the sound work uses. Because both varieties are one language, nearly all of what a distribution over their runs measures is what they have in common, and at this size that shared mass swamps the difference. Flattening the pooled counts to maximum entropy takes it out: a run is weighed against where the pooled total alone would put it. A run carrying no border information then contributes nothing however common it is. Each run is its own test, and what a run needs is enough of itself instead of enough of the language.
 
-The concept is held fixed while this is asked, over the 58 concepts both varieties name, using the word web's gloss edge. Without that control a run can separate the two sets because the varieties differ or because different words were cited, and those are not the same finding.
+The concept is kept fixed while this is asked, over the 58 concepts both varieties name, using the word web's gloss edge. Without that control a run can separate the two sets because the varieties differ or because different words were cited, and those are not the same finding.
 
 \tiny
 \setlength{\tabcolsep}{2pt}

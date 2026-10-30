@@ -111,7 +111,7 @@ def summarize(out):
 
     total = element.ELEMENT_COUNT
     out.write("\n  %d element(s) represented, Z 1 to %d\n" % (total, total))
-    out.write("  Pauli held, Z distinct states, for %d of %d under the exact reading\n"
+    out.write("  Pauli satisfied, Z distinct states, for %d of %d under the exact reading\n"
               % (pauli_held, total))
     out.write("  the subshell reading collapsed %d electron states across the table,\n"
               % collapsed_total)
