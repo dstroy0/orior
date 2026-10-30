@@ -157,7 +157,7 @@ int main(void)
         printf("the window was not sized\n");
         return 1;
     }
-    static char text[BENCH_LINES * 80u];
+    static char text[BENCH_LINES * 128u];
     VerbaLinea lines = {text, sizeof(text), 0ull};
     for (unsigned int line = 0u; line < BENCH_LINES; line += 1u)
     {

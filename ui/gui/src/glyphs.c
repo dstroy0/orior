@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // glyphs.c: the window's text. A face is read whole from its file into a cell and its character map kept in a cell of
 // the ranges it has; a glyph is outlined at its pixel size, measured, rasterized as coverage in a cell of its own
-// size and kept as bytes in a slot found by its key, every slot let go together as they fill
+// size and kept as bytes in a slot found by its key, every slot let go together as they fill; a glyph in a color is a
+// cell of lanes laid for the one blend, kept the same way, which the text is drawn through
 #include "glyphs.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -80,13 +81,32 @@ static void glyphs_emptied(GuiGlyphs *glyphs)
     glyphs->cached = 0u;
 }
 
+// the cells emptied: every cell's lanes given back and every cell marked unused
+static void glyphs_cells_emptied(GuiGlyphs *glyphs)
+{
+    for (unsigned int at = 0u; at < GUI_CELL_SLOTS; at += 1u)
+    {
+        GuiGlyphCell *const cell = &glyphs->cell[at];
+        if (cell->used)
+        {
+            g_cli_cells->persistent_buf_release(cell->red_blue, &s_owner);
+            cell->red_blue = NULL;
+            cell->green = NULL;
+            cell->rest = NULL;
+            cell->used = 0;
+        }
+    }
+    glyphs->celled = 0u;
+}
+
 int gui_glyphs_made(GuiGlyphs *glyphs, VerbaLinea *err_msg)
 {
     memor.set(&(MemoriaCfg){.dst = glyphs, .val = 0, .bytes = sizeof(*glyphs)});
     unsigned int(*const ranges)[3] = g_cli_cells->persistent_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &s_owner);
     glyphs->contours = g_cli_cells->persistent_buf_alloc(sizeof(*glyphs->contours), &s_owner);
     glyphs->slot = g_cli_cells->persistent_buf_alloc(GUI_GLYPH_SLOTS * sizeof(*glyphs->slot), &s_owner);
-    if ((ranges == NULL) || (glyphs->contours == NULL) || (glyphs->slot == NULL))
+    glyphs->cell = g_cli_cells->persistent_buf_alloc(GUI_CELL_SLOTS * sizeof(*glyphs->cell), &s_owner);
+    if ((ranges == NULL) || (glyphs->contours == NULL) || (glyphs->slot == NULL) || (glyphs->cell == NULL))
     {
         g_cli_cells->persistent_buf_release(ranges, &s_owner);
         gui_glyphs_given(glyphs);
@@ -94,6 +114,7 @@ int gui_glyphs_made(GuiGlyphs *glyphs, VerbaLinea *err_msg)
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = glyphs->slot, .val = 0, .bytes = GUI_GLYPH_SLOTS * sizeof(*glyphs->slot)});
+    memor.set(&(MemoriaCfg){.dst = glyphs->cell, .val = 0, .bytes = GUI_CELL_SLOTS * sizeof(*glyphs->cell)});
     char paths[4][CLI_PATH_MAX_LEN];
     cli_font_monospace(paths);
     for (unsigned int face = GUI_FACE_CODE; face <= GUI_FACE_CODE_BOLD_ITALIC; face += 1u)
@@ -121,9 +142,15 @@ void gui_glyphs_given(GuiGlyphs *glyphs)
     {
         glyphs_emptied(glyphs);
     }
+    if (glyphs->cell != NULL)
+    {
+        glyphs_cells_emptied(glyphs);
+    }
     g_cli_cells->persistent_buf_release(glyphs->slot, &s_owner);
+    g_cli_cells->persistent_buf_release(glyphs->cell, &s_owner);
     g_cli_cells->persistent_buf_release(glyphs->contours, &s_owner);
     glyphs->slot = NULL;
+    glyphs->cell = NULL;
     glyphs->contours = NULL;
     for (unsigned int face = 0u; face < GUI_FACES; face += 1u)
     {
@@ -258,6 +285,95 @@ float gui_glyphs_cell(GuiGlyphs *glyphs, unsigned int size)
     return advance;
 }
 
+// the cell keyed by `face`, `letter`, `size` and `color`, or an unused cell for it; the cells are emptied first when
+// three quarters of them are in use
+static GuiGlyphCell *glyphs_cell_slot(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color)
+{
+    const unsigned int start = ((face * 31u) + (letter * 7u) + (size * 131u) + (color * 2654435761u)) % GUI_CELL_SLOTS;
+    unsigned int at = start;
+    do
+    {
+        GuiGlyphCell *const cell = &glyphs->cell[at];
+        if (cell->used && (cell->face == face) && (cell->letter == letter) && (cell->size == size) && (cell->color == color))
+        {
+            return cell;
+        }
+        if (!cell->used)
+        {
+            break;
+        }
+        at = (at + 1u) % GUI_CELL_SLOTS;
+    } while (at != start);
+    if ((glyphs->celled * 4u) >= (GUI_CELL_SLOTS * 3u))
+    {
+        glyphs_cells_emptied(glyphs);
+        at = start;
+    }
+    return &glyphs->cell[at];
+}
+
+const GuiGlyphCell *gui_glyph_cell(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color,
+                                   float *advance)
+{
+    const unsigned int had = gui_face_had(glyphs, face);
+    GuiGlyphCell *const cell = glyphs_cell_slot(glyphs, had, letter, size, color);
+    if (cell->used)
+    {
+        *advance = cell->advance;
+        return cell;
+    }
+    const GuiMask *const mask = gui_glyph(glyphs, had, letter, size, advance);
+    if (mask == NULL)
+    {
+        return NULL;
+    }
+    cell->face = had;
+    cell->letter = letter;
+    cell->size = size;
+    cell->color = color;
+    cell->advance = *advance;
+    cell->width = mask->width;
+    cell->height = mask->height;
+    cell->left = mask->left;
+    cell->top = mask->top;
+    cell->red_blue = NULL;
+    cell->green = NULL;
+    cell->rest = NULL;
+    const unsigned long long pixels = (unsigned long long)mask->width * mask->height;
+    if (pixels != 0ull)
+    {
+        cell->red_blue = g_cli_cells->persistent_buf_alloc(3ull * pixels * sizeof(unsigned int), &s_owner);
+        if (cell->red_blue == NULL)
+        {
+            return NULL;
+        }
+        cell->green = cell->red_blue + pixels;
+        cell->rest = cell->green + pixels;
+        // each pixel's share of the color is its cover by the color's alpha, two shares of 255 multiplied being a share
+        // of 255 once divided by 255; the lanes are the color's channels by the share with half of 255 in, as the
+        // raster's blend lays them
+        const unsigned int alpha = GUI_ALPHA_OF(color);
+        for (unsigned long long at = 0ull; at < pixels; at += 1ull)
+        {
+            const unsigned int share = ((mask->cover[at] * alpha) + 127u) / 255u;
+            cell->red_blue[at] = ((color & 0x00ff00ffu) * share) + 0x00800080u;
+            cell->green[at] = (((color >> 8u) & 0xffu) * share) + 0x80u;
+            cell->rest[at] = 255u - share;
+        }
+    }
+    cell->used = 1;
+    glyphs->celled += 1u;
+    return cell;
+}
+
+void gui_glyph_cell_laid(GuiRaster *raster, const GuiGlyphCell *cell, int x, int y, GuiRect clip)
+{
+    if (cell->red_blue != NULL)
+    {
+        gui_raster_lanes_laid(raster, cell->red_blue, cell->green, cell->rest, cell->width, cell->height, x + cell->left, y - cell->top, clip);
+    }
+}
+
 float gui_text_drawn(GuiRaster *raster, GuiGlyphs *glyphs, unsigned int face, unsigned int size, float x, int y,
                      const char *text, unsigned long long length, GuiColor color, GuiRect clip)
 {
@@ -268,11 +384,11 @@ float gui_text_drawn(GuiRaster *raster, GuiGlyphs *glyphs, unsigned int face, un
         const unsigned int letter = cli_text_letter(text, length, at, &took);
         at += (took != 0ull) ? took : 1ull;
         float advance = 0.0f;
-        const GuiMask *const mask = gui_glyph(glyphs, face, letter, size, &advance);
-        if ((mask != NULL) && (mask->cover != NULL))
+        const GuiGlyphCell *const cell = gui_glyph_cell(glyphs, face, letter, size, color, &advance);
+        if (cell != NULL)
         {
             // a pixel's place, rounded, is far inside what an int represents
-            gui_raster_masked(raster, mask, (int)roundf(x) + mask->left, y - mask->top, color, clip);
+            gui_glyph_cell_laid(raster, cell, (int)roundf(x), y, clip);
         }
         x += advance;
     }

@@ -736,12 +736,12 @@ static void editor_line_drawn(const GuiEditor *editor, const GuiLine *line, GuiR
         else
         {
             float advance = 0.0f;
-            const GuiMask *const mask = gui_glyph(glyphs, GUI_FACE_CODE, letter, size, &advance);
-            if ((mask != NULL) && (mask->cover != NULL))
+            const GuiGlyphCell *const glyph = gui_glyph_cell(glyphs, GUI_FACE_CODE, letter, size, color, &advance);
+            if (glyph != NULL)
             {
                 const float here = start + ((float)column * cell);
                 // a pixel's place, rounded, is far inside what an int represents
-                gui_raster_masked(raster, mask, (int)roundf(here) + mask->left, y - mask->top, color, clip);
+                gui_glyph_cell_laid(raster, glyph, (int)roundf(here), y, clip);
             }
             column += 1ull;
         }

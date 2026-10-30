@@ -55,6 +55,7 @@ int main(void)
     cli_check(gui_base_laid(&base, &frame, palette, 0), "the map is laid for the frame");
     cli_check(!gui_base_laid(&base, &frame, palette, 0) && (base.laid_count == 1u), "laid again for the same frame it stands");
     cli_check(GUI_BASE_ENTRIES <= 256u, "the entries fit a byte");
+    cli_check(GUI_BASE_GRAIN_LEVELS == (unsigned int)((GUI_GRAIN_ALPHA * 255.0) + 0.5) + 1u, "the grain's levels run to its most alpha");
 
     GuiRaster raster;
     cli_check(gui_raster_made(&raster, 800u, 600u), "a raster for the frame is made");

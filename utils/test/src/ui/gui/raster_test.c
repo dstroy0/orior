@@ -162,6 +162,20 @@ int main(void)
     gui_raster_dotted(&raster, -3.0f, 20.0f, 1.0f, white);
     cli_check(raster.pixels[0] == 0xff000000u, "a dot off the raster draws nothing");
 
+    // lanes laid: a pixel whose rest is 0 takes the ink whole, one whose rest is 255 keeps its ground, one between takes
+    // its share; nothing is laid outside the clip
+    const unsigned int lanes_red_blue[4] = {(0x10u << 16u) * 255u + 0x30u * 255u + 0x00800080u, 0x00800080u, (0x10u << 16u) * 128u + 0x30u * 128u + 0x00800080u, 0x00800080u};
+    const unsigned int lanes_green[4] = {0x20u * 255u + 0x80u, 0x80u, 0x20u * 128u + 0x80u, 0x80u};
+    const unsigned int lanes_rest[4] = {0u, 255u, 127u, 255u};
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_lanes_laid(&raster, lanes_red_blue, lanes_green, lanes_rest, 2u, 2u, 1, 1, whole);
+    cli_check(raster.pixels[(1u * 8u) + 1u] == 0xff102030u, "a lane of no rest lays the ink whole");
+    cli_check(raster.pixels[(1u * 8u) + 2u] == 0xff000000u, "a lane of all rest keeps the ground");
+    cli_check(red_of(raster.pixels[(2u * 8u) + 1u]) == 0x08u, "a lane of half rest takes half the ink");
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_lanes_laid(&raster, lanes_red_blue, lanes_green, lanes_rest, 2u, 2u, 1, 1, (GuiRect){2, 0, 6, 4});
+    cli_check((raster.pixels[(1u * 8u) + 1u] == 0xff000000u) && (raster.pixels[(1u * 8u) + 2u] == 0xff000000u), "lanes lay nothing outside the clip");
+
     // a ground with a grain: the tint over the ground's color, and white over that by the grain's tile
     cli_check(gui_color_over(black, GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u)) == 0xff808080u, "a half-clear white over black is mid gray");
     const unsigned char grained[4] = {0u, 255u, 0u, 0u};

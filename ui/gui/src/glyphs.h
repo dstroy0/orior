@@ -32,8 +32,35 @@ typedef struct
     GuiMask mask;
 } GuiCachedGlyph;
 
+// the glyph cells kept at once, a glyph in one color each; past three quarters of them every one is let go and made
+// again as it is asked for
+#define GUI_CELL_SLOTS 4096u
+
+// A glyph cell: whether it is in use, its key (the face, the letter, the pixel size and the color), the glyph's
+// advance in pixels, its box, the size and where its top left stands from the pen on the baseline, and its lanes,
+// for each pixel of the box the ink's red and blue lanes by the pixel's share of the color with half of 255 in,
+// its green lane the same, and the rest of 255 the ground keeps, each a word, row after row, the three in one cell
+// of the cellblock, NULL where the glyph has no pixels
+typedef struct
+{
+    int used;
+    unsigned int face;
+    unsigned int letter;
+    unsigned int size;
+    GuiColor color;
+    float advance;
+    unsigned int width;
+    unsigned int height;
+    int left;
+    int top;
+    unsigned int *red_blue;
+    unsigned int *green;
+    unsigned int *rest;
+} GuiGlyphCell;
+
 // The glyphs: each face as read and whether it was, the file each was read from, the outline a glyph is drawn through,
-// and the cache's entries, one rasterized glyph each, with how many of them are in use
+// the cache's entries, one rasterized glyph each, with how many of them are in use, and the cells, one glyph in one
+// color each, with how many of them are in use
 typedef struct
 {
     CliFont face[GUI_FACES];
@@ -43,6 +70,8 @@ typedef struct
     CliContours *contours;
     GuiCachedGlyph *slot;
     unsigned int cached;
+    GuiGlyphCell *cell;
+    unsigned int celled;
 } GuiGlyphs;
 
 // the faces read from the system's fonts, the code face the monospace font orior_cli draws with: 1, or 0 with why
@@ -54,6 +83,13 @@ unsigned int gui_face_had(const GuiGlyphs *glyphs, unsigned int face);
 // the glyph of `letter` in `face` at `size` pixels an em, drawn and kept: its mask, with no pixels where the letter
 // draws none, or NULL where it could not be drawn; its advance in pixels into `advance`
 const GuiMask *gui_glyph(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, float *advance);
+// the cell of `letter` in `face` at `size` pixels an em in `color`, made from the glyph's mask and kept: its lanes
+// laid for the blend over any ground, with no pixels where the letter draws none, or NULL where the glyph could not
+// be drawn or the cell's lanes not taken; its advance in pixels into `advance`; and a cell laid on `raster` with the
+// pen at x on the baseline y, no further than `clip`, each pixel of its box in one blend, straight along
+const GuiGlyphCell *gui_glyph_cell(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color,
+                                   float *advance);
+void gui_glyph_cell_laid(GuiRaster *raster, const GuiGlyphCell *cell, int x, int y, GuiRect clip);
 // a face's ascent above the baseline and its descent below it, in pixels at `size`; and the code face's cell, the
 // advance of its glyphs at `size`
 float gui_glyphs_ascent(const GuiGlyphs *glyphs, unsigned int face, unsigned int size);

@@ -121,6 +121,12 @@ void gui_raster_line(GuiRaster *raster, int x0, int y0, int x1, int y1, GuiColor
 // `mask` laid with its top left at x, y, each pixel blended in `color` by its coverage and the color's alpha, no
 // further than `clip` and the raster
 void gui_raster_masked(GuiRaster *raster, const GuiMask *mask, int x, int y, GuiColor color, GuiRect clip);
+// a picture's lanes laid with its top left at x, y, no further than `clip` and the raster: `width` by `height`
+// pixels, row after row, each with the ink's red and blue lanes by its share with half of 255 in, `red_blue`, its
+// green lane the same, `green`, and the rest of 255 the ground keeps, `rest`; each pixel of the raster takes the
+// ground's lanes by the rest plus the ink's, the one blend every drawing goes through, laid straight along
+void gui_raster_lanes_laid(GuiRaster *raster, const unsigned int *red_blue, const unsigned int *green, const unsigned int *rest,
+                           unsigned int width, unsigned int height, int x, int y, GuiRect clip);
 // the raster made `mask`'s picture in `color`: each pixel the color with the mask's cover as its alpha, straight
 // over nothing, the raster's size the mask's, for an icon the system takes with its own alpha
 void gui_raster_stenciled(GuiRaster *raster, const GuiMask *mask, GuiColor color);

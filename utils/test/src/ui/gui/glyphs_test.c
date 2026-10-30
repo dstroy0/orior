@@ -63,6 +63,28 @@ int main(void)
     cli_check(off(space_advance, advance) < 1e-6f, "a space advances a cell as a letter does");
 
     cli_check(off(gui_glyphs_cell(&glyphs, 13u), advance) < 1e-6f, "the code face's cell is its glyphs' advance");
+
+    // a glyph in a color is a cell of lanes, kept by its key, with no lanes where the glyph has no pixels
+    float cell_advance = 0.0f;
+    const GuiGlyphCell *const cell = gui_glyph_cell(&glyphs, GUI_FACE_CODE, 'M', 13u, GUI_RGB(0xffu, 0xffu, 0xffu), &cell_advance);
+    cli_check((cell != NULL) && (cell->width == letter->width) && (cell->height == letter->height) && (cell->left == letter->left) &&
+                  (cell->top == letter->top) && (cell->red_blue != NULL),
+              "the cell of M in white is the glyph's box with lanes");
+    cli_check(off(cell_advance, advance) < 1e-6f, "the cell keeps the glyph's advance");
+    cli_check(gui_glyph_cell(&glyphs, GUI_FACE_CODE, 'M', 13u, GUI_RGB(0xffu, 0xffu, 0xffu), &cell_advance) == cell,
+              "the same cell asked again is the one kept");
+    cli_check(gui_glyph_cell(&glyphs, GUI_FACE_CODE, 'M', 13u, GUI_RGB(0xffu, 0x00u, 0x00u), &cell_advance) != cell,
+              "the glyph in another color is another cell");
+    const GuiGlyphCell *const space_cell = gui_glyph_cell(&glyphs, GUI_FACE_CODE, ' ', 13u, GUI_RGB(0xffu, 0xffu, 0xffu), &cell_advance);
+    cli_check((space_cell != NULL) && (space_cell->red_blue == NULL), "a space's cell has no lanes");
+    unsigned int whole = 0u;
+    unsigned int bare = 0u;
+    for (unsigned long long at = 0ull; (cell != NULL) && (at < (unsigned long long)cell->width * cell->height); at += 1ull)
+    {
+        whole += (cell->rest[at] == 0u) ? 1u : 0u;
+        bare += (cell->rest[at] == 255u) ? 1u : 0u;
+    }
+    cli_check((whole > 0u) && (bare > 0u), "a cell's lanes keep none of the ground where the glyph covers a pixel whole and all of it where it covers none");
     cli_check(gui_glyphs_ascent(&glyphs, GUI_FACE_CODE, 13u) > 8.0f, "the ascent at thirteen pixels is most of them");
     cli_check(gui_glyphs_descent(&glyphs, GUI_FACE_CODE, 13u) > 1.0f, "the descent at thirteen pixels is below the baseline");
 

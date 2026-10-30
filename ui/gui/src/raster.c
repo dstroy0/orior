@@ -796,6 +796,37 @@ void gui_raster_masked(GuiRaster *raster, const GuiMask *mask, int x, int y, Gui
     }
 }
 
+void gui_raster_lanes_laid(GuiRaster *raster, const unsigned int *red_blue, const unsigned int *green, const unsigned int *rest,
+                           unsigned int width, unsigned int height, int x, int y, GuiRect clip)
+{
+    // a picture's sides are far inside what an int represents
+    const GuiRect laid = {x, y, (int)width, (int)height};
+    const GuiRect on = gui_rect_met(gui_rect_met(laid, clip), raster_rect(raster));
+    if (gui_rect_empty(on))
+    {
+        return;
+    }
+    for (int row = on.y; row < on.y + on.height; row += 1)
+    {
+        // the row and column inside the picture are not negative, the rectangle laid lying inside it; the pixel lies
+        // on the raster: its coordinates are not negative
+        const unsigned int from = ((unsigned int)(row - y) * width) + (unsigned int)(on.x - x);
+        const unsigned int *const ink_red_blue = red_blue + from;
+        const unsigned int *const ink_green = green + from;
+        const unsigned int *const kept = rest + from;
+        GuiColor *const out = &raster->pixels[((unsigned int)row * raster->width) + (unsigned int)on.x];
+        // the row's width is not negative
+        for (unsigned int px = 0u; px < (unsigned int)on.width; px += 1u)
+        {
+            const GuiColor ground = out[px];
+            const unsigned int lanes = ink_red_blue[px] + ((ground & 0x00ff00ffu) * kept[px]);
+            const unsigned int lane = ink_green[px] + (((ground >> 8u) & 0xffu) * kept[px]);
+            out[px] = 0xff000000u | (((lanes + ((lanes >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu) |
+                      ((((lane + (lane >> 8u)) >> 8u) & 0xffu) << 8u);
+        }
+    }
+}
+
 void gui_raster_stenciled(GuiRaster *raster, const GuiMask *mask, GuiColor color)
 {
     const unsigned long long pixels = (unsigned long long)mask->width * mask->height;

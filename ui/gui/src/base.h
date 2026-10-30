@@ -14,7 +14,7 @@
 
 // the grain's levels, 0 to its most alpha; the layers: nothing over the lattice, the editor's ground, the side's,
 // the tabs row's surface, the glass sheet at each grain level and a pane at each; and the entries in all
-#define GUI_BASE_GRAIN_LEVELS ((unsigned int)((GUI_GRAIN_ALPHA * 255.0) + 0.5) + 1u)
+#define GUI_BASE_GRAIN_LEVELS 19u
 #define GUI_BASE_CLEAR 0u
 #define GUI_BASE_EDITOR 1u
 #define GUI_BASE_SIDE 2u
