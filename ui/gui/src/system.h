@@ -50,11 +50,14 @@ typedef struct
 // the monitors' areas into `areas`, sized for `most`, the system's main one first: their count
 unsigned int gui_system_areas(CliWindowArea *areas, unsigned int most);
 // a window opened undecorated at `place`, titled `title`, its events handed as `events` says with `context`: the
-// window, or NULL with why given; the loop run until the window closes; and the window closed
+// window, or NULL with why given; the loop run until the window closes; the window closed, which the loop may do from
+// inside an event it hands on, the system's record kept for the loop to read; and the record given back once the
+// loop has returned
 GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, const GuiSystemEvents *events,
                              void *context, VerbaLinea *err_msg);
 void gui_system_run(GuiSystem *system);
 void gui_system_closed(GuiSystem *system);
+void gui_system_given(GuiSystem *system);
 // every event waiting taken and handed on, the loop not run, for a check that posts events to the window; and the
 // system's own handle of the window, for a check to post them to
 void gui_system_pumped(GuiSystem *system);

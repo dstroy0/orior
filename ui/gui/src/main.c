@@ -192,7 +192,11 @@ int main(void)
         gui_raster_given(&small);
     }
     gui_window_started(&s_window);
-    gui_system_run(s_system);
+    // the record kept here for the giving after the loop, since closing the window inside the loop lets go of
+    // s_system and leaves the record for the loop to read until it returns
+    GuiSystem *const system = s_system;
+    gui_system_run(system);
+    gui_system_given(system);
     gui_window_ended(&s_window);
     cli_window_ended();
     return 0;

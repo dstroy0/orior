@@ -25,7 +25,7 @@
 #define GUI_DARKEN_LEAST 0.06f
 #define GUI_DARKEN_SMALL 12u
 #define GUI_DARKEN_LARGE 32u
-#define GUI_TEXT_GAMMA 1.6f
+#define GUI_TEXT_GAMMA 1.4f
 
 // A cache entry: whether it is in use, its key (the face, the glyph and the pixel size), the glyph's advance in
 // pixels, and the coverage mask, allocated in a cell of its own, NULL where the glyph has no pixels

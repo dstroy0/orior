@@ -268,9 +268,11 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
     // the call runs on the room's lane: its own cells are the lane's until the room is given back
     room->mark = cli_lane_entered(at);
     VerbaLinea out;
-    (void)cli_growing_line_made(&out, CLI_WINDOW_ANSWER_FIRST);
+    // the answer and the error taken on the lane too and rewound with the room: a call leaves nothing in the shared
+    // cells' persistent tier for the window's own cells to be taken after
+    (void)cli_growing_line_laned(&out, CLI_WINDOW_ANSWER_FIRST);
     room->answer = out.out;
-    room->err_msg = g_cli_cells->persistent_buf_alloc(CLI_WINDOW_ERR_MSG_MAX_LEN, NULL);
+    room->err_msg = cli_lane_alloc(CLI_WINDOW_ERR_MSG_MAX_LEN, NULL);
     if ((room->answer == NULL) || (room->err_msg == NULL))
     {
         cli_cell_release(room->err_msg, NULL);

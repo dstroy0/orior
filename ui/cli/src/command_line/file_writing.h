@@ -13,6 +13,9 @@
 // full; and room made on `line` for `size` bytes more, a growing line moved into a larger cell where they do not fit:
 // 1, or 0 where they do not
 int cli_growing_line_made(VerbaLinea *line, size_t first);
+// the same line made in a cell of the lane the thread is on, where it is on one, given back as the lane is rewound or
+// with cli_cell_release; a line grown past it moves to a cell of the shared cells
+int cli_growing_line_laned(VerbaLinea *line, size_t first);
 int cli_growing_line_room(VerbaLinea *line, size_t size);
 
 #endif

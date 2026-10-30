@@ -447,6 +447,10 @@ void gui_system_closed(GuiSystem *system)
         XCloseDisplay(system->display);
         system->display = NULL;
     }
+}
+
+void gui_system_given(GuiSystem *system)
+{
     close(system->wake_pipe[0]);
     close(system->wake_pipe[1]);
     g_cli_cells->persistent_buf_release(system, &s_owner);

@@ -265,7 +265,9 @@ static ID3D12Resource *system_placed(SystemDevice *device, const GuiRaster *rast
     D3D12_RESOURCE_DESC desc;
     memor.set(&(MemoriaCfg){.dst = &desc, .val = 0, .bytes = sizeof(desc)});
     desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    desc.Width = (UINT64)raster->width * raster->height * sizeof(GuiColor);
+    // the buffer reaches from the raster's place to the region's end, which has the raster at any size its room fits:
+    // a raster sized again in the same region is copied through the buffer already placed
+    desc.Width = (UINT64)(raster->pages_bytes - raster->placed);
     desc.Height = 1u;
     desc.DepthOrArraySize = 1u;
     desc.MipLevels = 1u;
@@ -853,6 +855,11 @@ void gui_system_closed(GuiSystem *system)
         DestroyWindow(system->window);
         system->window = NULL;
     }
+    system->closed = 1;
+}
+
+void gui_system_given(GuiSystem *system)
+{
     g_cli_cells->persistent_buf_release(system, &s_owner);
 }
 

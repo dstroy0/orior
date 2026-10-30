@@ -19,12 +19,47 @@ void gui_editor_made(GuiEditor *editor)
     editor->caret_ink = 255u;
 }
 
-// the lines stored freed, with the folds that open on them, find's query and the matches
+// `*cell` with room for `want` bytes: the cell it is where its `*room` has them, else a cell half again as large taken
+// and the one before given back, its bytes not kept: 1, or 0 with the cell unchanged where none could be taken
+static int editor_roomed(void **cell, unsigned long long *room, unsigned long long want)
+{
+    const unsigned long long asked = (want != 0ull) ? want : 1ull;
+    if ((*cell != NULL) && (asked <= *room))
+    {
+        return 1;
+    }
+    const unsigned long long bytes = asked + (asked / 2ull);
+    void *const taken = g_cli_cells->persistent_buf_alloc((size_t)bytes, &s_owner);
+    if (taken == NULL)
+    {
+        return 0;
+    }
+    g_cli_cells->persistent_buf_release(*cell, &s_owner);
+    *cell = taken;
+    *room = bytes;
+    return 1;
+}
+
+// the lines stored emptied, with the folds that open on them, find's state and the matches, every cell kept for the
+// next frame
+static void editor_lines_emptied(GuiEditor *editor)
+{
+    char *const query = editor->find.query;
+    memor.set(&(MemoriaCfg){.dst = &editor->find, .val = 0, .bytes = sizeof(editor->find)});
+    editor->find.query = query;
+    editor->run_total = 0u;
+    editor->count = 0u;
+    editor->folds = 0u;
+    editor->matches = 0ull;
+}
+
+// the lines' cells given back, with those of the folds, find's query and the matches
 static void editor_lines_given(GuiEditor *editor)
 {
     g_cli_cells->persistent_buf_release(editor->line, &s_owner);
     g_cli_cells->persistent_buf_release(editor->bytes, &s_owner);
     g_cli_cells->persistent_buf_release(editor->run, &s_owner);
+    g_cli_cells->persistent_buf_release(editor->run_laid, &s_owner);
     g_cli_cells->persistent_buf_release(editor->fold, &s_owner);
     g_cli_cells->persistent_buf_release(editor->closers, &s_owner);
     g_cli_cells->persistent_buf_release(editor->find.query, &s_owner);
@@ -32,14 +67,13 @@ static void editor_lines_given(GuiEditor *editor)
     editor->line = NULL;
     editor->bytes = NULL;
     editor->run = NULL;
+    editor->run_laid = NULL;
     editor->fold = NULL;
     editor->closers = NULL;
+    editor->find.query = NULL;
     editor->match = NULL;
-    memor.set(&(MemoriaCfg){.dst = &editor->find, .val = 0, .bytes = sizeof(editor->find)});
-    editor->run_total = 0u;
-    editor->count = 0u;
-    editor->folds = 0u;
-    editor->matches = 0ull;
+    memor.set(&(MemoriaCfg){.dst = &editor->room, .val = 0, .bytes = sizeof(editor->room)});
+    editor_lines_emptied(editor);
 }
 
 void gui_editor_given(GuiEditor *editor)
@@ -165,7 +199,7 @@ static unsigned int editor_runs_put(const CliJson *json, unsigned int flat, unsi
 static int editor_array_put(GuiEditor *editor, const CliJson *json, unsigned int lines, unsigned int colors,
                             unsigned int numbers, unsigned long long from)
 {
-    editor_lines_given(editor);
+    editor_lines_emptied(editor);
     if (!cli_json_is(json, lines, CFG_JSON_ARRAY))
     {
         return 0;
@@ -179,12 +213,10 @@ static int editor_array_put(GuiEditor *editor, const CliJson *json, unsigned int
         bytes += length;
     }
     const unsigned int pairs = editor_runs_counted(json, colors, numbers, from, count);
-    editor->line = g_cli_cells->persistent_buf_alloc(((count != 0u) ? count : 1u) * sizeof(*editor->line), &s_owner);
-    editor->bytes = g_cli_cells->persistent_buf_alloc((bytes != 0ull) ? bytes : 1ull, &s_owner);
-    editor->run = g_cli_cells->persistent_buf_alloc(((pairs != 0u) ? pairs : 1u) * 2u * sizeof(*editor->run), &s_owner);
-    if ((editor->line == NULL) || (editor->bytes == NULL) || (editor->run == NULL))
+    if (!editor_roomed((void **)&editor->line, &editor->room.line, (unsigned long long)count * sizeof(*editor->line)) ||
+        !editor_roomed((void **)&editor->bytes, &editor->room.bytes, bytes) ||
+        !editor_roomed((void **)&editor->run, &editor->room.run, (unsigned long long)pairs * 2ull * sizeof(*editor->run)))
     {
-        editor_lines_given(editor);
         return 0;
     }
     unsigned long long used = 0ull;
@@ -227,14 +259,10 @@ static int editor_folds_put(GuiEditor *editor, const CliJson *json, unsigned int
         (void)cli_json_string(json, cli_json_item(json, cli_json_item(json, folds, at), 4u), &length);
         bytes += length;
     }
-    editor->fold = g_cli_cells->persistent_buf_alloc(((count != 0u) ? count : 1u) * sizeof(*editor->fold), &s_owner);
-    editor->closers = g_cli_cells->persistent_buf_alloc((bytes != 0ull) ? bytes : 1ull, &s_owner);
-    if ((editor->fold == NULL) || (editor->closers == NULL))
+    if (!editor_roomed((void **)&editor->fold, &editor->room.fold, (unsigned long long)count * sizeof(*editor->fold)) ||
+        !editor_roomed((void **)&editor->closers, &editor->room.closers, bytes))
     {
-        g_cli_cells->persistent_buf_release(editor->fold, &s_owner);
-        g_cli_cells->persistent_buf_release(editor->closers, &s_owner);
-        editor->fold = NULL;
-        editor->closers = NULL;
+        editor->folds = 0u;
         return 0;
     }
     unsigned long long used = 0ull;
@@ -276,15 +304,11 @@ static int editor_find_put(GuiEditor *editor, const CliJson *json, unsigned int 
     }
     unsigned long long length = 0ull;
     const char *const query = cli_json_string(json, cli_json_member(json, find, "query"), &length);
-    editor->find.query = g_cli_cells->persistent_buf_alloc((length != 0ull) ? length : 1ull, &s_owner);
     const unsigned long long count = cli_json_is(json, matches, CFG_JSON_ARRAY) ? json->node[matches].count : 0u;
-    editor->match = g_cli_cells->persistent_buf_alloc(((count != 0ull) ? count : 1ull) * sizeof(*editor->match), &s_owner);
-    if ((editor->find.query == NULL) || (editor->match == NULL))
+    if (!editor_roomed((void **)&editor->find.query, &editor->room.query, length) ||
+        !editor_roomed((void **)&editor->match, &editor->room.match, count * sizeof(*editor->match)))
     {
-        g_cli_cells->persistent_buf_release(editor->find.query, &s_owner);
-        g_cli_cells->persistent_buf_release(editor->match, &s_owner);
-        editor->find.query = NULL;
-        editor->match = NULL;
+        editor->find.open = 0;
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = editor->find.query, .src = (query != NULL) ? query : "", .bytes = length});
@@ -352,11 +376,12 @@ int gui_editor_colored(GuiEditor *editor, const CliJson *json, unsigned int colo
         pairs += (flat != CLI_JSON_NONE) ? (cli_json_is(json, flat, CFG_JSON_ARRAY) ? json->node[flat].count / 2u : 0u)
                                          : editor->line[at].run_count;
     }
-    unsigned int *const run = g_cli_cells->persistent_buf_alloc(((pairs != 0u) ? pairs : 1u) * 2u * sizeof(*run), &s_owner);
-    if (run == NULL)
+    // the runs laid into the second cell from the first, the two then trading places
+    if (!editor_roomed((void **)&editor->run_laid, &editor->room.run_laid, (unsigned long long)pairs * 2ull * sizeof(*editor->run)))
     {
         return 0;
     }
+    unsigned int *const run = editor->run_laid;
     unsigned int used = 0u;
     for (unsigned int at = 0u; at < editor->count; at += 1u)
     {
@@ -375,7 +400,10 @@ int gui_editor_colored(GuiEditor *editor, const CliJson *json, unsigned int colo
         line->runs = start;
         used += 2u * line->run_count;
     }
-    g_cli_cells->persistent_buf_release(editor->run, &s_owner);
+    const unsigned long long room = editor->room.run;
+    editor->run_laid = editor->run;
+    editor->room.run = editor->room.run_laid;
+    editor->room.run_laid = room;
     editor->run = run;
     editor->run_total = used;
     return 1;
@@ -383,18 +411,16 @@ int gui_editor_colored(GuiEditor *editor, const CliJson *json, unsigned int colo
 
 int gui_editor_text_put(GuiEditor *editor, const char *text, unsigned long long length)
 {
-    editor_lines_given(editor);
+    editor_lines_emptied(editor);
     unsigned int count = 1u;
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
         count += (text[at] == '\n') ? 1u : 0u;
     }
-    editor->line = g_cli_cells->persistent_buf_alloc(count * sizeof(*editor->line), &s_owner);
-    editor->bytes = g_cli_cells->persistent_buf_alloc((length != 0ull) ? length : 1ull, &s_owner);
-    editor->run = g_cli_cells->persistent_buf_alloc(2u * sizeof(*editor->run), &s_owner);
-    if ((editor->line == NULL) || (editor->bytes == NULL) || (editor->run == NULL))
+    if (!editor_roomed((void **)&editor->line, &editor->room.line, (unsigned long long)count * sizeof(*editor->line)) ||
+        !editor_roomed((void **)&editor->bytes, &editor->room.bytes, length) ||
+        !editor_roomed((void **)&editor->run, &editor->room.run, 2ull * sizeof(*editor->run)))
     {
-        editor_lines_given(editor);
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = editor->bytes, .src = text, .bytes = length});

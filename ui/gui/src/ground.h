@@ -18,11 +18,11 @@
 #define GUI_GROUND_RADIUS 0.59
 #define GUI_GROUND_RADIUS_SPREAD 0.16
 
-// The ground: its raster, the ground color with the dots over it; its `slot` of the lattice; the size and scale it is
-// laid out for and whether it is; the shades its dots take; its clock, when it began, the milliseconds lost to every
-// stretch it was kept still and when the stretch holding it now began, 0 while none does; the loop's moment it was
-// last drawn at, in seconds, and the moment the loop next shows a change after it, found once as it is drawn; and
-// how many times it has been drawn
+// The ground: its raster, the ground color with the dots over it, a view of the region's ground raster; its `slot`
+// of the lattice; the size and scale it is laid out for and whether it is; the shades its dots take; its clock, when
+// it began, the milliseconds lost to every stretch it was kept still and when the stretch holding it now began, 0
+// while none does; the loop's moment it was last drawn at, in seconds, and the moment the loop next shows a change
+// after it, found once as it is drawn; and how many times it has been drawn
 typedef struct
 {
     GuiRaster raster;
@@ -44,11 +44,12 @@ typedef struct
 // back, its raster and its `slot` with it
 int gui_ground_made(GuiGround *ground, unsigned long long now);
 void gui_ground_given(GuiGround *ground);
-// the ground laid out for a window `width` by `height` at `scale` in `palette`'s colors at `now`: the lattice laid
-// over the window in the page's pixels, its shades made from the palette's lattice colors, its raster made anew and
-// drawn: 1, or 0 where the raster or the lattice's cells could not be taken
-int gui_ground_laid(GuiGround *ground, unsigned int width, unsigned int height, float scale, const GuiPalette *palette,
-                    unsigned long long now);
+// the ground laid out for a window `width` by `height` at `scale` in `palette`'s colors at `now` on `raster`, the
+// region's ground raster at that size, which the ground draws into and never gives back: the lattice laid over the
+// window in the page's pixels, its shades made from the palette's lattice colors, and the raster drawn: 1, or 0 where
+// the lattice's cells could not be taken, the raster drawn in the ground color alone
+int gui_ground_laid(GuiGround *ground, const GuiRaster *raster, unsigned int width, unsigned int height, float scale,
+                    const GuiPalette *palette, unsigned long long now);
 // the ground drawn at the loop's moment at `now`: the ground color, and every dot over it where it stands
 void gui_ground_drawn(GuiGround *ground, const GuiPalette *palette, unsigned long long now);
 // the tick come at `now`: the ground drawn again where the loop has moved since it was drawn enough to be seen: 1

@@ -45,6 +45,13 @@ int cli_growing_line_made(VerbaLinea *line, size_t first)
     return out != NULL;
 }
 
+int cli_growing_line_laned(VerbaLinea *line, size_t first)
+{
+    char *const out = cli_lane_alloc(first, NULL);
+    *line = (VerbaLinea){out, (out != NULL) ? first : 0u, 0u, (out != NULL) ? line_grown : NULL, line, 0u};
+    return out != NULL;
+}
+
 int cli_growing_line_room(VerbaLinea *line, size_t size)
 {
     while (mmgr_line_ok(line) && ((line->capacity - line->at) <= size))

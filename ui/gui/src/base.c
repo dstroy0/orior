@@ -38,6 +38,15 @@ int gui_base_made(GuiBase *base, unsigned int width, unsigned int height)
     return 1;
 }
 
+void gui_base_sized(GuiBase *base, unsigned int width, unsigned int height)
+{
+    base->width = width;
+    base->height = height;
+    base->layers = 0u;
+    base->bands = 0u;
+    base->laid = 0;
+}
+
 void gui_base_given(GuiBase *base)
 {
     g_cli_cells->persistent_buf_release(base->tile_red_blue, &s_owner);

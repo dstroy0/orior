@@ -65,7 +65,8 @@ int gui_ground_made(GuiGround *ground, unsigned long long now)
 
 void gui_ground_given(GuiGround *ground)
 {
-    gui_raster_given(&ground->raster);
+    // the raster is the region's and goes back with it; the ground lets go of its view of it
+    memor.set(&(MemoriaCfg){.dst = &ground->raster, .val = 0, .bytes = sizeof(ground->raster)});
     lattice_given(ground->slot);
     s_slots_taken &= ~(1u << ground->slot);
     ground->laid = 0;
@@ -78,34 +79,29 @@ double gui_ground_seconds(const GuiGround *ground, unsigned long long now)
     return (double)(now - ground->began_ms - ground->lost_ms - held) / 1000.0;
 }
 
-int gui_ground_laid(GuiGround *ground, unsigned int width, unsigned int height, float scale, const GuiPalette *palette,
-                    unsigned long long now)
+int gui_ground_laid(GuiGround *ground, const GuiRaster *raster, unsigned int width, unsigned int height, float scale,
+                    const GuiPalette *palette, unsigned long long now)
 {
+    // the raster is the region's, the framebuffers' pitch wide, the lattice laid over the window's own width
+    ground->raster = *raster;
     ground->width = width;
     ground->height = height;
     ground->scale = scale;
     ground->laid = 0;
     ground_shaded(ground, palette);
-    gui_raster_given(&ground->raster);
-    // the raster is the framebuffers' pitch wide, the lattice laid over the window's own width
-    if (!gui_raster_made(&ground->raster, gui_raster_pitch(width), height))
-    {
-        return 0;
-    }
-    if (lattice_lay(ground->slot, (double)width / (double)scale, (double)height / (double)scale) == 0u)
-    {
-        return 0;
-    }
-    ground->laid = 1;
+    // the raster is drawn at the size either way, its ground color alone where the lattice could not be laid
+    ground->laid = lattice_lay(ground->slot, (double)width / (double)scale, (double)height / (double)scale) != 0u;
     gui_ground_drawn(ground, palette, now);
-    return 1;
+    return ground->laid;
 }
 
 void gui_ground_drawn(GuiGround *ground, const GuiPalette *palette, unsigned long long now)
 {
     GuiRaster *const raster = &ground->raster;
     const double seconds = gui_ground_seconds(ground, now);
-    // a raster's sides are far inside what an int represents
+    // the raster zeroed first, since the ground color is blended over what the raster holds and a cell kept across
+    // sizes holds the ground last drawn at another pitch; a raster's sides are far inside what an int represents
+    memor.set(&(MemoriaCfg){.dst = raster->pixels, .val = 0, .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
     gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
     ground->drawn_at = seconds;
     ground->shows_at = lattice_shown_after(seconds, seconds);

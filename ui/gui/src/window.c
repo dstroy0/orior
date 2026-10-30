@@ -685,18 +685,41 @@ static void window_sided(GuiWindow *window)
 
 int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height, float scale)
 {
+    // every take the size needs is made first, with nothing of the window changed: a region a quarter larger each way
+    // where the one it has has no room for the framebuffers and the ground, and the base's tile tables where it has
+    // none yet; none of them from the shared cells at any size after the first, and where one is refused the window
+    // keeps the size it has, whole
+    GuiFramebuffer made = {0};
+    const int grown = !gui_framebuffer_fits(&window->framebuffer, width, height);
+    if (grown && !gui_framebuffer_made(&made, width + (width / 4u), height + (height / 4u)))
+    {
+        return 0;
+    }
+    if ((window->base.tile_red_blue == NULL) && !gui_base_made(&window->base, gui_raster_pitch(width), height))
+    {
+        gui_framebuffer_given(&made);
+        return 0;
+    }
+    // then the size taken in one step: the region swapped in where one was made and the one it replaces given back
+    // after, the rasters, the base's map and the ground at the size in the region, and the frame laid for it
+    if (grown)
+    {
+        GuiFramebuffer held = {0};
+        memor.cpy(&(MemoriaCfg){.dst = &held, .src = &window->framebuffer, .bytes = sizeof(held)});
+        memor.cpy(&(MemoriaCfg){.dst = &window->framebuffer, .src = &made, .bytes = sizeof(made)});
+        window->raster = &window->framebuffer.raster[0];
+        gui_framebuffer_given(&held);
+    }
+    (void)gui_framebuffer_fitted(&window->framebuffer, width, height);
+    window->shown = NULL;
+    gui_base_sized(&window->base, gui_raster_pitch(width), height);
+    const int laid = gui_ground_laid(&window->ground, &window->framebuffer.raster[GUI_FRAMEBUFFER_GROUND], width, height, scale,
+                                     window->palette, cli_clock_milliseconds());
     gui_frame_laid(&window->frame, width, height, scale);
     gui_frame_sided(&window->frame, window_side_shown(window));
     window_claim_laid(window);
-    gui_framebuffer_given(&window->framebuffer);
-    window->raster = &window->framebuffer.raster[0];
-    window->shown = NULL;
-    gui_base_given(&window->base);
-    const int made = gui_framebuffer_made(&window->framebuffer, width, height) &&
-                     gui_base_made(&window->base, gui_raster_pitch(width), height) &&
-                     gui_ground_laid(&window->ground, width, height, scale, window->palette, cli_clock_milliseconds());
     window_view_sized(window);
-    return made;
+    return laid;
 }
 
 int gui_window_icon(GuiWindow *window, GuiRaster *icon, unsigned int size)

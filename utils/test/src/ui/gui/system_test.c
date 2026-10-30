@@ -163,6 +163,7 @@ int main(void)
               "the pointer's press and release come at their pixel");
 
     gui_system_closed(system);
+    gui_system_given(system);
     return cli_checked();
 }
 #else

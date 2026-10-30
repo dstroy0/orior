@@ -89,6 +89,22 @@ typedef struct
 // pair at the cursor, where the frame gave one; find as the frame shows it, with the matches among the lines
 // stored, each a line, a from and a to column, in a cell; and the indentation the frame gave, tabs 1, spaces 0 or
 // -1 where nothing set it, and its step
+// The bytes each of the editor's cells has room for, the cells kept from frame to frame and taken again only where a
+// frame needs more: the lines, their texts, their runs and the runs' second cell the colors are laid into, the folds,
+// their closers, find's query and the matches. A frame writes into the cells it holds, which keeps the shared cells'
+// persistent end from climbing past every frame's passing cells
+typedef struct
+{
+    unsigned long long line;
+    unsigned long long bytes;
+    unsigned long long run;
+    unsigned long long run_laid;
+    unsigned long long fold;
+    unsigned long long closers;
+    unsigned long long query;
+    unsigned long long match;
+} GuiEditorRooms;
+
 typedef struct
 {
     unsigned long long top;
@@ -119,6 +135,8 @@ typedef struct
     unsigned long long matches;
     int indent_tabs;
     unsigned int indent_size;
+    unsigned int *run_laid;
+    GuiEditorRooms room;
 } GuiEditor;
 
 // an editor holding nothing; and every cell of its given back

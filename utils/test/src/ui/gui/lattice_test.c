@@ -101,7 +101,9 @@ int main(void)
     const GuiPalette *const palette = gui_palette(GUI_SCHEME_DARK);
     GuiGround ground;
     cli_check(gui_ground_made(&ground, 1000ull), "a ground is made with a slot of its own");
-    cli_check(gui_ground_laid(&ground, 200u, 100u, 2.0f, palette, 1000ull), "the ground is laid out at twice the scale");
+    GuiRaster ground_raster;
+    cli_check(gui_raster_made(&ground_raster, gui_raster_pitch(200u), 100u), "a raster for the ground is made at the pitch");
+    cli_check(gui_ground_laid(&ground, &ground_raster, 200u, 100u, 2.0f, palette, 1000ull), "the ground is laid out at twice the scale");
     cli_check((ground.raster.width == gui_raster_pitch(200u)) && (ground.raster.height == 100u) && (lattice_slot(ground.slot)->count == 242u),
               "the lattice is laid in the page's pixels, half the window's");
     cli_check(ground.frames == 1u, "the ground laid is drawn once");
@@ -124,6 +126,7 @@ int main(void)
     gui_ground_given(&other);
     gui_ground_given(&ground);
     cli_check((ground.raster.pixels == NULL) && !ground.laid, "the ground given holds no raster");
+    gui_raster_given(&ground_raster);
     lattice_given(CHECK_SLOT);
     return cli_checked();
 }

@@ -123,6 +123,8 @@ void cli_json_emptied(CliJson *json)
 unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long size, unsigned int nodes_more,
                             unsigned long long text_more, VerbaLinea *err_msg)
 {
+    // the tree begun empty before any take: a take refused leaves a tree with no cell for its holder to give back
+    cli_json_begun(json, NULL, 0u, NULL, 0ull);
     const unsigned int tokens_most = cli_json_tokens_counted(text, size) + 1u;
     CfgJsonToken *const tokens =
         cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);

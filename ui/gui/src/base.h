@@ -91,6 +91,8 @@ typedef struct
 // or 0 where the cell could not be taken; and its cell given back
 int gui_base_made(GuiBase *base, unsigned int width, unsigned int height);
 void gui_base_given(GuiBase *base);
+// the base's map sized to a window `width` by `height`, its tile tables kept, laid for nothing until it is laid again
+void gui_base_sized(GuiBase *base, unsigned int width, unsigned int height);
 // the map laid for `frame` in `palette`'s colors, the controls' pane laid as a pane where `controls_steady` is set,
 // where the base is not already laid for them: 1 where it was laid, 0 where it stood
 int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palette, int controls_steady);
