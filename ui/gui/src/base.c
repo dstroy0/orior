@@ -11,7 +11,8 @@
 // grain is the fill's own blend to the bit. The map's glass sheet lies everywhere outside the work; the work's inside
 // is its parts' grounds, its lines' ring and the map's column the lattice; a hole a part makes in the work is the
 // sheet, its fillets' squares kept the part's ground for the outline to round; and a pane that has slid in is its
-// thinner tint, square-cornered here, its corners the pane's own drawing
+// thinner tint laid from its edges in the frame's words, the row or column an edge falls in at the edge's share of it,
+// square-cornered here, its corners the pane's own drawing
 #include "base.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -76,6 +77,72 @@ static void base_laid(GuiBase *base, GuiRect rect, unsigned int layer)
     }
     base->layer[base->layers] = (GuiBaseLayer){on, layer};
     base->layers += 1u;
+}
+
+// the pixel an edge in the frame's words falls in, the floor of its whole part
+static int base_pixel_of(int edge)
+{
+    return (edge >= 0) ? edge / GUI_WHOLE : -((-edge + (GUI_WHOLE - 1)) / GUI_WHOLE);
+}
+
+// the layer of a pane's edge at `share` of GUI_WHOLE of the pixel it falls in: the pane itself at a whole share, the
+// part at the nearest sixteenth, or nothing at none
+static unsigned int base_part_layer(int share)
+{
+    // a share of GUI_WHOLE in sixteenths, rounded, is a small count
+    const int part = ((share * (int)GUI_BASE_PARTS) + (GUI_WHOLE / 2)) / GUI_WHOLE;
+    if (part >= (int)GUI_BASE_PARTS)
+    {
+        return GUI_BASE_PANE;
+    }
+    return (part <= 0) ? GUI_BASE_CLEAR : GUI_BASE_PANE_PART + (((unsigned int)part - 1u) * GUI_BASE_GRAIN_LEVELS);
+}
+
+// a pane laid from its `edges` in the frame's words: the pixels it covers whole its layer, and the row or column an
+// edge falls in laid at the edge's share of it, the rows across the pane's whole width and the columns down its whole
+// height, a corner the column's
+static void base_pane_laid(GuiBase *base, GuiEdges edges)
+{
+    if ((edges.right <= edges.left) || (edges.bottom <= edges.top))
+    {
+        return;
+    }
+    const int left_pixel = base_pixel_of(edges.left);
+    const int top_pixel = base_pixel_of(edges.top);
+    const int right_pixel = base_pixel_of(edges.right);
+    const int bottom_pixel = base_pixel_of(edges.bottom);
+    const int left_share = GUI_WHOLE - (edges.left - (left_pixel * GUI_WHOLE));
+    const int top_share = GUI_WHOLE - (edges.top - (top_pixel * GUI_WHOLE));
+    const int right_share = edges.right - (right_pixel * GUI_WHOLE);
+    const int bottom_share = edges.bottom - (bottom_pixel * GUI_WHOLE);
+    const unsigned int left_layer = base_part_layer(left_share);
+    const unsigned int top_layer = base_part_layer(top_share);
+    const unsigned int right_layer = base_part_layer(right_share);
+    const unsigned int bottom_layer = base_part_layer(bottom_share);
+    // the pixels covered whole: from the edge's pixel where the edge covers it whole, else from the next
+    const int whole_left = (left_layer == GUI_BASE_PANE) ? left_pixel : left_pixel + 1;
+    const int whole_top = (top_layer == GUI_BASE_PANE) ? top_pixel : top_pixel + 1;
+    const int whole_right = right_pixel + ((right_layer == GUI_BASE_PANE) ? 1 : 0);
+    const int whole_bottom = bottom_pixel + ((bottom_layer == GUI_BASE_PANE) ? 1 : 0);
+    const int across = right_pixel + ((right_layer == GUI_BASE_CLEAR) ? 0 : 1) - left_pixel;
+    const int down = bottom_pixel + ((bottom_layer == GUI_BASE_CLEAR) ? 0 : 1) - top_pixel;
+    base_laid(base, (GuiRect){whole_left, whole_top, whole_right - whole_left, whole_bottom - whole_top}, GUI_BASE_PANE);
+    if ((top_layer != GUI_BASE_PANE) && (top_layer != GUI_BASE_CLEAR))
+    {
+        base_laid(base, (GuiRect){left_pixel, top_pixel, across, 1}, top_layer);
+    }
+    if ((bottom_layer != GUI_BASE_PANE) && (bottom_layer != GUI_BASE_CLEAR))
+    {
+        base_laid(base, (GuiRect){left_pixel, bottom_pixel, across, 1}, bottom_layer);
+    }
+    if ((left_layer != GUI_BASE_PANE) && (left_layer != GUI_BASE_CLEAR))
+    {
+        base_laid(base, (GuiRect){left_pixel, top_pixel, 1, down}, left_layer);
+    }
+    if ((right_layer != GUI_BASE_PANE) && (right_layer != GUI_BASE_CLEAR))
+    {
+        base_laid(base, (GuiRect){right_pixel, top_pixel, 1, down}, right_layer);
+    }
 }
 
 unsigned int gui_base_layer_at(const GuiBase *base, int x, int y)
@@ -189,6 +256,19 @@ int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palett
         base_entry_set(&base->entry[GUI_BASE_GLASS + level], palette->glass, level);
         base_entry_set(&base->entry[GUI_BASE_PANE + level], pane, level);
     }
+    // a pane's edge at each sixteenth: the ink at an alpha between the sheet's and the pane's by the share
+    for (unsigned int part = 1u; part < GUI_BASE_PARTS; part += 1u)
+    {
+        // an alpha between two bytes by a share of sixteenths, rounded, is a byte
+        const int sheet_alpha = (int)GUI_ALPHA_OF(palette->glass);
+        const int pane_alpha = (int)GUI_ALPHA_OF(pane);
+        const GuiColor alpha = (GuiColor)(sheet_alpha + ((((pane_alpha - sheet_alpha) * (int)part) + ((int)GUI_BASE_PARTS / 2)) / (int)GUI_BASE_PARTS));
+        const GuiColor edge = (pane & 0x00ffffffu) | (alpha << 24u);
+        for (unsigned int level = 0u; level < GUI_BASE_GRAIN_LEVELS; level += 1u)
+        {
+            base_entry_set(&base->entry[GUI_BASE_PANE_PART + ((part - 1u) * GUI_BASE_GRAIN_LEVELS) + level], edge, level);
+        }
+    }
     // the sheet's and the pane's entries laid out as the tile is
     const unsigned char *const grain = gui_grain();
     for (unsigned int at = 0u; at < GUI_GRAIN_TILE * GUI_GRAIN_TILE; at += 1u)
@@ -228,13 +308,14 @@ int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palett
             base_laid(base, kept[fillet], under[fillet]);
         }
     }
-    // the panes that have slid in, each the slat its edge shows, and the controls' pane where it stands
-    base_laid(base, gui_rect_met(frame->bar_slat, frame->bar), GUI_BASE_PANE);
-    base_laid(base, gui_rect_met(frame->strip_slat, frame->strip), GUI_BASE_PANE);
-    base_laid(base, gui_rect_met(frame->status_slat, frame->status), GUI_BASE_PANE);
+    // the panes that have slid in, each the slat its edge shows, and the controls' pane where it stands, each laid
+    // from its edges in the frame's words
+    base_pane_laid(base, frame->bar_edges);
+    base_pane_laid(base, frame->strip_edges);
+    base_pane_laid(base, frame->status_edges);
     if (controls_steady)
     {
-        base_laid(base, frame->controls_pane, GUI_BASE_PANE);
+        base_pane_laid(base, frame->controls_edges);
     }
     base_bands_read(base);
     base->laid = 1;
@@ -327,6 +408,18 @@ static void base_run_drawn(const GuiBase *base, GuiColor *out, const GuiColor *u
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             out[at] = one;
+        }
+        return;
+    }
+    if (layer >= GUI_BASE_PANE_PART)
+    {
+        // a pane's edge, a row or a column of pixels: each pixel's entry its part at the grain's level there, read
+        // from the tile
+        const unsigned char *const tile_row = gui_grain() + (row * GUI_GRAIN_TILE);
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            out[at] = base_blended((under != NULL) ? under[at] : color, &base->entry[layer + tile_row[column]]);
+            column = (column + 1u == GUI_GRAIN_TILE) ? 0u : column + 1u;
         }
         return;
     }

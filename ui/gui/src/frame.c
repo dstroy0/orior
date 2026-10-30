@@ -22,6 +22,32 @@ static int frame_share(int share, int pixels)
     return (int)((scaled + ((scaled >= 0ll) ? (GUI_WHOLE / 2) : -(GUI_WHOLE / 2))) / GUI_WHOLE);
 }
 
+// `share`, a number of GUI_WHOLE, of `pixels`, a count of pixels in the frame's words, kept in those words
+static int frame_part(int share, int pixels)
+{
+    // a share of a size in the frame's words is within a long long and comes back to the words
+    return (int)(((long long)share * (long long)pixels) / GUI_WHOLE);
+}
+
+// a slat along an edge in the frame's words: the part's span from `first` to `end` along the edge, grown by `grown`
+// from the point `pulled`, the middle where none has been, into `from` and `to`
+static void frame_slat_edges(int first, int end, int grown, int pulled, int *from, int *to)
+{
+    const int middle = (first + end) / 2;
+    const int wanted = (pulled < 0) ? middle : pulled;
+    const int at = (wanted < first) ? first : ((wanted > end) ? end : wanted);
+    *from = at - frame_part(grown, at - first);
+    *to = at + frame_part(grown, end - at);
+}
+
+// the pane's edges met with the span `left` to `right` across and `top` to `bottom` down, each in the frame's words
+static GuiEdges frame_edges_met(GuiEdges edges, int left, int top, int right, int bottom)
+{
+    const GuiEdges met = {(edges.left > left) ? edges.left : left, (edges.top > top) ? edges.top : top,
+                          (edges.right < right) ? edges.right : right, (edges.bottom < bottom) ? edges.bottom : bottom};
+    return met;
+}
+
 // a slat along an edge: the part's span from `first` to `end` along the edge, grown by `grown` from the point
 // `pulled`, the middle where none has been, into `from` and `to`
 static void frame_slat(int first, int end, int grown, int pulled, int *from, int *to)
@@ -123,6 +149,34 @@ static void frame_laid(GuiFrame *frame)
     // a pane's corners are rounded by the claim's share of the work's radius; the radii are not negative
     frame->pane_radius = (unsigned int)frame_share(c, gui_scaled(GUI_WORK_RADIUS, scale));
     frame->radius = (unsigned int)gui_scaled(GUI_WORK_RADIUS, scale);
+    // the panes' edges in the frame's words, the same arithmetic unrounded: each part's place along its slide and
+    // its slat's span, met with the part's own
+    const int bar_top = frame_part(c, frame_part(claim->reveal_top, gap * GUI_WHOLE) - frame_part(GUI_WHOLE - claim->reveal_top, bar_tall * GUI_WHOLE));
+    const int gap_claimed = frame_part(c, gap * GUI_WHOLE);
+    const int head = bar_top + (bar_tall * GUI_WHOLE) - frame_part(c, frame_part(claim->reveal_top - claim->room_top, (bar_tall + gap) * GUI_WHOLE));
+    const int status_top = ((tall - status_tall) * GUI_WHOLE) - frame_part(c, frame_part(claim->reveal_bottom, gap * GUI_WHOLE)) +
+                           frame_part(c, frame_part(GUI_WHOLE - claim->reveal_bottom, status_tall * GUI_WHOLE));
+    const int foot = status_top + frame_part(c, frame_part(claim->reveal_bottom - claim->room_bottom, (status_tall + gap) * GUI_WHOLE));
+    const int strip_top = head + gap_claimed + frame_part(c, frame_part(GUI_WHOLE - claim->reveal_top, (bar_tall + gap) * GUI_WHOLE));
+    const int strip_left = gap_claimed - frame_part(c, frame_part(GUI_WHOLE - claim->reveal_left, (strip_wide + gap) * GUI_WHOLE));
+    int from_edge = 0;
+    int to_edge = 0;
+    const int head_first = ((frame->work.x < frame->bar.x) ? frame->work.x : frame->bar.x) * GUI_WHOLE;
+    frame_slat_edges(head_first, (frame->bar.x + frame->bar.width) * GUI_WHOLE, claim->grown_top, claim->pulled_top * GUI_WHOLE, &from_edge,
+                     &to_edge);
+    frame->bar_edges = frame_edges_met((GuiEdges){from_edge, bar_top, to_edge, bar_top + (bar_tall * GUI_WHOLE)}, frame->bar.x * GUI_WHOLE,
+                                       bar_top, (frame->bar.x + frame->bar.width) * GUI_WHOLE, bar_top + (bar_tall * GUI_WHOLE));
+    const int left_first = (frame->work.y * GUI_WHOLE < strip_top) ? frame->work.y * GUI_WHOLE : strip_top;
+    frame_slat_edges(left_first, foot - gap_claimed, claim->grown_left, claim->pulled_left * GUI_WHOLE, &from_edge, &to_edge);
+    frame->strip_edges = frame_edges_met((GuiEdges){strip_left, from_edge, strip_left + (strip_wide * GUI_WHOLE), to_edge}, strip_left,
+                                         strip_top, strip_left + (strip_wide * GUI_WHOLE), foot - gap_claimed);
+    frame_slat_edges(gap_claimed, (wide * GUI_WHOLE) - gap_claimed, claim->grown_bottom, claim->pulled_bottom * GUI_WHOLE, &from_edge,
+                     &to_edge);
+    frame->status_edges = frame_edges_met((GuiEdges){from_edge, status_top, to_edge, status_top + (status_tall * GUI_WHOLE)}, gap_claimed,
+                                          status_top, (wide * GUI_WHOLE) - gap_claimed, status_top + (status_tall * GUI_WHOLE));
+    const int controls_top = bar_top + frame_part(c, frame_part(claim->reveal_down - claim->reveal_top, (bar_tall + gap) * GUI_WHOLE));
+    frame->controls_edges = (GuiEdges){frame->controls_pane.x * GUI_WHOLE, controls_top, (frame->controls_pane.x + frame->controls_pane.width) * GUI_WHOLE,
+                                       controls_top + (bar_tall * GUI_WHOLE)};
 }
 
 void gui_frame_sided(GuiFrame *frame, int shown)

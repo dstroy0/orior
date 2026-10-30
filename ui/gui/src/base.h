@@ -14,7 +14,9 @@
 #include "parts/glass.h"
 
 // the grain's levels, 0 to its most alpha; the layers: nothing over the lattice, the editor's ground, the side's,
-// the tabs row's surface, the glass sheet at each grain level and a pane at each; and the entries in all
+// the tabs row's surface, the glass sheet at each grain level, a pane at each, and a pane's edge at each of its
+// sixteenths of a pixel at each, the edge's tint between the sheet's and the pane's by its share; and the entries in
+// all
 #define GUI_BASE_GRAIN_LEVELS 19u
 #define GUI_BASE_CLEAR 0u
 #define GUI_BASE_EDITOR 1u
@@ -22,7 +24,9 @@
 #define GUI_BASE_TABS 3u
 #define GUI_BASE_GLASS 4u
 #define GUI_BASE_PANE (GUI_BASE_GLASS + GUI_BASE_GRAIN_LEVELS)
-#define GUI_BASE_ENTRIES (GUI_BASE_PANE + GUI_BASE_GRAIN_LEVELS)
+#define GUI_BASE_PANE_PART (GUI_BASE_PANE + GUI_BASE_GRAIN_LEVELS)
+#define GUI_BASE_PARTS 16u
+#define GUI_BASE_ENTRIES (GUI_BASE_PANE_PART + ((GUI_BASE_PARTS - 1u) * GUI_BASE_GRAIN_LEVELS))
 
 // An entry: a layer's lanes over the lattice, red and blue in one word and green in another, each lane the layer's
 // share of its color with half of 255 in it, and the rest of 255 the lattice's pixel keeps
@@ -35,7 +39,7 @@ typedef struct
 
 // the most rectangles the map is laid in, the most bands of rows their edges cut it into and the most runs a band
 // holds, each a rectangle's edge or the map's at the most
-#define GUI_BASE_LAYERS 32u
+#define GUI_BASE_LAYERS 48u
 #define GUI_BASE_BANDS (2u * GUI_BASE_LAYERS)
 #define GUI_BASE_RUNS (2u * GUI_BASE_LAYERS)
 

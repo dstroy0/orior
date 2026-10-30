@@ -63,6 +63,10 @@ int main(void)
     cli_check(gui_frame_holes(&frame, NULL) == 0u, "no claim makes no holes in the work");
     cli_check(same(frame.bar_slat, 0, 0, 1440, 41) && same(frame.strip_slat, 0, 41, 44, 920 - 41 - 27) && same(frame.status_slat, 0, 920 - 27, 1440, 27),
               "outside the claim each slat is its part whole");
+    cli_check((frame.bar_edges.top == 0) && (frame.bar_edges.bottom == 41 * GUI_WHOLE) && (frame.bar_edges.left == 0) &&
+                  (frame.bar_edges.right == 1440 * GUI_WHOLE) && (frame.status_edges.top == (920 - 27) * GUI_WHOLE) &&
+                  (frame.strip_edges.right == 44 * GUI_WHOLE),
+              "at rest each pane's edges are its rectangle's in the frame's words");
     numbers.claim = GUI_WHOLE;
     gui_frame_claimed(&frame, &numbers);
     cli_check(same(frame.work, 12, 12, 1440 - 24, 920 - 24), "the claim held, the work is the window less the gap on every side");
@@ -77,6 +81,8 @@ int main(void)
     gui_frame_claimed(&frame, &numbers);
     cli_check((frame.work.x == 28) && (frame.work.y == 26) && (frame.bar.y == -21) && (frame.status.y == 920 - 27 + 14),
               "halfway through the claim's slide every edge stands halfway");
+    cli_check((frame.bar_edges.top == -(41 * GUI_WHOLE) / 2) && (frame.bar_edges.bottom == frame.bar_edges.top + (41 * GUI_WHOLE)),
+              "the bar's edges carry the half pixel its rectangle rounds away");
     // the head revealed: the bar comes in as a pane the gap down from the top, past the wordmark's corner; the work
     // stays until the room is taken, then moves down under the bar
     numbers.claim = GUI_WHOLE;

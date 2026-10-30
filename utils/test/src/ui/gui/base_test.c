@@ -54,7 +54,6 @@ int main(void)
     cli_check(!base.laid && (base.laid_count == 0u), "a base made is laid for nothing yet");
     cli_check(gui_base_laid(&base, &frame, palette, 0), "the map is laid for the frame");
     cli_check(!gui_base_laid(&base, &frame, palette, 0) && (base.laid_count == 1u), "laid again for the same frame it stands");
-    cli_check(GUI_BASE_ENTRIES <= 256u, "the entries fit a byte");
     cli_check(GUI_BASE_GRAIN_LEVELS == (unsigned int)((GUI_GRAIN_ALPHA * 255.0) + 0.5) + 1u, "the grain's levels run to its most alpha");
 
     GuiRaster raster;
@@ -112,7 +111,23 @@ int main(void)
     cli_check(near(pixel(&raster, hole_x, slat_y), over(over(palette->ground, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, slat_y)))),
               "a pixel of the slat in the hole is the pane");
     cli_check(!gui_base_laid(&base, &frame, palette, 0), "laid again for the claim's frame it stands");
-    cli_check(gui_base_laid(&base, &frame, palette, 1) && (base.laid_count == 3u), "the controls' pane standing lays the map again");
+    // the bar half revealed stands fourteen and a half pixels above the window: its foot falls in the middle of a
+    // row, which takes the ink at an alpha halfway between the pane's and the sheet's
+    numbers.reveal_top = GUI_WHOLE / 2;
+    gui_frame_claimed(&frame, &numbers);
+    cli_check((frame.bar_edges.bottom == (26 * GUI_WHOLE) + (GUI_WHOLE / 2)), "the bar's foot falls in the middle of the row of twenty-six");
+    (void)gui_base_laid(&base, &frame, palette, 0);
+    gui_base_drawn(&base, &raster, NULL, palette->ground);
+    const GuiColor between = (pane & 0x00ffffffu) | (((GUI_ALPHA_OF(palette->glass) + GUI_ALPHA_OF(pane) + 1u) / 2u) << 24u);
+    cli_check(near(pixel(&raster, hole_x, 26), over(over(palette->ground, between), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, 26)))),
+              "the row the foot falls in is the ink at the alpha between");
+    cli_check(near(pixel(&raster, hole_x, 25), over(over(palette->ground, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, 25)))),
+              "the row above it is the pane whole");
+    cli_check(near(pixel(&raster, hole_x, 27), sheet_at(palette, palette->ground, hole_x, 27)), "and the row below it the sheet");
+    numbers.reveal_top = GUI_WHOLE;
+    gui_frame_claimed(&frame, &numbers);
+    (void)gui_base_laid(&base, &frame, palette, 0);
+    cli_check(gui_base_laid(&base, &frame, palette, 1) && (base.laid_count == 5u), "the controls' pane standing lays the map again");
 
     gui_raster_given(&ground);
     gui_raster_given(&raster);

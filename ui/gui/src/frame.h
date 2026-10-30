@@ -62,10 +62,21 @@ typedef struct
     int pulled_bottom;
 } GuiClaimNumbers;
 
+// The four edges of a pane in the frame's words, each a count of pixels with sixteen bits of fraction: where the
+// pane's tint runs, an edge that falls between two pixel rows or columns laid at its share of the one it falls in
+typedef struct
+{
+    int left;
+    int top;
+    int right;
+    int bottom;
+} GuiEdges;
+
 // The frame: the window's size and scale it was laid out for, whether a side is shown and the claim's numbers it is
 // laid for; each part's rectangle, the side's of no width where none is shown, the map's at the editor's right, the
 // bar's, the strip's and the status bar's standing off the window while the claim holds them away; each of those
-// three as the slat its edge shows, the part's rectangle cut to its grown share; the controls' glass pane with its
+// three as the slat its edge shows, the part's rectangle cut to its grown share, and the edges of each slat's pane and
+// of the controls' in the frame's words; the controls' glass pane with its
 // lip and the pane's share of the glass, 0 while the controls stand in the bar; the controls' opacity; the panes'
 // corner radius; and the work's
 typedef struct
@@ -90,6 +101,10 @@ typedef struct
     GuiRect strip_slat;
     GuiRect status_slat;
     GuiRect controls_pane;
+    GuiEdges bar_edges;
+    GuiEdges strip_edges;
+    GuiEdges status_edges;
+    GuiEdges controls_edges;
     int controls_pane_share;
     int controls_alpha;
     unsigned int pane_radius;
