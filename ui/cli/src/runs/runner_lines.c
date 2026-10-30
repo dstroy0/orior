@@ -72,7 +72,7 @@ static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned lo
         length -= 1ull;
     }
     const unsigned long long room = (3ull * length) + 1ull;
-    char *const text = g_cli_cells->persistent_buf_alloc(room, NULL);
+    char *const text = cli_lane_alloc(room, NULL);
     if (text == NULL)
     {
         return;
@@ -107,7 +107,7 @@ static void cli_pending_emitted(CliCarrier *carrier, const char *bytes, unsigned
         return;
     }
     const unsigned long long whole = carrier->pending.size + size;
-    char *const joined = g_cli_cells->persistent_buf_alloc(whole + 1ull, NULL);
+    char *const joined = cli_lane_alloc(whole + 1ull, NULL);
     if (joined != NULL)
     {
         cli_pieces_copied(&carrier->pending, joined);

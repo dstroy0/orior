@@ -205,7 +205,7 @@ CliLsp *cli_servers_owner_started(const char *path)
         const int has_sink = g_cli_servers.has_sink;
         sink = g_cli_servers.sink;
         cli_lock_give(&g_cli_servers.lock);
-        CliServerSpec *const spec = has_sink ? g_cli_cells->persistent_buf_alloc(sizeof(CliServerSpec), NULL) : NULL;
+        CliServerSpec *const spec = has_sink ? cli_lane_alloc(sizeof(CliServerSpec), NULL) : NULL;
         char why[1024];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         server = (spec != NULL) ? cli_servers_server(root, language, &sink, spec, &err_msg) : NULL;

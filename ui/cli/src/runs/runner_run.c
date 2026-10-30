@@ -312,7 +312,7 @@ void cli_run_steps(void *context)
         CliCommand command;
         char shown[CLI_COMMAND_TEXT];
     } CliRunCommand;
-    CliRunCommand *const run_command = g_cli_cells->persistent_buf_alloc(sizeof(CliRunCommand), NULL);
+    CliRunCommand *const run_command = cli_lane_alloc(sizeof(CliRunCommand), NULL);
     if (run_command == NULL)
     {
         cli_run_print_text(run, "a run's command could not be taken");

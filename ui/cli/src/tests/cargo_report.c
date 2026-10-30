@@ -273,7 +273,7 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
         named += report_failure_named(out, start, length) ? 1u : 0u;
     }
     CliCargoFailure *const failures =
-        g_cli_cells->persistent_buf_alloc(((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), NULL);
+        cli_lane_alloc(((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), NULL);
     char *const texts = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
     VerbaLinea text = {texts, (texts != NULL) ? (size + 1ull) : 0ull, 0ull};
     unsigned int count = 0u;

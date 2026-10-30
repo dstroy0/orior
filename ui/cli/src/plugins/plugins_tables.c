@@ -257,7 +257,7 @@ static int cli_tables_list_written(const CliJson *json, unsigned int list, const
 {
     char path[CLI_PATH_MAX_LEN];
     CliRegexpRoom *const room =
-        g_cli_cells->persistent_buf_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpRoom), &g_cli_plugins_cells);
+        cli_lane_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpRoom), &g_cli_plugins_cells);
     if (room == NULL)
     {
         mmgr_line_put(err_msg, "a table's patterns could not be given a cell");
@@ -518,7 +518,7 @@ int cli_plugins_folder_stands(const CliJson *json, unsigned int each, const char
     const unsigned int unless = cli_json_member(json, each, "unless");
     const char *const source = cli_json_string(json, cli_json_member(json, unless, "match"), NULL);
     CliRegexpRoom *const room =
-        (source != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(CliRegexpRoom), &g_cli_plugins_cells) : NULL;
+        (source != NULL) ? cli_lane_alloc(sizeof(CliRegexpRoom), &g_cli_plugins_cells) : NULL;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliRegexp pattern;

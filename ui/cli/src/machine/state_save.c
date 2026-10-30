@@ -90,7 +90,7 @@ static unsigned int cli_written(CliJson *json, const char *text, unsigned long l
     // where it is as long as it, which a cell one longer fits at every match
     const unsigned int tokens_most = cli_json_tokens_counted(text, length) + 1u;
     CfgJsonToken *const tokens =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_state_cells);
+        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_state_cells);
     char *const back_text = g_cli_cells->persistent_buf_alloc(length + 2ull, &g_cli_state_cells);
     const unsigned int value = ((tokens != NULL) && (back_text != NULL))
                                    ? cli_json_read(json, text, length, tokens, tokens_most, &err_msg)

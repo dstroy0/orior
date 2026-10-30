@@ -338,10 +338,10 @@ int cli_plugins_language_for(const CliLanguages *languages, const char *path, ch
     }
     const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
     unsigned int *const slashed =
-        patterned ? g_cli_cells->persistent_buf_alloc((bytes + 1ull) * sizeof(unsigned int), &g_cli_plugins_cells)
+        patterned ? cli_lane_alloc((bytes + 1ull) * sizeof(unsigned int), &g_cli_plugins_cells)
                   : NULL;
     CliRegexpRoom *const room =
-        (slashed != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(CliRegexpRoom), &g_cli_plugins_cells) : NULL;
+        (slashed != NULL) ? cli_lane_alloc(sizeof(CliRegexpRoom), &g_cli_plugins_cells) : NULL;
     const unsigned long long length = (room != NULL) ? cli_regexp_letters(path, bytes, slashed, bytes + 1ull) : 0ull;
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {

@@ -322,7 +322,7 @@ void cli_lsp_open_each(CliLsp *lsp,
             bytes += cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ull;
         }
     }
-    unsigned int *const places = g_cli_cells->persistent_buf_alloc(
+    unsigned int *const places = cli_lane_alloc(
         ((unsigned long long)count + 1ull) * sizeof(unsigned int), &g_cli_lsp_files_cells);
     char *const uris = g_cli_cells->persistent_buf_alloc(bytes + 1ull, &g_cli_lsp_files_cells);
     count = ((places != NULL) && (uris != NULL)) ? count : 0u;

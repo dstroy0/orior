@@ -69,7 +69,7 @@ static void watch_taker(void *context)
         s_waiting_files = 0u;
         memor.cpy(&(MemoriaCfg){.dst = root, .src = s_tree, .bytes = sizeof(root)});
         cli_lock_give(&s_lock);
-        const char **const paths = g_cli_cells->persistent_buf_alloc((files + 1ull) * sizeof(const char *), NULL);
+        const char **const paths = cli_lane_alloc((files + 1ull) * sizeof(const char *), NULL);
         unsigned int count = 0u;
         for (const CliWatched *batch = taken; (paths != NULL) && (batch != NULL); batch = batch->next)
         {

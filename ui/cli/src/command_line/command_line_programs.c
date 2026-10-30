@@ -104,7 +104,7 @@ static int programs_libraries(const char *const *words, unsigned int count)
         cli_err("libraries takes the program to read");
         return CLI_WRONG;
     }
-    CliProgramsReading *const reading = g_cli_cells->persistent_buf_alloc(sizeof(*reading), NULL);
+    CliProgramsReading *const reading = cli_lane_alloc(sizeof(*reading), NULL);
     if (reading == NULL)
     {
         cli_err("the cells cannot meet what a program's libraries are read with");

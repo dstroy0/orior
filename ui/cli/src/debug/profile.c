@@ -68,7 +68,7 @@ void cli_profile_stop(void)
 static void profile_output_emitted(CliProfile *profile, const char *line, unsigned long long size, int error)
 {
     const unsigned long long room = (size * 6ull) + 64ull;
-    char *const json_buf = g_cli_cells->persistent_buf_alloc(room, &s_cells);
+    char *const json_buf = cli_lane_alloc(room, &s_cells);
     if (json_buf == NULL)
     {
         return;
@@ -98,7 +98,7 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     const unsigned long long length = size - mark;
     // the counts compacted are no longer than they are written
     const unsigned long long room = length + 64ull;
-    char *const json_buf = g_cli_cells->persistent_buf_alloc(room, &s_cells);
+    char *const json_buf = cli_lane_alloc(room, &s_cells);
     if (json_buf == NULL)
     {
         return;

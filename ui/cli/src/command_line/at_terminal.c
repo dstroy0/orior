@@ -61,7 +61,7 @@ static int at_terminal_home(char *home, VerbaLinea *err_msg)
 // every branch, the one the tree is on marked, each with its last commit's subject, a line each
 static void at_terminal_branches(const char *root, VerbaLinea *out)
 {
-    CliBranches *const found = g_cli_cells->persistent_buf_alloc(sizeof(*found), &g_cli_git_cells);
+    CliBranches *const found = cli_lane_alloc(sizeof(*found), &g_cli_git_cells);
     if (found == NULL)
     {
         return;
@@ -87,7 +87,7 @@ static void at_terminal_branches(const char *root, VerbaLinea *out)
 // every stash with its line, a line each
 static void at_terminal_stashes(const char *root, VerbaLinea *out)
 {
-    CliStashes *const found = g_cli_cells->persistent_buf_alloc(sizeof(*found), &g_cli_git_cells);
+    CliStashes *const found = cli_lane_alloc(sizeof(*found), &g_cli_git_cells);
     if (found == NULL)
     {
         return;
@@ -108,7 +108,7 @@ static void at_terminal_stashes(const char *root, VerbaLinea *out)
 // each
 static void at_terminal_elsewhere(const char *root, VerbaLinea *out)
 {
-    CliCommits *const found = g_cli_cells->persistent_buf_alloc(sizeof(*found), &g_cli_git_cells);
+    CliCommits *const found = cli_lane_alloc(sizeof(*found), &g_cli_git_cells);
     if (found == NULL)
     {
         return;
@@ -200,7 +200,7 @@ static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int 
     unsigned long long size = 0ull;
     char *const joined = cli_pieces_joined(&found->pieces, &found->line, "the files of the tree's tests", &size);
     const char **const files =
-        (joined != NULL) ? g_cli_cells->persistent_buf_alloc((found->count + 1ull) * sizeof(const char *), NULL) : NULL;
+        (joined != NULL) ? cli_lane_alloc((found->count + 1ull) * sizeof(const char *), NULL) : NULL;
     if (files == NULL)
     {
         cli_cell_release(joined, NULL);

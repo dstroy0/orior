@@ -271,7 +271,7 @@ static void cli_chain_read(CliChain *chain, const CliChainWalk *walk)
         return;
     }
     CfgJsonToken *const tokens =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CfgJsonToken), &g_cli_settings_cells);
+        cli_lane_alloc((unsigned long long)most * sizeof(CfgJsonToken), &g_cli_settings_cells);
     if ((tokens == NULL) || !cli_json_reserved(&chain->json, nodes, text, "a chain of settings files"))
     {
         cli_cell_release(tokens, &g_cli_settings_cells);
@@ -303,7 +303,7 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
     cli_json_begun(&chain->json, NULL, 0u, NULL, 0ull);
     chain->files = 0u;
     chain->problems = 0u;
-    CliChainWalk *const walk = g_cli_cells->persistent_buf_alloc(sizeof(*walk), &g_cli_settings_cells);
+    CliChainWalk *const walk = cli_lane_alloc(sizeof(*walk), &g_cli_settings_cells);
     if (walk == NULL)
     {
         return;

@@ -74,7 +74,7 @@ int cli_review_share(const char *one, const char *other, unsigned long long *sam
     const unsigned int other_most = text_lines_most(other, other_size);
     const unsigned long long words = (2ull * one_most) + (2ull * other_most);
     unsigned int *const cell =
-        g_cli_cells->persistent_buf_alloc((words * sizeof(unsigned int)) + one_most, &g_cli_review_cells);
+        cli_lane_alloc((words * sizeof(unsigned int)) + one_most, &g_cli_review_cells);
     if (cell == NULL)
     {
         return 0;

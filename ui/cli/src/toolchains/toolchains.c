@@ -49,7 +49,7 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
         (added_text != NULL) ? (cli_json_tokens_counted((const char *)added_text, added_size) + 1u) : 0u;
     const unsigned int tokens_most = (bundled_tokens > added_tokens) ? bundled_tokens : added_tokens;
     CfgJsonToken *const tokens =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
+        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
     const int reserved =
         (tokens != NULL) &&
         cli_json_reserved(json, bundled_tokens + added_tokens + 1u + nodes_more,

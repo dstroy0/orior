@@ -51,7 +51,7 @@ static int cli_settings_off(void)
         return 0;
     }
     // a text made plain is never longer than the text, as it only leaves comments and commas out
-    char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
+    char *const plain_text = cli_lane_alloc(size + 1ull, NULL);
     VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (plain_text != NULL)
     {

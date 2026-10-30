@@ -142,7 +142,7 @@ static void actions_offered(unsigned int all, const char *plugin, int *written, 
     const CliJson *const json = &s_reading.json;
     const unsigned int offered = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].count : 0u;
     unsigned int *const action =
-        (offered > 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)offered * sizeof(unsigned int), NULL)
+        (offered > 0u) ? cli_lane_alloc((unsigned long long)offered * sizeof(unsigned int), NULL)
                        : NULL;
     unsigned int count = 0u;
     for (unsigned int one = (action != NULL) ? json->node[all].first : CLI_JSON_NONE; one != CLI_JSON_NONE;

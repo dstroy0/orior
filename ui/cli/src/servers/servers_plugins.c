@@ -229,8 +229,8 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
     const unsigned int server = cli_json_member(&read.json, read.root, "server");
     char program[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    CliWords *const words = g_cli_cells->persistent_buf_alloc(sizeof(*words), NULL);
-    char *const path = g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, NULL);
+    CliWords *const words = cli_lane_alloc(sizeof(*words), NULL);
+    char *const path = cli_lane_alloc(CLI_PATH_TEXT, NULL);
     int started = 0;
     if (!cli_json_is(&read.json, server, CFG_JSON_OBJECT))
     {
@@ -247,7 +247,7 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
         cli_servers_plugin_args(&read.json, server, folder, words);
         // the options with each `{folder}` in them the folder the program was found in, as the arguments have it
         const unsigned long long room = length + (CLI_PATH_MAX_LEN * 16ull);
-        char *const given = g_cli_cells->persistent_buf_alloc(room, NULL);
+        char *const given = cli_lane_alloc(room, NULL);
         VerbaLinea written = {given, room, 0ull};
         cli_servers_plugin_folder_put(&written, (given != NULL) ? options : "", (given != NULL) ? length : 0ull, folder,
                                       1);

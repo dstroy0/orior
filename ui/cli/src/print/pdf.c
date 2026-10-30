@@ -214,7 +214,7 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     // the pages printed, the objects' offsets and a page's contents, in cells sized to the pages laid out
     const unsigned int most = (laid->pages < CLI_PRINT_PAGES) ? laid->pages : CLI_PRINT_PAGES;
     unsigned int *const printed =
-        g_cli_cells->persistent_buf_alloc(((unsigned long long)most + 1ull) * sizeof(unsigned int), NULL);
+        cli_lane_alloc(((unsigned long long)most + 1ull) * sizeof(unsigned int), NULL);
     unsigned long long *const offsets =
         g_cli_cells->persistent_buf_alloc((7ull + (2ull * most)) * sizeof(unsigned long long), NULL);
     VerbaLinea content;

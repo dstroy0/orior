@@ -558,7 +558,7 @@ static unsigned int cli_effect_next(const CliLeafRead *read, unsigned int from, 
 static long long cli_effect_judged(CliEffect *effect, const CliLeafRead *read, unsigned int from, unsigned int to)
 {
     CliEffectToken *const token =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)((to - from) + 1u) * sizeof(CliEffectToken), NULL);
+        cli_lane_alloc((unsigned long long)((to - from) + 1u) * sizeof(CliEffectToken), NULL);
     if (token == NULL)
     {
         effect->refused = 1;
@@ -764,7 +764,7 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
         return;
     }
     const unsigned int path_at = effect->walked[effect->walks - 1u];
-    CliEffectBranch *const branch = g_cli_cells->persistent_buf_alloc(sizeof(CliEffectBranch), NULL);
+    CliEffectBranch *const branch = cli_lane_alloc(sizeof(CliEffectBranch), NULL);
     char full[CLI_PATH_MAX_LEN];
     cli_full(effect->root, path, full);
     // the branch the walk starts from is the editor's text where one is given, else every branch is the disk's

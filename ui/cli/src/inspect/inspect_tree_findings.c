@@ -114,7 +114,7 @@ static void findings_handed(const CliFacts *facts, unsigned int finding, const c
     cli_measure_begun(&measure, piece, sizeof(piece));
     cli_inspect_finding_written(facts, finding, &measure);
     const unsigned long long size = cli_measured(&measure) + 1ull;
-    char *const written = g_cli_cells->persistent_buf_alloc(size, NULL);
+    char *const written = cli_lane_alloc(size, NULL);
     if (written == NULL)
     {
         return;

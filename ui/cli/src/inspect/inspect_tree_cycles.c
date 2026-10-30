@@ -132,7 +132,7 @@ static void cycles_reported(unsigned int file, unsigned int import, unsigned int
     {
         size += CLI_TREE_FILE(s_walk.way[at]).path_size + 32ull;
     }
-    char *const text = g_cli_cells->persistent_buf_alloc(size, NULL);
+    char *const text = cli_lane_alloc(size, NULL);
     if (text == NULL)
     {
         return;

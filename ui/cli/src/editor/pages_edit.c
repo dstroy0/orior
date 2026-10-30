@@ -180,7 +180,7 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
         mmgr_line_put(err_msg, " are more than are retained");
         return 0;
     }
-    char *const text = g_cli_cells->persistent_buf_alloc(size, NULL);
+    char *const text = cli_lane_alloc(size, NULL);
     if (text == NULL)
     {
         mmgr_line_put(err_msg, "an edit's lines as written could not be taken");
@@ -343,7 +343,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
 {
     cli_lock_take(&g_cli_pages_lock);
     CliPaged *const one = cli_paged_of(key, err_msg);
-    char *const found_text = (one != NULL) ? g_cli_cells->persistent_buf_alloc(CLI_PAGE_FOUND, NULL) : NULL;
+    char *const found_text = (one != NULL) ? cli_lane_alloc(CLI_PAGE_FOUND, NULL) : NULL;
     if ((one != NULL) && (found_text == NULL))
     {
         mmgr_line_put(err_msg, "the matches find writes could not be taken");
@@ -367,7 +367,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
         }
         // the block's units and lines a cell sized to the lines read, given back as the block is searched; a block
         // whose units the cells cannot meet is read again as half as many lines
-        unsigned char *const storage = read ? g_cli_cells->persistent_buf_alloc(cli_block_bytes(&lines), NULL) : NULL;
+        unsigned char *const storage = read ? cli_lane_alloc(cli_block_bytes(&lines), NULL) : NULL;
         if (read && (storage == NULL) && (block_most > 1ull))
         {
             block_most /= 2ull;
@@ -443,7 +443,7 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
         written = cli_page_block_read(one, from, total, &block_most, &to, &lines, err_msg);
         // the block's text a cell sized to the lines read and an end of line, two bytes at the most, for each
         const unsigned long long size = lines.used + (2ull * lines.count) + 1ull;
-        char *const text = written ? g_cli_cells->persistent_buf_alloc(size, NULL) : NULL;
+        char *const text = written ? cli_lane_alloc(size, NULL) : NULL;
         if (written && (text == NULL))
         {
             mmgr_line_put(err_msg, "a block of lines saved could not be taken");

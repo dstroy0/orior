@@ -408,7 +408,7 @@ static int settings_tree(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
     {
         return 0;
     }
-    CliChain *const chain = g_cli_cells->persistent_buf_alloc(sizeof(*chain), &g_cli_settings_cells);
+    CliChain *const chain = cli_lane_alloc(sizeof(*chain), &g_cli_settings_cells);
     if (chain == NULL)
     {
         mmgr_line_put(err_msg, "the cell a tree's settings are read into could not be taken");

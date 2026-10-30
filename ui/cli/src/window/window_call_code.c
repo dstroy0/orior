@@ -409,7 +409,7 @@ static int code_devcontainer_line(const CliServeArgs *args, VerbaLinea *out, Ver
     {
         return 0;
     }
-    CliPlan *const plan = g_cli_cells->persistent_buf_alloc(sizeof(*plan), NULL);
+    CliPlan *const plan = cli_lane_alloc(sizeof(*plan), NULL);
     const int planned = (plan != NULL) && cli_devcontainer_plan(root, plan, err_msg);
     cli_cell_release(plan, NULL);
     if (!planned)

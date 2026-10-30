@@ -256,7 +256,7 @@ static void cli_strike(char **struck, const char *found, const char *put)
 void cli_report_scrub(const char *text, const char *root, VerbaLinea *out)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    char *struck = g_cli_cells->persistent_buf_alloc(length + 1ull, NULL);
+    char *struck = cli_lane_alloc(length + 1ull, NULL);
     if (struck != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = struck, .src = text, .bytes = length + 1u});

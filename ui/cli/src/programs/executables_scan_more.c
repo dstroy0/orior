@@ -211,7 +211,7 @@ void cli_zig_exes(const char *text, CliNames *names)
     names->count = 0u;
     // each line up to its `//`, the lines joined by a newline, no longer than the text
     const unsigned long long room = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    char *const code_cell = g_cli_cells->persistent_buf_alloc(room, &g_cli_executables_cells);
+    char *const code_cell = cli_lane_alloc(room, &g_cli_executables_cells);
     if (code_cell == NULL)
     {
         return;

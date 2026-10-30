@@ -178,7 +178,7 @@ static void complete_schemas_at(const char *text, unsigned int schema, const cha
     const char *const reference = cli_schema_string(json, schema, "$ref", &size);
     // the base a reference is read in, a cell retained while the schemas under it are reached
     char *const doc =
-        (reference != NULL) ? g_cli_cells->persistent_buf_alloc(CLI_PATH_MAX_LEN, &g_cli_schema_cells) : NULL;
+        (reference != NULL) ? cli_lane_alloc(CLI_PATH_MAX_LEN, &g_cli_schema_cells) : NULL;
     if (doc != NULL)
     {
         const unsigned int target = cli_schema_resolve(store, base, reference, size, doc);

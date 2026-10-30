@@ -275,7 +275,7 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
     const unsigned int all = tests_tree_of(json, &pieces, &differences, "the differences of what is carried");
     // a place and a key are each a node of the differences, so as many as their nodes, and settings.json, contain them
     const unsigned int room = ((json->nodes + 1u) < CLI_AT_TERMINAL_TAKEN) ? (json->nodes + 1u) : CLI_AT_TERMINAL_TAKEN;
-    const char **const chosen_places = g_cli_cells->persistent_buf_alloc(2ull * room * sizeof(const char *), NULL);
+    const char **const chosen_places = cli_lane_alloc(2ull * room * sizeof(const char *), NULL);
     if (chosen_places == NULL)
     {
         cli_json_given(json);

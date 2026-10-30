@@ -144,7 +144,7 @@ static void export_results_line(void *context, const char *line, unsigned long l
     // the values read back take no more bytes than the line writes them in, each string's quotes room for its
     // terminator
     const unsigned long long room = (size < CLI_DB_EXPORT_ROW) ? (size + 1ull) : CLI_DB_EXPORT_ROW;
-    char *const texts = g_cli_cells->persistent_buf_alloc(room, &g_cli_db_cells);
+    char *const texts = cli_lane_alloc(room, &g_cli_db_cells);
     if (texts == NULL)
     {
         export->broke = 1;
@@ -260,7 +260,7 @@ int cli_db_export(CliDbOpen *open, const char *path, const char *format,
     const unsigned long long values_bytes = columns * sizeof(CliDbValue);
     const unsigned long long order_bytes = columns * sizeof(unsigned int);
     char *const cell =
-        g_cli_cells->persistent_buf_alloc(values_bytes + order_bytes + CLI_DB_EXPORT_ROOM, &g_cli_db_cells);
+        cli_lane_alloc(values_bytes + order_bytes + CLI_DB_EXPORT_ROOM, &g_cli_db_cells);
     if (cell == NULL)
     {
         cli_lock_give(&open->results_lock);

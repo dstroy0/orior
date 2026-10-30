@@ -93,7 +93,7 @@ void cli_servers_projects_in(const char *root, const char *name, VerbaLinea *out
     // the projects in order, each by where it starts among those found
     const unsigned int count = mmgr_line_ok(&projects.found) ? projects.count : 0u;
     const char **const found =
-        (count != 0u) ? g_cli_cells->persistent_buf_alloc(count * sizeof(*found), &g_cli_servers_launch_cells) : NULL;
+        (count != 0u) ? cli_lane_alloc(count * sizeof(*found), &g_cli_servers_launch_cells) : NULL;
     const unsigned int listed = (found != NULL) ? count : 0u;
     const char *path = projects.found.out;
     for (unsigned int at = 0u; at < listed; at += 1u)
@@ -167,7 +167,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
     const unsigned int tool = cli_toolchains_tool(&manifest_json, manifest, spec->tool, &ignored);
     CliServersLaunching *const launching =
-        g_cli_cells->persistent_buf_alloc(sizeof(*launching), &g_cli_servers_launch_cells);
+        cli_lane_alloc(sizeof(*launching), &g_cli_servers_launch_cells);
     if (launching != NULL)
     {
         memor.set(&(MemoriaCfg){.dst = &launching->found, .val = 0, .bytes = sizeof(launching->found)});
@@ -219,7 +219,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
     }
     // the settings of the server's environment, the PATH and Visual Studio's where one is cl, in a cell of their count
     const unsigned int most = 1u + ((vs != NULL) ? vs->count : 0u);
-    CliSetting *const setting = g_cli_cells->persistent_buf_alloc(most * sizeof(*setting), &g_cli_servers_launch_cells);
+    CliSetting *const setting = cli_lane_alloc(most * sizeof(*setting), &g_cli_servers_launch_cells);
     char *vs_path = NULL;
     unsigned int settings = (setting != NULL) ? 1u : 0u;
     if (setting != NULL)

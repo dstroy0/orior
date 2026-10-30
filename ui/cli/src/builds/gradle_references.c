@@ -147,7 +147,7 @@ static void references_one(const CliBuildLines *lines, CliBuildFindings *found, 
         cli_build_finding(found, &msg, lines, from[path_from], to[count - 1u], CLI_BUILD_ERROR, "gradle-catalog");
     // each accessor is as long as its alias, so a cell of the aliases' texts contains those the nearest are chosen from
     const unsigned long long room = aliases->used + 1ull;
-    char *const accessors = g_cli_cells->persistent_buf_alloc(room, &g_cli_gradle_cells);
+    char *const accessors = cli_lane_alloc(room, &g_cli_gradle_cells);
     unsigned long long used = 0ull;
     for (unsigned int at = 0u; (accessors != NULL) && (at < aliases->count); at += 1u)
     {

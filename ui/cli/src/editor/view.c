@@ -1039,7 +1039,7 @@ static void view_searched(CliView *view)
         return;
     }
     const unsigned long long query_room = (view->find_length * 4ull) + 1ull;
-    char *const query = g_cli_cells->persistent_buf_alloc(query_room, &s_owner);
+    char *const query = cli_lane_alloc(query_room, &s_owner);
     if (query == NULL)
     {
         return;
@@ -1053,7 +1053,7 @@ static void view_searched(CliView *view)
     if (view->paged)
     {
         const unsigned long long room = CLI_VIEW_MATCHES * 24ull;
-        char *const cell = g_cli_cells->persistent_buf_alloc(room, &s_owner);
+        char *const cell = cli_lane_alloc(room, &s_owner);
         if (cell != NULL)
         {
             VerbaLinea out = {cell, room, 0ull};
@@ -1600,7 +1600,7 @@ static int view_opens_block(CliView *view, unsigned long long line, unsigned lon
     }
     const unsigned long long length = view_length(view, line);
     const unsigned long long count = (col < length) ? col : length;
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &s_owner);
+    unsigned char *const cell = cli_lane_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &s_owner);
     if (cell == NULL)
     {
         return 0;
@@ -1830,7 +1830,7 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
         {
             room += (view_length(view, line) * 4ull) + 1ull;
         }
-        char *const cell = g_cli_cells->persistent_buf_alloc(room + length + 8ull, &s_owner);
+        char *const cell = cli_lane_alloc(room + length + 8ull, &s_owner);
         if (cell == NULL)
         {
             mmgr_line_put(err_msg, "the wrap's cell could not be taken");
@@ -2118,7 +2118,7 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
         if (view->find_open && view->find_focus)
         {
             // text typed goes into the query, a byte a unit at the most
-            unsigned short *const units = g_cli_cells->persistent_buf_alloc((input->length + 1ull) * sizeof(*units), &s_owner);
+            unsigned short *const units = cli_lane_alloc((input->length + 1ull) * sizeof(*units), &s_owner);
             if (units != NULL)
             {
                 view_query_put(view, units, view_units_of(input->text, input->length, units, input->length + 1ull));
@@ -2724,8 +2724,8 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     mmgr_line_put(out, ",\"bars\":[");
     // the lines' runs read as the branch writes them, and their texts, a paged text's from its pages
     const unsigned long long count = (last >= first) ? last - first + 1ull : 0ull;
-    char *const room = g_cli_cells->persistent_buf_alloc(CLI_VIEW_MAP_ROOM, &s_owner);
-    const char **const line = g_cli_cells->persistent_buf_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &s_owner);
+    char *const room = cli_lane_alloc(CLI_VIEW_MAP_ROOM, &s_owner);
+    const char **const line = cli_lane_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &s_owner);
     VerbaLinea runs = {room, CLI_VIEW_MAP_ROOM, 0ull};
     CliJson json;
     unsigned int colors = CLI_JSON_NONE;
@@ -2989,7 +2989,7 @@ int cli_view_words_written(const char *key, VerbaLinea *out)
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ull;
     char *const text = (last >= first) ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state)) : NULL;
-    unsigned long long (*const table)[2] = g_cli_cells->persistent_buf_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &s_owner);
+    unsigned long long (*const table)[2] = cli_lane_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &s_owner);
     mmgr_line_ch(out, '[');
     if ((text != NULL) && (table != NULL))
     {

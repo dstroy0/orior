@@ -226,7 +226,7 @@ static int cli_symbols_leaves_at(CliSymbolsLanguages *read, unsigned int place, 
     }
     // the text's lines in a cell of their own, each ended by a NUL in place of its line's end, its carriage return
     // before it dropped
-    char *const lines = (grammar->stored == 1) ? g_cli_cells->persistent_buf_alloc(size + 1ull, NULL) : NULL;
+    char *const lines = (grammar->stored == 1) ? cli_lane_alloc(size + 1ull, NULL) : NULL;
     if (lines == NULL)
     {
         return 0;

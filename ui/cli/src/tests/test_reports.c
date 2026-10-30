@@ -354,7 +354,7 @@ static void report_case_emitted(CliTestWorker *worker, const char *open, unsigne
         // the text read takes no more bytes than it is written in, an entity read to one letter
         const unsigned long long text_room =
             ((text_end - text_start) < CLI_REPORT_TEXT) ? ((text_end - text_start) + 1ull) : CLI_REPORT_TEXT;
-        char *const text_cell = g_cli_cells->persistent_buf_alloc(text_room, &g_cli_test_report_cells);
+        char *const text_cell = cli_lane_alloc(text_room, &g_cli_test_report_cells);
         char refused[1] = {'\0'};
         VerbaLinea text = (text_cell != NULL) ? (VerbaLinea){text_cell, text_room, 0ull}
                                               : (VerbaLinea){refused, sizeof(refused), 0ull};

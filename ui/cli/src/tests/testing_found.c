@@ -388,7 +388,7 @@ static void found_python(const char *root, CliTestEach each, void *context)
         {
             continue;
         }
-        unsigned char *const bytes = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
+        unsigned char *const bytes = cli_lane_alloc(size + 1ull, NULL);
         if (bytes == NULL)
         {
             continue;

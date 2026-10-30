@@ -374,7 +374,7 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
                 cli_json_is(answer, ranges, CFG_JSON_ARRAY) ? answer->node[ranges].count : 0u;
             CliTextPlace *const site =
                 (given_ranges > 0u)
-                    ? g_cli_cells->persistent_buf_alloc((unsigned long long)given_ranges * sizeof(CliTextPlace), NULL)
+                    ? cli_lane_alloc((unsigned long long)given_ranges * sizeof(CliTextPlace), NULL)
                     : NULL;
             unsigned int count = 0u;
             for (unsigned int range = (site != NULL) ? answer->node[ranges].first : CLI_JSON_NONE;

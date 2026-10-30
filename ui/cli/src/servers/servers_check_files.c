@@ -82,7 +82,7 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
     s_batch = g_cli_cells->persistent_buf_alloc(sizeof(*s_batch), &s_cells);
     char *const text = g_cli_cells->persistent_buf_alloc(text_bytes, &s_cells);
     const char **const paths =
-        g_cli_cells->persistent_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*paths), &s_cells);
+        cli_lane_alloc(((unsigned long long)most + 1ull) * sizeof(*paths), &s_cells);
     CliServersWaiting *const waiting_on =
         g_cli_cells->persistent_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*waiting_on), &s_cells);
     if ((s_batch == NULL) || (text == NULL) || (paths == NULL) || (waiting_on == NULL))

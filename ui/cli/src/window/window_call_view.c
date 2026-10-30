@@ -160,7 +160,7 @@ static void view_linked_served(const char *path, const char *media_type, CliWind
     const int answered = cli_window_tree_call("file_bytes", args.out, args.at, &read, &err_msg) &&
                          mmgr_line_ok(&read) && (read.at >= 2ull);
     unsigned char *const bytes =
-        answered ? g_cli_cells->persistent_buf_alloc(((read.at / 4ull) * 3ull) + 3ull, NULL) : NULL;
+        answered ? cli_lane_alloc(((read.at / 4ull) * 3ull) + 3ull, NULL) : NULL;
     unsigned long long size = 0ull;
     // the answer is a JSON string of base64, whose letters need no escape, its quotes about it
     const int decoded =

@@ -318,7 +318,7 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path)
     }
     const unsigned int tokens_most = cli_json_tokens_counted((const char *)bytes, size) + 1u;
     CfgJsonToken *const tokens =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
+        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
     unsigned int root = CLI_JSON_NONE;
     if ((tokens != NULL) && cli_json_room(json, tokens_most, size))
     {

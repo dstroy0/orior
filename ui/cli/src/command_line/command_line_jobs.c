@@ -52,7 +52,7 @@ int cli_tests_list(const char *root, const char *const *words, unsigned int coun
             CfgJsonToken token[1u << 17u];
             CliJson json;
         } CliTestsListRoom;
-        CliTestsListRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), NULL);
+        CliTestsListRoom *const room = cli_lane_alloc(sizeof(*room), NULL);
         if (room == NULL)
         {
             cli_err("a listing of tests could not be taken");
@@ -224,7 +224,7 @@ void cli_job_show(const char *root, const CliCatalog *catalog, unsigned int job)
     cli_out("runs");
     char why[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliValues *const values = g_cli_cells->persistent_buf_alloc(sizeof(*values), NULL);
+    CliValues *const values = cli_lane_alloc(sizeof(*values), NULL);
     if (values == NULL)
     {
         mmgr_line_put(&err_msg, "the cells cannot meet the values a job is shown with");
@@ -365,7 +365,7 @@ int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, c
 {
     char why[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliValues *const values = g_cli_cells->persistent_buf_alloc(sizeof(*values), NULL);
+    CliValues *const values = cli_lane_alloc(sizeof(*values), NULL);
     if ((values == NULL) || !cli_job_values(catalog, job, words, count, values, &err_msg))
     {
         mmgr_line_put(&err_msg, (values == NULL) ? "the cells cannot meet the values a job is run with" : "");

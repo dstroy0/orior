@@ -151,7 +151,7 @@ int cli_carry_machine(const char *key)
 static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsigned long long size, int fresh,
                                      unsigned int nodes_more, unsigned long long text_more)
 {
-    char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
+    char *const plain_text = cli_lane_alloc(size + 1ull, NULL);
     VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (plain_text != NULL)
     {
@@ -174,7 +174,7 @@ static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsig
     {
         const unsigned int tokens_most = cli_json_tokens_counted(plain_text, plain.at) + 1u;
         CfgJsonToken *const tokens =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(*tokens), NULL);
+            cli_lane_alloc((unsigned long long)tokens_most * sizeof(*tokens), NULL);
         root = (tokens != NULL) ? cli_json_read(&room->json, plain_text, plain.at, tokens, tokens_most, &unread)
                                 : CLI_JSON_NONE;
         cli_cell_release(tokens, NULL);

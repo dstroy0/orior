@@ -165,7 +165,7 @@ static int slice_kept(const char *root, const char *path, const char *key, CliSe
     const unsigned long long openers_size = (unsigned long long)head->openers * sizeof(unsigned int);
     const unsigned long long stored_size =
         sizeof(*head) + openers_size + slicing->map.at + head->root_size + head->paths_size;
-    char *const stored = g_cli_cells->persistent_buf_alloc(stored_size, NULL);
+    char *const stored = cli_lane_alloc(stored_size, NULL);
     if (stored != NULL)
     {
         unsigned long long at = 0ull;
@@ -363,7 +363,7 @@ int cli_servers_slices_cut(const char *root, const char *path, const char *text,
                            CliServersWindow window, void *context, VerbaLinea *err_msg)
 {
     // a window's slice is cut and handed on where the walk reaches it, the walk's cells held while it is
-    CliServersCut *const cut = g_cli_cells->persistent_buf_alloc(sizeof(CliServersCut), NULL);
+    CliServersCut *const cut = cli_lane_alloc(sizeof(CliServersCut), NULL);
     if (cut == NULL)
     {
         mmgr_line_put(err_msg, "the slices could not be cut: the cells cannot meet them");

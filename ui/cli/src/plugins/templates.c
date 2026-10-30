@@ -180,7 +180,7 @@ static int cli_file_copied(const char *from, const char *to, const char *name, V
         at += names ? 8ull : 1ull;
     }
     CliFilePiece *const piece =
-        g_cli_cells->persistent_buf_alloc(((2ull * named) + 1ull) * sizeof(*piece), &g_cli_templates_cells);
+        cli_lane_alloc(((2ull * named) + 1ull) * sizeof(*piece), &g_cli_templates_cells);
     if (piece == NULL)
     {
         cli_file_let_go(bytes, size);

@@ -84,7 +84,7 @@ void cli_servers_findings_stored(const char *id, const char *found, unsigned lon
     // the files whose findings changed, in a cell of one place for each file the findings name
     const unsigned int files = cli_json_is(json, root, CFG_JSON_ARRAY) ? json->node[root].count : 0u;
     unsigned int *const changed_files =
-        (files > 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)files * sizeof(unsigned int), NULL) : NULL;
+        (files > 0u) ? cli_lane_alloc((unsigned long long)files * sizeof(unsigned int), NULL) : NULL;
     unsigned int changed = 0u;
     char uri[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];

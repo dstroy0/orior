@@ -129,7 +129,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
     }
     cli_lock_take(&g_cli_gradle_lock);
     // the bytes before the cursor classed in a cell of their own, given back once the last of them is read
-    unsigned char *const before = g_cli_cells->persistent_buf_alloc(at + 1ull, &g_cli_gradle_cells);
+    unsigned char *const before = cli_lane_alloc(at + 1ull, &g_cli_gradle_cells);
     if (before == NULL)
     {
         cli_lock_give(&g_cli_gradle_lock);
@@ -197,7 +197,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
         }
         count = (count < CLI_GRADLE_LINES) ? count : CLI_GRADLE_LINES;
         unsigned int *const starts =
-            g_cli_cells->persistent_buf_alloc(count * sizeof(unsigned int), &g_cli_gradle_cells);
+            cli_lane_alloc(count * sizeof(unsigned int), &g_cli_gradle_cells);
         if (starts != NULL)
         {
             CliBuildLines lines;

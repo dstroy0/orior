@@ -398,7 +398,7 @@ int cli_schema_matches(const char *pattern, unsigned long long pattern_size, con
     // the string's letters, each at least one of its bytes, and the pattern with a terminator after it
     const unsigned long long room = (size < CLI_SCHEMA_MATCHED) ? size : CLI_SCHEMA_MATCHED;
     unsigned int *const letters =
-        g_cli_cells->persistent_buf_alloc((room + 1ull) * sizeof(*letters), &g_cli_schema_cells);
+        cli_lane_alloc((room + 1ull) * sizeof(*letters), &g_cli_schema_cells);
     char *const source = g_cli_cells->persistent_buf_alloc(pattern_size + 1ull, &g_cli_schema_cells);
     int found = -1;
     if ((letters != NULL) && (source != NULL))

@@ -472,7 +472,7 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
 {
     // the two dynamic sections on the cell's boundary, then the folders
     const unsigned long long dynamics = 2ull * sizeof(CliDynamic);
-    char *const cell = g_cli_cells->persistent_buf_alloc(
+    char *const cell = cli_lane_alloc(
         dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN), NULL);
     if (cell == NULL)
     {

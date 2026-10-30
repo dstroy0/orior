@@ -280,7 +280,7 @@ static void cli_batched(void *context)
 {
     (void)context;
     // the batch a cell for as long as the batcher runs; with no room for it the batcher ends at once
-    CliBatch *const batch = g_cli_cells->persistent_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
+    CliBatch *const batch = cli_lane_alloc(sizeof(CliBatch), &g_cli_watch_cells);
     cli_lock_take(&s_lock);
     if (batch != NULL)
     {
@@ -417,7 +417,7 @@ int cli_watch_gathered_of(const char *root, const char *const *paths, const unsi
     memor.cpy(&(MemoriaCfg){.dst = s_watching.root,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    CliBatch *const batch = g_cli_cells->persistent_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
+    CliBatch *const batch = cli_lane_alloc(sizeof(CliBatch), &g_cli_watch_cells);
     if (batch == NULL)
     {
         return 0;

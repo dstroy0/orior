@@ -115,7 +115,7 @@ unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long 
 {
     const unsigned int tokens_most = cli_json_tokens_counted(text, size) + 1u;
     CfgJsonToken *const tokens =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
+        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
     if ((tokens == NULL) ||
         !cli_json_reserved(json, tokens_most + nodes_more, size + text_more, "a tree's nodes and texts"))
     {

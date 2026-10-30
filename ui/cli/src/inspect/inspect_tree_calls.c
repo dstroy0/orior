@@ -290,7 +290,7 @@ void cli_inspect_tree_callers(const char *path, unsigned int at, CliInspectReach
     calls_counted(&functions, &calls_most);
     const unsigned long long numbers = (g_cli_tree_files + 1ull) * sizeof(unsigned int);
     unsigned char *const cell =
-        g_cli_cells->persistent_buf_alloc(numbers + ((calls_most + 1ull) * sizeof(CliInspectSpan)), NULL);
+        cli_lane_alloc(numbers + ((calls_most + 1ull) * sizeof(CliInspectSpan)), NULL);
     if (cell == NULL)
     {
         cli_lock_give(&g_cli_tree_lock);

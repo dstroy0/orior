@@ -396,7 +396,7 @@ unsigned int cli_notebook_merge(CliJson *json, unsigned int base, unsigned int o
     const unsigned long long wider = ((our_count > their_count) ? our_count : their_count) + 1ull;
     const unsigned long long lists = (3ull * bases) + our_count + their_count;
     unsigned int *const cell =
-        g_cli_cells->persistent_buf_alloc((lists + ((bases + 1ull) * wider)) * sizeof(*cell), &g_cli_notebook_cells);
+        cli_lane_alloc((lists + ((bases + 1ull) * wider)) * sizeof(*cell), &g_cli_notebook_cells);
     if (cell == NULL)
     {
         return CLI_JSON_NONE;

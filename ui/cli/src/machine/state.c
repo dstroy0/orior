@@ -83,7 +83,7 @@ unsigned int cli_state_map_read(CliJson *json, const char *path, unsigned int no
     unsigned long long size = 0ull;
     const unsigned char *const bytes = cli_file_read(path, &size);
     char *const plain_text = ((bytes != NULL) && (size <= CLI_STATE_BYTES))
-                                 ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_state_cells)
+                                 ? cli_lane_alloc(size + 1ull, &g_cli_state_cells)
                                  : NULL;
     unsigned int root = CLI_JSON_NONE;
     if (plain_text != NULL)

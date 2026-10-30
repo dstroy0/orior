@@ -355,7 +355,7 @@ static int cli_regexp_read_by(CliRegexpReader *reader, CliRegexp *regexp, const 
 int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, VerbaLinea *err_msg)
 {
     // patterns are read on many threads at once, each by a reader in a cell of its own
-    CliRegexpReader *const reader = g_cli_cells->persistent_buf_alloc(sizeof(CliRegexpReader), NULL);
+    CliRegexpReader *const reader = cli_lane_alloc(sizeof(CliRegexpReader), NULL);
     if (reader == NULL)
     {
         mmgr_line_put(err_msg, "the pattern could not be read: the cells cannot meet it");

@@ -72,8 +72,8 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     const unsigned int first = cli_json_is(json, parts, CFG_JSON_ARRAY) ? json->node[parts].first : CLI_JSON_NONE;
     const unsigned int whole_most = git_items(json, cli_serve_arg(args, "whole"));
     const unsigned int parts_most = git_items(json, parts);
-    const char **const whole_of = g_cli_cells->persistent_buf_alloc((whole_most + 1ull) * sizeof(*whole_of), &s_cells);
-    CliGitPart *const part_of = g_cli_cells->persistent_buf_alloc((parts_most + 1ull) * sizeof(*part_of), &s_cells);
+    const char **const whole_of = cli_lane_alloc((whole_most + 1ull) * sizeof(*whole_of), &s_cells);
+    CliGitPart *const part_of = cli_lane_alloc((parts_most + 1ull) * sizeof(*part_of), &s_cells);
     const char *const message = cli_serve_string(args, "message", err_msg);
     VerbaLinea words = {NULL, 0ull, 0ull};
     int done = (whole_of != NULL) && (part_of != NULL) && (message != NULL) &&
@@ -151,7 +151,7 @@ static int git_commit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     char root[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     const unsigned int most = git_items(args->json, cli_serve_arg(args, "paths"));
-    const char **const paths = g_cli_cells->persistent_buf_alloc((most + 1ull) * sizeof(*paths), &s_cells);
+    const char **const paths = cli_lane_alloc((most + 1ull) * sizeof(*paths), &s_cells);
     const char *const message = (paths != NULL) ? cli_serve_string(args, "message", err_msg) : NULL;
     VerbaLinea words;
     int done = 0;

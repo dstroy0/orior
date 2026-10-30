@@ -437,7 +437,7 @@ static int check_one_window(void *context, const CliServersCut *cut, unsigned in
     // the window's diagnostics taken from the wait, as the thread that reads the server may write them again
     cli_lock_take(&s_letting_lock);
     const unsigned long long size = mmgr_line_ok(&s_wait[checker].gathered) ? s_wait[checker].gathered.at : 0ull;
-    char *const gathered = (size > 0ull) ? g_cli_cells->persistent_buf_alloc(size, NULL) : NULL;
+    char *const gathered = (size > 0ull) ? cli_lane_alloc(size, NULL) : NULL;
     if (gathered != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = gathered, .src = s_wait[checker].gathered.out, .bytes = (size_t)size});

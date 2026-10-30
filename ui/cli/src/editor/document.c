@@ -286,7 +286,7 @@ static int cli_found_patterned(const CliLines *lines, const CliDocSought *sought
         longest = (lines->length[line] > longest) ? lines->length[line] : longest;
     }
     const unsigned long long bytes = sizeof(CliRegexpRoom) + (2ull * (longest + 1ull) * sizeof(unsigned int));
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
+    unsigned char *const cell = cli_lane_alloc(bytes, NULL);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the text could not be searched: the cells cannot meet it");

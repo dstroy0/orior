@@ -456,7 +456,7 @@ int cli_symbols_signature(const char *path, const char *state, const char *text,
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_read();
     CliSymbolSignature *const signature =
-        (languages != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(CliSymbolSignature), NULL) : NULL;
+        (languages != NULL) ? cli_lane_alloc(sizeof(CliSymbolSignature), NULL) : NULL;
     if (signature == NULL)
     {
         cli_symbols_languages_given(languages);

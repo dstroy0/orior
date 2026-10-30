@@ -345,7 +345,7 @@ int cli_db_lite_start(CliDbLite *lite, const char *statement, unsigned long long
     // line SQLite's process reads
     const unsigned long long quoted = (6ull * size) + 16ull;
     const unsigned long long room = (quoted < CLI_DB_LITE_LINE) ? quoted : CLI_DB_LITE_LINE;
-    char *const request = g_cli_cells->persistent_buf_alloc(room, &g_cli_db_cells);
+    char *const request = cli_lane_alloc(room, &g_cli_db_cells);
     VerbaLinea query = {request, (request != NULL) ? room : 0ull, 0ull};
     mmgr_line_put(&query, "{\"start\":");
     cli_json_quoted_lossy(&query, (const unsigned char *)statement, size);

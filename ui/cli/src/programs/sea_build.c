@@ -332,7 +332,7 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
     const unsigned char *const mapped = cli_file_read(main, &script_size);
     // the script with a terminator after it, in a cell of its bytes and one more
     char *const script = ((mapped != NULL) && (script_size < CLI_SEA_SCRIPT))
-                             ? g_cli_cells->persistent_buf_alloc(script_size + 1ull, &g_cli_sea_cells)
+                             ? cli_lane_alloc(script_size + 1ull, &g_cli_sea_cells)
                              : NULL;
     if (script == NULL)
     {

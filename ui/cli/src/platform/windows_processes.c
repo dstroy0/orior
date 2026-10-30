@@ -52,7 +52,7 @@ static char *processes_command_of(CliQueryProcess query, DWORD pid)
     const ULONG room = needed;
     // the room taken on a cell's boundary, aligned for the string's header
     unsigned char *const base = ((room > 2u * sizeof(void *)) && (room < CLI_PROCESS_COMMAND_MOST))
-                                    ? g_cli_cells->persistent_buf_alloc(room, NULL)
+                                    ? cli_lane_alloc(room, NULL)
                                     : NULL;
     if ((base != NULL) && (query(process, CLI_PROCESS_COMMAND_LINE, base, room, &needed) >= 0))
     {

@@ -130,8 +130,8 @@ static void lines_caller(void *context)
             cli_wake_wait(&s_wake, &s_lock);
         }
         cli_lock_give(&s_lock);
-        char *const answer = g_cli_cells->persistent_buf_alloc(CLI_SERVE_ANSWER, NULL);
-        char *const why = g_cli_cells->persistent_buf_alloc(CLI_SERVE_ERR_MSG_MAX_LEN, NULL);
+        char *const answer = cli_lane_alloc(CLI_SERVE_ANSWER, NULL);
+        char *const why = cli_lane_alloc(CLI_SERVE_ERR_MSG_MAX_LEN, NULL);
         lines_answered(caller, answer, why);
         cli_cell_release(why, NULL);
         cli_cell_release(answer, NULL);
@@ -206,7 +206,7 @@ void cli_serve_over(const char *root, const CliServeLink *link)
     s_link = *link;
     // a line of input is read whole or refused, so the room it is read into fits the most a line takes, a cell taken
     // while the server serves
-    char *const input = g_cli_cells->persistent_buf_alloc(CLI_SERVE_LINE, NULL);
+    char *const input = cli_lane_alloc(CLI_SERVE_LINE, NULL);
     if (input == NULL)
     {
         static const char s_roomless[] = "{\"error\":\"the room a call is read in could not be taken\"}";

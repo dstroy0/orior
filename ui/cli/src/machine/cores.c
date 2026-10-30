@@ -67,7 +67,7 @@ unsigned int cli_cores_reserved(void)
         cli_lock_give(&s_lock);
         return reserved;
     }
-    CliCoresRead *const read = g_cli_cells->persistent_buf_alloc(sizeof(*read), &g_cli_settings_cells);
+    CliCoresRead *const read = cli_lane_alloc(sizeof(*read), &g_cli_settings_cells);
     if (read == NULL)
     {
         cli_lock_give(&s_lock);

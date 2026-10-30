@@ -112,7 +112,7 @@ static int text_document_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLi
     }
     // a cell is taken for one of each where the page sent none: a taken cell is never of no bytes
     CliEdit *const edit_of =
-        g_cli_cells->persistent_buf_alloc((edits_count + 1ull) * sizeof(*edit_of), &g_cli_window_text_cells);
+        cli_lane_alloc((edits_count + 1ull) * sizeof(*edit_of), &g_cli_window_text_cells);
     const CliEdit **const change_of =
         g_cli_cells->persistent_buf_alloc((changes_count + 1ull) * sizeof(*change_of), &g_cli_window_text_cells);
     unsigned int *const edits_of =
@@ -313,7 +313,7 @@ static int text_workspace_read(const CliServeArgs *args, VerbaLinea *out, VerbaL
     const unsigned char *const mapped = cli_file_read(path, &size);
     // a text made plain is never longer than the text, as it only leaves comments and commas out
     char *const plain_buf =
-        (mapped != NULL) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_window_text_cells) : NULL;
+        (mapped != NULL) ? cli_lane_alloc(size + 1ull, &g_cli_window_text_cells) : NULL;
     VerbaLinea plain = {plain_buf, (plain_buf != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (plain_buf != NULL)
     {

@@ -264,7 +264,7 @@ static int home_settings_layers(const CliServeArgs *args, VerbaLinea *out, Verba
     {
         return 0;
     }
-    CliHomeSettings *const settings = g_cli_cells->persistent_buf_alloc(sizeof(*settings), &s_cells);
+    CliHomeSettings *const settings = cli_lane_alloc(sizeof(*settings), &s_cells);
     if (settings == NULL)
     {
         cli_cell_release(tree.out, NULL);
@@ -331,7 +331,7 @@ static int home_carry_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     {
         return 0;
     }
-    CliCarried *const carried = g_cli_cells->persistent_buf_alloc(sizeof(*carried), &s_cells);
+    CliCarried *const carried = cli_lane_alloc(sizeof(*carried), &s_cells);
     if (carried == NULL)
     {
         mmgr_line_put(err_msg, "the files a carry contains could not be given a cell");
@@ -367,7 +367,7 @@ static int home_carry_take(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     }
     const char **place_of = NULL;
     const char **key_of = NULL;
-    CliCarried *const carried = g_cli_cells->persistent_buf_alloc(sizeof(*carried), &s_cells);
+    CliCarried *const carried = cli_lane_alloc(sizeof(*carried), &s_cells);
     if ((carried == NULL) || !home_strings(args, "places", &place_of, &places, err_msg) ||
         !home_strings(args, "keys", &key_of, &keys, err_msg))
     {

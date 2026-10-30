@@ -221,7 +221,7 @@ static void check_others(const char *root, const char *path)
         {
             continue;
         }
-        unsigned char *const text = g_cli_cells->persistent_buf_alloc(bytes + 1ull, &s_owner);
+        unsigned char *const text = cli_lane_alloc(bytes + 1ull, &s_owner);
         const unsigned long long size = (text != NULL) ? qry_member_file_read(other, text, bytes) : QRY_MEMBER_UNREAD;
         unsigned char *const class_of = ((size != QRY_MEMBER_UNREAD) && cli_utf8_whole((const char *)text, size))
                                             ? check_read((const char *)text, size)

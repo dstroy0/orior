@@ -120,7 +120,7 @@ static void inspect_supplied(void *context, const char *path, const char *class_
     const unsigned long long class_size = cellul.len(&(CatenaFinitaCfg){.src = class_name, .cap = CLI_CELLS_POOL});
     const unsigned long long attribute_size = cellul.len(&(CatenaFinitaCfg){.src = attribute, .cap = CLI_CELLS_POOL});
     const unsigned long long line_size = size + class_size + 1ull + attribute_size + 1ull;
-    char *const line = g_cli_cells->persistent_buf_alloc(line_size, NULL);
+    char *const line = cli_lane_alloc(line_size, NULL);
     if (line == NULL)
     {
         return;

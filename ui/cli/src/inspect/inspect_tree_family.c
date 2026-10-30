@@ -497,7 +497,7 @@ void cli_inspect_tree_supplied(CliInspectSupplied each, void *context)
         buckets <<= 1u;
     }
     CliTreeSupplied *const table =
-        s_family.current ? g_cli_cells->persistent_buf_alloc(buckets * sizeof(CliTreeSupplied), NULL) : NULL;
+        s_family.current ? cli_lane_alloc(buckets * sizeof(CliTreeSupplied), NULL) : NULL;
     if (table != NULL)
     {
         memor.set(&(MemoriaCfg){.dst = table, .val = 0, .bytes = buckets * sizeof(CliTreeSupplied)});

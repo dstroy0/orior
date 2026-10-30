@@ -126,7 +126,7 @@ int cli_toolchains_path_of_shell(const char *shell, char *path, unsigned long lo
 static void cli_shell_reading(void *context)
 {
     const char *const shell = (const char *)context;
-    char *const text = g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, NULL);
+    char *const text = cli_lane_alloc(CLI_PATH_TEXT, NULL);
     const int read = (text != NULL) && cli_toolchains_path_of_shell(shell, text, CLI_PATH_TEXT);
     cli_lock_take(&s_lock);
     if (read)
@@ -217,7 +217,7 @@ static unsigned int cli_split(const char *text, char (*folders)[CLI_PATH_MAX_LEN
 static unsigned int cli_registry_folders(char (*folders)[CLI_PATH_MAX_LEN], unsigned int count, unsigned int room)
 {
     // the PATH as the registry stores it and as it reads expanded, a cell of the two
-    char *const registry_buf = g_cli_cells->persistent_buf_alloc(2ull * CLI_PATH_TEXT, NULL);
+    char *const registry_buf = cli_lane_alloc(2ull * CLI_PATH_TEXT, NULL);
     char *const expanded = (registry_buf != NULL) ? registry_buf + CLI_PATH_TEXT : NULL;
     if ((registry_buf != NULL) && cli_registry_machine_path(registry_buf, CLI_PATH_TEXT))
     {
@@ -235,7 +235,7 @@ static unsigned int cli_registry_folders(char (*folders)[CLI_PATH_MAX_LEN], unsi
 
 unsigned int cli_toolchains_path_folders(char (*folders)[CLI_PATH_MAX_LEN], unsigned int room)
 {
-    char *const text = g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, NULL);
+    char *const text = cli_lane_alloc(CLI_PATH_TEXT, NULL);
     unsigned int count = cli_toolchains_tree_tools(folders, room);
     count = cli_registry_folders(folders, count, room);
     if ((text != NULL) && query_environment_read("PATH", text, CLI_PATH_TEXT))
@@ -309,7 +309,7 @@ unsigned int cli_toolchains_system_path(char (*folders)[CLI_PATH_MAX_LEN], unsig
 #if defined(_WIN32)
     return cli_registry_folders(folders, 0u, room);
 #else
-    char *const text = g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, NULL);
+    char *const text = cli_lane_alloc(CLI_PATH_TEXT, NULL);
     const unsigned int count = ((text != NULL) && query_environment_read("PATH", text, CLI_PATH_TEXT))
                                    ? cli_split(text, folders, 0u, room)
                                    : 0u;

@@ -172,7 +172,7 @@ static void parse_stored(const char *key, const char *path, unsigned long long h
     const CliServersParseHead head = {hash,          (unsigned int)s_whole, s_parsed.lines,
                                       s_parsed.runs, s_parsed.folds,        s_parsed.ranges};
     const unsigned long long size = parse_stored_size(&head);
-    char *const stored = g_cli_cells->persistent_buf_alloc(size, NULL);
+    char *const stored = cli_lane_alloc(size, NULL);
     if (stored == NULL)
     {
         return;

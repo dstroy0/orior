@@ -172,7 +172,7 @@ static int shape_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
                       cli_growing_line_made(&files, CLI_SERVE_FOUND_FIRST) &&
                       cli_growing_line_made(&edits, CLI_SERVE_FOUND_FIRST);
     CliLanguages *const languages =
-        (begun && (one == NULL)) ? g_cli_cells->persistent_buf_alloc(sizeof(*languages), &s_cells) : NULL;
+        (begun && (one == NULL)) ? cli_lane_alloc(sizeof(*languages), &s_cells) : NULL;
     if (!begun || ((one == NULL) && (languages == NULL)))
     {
         cli_cell_release(edits.out, NULL);

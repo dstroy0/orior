@@ -217,7 +217,7 @@ static void cli_header_written(const char *path, VerbaLinea *out)
 {
     const CliDefsFile file = cli_mapped(path);
     const unsigned long long size = (file.text != NULL) ? file.size : 0ull;
-    char *const text = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_defs_cells);
+    char *const text = cli_lane_alloc(size + 1ull, &g_cli_defs_cells);
     VerbaLinea joined = {text, (text != NULL) ? (size + 1ull) : 0ull, 0ull};
     const char *const end = (text != NULL) ? (file.text + size) : file.text;
     int first = 1;

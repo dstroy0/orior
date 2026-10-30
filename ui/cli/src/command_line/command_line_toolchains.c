@@ -213,7 +213,7 @@ static int toolchains_install(const char *id, VerbaLinea *out, VerbaLinea *err_m
     char bash[CLI_PATH_MAX_LEN];
     // the PATH a setup runs with, as long as the system lets an environment's value be
     char *const path =
-        cli_runner_bash(bash, err_msg) ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &s_cells) : NULL;
+        cli_runner_bash(bash, err_msg) ? cli_lane_alloc(CLI_PATH_TEXT, &s_cells) : NULL;
     if (path == NULL)
     {
         cli_cell_release(setup_line, NULL);

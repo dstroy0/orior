@@ -216,7 +216,7 @@ int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *e
     if (ran->code != 0ll)
     {
         // what the build wrote to its output, then to its errors, as one text, a cell of their size
-        char *const both = g_cli_cells->persistent_buf_alloc(ran->out_size + ran->err_size + 1ull, NULL);
+        char *const both = cli_lane_alloc(ran->out_size + ran->err_size + 1ull, NULL);
         mmgr_line_put(err_msg, "The build of ");
         mmgr_line_put(err_msg, made->target);
         mmgr_line_put(err_msg, " failed");
