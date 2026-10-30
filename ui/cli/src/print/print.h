@@ -59,16 +59,21 @@ typedef struct
     unsigned int runs;
 } CliPrintLine;
 
-// What prints: its title, its lines and their runs, a tab as wide as `tab` spaces, and the texts they occupy
+// What prints: its title, its lines and their runs, a tab as wide as `tab` spaces, and the texts they occupy, each
+// list a cell of its own grown as the listing is read, up to CLI_PRINT_LINES lines, CLI_PRINT_RUNS runs and
+// CLI_PRINT_TEXT bytes of text
 typedef struct
 {
     char title[CLI_PATH_MAX_LEN];
-    CliPrintLine line[CLI_PRINT_LINES];
+    CliPrintLine *line;
     unsigned int lines;
-    CliPrintRun run[CLI_PRINT_RUNS];
+    unsigned int lines_room;
+    CliPrintRun *run;
     unsigned int runs;
-    char text[CLI_PRINT_TEXT];
+    unsigned int runs_room;
+    char *text;
     unsigned int text_used;
+    unsigned int text_room;
     unsigned long long tab;
 } CliPrintListing;
 
@@ -106,16 +111,21 @@ typedef struct
 
 // The pages laid out: the rows, a page `rows_per_page` of them, the pieces and their text, and the columns the numbers
 // take
+// take, each list a cell of its own grown as the layout fills, up to CLI_PRINT_ROWS rows, CLI_PRINT_PIECES pieces and
+// CLI_PRINT_TEXT bytes of text
 typedef struct
 {
-    CliPrintRow row[CLI_PRINT_ROWS];
+    CliPrintRow *row;
     unsigned int rows;
+    unsigned int rows_room;
     unsigned int rows_per_page;
     unsigned int pages;
-    CliPrintPiece piece[CLI_PRINT_PIECES];
+    CliPrintPiece *piece;
     unsigned int pieces;
-    char text[CLI_PRINT_TEXT];
+    unsigned int pieces_room;
+    char *text;
     unsigned int text_used;
+    unsigned int text_room;
     unsigned long long number_columns;
     int full;
 } CliPrintLaid;

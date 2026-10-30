@@ -31,10 +31,12 @@ typedef struct
 } CliCachedGlyph;
 
 // The faces drawn with, a cell taken as they are read and given back as they are read again: regular, bold, italic
-// and bold italic, each where the system has it; and the glyphs cached drawn with them and their coverage
+// and bold italic, each where the system has it, each face's bytes a cell of its file's size; and the glyphs cached
+// drawn with them and their coverage
 typedef struct
 {
-    unsigned char face_data[4][CLI_FONT_BYTES];
+    const unsigned char *face_data[4];
+    unsigned long long face_size[4];
     unsigned int face_ranges[4][CLI_FONT_RANGES][3];
     CliFont faces[4];
     int has[4];
@@ -43,11 +45,12 @@ typedef struct
     unsigned long long cover_used;
 } CliTypefaces;
 
-// The room one rendering takes, a cell taken as it starts and given back as it ends: the page's pixels, a glyph's
-// outline, the scratch a glyph is made bolder in, and the letters of a text drawn
+// The room one rendering takes, a cell taken as it starts and given back as it ends: the page's pixels, a cell of
+// their own sized to the page, a glyph's outline, the scratch a glyph is made bolder in, and the letters of a text
+// drawn
 typedef struct
 {
-    unsigned char page[CLI_PAGE_BYTES];
+    unsigned char *page;
     CliContours contours;
     float scratch[1u << 20u];
     unsigned int letters[CLI_PATH_MAX_LEN * 4u];
@@ -58,6 +61,10 @@ static CliRenderRoom *s_room;
 
 int cli_print_faces(VerbaLinea *err_msg)
 {
+    for (unsigned int face = 0u; (s_typefaces != NULL) && (face < 4u); face += 1u)
+    {
+        cli_file_let_go(s_typefaces->face_data[face], s_typefaces->face_size[face]);
+    }
     cli_cell_release(s_typefaces, NULL);
     s_typefaces = g_cli_cells->persistent_buf_alloc(sizeof(*s_typefaces), NULL);
     if (s_typefaces == NULL)
@@ -69,12 +76,19 @@ int cli_print_faces(VerbaLinea *err_msg)
     cli_font_monospace(paths);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
-        const unsigned long long size =
-            (paths[face][0] != '\0') ? qry_member_file_read(paths[face], s_typefaces->face_data[face], CLI_FONT_BYTES)
-                                     : QRY_MEMBER_UNREAD;
+        // a face's file read whole into a cell of its size, a file past CLI_FONT_BYTES let go unread
+        unsigned long long size = 0ull;
+        const unsigned char *data = (paths[face][0] != '\0') ? cli_file_read(paths[face], &size) : NULL;
+        if ((data != NULL) && (size > CLI_FONT_BYTES))
+        {
+            cli_file_let_go(data, size);
+            data = NULL;
+            size = 0ull;
+        }
+        s_typefaces->face_data[face] = data;
+        s_typefaces->face_size[face] = size;
         s_typefaces->has[face] =
-            (size != QRY_MEMBER_UNREAD) && cli_font_read(&s_typefaces->faces[face], s_typefaces->face_data[face], size,
-                                                         s_typefaces->face_ranges[face]);
+            (data != NULL) && cli_font_read(&s_typefaces->faces[face], data, size, s_typefaces->face_ranges[face]);
     }
     for (unsigned int at = 0u; at < CLI_GLYPH_CACHE; at += 1u)
     {
@@ -248,7 +262,7 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
                       void (*each)(void *context, const CliPixels *page, unsigned int index, unsigned int count),
                       void *context)
 {
-    s_room = (s_typefaces != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL) : NULL;
+    s_room = (s_typefaces != NULL) ? cli_lane_alloc(sizeof(*s_room), NULL) : NULL;
     if (s_room == NULL)
     {
         return;
@@ -259,8 +273,12 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
     float height = 0.0f;
     cli_print_size(layout, &width, &height);
     CliPixels page = {(unsigned long long)roundf(width * scale), (unsigned long long)roundf(height * scale),
-                      layout->gray ? 1ull : 3ull, s_room->page};
-    if ((page.width * page.height * page.channels) > CLI_PAGE_BYTES)
+                      layout->gray ? 1ull : 3ull, NULL};
+    // the page's pixels a cell of their own, sized to the page at the resolution asked
+    const unsigned long long bytes = page.width * page.height * page.channels;
+    s_room->page = (bytes <= CLI_PAGE_BYTES) ? cli_lane_alloc(bytes, NULL) : NULL;
+    page.data = s_room->page;
+    if (s_room->page == NULL)
     {
         cli_cell_release(s_room, NULL);
         s_room = NULL;
@@ -316,6 +334,7 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
         each(context, &page, index, count);
         index += 1u;
     }
+    cli_cell_release(s_room->page, NULL);
     cli_cell_release(s_room, NULL);
     s_room = NULL;
 }

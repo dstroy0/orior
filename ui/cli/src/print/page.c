@@ -8,27 +8,77 @@
 
 #include <math.h>
 
-// The listing, its layout and the letters a line is laid out from, a cell taken with the lock printing is done under
-// and given back with it
+// The listing, its layout and the letters a run is laid out from, sized to the longest run: the room, a cell taken
+// with the lock printing is done under, its lists cells of their own grown as they fill, every one given back with the
+// lock
 typedef struct
 {
     CliPrintListing listing;
     CliPrintLaid laid;
-    unsigned int letters[CLI_PRINT_TEXT / 4u];
+    unsigned int *letters;
+    unsigned int letters_room;
 } CliPrintRoom;
+
+// the places a list begins with, and the bytes a text begins with
+#define CLI_PRINT_FIRST 64u
+#define CLI_PRINT_TEXT_FIRST 4096u
 
 // the room, NULL where the cells could not meet it, and the lock printing is done under
 static CliPrintRoom *s_room;
 static CliLock s_lock = CLI_LOCK_INIT;
 
+// `cell`, a list of `*room` places of `each` bytes with `used` of them filled, given room for `wanted` places: grown
+// where it stands or moved, to twice its room or the places wanted, whichever is more, `first` places where it has
+// none, and `most` at the most; the list after, or `cell` as it was with `*full` set where the places wanted pass
+// `most` or the cells cannot meet them
+static void *room_grown(void *cell, unsigned int used, unsigned int *room, unsigned int wanted, unsigned int first,
+                        unsigned int most, unsigned long long each, int *full)
+{
+    if (wanted <= *room)
+    {
+        return cell;
+    }
+    if (wanted > most)
+    {
+        *full = 1;
+        return cell;
+    }
+    const unsigned long long doubled = (*room == 0u) ? first : (2ull * *room);
+    const unsigned long long more = (doubled > wanted) ? doubled : wanted;
+    const unsigned long long taken = (more < most) ? more : most;
+    void *const grown = cli_cell_regrown(cell, (size_t)used * each, taken * each, NULL);
+    if (grown == NULL)
+    {
+        *full = 1;
+        return cell;
+    }
+    // taken is no more than most, an unsigned int
+    *room = (unsigned int)taken;
+    return grown;
+}
+
 void cli_print_take(void)
 {
     cli_lock_take(&s_lock);
-    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
+    s_room = cli_lane_alloc(sizeof(*s_room), NULL);
+    if (s_room != NULL)
+    {
+        memor.set(&(MemoriaCfg){.dst = s_room, .val = 0, .bytes = sizeof(*s_room)});
+    }
 }
 
 void cli_print_give(void)
 {
+    if (s_room != NULL)
+    {
+        cli_cell_release(s_room->listing.line, NULL);
+        cli_cell_release(s_room->listing.run, NULL);
+        cli_cell_release(s_room->listing.text, NULL);
+        cli_cell_release(s_room->laid.row, NULL);
+        cli_cell_release(s_room->laid.piece, NULL);
+        cli_cell_release(s_room->laid.text, NULL);
+        cli_cell_release(s_room->letters, NULL);
+    }
     cli_cell_release(s_room, NULL);
     s_room = NULL;
     cli_lock_give(&s_lock);
@@ -37,9 +87,17 @@ void cli_print_give(void)
 // `length` bytes of `text` stored among the listing's texts: where they start
 static unsigned int cli_text_stored(CliPrintListing *listing, const char *text, unsigned long long length, int *full)
 {
-    if ((listing->text_used + length) > CLI_PRINT_TEXT)
+    const unsigned long long wanted = listing->text_used + length;
+    if (wanted > CLI_PRINT_TEXT)
     {
         *full = 1;
+        return 0u;
+    }
+    // the bytes wanted are below CLI_PRINT_TEXT, an unsigned int
+    listing->text = room_grown(listing->text, listing->text_used, &listing->text_room, (unsigned int)wanted,
+                               CLI_PRINT_TEXT_FIRST, CLI_PRINT_TEXT, 1ull, full);
+    if (*full)
+    {
         return 0u;
     }
     const unsigned int at = listing->text_used;
@@ -58,6 +116,7 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
     }
     CliPrintListing *const listing_at = &s_room->listing;
     int full = 0;
+    unsigned int longest = 0u;
     listing_at->lines = 0u;
     listing_at->runs = 0u;
     listing_at->text_used = 0u;
@@ -79,9 +138,11 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
     for (unsigned int item = cli_json_is(json, lines, CFG_JSON_ARRAY) ? json->node[lines].first : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
-        if (listing_at->lines >= CLI_PRINT_LINES)
+        listing_at->line = room_grown(listing_at->line, listing_at->lines, &listing_at->lines_room,
+                                      listing_at->lines + 1u, CLI_PRINT_FIRST, CLI_PRINT_LINES, sizeof(CliPrintLine),
+                                      &full);
+        if (full)
         {
-            full = 1;
             break;
         }
         CliPrintLine *const line = &listing_at->line[listing_at->lines];
@@ -101,9 +162,11 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
         for (unsigned int run = cli_json_is(json, runs, CFG_JSON_ARRAY) ? json->node[runs].first : CLI_JSON_NONE;
              run != CLI_JSON_NONE; run = json->node[run].next)
         {
-            if (listing_at->runs >= CLI_PRINT_RUNS)
+            listing_at->run = room_grown(listing_at->run, listing_at->runs, &listing_at->runs_room,
+                                         listing_at->runs + 1u, CLI_PRINT_FIRST, CLI_PRINT_RUNS, sizeof(CliPrintRun),
+                                         &full);
+            if (full)
             {
-                full = 1;
                 break;
             }
             CliPrintRun *const run_at = &listing_at->run[listing_at->runs];
@@ -114,6 +177,7 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
             run_at->text =
                 cli_text_stored(listing_at, (text != NULL) ? text : "", (text != NULL) ? length : 0ull, &full);
             run_at->length = (text != NULL) ? (unsigned int)length : 0u;
+            longest = (run_at->length > longest) ? run_at->length : longest;
             run_at->color =
                 cli_text_stored(listing_at, (color != NULL) ? color : "", (color != NULL) ? color_length : 0ull, &full);
             run_at->color_length = (color != NULL) ? (unsigned int)color_length : 0u;
@@ -124,6 +188,9 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
         }
         listing_at->lines += 1u;
     }
+    // the letters a run is laid out from, a place for each byte of the longest run and its end
+    s_room->letters = room_grown(s_room->letters, 0u, &s_room->letters_room, longest + 1u, CLI_PRINT_FIRST,
+                                 CLI_PRINT_TEXT / 4u, sizeof(unsigned int), &full);
     if (full)
     {
         mmgr_line_put(err_msg, "the listing contains more than orior_cli prints");
@@ -381,9 +448,10 @@ static void cli_piece_put(CliPrintLaid *laid, CliPrintRow *row, CliPrintPiece *p
     {
         return;
     }
-    if (laid->pieces >= CLI_PRINT_PIECES)
+    laid->piece = room_grown(laid->piece, laid->pieces, &laid->pieces_room, laid->pieces + 1u, CLI_PRINT_FIRST,
+                             CLI_PRINT_PIECES, sizeof(CliPrintPiece), &laid->full);
+    if (laid->full)
     {
-        laid->full = 1;
         piece->length = 0u;
         return;
     }
@@ -397,11 +465,9 @@ static void cli_piece_put(CliPrintLaid *laid, CliPrintRow *row, CliPrintPiece *p
 // the row being made put after the rows, and a row with no number begun after it
 static void cli_row_put(CliPrintLaid *laid, CliPrintRow *row)
 {
-    if (laid->rows >= CLI_PRINT_ROWS)
-    {
-        laid->full = 1;
-    }
-    else
+    laid->row = room_grown(laid->row, laid->rows, &laid->rows_room, laid->rows + 1u, CLI_PRINT_FIRST, CLI_PRINT_ROWS,
+                           sizeof(CliPrintRow), &laid->full);
+    if (!laid->full)
     {
         laid->row[laid->rows] = *row;
         laid->rows += 1u;
@@ -415,7 +481,14 @@ static void cli_row_put(CliPrintLaid *laid, CliPrintRow *row)
 // one letter put after the piece being made, in UTF-8 among the layout's texts
 static void cli_letter_put(CliPrintLaid *laid, CliPrintPiece *piece, unsigned int letter)
 {
-    VerbaLinea line = {laid->text + laid->text_used, CLI_PRINT_TEXT - laid->text_used, 0ull};
+    // a letter is at most four bytes
+    laid->text = room_grown(laid->text, laid->text_used, &laid->text_room, laid->text_used + 4u, CLI_PRINT_TEXT_FIRST,
+                            CLI_PRINT_TEXT, 1ull, &laid->full);
+    if (laid->full)
+    {
+        return;
+    }
+    VerbaLinea line = {laid->text + laid->text_used, laid->text_room - laid->text_used, 0ull};
     cli_utf8_put(&line, letter);
     if (!mmgr_line_ok(&line))
     {
@@ -475,7 +548,7 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintListing *listing, const CliP
             piece.column = column;
             piece.text = laid->text_used;
             const unsigned long long count =
-                cli_regexp_letters(listing->text + run->text, run->length, letters, CLI_PRINT_TEXT / 4u);
+                cli_regexp_letters(listing->text + run->text, run->length, letters, s_room->letters_room);
             for (unsigned long long at = 0ull; at < count; at += 1ull)
             {
                 const unsigned int letter = letters[at];
