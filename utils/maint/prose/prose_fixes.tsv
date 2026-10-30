@@ -1712,7 +1712,6 @@ src/cu/includes/mmgr/docs/concepts/swar.md	rather than	and not
 src/cu/includes/mmgr/docs/concepts/swar.md	can path, which is the	can path, the
 src/cu/includes/mmgr/docs/concepts/swar.md	as_zero`, which is the	as_zero`, the
 src/cu/includes/mmgr/docs/guide/install.md	anifest rather than by your	anifest and not by your
-src/cu/includes/mmgr/docs/guide/install.md	iberate rather than unfinis	iberate and not unfinis
 src/cu/includes/mmgr/docs/modules/region-edges.md	 loudly rather than silentl	 loudly and not silentl
 src/cu/includes/mmgr/docs/modules/region-edges.md	rather than positio	and not positio
 src/cu/includes/mmgr/docs/modules/region-edges.md	ry name rather than in a ta	ry name and not in a ta
@@ -1737,7 +1736,6 @@ src/cu/includes/mmgr/docs/modules/verbum-scrutor.md	rather than	and not
 src/cu/includes/mmgr/docs/project/license-notes.md	 lawyer rather than a	 lawyer and not a
 src/cu/includes/mmgr/docs/project/license-notes.md	le fact rather than somethi	le fact instead of somethi
 src/cu/includes/mmgr/docs/project/license-notes.md	, which is what	, as
-src/cu/includes/mmgr/docs/project/license-notes.md	rsation rather than a	rsation and not a
 src/cu/includes/mmgr/docs/project/license-notes.md	request rather than	request and not
 src/cu/includes/mmgr/docs/quality/docs-coverage.md	uestion rather than an over	uestion and not an over
 src/cu/includes/mmgr/docs/quality/docs-coverage.md	summary rather than countin	summary instead of countin
@@ -1823,7 +1821,6 @@ src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	o memory, which i
 src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	ceiling rather than a count	ceiling and not a count
 src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	k chain rather than by	k chain and not by
 src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	th parts, which is why the def	th parts, and so the def
-src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	urement rather than a proof	urement and not a proof
 src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	n-zero, rather than measuri	n-zero, and not measuri
 src/cu/includes/mmgr/src/clz/clz.c	    zero, which is what lets th	    zero, as lets th
 src/cu/includes/mmgr/src/clz/clz.c	rather than	and not
@@ -1849,8 +1846,6 @@ src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_inf
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.c	e move, rather than per byt	e move, and not per byt
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	ed here rather than taken f	ed here and not taken f
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	*       rather than overrun	*       instead of overrun
-src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	k always, which is what keeps a	k always, as keeps a
-src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	he call rather than the mov	he call and not the mov
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	ra move rather than one per	ra move and not one per
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	, which is what makes	, and that leaves
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	 Counts rather than scans, 	 Counts and not scans, 
@@ -1887,7 +1882,6 @@ src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	integer rather than
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	    // rather than run ove	    // and not run ove
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	ed here rather than taken f	ed here and not taken f
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	*       rather than overrun	*       instead of overrun
-src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	k always, which is what keeps a	k always, as keeps a
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	ra move rather than one per	ra move and not one per
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	, which is what makes	, and that leaves
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	 Counts rather than scans, 	 Counts and not scans, 
@@ -1929,7 +1923,6 @@ src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	ng about, which is why 
 src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	r prints, which is the same wa	r prints, the same wa
 src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	caller's, which is the only pl	caller's, the only pl
 src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	 and nothing else	, alone
-src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	ugh here, which is what puts th	ugh here, as puts th
 src/cu/includes/mmgr/src/memoriam_praetereo/praet_platform_detection.h	, which is why	, and so
 src/cu/includes/mmgr/src/memoriam_praetereo/praet_platform_detection.h	left out, which is the port's 	left out, the port's 
 src/cu/includes/mmgr/src/memoriam_praetereo/praet_platform_detection.h	ote Zero, which is the fail-cl	ote Zero, the fail-cl
@@ -2254,7 +2247,6 @@ src/cu/includes/mmgr/test/performance_benching/cellularum/main/CMakeLists.txt	mp
 src/cu/includes/mmgr/test/performance_benching/cellularum/main/CMakeLists.txt	lt with rather than named h	lt with and not named h
 src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	 *       and nothing else, and a 	 *      , alone, and a 
 src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	, which is the	, the
-src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	reaches rather than the one	reaches and not the one
 src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	taken at and nothing else.	taken at, alone.
 src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	ond row rather than alone	ond row and not alone
 src/cu/includes/mmgr/test/performance_benching/memoria/README.md	minates rather than the wor	minates and not the wor
@@ -2284,8 +2276,6 @@ src/cu/includes/mmgr/test/support/mmgr_host_traps.h	 and nothing else	, alone
 src/cu/includes/mmgr/test/support/mmgr_host_traps.h	spinning, which is what keeps a	spinning, as keeps a
 src/cu/includes/mmgr/test/support/mmgr_host_traps.h	 Aborts rather than spinnin	 Aborts and not spinnin
 src/cu/includes/mmgr/test/support/mmgr_sha256.c	on purpose	deliberately
-src/cu/includes/mmgr/test/support/mmgr_sha256.c	which is the whole	the entirety of
-src/cu/includes/mmgr/test/support/mmgr_sha256.c	, which is the whole	, the entirety of
 src/cu/includes/mmgr/test/support/mmgr_sha256.c	ten out rather than compute	ten out and not compute
 src/cu/includes/mmgr/test/support/mmgr_sha256.c	les them, which is what the shi	les them, as the shi
 src/cu/includes/mmgr/test/support/mmgr_sha256.c	m bytes rather than read as	m bytes and not read as
@@ -2297,7 +2287,6 @@ src/cu/includes/mmgr/test/support/mmgr_sha256.h	, which is the	, the
 src/cu/includes/mmgr/test/support/mmgr_sha256.h	 in bits, which is what the pad	 in bits, as the pad
 src/cu/includes/mmgr/test/support/mmgr_sha256.h	reaming rather than one sho	reaming and not one sho
 src/cu/includes/mmgr/test/support/mmgr_sha256.h	int64_t rather than size_t,	int64_t and not size_t,
-src/cu/includes/mmgr/test/support/mmgr_sha256.h	*       rather than a regio	*       and not a regio
 src/cu/includes/mmgr/test/support/mmgr_sha256.h	nside it, which is what separat	nside it, as separat
 src/cu/includes/mmgr/test/unit/CMakeLists.txt	rather than	instead of
 src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	rather than	and not
@@ -2333,13 +2322,11 @@ src/cu/includes/mmgr/tools/dev_env/dedup.py	s a set rather than a seque	s a set 
 src/cu/includes/mmgr/tools/dev_env/dedup.py	That is what makes	That leaves
 src/cu/includes/mmgr/tools/dev_env/dedup.py	 tokens rather than as line	 tokens and not as line
 src/cu/includes/mmgr/tools/dev_env/gen_ancorae_formae.py	unction rather than in the 	unction and not in the 
-src/cu/includes/mmgr/tools/dev_env/gen_ancorae_formae.py	refusal rather than a warni	refusal and not a warni
 src/cu/includes/mmgr/tools/dev_env/gen_ancorae_formae.py	he data rather than remembe	he data and not remembe
 src/cu/includes/mmgr/tools/dev_env/gen_ascii_persona_bitorum.py	n bytes rather than two uin	n bytes and not two uin
 src/cu/includes/mmgr/tools/dev_env/gen_ascii_persona_bitorum.py	n the .c, which is the only th	n the .c, the only th
 src/cu/includes/mmgr/tools/dev_env/gen_ascii_persona_bitorum.py	in full rather than left to	in full and not left to
 src/cu/includes/mmgr/tools/dev_env/gen_ascii_persona_bitorum.py	tor runs, which is what	tor runs, as
-src/cu/includes/mmgr/tools/dev_env/gen_ascii_persona_bitorum.py	refusal rather than a warni	refusal and not a warni
 src/cu/includes/mmgr/tools/dev_env/gen_ascii_persona_bitorum.py	asks for, which is the column 	asks for, the column 
 src/cu/includes/mmgr/tools/dev_env/gen_ascii_persona_bitorum.py	roduced rather than normali	roduced and not normali
 src/cu/includes/mmgr/tools/dev_env/gen_ascii_persona_bitorum.py	Refuses rather than overflo	Refuses instead of overflo
@@ -2355,10 +2342,8 @@ src/cu/includes/mmgr/tools/dev_env/gen_pow5.py	uncated rather than rounded	uncat
 src/cu/includes/mmgr/tools/dev_env/gen_pow5.py	on purpose	deliberately
 src/cu/includes/mmgr/tools/dev_env/gen_pow5.py	en here rather than by hand	en here and not by hand
 src/cu/includes/mmgr/tools/dev_env/gen_pow5.py	d below rather than	d below and not
-src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	 the arm and nothing else - which	 the arm, alone - which
 src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	which is what	as
 src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	 the arm and nothing else.	 the arm, alone.
-src/cu/includes/mmgr/tools/dev_env/math_hazards.py	 hazard rather than a prove	 hazard and not a prove
 src/cu/includes/mmgr/tools/dev_env/math_hazards.py	le line rather than one mat	le line and not one mat
 src/cu/includes/mmgr/tools/dev_env/nsconv.py	iterals rather than countin	iterals instead of countin
 src/cu/includes/mmgr/tools/dev_env/nsconv.py	 syntax rather than text in	 syntax and not text in
@@ -2407,7 +2392,6 @@ src/cu/includes/mmgr/cmake/MMgrModule.cmake	 -O wins, so this	 -O wins, and so t
 src/cu/includes/mmgr/cmake/MMgrModule.cmake	gr_flags, so this is the 	gr_flags, and so this is the 
 src/cu/includes/mmgr/cmake/MMgrModule.cmake	ude root, so every module 	ude root, and so every module 
 src/cu/includes/mmgr/cmake/MMgrModule.cmake	ludes it, so every	ludes it, and so every
-src/cu/includes/mmgr/cmake/MMgrModule.cmake	, so turning	, and so turning
 src/cu/includes/mmgr/cmake/MMgrModule.cmake	, so they	, and so they
 src/cu/includes/mmgr/cmake/MMgrSuite.cmake	t is off, so the suite w	t is off, and so the suite w
 src/cu/includes/mmgr/cmake/MMgrSuite.cmake	, so building	, and so building
@@ -2438,7 +2422,6 @@ src/cu/includes/mmgr/docs/guide/string-shim.md	, so there	, and so there
 src/cu/includes/mmgr/docs/guide/string-shim.md	, so they	, and so they
 src/cu/includes/mmgr/docs/modules/region-edges.md	ord each, so `MMGR_R	ord each, and so `MMGR_R
 src/cu/includes/mmgr/docs/modules/region-edges.md	, so nothing	, and so nothing
-src/cu/includes/mmgr/docs/modules/region-edges.md	t_index`, so	t_index`, and so
 src/cu/includes/mmgr/docs/modules/region-edges.md	, so the	, and so the
 src/cu/includes/mmgr/docs/modules/scanning.md	that way, so the	that way, and so the
 src/cu/includes/mmgr/docs/modules/scanning.md	to prove, so the anchor'	to prove, and so the anchor'
@@ -2597,7 +2580,6 @@ src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_inf
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	, so ordering	, and so ordering
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	, so this	, and so this
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	, so raising	, and so raising
-src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	, so what	, and so what
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	, so the	, and so the
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	, so no	, and so no
 src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/confinium_exclusivum_infinitas.h	, so it	, and so it
@@ -2654,7 +2636,6 @@ src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	bits set, so the	bi
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	the word, so the same	the word, and so the same
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	, so writes	, and so writes
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	, so buffer	, and so buffer
-src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	 no more, so the cast ho	 no more, and so the cast ho
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	 nothing, so it reads a	 nothing, and so it reads a
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	mes none, so the bound b	mes none, and so the bound b
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	same way, so the arithme	same way, and so the arithme
@@ -2794,7 +2775,6 @@ src/cu/includes/mmgr/src/numeros_scribo/numeros_scribo.c	, so MMGR_FK_END	, and 
 src/cu/includes/mmgr/src/numeros_scribo/numeros_scribo.c	er table, so they carry l	er table, and so they carry l
 src/cu/includes/mmgr/src/numeros_scribo/numeros_scribo.h	, so MMGR_FK_XML	, and so MMGR_FK_XML
 src/cu/includes/mmgr/src/numeros_scribo/numeros_scribo.h	, so every	, and so every
-src/cu/includes/mmgr/src/numeros_scribo/numeros_scribo.h	finished, so	finished, and so
 src/cu/includes/mmgr/src/octetus_introitus_exitus/octetus_introitus_exitus.c	, so each	, and so each
 src/cu/includes/mmgr/src/octetus_introitus_exitus/octetus_introitus_exitus.c	ng to it, so it tests t	ng to it, and so it tests t
 src/cu/includes/mmgr/src/octetus_introitus_exitus/octetus_introitus_exitus.c	, so nothing	, and so nothing
@@ -2967,7 +2947,6 @@ src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_b
 src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	, so there	, and so there
 src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	in after, so the whole b	in after, and so the whole b
 src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	two runs, so the merge i	two runs, and so the merge i
-src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	all ones, so the byte is	all ones, and so the byte is
 src/cu/includes/mmgr/test/accuracy/test_cellularum_laboro_accuracy/test_cellularum_laboro_accuracy.c	ery case, so the symbol 	ery case, and so the symbol 
 src/cu/includes/mmgr/test/accuracy/test_cellularum_laboro_accuracy/test_cellularum_laboro_accuracy.c	, so there	, and so there
 src/cu/includes/mmgr/test/accuracy/test_cellularum_laboro_accuracy/test_cellularum_laboro_accuracy.c	, so nothing	, and so nothing
@@ -3003,7 +2982,6 @@ src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_a
 src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	, so there	, and so there
 src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	mes over, so the single-	mes over, and so the single-
 src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	ach pass, so the peek be	ach pass, and so the peek be
-src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	k always, so the largest	k always, and so the largest
 src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	segments, so the counter	segments, and so the counter
 src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	// index, so the byte pa	// index, and so the byte pa
 src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	t a time, so it shares 	t a time, and so it shares 
@@ -3032,9 +3010,7 @@ src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scr
 src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	, so there	, and so there
 src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	ec lists, so the compari	ec lists, and so the compari
 src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	, so only	, and so only
-src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	, so what	, and so what
 src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	, so whichever	, and so whichever
-src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	 is zero, so the width i	 is zero, and so the width i
 src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	n binary, so the digits 	n binary, and so the digits 
 src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	lete one, so the termina	lete one, and so the termina
 src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	, so neither	, and so neither
@@ -3137,7 +3113,6 @@ src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	 nothing, so they are	 nothin
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	duced it, so the	duced it, and so the
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	 happens, so no read wa	 happens, and so no read wa
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	be phase, so the reporte	be phase, and so the reporte
-src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	, so none	, and so none
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	 unknown, so every candida	 unknown, and so every candida
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	h at all, so the most in	h at all, and so the most in
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	, so k	, and so k
@@ -3147,7 +3122,6 @@ src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	the rate, so the ratio o	the 
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	t length, so its gaps ar	t length, and so its gaps ar
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	no scale, so the	no scale, and so the
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	they sit, so every symbol'	they sit, and so every symbol'
-src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	, so what	, and so what
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	nits end, so the spans b	nits end, and so the spans b
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	, so this	, and so this
 src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	een read, so counting types	een read, and so counting types
@@ -3174,7 +3148,6 @@ src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	, so trials	, and so tri
 src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	/ length, so it is bias	/ length, and so it is bias
 src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	pression, so the first o	pression, and so the first o
 src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	, so this	, and so this
-src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	stimator, so it inherit	stimator, and so it inherit
 src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	a corpus, so it is the 	a corpus, and so it is the 
 src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	t tuples, so it can be 	t tuples, and so it can be 
 src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	, so every	, and so every
@@ -3209,7 +3182,6 @@ src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	, so reaching	, and so reaching
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	s pasted, so it is writ	s pasted, and so it is writ
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	 context, so it is	 context, and so it is
-src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	, so what	, and so what
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	, so narrower	, and so narrower
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	, so the	, and so the
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	strongly, so the linker 	strongly, and so the linker 
@@ -3251,8 +3223,6 @@ src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctn
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	under it, so the word bo	under it, and so the word bo
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	ry build, so this reads t	ry build, and so this reads t
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	declared, so the two can	declared, and so the two can
-src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	fterward, so what is unde	fterward, and so what is unde
-src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	r itself, so the number 	r itself, and so the number 
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	e it was, so	e it was, and so
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	, so where	, and so where
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	e window, so the engine 	e window, and so the engine 
@@ -3324,7 +3294,6 @@ src/cu/includes/mmgr/test/performance_benching/verba/main/CMakeLists.txt	y LTO I
 src/cu/includes/mmgr/test/performance_benching/verba/main/CMakeLists.txt	hem back, so the row has	hem back, and so the row has
 src/cu/includes/mmgr/test/performance_benching/verba/main/main.c	, so both	, and so both
 src/cu/includes/mmgr/test/performance_benching/verba/main/main.c	, so neither	, and so neither
-src/cu/includes/mmgr/test/performance_benching/verba/main/main.c	, so what	, and so what
 src/cu/includes/mmgr/test/support/README.md	, so the	, and so the
 src/cu/includes/mmgr/test/support/guard_page.c	, so an	, and therefore an
 src/cu/includes/mmgr/test/support/host_threads.h	, so a	, and therefore a
@@ -3344,8 +3313,6 @@ src/cu/includes/mmgr/test/support/mmgr_sha256.h	, so this	, and so this
 src/cu/includes/mmgr/test/unit/cellularum_laboro/test_cellularum_laboro_sieve/CMakeLists.txt	, so the	, and so the
 src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	rgs->val, so	rgs->val, and so
 src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	, so no	, and so no
-src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	hest one, so	hest one, and so
-src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	west one, so	west one, and so
 src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	, so one	, and so one
 src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	, so the	, and so the
 src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	, so it	, and so it
@@ -3478,7 +3445,6 @@ src/cu/includes/mmgr/docs/concepts/swar.md	decision, not an aesthetic one:	decis
 src/cu/includes/mmgr/docs/concepts/swar.md	load-bearing	essential
 src/cu/includes/mmgr/docs/guide/string-shim.md	sign, not the memory ones.	sign and not the memory ones.
 src/cu/includes/mmgr/docs/guide/string-shim.md	spelling	form
-src/cu/includes/mmgr/docs/modules/region-edges.md	mask, not a modulo.	mask and not a modulo.
 src/cu/includes/mmgr/docs/modules/region-edges.md	e claim is what stops those s	e claim stops those s
 src/cu/includes/mmgr/docs/modules/region-edges.md	program, not a slow one.	program and not a slow one.
 src/cu/includes/mmgr/docs/modules/region-edges.md	whether or not	regardless of whether
@@ -3491,7 +3457,6 @@ src/cu/includes/mmgr/docs/modules/scanning.md	pointer, not an offset.	pointer an
 src/cu/includes/mmgr/docs/modules/scanning.md	stopped, not whether they succeeded.	stopped and not whether they succeeded.
 src/cu/includes/mmgr/docs/modules/scanning.md	65535, not at 4294967295.	65535 and not at 4294967295.
 src/cu/includes/mmgr/docs/modules/scanning.md	whether or not	regardless of whether
-src/cu/includes/mmgr/docs/modules/scanning.md	cap, not a length.	cap and not a length.
 src/cu/includes/mmgr/docs/modules/scanning.md	value, not a set of defines:	value and not a set of defines:
 src/cu/includes/mmgr/docs/modules/serialization.md	manipulation, not arithmetic.	manipulation and not arithmetic.
 src/cu/includes/mmgr/docs/modules/spatium.md	spell	write
@@ -3505,7 +3470,6 @@ src/cu/includes/mmgr/docs/quality/numeric-accuracy.md	patterns, not chosen value
 src/cu/includes/mmgr/docs/quality/optimization.md	alternatives, not additions:	alternatives and not additions:
 src/cu/includes/mmgr/docs/quality/optimization.md	nd line is the one that co	nd line is the single one that co
 src/cu/includes/mmgr/docs/quality/optimization.md	he unit whether or not every	he unit regardless of whether every
-src/cu/includes/mmgr/docs/quality/optimization.md	e third is the one that ma	e third is the single one that ma
 src/cu/includes/mmgr/docs/quality/optimization.md	wsetup` whether or not a strea	wsetup` regardless of whether a strea
 src/cu/includes/mmgr/docs/quality/optimization.md	 and it is the one module 	 and it is the single one module 
 src/cu/includes/mmgr/docs/quality/optimization.md	that, not after.	that and not after.
@@ -3517,7 +3481,6 @@ src/cu/includes/mmgr/docs/reference/performance.md	Measured, not asserted.	Measu
 src/cu/includes/mmgr/docs/reference/performance.md	load-bearing	essential
 src/cu/includes/mmgr/docs/reference/performance.md	parity, not a win.	parity and not a win.
 src/cu/includes/mmgr/docs/research/README.md	is the one	is the single one
-src/cu/includes/mmgr/include/mmgr.h	stop, not the diagnostic.	stop and not the diagnostic.
 src/cu/includes/mmgr/include/mmgr_string_shim.h	copied, not counting the terminator.	copied and not counting the terminator.
 src/cu/includes/mmgr/src/ascii_persona_bitorum/ascii_persona_bitorum.c	in terms of	through
 src/cu/includes/mmgr/src/ascii_persona_bitorum/ascii_persona_bitorum.h	merator count, not a class. Passing	merator count and not a class. Passing
@@ -3570,7 +3533,6 @@ src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	dvances whether or 
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	arning Advances whether or not a segment was f	arning Advances regardless of whether a segment was f
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	arning Advances whether or not a segment was i	arning Advances regardless of whether a segment was i
 src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	d. This is the one entry t	d. This is the single one entry t
-src/cu/includes/mmgr/src/memoria_externa/memoria_externa.c	is what makes	makes
 src/cu/includes/mmgr/src/memoria_externa/memoria_externa.c	is what puts	puts
 src/cu/includes/mmgr/src/memoria_externa/memoria_externa.c	differs, not the form.	differs and not the form.
 src/cu/includes/mmgr/src/memoria_externa/memoria_externa.c	n] ...   Initializers for the ExterCtx literal, written in terms of args.	n] ...   Initializers for the ExterCtx literal, written through args.
@@ -3641,7 +3603,6 @@ src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scr
 src/cu/includes/mmgr/test/accuracy/test_octetus_introitus_exitus_accuracy/test_octetus_introitus_exitus_accuracy.c	is the one	is the single one
 src/cu/includes/mmgr/test/accuracy/test_pow5_accuracy/test_pow5_accuracy.c	is the one	is the single one
 src/cu/includes/mmgr/test/accuracy/test_pow5_accuracy/test_pow5_accuracy.c	whether or not	regardless of whether
-src/cu/includes/mmgr/test/accuracy/test_transformo_accuracy/test_transformo_accuracy.c	ign bit is the one bit dif	ign bit is the single one bit dif
 src/cu/includes/mmgr/test/accuracy/test_transformo_accuracy/test_transformo_accuracy.c	o. That is the one input t	o. That is the single one input t
 src/cu/includes/mmgr/test/accuracy/test_verba_scribo_accuracy/test_verba_scribo_accuracy.c	e A tie is the one input t	e A tie is the single one input t
 src/cu/includes/mmgr/test/accuracy/test_verba_scribo_accuracy/test_verba_scribo_accuracy.c	d value is the one input w	d value is the single one input w
@@ -3666,7 +3627,6 @@ src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	is what makes	makes
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	whether or not	regardless of whether
 src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.h	fixture, not on the library.	fixture and not on the library.
-src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	port, not a test double.	port and not a test double.
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	is what lets	lets
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	argument, not two entries.	argument and not two entries.
 src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	 caller is the one who dec	 caller is the single one who dec
@@ -3702,7 +3662,6 @@ src/cu/includes/mmgr/tools/dev_env/readclean.py	file, not to the working directo
 src/cu/includes/mmgr/tools/dev_env/readclean.py	 so the spelling a reade	 so the form a reade
 src/cu/includes/mmgr/tools/dev_env/readclean.py	 is the spelling that wo	 is the form that wo
 src/cu/includes/mmgr/tools/dev_env/readclean.py	spelled	written
-src/cu/includes/mmgr/tools/dev_env/readclean.py	tead of spelling the pre	tead of form the pre
 src/cu/includes/mmgr/tools/dev_env/readclean.py	 longer spelling behind 	 longer form behind 
 src/cu/includes/mmgr/tools/dev_env/readclean.py	spells	writes
 src/cu/includes/mmgr/tools/dev_env/readclean.py	itself, not its argument list.	itself and not its argument list.
@@ -3714,3 +3673,345 @@ src/cu/includes/mmgr/tools/dev_env/readclean_test.py	spellings	forms
 src/cu/includes/mmgr/tools/dev_env/sizes.py	is the one	is the single one
 src/cu/includes/mmgr/tools/dev_env/yank_includes.py	spelling	form
 src/cu/includes/mmgr/tools/dev_env/yank_includes.py	level, not conditional.	level and not conditional.
+src/cu/includes/mmgr/.github/dependabot.yml	bumpable version rather	bumpable version instead
+src/cu/includes/mmgr/.github/workflows/SonarCloud.yml	That is what the build wrapper is for:	The build wrapper exists for that:
+src/cu/includes/mmgr/.github/workflows/docs.yml	TWO JOBS ON PURPOSE.	TWO JOBS, DELIBERATELY.
+src/cu/includes/mmgr/cmake/MMgrSuite.cmake	depend on the TARGET rather	depend on the TARGET instead
+src/cu/includes/mmgr/dma-plan.md	**A claim flag held at run time.**	**A claim flag kept at run time.**
+src/cu/includes/mmgr/docs/concepts/swar.md	low seven bits held anything at all	low seven bits contained anything at all
+src/cu/includes/mmgr/docs/concepts/swar.md	a lane that held zero in those bits	a lane that contained zero in those bits
+src/cu/includes/mmgr/docs/concepts/swar.md	What is left is the answer:	The result is the answer:
+src/cu/includes/mmgr/docs/concepts/swar.md	every lane that held zero.	every lane that contained zero.
+src/cu/includes/mmgr/docs/concepts/swar.md	That is what a `find` needs.	A `find` needs exactly this.
+src/cu/includes/mmgr/docs/guide/string-shim.md	would rather not link	prefer not to link
+src/cu/includes/mmgr/docs/guide/string-shim.md	## Include order is the whole of it	## Include order decides everything
+src/cu/includes/mmgr/docs/guide/string-shim.md	That is the difference from	This is how it differs from
+src/cu/includes/mmgr/docs/guide/string-shim.md	What it promises is "copy until the source ends"	It promises "copy until the source ends"
+src/cu/includes/mmgr/docs/guide/string-shim.md	that call site is exactly the one	that call site is precisely one
+src/cu/includes/mmgr/docs/modules/region-edges.md	the wrap is a mask and not a modulo.	the wrap is a mask instead of a modulo.
+src/cu/includes/mmgr/docs/modules/region-edges.md	Their free and held masks	Their free and pinned masks
+src/cu/includes/mmgr/docs/modules/region-edges.md	the ring's capacity is held there	the ring's capacity is clamped there
+src/cu/includes/mmgr/docs/modules/scanning.md	**The cap is a cap and not a length.**	**The cap is a cap instead of a length.**
+src/cu/includes/mmgr/docs/modules/scanning.md	The table says how common each byte is	The table records how common each byte is
+src/cu/includes/mmgr/docs/modules/serialization.md	That is the whole failure model.	This is the complete failure model.
+src/cu/includes/mmgr/docs/modules/serialization.md	The width is an argument rather	The width is an argument instead
+src/cu/includes/mmgr/docs/modules/serialization.md	needs the fields rather	needs the fields instead
+src/cu/includes/mmgr/docs/modules/text-and-hw.md	would rather not link a formatter	prefer not to link a formatter
+src/cu/includes/mmgr/docs/modules/text-and-hw.md	that is what `poll` and the completion	`poll` and the completion
+src/cu/includes/mmgr/docs/project/license-notes.md	The copyright is held by one person	The copyright is owned by one person
+src/cu/includes/mmgr/docs/quality/docs-coverage.md	for a backlog rather	for a backlog instead
+src/cu/includes/mmgr/docs/quality/numeric-accuracy.md	What is needed is enough bits	The requirement is enough bits
+src/cu/includes/mmgr/docs/quality/optimization.md	and none of them agrees	and not one of them agrees
+src/cu/includes/mmgr/docs/quality/optimization.md	`vsnprintf` rather than `printf`	`vsnprintf` instead of `printf`
+src/cu/includes/mmgr/docs/quality/optimization.md	the third is the single one that matters here.	the third matters here.
+src/cu/includes/mmgr/docs/quality/optimization.md	That is what a caller pays for	A caller pays this for
+src/cu/includes/mmgr/docs/quality/static-analysis.md	are all held to the same standard:	all meet the same standard:
+src/cu/includes/mmgr/docs/reference/compiler-support.md	named member to its own slot	named member to its own position
+src/cu/includes/mmgr/docs/reference/environments.md	where an assert is evaluated at all.	where an assert is evaluated.
+src/cu/includes/mmgr/docs/reference/performance.md	because the reading that matters is the comparison	because the important reading is the comparison
+src/cu/includes/mmgr/docs/research/Salishan/README.md	every source, held or cited	every source, stored or cited
+src/cu/includes/mmgr/include/mmgr.h	That is the whole reason to reach for it	This is the reason to reach for it
+src/cu/includes/mmgr/include/mmgr.h	name is the whole of what a consumer is handed.	name is all a consumer is handed.
+src/cu/includes/mmgr/include/mmgr.h	That is what test/support/mmgr_host_traps.h does	test/support/mmgr_host_traps.h does this
+src/cu/includes/mmgr/include/mmgr.h	What is unconditional is the stop and not the diagnostic.	The stop is unconditional and the diagnostic is not.
+src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	that is a measurement and not a proof	that is a measurement instead of a proof
+src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	off the wire rather	off the wire instead
+src/cu/includes/mmgr/src/clz/clz.c	five times rather	five times instead
+src/cu/includes/mmgr/src/config/mmgr_compiler_directives.h	contains an unmatched {;	contains an open {;
+src/cu/includes/mmgr/src/config/mmgr_config.h	What it does is feed MMGR_CARCER_MAX below	It feeds MMGR_CARCER_MAX below
+src/cu/includes/mmgr/src/config/mmgr_config.h	at compile time rather	at compile time instead
+src/cu/includes/mmgr/docs/guide/install.md	that is deliberate and not unfinished.	by design, and complete.
+src/cu/includes/mmgr/docs/modules/text-and-hw.md	so a text of any length passes	and a text of any length passes
+src/cu/includes/mmgr/include/mmgr.h	collide on nothing else and each would	collide only there and each would
+src/cu/includes/mmgr/src/confinium_externum/confinium_externum.c	named mmgr_pingpong_ rather than	named mmgr_pingpong_ instead of
+src/cu/includes/mmgr/src/endian/endian.c	mmgr_wr_le and its kin rather	mmgr_wr_le and its kin instead
+src/cu/includes/mmgr/src/fractio/fractio.h	and none of them tests it.	and not one of them tests it.
+src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	ring_move is what holds them there, by taking	ring_move keeps them there by taking
+src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	That alignment is size_t and no more,	That alignment is size_t at most,
+src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	the cost is the call and not the move.	the cost is the call.
+src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.h	Two runs cover one lap and no more.	Two runs cover one lap at most.
+src/cu/includes/mmgr/src/memoria_externa/memoria_externa.c	the first makes the subtraction in the second safe	the first guards the subtraction in the second
+src/cu/includes/mmgr/src/memoria_externa/memoria_externa.c	named mmgr_pingpong_ rather than	named mmgr_pingpong_ instead of
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_descriptor.h	That is the whole of circular,	This defines circular,
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_descriptor.h	That is the whole of what makes a	This alone makes a
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_iudex.h	and the one place a configuration stops the build.	and the single place a configuration stops the build.
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.c	// it held and declines,	// it already has and declines,
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	* @note Spelled at length deliberately.	* @note Written at length deliberately.
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	Volatile, and held while it updates	Volatile, and set while it updates
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	length are the whole of what a transfer adds.	length are all a transfer adds.
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	That is what praet_ordo_completed is.	praet_ordo_completed reports that.
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	That is what a caller needs to	A caller needs exactly this to
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	and not whether that is what was	and not whether that matches what was
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	never advances anything, which is why a	never advances anything, and for that reason a
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	and where busy was already held.	and where busy was already set.
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	as puts the whole of the	as puts all of the
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_praefinitum.h	That order is the whole point.	That order is essential.
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_procurator.h	* @note Reports and never gates.	* @note Reports and does not gate.
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_procurator.h	* @note Reports and never gates,	* @note Reports and does not gate,
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_tabula_vexillorum.h	The map is ours, which is exactly why it needs checking.	The map is ours, and for that reason it needs checking.
+src/cu/includes/mmgr/src/spatium/spatium.c	and none of them frees	and not one of them frees
+src/cu/includes/mmgr/src/spatium/spatium.c	What it covers is whatever the next fill leaves there.	It covers whatever the next fill leaves there.
+src/cu/includes/mmgr/src/verba_scribo/verba_linea.h	what the line held kept at the	what the line contained kept at the
+src/cu/includes/mmgr/src/verbum_scrutor/verbum_scrutor.h	itself if that is what it wants.	itself if it wants that.
+src/cu/includes/mmgr/test/accuracy/test_ascii_persona_bitorum_accuracy/test_ascii_persona_bitorum_accuracy.c	its runs add up to.	its runs total.
+src/cu/includes/mmgr/test/accuracy/test_ascii_persona_bitorum_accuracy/test_ascii_persona_bitorum_accuracy.c	and the one place a bitmap copied	and the single place a bitmap copied
+src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	share no shift, no mask and no idea of a byte boundary.	share neither a shift, a mask nor a byte boundary.
+src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	nothing else here exercises.	no other case here exercises.
+src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	Every later byte then differs, which makes	Every later byte then differs, and that makes
+src/cu/includes/mmgr/test/accuracy/test_cellularum_laboro_accuracy/test_cellularum_laboro_accuracy.c	it correctly, which makes it a second	it correctly, and that makes it a second
+src/cu/includes/mmgr/test/accuracy/test_cellularum_laboro_accuracy/test_cellularum_laboro_accuracy.c	and no rounding, which makes the comparison exact.	and no rounding, and that makes the comparison exact.
+src/cu/includes/mmgr/test/accuracy/test_cellularum_laboro_accuracy/test_cellularum_laboro_accuracy.c	the difference is the accent and not the comparison.	the difference is the accent, while the comparison is the same.
+src/cu/includes/mmgr/test/accuracy/test_clz_accuracy/test_clz_accuracy.c	the true count and the one place the	the true count and the single place the
+src/cu/includes/mmgr/test/accuracy/test_endian_accuracy/test_endian_accuracy.c	on a host of either order.	on a host with either byte order.
+src/cu/includes/mmgr/test/accuracy/test_endian_accuracy/test_endian_accuracy.c	This is the whole of the reference every expectation is built from.	This is the complete reference every expectation is built from.
+src/cu/includes/mmgr/test/accuracy/test_fractio_accuracy/test_fractio_accuracy.c	to check itself would prove nothing.	to check itself would show nothing.
+src/cu/includes/mmgr/test/accuracy/test_fractio_accuracy/test_fractio_accuracy.c	and this is the whole of it.	and this is all of it.
+src/cu/includes/mmgr/test/accuracy/test_fractio_accuracy/test_fractio_accuracy.c	and neither is what this case asks.	and this case asks for neither.
+src/cu/includes/mmgr/test/accuracy/test_impensa_ancorae_acus_accuracy/test_impensa_ancorae_acus_accuracy.c	What is checkable is whether the table	The checkable question is whether the table
+src/cu/includes/mmgr/test/accuracy/test_impensa_ancorae_acus_accuracy/test_impensa_ancorae_acus_accuracy.c	It would prove nothing on the day it	It would show nothing on the day it
+src/cu/includes/mmgr/test/accuracy/test_impensa_ancorae_acus_accuracy/test_impensa_ancorae_acus_accuracy.c	and so none of them names	and so not one of them names
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	It has no capacity mask, no wrap and no two-run move,	It has neither a capacity mask, a wrap nor a two-run move,
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	which is exactly why it is the right	and for that reason it is the right
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	offset into the held bytes	offset into the stored bytes
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	the bytes already held are read back	the bytes already stored are read back
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	One byte is held back always	One byte is reserved always
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	is already held would do	is already stored would do
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	while it is free and not held,	while it is free and not pinned,
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	Every loculus is held and dropped in turn	Every loculus is pinned and dropped in turn
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	a loculus already held is expected	a loculus already pinned is expected
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	Checks that a held loculus hands back	Checks that a pinned loculus hands back
+src/cu/includes/mmgr/test/accuracy/test_memoria_externa_accuracy/test_memoria_externa_accuracy.c	in the exhaustive sweep takes.	in the complete sweep takes.
+src/cu/includes/mmgr/test/accuracy/test_memoria_externa_accuracy/test_memoria_externa_accuracy.c	and not a wide range of magnitudes.	and not many magnitudes.
+src/cu/includes/mmgr/test/accuracy/test_memoria_operor_accuracy/test_memoria_operor_accuracy.c	They share no word load, no lane mask and no tail	They share neither a word load, a lane mask nor a tail
+src/cu/includes/mmgr/test/accuracy/test_memoria_operor_accuracy/test_memoria_operor_accuracy.c	and this is where that shows.	and that shows here.
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	is the accuracy claim that matters most for an append.	is the most important accuracy claim for an append.
+src/cu/includes/mmgr/test/accuracy/test_pow5_accuracy/test_pow5_accuracy.c	A 1024-bit unsigned integer, held as	A 1024-bit unsigned integer, stored as
+src/cu/includes/mmgr/test/accuracy/test_pow5_accuracy/test_pow5_accuracy.c	The count is a width and not an index.	The count is a width instead of an index.
+src/cu/includes/mmgr/test/accuracy/test_pow5_accuracy/test_pow5_accuracy.c	remainder held below its denominator	remainder kept below its denominator
+src/cu/includes/mmgr/test/accuracy/test_pow5_accuracy/test_pow5_accuracy.c	falls among the dropped ones, which makes the discarded remainder nonzero	falls among the dropped ones; the discarded remainder is then nonzero
+src/cu/includes/mmgr/test/accuracy/test_proximus_operor_accuracy/test_proximus_operor_accuracy.c	from a word boundary. That is the whole point	from a word boundary, the purpose
+src/cu/includes/mmgr/test/accuracy/test_proximus_operor_accuracy/test_proximus_operor_accuracy.c	a host of either order. What is checked is that the two helpers	hosts of either byte order. The checks are that the two helpers
+src/cu/includes/mmgr/test/accuracy/test_proximus_operor_accuracy/test_proximus_operor_accuracy.c	is exactly what it is meant to	is the defect it is meant to
+src/cu/includes/mmgr/test/accuracy/test_spatium_accuracy/test_spatium_accuracy.c	the largest extent the exhaustive grid walks	the largest extent the full grid walks
+src/cu/includes/mmgr/test/accuracy/test_spatium_accuracy/test_spatium_accuracy.c	and the one case that writes through a	and the single case that writes through a
+src/cu/includes/mmgr/test/accuracy/test_spatium_accuracy/test_spatium_accuracy.c	is held down to the shorter extent	is clamped to the shorter extent
+src/cu/includes/mmgr/test/accuracy/test_spatium_accuracy/test_spatium_accuracy.c	and so the rewind is exactly the	and so the rewind changes only the
+src/cu/includes/mmgr/test/accuracy/test_transformo_accuracy/test_transformo_accuracy.c	What it pins is that the sign bit is the single one bit	It pins the sign bit as the single bit
+src/cu/includes/mmgr/test/accuracy/test_transformo_accuracy/test_transformo_accuracy.c	and the product is the whole of what is checked.	and the check covers the product alone.
+src/cu/includes/mmgr/test/accuracy/test_verba_scribo_accuracy/test_verba_scribo_accuracy.c	The one case that uses a smaller buffer	The single case that uses a smaller buffer
+src/cu/includes/mmgr/test/accuracy/test_verba_scribo_accuracy/test_verba_scribo_accuracy.c	What is checked is that the number	The check is that the number
+src/cu/includes/mmgr/test/accuracy/test_verba_scribo_accuracy/test_verba_scribo_accuracy.c	really is a tie and not a value that merely	really is a tie, and no value here merely
+src/cu/includes/mmgr/test/accuracy/test_verba_scribo_accuracy/test_verba_scribo_accuracy.c	once the terminator is held back	once the terminator is reserved
+src/cu/includes/mmgr/test/accuracy/test_verba_scribo_accuracy/test_verba_scribo_accuracy.c	What is checked is the exact text the	The check is on the exact text the
+src/cu/includes/mmgr/test/accuracy/test_verbum_scrutor_accuracy/test_verbum_scrutor_accuracy.c	and that is what this asserts.	and this asserts it.
+src/cu/includes/mmgr/test/accuracy/test_verbum_scrutor_accuracy/test_verbum_scrutor_accuracy.c	one lane takes in the exhaustive word sweep	one lane takes in the full word sweep
+src/cu/includes/mmgr/test/accuracy/test_verbum_scrutor_accuracy/test_verbum_scrutor_accuracy.c	the exhaustive word sweep draws its lanes from	the full word sweep draws its lanes from
+src/cu/includes/mmgr/test/bench/CMakeLists.txt	and so with it on the -O2 below never reached the generated code:	and so with it on the -O2 below would not reach the generated code:
+src/cu/includes/mmgr/test/bench/CMakeLists.txt	# the link line carried the build type's -O3 and that is what the bench was measuring. The give	# the link line carries the build type's -O3, and the bench would measure that. The size shows
+src/cu/includes/mmgr/test/bench/CMakeLists.txt	# away was the size - .text came out at the -O3 figure and not the -O2 one - and -O3 measured	# it - .text comes out at the -O3 figure and not the -O2 one - and -O3 measures
+src/cu/includes/mmgr/test/bench/CMakeLists.txt	the context id the worker slots are keyed on	the context id the worker entries are keyed on
+src/cu/includes/mmgr/test/bench/CMakeLists.txt	It is held to its own warning set	It is compiled under its own warning set
+src/cu/includes/mmgr/test/bench/README.md	because the reading that matters is the comparison	because the reading of interest is the comparison
+src/cu/includes/mmgr/test/bench/README.md	holds committed CSVs, which makes a change in these numbers visible as a diff.	holds committed CSVs, and a change in these numbers shows as a diff.
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	them are held to the occurrence set	them are checked against the occurrence set
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	from the symbol it just read, which makes the reads a chain.	from the symbol it just read, and so the reads form a chain.
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	and so none of them waits on	and so no read waits on
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	What the threshold means is fixed below	The threshold's meaning is fixed below
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	and so what is compared is the spacing and not the	and so the comparison covers the spacing, not the
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	Any other value is a defect and not a property of a corpus	Any other value is a defect, never a property of a corpus
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	Amplification for an answer that stands out, settling for one that does not,	Amplification for an answer above the rest, settling for one that is not,
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	What this asks is whether a stride	The question is whether a stride
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	because none of them sees the	because no such formula sees the
+src/cu/includes/mmgr/test/bench/bench_ancorae_cycles.c	floored at one slot	floored at one entry
+src/cu/includes/mmgr/test/bench/bench_ancorae_cycles.c	is the whole of what the sift arms trade away.	is all the sift arms trade away.
+src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	The generator is the single one held to published vectors	The generator is the single one checked against published vectors
+src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	and so it inherits that	and so it carries that
+src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	so the ladder needs enough rungs to show the trend and no more.	so the ladder needs only enough rungs to show the trend.
+src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	What the ratio needs is relative precision	The ratio needs relative precision
+src/cu/includes/mmgr/test/bench/bench_ancorae_lattice.c	What the alphabet costs is measured in the	The alphabet's cost is measured in the
+src/cu/includes/mmgr/test/bench/bench_ancorae_lattice.c	and none of them looks at	and no rule looks at
+src/cu/includes/mmgr/test/bench/bench_ancorae_sift.c	and it is what decides whether a sieve	and it decides whether a sieve
+src/cu/includes/mmgr/test/bench/bench_ancorae_sift.c	which is exactly the condition the independence	the very condition the independence
+src/cu/includes/mmgr/test/bench/bench_ancorae_sift.c	The policy is a free variable, and that is the point of having it.	The policy is a free variable by design.
+src/cu/includes/mmgr/test/bench/bench_ancorae_sift.c	What the policy moves is how	The policy moves how
+src/cu/includes/mmgr/test/bench/bench_ancorae_sift.c	that separation is the whole claim	that separation alone is the claim
+src/cu/includes/mmgr/test/device/praet_suite/include/unity_config.h	This is where the output hook belongs.	The output hook belongs here.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	What it changes is whether an incomplete	It changes whether an incomplete
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	what is gone is any statement about which bytes were	nothing states which bytes were
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	It is not an estimate of any part's frequency	It estimates no part's frequency
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	and the name is the whole of what is checked.	and the name is all that is checked.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	That is what the	The comparison uses the size the
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	names no part, no vendor and no board.	names no part, vendor or board.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	and so what is tested is the architecture level	and so the test is on the architecture level
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	A completion is held against the channel that	A completion is deferred on the channel that
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	Held and never copied	Kept by pointer and never copied
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	Bytes each held completion reports	Bytes each deferred completion reports
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	each channel's held completions come due	each channel's deferred completions come due
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	since the callback is what reads it	since the callback reads it
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	Releases the completions held against one channel	Releases the completions deferred on one channel
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	keeps its completions. That is what a busy timer	keeps its completions. A busy timer reports this
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	reports when the transfer is still running.	when the transfer is still running.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	either now or held against its channel.	either now or deferred on its channel.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.c	has nowhere to be held	has nowhere to be deferred
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.h	leaves the rest held.	leaves the rest deferred.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.h	Completions still held against a channel	Completions still deferred on a channel
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_engine.h	That is the shape a real integration takes until the library grows one.	A real integration takes the same shape while the library lacks one.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	That is what PraetAttach takes, and taking it	PraetAttach takes one, and taking it
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	when the bits first held	when the bits first matched
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	the first microsecond the bits held, which is the whole difference between timing	the first microsecond the bits matched, the difference between timing
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	a vector is not held for a mover	a vector is not reserved for a mover
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	length is the whole of what this case is about	length is the sole subject of this case
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	That is the whole of the contract here.	The contract here ends there.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	because what matters is that	because the property under test is that
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	because that is the point the channel	because the attach is the moment the channel
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	while the lock is held declines	while the lock is taken declines
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	is the whole of what makes a transfer a read or a write.	alone makes a transfer a read or a write.
+src/cu/includes/mmgr/test/performance_benching/bench.py	Imported for that one answer rather	Imported for that one answer instead
+src/cu/includes/mmgr/test/performance_benching/bench.py	so that is the test - a .c in the same	so the test is the include - a .c in the same
+src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	alpha_masks_agree is what says the two produce	alpha_masks_agree checks that the two produce
+src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	the embed_word the lanes are held at	the embed_word the lanes are stored in
+src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	Walks a fixed recurrence, which makes a failure reproduce,	Walks a fixed recurrence, and a failure reproduces,
+src/cu/includes/mmgr/test/performance_benching/cellularum/main/main.c	and not the one word the timing row uses.	and not only the word the timing row uses.
+src/cu/includes/mmgr/test/performance_benching/verba/main/main.c	and so what the row reports	and so the row reports
+src/cu/includes/mmgr/test/support/mmgr_sha256.c	What is left is under eight bits	The remainder is under eight bits
+src/cu/includes/mmgr/test/support/mmgr_sha256.c	The vectors this implementation is held to	The vectors this implementation is checked against
+src/cu/includes/mmgr/test/support/mmgr_sha256.c	which nothing else here reaches.	a length no other vector here reaches.
+src/cu/includes/mmgr/test/support/mmgr_sha256.h	That is what the streaming case proves, and it	The streaming case proves this, and it
+src/cu/includes/mmgr/test/support/mmgr_sha256.h	and that number is what tells a stall from	and that number tells a stall from
+src/cu/includes/mmgr/test/support/mmgr_sha256.h	stack and no more.	stack.
+src/cu/includes/mmgr/test/unit/memoria_externa/test_memoria_externa/test_memoria_externa.c	Checks that the internal reserve is held back,	Checks that the internal reserve is withheld,
+src/cu/includes/mmgr/test/unit/memoria_externa/test_memoria_externa/test_memoria_externa.c	would wrap to an enormous remainder	would wrap to a remainder near SIZE_MAX
+src/cu/includes/mmgr/tools/dev_env/dedup.py	and what is left is code	and the remainder is code
+src/cu/includes/mmgr/tools/dev_env/gen_pow5.py	held as a 128 bit fraction	stored as a 128 bit fraction
+src/cu/includes/mmgr/tools/dev_env/gen_pow5.py	Two per line because that is what fits the column limit	Two per line because two fit the column limit
+src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	because settling is a rule and not a reaction.	because the settling rule overrides any reaction.
+src/cu/includes/mmgr/tools/dev_env/nsconv_test.py	a ',' inside a literal is not an argument separator	a ',' inside a literal separates no arguments
+src/cu/includes/mmgr/tools/dev_env/readclean.py	instead of form the prefix inline. Adding a second spelling is	instead of forming the prefix inline. Adding a second prefix is
+src/cu/includes/mmgr/tools/dev_env/readclean.py	A REGION MACRO is named for its region by its BODY, not by its own form:	A REGION MACRO is named for the region its BODY reads, whatever its own form:
+src/cu/includes/mmgr/tools/dev_env/readclean.py	# filed FS as a region of its own, and so the cast and the offset it reads came out as X1_C and	# files FS as a region of its own, and so the cast and the offset it reads come out as X1_C and
+src/cu/includes/mmgr/tools/dev_env/readclean.py	is the whole question.	is the question.
+src/cu/includes/mmgr/tools/dev_env/rename_modules.py	is additionally required NOT to be preceded	must also NOT be preceded
+src/cu/includes/mmgr/tools/git-hooks/pre-commit	A denylist held inside the tree	A denylist stored inside the tree
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	A boundary symbol is common, which makes it a poor anchor:	A boundary symbol is common and therefore a poor anchor:
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	is a port and not a test double.	is a real port.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	and so what is under test is the join and not the table.	and so the test covers the join alone.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	and so the number is the whole of the correspondence.	and so the shared number alone ties the two halves together.
+src/cu/includes/mmgr/test/performance_benching/cellularum/README.md	What is left is the shape here:	That leaves the shape here:
+src/cu/includes/mmgr/test/performance_benching/praet/main/main.c	Mixed from the offset, which makes a byte copied from the wrong place visible as itself	Mixed from the offset, and therefore a byte copied from the wrong place shows as itself
+src/cu/includes/mmgr/test/performance_benching/verba/main/main.c	// is the rule and not the path to it.	// the tie rule's cost alone.
+src/cu/includes/mmgr/test/support/mmgr_sha256.c	The third term is a shift and not a rotate, the entirety of difference between this and	The third term is a shift where the others rotate, the sole difference between this and
+src/cu/includes/mmgr/tools/dev_env/against_libc.py	difference is the code and not the toolchain.	difference lies in the code alone.
+src/cu/includes/mmgr/.github/workflows/dependabot-auto-merge.yml	the branch protection rule on main, not	the branch protection rule on main;
+src/cu/includes/mmgr/.github/workflows/dependabot-auto-merge.yml	# this file: if build-and-test	# this file is no gate: if build-and-test
+src/cu/includes/mmgr/CONTRIBUTING.md	and that setting is what	and that setting
+src/cu/includes/mmgr/cmake/MMgrModule.cmake	# whole point of the widths being compile-time knobs:	# purpose of the widths being compile-time knobs:
+src/cu/includes/mmgr/cmake/MMgrModule.cmake	Before this they reached mmgr_add_suite and stopped	A capability that reaches mmgr_add_suite and stops
+src/cu/includes/mmgr/cmake/MMgrModule.cmake	# there, and so turning one on built its suite against a module whose body was still compiled out -	# there builds its suite, once turned on, against a module whose body is still compiled out -
+src/cu/includes/mmgr/cmake/MMgrModule.cmake	# the suite passed, and it had tested nothing. A capability has to decide what is compiled, not	# the suite passes, and it tests nothing. A capability has to decide what is compiled as well as
+src/cu/includes/mmgr/cmake/MMgrModule.cmake	# only what is run.	# what is run.
+src/cu/includes/mmgr/docs/concepts/swar.md	`cycles_per_call / MMGR_SWAR_BYTES`, which	`cycles_per_call / MMGR_SWAR_BYTES`, the
+src/cu/includes/mmgr/docs/concepts/swar.md	is the column the design claim lives in:	column the design claim lives in:
+src/cu/includes/mmgr/docs/guide/string-shim.md	It is a cap, not a	It is a cap and sizes no
+src/cu/includes/mmgr/docs/guide/string-shim.md	buffer size: nothing is allocated	buffer: nothing is allocated
+src/cu/includes/mmgr/docs/modules/region-edges.md	so nothing is copied across the boundary.	and nothing is copied across the boundary.
+src/cu/includes/mmgr/docs/modules/region-edges.md	write the index through `.out_index`, and so	write the index through `.out_index`, and therefore
+src/cu/includes/mmgr/docs/modules/region-edges.md	exactly one consumer advances `tail`, and that	exactly one consumer advances `tail`. For that reason alone
+src/cu/includes/mmgr/docs/modules/region-edges.md	is the whole reason acquire and release	acquire and release
+src/cu/includes/mmgr/docs/modules/serialization.md	so bits that do not fill one stay	and bits that do not fill one stay
+src/cu/includes/mmgr/docs/project/license-notes.md	which means dual licensing is a conversation and not a	and so dual licensing is arranged directly
+src/cu/includes/mmgr/docs/project/license-notes.md	policy question:	by email:
+src/cu/includes/mmgr/docs/quality/optimization.md	There is no speed table on this page any more, by design.	There is no speed table on this page, by design.
+src/cu/includes/mmgr/docs/quality/optimization.md	The one that used to be here was a host measurement, taken on x86-64, and it is what sent an entire	A host measurement, taken on x86-64, does not belong here, because it misleads every
+src/cu/includes/mmgr/docs/quality/optimization.md	round of optimization work down the wrong road: it made the scans look within a few percent of libc,	round of optimization work: it puts the scans within a few percent of libc,
+src/cu/includes/mmgr/docs/quality/optimization.md	so nobody looked, while on the parts this library ships to they were three to sixteen times off.	while on the parts this library ships to they are three to sixteen times off.
+src/cu/includes/mmgr/docs/reference/compiler-support.md	refuse every request, which is	refuse every request, and so
+src/cu/includes/mmgr/docs/reference/compiler-support.md	what lets `memoriam_praetereo` build and its tests link	`memoriam_praetereo` builds and its tests link
+src/cu/includes/mmgr/docs/reference/performance.md	is noise, not a	is noise and reports no
+src/cu/includes/mmgr/src/bitorum_introitus_exitus/bitorum_introitus_exitus.c	The const on the public type is what	The const on the public type
+src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.c	so the walk tests the folded word	and the walk tests the folded word
+src/cu/includes/mmgr/src/cellularum_laboro/cellularum_laboro.h	        so up to MMGR_SWAR_BYTES - 1 bytes past cap are read.	        and up to MMGR_SWAR_BYTES - 1 bytes past cap are read.
+src/cu/includes/mmgr/src/clz/clz.c	// so five halvings narrow	// and five halvings narrow
+src/cu/includes/mmgr/src/config/mmgr_config.h	so the confinium is the cap,	and the confinium is the cap,
+src/cu/includes/mmgr/src/endian/endian.c	so there is no conversion to make.	and there is no conversion to make.
+src/cu/includes/mmgr/src/fractio/fractio.c	and reads bits, which is	and reads bits:
+src/cu/includes/mmgr/src/impensa_ancorae_acus/CMakeLists.txt	# so the four that are not selected	# and the four that are not selected
+src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	A request above it copies the capacity and	A request above it copies the capacity
+src/cu/includes/mmgr/src/memoria_anularis/memoria_anularis.c	no more.	alone.
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_descriptor.h	measure is what	measure
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	set while it updates, which is	set while it updates, and that
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	what makes it ignore the interrupt	makes it ignore the interrupt
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	the whole point: a triple nobody declared	the purpose: a triple nobody declared
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	Naming the pool again is	Naming the pool again
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_ordo.h	what gives the bound something to compare against	gives the bound something to compare against
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_procurator.h	carrying more counters. What it records	carrying more counters. It records
+src/cu/includes/mmgr/src/memoriam_praetereo/praet_procurator.h	is work: entries called	work: entries called
+src/cu/includes/mmgr/src/numeros_scribo/numeros_scribo.c	and the caller is the	and only the caller
+src/cu/includes/mmgr/src/numeros_scribo/numeros_scribo.c	one that knows where the write began.	knows where the write began.
+src/cu/includes/mmgr/src/numeros_scribo/numeros_scribo.h	return where they finished, and so	return where they finished, and therefore
+src/cu/includes/mmgr/src/octetus_introitus_exitus/octetus_introitus_exitus.c	so neither the struct nor any field	and neither the struct nor any field
+src/cu/includes/mmgr/src/verba_scribo/verba_scribo.c	exactly when five divides it, which is	exactly when five divides it, and that
+src/cu/includes/mmgr/src/verba_scribo/verba_scribo.c	what makes the one product	makes the one product
+src/cu/includes/mmgr/src/verbum_scrutor/verbum_scrutor.h	What mmgr_scrut_any_digit marks beyond the ten digits is the six symbols after the nine,	Beyond the ten digits mmgr_scrut_any_digit marks only the six symbols after the nine
+src/cu/includes/mmgr/src/verbum_scrutor/verbum_scrutor.h	not a high byte.	and never a high byte.
+src/cu/includes/mmgr/test/accuracy/test_ascii_persona_bitorum_accuracy/test_ascii_persona_bitorum_accuracy.c	the one property that holds	the single property that holds
+src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	put writes whole bytes and	put writes whole bytes only,
+src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	nothing else, and the bits past	and the bits past
+src/cu/includes/mmgr/test/accuracy/test_bitorum_introitus_exitus_accuracy/test_bitorum_introitus_exitus_accuracy.c	// so the all ones mask is written out	// and so the all ones mask is written out
+src/cu/includes/mmgr/test/accuracy/test_cellularum_laboro_accuracy/test_cellularum_laboro_accuracy.c	rounding to get wrong, which is	rounding to get wrong, and that
+src/cu/includes/mmgr/test/accuracy/test_cellularum_laboro_accuracy/test_cellularum_laboro_accuracy.c	what separates a placement	separates a placement
+src/cu/includes/mmgr/test/accuracy/test_endian_accuracy/test_endian_accuracy.c	still holds the guard, which is	still holds the guard, and that
+src/cu/includes/mmgr/test/accuracy/test_endian_accuracy/test_endian_accuracy.c	what catches a write	catches a write
+src/cu/includes/mmgr/test/accuracy/test_impensa_ancorae_acus_accuracy/test_impensa_ancorae_acus_accuracy.c	There is no arithmetic	No arithmetic
+src/cu/includes/mmgr/test/accuracy/test_impensa_ancorae_acus_accuracy/test_impensa_ancorae_acus_accuracy.c	that reproduces them and no reference outside	reproduces them and no reference exists outside
+src/cu/includes/mmgr/test/accuracy/test_impensa_ancorae_acus_accuracy/test_impensa_ancorae_acus_accuracy.c	since the ceiling is what	since the ceiling
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	beside the point here; what matters	beside the point here; the property under test
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	they are the same ones, which is	they are the same ones, and that
+src/cu/includes/mmgr/test/accuracy/test_memoria_anularis_accuracy/test_memoria_anularis_accuracy.c	what shows the peek moved nothing.	shows the peek moved nothing.
+src/cu/includes/mmgr/test/accuracy/test_memoria_externa_accuracy/test_memoria_externa_accuracy.c	by chance, which	by chance, and for that reason
+src/cu/includes/mmgr/test/accuracy/test_memoria_externa_accuracy/test_memoria_externa_accuracy.c	is why the case is written up here.	the case is written up here.
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	and so what is compared	and so the comparison covers
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	is the padded string and not merely its length.	the padded string and not merely its length.
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	and so the width it formats at is the	and so it formats at the width
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	one the caller states, alone.	the caller states, alone.
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	and not to cut the value, which	and not to cut the value, as
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	is what a minimum digit count means and what a maximum would get wrong.	a minimum digit count requires and a maximum would get wrong.
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	so the check is that the output carries	and the check is that the output carries
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	so there is no shared state to prepare.	and there is no shared state to prepare.
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	and not to truncate it, which is	and not to truncate it, as
+src/cu/includes/mmgr/test/accuracy/test_numeros_scribo_accuracy/test_numeros_scribo_accuracy.c	what the module documents	the module documents
+src/cu/includes/mmgr/test/accuracy/test_pow5_accuracy/test_pow5_accuracy.c	at the top of high, which	at the top of high:
+src/cu/includes/mmgr/test/accuracy/test_pow5_accuracy/test_pow5_accuracy.c	is the normalized form both	the normalized form both
+src/cu/includes/mmgr/test/accuracy/test_verbum_scrutor_accuracy/test_verbum_scrutor_accuracy.c	It shares no shift, no mask and	It shares no shift, mask or
+src/cu/includes/mmgr/test/accuracy/test_verbum_scrutor_accuracy/test_verbum_scrutor_accuracy.c	no constant with the word arithmetic	constant with the word arithmetic
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	and so the most informative next read is	and so the most informative next read lies where
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	the one the surviving candidates overlap on.	the surviving candidates overlap.
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	every relationship between positions, which is	every relationship between positions:
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	the only thing a shift can be.	a shift can be nothing else.
+src/cu/includes/mmgr/test/bench/bench_ancorae_ab.c	not yet ruled out, which is	not yet ruled out,
+src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	coinciding with itself, which is	coinciding with itself, and
+src/cu/includes/mmgr/test/bench/bench_ancorae_entropy.c	what the correction below removes.	the correction below removes that.
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	cannot reach either. What	cannot reach either. The
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	that tests is not who owns the bytes. It is whether	test leaves ownership aside and asks whether
+src/cu/includes/mmgr/test/integration/test_praet_correctness/praet_configuration.md	A ring can be a DMA destination, which is	A ring can be a DMA destination,
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	this case stops before the poll that releases. What it proves	this case stops before the poll that releases. It proves
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	is that the completion is what changed the state	that the completion changed the state
+src/cu/includes/mmgr/test/integration/test_praet_correctness/test_praet_correctness.c	// so it needs a literal.	// and so it needs a literal.
+src/cu/includes/mmgr/test/performance_benching/cellularum/README.md	18474 against 20394. That is	18474 against 20394. For that reason
+src/cu/includes/mmgr/test/performance_benching/cellularum/README.md	why the chain keeps its third	the chain keeps its third
+src/cu/includes/mmgr/test/performance_benching/praet/main/CMakeLists.txt	# so the flag is taken back out and replaced.	# and so the flag is taken back out and replaced.
+src/cu/includes/mmgr/test/performance_benching/praet/main/main.c	shows as itself, not merely	shows as itself as well as
+src/cu/includes/mmgr/test/performance_benching/praet/main/main.c	as a mismatch.	a mismatch.
+src/cu/includes/mmgr/test/performance_benching/verba/main/main.c	The exact power path is the	verba_fixed reaches the exact power path
+src/cu/includes/mmgr/test/performance_benching/verba/main/main.c	// one verba_fixed reaches, since	// alone, since
+src/cu/includes/mmgr/test/support/mmgr_sha256.h	and not a region, and for this	with no region behind it, and for this
+src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	every bit below the highest one, and so	every bit below the highest one, and therefore
+src/cu/includes/mmgr/test/unit/clz/test_clz/test_clz.c	every bit above the lowest one, and so	every bit above the lowest one, and therefore
+src/cu/includes/mmgr/tools/dev_env/dedup.py	# so it never renames:	# and so it never renames:
+src/cu/includes/mmgr/tools/dev_env/gen_ancorae_formae.py	nothing else.	no other byte.
+src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	A divergence in outcome is the arm, alone - which is	A divergence in outcome is the arm alone, and that
+src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	the whole question behind falling back	decides the question of falling back
+src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	one engine schedules all of them, which	one engine schedules all of them, as
+src/cu/includes/mmgr/tools/dev_env/gen_praet_scenarios.py	is what a part with fewer channels	a part with fewer channels
+src/cu/includes/mmgr/tools/dev_env/nsconv.py	Comment and literal bytes are text, not	Comment and literal bytes are plain text
+src/cu/includes/mmgr/tools/dev_env/nsconv.py	statement separator, which is	statement separator, and for that reason
+src/cu/includes/mmgr/tools/dev_env/nsconv.py	why this steps over literals	this steps over literals
