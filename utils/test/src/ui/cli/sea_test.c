@@ -65,8 +65,8 @@ static void sea_refused(void)
         !cli_sea_build("node", path, out, 0, sink, made, &err_msg) && (mmgr_line_finish(&err_msg) != 0ull) &&
             (cellul.find(&(CatenaFinitaCfg){
                  .src = why, .cap = sizeof(why), .other = "requires left-pad", .other_cap = CLI_CELLS_POOL}) != NULL) &&
-            (g_cli_sea_cells.in_use == 0ull) && (g_cli_sea_cells.hw != 0ull) &&
-            (g_cli_sea_cells.hw < (sizeof(s_text) * 4u)),
+            (embed_atomic_usize_load(&g_cli_sea_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_sea_cells.hw) != 0ull) &&
+            (embed_atomic_usize_load(&g_cli_sea_cells.hw) < (sizeof(s_text) * 4u)),
         "a script that requests a module outside Node is refused, read into a cell of its size");
 }
 

@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cells.h: the cells every module stores its work in: one cellblock of MMgr's host site over a block taken from the
-// system for the bytes requested, taken from and given back to through its custodia alone, whose lock every take and
-// give runs under and whose owner list records each module that took a cell; and the reports of the cellblock and of
+// system for the bytes requested, taken from and given back to through its custodia alone, each take and give one swap
+// on an atomic word, whose owner list records each module that took a cell; and the reports of the cellblock and of
 // each owner to the telemetry (cells.c)
 #ifndef CELLS_H
 #define CELLS_H

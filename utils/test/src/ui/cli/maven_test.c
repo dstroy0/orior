@@ -233,9 +233,9 @@ int main(void)
     maven_pom();
     maven_completes();
     maven_settings();
-    cli_check((g_cli_xml_cells.in_use == 0ull) && (g_cli_xml_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_xml_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_xml_cells.hw) != 0ull),
               "every XML file read, a POM, its parents and the settings, is given back once it is read");
-    cli_check((g_cli_maven_model_cells.in_use == 0ull) && (g_cli_maven_model_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_maven_model_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_maven_model_cells.hw) != 0ull),
               "and every model of what a POM gives its children");
     return cli_checked();
 }

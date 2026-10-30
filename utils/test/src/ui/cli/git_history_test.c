@@ -420,7 +420,7 @@ int main(void)
     cli_git_text_given(&s_changed.text);
     cli_git_text_given(&s_commits.text);
     cli_git_text_given(&s_stashes.text);
-    cli_check((g_cli_git_cells.in_use == 0ull) && (g_cli_git_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_git_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_git_cells.hw) != 0ull),
               "each list's texts are stored in a cell grown as they are put, and given back");
     return cli_checked();
 }

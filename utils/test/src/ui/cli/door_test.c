@@ -422,11 +422,11 @@ int main(void)
     door_frame();
     door_frame_back();
     // a place's threads end after its process does; its cell is therefore waited for up to five seconds
-    for (unsigned int waited = 0u; (g_cli_door_cells.in_use != 0ull) && (waited < 250u); waited += 1u)
+    for (unsigned int waited = 0u; (embed_atomic_usize_load(&g_cli_door_cells.in_use) != 0ull) && (waited < 250u); waited += 1u)
     {
         query_paused(20u);
     }
-    cli_check((g_cli_door_cells.in_use == 0ull) && (g_cli_door_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_door_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_door_cells.hw) != 0ull),
               "every place is given back once its process is gone, the most the places used marked");
     return cli_checked();
 }

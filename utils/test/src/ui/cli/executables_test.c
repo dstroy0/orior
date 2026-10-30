@@ -147,7 +147,7 @@ static void executables_spec(void)
     s_names.count = 0u;
     cli_npm_bins("{\"name\":\"lib\"}", &s_names, &module);
     cli_check(s_names.count == 0u, "and none where it has none");
-    cli_check((g_cli_executables_cells.in_use == 0ull) && (g_cli_executables_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_executables_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_executables_cells.hw) != 0ull),
               "each script is read in cells given back as it is read");
 }
 

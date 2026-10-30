@@ -83,10 +83,10 @@ static void ipp_message(void)
     cli_check((s_back.data_length == 8ull) &&
                   (memor.cmp(&(MemoriaCfg){.src = s_back.data, .other = "%PDF-1.4", .bytes = 8u}) == 0),
               "its document after it");
-    const unsigned long long in_use_during = g_cli_ipp_cells.in_use;
+    const unsigned long long in_use_during = embed_atomic_usize_load(&g_cli_ipp_cells.in_use);
     cli_ipp_given(&s_message);
     cli_ipp_given(&s_back);
-    cli_check((in_use_during != 0ull) && (g_cli_ipp_cells.in_use == 0ull),
+    cli_check((in_use_during != 0ull) && (embed_atomic_usize_load(&g_cli_ipp_cells.in_use) == 0ull),
               "a message's groups, attributes, values and bytes are stored in cells, given back once it is done");
 }
 

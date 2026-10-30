@@ -241,8 +241,8 @@ int main(void)
                  .src = why, .cap = CLI_CELLS_POOL, .other = "names no image", .other_cap = CLI_CELLS_POOL}) != NULL),
         "a description with nothing to build reports so");
     // the descriptions read are each below a few kilobytes, their tokens with them
-    cli_check((g_cli_devcontainer_cells.in_use == 0ull) && (g_cli_devcontainer_cells.hw != 0ull) &&
-                  (g_cli_devcontainer_cells.hw < 65536ull),
+    cli_check((embed_atomic_usize_load(&g_cli_devcontainer_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_devcontainer_cells.hw) != 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_devcontainer_cells.hw) < 65536ull),
               "a description is read into cells sized to it and given back");
     return cli_checked();
 }

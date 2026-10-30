@@ -405,7 +405,7 @@ int main(void)
                   (s_languages.room <= (2u * s_languages.count) + CLI_LANGUAGE_PAIRS_FIRST),
               "the languages' keys are stored in a room that grew to them and no further than twice");
     cli_plugins_languages_given(&s_languages);
-    cli_check((g_cli_plugins_cells.in_use == 0ull) && (g_cli_plugins_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_plugins_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_plugins_cells.hw) != 0ull),
               "the plugins are read in cells each given back");
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = plugins_slug("Toy Lang"), .other = "toy-lang", .cap = CLI_CELLS_POOL}),

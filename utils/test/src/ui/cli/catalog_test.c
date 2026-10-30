@@ -130,9 +130,9 @@ static void catalog_tree(void)
                      (grown.steps == s_catalog.steps) && (grown.args == s_catalog.args) &&
                      (grown.lists == s_catalog.lists) && (grown.used == s_catalog.used) &&
                      (memor.cmp(&(MemoriaCfg){.src = grown.text, .other = s_catalog.text, .bytes = grown.used}) == 0);
-    const unsigned long long in_use_during = s_grown_cells.in_use;
+    const unsigned long long in_use_during = embed_atomic_usize_load(&s_grown_cells.in_use);
     cli_catalog_given(&grown);
-    cli_check(same && (in_use_during > 0ull) && (s_grown_cells.in_use == 0ull),
+    cli_check(same && (in_use_during > 0ull) && (embed_atomic_usize_load(&s_grown_cells.in_use) == 0ull),
               "a catalog that grows reads the tree as one handed its room does, and gives its cells back");
     const unsigned int run = cli_catalog_find(&s_catalog, "run/track_driver");
     const CliParam *const parts = (run != CLI_CATALOG_NONE) ? catalog_param(run, "run") : NULL;
@@ -144,7 +144,7 @@ static void catalog_tree(void)
                                               .cap = CLI_CELLS_POOL});
     }
     cli_check(track, "the driver's parts are read from its usage");
-    cli_check((g_cli_catalog_cells.in_use == 0ull) && (g_cli_catalog_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_catalog_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_catalog_cells.hw) != 0ull),
               "the catalog's cells are each given back as the tree is read");
 }
 

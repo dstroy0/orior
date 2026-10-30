@@ -264,12 +264,12 @@ static void comms_traffic(void)
     {
         (void)comms_send(server, "files", "x", why);
     }
-    const unsigned long long in_use_stored = g_cli_comms_cells.in_use;
+    const unsigned long long in_use_stored = embed_atomic_usize_load(&g_cli_comms_cells.in_use);
     for (unsigned int at = 0u; at < CLI_COMMS_STORED_MAX; at += 1u)
     {
         (void)comms_send(server, "files", "x", why);
     }
-    cli_check((in_use_stored != 0ull) && (g_cli_comms_cells.in_use == in_use_stored),
+    cli_check((in_use_stored != 0ull) && (embed_atomic_usize_load(&g_cli_comms_cells.in_use) == in_use_stored),
               "each message stored is a cell of its own, the oldest given back as another is stored");
     char server_key[CLI_COMMS_KEY];
     char window_key[CLI_COMMS_KEY];

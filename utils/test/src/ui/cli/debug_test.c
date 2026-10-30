@@ -133,11 +133,11 @@ static void debug_processes(void)
     char line[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check(cli_spawn(&child, words, NULL, NULL, 0u, 1, &err_msg), "a process is started");
-    const unsigned long long in_use_before = g_cli_debug_processes_cells.in_use;
+    const unsigned long long in_use_before = embed_atomic_usize_load(&g_cli_debug_processes_cells.in_use);
     const unsigned long long began = cli_clock_milliseconds();
     int listed = debug_listed(child.id, line, sizeof(line));
     const unsigned long long took = cli_clock_milliseconds() - began;
-    cli_check((g_cli_debug_processes_cells.in_use == in_use_before) && (g_cli_debug_processes_cells.hw > 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_debug_processes_cells.in_use) == in_use_before) && (embed_atomic_usize_load(&g_cli_debug_processes_cells.hw) > 0ull),
               "the processes are listed in cells of their own, given back once written");
     // on Linux a process takes its name as its program starts and its line an instant after, once the system has laid
     // the program out: the list is read again until the line shows
@@ -269,7 +269,7 @@ static void debug_places(void)
         (void)cli_debug_planned(place, ".", json, read, CLI_JSON_NONE, &s_plan, &err_msg);
     }
     cli_check((place != NULL) && (place->placed_count == 100u) && (place->placed_room == 128u) &&
-                  (place->placed[99] == 99ll) && (place->start.nodes_most != 0u) && (g_cli_debug_cells.in_use != 0ull),
+                  (place->placed[99] == 99ll) && (place->start.nodes_most != 0u) && (embed_atomic_usize_load(&g_cli_debug_cells.in_use) != 0ull),
               "its breakpoints grow as they come, and its start is a tree of its own");
     cli_lock_take(&g_cli_debug.lock);
     if (place != NULL)
@@ -278,7 +278,7 @@ static void debug_places(void)
     }
     cli_lock_give(&g_cli_debug.lock);
     cli_check((place != NULL) && !place->taken && (place->placed == NULL) && (place->start.nodes_most == 0u) &&
-                  (g_cli_debug_cells.in_use == 0ull),
+                  (embed_atomic_usize_load(&g_cli_debug_cells.in_use) == 0ull),
               "and all of it goes back as the place is freed");
 }
 

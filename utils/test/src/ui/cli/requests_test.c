@@ -148,7 +148,7 @@ static void requests_values(void)
             (cellul.eq(&(CatenaFinitaCfg){.src = requests_value("who"), .other = "all", .cap = CLI_CELLS_POOL})),
         "the private values over the shared, $shared to every environment");
     cli_requests_values_given(&s_values);
-    cli_check((g_cli_requests_cells.in_use == 0ull) && (g_cli_requests_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_requests_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_requests_cells.hw) != 0ull),
               "the environments and their values are read in cells each given back");
     cli_check(cli_requests_verifies(root, "api/v1/calls.http", "dev"), "a certificate is checked");
     requests_written(root, CLI_REQUESTS_PRIVATE,

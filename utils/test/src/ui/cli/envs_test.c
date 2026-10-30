@@ -34,7 +34,7 @@ int main(void)
     static char s_found[1u << 16u];
     VerbaLinea out = {s_found, sizeof(s_found), 0ull};
     cli_envs_found(s_root, &out);
-    cli_check((g_cli_envs_cells.in_use == 0ull) && (g_cli_envs_cells.hw > 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_envs_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_envs_cells.hw) > 0ull),
               "the search stores its folders, what it found and the names required in cells, each given back");
     unsigned int found = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_found, out.at, &found);

@@ -48,7 +48,7 @@ static void trust_answers(void)
                   (cellul.eq(&(CatenaFinitaCfg){.src = second, .other = "prettier.config.js", .cap = CLI_CELLS_POOL})),
               "the code a tree runs is found, in a cell of its paths");
     cli_trust_code_given(&code);
-    cli_check(g_cli_trust_cells.in_use == 0ull, "and the cell and the files read are given back");
+    cli_check(embed_atomic_usize_load(&g_cli_trust_cells.in_use) == 0ull, "and the cell and the files read are given back");
     cli_full(home, "trust.json", answers_file);
     cli_check(trust_answer(answers_file, tree) == -1, "a tree with no answer has none");
     (void)cli_trust_set_in(answers_file, trees, 1, &err_msg);

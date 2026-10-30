@@ -233,7 +233,7 @@ int main(void)
     (void)cli_cells_made(CLI_CELLS_POOL);
     settings_chain_checked();
     settings_layers_checked();
-    cli_check((g_cli_settings_cells.in_use == 0ull) && (g_cli_settings_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_settings_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_settings_cells.hw) != 0ull),
               "the settings are read and laid in cells each given back");
     return cli_checked();
 }

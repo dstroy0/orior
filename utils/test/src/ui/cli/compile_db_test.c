@@ -112,11 +112,11 @@ static void compile_cmake(void)
     compile_file(reply, "target-probe.json", s_target, sizeof(s_target) - 1u);
     static CliDatabase s_database;
     (void)cli_compile_db_refresh(dir, &s_database);
-    const unsigned long long in_use_before = g_cli_compile_cells.in_use;
+    const unsigned long long in_use_before = embed_atomic_usize_load(&g_cli_compile_cells.in_use);
     query_paused(2100u);
     (void)cli_compile_db_refresh(dir, &s_database);
     cli_check(
-        (g_cli_compile_cells.hw != 0ull) && (in_use_before != 0ull) && (g_cli_compile_cells.in_use == in_use_before),
+        (embed_atomic_usize_load(&g_cli_compile_cells.hw) != 0ull) && (in_use_before != 0ull) && (embed_atomic_usize_load(&g_cli_compile_cells.in_use) == in_use_before),
         "a look retains only the files it read once it is done, and a look again that finds them the same no more");
     line.at = 0ull;
     mmgr_line_ch(&line, '[');

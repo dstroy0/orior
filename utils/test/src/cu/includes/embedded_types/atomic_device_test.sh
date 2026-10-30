@@ -7,12 +7,12 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
 EMBEDDED_TYPES="$TOP/src/cu/includes/embedded_types/include"
 source "$TOP/utils/maint/engine/build_stamp.sh"
-build_stamp spinlock_device_test
+build_stamp atomic_device_test
 
 HOST_FLAGS=()
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        BINARY="$OUT/spinlock_device_test.exe"
+        BINARY="$OUT/atomic_device_test.exe"
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -24,7 +24,7 @@ case "$(uname -s)" in
         HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
         ;;
     *)
-        BINARY="$OUT/spinlock_device_test"
+        BINARY="$OUT/atomic_device_test"
         ;;
 esac
 
@@ -39,10 +39,10 @@ for one in $ARCHES; do
 done
 
 rm -f "$BINARY"
-nvcc -std=c++17 -O2 "${HOST_FLAGS[@]}" "${GENCODE[@]}" -I "$EMBEDDED_TYPES" -o "$BINARY" "$TEST/spinlock_device_test.cu"
+nvcc -std=c++17 -O2 "${HOST_FLAGS[@]}" "${GENCODE[@]}" -I "$EMBEDDED_TYPES" -o "$BINARY" "$TEST/atomic_device_test.cu"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 
 "$BINARY"
 STATUS=$?
-echo "  spinlock device test exit $STATUS"
+echo "  atomic device test exit $STATUS"
 exit "$STATUS"

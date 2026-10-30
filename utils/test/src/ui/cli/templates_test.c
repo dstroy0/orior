@@ -47,6 +47,6 @@ int main(void)
     err_msg.at = 0ull;
     cli_check(!climbs && !cli_templates_create("script", parent, "a/b", made, &err_msg),
               "a template or a name that leaves its folder is refused");
-    cli_check(g_cli_templates_cells.in_use == 0ull, "and every cell the templates took is given back");
+    cli_check(embed_atomic_usize_load(&g_cli_templates_cells.in_use) == 0ull, "and every cell the templates took is given back");
     return cli_checked();
 }

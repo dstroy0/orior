@@ -162,8 +162,8 @@ int main(void)
     watch_system();
     watch_reading();
     // the changes waiting and a group's are each a few paths, far below the room a fixed queue gave them
-    cli_check((g_cli_watch_cells.in_use == 0ull) && (g_cli_watch_cells.hw != 0ull) &&
-                  (g_cli_watch_cells.hw < (1ull << 20u)),
+    cli_check((embed_atomic_usize_load(&g_cli_watch_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_watch_cells.hw) != 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_watch_cells.hw) < (1ull << 20u)),
               "the changes and a batch are stored in cells sized to them, and given back");
     return cli_checked();
 }

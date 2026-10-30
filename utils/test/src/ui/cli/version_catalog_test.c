@@ -126,7 +126,7 @@ int main(void)
     catalog_sections();
     catalog_checked();
     catalog_completes();
-    cli_check((g_cli_versions_cells.in_use == 0ull) && (g_cli_versions_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_versions_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_versions_cells.hw) != 0ull),
               "every catalog read is given back, the most the catalogs used marked");
     return cli_checked();
 }

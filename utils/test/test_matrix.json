@@ -167,9 +167,9 @@
         "src/cu/engine/runtime/device_pool"
       ]
     },
-    "spinlock_device": {
-      "desc": "embedded_types' spinlock on the GPU: one lock in global memory a grid contends for and one in shared memory each block contends for, every increment under it counted; and the host arm compiled as C++ beside the device arm.",
-      "script": "utils/test/src/cu/includes/embedded_types/spinlock_device_test.sh",
+    "atomic_device": {
+      "desc": "embedded_types' atomics on the GPU: a grid adding to counters in global memory, each block adding to a counter in shared memory, and the grid claiming slots by compare-and-swap, every add counted and every slot taken once; and the host arm compiled as C++ beside the device arm.",
+      "script": "utils/test/src/cu/includes/embedded_types/atomic_device_test.sh",
       "src": [
         "+<cu/includes/embedded_types/include/*>"
       ],

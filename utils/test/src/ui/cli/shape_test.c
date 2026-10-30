@@ -86,8 +86,8 @@ int main(void)
                    "an expression last in a pattern takes the rest of its statement");
     cli_check(shape_search("python", s_total, "a + b", NULL) == 1u, "and a string is one token");
     // a search of texts of a hundred bytes takes a room of their tokens, far below a fixed room of 2^22
-    cli_check((g_cli_shape_cells.in_use == 0ull) && (g_cli_shape_cells.hw != 0ull) &&
-                  (g_cli_shape_cells.hw < (1ull << 16u)),
+    cli_check((embed_atomic_usize_load(&g_cli_shape_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_shape_cells.hw) != 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_shape_cells.hw) < (1ull << 16u)),
               "a search's room is sized to its code and pattern, and given back");
     cli_symbols_languages_given(s_languages);
     return cli_checked();

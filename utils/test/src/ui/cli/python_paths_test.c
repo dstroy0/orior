@@ -36,7 +36,7 @@ static void paths_checked(const char *text, int folders, const char *const *want
         matched += 1u;
     }
     cli_py_reading_given();
-    cli_check(same && (matched == count) && (g_cli_python_cells.in_use == 0ull), what);
+    cli_check(same && (matched == count) && (embed_atomic_usize_load(&g_cli_python_cells.in_use) == 0ull), what);
 }
 
 // the parent of `path` checked against `wanted`

@@ -190,7 +190,7 @@ int main(void)
     review_change();
     review_added();
     review_commit();
-    cli_check((g_cli_review_cells.in_use == 0ull) && (g_cli_review_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_review_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_review_cells.hw) != 0ull),
               "every text's lines compared are given back, the most they used marked");
     return cli_checked();
 }

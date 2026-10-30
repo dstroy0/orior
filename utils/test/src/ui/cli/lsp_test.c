@@ -132,9 +132,9 @@ static void lsp_ended(void)
         return;
     }
     cli_full(dir, "a.txt", file);
-    const unsigned long long in_use_closed = g_cli_lsp_files_cells.in_use;
+    const unsigned long long in_use_closed = embed_atomic_usize_load(&g_cli_lsp_files_cells.in_use);
     (void)cli_lsp_opened(server, file, "plaintext", "one\n", 4ull, &err_msg);
-    const unsigned long long in_use_open = g_cli_lsp_files_cells.in_use;
+    const unsigned long long in_use_open = embed_atomic_usize_load(&g_cli_lsp_files_cells.in_use);
     (void)cli_lsp_notified(server, "orior/end", "null", 4ull, &err_msg);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
     while (cli_lsp_alive(server) && (cli_clock_milliseconds() < until))
@@ -156,7 +156,7 @@ static void lsp_ended(void)
     cli_lsp_complaint(server, &out);
     cli_check_text(complaint, out.at, "ending as requested", "and the last thing it wrote");
     cli_lsp_unref(server);
-    cli_check((in_use_open > in_use_closed) && (g_cli_lsp_files_cells.in_use < in_use_open),
+    cli_check((in_use_open > in_use_closed) && (embed_atomic_usize_load(&g_cli_lsp_files_cells.in_use) < in_use_open),
               "a file open stores its URI in a cell, given back as the server is let go");
 }
 

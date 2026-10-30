@@ -102,7 +102,7 @@ def cmd_scan(a):
         # the C sources, read by the sonar-cxx plugin where the server holds it, and the reports `source tidy` wrote
         "-Dsonar.cxx.file.suffixes=.c,.h,.cu,.cuh",
         "-Dsonar.cxx.includeDirectories=src/cu/includes/mmgr/include,src/cu/includes/mmgr/src,src/cu/includes/embedded_types/include,src/cu/includes,ui/cli/src,ui/query/src",
-        "-Dsonar.cxx.defines=MMGR_ENABLE_DMA 0\\nMMGR_ENABLE_EXTRAM 0\\nMMGR_ENABLE_HOST 1\\nMMGR_ALIGN_BYTES 32\\nMMGR_ENABLE_HW_MEM_CAPACITY_CB 1\\nMMGR_ENABLE_LOCK 1\\nMMGR_ENABLE_OWNERS 1",
+        "-Dsonar.cxx.defines=MMGR_ENABLE_DMA 0\\nMMGR_ENABLE_EXTRAM 0\\nMMGR_ENABLE_HOST 1\\nMMGR_ALIGN_BYTES 32\\nMMGR_ENABLE_HW_MEM_CAPACITY_CB 1\\nMMGR_ENABLE_OWNERS 1",
         "-Dsonar.cxx.clangtidy.reportPaths=build/sonarqube/clang-tidy.txt",
         "-Dsonar.cxx.cppcheck.reportPaths=build/sonarqube/cppcheck.xml",
     ]

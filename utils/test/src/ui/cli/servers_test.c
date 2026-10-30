@@ -447,7 +447,7 @@ static void servers_projects(void)
     }
     mmgr_line_ch(&want, ']');
     cli_check_text(listed, out.at, wanted, "the projects a server is given are found to six folders down, in order");
-    cli_check(g_cli_servers_launch_cells.in_use == 0ull, "and the cells the search took are given back");
+    cli_check(embed_atomic_usize_load(&g_cli_servers_launch_cells.in_use) == 0ull, "and the cells the search took are given back");
 }
 
 int main(void)
@@ -459,8 +459,8 @@ int main(void)
     servers_markdown();
     servers_edits();
     // the workspace edits read are a few files of a few edits each, far below the room of every edit and file
-    cli_check((g_cli_servers_edits_cells.in_use == 0ull) && (g_cli_servers_edits_cells.hw != 0ull) &&
-                  (g_cli_servers_edits_cells.hw < 16384ull),
+    cli_check((embed_atomic_usize_load(&g_cli_servers_edits_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_servers_edits_cells.hw) != 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_servers_edits_cells.hw) < 16384ull),
               "a workspace edit is stored in a cell counted to its files and edits, and given back");
     servers_offers();
     servers_settings();

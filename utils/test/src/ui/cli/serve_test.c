@@ -81,7 +81,7 @@ static void serve_strings(void)
     unsigned int count = 0u;
     cli_check(cli_serve_strings_taken(&args, "paths", 8u, &items, &count, &err_msg) && (count == 3u) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = items[2], .other = "c", .cap = CLI_CELLS_POOL}) &&
-                  (items[3] == NULL) && (g_cli_serve_strings_cells.in_use != 0ull),
+                  (items[3] == NULL) && (embed_atomic_usize_load(&g_cli_serve_strings_cells.in_use) != 0ull),
               "the strings of an array are read into a cell of their count");
     cli_serve_strings_given(items);
     cli_check(cli_serve_strings_taken(&args, "paths", 2u, &items, &count, &err_msg) && (count == 2u) &&
@@ -91,7 +91,7 @@ static void serve_strings(void)
     cli_check(!cli_serve_strings_taken(&args, "bad", 8u, &items, &count, &err_msg),
               "an array not all strings is refused");
     cli_serve_strings_given(items);
-    cli_check(g_cli_serve_strings_cells.in_use == 0ull, "and each cell is given back");
+    cli_check(embed_atomic_usize_load(&g_cli_serve_strings_cells.in_use) == 0ull, "and each cell is given back");
 }
 
 // a line of the input read, QRY_MEMBER_UNREAD once it ends
@@ -263,7 +263,7 @@ static void serve_jobs(void)
     cli_lock_give(&s_lock);
     cli_check((start < first) && (first < second) && (second < end) && (end < s_events_at),
               "its start is sent first, its lines after it in order, and its end last");
-    cli_check(g_cli_serve_gathering_cells.in_use == 0ull, "and its gathering is given back");
+    cli_check(embed_atomic_usize_load(&g_cli_serve_gathering_cells.in_use) == 0ull, "and its gathering is given back");
 }
 
 int main(void)

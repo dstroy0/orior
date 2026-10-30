@@ -48,7 +48,7 @@ static void cargo_scanned(void)
     cli_check((g_cli_cargo_scan.token_room == g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.token_count != 0u),
               "the tokens' cell is the size of their count");
     cli_cargo_scan_given();
-    cli_check(g_cli_cargo_cells.in_use == 0ull, "and every cell of the search is given back");
+    cli_check(embed_atomic_usize_load(&g_cli_cargo_cells.in_use) == 0ull, "and every cell of the search is given back");
 }
 
 // a target written as `kind` or `kind:name`
@@ -115,7 +115,7 @@ static void cargo_found(void)
     cli_check((s_tests.room >= s_tests.count) && (s_tests.pieces != NULL) && (s_tests.pieces->next == NULL),
               "the tests are stored in a room grown to them, their texts in one piece");
     cli_cargo_tests_given(&s_tests);
-    cli_check((g_cli_cargo_cells.in_use == 0ull) && (g_cli_cargo_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_cargo_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_cargo_cells.hw) != 0ull),
               "the search's cells are each given back as it ends");
     cli_check(cli_cargo_is_rust("crate/src/lib.rs::at_top") && cli_cargo_is_rust("crate/src/lib.rs") &&
                   !cli_cargo_is_rust("tests/test_a.py::test_one"),

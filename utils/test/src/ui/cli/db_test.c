@@ -408,7 +408,7 @@ int main(void)
     db_sqlite();
     db_slow();
     char python[CLI_PATH_MAX_LEN];
-    cli_check((g_cli_db_cells.in_use == 0ull) && ((g_cli_db_cells.hw != 0ull) || !cli_test_python(python)),
+    cli_check((embed_atomic_usize_load(&g_cli_db_cells.in_use) == 0ull) && ((embed_atomic_usize_load(&g_cli_db_cells.hw) != 0ull) || !cli_test_python(python)),
               "every connection and SQLite process closed is given back, the most they used marked");
     return cli_checked();
 }

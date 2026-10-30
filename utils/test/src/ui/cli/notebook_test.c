@@ -199,8 +199,8 @@ static void notebook_merge(void)
     notebook_shown(cli_notebook_merge(&s_json, base, changed_c, deleted),
                    "a = 1;b = 2\nprint(b);<c = 33\nprint(c)|gone>", "and a cell one changed and the other deleted");
     // the room of three sides of five cells and less, and two cells' lines, is far below a kilobyte
-    cli_check((g_cli_notebook_cells.in_use == 0ull) && (g_cli_notebook_cells.hw != 0ull) &&
-                  (g_cli_notebook_cells.hw < 1024ull),
+    cli_check((embed_atomic_usize_load(&g_cli_notebook_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_notebook_cells.hw) != 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_notebook_cells.hw) < 1024ull),
               "a merge's room is sized to its books and given back");
 }
 

@@ -37,7 +37,7 @@ int main(void)
     cli_check(cli_cells_made(CLI_CELLS_POOL), "the pool is made anew at its full size while no cell is taken");
     static CellOwner s_checked = MMGR_CELL_OWNER("cells_check");
     void *const counted = g_cli_cells->persistent_buf_alloc(1000ull, &s_checked);
-    cli_check((counted != NULL) && (s_checked.in_use >= 1000ull), "a take is counted to the owner it names");
+    cli_check((counted != NULL) && (embed_atomic_usize_load(&s_checked.in_use) >= 1000ull), "a take is counted to the owner it names");
     static char s_listed[1u << 14u];
     VerbaLinea listing = {s_listed, sizeof(s_listed), 0u, NULL, NULL, 0u};
     cli_cells_owners_written(&listing);
@@ -53,12 +53,12 @@ int main(void)
             listed_count = cells_whole(json, one, "in_use");
         }
     }
-    cli_check(listed_count == s_checked.in_use, "the cellblock's audit lists the owner with the bytes it has taken");
+    cli_check(listed_count == embed_atomic_usize_load(&s_checked.in_use), "the cellblock's audit lists the owner with the bytes it has taken");
     g_cli_cells->persistent_buf_release(counted, &s_checked);
-    cli_check(s_checked.in_use == 0ull, "and the bytes come off the owner as the cell is given back");
+    cli_check(embed_atomic_usize_load(&s_checked.in_use) == 0ull, "and the bytes come off the owner as the cell is given back");
     cli_check(g_cli_cells->persistent_buf_alloc((size_t)CLI_CELLS_POOL, &s_checked) == NULL,
               "a take past the pool is refused with NULL, and nothing is counted");
-    cli_check(s_checked.in_use == 0ull, "the refused take left the owner as it was");
+    cli_check(embed_atomic_usize_load(&s_checked.in_use) == 0ull, "the refused take left the owner as it was");
     // a file of exactly PAGE bytes, then of 2 PAGE, each stored and walked with a cap past it
     char folder[CLI_PATH_MAX_LEN];
     cli_check_folder("cells", folder);

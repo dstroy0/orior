@@ -406,7 +406,7 @@ static void files_searched(void)
         hits += 1u;
     }
     cli_check(found && (hits == 101u), "every line that contains the query is found");
-    cli_check((g_cli_search_cells.in_use == 0ull) && (g_cli_search_cells.hw > (64ull * sizeof(CliSearchHit))),
+    cli_check((embed_atomic_usize_load(&g_cli_search_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_search_cells.hw) > (64ull * sizeof(CliSearchHit))),
               "the lines found are stored in cells grown past their first room, each given back");
     cli_files_forget_seen();
 }

@@ -374,7 +374,7 @@ static void requests_tls(void)
 #if defined(_WIN32)
     // Schannel's sessions store what came, what is opened and what is sealed in cells; libssl and Secure Transport
     // store their own
-    cli_check((g_cli_tls_cells.in_use == 0ull) && (g_cli_tls_cells.hw > 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_tls_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_tls_cells.hw) > 0ull),
               "the session's room is stored in cells while it is open, and given back as it closes");
 #endif
     cli_requests_send(requests_sent("GET", url, NULL, NULL, "", 1), 1, room);

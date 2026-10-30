@@ -120,10 +120,10 @@ int main(void)
     gradle_script();
     gradle_braces();
     gradle_completes();
-    cli_check((g_cli_gradle_cells.in_use == 0ull) && (g_cli_gradle_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_gradle_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_gradle_cells.hw) != 0ull),
               "every script read is given back, the most the scripts used marked");
-    cli_check(g_cli_versions_cells.in_use == 0ull, "and every catalog's aliases");
-    cli_check((g_cli_build_cells.in_use == 0ull) && (g_cli_build_cells.hw != 0ull),
+    cli_check(embed_atomic_usize_load(&g_cli_versions_cells.in_use) == 0ull, "and every catalog's aliases");
+    cli_check((embed_atomic_usize_load(&g_cli_build_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_build_cells.hw) != 0ull),
               "and the findings and the lines indexed, once the findings are written");
     return cli_checked();
 }

@@ -84,13 +84,13 @@ static void git_parts(void)
     (void)git_do(root, "add", "other.txt", NULL, NULL);
     static const char s_part[] = "one\nTWO\nthree\nfour\n";
     const CliGitPart part = {"a.txt", s_part, sizeof(s_part) - 1u};
-    const unsigned long long in_use_before = g_cli_git_cells.in_use;
+    const unsigned long long in_use_before = embed_atomic_usize_load(&g_cli_git_cells.in_use);
     cli_check(!cli_git_commit_parts(root, "  \n", NULL, 0u, &part, 1u, &line, &err_msg) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = why, .other = "a commit needs a message", .cap = sizeof(why)}),
               "a commit with no message is refused");
     err_msg.at = 0ull;
     cli_check(cli_git_commit_parts(root, "part of a", NULL, 0u, &part, 1u, &line, &err_msg), "a part is committed");
-    cli_check(g_cli_git_cells.in_use == in_use_before, "a commit gives its room back, made or refused");
+    cli_check(embed_atomic_usize_load(&g_cli_git_cells.in_use) == in_use_before, "a commit gives its room back, made or refused");
     cli_check(
         git_do(root, "show", "HEAD:a.txt", NULL, NULL) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = s_out, .other = "one\nTWO\nthree\nfour", .cap = CLI_CELLS_POOL})),
@@ -280,6 +280,6 @@ int main(void)
               "each status has one letter");
     cli_git_text_given(&s_branches.text);
     cli_git_text_given(&s_graph.text);
-    cli_check((g_cli_git_cells.in_use == 0ull) && (g_cli_git_cells.hw != 0ull), "each list's texts are given back");
+    cli_check((embed_atomic_usize_load(&g_cli_git_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_git_cells.hw) != 0ull), "each list's texts are given back");
     return cli_checked();
 }

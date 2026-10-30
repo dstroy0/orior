@@ -238,9 +238,9 @@ int main(void)
     schema_file();
     schema_own();
     schema_completes();
-    cli_check((g_cli_schema_cells.in_use == 0ull) && (g_cli_schema_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_schema_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_schema_cells.hw) != 0ull),
               "every schema's text and tokens are given back once it is read, the most they used marked");
-    cli_check((g_cli_build_cells.in_use == 0ull) && (g_cli_build_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_build_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_build_cells.hw) != 0ull),
               "and a file's findings and its lines indexed, once the findings are written");
     return cli_checked();
 }

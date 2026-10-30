@@ -147,7 +147,7 @@ static void run_listed(void)
                                                   .other = "\"lessons\":[{\"cause\":\"time\"",
                                                   .other_cap = CLI_CELLS_POOL}) != NULL),
               "a tree's run is listed with its folder and the folder's lessons");
-    cli_check((g_cli_qry_listed_cells.in_use != 0ull) && (g_cli_qry_listed_cells.hw != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_qry_listed_cells.in_use) != 0ull) && (embed_atomic_usize_load(&g_cli_qry_listed_cells.hw) != 0ull),
               "and the walk stores its folders in a cell while the runs listed are given back");
 }
 

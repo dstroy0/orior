@@ -19,7 +19,7 @@ int main(void)
     }
     VerbaLinea out = {s_read, sizeof(s_read), 0ull};
     cli_defs_read(root, &out);
-    cli_check((g_cli_defs_cells.in_use == 0ull) && (g_cli_defs_cells.hw > 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_defs_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_defs_cells.hw) > 0ull),
               "the definitions are read through cells of their size, each given back");
     unsigned int read = 0u;
     const CliJson *const json = cli_check_parsed(s_read, out.at, &read);
