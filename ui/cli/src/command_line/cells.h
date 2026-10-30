@@ -25,7 +25,7 @@ extern "C"
 // marked as the command begins and rewound as it ends, zeroed; what outlives a command is taken from the shared
 // cellblock's persistent tier
 #define CLI_CELLS_LANES 8u
-#define CLI_CELLS_LANE_POOL (64ull << 20u)
+#define CLI_CELLS_LANE_POOL (128ull << 20u)
 
     // The shared cellblock's custodia, where what outlives a command lives. A cell is taken with
     // persistent_buf_alloc(bytes, owner) and given back with persistent_buf_release(cell, owner), owner the module's
@@ -47,6 +47,11 @@ extern "C"
     void *cli_lane_alloc(size_t size, CellOwner *owner);
     // `cell` given back, zeroed, to the cellblock it was taken from, the shared one or a lane's; NULL gives nothing
     void cli_cell_release(void *cell, CellOwner *owner);
+    // `cell` grown to `size` bytes where it stands, in the cellblock it was taken from, where it is the newest cell of
+    // its tier: the cell after the growth, at a lower address where a lane's cell moved down, its bytes kept and the
+    // added bytes zero; NULL with nothing changed where a cell was taken above it since or the gap cannot meet the
+    // growth, and the caller takes a larger cell, copies and gives the first back
+    void *cli_cell_grown(void *cell, size_t size, CellOwner *owner);
 
     // the pool made over a block of `bytes` taken from the system, in the place of the one before, which is given back
     // whole: 1, or 0 where a cell is still allocated or the system gives no block; every program makes one before its

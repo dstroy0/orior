@@ -83,7 +83,7 @@ static void *found_part_taken(const char *text, unsigned long long size)
         (counted.names * sizeof(CliInspectName)) + counted.used + ((unsigned long long)lines * sizeof(unsigned int)) +
         ((unsigned long long)counted.classes * sizeof(unsigned int)) +
         (2ull * counted.functions * sizeof(unsigned int)) + (12ull * 8ull);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
+    unsigned char *const cell = cli_lane_alloc(bytes, NULL);
     if (cell == NULL)
     {
         return NULL;

@@ -59,7 +59,7 @@ static long long cli_effect_number(const CliEffectToken *token)
 static CliEffectToken *cli_effect_tokens_of(const CliEffect *effect, unsigned int first, unsigned int count)
 {
     CliEffectToken *const tokens =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)(count + 1u) * sizeof(CliEffectToken), NULL);
+        cli_lane_alloc((unsigned long long)(count + 1u) * sizeof(CliEffectToken), NULL);
     for (unsigned int at = 0u; (tokens != NULL) && (at < count); at += 1u)
     {
         const CliEffectValueLeaf *const leaf = &effect->value_leaf[first + at];

@@ -31,7 +31,7 @@ static unsigned int lsp_edits_of(const CliJson *json, unsigned int edits, CliTex
     {
         most += 1u;
     }
-    *edit_of = g_cli_cells->persistent_buf_alloc((most + 1ull) * sizeof(**edit_of), &s_cells);
+    *edit_of = cli_lane_alloc((most + 1ull) * sizeof(**edit_of), &s_cells);
     if (*edit_of == NULL)
     {
         mmgr_line_put(err_msg, "a file's edits could not be given a cell");

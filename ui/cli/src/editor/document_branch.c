@@ -2023,7 +2023,7 @@ char *cli_document_text_taken(const char *key, unsigned long long *size)
         {
             room += (3ull * lines->length[line]) + 1ull;
         }
-        taken = g_cli_cells->persistent_buf_alloc(room, NULL);
+        taken = cli_lane_alloc(room, NULL);
         if (taken != NULL)
         {
             VerbaLinea text = {taken, room, 0ull};

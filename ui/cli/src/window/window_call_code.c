@@ -60,7 +60,7 @@ static void code_edit_written(const CliInspectEdit *edit, const VerbaLinea *text
 static char *code_edit_room(unsigned long long length, VerbaLinea *written, VerbaLinea *err_msg)
 {
     const unsigned long long room = (2ull * length) + 4096ull;
-    char *const cell = g_cli_cells->persistent_buf_alloc(room, NULL);
+    char *const cell = cli_lane_alloc(room, NULL);
     *written = (VerbaLinea){cell, (cell != NULL) ? room : 0ull, 0ull};
     if (cell == NULL)
     {

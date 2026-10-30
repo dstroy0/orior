@@ -12,6 +12,23 @@
 #define CLI_PAGE_EDIT (1u << 25u)
 #define CLI_PAGE_FOUND (1u << 24u)
 #define CLI_PAGE_LINES_FIRST (64ull * 1024ull)
+// the bytes a save stages before each write to the file beside the text
+#define CLI_PAGE_SAVE_STAGE (1ull << 20u)
+
+// the stage's bytes appended to the file at `beside` and the stage emptied: 1, or 0 with why given where the stage
+// overflowed or the write failed
+static int save_staged(const char *beside, VerbaLinea *block, VerbaLinea *err_msg)
+{
+    const int written = mmgr_line_ok(block) && cli_file_appended(beside, block->out, block->at, 0);
+    if (!written)
+    {
+        mmgr_line_put(err_msg, beside);
+        mmgr_line_put(err_msg, mmgr_line_ok(block) ? ": the stage could not be written to it"
+                                                   : ": the stage a save writes through overflowed");
+    }
+    block->at = 0ull;
+    return written;
+}
 
 // The pieces a replace retains as it builds them: a cell of `most`, the text's pieces and the two a cut piece's parts
 // about the lines written add
@@ -128,7 +145,7 @@ static CliPagePiece cli_written_put(CliPaged *one, const char *text, unsigned lo
     const unsigned long long from = one->shadow_used;
     if (!cli_file_appended(one->shadow, text, size, from == 0ull))
     {
-        // a write cut short leaves the shadow its bytes, so the next lines go after them
+        // a write cut short leaves the shadow its bytes, and the next lines go after them
         (void)cli_file_size(one->shadow, &one->shadow_used);
         mmgr_line_put(err_msg, one->shadow);
         mmgr_line_put(err_msg, ": it could not be written");
@@ -435,33 +452,44 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
-    int written = cli_file_appended(beside, "", 0ull, 1);
+    // the lines go to the file through a stage of CLI_PAGE_SAVE_STAGE bytes, written whenever the next line would
+    // not fit, and a line wider than the stage is written as it lies in the reading
+    char *const stage = cli_lane_alloc(CLI_PAGE_SAVE_STAGE, NULL);
+    int written = (stage != NULL) && cli_file_appended(beside, "", 0ull, 1);
+    if (stage == NULL)
+    {
+        mmgr_line_put(err_msg, "the stage a save writes through could not be taken");
+    }
+    VerbaLinea block = {stage, (stage != NULL) ? CLI_PAGE_SAVE_STAGE : 0ull, 0ull};
+    const unsigned long long eol_size = cellul.len(&(CatenaFinitaCfg){.src = one->eol, .cap = CLI_CELLS_POOL});
     unsigned long long block_most = CLI_PAGE_BLOCK;
     for (unsigned long long from = 0ull; written && (from < total);)
     {
         unsigned long long to = from;
         written = cli_page_block_read(one, from, total, &block_most, &to, &lines, err_msg);
-        // the block's text a cell sized to the lines read and an end of line, two bytes at the most, for each
-        const unsigned long long size = lines.used + (2ull * lines.count) + 1ull;
-        char *const text = written ? cli_lane_alloc(size, NULL) : NULL;
-        if (written && (text == NULL))
-        {
-            mmgr_line_put(err_msg, "a block of lines saved could not be taken");
-            written = 0;
-        }
-        VerbaLinea block = {text, size, 0ull};
         for (unsigned long long at = 0ull; written && (at < lines.count); at += 1ull)
         {
-            if ((from + at) > 0ull)
+            const unsigned long long ending = ((from + at) > 0ull) ? eol_size : 0ull;
+            const char *const line = lines.text + lines.start[at];
+            if ((block.at + ending + lines.length[at]) >= block.capacity)
             {
-                mmgr_line_put(&block, one->eol);
+                written = save_staged(beside, &block, err_msg);
             }
-            mmgr_line_put_n(&block, lines.text + lines.start[at], lines.length[at]);
+            if ((ending + lines.length[at]) >= block.capacity)
+            {
+                written = written && cli_file_appended(beside, one->eol, ending, 0) &&
+                          cli_file_appended(beside, line, lines.length[at], 0);
+            }
+            else
+            {
+                mmgr_line_put_n(&block, one->eol, ending);
+                mmgr_line_put_n(&block, line, lines.length[at]);
+            }
         }
-        written = written && mmgr_line_ok(&block) && cli_file_appended(beside, text, block.at, 0);
-        cli_cell_release(text, NULL);
         from = to;
     }
+    written = written && save_staged(beside, &block, err_msg);
+    cli_cell_release(stage, NULL);
     cli_page_lines_given(&lines);
     if (!written)
     {

@@ -17,7 +17,7 @@ unsigned int *cli_build_lines_taken(const char *text, unsigned long long size, C
         count += (text[at] == '\n') ? 1ull : 0ull;
     }
     unsigned int *const starts =
-        (count <= 0xffffffffull) ? g_cli_cells->persistent_buf_alloc(count * sizeof(unsigned int), &g_cli_build_cells)
+        (count <= 0xffffffffull) ? cli_lane_alloc(count * sizeof(unsigned int), &g_cli_build_cells)
                                  : NULL;
     // a count no more than 0xffffffff where the cell is taken, which an unsigned int stores
     cli_build_lines_of(text, size, starts, (starts != NULL) ? (unsigned int)count : 0u, lines);

@@ -7,7 +7,7 @@
 
 void *cli_serve_cell(unsigned long long size, const char *what, VerbaLinea *err_msg)
 {
-    void *const cell = g_cli_cells->persistent_buf_alloc(size, NULL);
+    void *const cell = cli_lane_alloc(size, NULL);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, what);
@@ -240,7 +240,7 @@ int cli_serve_strings_taken(const CliServeArgs *args, const char *key, unsigned 
         room += 1u;
     }
     *count = 0u;
-    *items = g_cli_cells->persistent_buf_alloc((room + 1ull) * sizeof(**items), &g_cli_serve_strings_cells);
+    *items = cli_lane_alloc((room + 1ull) * sizeof(**items), &g_cli_serve_strings_cells);
     if (*items == NULL)
     {
         mmgr_line_put(err_msg, "the strings a call names could not be given a cell");

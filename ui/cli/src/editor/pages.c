@@ -597,7 +597,7 @@ char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned l
     const int read = (one != NULL) && cli_page_lines_of(one, from, to, &lines, &err_msg) && !lines.full;
     cli_lock_give(&g_cli_pages_lock);
     // each line's bytes and its NUL
-    char *const text = read ? g_cli_cells->persistent_buf_alloc(lines.used + lines.count + 1ull, NULL) : NULL;
+    char *const text = read ? cli_lane_alloc(lines.used + lines.count + 1ull, NULL) : NULL;
     const unsigned long long taken = (lines.count < wanted) ? lines.count : wanted;
     unsigned long long at = 0ull;
     for (unsigned long long each = 0ull; (text != NULL) && (each < taken); each += 1ull)

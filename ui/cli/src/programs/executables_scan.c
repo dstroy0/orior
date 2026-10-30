@@ -11,7 +11,7 @@ char *cli_uncommented_taken(const char *text, char quote)
 {
     // the code with its comments taken out is no longer than the text
     const unsigned long long room = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    char *const code = g_cli_cells->persistent_buf_alloc(room, &g_cli_executables_cells);
+    char *const code = cli_lane_alloc(room, &g_cli_executables_cells);
     if (code != NULL)
     {
         cli_uncommented(text, quote, code, room);

@@ -59,9 +59,11 @@ static int s_flushing;
 CliCatalog *cli_serve_catalog_taken(const char *root, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_catalog_lock);
-    s_catalog = cli_serve_cell(sizeof(*s_catalog), "the tree's catalog", err_msg);
+    // the catalog outlives the call that reads it: its cell is the shared cellblock's, never a lane's
+    s_catalog = g_cli_cells->persistent_buf_alloc(sizeof(*s_catalog), NULL);
     if (s_catalog == NULL)
     {
+        mmgr_line_put(err_msg, "the tree's catalog: the cells cannot meet it");
         cli_lock_give(&s_catalog_lock);
         return NULL;
     }

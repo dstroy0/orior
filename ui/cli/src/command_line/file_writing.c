@@ -13,12 +13,19 @@
 // its own, and `.writing`
 #define CLI_WRITING_MAX_LEN 64u
 
-// a growing line moved into a cell twice its room, what it contains retained: MMGR_LINE_GROWN, or 0 where the cell is
-// refused
+// a growing line's cell grown to twice its room where it stands, else the line moved into a cell of that room, what
+// it contains retained either way: MMGR_LINE_GROWN, or 0 where the cell is refused
 static int line_grown(void *context, const char *bytes, size_t size)
 {
     VerbaLinea *const line = (VerbaLinea *)context;
     const size_t room = line->capacity * 2u;
+    char *const grown = cli_cell_grown(line->out, room, NULL);
+    if (grown != NULL)
+    {
+        line->out = grown;
+        line->capacity = room;
+        return MMGR_LINE_GROWN;
+    }
     char *const larger = g_cli_cells->persistent_buf_alloc(room, NULL);
     if (larger == NULL)
     {

@@ -74,7 +74,7 @@ static void carry_released(CliCarried *paths, CliCarryRoom *room, CliLock *lock)
 // `size` bytes of `text` in a cell of their own, a 0 after them: the cell, or NULL where none could be taken
 static char *cli_carried_cell(const char *text, unsigned long long size, const char *what)
 {
-    char *const cell = (size < CLI_CARRIED_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, NULL) : NULL;
+    char *const cell = (size < CLI_CARRIED_TEXT) ? cli_lane_alloc(size + 1ull, NULL) : NULL;
     if (cell != NULL)
     {
         // a size below CLI_CARRIED_TEXT fits a size_t

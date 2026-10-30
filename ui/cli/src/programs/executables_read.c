@@ -69,7 +69,7 @@ char *cli_text_taken(const char *path)
 {
     unsigned long long size = 0ull;
     char *const text =
-        cli_file_size(path, &size) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_executables_cells) : NULL;
+        cli_file_size(path, &size) ? cli_lane_alloc(size + 1ull, &g_cli_executables_cells) : NULL;
     if ((text != NULL) && !cli_text_read(path, text, size + 1ull))
     {
         cli_cell_release(text, &g_cli_executables_cells);

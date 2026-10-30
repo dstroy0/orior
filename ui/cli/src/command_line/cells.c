@@ -102,20 +102,39 @@ static CarcerCellBlock *cells_lane_of(const void *cell)
     return NULL;
 }
 
+// the lane's cellblock holding `cell`, NULL where the shared cellblock or none does
+static CarcerCellBlock *cells_lane_holding(const void *cell)
+{
+    return ((CLI_CELLS_RECORD != NULL) && mmgr_who_owns_buf(CLI_CELLS_RECORD, cell)) ? NULL : cells_lane_of(cell);
+}
+
 void cli_cell_release(void *cell, CellOwner *owner)
 {
     if (cell == NULL)
     {
         return;
     }
-    CarcerCellBlock *const lane =
-        ((CLI_CELLS_RECORD != NULL) && mmgr_who_owns_buf(CLI_CELLS_RECORD, cell)) ? NULL : cells_lane_of(cell);
+    CarcerCellBlock *const lane = cells_lane_holding(cell);
     if (lane != NULL)
     {
         mmgr_persistent_max_security_buf_release(lane, cell, owner);
         return;
     }
     g_cli_cells->persistent_buf_release(cell, owner);
+}
+
+void *cli_cell_grown(void *cell, size_t size, CellOwner *owner)
+{
+    if (cell == NULL)
+    {
+        return NULL;
+    }
+    CarcerCellBlock *const lane = cells_lane_holding(cell);
+    if (lane != NULL)
+    {
+        return mmgr_max_security_buf_grow(lane, cell, size, owner);
+    }
+    return g_cli_cells->buf_grow(cell, size, owner);
 }
 
 // the highest temporary peak over the lanes made, 0 where none is made or the build tracks none

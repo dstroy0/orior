@@ -76,7 +76,7 @@ int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
     {
         return 1;
     }
-    // a node's index is an unsigned int's, so a tree past one's reach is full
+    // a node's index is an unsigned int's, and a tree past one's reach is full
     if (!json->grows || (nodes_wanted > 0xffffffffull))
     {
         json->full = 1;
@@ -87,6 +87,16 @@ int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
     const unsigned int nodes_most = (unsigned int)((nodes_twice > nodes_wanted) ? nodes_twice : nodes_wanted);
     const unsigned long long text_most = (text_twice > text_wanted) ? text_twice : text_wanted;
     const unsigned long long nodes_bytes = (unsigned long long)nodes_most * sizeof(CliJsonNode);
+    // the cell grown where it stands while the nodes keep their room ahead of the text, and the text alone gains room
+    unsigned char *const grown =
+        (nodes_most == json->nodes_most) ? cli_cell_grown(json->node, nodes_bytes + text_most, NULL) : NULL;
+    if (grown != NULL)
+    {
+        json->node = (CliJsonNode *)grown;
+        json->text = (char *)(grown + nodes_bytes);
+        json->text_most = text_most;
+        return 1;
+    }
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(nodes_bytes + text_most, NULL);
     if (cell == NULL)
     {
@@ -162,7 +172,7 @@ unsigned int cli_json_file_taken(CliJson *json, const char *path, unsigned int n
         mmgr_line_put(err_msg, ": it could not be read");
         return CLI_JSON_NONE;
     }
-    // the tree stores its texts of its own, so the file is let go as the read ends
+    // the tree stores its texts of its own, and the file is let go as the read ends
     const unsigned int root = cli_json_taken(json, (const char *)bytes, size, nodes_more, text_more, err_msg);
     cli_file_let_go(bytes, size);
     return root;

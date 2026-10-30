@@ -19,7 +19,7 @@ CliProcess *cli_processes_taken(CellOwner *owner, unsigned int *count)
     for (unsigned int room = CLI_PROCESSES_FIRST;; room *= 2u)
     {
         CliProcess *const processes =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(CliProcess), owner);
+            cli_lane_alloc((unsigned long long)room * sizeof(CliProcess), owner);
         if (processes == NULL)
         {
             *count = 0u;
