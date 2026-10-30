@@ -35,25 +35,28 @@
 #define GUI_CONTROLS_LIP 8
 #define GUI_HOLE_SNAP 2
 
-// The claim's numbers, each 0 to 1 as the page's claim runs them: the claim, 1 while the work has taken the edges'
+// a number of 1 in the frame's arithmetic: every share the parts move on is a whole word, 16 bits of it a fraction
+#define GUI_WHOLE 65536
+
+// The claim's numbers, each 0 to GUI_WHOLE as the page's claim runs them: the claim, GUI_WHOLE while the work has taken the edges'
 // parts' room; each edge's reveal, 1 while its part is back; the controls' way down from the bar's place while the
 // bar is away; each edge's room, 1 once the work has given the part its room; each slat's grown share along its edge;
 // the controls' opacity; and the point along each edge its slat is pulled from, in pixels, -1 for the middle
 typedef struct
 {
-    float claim;
-    float reveal_top;
-    float reveal_bottom;
-    float reveal_left;
-    float reveal_right;
-    float reveal_down;
-    float room_top;
-    float room_left;
-    float room_bottom;
-    float grown_top;
-    float grown_left;
-    float grown_bottom;
-    float controls_alpha;
+    int claim;
+    int reveal_top;
+    int reveal_bottom;
+    int reveal_left;
+    int reveal_right;
+    int reveal_down;
+    int room_top;
+    int room_left;
+    int room_bottom;
+    int grown_top;
+    int grown_left;
+    int grown_bottom;
+    int controls_alpha;
     int pulled_top;
     int pulled_left;
     int pulled_bottom;
@@ -69,7 +72,7 @@ typedef struct
 {
     unsigned int width;
     unsigned int height;
-    float scale;
+    int scale;
     int side_shown;
     GuiClaimNumbers claim;
     GuiRect bar;
@@ -87,8 +90,8 @@ typedef struct
     GuiRect strip_slat;
     GuiRect status_slat;
     GuiRect controls_pane;
-    float controls_pane_share;
-    float controls_alpha;
+    int controls_pane_share;
+    int controls_alpha;
     unsigned int pane_radius;
     unsigned int radius;
 } GuiFrame;

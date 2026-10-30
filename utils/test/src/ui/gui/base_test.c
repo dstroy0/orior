@@ -96,9 +96,9 @@ int main(void)
 
     // the claim holds with the bar in: its slat makes a hole in the work, the sheet, with the slat's pane in it
     GuiClaimNumbers numbers = frame.claim;
-    numbers.claim = 1.0f;
-    numbers.reveal_top = 1.0f;
-    numbers.grown_top = 1.0f;
+    numbers.claim = GUI_WHOLE;
+    numbers.reveal_top = GUI_WHOLE;
+    numbers.grown_top = GUI_WHOLE;
     gui_frame_claimed(&frame, &numbers);
     GuiRect holes[4];
     cli_check(gui_frame_holes(&frame, holes) >= 1u, "the bar's slat makes a hole in the work");

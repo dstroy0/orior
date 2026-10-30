@@ -18,12 +18,12 @@ static GuiRect controls_button(const GuiFrame *frame, unsigned int which)
     return button;
 }
 
-// `color` at `share` of its alpha
-static GuiColor controls_faded(GuiColor color, float share)
+// `color` at `share`, a number of GUI_WHOLE, of its alpha
+static GuiColor controls_faded(GuiColor color, int share)
 {
-    const float alpha = (float)GUI_ALPHA_OF(color) * ((share < 0.0f) ? 0.0f : ((share > 1.0f) ? 1.0f : share));
-    // an alpha by a share from 0 to 1, rounded, is a byte
-    return (color & 0x00ffffffu) | ((GuiColor)(alpha + 0.5f) << 24u);
+    const int within = (share < 0) ? 0 : ((share > GUI_WHOLE) ? GUI_WHOLE : share);
+    // an alpha by a share of GUI_WHOLE, rounded, is a byte
+    return (color & 0x00ffffffu) | ((GuiColor)((((int)GUI_ALPHA_OF(color) * within) + (GUI_WHOLE / 2)) / GUI_WHOLE) << 24u);
 }
 
 void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame, GuiUnder table)
@@ -33,16 +33,16 @@ void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiF
     // table whose tint thickens from the sheet's to a pane's by the share, whole while it comes down, and its
     // corners alone once it stands, the base laying the rest of it
     const GuiColor pane = gui_glass_pane_tint(palette->glass);
-    if (frame->controls_pane_share >= 1.0f)
+    if (frame->controls_pane_share >= GUI_WHOLE)
     {
         gui_raster_paned(raster, table, frame->controls_pane, frame->radius, pane, 1);
     }
-    else if (frame->controls_pane_share > 0.0f)
+    else if (frame->controls_pane_share > 0)
     {
-        const float sheet = (float)GUI_ALPHA_OF(table.over);
-        const float share = frame->controls_pane_share;
-        // an alpha between two bytes by a factor from 0 to 1, rounded, is a byte
-        const GuiColor alpha = (GuiColor)(sheet + (((float)GUI_ALPHA_OF(pane) - sheet) * share) + 0.5f);
+        const int sheet = (int)GUI_ALPHA_OF(table.over);
+        const int share = frame->controls_pane_share;
+        // an alpha between two bytes by a share of GUI_WHOLE, rounded, is a byte
+        const GuiColor alpha = (GuiColor)(sheet + (((((int)GUI_ALPHA_OF(pane) - sheet) * share) + (GUI_WHOLE / 2)) / GUI_WHOLE));
         gui_raster_paned(raster, table, frame->controls_pane, frame->radius, (pane & 0x00ffffffu) | (alpha << 24u), 0);
     }
     const GuiColor ink = controls_faded(palette->status_text, frame->controls_alpha);

@@ -1752,7 +1752,7 @@ void gui_window_drawn(GuiWindow *window)
     {
         ground = NULL;
     }
-    (void)gui_base_laid(&window->base, frame, palette, frame->controls_pane_share >= 1.0f);
+    (void)gui_base_laid(&window->base, frame, palette, frame->controls_pane_share >= GUI_WHOLE);
     gui_base_drawn(&window->base, raster, ground, palette->ground);
     // the table the panes lie on: the lattice with the sheet's tint and grain; each pane's corners rounded on it
     const GuiUnder table = gui_glass_table(ground, palette->ground, palette->glass);

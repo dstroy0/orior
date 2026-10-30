@@ -23,23 +23,24 @@
 // the milliseconds a rest takes, a part lingers after the pointer leaves it, and a slide runs; the milliseconds of
 // the pointer's path its pace is read over, and the pace, in pixels a millisecond, past which it is passing through;
 // how many gaps in from an edge its band reaches; the controls' ghost's way down and the controls' opacity as the
-// ghost; and the points of the pointer's path kept
+// ghost, each a number of GUI_WHOLE; and the points of the pointer's path kept
 #define GUI_CLAIM_RESTS 300ull
 #define GUI_CLAIM_LINGER 450ull
 #define GUI_CLAIM_SLIDE 300ull
 #define GUI_CLAIM_SPAN 50ull
 #define GUI_CLAIM_CRITERION 0.06f
 #define GUI_CLAIM_NEAR 3
-#define GUI_CLAIM_GHOST_DOWN 0.45f
-#define GUI_CLAIM_GHOST_ALPHA 0.35f
+#define GUI_CLAIM_GHOST_DOWN 29491
+#define GUI_CLAIM_GHOST_ALPHA 22938
 #define GUI_CLAIM_TRAIL 16u
 
-// A slide: a number running from `from` to `to` over one slide on the page's ease curve, begun at `began` after
+// A slide: a number of GUI_WHOLE, running from `from` to `to` over one slide on
+// the page's ease curve, begun at `began` after
 // `delay` milliseconds
 typedef struct
 {
-    float from;
-    float to;
+    int from;
+    int to;
     unsigned long long began;
     unsigned long long delay;
 } GuiSlide;
@@ -85,23 +86,24 @@ typedef struct
     GuiSlide room_left;
     GuiSlide room_bottom;
     GuiSlide controls_alpha;
-    float grown_top;
-    float grown_left;
-    float grown_bottom;
-    float last_top;
-    float last_left;
-    float last_bottom;
+    int grown_top;
+    int grown_left;
+    int grown_bottom;
+    int last_top;
+    int last_left;
+    int last_bottom;
     int pulled_top;
     int pulled_left;
     int pulled_bottom;
 } GuiClaim;
 
-// the page's ease curve, cubic-bezier(0.25, 0.1, 0.25, 1), at `share` of the way, 0 to 1
-float gui_ease(float share);
+// the page's ease curve, cubic-bezier(0.25, 0.1, 0.25, 1), at `share` of the way, 0 to GUI_WHOLE: its number, 0 to
+// GUI_WHOLE, read from a table of the curve at sixty-four steps, the step between two entries laid straight
+int gui_ease(int share);
 // a slide's number at `now`; and the slide sent to `to` from where it stands at `now`, after `delay`, a slide already
 // bound for `to` left running
-float gui_slide_at(const GuiSlide *slide, unsigned long long now);
-void gui_slide_to(GuiSlide *slide, float to, unsigned long long now, unsigned long long delay);
+int gui_slide_at(const GuiSlide *slide, unsigned long long now);
+void gui_slide_to(GuiSlide *slide, int to, unsigned long long now, unsigned long long delay);
 // whether a slide still runs at `now`
 int gui_slide_running(const GuiSlide *slide, unsigned long long now);
 

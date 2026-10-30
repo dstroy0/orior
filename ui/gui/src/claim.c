@@ -13,18 +13,24 @@
 // the milliseconds between frames while a slide runs
 #define CLAIM_FRAME 16ull
 
-float gui_ease(float share)
+// the ease curve's steps across its table, and the table: the curve's number at each sixty-fourth of the way, made
+// once from the curve itself, its ends 0 and GUI_WHOLE
+#define CLAIM_EASE_STEPS 64u
+static int s_ease[CLAIM_EASE_STEPS + 1u];
+static int s_ease_made;
+
+// the curve's y at the x `wanted`, 0 to 1: the curve's x and y at the parameter t, its control points (0.25, 0.1)
+// and (0.25, 1); t found for x by halving
+static double claim_curve(double wanted)
 {
-    // the curve's x and y at the parameter t, its control points (0.25, 0.1) and (0.25, 1); t found for x by halving
-    const float wanted = (share < 0.0f) ? 0.0f : ((share > 1.0f) ? 1.0f : share);
-    float low = 0.0f;
-    float high = 1.0f;
-    float at = wanted;
-    for (unsigned int step = 0u; step < 20u; step += 1u)
+    double low = 0.0;
+    double high = 1.0;
+    double at = wanted;
+    for (unsigned int step = 0u; step < 24u; step += 1u)
     {
-        at = (low + high) / 2.0f;
-        const float rest = 1.0f - at;
-        const float x = (3.0f * rest * rest * at * 0.25f) + (3.0f * rest * at * at * 0.25f) + (at * at * at);
+        at = (low + high) / 2.0;
+        const double rest = 1.0 - at;
+        const double x = (3.0 * rest * rest * at * 0.25) + (3.0 * rest * at * at * 0.25) + (at * at * at);
         if (x < wanted)
         {
             low = at;
@@ -34,11 +40,35 @@ float gui_ease(float share)
             high = at;
         }
     }
-    const float rest = 1.0f - at;
-    return (3.0f * rest * rest * at * 0.1f) + (3.0f * rest * at * at * 1.0f) + (at * at * at);
+    const double rest = 1.0 - at;
+    return (3.0 * rest * rest * at * 0.1) + (3.0 * rest * at * at * 1.0) + (at * at * at);
 }
 
-float gui_slide_at(const GuiSlide *slide, unsigned long long now)
+int gui_ease(int share)
+{
+    if (!s_ease_made)
+    {
+        for (unsigned int step = 1u; step < CLAIM_EASE_STEPS; step += 1u)
+        {
+            // a number from 0 to 1 by GUI_WHOLE, rounded, is a word
+            s_ease[step] = (int)((claim_curve((double)step / (double)CLAIM_EASE_STEPS) * (double)GUI_WHOLE) + 0.5);
+        }
+        s_ease[0] = 0;
+        s_ease[CLAIM_EASE_STEPS] = GUI_WHOLE;
+        s_ease_made = 1;
+    }
+    const int wanted = (share < 0) ? 0 : ((share > GUI_WHOLE) ? GUI_WHOLE : share);
+    // a step of the table is GUI_WHOLE over the steps, 1024; the way between two entries is laid straight
+    const int step = wanted / (GUI_WHOLE / (int)CLAIM_EASE_STEPS);
+    const int within = wanted % (GUI_WHOLE / (int)CLAIM_EASE_STEPS);
+    if (step >= (int)CLAIM_EASE_STEPS)
+    {
+        return GUI_WHOLE;
+    }
+    return s_ease[step] + (((s_ease[step + 1] - s_ease[step]) * within) / (GUI_WHOLE / (int)CLAIM_EASE_STEPS));
+}
+
+int gui_slide_at(const GuiSlide *slide, unsigned long long now)
 {
     const unsigned long long start = slide->began + slide->delay;
     if (now <= start)
@@ -49,12 +79,13 @@ float gui_slide_at(const GuiSlide *slide, unsigned long long now)
     {
         return slide->to;
     }
-    // the way along the slide, a share of its length
-    const float share = (float)(now - start) / (float)GUI_CLAIM_SLIDE;
-    return slide->from + ((slide->to - slide->from) * gui_ease(share));
+    // the way along the slide, a share of its length, below GUI_WHOLE; the slide's span by the curve's number is
+    // within a long long and comes back to a number of GUI_WHOLE
+    const int share = (int)(((now - start) * (unsigned long long)GUI_WHOLE) / GUI_CLAIM_SLIDE);
+    return slide->from + (int)(((long long)(slide->to - slide->from) * (long long)gui_ease(share)) / GUI_WHOLE);
 }
 
-void gui_slide_to(GuiSlide *slide, float to, unsigned long long now, unsigned long long delay)
+void gui_slide_to(GuiSlide *slide, int to, unsigned long long now, unsigned long long delay)
 {
     if (slide->to == to)
     {
@@ -74,11 +105,11 @@ int gui_slide_running(const GuiSlide *slide, unsigned long long now)
 void gui_claim_made(GuiClaim *claim)
 {
     memor.set(&(MemoriaCfg){.dst = claim, .val = 0, .bytes = sizeof(*claim)});
-    claim->controls_alpha.from = 1.0f;
-    claim->controls_alpha.to = 1.0f;
-    claim->grown_top = 1.0f;
-    claim->grown_left = 1.0f;
-    claim->grown_bottom = 1.0f;
+    claim->controls_alpha.from = GUI_WHOLE;
+    claim->controls_alpha.to = GUI_WHOLE;
+    claim->grown_top = GUI_WHOLE;
+    claim->grown_left = GUI_WHOLE;
+    claim->grown_bottom = GUI_WHOLE;
     claim->pulled_top = -1;
     claim->pulled_left = -1;
     claim->pulled_bottom = -1;
@@ -96,17 +127,17 @@ static void claim_targets(GuiClaim *claim, unsigned long long now)
     const int on = claim->claimed;
     const unsigned int shown = on ? claim->shown : GUI_CLAIM_NONE;
     const int head = (shown == GUI_CLAIM_TOP) || (shown == GUI_CLAIM_CONTROLS);
-    gui_slide_to(&claim->claim, on ? 1.0f : 0.0f, now, 0ull);
-    gui_slide_to(&claim->reveal_top, (shown == GUI_CLAIM_TOP) ? 1.0f : 0.0f, now, 0ull);
-    gui_slide_to(&claim->reveal_bottom, (shown == GUI_CLAIM_BOTTOM) ? 1.0f : 0.0f, now, 0ull);
-    gui_slide_to(&claim->reveal_left, (shown == GUI_CLAIM_LEFT) ? 1.0f : 0.0f, now, 0ull);
-    gui_slide_to(&claim->reveal_right, (shown == GUI_CLAIM_RIGHT) ? 1.0f : 0.0f, now, 0ull);
-    gui_slide_to(&claim->reveal_down, head ? 1.0f : ((on && claim->near) ? GUI_CLAIM_GHOST_DOWN : 0.0f), now, 0ull);
+    gui_slide_to(&claim->claim, on ? GUI_WHOLE : 0, now, 0ull);
+    gui_slide_to(&claim->reveal_top, (shown == GUI_CLAIM_TOP) ? GUI_WHOLE : 0, now, 0ull);
+    gui_slide_to(&claim->reveal_bottom, (shown == GUI_CLAIM_BOTTOM) ? GUI_WHOLE : 0, now, 0ull);
+    gui_slide_to(&claim->reveal_left, (shown == GUI_CLAIM_LEFT) ? GUI_WHOLE : 0, now, 0ull);
+    gui_slide_to(&claim->reveal_right, (shown == GUI_CLAIM_RIGHT) ? GUI_WHOLE : 0, now, 0ull);
+    gui_slide_to(&claim->reveal_down, head ? GUI_WHOLE : ((on && claim->near) ? GUI_CLAIM_GHOST_DOWN : 0), now, 0ull);
     // a room comes a slide after its reveal and goes with it
-    gui_slide_to(&claim->room_top, (shown == GUI_CLAIM_TOP) ? 1.0f : 0.0f, now, (shown == GUI_CLAIM_TOP) ? GUI_CLAIM_SLIDE : 0ull);
-    gui_slide_to(&claim->room_left, (shown == GUI_CLAIM_LEFT) ? 1.0f : 0.0f, now, (shown == GUI_CLAIM_LEFT) ? GUI_CLAIM_SLIDE : 0ull);
-    gui_slide_to(&claim->room_bottom, (shown == GUI_CLAIM_BOTTOM) ? 1.0f : 0.0f, now, (shown == GUI_CLAIM_BOTTOM) ? GUI_CLAIM_SLIDE : 0ull);
-    gui_slide_to(&claim->controls_alpha, (on && claim->near && !head) ? GUI_CLAIM_GHOST_ALPHA : 1.0f, now, 0ull);
+    gui_slide_to(&claim->room_top, (shown == GUI_CLAIM_TOP) ? GUI_WHOLE : 0, now, (shown == GUI_CLAIM_TOP) ? GUI_CLAIM_SLIDE : 0ull);
+    gui_slide_to(&claim->room_left, (shown == GUI_CLAIM_LEFT) ? GUI_WHOLE : 0, now, (shown == GUI_CLAIM_LEFT) ? GUI_CLAIM_SLIDE : 0ull);
+    gui_slide_to(&claim->room_bottom, (shown == GUI_CLAIM_BOTTOM) ? GUI_WHOLE : 0, now, (shown == GUI_CLAIM_BOTTOM) ? GUI_CLAIM_SLIDE : 0ull);
+    gui_slide_to(&claim->controls_alpha, (on && claim->near && !head) ? GUI_CLAIM_GHOST_ALPHA : GUI_WHOLE, now, 0ull);
 }
 
 // `zone`'s part shown, its slat pulled from where the pointer stands, or none
@@ -367,20 +398,20 @@ unsigned long long gui_claim_due(const GuiClaim *claim, unsigned long long now)
 
 // a slat's grown share: coming in, it grows with its reveal; going, it stands as long as it grew; outside the claim it
 // is whole
-static float claim_grown(float claim, float reveal, float *last, float grown)
+static int claim_grown(int claim, int reveal, int *last, int grown)
 {
-    float now = grown;
-    if (claim < 1.0f)
+    int now = grown;
+    if (claim < GUI_WHOLE)
     {
-        now = 1.0f;
+        now = GUI_WHOLE;
     }
     else if (reveal > *last)
     {
         now = reveal;
     }
-    else if (reveal == 0.0f)
+    else if (reveal == 0)
     {
-        now = 0.0f;
+        now = 0;
     }
     *last = reveal;
     return now;

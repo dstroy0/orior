@@ -14,16 +14,17 @@ int gui_scaled(int pixels, float scale)
     return (int)(((float)pixels * scale) + 0.5f);
 }
 
-// `share` of `pixels`, rounded
-static int frame_share(float share, int pixels)
+// `share`, a number of GUI_WHOLE, of `pixels`, rounded
+static int frame_share(int share, int pixels)
 {
-    // a share of a size in pixels, rounded, is far inside what an int represents
-    return (int)((share * (float)pixels) + ((share * (float)pixels >= 0.0f) ? 0.5f : -0.5f));
+    // a share of a size in pixels is within a long long and, rounded, far inside what an int represents
+    const long long scaled = (long long)share * (long long)pixels;
+    return (int)((scaled + ((scaled >= 0ll) ? (GUI_WHOLE / 2) : -(GUI_WHOLE / 2))) / GUI_WHOLE);
 }
 
 // a slat along an edge: the part's span from `first` to `end` along the edge, grown by `grown` from the point
 // `pulled`, the middle where none has been, into `from` and `to`
-static void frame_slat(int first, int end, float grown, int pulled, int *from, int *to)
+static void frame_slat(int first, int end, int grown, int pulled, int *from, int *to)
 {
     const int middle = (first + end) / 2;
     const int wanted = (pulled < 0) ? middle : pulled;
@@ -45,12 +46,12 @@ static void frame_inside_laid(GuiFrame *frame, int side_wide)
     const int pad_left = gui_scaled(GUI_WORK_PAD_LEFT, scale);
     // the tabs row is away while the claim holds and the head's room is not taken; the map while the right is not
     // revealed
-    const int tabs_tall = frame_share(1.0f - (claim->claim * (1.0f - claim->room_top)), gui_scaled(GUI_TABS_TALL, scale));
+    const int tabs_tall = frame_share(GUI_WHOLE - frame_share(claim->claim, GUI_WHOLE - claim->room_top), gui_scaled(GUI_TABS_TALL, scale));
     const int inner_wide = frame->work.width - pad_left - pad_right;
     const int inner_tall = frame->work.height - pad_top - pad_bottom;
     const int side = (side_wide > inner_wide) ? ((inner_wide > 0) ? inner_wide : 0) : side_wide;
     const int rest = inner_wide - side;
-    const int map_wide = frame_share(1.0f - (claim->claim * (1.0f - claim->reveal_right)), gui_scaled(GUI_MAP_WIDE, scale));
+    const int map_wide = frame_share(GUI_WHOLE - frame_share(claim->claim, GUI_WHOLE - claim->reveal_right), gui_scaled(GUI_MAP_WIDE, scale));
     const int map = (map_wide > rest) ? ((rest > 0) ? rest : 0) : map_wide;
     frame->inside = (GuiRect){frame->work.x + pad_left, frame->work.y + pad_top, inner_wide, inner_tall};
     frame->side = (GuiRect){frame->inside.x, frame->inside.y, side, inner_tall};
@@ -64,7 +65,7 @@ static void frame_laid(GuiFrame *frame)
 {
     const float scale = frame->scale;
     const GuiClaimNumbers *const claim = &frame->claim;
-    const float c = claim->claim;
+    const int c = claim->claim;
     // the window's sides are far inside what an int represents
     const int wide = (int)frame->width;
     const int tall = (int)frame->height;
@@ -75,7 +76,7 @@ static void frame_laid(GuiFrame *frame)
     const int gap_claim = frame_share(c, gap);
     // the bar: its top margin runs from none to the bar's height above the window, or the gap below it as the head is
     // revealed; its sides stand in by the gap at the right and by the wordmark's corner and two gaps at the left
-    const int bar_y = frame_share(c, frame_share(claim->reveal_top, gap) - frame_share(1.0f - claim->reveal_top, bar_tall));
+    const int bar_y = frame_share(c, frame_share(claim->reveal_top, gap) - frame_share(GUI_WHOLE - claim->reveal_top, bar_tall));
     const int bar_x = frame_share(c, strip_wide + (2 * gap));
     frame->bar = (GuiRect){bar_x, bar_y, wide - bar_x - gap_claim, bar_tall};
     // the frame's row: from the bar's foot, pulled up by the head's part come in but not yet given its room, to the
@@ -83,15 +84,15 @@ static void frame_laid(GuiFrame *frame)
     // left, top and foot and the gap at the right
     const int frame_top = bar_y + bar_tall - frame_share(c, frame_share(claim->reveal_top - claim->room_top, bar_tall + gap));
     const int status_y = tall - status_tall - frame_share(c, frame_share(claim->reveal_bottom, gap)) +
-                         frame_share(c, frame_share(1.0f - claim->reveal_bottom, status_tall));
+                         frame_share(c, frame_share(GUI_WHOLE - claim->reveal_bottom, status_tall));
     const int frame_bottom = status_y + frame_share(c, frame_share(claim->reveal_bottom - claim->room_bottom, status_tall + gap));
     frame->status = (GuiRect){gap_claim, status_y, wide - (2 * gap_claim), status_tall};
     // the strip: below the wordmark's corner however far the bar has come in, slid off to the left until the left is
     // revealed, the work following it back as the left's room is taken
-    const int strip_y = frame_top + gap_claim + frame_share(c, frame_share(1.0f - claim->reveal_top, bar_tall + gap));
-    const int strip_x = gap_claim - frame_share(c, frame_share(1.0f - claim->reveal_left, strip_wide + gap));
+    const int strip_y = frame_top + gap_claim + frame_share(c, frame_share(GUI_WHOLE - claim->reveal_top, bar_tall + gap));
+    const int strip_x = gap_claim - frame_share(c, frame_share(GUI_WHOLE - claim->reveal_left, strip_wide + gap));
     frame->strip = (GuiRect){strip_x, strip_y, strip_wide, frame_bottom - gap_claim - strip_y};
-    const int work_x = strip_wide + (2 * gap_claim) - frame_share(c, frame_share(1.0f - claim->room_left, strip_wide + gap));
+    const int work_x = strip_wide + (2 * gap_claim) - frame_share(c, frame_share(GUI_WHOLE - claim->room_left, strip_wide + gap));
     frame->gap = (GuiRect){wide - gap, frame_top, gap, frame_bottom - frame_top};
     frame->work = (GuiRect){work_x, frame_top + gap_claim, wide - gap - work_x, frame_bottom - gap_claim - frame_top - gap_claim};
     frame_inside_laid(frame, frame->side_shown ? gui_scaled(GUI_SIDE_WIDE, scale) : 0);
@@ -104,8 +105,8 @@ static void frame_laid(GuiFrame *frame)
                                 controls_wide, bar_tall};
     const int lip = gui_scaled(GUI_CONTROLS_LIP, scale);
     frame->controls_pane = (GuiRect){frame->controls.x - lip, controls_y, controls_wide + lip, bar_tall};
-    const float pane_share = c * (claim->reveal_down - claim->reveal_top);
-    frame->controls_pane_share = (pane_share < 0.0f) ? 0.0f : ((pane_share > 1.0f) ? 1.0f : pane_share);
+    const int pane_share = frame_share(c, claim->reveal_down - claim->reveal_top);
+    frame->controls_pane_share = (pane_share < 0) ? 0 : ((pane_share > GUI_WHOLE) ? GUI_WHOLE : pane_share);
     frame->controls_alpha = claim->controls_alpha;
     // the slats: the head's and the left's span from the work's own edge, the wordmark's corner theirs; the foot's
     // from the status bar's own ends
@@ -143,10 +144,10 @@ void gui_frame_laid(GuiFrame *frame, unsigned int width, unsigned int height, fl
     frame->scale = scale;
     frame->side_shown = 0;
     memor.set(&(MemoriaCfg){.dst = &frame->claim, .val = 0, .bytes = sizeof(frame->claim)});
-    frame->claim.grown_top = 1.0f;
-    frame->claim.grown_left = 1.0f;
-    frame->claim.grown_bottom = 1.0f;
-    frame->claim.controls_alpha = 1.0f;
+    frame->claim.grown_top = GUI_WHOLE;
+    frame->claim.grown_left = GUI_WHOLE;
+    frame->claim.grown_bottom = GUI_WHOLE;
+    frame->claim.controls_alpha = GUI_WHOLE;
     frame->claim.pulled_top = -1;
     frame->claim.pulled_left = -1;
     frame->claim.pulled_bottom = -1;
@@ -181,14 +182,14 @@ unsigned int gui_frame_holes(const GuiFrame *frame, GuiRect *holes)
     const int grown = frame_share(frame->claim.claim, gap);
     const int snap = GUI_HOLE_SNAP * gap;
     unsigned int count = 0u;
-    if (frame->claim.claim <= 0.0f)
+    if (frame->claim.claim <= 0)
     {
         return 0u;
     }
     count += frame_hole(frame->work, frame->bar_slat, grown, snap, &holes[count]) ? 1u : 0u;
     count += frame_hole(frame->work, frame->strip_slat, grown, snap, &holes[count]) ? 1u : 0u;
     count += frame_hole(frame->work, frame->status_slat, grown, snap, &holes[count]) ? 1u : 0u;
-    if (frame->controls_pane_share > 0.0f)
+    if (frame->controls_pane_share > 0)
     {
         count += frame_hole(frame->work, frame->controls_pane, grown, snap, &holes[count]) ? 1u : 0u;
     }
