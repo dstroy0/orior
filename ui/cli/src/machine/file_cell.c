@@ -82,6 +82,35 @@ const unsigned char *cli_file_piece_read(const char *path, unsigned long long fr
     return file_taken(path, from, count, size);
 }
 
+const unsigned char *cli_file_piece_grown(const char *path, const unsigned char *bytes, unsigned long long from,
+                                          unsigned long long count, unsigned long long *size)
+{
+    const unsigned long long read = *size;
+    if ((bytes == NULL) || (bytes == s_none) || (count <= read))
+    {
+        return bytes;
+    }
+    // the cell grown where it stands and the bytes past those read put after them; a cell that cannot grow there is
+    // given back for one of the count, read whole
+    unsigned char *const grown = cli_cell_grown((void *)(uintptr_t)bytes, count + CLI_FILE_SLACK, NULL);
+    if (grown == NULL)
+    {
+        const unsigned char *const taken = file_taken(path, from, count, size);
+        cli_file_let_go(bytes, read);
+        return taken;
+    }
+    unsigned long long more = 0ull;
+    if (!cli_file_read_at(path, from + read, grown + read, count - read, &more))
+    {
+        cli_cell_release(grown, NULL);
+        *size = 0ull;
+        return NULL;
+    }
+    *size = read + more;
+    memor.set(&(MemoriaCfg){.dst = grown + *size, .val = 0, .bytes = CLI_FILE_SLACK});
+    return grown;
+}
+
 // A walk summing the bytes of every file under a folder: the path walked, sized for CLI_PATH_MAX_LEN, and the sum
 typedef struct
 {
@@ -90,7 +119,7 @@ typedef struct
 } CliTreeBytes;
 
 // the folders a walk does not go into: version control's own, and those the tree's git ignores as a rule, cargo's
-// target, the build folder and node_modules; the walk runs before the pool stands, so it cannot query git itself
+// target, the build folder and node_modules; the walk runs before the pool stands, and it cannot query git itself
 static const char *const s_tree_skipped[4] = {".git", "target", "build", "node_modules"};
 
 static void tree_bytes_each(void *context, const char *name, int is_folder)

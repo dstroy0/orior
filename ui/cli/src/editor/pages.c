@@ -31,7 +31,7 @@ static void pages_cells_given(CliPaged *one)
 
 static int pages_cells_taken(CliPaged *one, unsigned long long size)
 {
-    // a file of `size` bytes has no more than size + 1 lines, so the index contains no more than size / CLI_PAGE_STEP
+    // a file of `size` bytes has no more than size + 1 lines, and the index contains no more than size / CLI_PAGE_STEP
     // starts recorded by their lines, size / CLI_PAGE_SPAN by their bytes, and the first
     const unsigned long long starts = (size / CLI_PAGE_STEP) + (size / CLI_PAGE_SPAN) + 2ull;
     one->index.starts_most = (starts < CLI_PAGE_STARTS) ? starts : CLI_PAGE_STARTS;
@@ -326,13 +326,12 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
     }
     const unsigned long long begin = (start < whole) ? start : whole;
     const unsigned long long wanted = to - first_line;
-    const unsigned long long guessed = (each != 0ull) ? ((wanted + 1ull) * each * 2ull) : CLI_PAGE_CHUNK;
+    const unsigned long long guessed = (each != 0ull) ? (((wanted + 1ull) * each) + CLI_PAGE_HEAD) : CLI_PAGE_CHUNK;
     unsigned long long window = (guessed > CLI_PAGE_HEAD) ? guessed : CLI_PAGE_HEAD;
     unsigned long long size = 0ull;
-    const unsigned char *bytes = NULL;
+    const unsigned char *bytes = cli_file_piece_read(one->path, begin, window, &size);
     for (;;)
     {
-        bytes = cli_file_piece_read(one->path, begin, window, &size);
         if (bytes == NULL)
         {
             mmgr_line_put(err_msg, "it could not be read");
@@ -355,8 +354,9 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
         {
             break;
         }
-        cli_file_let_go(bytes, size);
+        // the window doubled where its cell stands, the bytes past those read put after them
         window *= 2ull;
+        bytes = cli_file_piece_grown(one->path, bytes, begin, window, &size);
     }
     // the lines from the start, those from `from` on put after the lines read
     const unsigned long long first = lines->count;

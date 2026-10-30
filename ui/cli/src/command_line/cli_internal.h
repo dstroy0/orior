@@ -87,6 +87,11 @@ const unsigned char *cli_file_read(const char *path, unsigned long long *size);
 const unsigned char *cli_file_read_utf8(const char *path, unsigned long long *size);
 const unsigned char *cli_file_piece_read(const char *path, unsigned long long from, unsigned long long count,
                                          unsigned long long *size);
+// the piece `bytes`, `*size` bytes of the file at `path` from `from`, grown to `count` bytes of it: the cell grown where
+// it stands with the bytes past those read put after them, else the piece read anew into a cell of the count and the
+// first given back; `*size` the bytes it holds; NULL with the first given back where the file cannot be read
+const unsigned char *cli_file_piece_grown(const char *path, const unsigned char *bytes, unsigned long long from,
+                                          unsigned long long count, unsigned long long *size);
 void cli_file_let_go(const unsigned char *bytes, unsigned long long size);
 // the bytes of every file under `root`, the folders of version control and of cargo's build passed over: the request a
 // tree's pool is made for (machine/file_cell.c)
@@ -292,14 +297,14 @@ _Static_assert((CLI_STAGE_BYTES % 4096u) == 0u, "CLI_STAGE_BYTES is a whole numb
 _Static_assert(((256u << 10u) % CLI_STAGE_BYTES) == 0u, "CLI_STAGE_BYTES divides the cache manager's 256 KiB view");
 
 // A file being written whole, and sealed where it is of a kind ksg seals (ksg_writing.h): written beside its place
-// under a name of this process's own, made durable and put in its place, so a write that fails leaves the file it
+// under a name of this process's own, made durable and put in its place, and a write that fails leaves the file it
 // would have replaced as it was
 typedef KsgWriting CliFileWriting;
 
 _Static_assert(CLI_PATH_MAX_LEN <= KSG_PATH_MAX_LEN, "a path of the command line's fits a sealed writer's");
 
 // the file `path` begun beside its place, with its seal where it is sealed: 1, or 0 where it could not be made; `size`
-// bytes at `bytes` written after what the file begun contains, the shape of a line's flush: 1, or 0 where they were
+// bytes at `bytes` written after what the file begun contains, the shape of a line's write-through: 1, or 0 where they were
 // not; and the file begun on the disk and put in place of `path` where `whole` is 1, or taken away where it is 0: 1, or
 // 0 where it was not put in place (file_writing.c)
 int cli_file_begun(CliFileWriting *file, const char *path);
@@ -406,7 +411,7 @@ void cli_wake_all(CliWake *wake);
 int cli_wake_wait_for(CliWake *wake, CliLock *lock, unsigned long long milliseconds);
 
 // what happened to a path the system reports: made or moved there, taken out or moved away, or written; and that the
-// system's record of changes ran over, so any file may have changed
+// system's record of changes ran over, and any file may have changed
 #define CLI_CHANGE_ADDED 0u
 #define CLI_CHANGE_REMOVED 1u
 #define CLI_CHANGE_MODIFIED 2u
