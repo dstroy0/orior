@@ -272,7 +272,7 @@ fi
 # at main, which opens no console with it
 if [ "$WINDOW" = 1 ]; then
     case "$TARGET" in
-        *windows*) BODY="system_windows.c"; GUI_LIBRARIES=(-lgdi32 -ldwmapi -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
+        *windows*) BODY="system_windows.c"; GUI_LIBRARIES=(-lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
         *darwin*) echo "  build failed: the window has no body for $TARGET"; exit 1 ;;
         *) BODY="system_x11.c"; GUI_LIBRARIES=(-lX11) ;;
     esac

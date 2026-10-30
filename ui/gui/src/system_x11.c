@@ -17,6 +17,7 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <poll.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 static CellOwner s_owner = MMGR_CELL_OWNER("gui_system");
@@ -449,6 +450,18 @@ void gui_system_closed(GuiSystem *system)
     close(system->wake_pipe[0]);
     close(system->wake_pipe[1]);
     g_cli_cells->persistent_buf_release(system, &s_owner);
+}
+
+void *gui_system_pages(unsigned long long bytes)
+{
+    // the pages are the C library's here, zero; no surface of the system's reads them where they lie
+    return calloc(1u, (size_t)bytes);
+}
+
+void gui_system_pages_given(void *pages, unsigned long long bytes)
+{
+    (void)bytes;
+    free(pages);
 }
 
 void gui_system_present(GuiSystem *system, const GuiRaster *raster)

@@ -87,7 +87,8 @@ int gui_ground_laid(GuiGround *ground, unsigned int width, unsigned int height, 
     ground->laid = 0;
     ground_shaded(ground, palette);
     gui_raster_given(&ground->raster);
-    if (!gui_raster_made(&ground->raster, width, height))
+    // the raster is the framebuffers' pitch wide, the lattice laid over the window's own width
+    if (!gui_raster_made(&ground->raster, gui_raster_pitch(width), height))
     {
         return 0;
     }

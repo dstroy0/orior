@@ -13,7 +13,11 @@
 
 #include "../../cli/src/command_line/cli_internal.h"
 
+#define COBJMACROS
 #include <windows.h>
+
+#include <d3d12.h>
+#include <dxgi1_6.h>
 
 #include <dwmapi.h>
 #include <windowsx.h>
@@ -27,6 +31,30 @@ static CellOwner s_owner = MMGR_CELL_OWNER("gui_system");
 // the timer the window's tick comes on
 #define GUI_TICK_TIMER 1u
 
+// The graphics device the frames are flipped through: whether it stands ready; the device, its queue, the allocator
+// and list a copy is recorded in, the fence a copy is waited on through and its event and last value; the swapchain,
+// its two buffers and their size; and the heap opened over the framebuffers' pages, those pages, and a buffer placed
+// over each framebuffer with where in the pages it lies
+typedef struct
+{
+    int ready;
+    ID3D12Device3 *device;
+    ID3D12CommandQueue *queue;
+    ID3D12CommandAllocator *allocator;
+    ID3D12GraphicsCommandList *list;
+    ID3D12Fence *fence;
+    HANDLE fence_event;
+    unsigned long long fence_value;
+    IDXGISwapChain3 *chain;
+    ID3D12Resource *back[2];
+    unsigned int back_width;
+    unsigned int back_height;
+    ID3D12Heap *heap;
+    void *heap_pages;
+    ID3D12Resource *placed[2];
+    unsigned long long placed_at[2];
+} SystemDevice;
+
 struct GuiSystem
 {
     HWND window;
@@ -38,7 +66,302 @@ struct GuiSystem
     unsigned int mods;
     unsigned long long presented_ms;
     unsigned int frame_ms;
+    SystemDevice device;
 };
+
+// the system the pages' surfaces stand on, one window's; NULL before it opens and after it closes
+static GuiSystem *s_presenting;
+
+// the boundary a framebuffer's buffer is placed on in its heap, and the bytes a copied row's pitch steps by
+#define SYSTEM_PLACE (64ull << 10u)
+#define SYSTEM_ROW_STEP 256u
+
+// the COM object released where there is one, and the pointer left NULL
+#define SYSTEM_RELEASED(object_, release_)                                                                             \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if ((object_) != NULL)                                                                                         \
+        {                                                                                                              \
+            release_(object_);                                                                                         \
+            (object_) = NULL;                                                                                          \
+        }                                                                                                              \
+    } while (0)
+
+// the device's buffers and the swapchain's let go, the heap with them, after the queue has done every copy
+static void system_surfaces_released(SystemDevice *device)
+{
+    if ((device->queue != NULL) && (device->fence != NULL))
+    {
+        device->fence_value += 1ull;
+        ID3D12CommandQueue_Signal(device->queue, device->fence, device->fence_value);
+        if (ID3D12Fence_GetCompletedValue(device->fence) < device->fence_value)
+        {
+            ID3D12Fence_SetEventOnCompletion(device->fence, device->fence_value, device->fence_event);
+            WaitForSingleObject(device->fence_event, INFINITE);
+        }
+    }
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        SYSTEM_RELEASED(device->placed[at], ID3D12Resource_Release);
+        device->placed_at[at] = 0ull;
+    }
+    SYSTEM_RELEASED(device->heap, ID3D12Heap_Release);
+    device->heap_pages = NULL;
+}
+
+// the swapchain's buffers let go
+static void system_back_released(SystemDevice *device)
+{
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        SYSTEM_RELEASED(device->back[at], ID3D12Resource_Release);
+    }
+}
+
+// the device let go whole
+static void system_device_released(SystemDevice *device)
+{
+    system_surfaces_released(device);
+    system_back_released(device);
+    SYSTEM_RELEASED(device->chain, IDXGISwapChain3_Release);
+    SYSTEM_RELEASED(device->list, ID3D12GraphicsCommandList_Release);
+    SYSTEM_RELEASED(device->allocator, ID3D12CommandAllocator_Release);
+    SYSTEM_RELEASED(device->fence, ID3D12Fence_Release);
+    SYSTEM_RELEASED(device->queue, ID3D12CommandQueue_Release);
+    SYSTEM_RELEASED(device->device, ID3D12Device3_Release);
+    if (device->fence_event != NULL)
+    {
+        CloseHandle(device->fence_event);
+        device->fence_event = NULL;
+    }
+    device->ready = 0;
+}
+
+// the device made for `window`: its queue, its copy's allocator and list, its fence, and a flip swapchain of two
+// buffers over the window; first a heap opened over a page of the system's own, which a device that cannot read the
+// pages where they lie refuses before any swapchain stands over the window: 1, or 0 with nothing made
+static int system_device_made(SystemDevice *device, HWND window)
+{
+    memor.set(&(MemoriaCfg){.dst = device, .val = 0, .bytes = sizeof(*device)});
+    ID3D12Device *made = NULL;
+    if (FAILED(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, (void **)&made)))
+    {
+        return 0;
+    }
+    const HRESULT asked = ID3D12Device_QueryInterface(made, &IID_ID3D12Device3, (void **)&device->device);
+    ID3D12Device_Release(made);
+    if (FAILED(asked))
+    {
+        return 0;
+    }
+    void *const trial = VirtualAlloc(NULL, (SIZE_T)SYSTEM_PLACE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    ID3D12Heap *trial_heap = NULL;
+    const int pinned = (trial != NULL) &&
+                       SUCCEEDED(ID3D12Device3_OpenExistingHeapFromAddress(device->device, trial, &IID_ID3D12Heap, (void **)&trial_heap));
+    SYSTEM_RELEASED(trial_heap, ID3D12Heap_Release);
+    if (trial != NULL)
+    {
+        VirtualFree(trial, 0u, MEM_RELEASE);
+    }
+    D3D12_COMMAND_QUEUE_DESC queue_desc;
+    memor.set(&(MemoriaCfg){.dst = &queue_desc, .val = 0, .bytes = sizeof(queue_desc)});
+    queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    IDXGIFactory4 *factory = NULL;
+    IDXGISwapChain1 *chain = NULL;
+    DXGI_SWAP_CHAIN_DESC1 chain_desc;
+    memor.set(&(MemoriaCfg){.dst = &chain_desc, .val = 0, .bytes = sizeof(chain_desc)});
+    chain_desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    chain_desc.SampleDesc.Count = 1u;
+    chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    chain_desc.BufferCount = 2u;
+    chain_desc.Scaling = DXGI_SCALING_NONE;
+    chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    chain_desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+    device->fence_event = CreateEventW(NULL, FALSE, FALSE, NULL);
+    const int made_all =
+        pinned && (device->fence_event != NULL) &&
+        SUCCEEDED(ID3D12Device3_CreateCommandQueue(device->device, &queue_desc, &IID_ID3D12CommandQueue, (void **)&device->queue)) &&
+        SUCCEEDED(ID3D12Device3_CreateCommandAllocator(device->device, D3D12_COMMAND_LIST_TYPE_DIRECT, &IID_ID3D12CommandAllocator,
+                                                       (void **)&device->allocator)) &&
+        SUCCEEDED(ID3D12Device3_CreateCommandList(device->device, 0u, D3D12_COMMAND_LIST_TYPE_DIRECT, device->allocator, NULL,
+                                                  &IID_ID3D12GraphicsCommandList, (void **)&device->list)) &&
+        SUCCEEDED(ID3D12GraphicsCommandList_Close(device->list)) &&
+        SUCCEEDED(ID3D12Device3_CreateFence(device->device, 0ull, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence, (void **)&device->fence)) &&
+        SUCCEEDED(CreateDXGIFactory2(0u, &IID_IDXGIFactory4, (void **)&factory)) &&
+        SUCCEEDED(IDXGIFactory4_CreateSwapChainForHwnd(factory, (IUnknown *)device->queue, window, &chain_desc, NULL, NULL, &chain)) &&
+        SUCCEEDED(IDXGISwapChain1_QueryInterface(chain, &IID_IDXGISwapChain3, (void **)&device->chain));
+    if (factory != NULL)
+    {
+        IDXGIFactory4_MakeWindowAssociation(factory, window, DXGI_MWA_NO_ALT_ENTER);
+        IDXGIFactory4_Release(factory);
+    }
+    SYSTEM_RELEASED(chain, IDXGISwapChain1_Release);
+    if (!made_all)
+    {
+        system_device_released(device);
+        return 0;
+    }
+    device->ready = 1;
+    return 1;
+}
+
+// the swapchain's buffers sized to `window`'s client and taken: 1, or 0 where they could not be
+static int system_back_sized(SystemDevice *device, HWND window)
+{
+    RECT client;
+    GetClientRect(window, &client);
+    // the client's sides are not negative and far inside what an unsigned int holds
+    const unsigned int width = (unsigned int)(client.right - client.left);
+    const unsigned int height = (unsigned int)(client.bottom - client.top);
+    if ((width == 0u) || (height == 0u))
+    {
+        return 0;
+    }
+    if ((device->back[0] != NULL) && (width == device->back_width) && (height == device->back_height))
+    {
+        return 1;
+    }
+    system_surfaces_released(device);
+    system_back_released(device);
+    if (FAILED(IDXGISwapChain3_ResizeBuffers(device->chain, 2u, width, height, DXGI_FORMAT_B8G8R8A8_UNORM, 0u)))
+    {
+        return 0;
+    }
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        if (FAILED(IDXGISwapChain3_GetBuffer(device->chain, at, &IID_ID3D12Resource, (void **)&device->back[at])))
+        {
+            system_back_released(device);
+            return 0;
+        }
+    }
+    device->back_width = width;
+    device->back_height = height;
+    return 1;
+}
+
+// the buffer placed over `raster`'s pixels in the heap over its pages, the heap opened over the pages where the one
+// open stands over others: the buffer, or NULL where the device refuses it
+static ID3D12Resource *system_placed(SystemDevice *device, const GuiRaster *raster)
+{
+    if (device->heap_pages != raster->pages)
+    {
+        system_surfaces_released(device);
+        if (FAILED(ID3D12Device3_OpenExistingHeapFromAddress(device->device, raster->pages, &IID_ID3D12Heap, (void **)&device->heap)))
+        {
+            return NULL;
+        }
+        device->heap_pages = raster->pages;
+    }
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        if ((device->placed[at] != NULL) && (device->placed_at[at] == raster->placed))
+        {
+            return device->placed[at];
+        }
+    }
+    const unsigned int slot = (device->placed[0] == NULL) ? 0u : 1u;
+    SYSTEM_RELEASED(device->placed[slot], ID3D12Resource_Release);
+    D3D12_RESOURCE_DESC desc;
+    memor.set(&(MemoriaCfg){.dst = &desc, .val = 0, .bytes = sizeof(desc)});
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    desc.Width = (UINT64)raster->width * raster->height * sizeof(GuiColor);
+    desc.Height = 1u;
+    desc.DepthOrArraySize = 1u;
+    desc.MipLevels = 1u;
+    desc.SampleDesc.Count = 1u;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER;
+    if (FAILED(ID3D12Device3_CreatePlacedResource(device->device, device->heap, raster->placed, &desc, D3D12_RESOURCE_STATE_COMMON, NULL,
+                                                  &IID_ID3D12Resource, (void **)&device->placed[slot])))
+    {
+        return NULL;
+    }
+    device->placed_at[slot] = raster->placed;
+    return device->placed[slot];
+}
+
+// `raster` copied by the device from where it lies into the swapchain's buffer and flipped onto the screen, the copy
+// done before this returns, the raster free to be drawn into again: 1, or 0 where the device cannot, which leaves the
+// raster to the system's drawing calls
+static int system_flipped(GuiSystem *system, const GuiRaster *raster)
+{
+    SystemDevice *const device = &system->device;
+    if (!device->ready || (raster->pages == NULL) || (((unsigned long long)raster->width * sizeof(GuiColor)) % SYSTEM_ROW_STEP != 0ull) ||
+        !system_back_sized(device, system->window))
+    {
+        return 0;
+    }
+    ID3D12Resource *const source = system_placed(device, raster);
+    if (source == NULL)
+    {
+        return 0;
+    }
+    const UINT index = IDXGISwapChain3_GetCurrentBackBufferIndex(device->chain);
+    ID3D12Resource *const target = device->back[index];
+    ID3D12CommandAllocator_Reset(device->allocator);
+    ID3D12GraphicsCommandList_Reset(device->list, device->allocator, NULL);
+    D3D12_RESOURCE_BARRIER barrier;
+    memor.set(&(MemoriaCfg){.dst = &barrier, .val = 0, .bytes = sizeof(barrier)});
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = target;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+    ID3D12GraphicsCommandList_ResourceBarrier(device->list, 1u, &barrier);
+    D3D12_TEXTURE_COPY_LOCATION to;
+    memor.set(&(MemoriaCfg){.dst = &to, .val = 0, .bytes = sizeof(to)});
+    to.pResource = target;
+    to.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    to.SubresourceIndex = 0u;
+    D3D12_TEXTURE_COPY_LOCATION from;
+    memor.set(&(MemoriaCfg){.dst = &from, .val = 0, .bytes = sizeof(from)});
+    from.pResource = source;
+    from.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    from.PlacedFootprint.Offset = 0ull;
+    from.PlacedFootprint.Footprint.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    from.PlacedFootprint.Footprint.Width = raster->width;
+    from.PlacedFootprint.Footprint.Height = raster->height;
+    from.PlacedFootprint.Footprint.Depth = 1u;
+    from.PlacedFootprint.Footprint.RowPitch = raster->width * (UINT)sizeof(GuiColor);
+    const D3D12_BOX box = {0u, 0u, 0u, (raster->width < device->back_width) ? raster->width : device->back_width,
+                           (raster->height < device->back_height) ? raster->height : device->back_height, 1u};
+    ID3D12GraphicsCommandList_CopyTextureRegion(device->list, &to, 0u, 0u, 0u, &from, &box);
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+    ID3D12GraphicsCommandList_ResourceBarrier(device->list, 1u, &barrier);
+    if (FAILED(ID3D12GraphicsCommandList_Close(device->list)))
+    {
+        return 0;
+    }
+    ID3D12CommandList *const lists[1] = {(ID3D12CommandList *)device->list};
+    ID3D12CommandQueue_ExecuteCommandLists(device->queue, 1u, lists);
+    device->fence_value += 1ull;
+    ID3D12CommandQueue_Signal(device->queue, device->fence, device->fence_value);
+    const HRESULT shown = IDXGISwapChain3_Present(device->chain, 1u, 0u);
+    if (ID3D12Fence_GetCompletedValue(device->fence) < device->fence_value)
+    {
+        ID3D12Fence_SetEventOnCompletion(device->fence, device->fence_value, device->fence_event);
+        WaitForSingleObject(device->fence_event, INFINITE);
+    }
+    return SUCCEEDED(shown);
+}
+
+void *gui_system_pages(unsigned long long bytes)
+{
+    // the pages a heap can be opened over are one allocation of the system's own, from its base
+    return VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+}
+
+void gui_system_pages_given(void *pages, unsigned long long bytes)
+{
+    (void)bytes;
+    if ((s_presenting != NULL) && (s_presenting->device.heap_pages == pages))
+    {
+        system_surfaces_released(&s_presenting->device);
+    }
+    VirtualFree(pages, 0u, MEM_RELEASE);
+}
 
 // the milliseconds of one refresh of `window`'s monitor, whole, at least one; 1000 / 60 where the monitor does not
 // say its rate
@@ -295,7 +618,10 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
     {
         PAINTSTRUCT paint;
         HDC context = BeginPaint(window, &paint);
-        system_blitted(system, context, 0u, (system->shown != NULL) ? system->shown->height : 0u);
+        if ((system->shown == NULL) || !system_flipped(system, system->shown))
+        {
+            system_blitted(system, context, 0u, (system->shown != NULL) ? system->shown->height : 0u);
+        }
         EndPaint(window, &paint);
         return 0;
     }
@@ -466,6 +792,10 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
     // the compositor rounds the window's corners and draws its one-pixel border in the system's color
     const DWM_WINDOW_CORNER_PREFERENCE corners = DWMWCP_ROUND;
     DwmSetWindowAttribute(system->window, DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(corners));
+    // the frames flipped through the graphics device where it can read the framebuffers where they lie, else
+    // written through the system's drawing calls
+    (void)system_device_made(&system->device, system->window);
+    s_presenting = system;
     ShowWindow(system->window, place->maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
     return system;
 }
@@ -513,6 +843,11 @@ void *gui_system_native(const GuiSystem *system)
 
 void gui_system_closed(GuiSystem *system)
 {
+    system_device_released(&system->device);
+    if (s_presenting == system)
+    {
+        s_presenting = NULL;
+    }
     if (system->window != NULL)
     {
         DestroyWindow(system->window);
@@ -524,15 +859,24 @@ void gui_system_closed(GuiSystem *system)
 void gui_system_present(GuiSystem *system, const GuiRaster *raster)
 {
     system->shown = raster;
-    HDC context = GetDC(system->window);
-    system_blitted(system, context, 0u, raster->height);
-    ReleaseDC(system->window, context);
+    if (!system_flipped(system, raster))
+    {
+        HDC context = GetDC(system->window);
+        system_blitted(system, context, 0u, raster->height);
+        ReleaseDC(system->window, context);
+    }
     system->presented_ms = cli_clock_milliseconds();
 }
 
 void gui_system_present_part(GuiSystem *system, const GuiRaster *raster, GuiRect part)
 {
     system->shown = raster;
+    // a flip shows a whole buffer: the device flips the raster whole, and the system's drawing calls write the part
+    if (system_flipped(system, raster))
+    {
+        system->presented_ms = cli_clock_milliseconds();
+        return;
+    }
     if (!gui_rect_empty(part) && (part.y >= 0))
     {
         // the part's rows are not negative where it is not empty

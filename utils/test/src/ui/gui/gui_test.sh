@@ -21,7 +21,7 @@ CC="${CC:-clang}"
 # the system's body for this machine joins the modules, with the libraries it links: the body is checked too
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc"; SUFFIX=".exe"; BODY="system_windows.c"
-                          LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid -lgdi32 -ldwmapi) ;;
+                          LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid -lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid) ;;
     Darwin) HOST="$(uname -m)-apple-darwin"; SUFFIX=""; BODY=""; LIBRARIES=(-lpthread -lm) ;;
     *) HOST="$(uname -m)-unknown-linux-gnu"; SUFFIX=""; BODY="system_x11.c"; LIBRARIES=(-lpthread -ldl -lm -lrt -lX11) ;;
 esac

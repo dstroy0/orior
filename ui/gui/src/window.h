@@ -9,6 +9,7 @@
 #ifndef GUI_WINDOW_H
 #define GUI_WINDOW_H
 #include "base.h"
+#include "framebuffer.h"
 #include "claim.h"
 #include "ground.h"
 #include "link.h"
@@ -41,7 +42,7 @@
 #define GUI_HIT_CLOSE 12u
 // the resize border's width in the page's pixels
 #define GUI_BORDER 5
-// The window: its frame; its two rasters, the one the frame is drawn into and the one shown, flipped as a frame is
+// The window: its frame; its two framebuffers, the raster the frame is drawn into and the one shown, flipped as a frame is
 // presented, the shown one NULL before any; the base every frame starts from and the ground under it, glyphs, icons, palette, editor, minimap, menu
 // The window: its frame, raster, the ground every frame starts from, glyphs, icons, palette, editor, minimap, menu
 // bar, strip, explorer and link; the
@@ -71,7 +72,7 @@
 typedef struct
 {
     GuiFrame frame;
-    GuiRaster rasters[2];
+    GuiFramebuffer framebuffer;
     GuiRaster *raster;
     GuiRaster *shown;
     GuiBase base;

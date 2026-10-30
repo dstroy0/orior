@@ -102,7 +102,7 @@ int main(void)
     GuiGround ground;
     cli_check(gui_ground_made(&ground, 1000ull), "a ground is made with a slot of its own");
     cli_check(gui_ground_laid(&ground, 200u, 100u, 2.0f, palette, 1000ull), "the ground is laid out at twice the scale");
-    cli_check((ground.raster.width == 200u) && (ground.raster.height == 100u) && (lattice_slot(ground.slot)->count == 242u),
+    cli_check((ground.raster.width == gui_raster_pitch(200u)) && (ground.raster.height == 100u) && (lattice_slot(ground.slot)->count == 242u),
               "the lattice is laid in the page's pixels, half the window's");
     cli_check(ground.frames == 1u, "the ground laid is drawn once");
     const GuiColor origin = ground.raster.pixels[(4u * 200u) + 4u];

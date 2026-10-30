@@ -28,7 +28,7 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
 {
     memor.set(&(MemoriaCfg){.dst = window, .val = 0, .bytes = sizeof(*window)});
     window->palette = gui_palette(GUI_SCHEME_DARK);
-    window->raster = &window->rasters[0];
+    window->raster = &window->framebuffer.raster[0];
     window->active = -1;
     window->last_active = -1;
     gui_editor_made(&window->editor);
@@ -111,8 +111,7 @@ void gui_window_ended(GuiWindow *window)
     gui_problems_given(&window->problems);
     gui_ground_given(&window->ground);
     gui_base_given(&window->base);
-    gui_raster_given(&window->rasters[0]);
-    gui_raster_given(&window->rasters[1]);
+    gui_framebuffer_given(&window->framebuffer);
 }
 
 // whether the strip's tool shown is named `name`
@@ -689,13 +688,12 @@ int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height,
     gui_frame_laid(&window->frame, width, height, scale);
     gui_frame_sided(&window->frame, window_side_shown(window));
     window_claim_laid(window);
-    gui_raster_given(&window->rasters[0]);
-    gui_raster_given(&window->rasters[1]);
-    window->raster = &window->rasters[0];
+    gui_framebuffer_given(&window->framebuffer);
+    window->raster = &window->framebuffer.raster[0];
     window->shown = NULL;
     gui_base_given(&window->base);
-    const int made = gui_raster_made(&window->rasters[0], width, height) && gui_raster_made(&window->rasters[1], width, height) &&
-                     gui_base_made(&window->base, width, height) &&
+    const int made = gui_framebuffer_made(&window->framebuffer, width, height) &&
+                     gui_base_made(&window->base, gui_raster_pitch(width), height) &&
                      gui_ground_laid(&window->ground, width, height, scale, window->palette, cli_clock_milliseconds());
     window_view_sized(window);
     return made;
@@ -848,7 +846,7 @@ static int window_caret_covered(const GuiWindow *window, GuiRect caret)
 void gui_window_flipped(GuiWindow *window)
 {
     window->shown = window->raster;
-    window->raster = (window->raster == &window->rasters[0]) ? &window->rasters[1] : &window->rasters[0];
+    window->raster = (window->raster == &window->framebuffer.raster[0]) ? &window->framebuffer.raster[1] : &window->framebuffer.raster[0];
 }
 
 GuiRect gui_window_caret_drawn(GuiWindow *window)

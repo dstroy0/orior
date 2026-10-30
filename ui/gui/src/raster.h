@@ -28,13 +28,23 @@ typedef struct
     int height;
 } GuiRect;
 
-// A raster: its size and its pixels, row after row with no gap, in a cell of the cellblock
+// A raster: its size and its pixels, row after row with no gap, in a cell of the cellblock; and where its pixels are
+// a framebuffer's, the pages they lie in, the bytes of those pages and how far into them the pixels start, the pages
+// NULL for any other raster
 typedef struct
 {
     unsigned int width;
     unsigned int height;
     GuiColor *pixels;
+    void *pages;
+    unsigned long long pages_bytes;
+    unsigned long long placed;
 } GuiRaster;
+
+// the pixels a frame's row is laid in: its width rounded up to GUI_RASTER_PITCH, which lays every row on a 256-byte
+// step a copy into the system's own surfaces reads whole
+#define GUI_RASTER_PITCH 64u
+unsigned int gui_raster_pitch(unsigned int width);
 
 // A mask of coverage: its size, where its top left stands from the pen on the baseline, and each pixel's share of
 // what it covers, 0 to 255, row after row

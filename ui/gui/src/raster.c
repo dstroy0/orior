@@ -45,11 +45,19 @@ static GuiRect raster_rect(const GuiRaster *raster)
     return rect;
 }
 
+unsigned int gui_raster_pitch(unsigned int width)
+{
+    return (width + (GUI_RASTER_PITCH - 1u)) & ~(GUI_RASTER_PITCH - 1u);
+}
+
 int gui_raster_made(GuiRaster *raster, unsigned int width, unsigned int height)
 {
     const unsigned long long bytes = (unsigned long long)width * height * sizeof(GuiColor);
     raster->width = width;
     raster->height = height;
+    raster->pages = NULL;
+    raster->pages_bytes = 0ull;
+    raster->placed = 0ull;
     raster->pixels = g_cli_cells->persistent_buf_alloc(bytes, &s_owner);
     if (raster->pixels == NULL)
     {

@@ -59,7 +59,14 @@ void gui_system_closed(GuiSystem *system);
 // system's own handle of the window, for a check to post them to
 void gui_system_pumped(GuiSystem *system);
 void *gui_system_native(const GuiSystem *system);
-// `raster` shown in the client, and shown again as the system asks for the client to be painted
+// `bytes` of pages from the system's own page allocator, zero, one allocation the system's surfaces can read from
+// where it lets them, NULL where it gives none; and pages so taken given back, every surface the system made over
+// them let go first
+void *gui_system_pages(unsigned long long bytes);
+void gui_system_pages_given(void *pages, unsigned long long bytes);
+// `raster` shown in the client, and shown again as the system asks for the client to be painted: where its pixels
+// lie in pages the system gave and the system can read them where they lie, copied from there into its own surface by
+// its graphics device and flipped onto the screen, else written through the system's drawing calls
 void gui_system_present(GuiSystem *system, const GuiRaster *raster);
 // the rows of `raster` that `part` spans shown again in the client, the rest standing as last shown
 void gui_system_present_part(GuiSystem *system, const GuiRaster *raster, GuiRect part);

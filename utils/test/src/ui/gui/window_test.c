@@ -122,12 +122,13 @@ int main(void)
         return cli_checked();
     }
     cli_check(gui_window_sized(&window, 800u, 500u, 1.0f), "the window sized lays its parts out and makes its raster");
-    cli_check((window.raster->width == 800u) && (window.raster->height == 500u), "the raster is the window's size");
+    cli_check((window.raster->width == gui_raster_pitch(800u)) && (window.raster->height == 500u) && (window.raster->pages != NULL),
+              "the raster is the window's size at the framebuffers' pitch, in the system's pages");
     gui_window_drawn(&window);
     const GuiPalette *const palette = window.palette;
     const GuiColor ground = palette->ground;
-    cli_check((window.ground.raster.width == 800u) && (window.ground.frames == 1u) &&
-                  (window.ground.raster.pixels[(2u * 800u) + 2u] != ground) && (window.ground.raster.pixels[(499u * 800u) + 0u] == ground),
+    cli_check((window.ground.raster.width == gui_raster_pitch(800u)) && (window.ground.frames == 1u) &&
+                  (window.ground.raster.pixels[(2u * gui_raster_pitch(800u)) + 2u] != ground) && (window.ground.raster.pixels[(499u * gui_raster_pitch(800u)) + 0u] == ground),
               "the ground is the lattice, a dot at the first point's origin over the ground color");
     cli_check(near(at(&window, 400, 20), pane_at(&window, 400, 20)) && (at(&window, 400, 20) != ground_at(&window, 400, 20)),
               "the bar is a pane over the ground, the thinner tint grained");
@@ -145,7 +146,7 @@ int main(void)
     {
         const GuiRaster *const drawn = window.raster;
         gui_window_flipped(&window);
-        cli_check((window.shown == drawn) && (window.raster != drawn) && (window.raster->pixels != NULL) && (window.raster->width == 800u),
+        cli_check((window.shown == drawn) && (window.raster != drawn) && (window.raster->pixels != NULL) && (window.raster->width == gui_raster_pitch(800u)),
                   "the frame presented is the raster shown and the other, the window's size, is drawn into next");
         gui_window_flipped(&window);
         cli_check(window.raster == drawn, "flipped again the first is drawn into again");
