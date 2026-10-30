@@ -99,7 +99,7 @@ static int report_bug(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     cli_lock_take(&s_lock);
     if (with_errors)
     {
-        (void)cli_growing_line_made(&recent, CLI_WINDOW_REPORT_FIRST, &g_cli_window_cells);
+        (void)cli_growing_line_temporary(&recent, CLI_WINDOW_REPORT_FIRST, &g_cli_window_cells);
         cli_report_recent(&recent);
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
@@ -107,7 +107,7 @@ static int report_bug(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         unsigned long long errors_to = 0ull;
         cli_text_trimmed(field[4], cellul.len(&(CatenaFinitaCfg){.src = field[4], .cap = CLI_CELLS_POOL}), &from, &to);
         cli_text_trimmed(recent.out, mmgr_line_ok(&recent) ? recent.at : 0ull, &errors_from, &errors_to);
-        (void)cli_growing_line_made(&logs, (to - from) + (errors_to - errors_from) + 4ull, &g_cli_window_cells);
+        (void)cli_growing_line_temporary(&logs, (to - from) + (errors_to - errors_from) + 4ull, &g_cli_window_cells);
         mmgr_line_put_n(&logs, field[4] + from, to - from);
         mmgr_line_put(&logs, ((to > from) && (errors_to > errors_from)) ? "\n\n" : "");
         mmgr_line_put_n(&logs, recent.out + errors_from, errors_to - errors_from);
@@ -119,8 +119,8 @@ static int report_bug(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     cli_report_file(&given, has_root ? root : NULL, &s_filed);
     report_filed_written(&s_filed, out);
     cli_lock_give(&s_lock);
-    cli_cell_release(logs.out, &g_cli_window_cells);
-    cli_cell_release(recent.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(logs.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(recent.out, &g_cli_window_cells);
     return 1;
 }
 

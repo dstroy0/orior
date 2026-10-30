@@ -226,9 +226,9 @@ static unsigned long long gradle_name_before(unsigned long long at, unsigned lon
 void cli_gradle_released(void)
 {
     CliGradleScript *const script = &g_cli_gradle;
-    cli_cell_release(script->stray, &g_cli_gradle_cells);
-    cli_cell_release(script->block, &g_cli_gradle_cells);
-    cli_cell_release(script->class_of, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->stray, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->block, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->class_of, &g_cli_gradle_cells);
     script->class_of = NULL;
     script->block = NULL;
     script->stray = NULL;
@@ -266,10 +266,10 @@ int cli_gradle_read(const char *text, unsigned long long size)
     script->stray =
         g_cli_cells->persistent_buf_alloc((closes + 1ull) * sizeof(unsigned long long), &g_cli_gradle_cells);
     unsigned int *const opened =
-        g_cli_cells->persistent_buf_alloc((opens + 1ull) * sizeof(unsigned int), &g_cli_gradle_cells);
+        g_cli_cells->temporary_buf_alloc((opens + 1ull) * sizeof(unsigned int), &g_cli_gradle_cells);
     if ((script->block == NULL) || (script->stray == NULL) || (opened == NULL))
     {
-        cli_cell_release(opened, &g_cli_gradle_cells);
+        g_cli_cells->persistent_buf_release(opened, &g_cli_gradle_cells);
         cli_gradle_released();
         return 0;
     }
@@ -301,7 +301,7 @@ int cli_gradle_read(const char *text, unsigned long long size)
             script->strays += 1u;
         }
     }
-    cli_cell_release(opened, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(opened, &g_cli_gradle_cells);
     return 1;
 }
 

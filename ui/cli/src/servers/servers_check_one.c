@@ -96,7 +96,7 @@ void cli_servers_reread_open(CliLsp *server)
             (void)cli_lsp_read_again(server, open + at, &ignored);
         }
     }
-    cli_cell_release(open, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(open, &g_cli_servers_cells);
 }
 
 void cli_servers_let_go_cleared(const char *key)
@@ -326,7 +326,7 @@ static void check_one_request(unsigned int checker, const char *path, const char
         !cli_lsp_string(answer + kind_at, kind_length, kind, sizeof(kind)) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "full", .cap = CLI_CELLS_POOL})))
     {
-        cli_cell_release(answer, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(answer, &g_cli_servers_cells);
         return;
     }
     const int has_items = cli_lsp_member(answer, size, "items", &items_at, &items_length) &&
@@ -342,14 +342,14 @@ static void check_one_request(unsigned int checker, const char *path, const char
         {
             (void)cli_servers_gathered(key, mapped, mapped_size);
         }
-        cli_cell_release(mapped, &g_cli_servers_cells);
-        cli_cell_release(answer, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(mapped, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(answer, &g_cli_servers_cells);
         return;
     }
     cli_lock_take(&g_cli_servers_published_lock);
     (void)cli_keyed_put(&g_cli_servers_published, key, uri, items, items_size);
     cli_lock_give(&g_cli_servers_published_lock);
-    cli_cell_release(answer, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(answer, &g_cli_servers_cells);
     cli_servers_emit_whole(key, uri, sink);
 }
 
@@ -438,7 +438,7 @@ static int check_one_window(void *context, const CliServersCut *cut, unsigned in
     // the window's diagnostics taken from the wait, as the thread that reads the server may write them again
     cli_lock_take(&s_letting_lock);
     const unsigned long long size = mmgr_line_ok(&s_wait[checker].gathered) ? s_wait[checker].gathered.at : 0ull;
-    char *const gathered = (size > 0ull) ? cli_lane_alloc(size, &g_cli_servers_cells) : NULL;
+    char *const gathered = (size > 0ull) ? g_cli_cells->temporary_buf_alloc(size, &g_cli_servers_cells) : NULL;
     if (gathered != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = gathered, .src = s_wait[checker].gathered.out, .bytes = (size_t)size});
@@ -448,7 +448,7 @@ static int check_one_window(void *context, const CliServersCut *cut, unsigned in
     {
         check_one_window_kept(sliced, gathered, size, first, last);
     }
-    cli_cell_release(gathered, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(gathered, &g_cli_servers_cells);
     return 1;
 }
 
@@ -501,9 +501,9 @@ static void check_one_sliced(unsigned int checker, const char *path, const char 
         cli_lock_give(&g_cli_servers_published_lock);
         cli_servers_emit_whole(key, uri, sink);
     }
-    cli_cell_release(sliced.all.out, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(sliced.all.out, &g_cli_servers_cells);
     cli_lock_take(&s_letting_lock);
-    cli_cell_release(s_wait[checker].gathered.out, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_wait[checker].gathered.out, &g_cli_servers_cells);
     s_wait[checker].gathered = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     cli_lock_give(&s_letting_lock);
 }

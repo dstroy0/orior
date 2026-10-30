@@ -214,18 +214,18 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     // the pages printed, the objects' offsets and a page's contents, in cells sized to the pages laid out
     const unsigned int most = (laid->pages < CLI_PRINT_PAGES) ? laid->pages : CLI_PRINT_PAGES;
     unsigned int *const printed =
-        cli_lane_alloc(((unsigned long long)most + 1ull) * sizeof(unsigned int), &g_cli_print_cells);
+        g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(unsigned int), &g_cli_print_cells);
     unsigned long long *const offsets =
-        g_cli_cells->persistent_buf_alloc((7ull + (2ull * most)) * sizeof(unsigned long long), &g_cli_print_cells);
+        g_cli_cells->temporary_buf_alloc((7ull + (2ull * most)) * sizeof(unsigned long long), &g_cli_print_cells);
     VerbaLinea content;
-    const int begun = cli_growing_line_made(&content, CLI_PDF_CONTENT_FIRST, &g_cli_print_cells);
+    const int begun = cli_growing_line_temporary(&content, CLI_PDF_CONTENT_FIRST, &g_cli_print_cells);
     *pages = 0ull;
     if ((printed == NULL) || (offsets == NULL) || !begun)
     {
         // with no room to write it in, nothing is written
-        cli_cell_release(printed, &g_cli_print_cells);
-        cli_cell_release(offsets, &g_cli_print_cells);
-        cli_cell_release(content.out, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(printed, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(offsets, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(content.out, &g_cli_print_cells);
         return;
     }
     unsigned int count = 0u;
@@ -302,7 +302,7 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     mmgr_line_decimal(out, xref, 1u);
     mmgr_line_put(out, "\n%%EOF\n");
     *pages = count;
-    cli_cell_release(printed, &g_cli_print_cells);
-    cli_cell_release(offsets, &g_cli_print_cells);
-    cli_cell_release(content.out, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(printed, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(offsets, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(content.out, &g_cli_print_cells);
 }

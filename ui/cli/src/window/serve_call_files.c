@@ -171,7 +171,7 @@ static int file_slice(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         }
         mmgr_line_ch(out, '}');
     }
-    cli_cell_release(slice.out, &s_cells);
+    g_cli_cells->persistent_buf_release(slice.out, &s_cells);
     return done;
 }
 
@@ -241,13 +241,13 @@ int cli_serve_file_write(const char *path, const char *text, unsigned long long 
     cli_lock_take(&g_cli_serve_write_lock);
     unsigned long long old_size = 0ull;
     char *const was =
-        cli_file_size(full, &old_size) ? cli_lane_alloc(old_size + 1ull, &s_cells) : NULL;
+        cli_file_size(full, &old_size) ? g_cli_cells->temporary_buf_alloc(old_size + 1ull, &s_cells) : NULL;
     const unsigned long long before =
         (was != NULL) ? qry_member_file_read(full, (unsigned char *)was, old_size + 1ull) : QRY_MEMBER_UNREAD;
     const int had = (before != QRY_MEMBER_UNREAD) && cli_utf8_whole(was, before);
     if (!cli_files_write(root, path, text, length, err_msg))
     {
-        cli_cell_release(was, &s_cells);
+        g_cli_cells->persistent_buf_release(was, &s_cells);
         cli_lock_give(&g_cli_serve_write_lock);
         return 0;
     }
@@ -264,7 +264,7 @@ int cli_serve_file_write(const char *path, const char *text, unsigned long long 
         mmgr_line_ch(&line, '\n');
         query_terminal_written(1, msg_buf, mmgr_line_ok(&line) ? line.at : 0ull);
     }
-    cli_cell_release(was, &s_cells);
+    g_cli_cells->persistent_buf_release(was, &s_cells);
     cli_lock_give(&g_cli_serve_write_lock);
     return 1;
 }
@@ -303,7 +303,7 @@ static int file_part(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     (void)cli_json_string(args->json, cli_serve_arg(args, "data"), &length);
     // base64 encodes three bytes in each four letters
     const unsigned long long room = ((length / 4ull) + 1ull) * 3ull;
-    char *const bytes = cli_lane_alloc(room, &s_cells);
+    char *const bytes = g_cli_cells->temporary_buf_alloc(room, &s_cells);
     if (bytes == NULL)
     {
         mmgr_line_put(err_msg, "a file's part could not be taken: the cells cannot meet it");
@@ -316,7 +316,7 @@ static int file_part(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
         mmgr_line_put(err_msg, "a part not in base64");
     }
     done = done && cli_files_write_part(root, path, at, bytes, size, last, err_msg);
-    cli_cell_release(bytes, &s_cells);
+    g_cli_cells->persistent_buf_release(bytes, &s_cells);
     mmgr_line_put(out, done ? "null" : "");
     return done;
 }
@@ -379,7 +379,7 @@ static int history_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     {
         cli_json_quoted_lossy(out, (const unsigned char *)text.out, mmgr_line_ok(&text) ? text.at : 0ull);
     }
-    cli_cell_release(text.out, &s_cells);
+    g_cli_cells->persistent_buf_release(text.out, &s_cells);
     return done;
 }
 

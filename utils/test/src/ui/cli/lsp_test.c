@@ -165,7 +165,7 @@ typedef struct
 {
     char id[64];
     int deferred;
-    int meanwhile;
+    embed_atomic_usize meanwhile;
 } LspLater;
 
 // the server's question recorded to be answered later, and what it sends after it counted
@@ -180,8 +180,8 @@ static void lsp_request_later(void *context, const char *method, const char *par
     {
         later->deferred = cli_lsp_answer_later(later->id, sizeof(later->id));
     }
-    later->meanwhile +=
-        (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "orior/meanwhile", .cap = CLI_CELLS_POOL})) ? 1 : 0;
+    (void)embed_atomic_usize_fetch_add(
+        &later->meanwhile, (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "orior/meanwhile", .cap = CLI_CELLS_POOL})) ? 1u : 0u);
 }
 
 // a request the server sends is recorded, the server received on meanwhile, and answered later
@@ -211,11 +211,11 @@ static void lsp_answered_later(void)
     }
     (void)cli_lsp_notified(server, "orior/query", "null", 4ull, &err_msg);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while ((s_later.meanwhile == 0) && (cli_clock_milliseconds() < until))
+    while ((embed_atomic_usize_load(&s_later.meanwhile) == 0u) && (cli_clock_milliseconds() < until))
     {
         query_paused(20u);
     }
-    cli_check(s_later.deferred && (s_later.meanwhile == 1),
+    cli_check(s_later.deferred && (embed_atomic_usize_load(&s_later.meanwhile) == 1u),
               "a request the server sends is left unanswered, and what the server sends after it is received");
     cli_check(cli_lsp_answer(server, s_later.id, "\"later\"", 7ull, &err_msg), "the request is answered later");
     char complaint[CLI_LSP_COMPLAINT];

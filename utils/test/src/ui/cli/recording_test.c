@@ -41,7 +41,7 @@ static void recording_values(unsigned int serial, unsigned int at, const char *w
         mmgr_line_ch(&line, '=');
         mmgr_line_put(&line, values[each].value);
     }
-    cli_cell_release(values, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(values, &g_checks_cells);
     cli_check_text(text, line.at, wanted, what);
 }
 

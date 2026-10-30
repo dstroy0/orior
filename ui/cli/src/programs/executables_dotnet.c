@@ -219,7 +219,7 @@ static void cli_dotnet_missing(const char *file, QuerySink sink)
     {
         cli_framework_check_print(&json, item, places, place_count, file, sink);
     }
-    cli_cell_release(places, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(places, &g_cli_executables_cells);
     cli_json_given(&json);
 }
 
@@ -373,6 +373,6 @@ void cli_executables_built_advice(const char *root, const char *id, const CliLin
         char *const warned = cli_pyinstaller_warn(path, folder);
         own.folder = folder;
         cli_pyinstaller_missing((warned != NULL) ? warned : "", cli_own_each, &own);
-        cli_cell_release(warned, &g_cli_executables_cells);
+        g_cli_cells->persistent_buf_release(warned, &g_cli_executables_cells);
     }
 }

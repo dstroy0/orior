@@ -309,7 +309,7 @@ int cli_bridge_words(const char *root, const char *word)
     }
     const int code = bridge_words(root, word);
     cli_json_given(&s_room->json);
-    cli_cell_release(s_room, &g_cli_command_line_cells);
+    g_cli_cells->persistent_buf_release(s_room, &g_cli_command_line_cells);
     s_room = NULL;
     return code;
 }

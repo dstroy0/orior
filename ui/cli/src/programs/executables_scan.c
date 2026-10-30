@@ -11,7 +11,7 @@ char *cli_uncommented_taken(const char *text, char quote)
 {
     // the code with its comments taken out is no longer than the text
     const unsigned long long room = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    char *const code = cli_lane_alloc(room, &g_cli_executables_cells);
+    char *const code = g_cli_cells->persistent_buf_alloc(room, &g_cli_executables_cells);
     if (code != NULL)
     {
         cli_uncommented(text, quote, code, room);
@@ -272,8 +272,8 @@ void cli_cmake_targets(const char *text, const char *project, CliNames *names)
             cli_names_put(names, name, length, NULL);
         }
     }
-    cli_cell_release(calls, &g_cli_executables_cells);
-    cli_cell_release(code, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
 }
 
 int cli_cmake_project(const char *text, char *out)
@@ -286,8 +286,8 @@ int cli_cmake_project(const char *text, char *out)
     {
         found = cli_cmake_word(&calls[at], 0u, out);
     }
-    cli_cell_release(calls, &g_cli_executables_cells);
-    cli_cell_release(code, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
     return found;
 }
 
@@ -323,8 +323,8 @@ void cli_meson_targets(const char *text, CliNames *names)
             cli_names_put(names, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), NULL);
         }
     }
-    cli_cell_release(calls, &g_cli_executables_cells);
-    cli_cell_release(code, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
 }
 
 int cli_meson_project(const char *text, char *out)
@@ -337,7 +337,7 @@ int cli_meson_project(const char *text, char *out)
     {
         found = cli_meson_first(&calls[at], out);
     }
-    cli_cell_release(calls, &g_cli_executables_cells);
-    cli_cell_release(code, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
     return found;
 }

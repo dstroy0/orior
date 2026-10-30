@@ -48,7 +48,7 @@ static int book_room_taken(CliBookRoom *room, VerbaLinea *err_msg)
     if ((room->tokens == NULL) ||
         !cli_json_reserved(&room->json, room->nodes, room->text, "a notebook's tree", &g_cli_window_cells))
     {
-        cli_cell_release(room->tokens, &g_cli_window_cells);
+        g_cli_cells->persistent_buf_release(room->tokens, &g_cli_window_cells);
         room->tokens = NULL;
         mmgr_line_put(err_msg, "the notebook's cells could not be taken");
         return 0;
@@ -60,7 +60,7 @@ static int book_room_taken(CliBookRoom *room, VerbaLinea *err_msg)
 static void book_room_given(CliBookRoom *room)
 {
     cli_json_given(&room->json);
-    cli_cell_release(room->tokens, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(room->tokens, &g_cli_window_cells);
     room->tokens = NULL;
 }
 
@@ -144,11 +144,11 @@ static int notebook_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
         return 0;
     }
     VerbaLinea text;
-    (void)cli_growing_line_made(&text, CLI_SERVE_BOOK_FIRST, &g_cli_window_cells);
+    (void)cli_growing_line_temporary(&text, CLI_SERVE_BOOK_FIRST, &g_cli_window_cells);
     // the arguments' tree is the call's own room, which the writer may add nodes to
     cli_notebook_write((CliJson *)args->json, full, cli_serve_arg(args, "book"), &text);
     const int done = mmgr_line_ok(&text) && cli_serve_file_write(path, text.out, text.at, err_msg);
-    cli_cell_release(text.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(text.out, &g_cli_window_cells);
     mmgr_line_put(out, done ? "null" : "");
     return done;
 }
@@ -286,7 +286,7 @@ static int notebook_merge(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     book_room_given(&room);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        cli_cell_release(stages[at].out, &g_cli_window_cells);
+        g_cli_cells->persistent_buf_release(stages[at].out, &g_cli_window_cells);
     }
     return done;
 }

@@ -199,7 +199,7 @@ void cli_servers_workspace_edit_of(const CliJson *json, unsigned int edit, const
     edits_walked(&editing, json, edit);
     // the edits, on a boundary of their own, and the paths after them
     const unsigned long long edit_bytes = (unsigned long long)editing.edit_room * sizeof(CliServersEdit);
-    char *const cell = cli_lane_alloc(
+    char *const cell = g_cli_cells->temporary_buf_alloc(
         edit_bytes + ((unsigned long long)editing.file_room * CLI_PATH_MAX_LEN) + 1ull, &g_cli_servers_edits_cells);
     if (cell != NULL)
     {
@@ -226,5 +226,5 @@ void cli_servers_workspace_edit_of(const CliJson *json, unsigned int edit, const
         mmgr_line_put(out, "]}");
     }
     mmgr_line_ch(out, ']');
-    cli_cell_release(cell, &g_cli_servers_edits_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_servers_edits_cells);
 }

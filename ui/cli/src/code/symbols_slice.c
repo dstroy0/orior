@@ -570,9 +570,9 @@ static int cli_slice_cut(CliEffect *effect, const char *path, unsigned int first
     {
         cli_slice_handed(&slice, each, context);
     }
-    cli_cell_release(slice.name, &g_cli_code_cells);
-    cli_cell_release(slice.part, &g_cli_code_cells);
-    cli_cell_release(slice.written, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(slice.name, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(slice.part, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(slice.written, &g_cli_code_cells);
     return !effect->refused;
 }
 

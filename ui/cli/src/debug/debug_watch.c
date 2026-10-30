@@ -199,8 +199,8 @@ int cli_debug_watch_data(unsigned long long id, const char *name, int has_refere
         .dst = data,
         .src = (named != NULL) ? named : "",
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = (named != NULL) ? named : "", .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(
-        &(MemoriaCfg){.dst = description, .bytes = sizeof(description), .src = (described != NULL) ? described : name});
+    (void)cellul.copy(&(CatenaFinitaCfg){
+        .dst = description, .src = (described != NULL) ? described : name, .cap = sizeof(description)});
     cli_debug_answer_given(answer);
     if (named == NULL)
     {

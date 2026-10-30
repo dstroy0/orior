@@ -247,7 +247,7 @@ static int emit_given_names(const char *key, const char *uri, const char **names
     char *const joined = cli_pieces_joined(&pieces, &given, "the names a build tool gives", &given_size);
     (void)cli_keyed_put(&g_cli_servers_given, key, "", (joined != NULL) ? joined : "",
                         (joined != NULL) ? given_size : 0ull);
-    cli_cell_release(joined, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(joined, &g_cli_servers_cells);
     *names = cli_keyed_get(&g_cli_servers_given, key, &beside, size);
     return *names != NULL;
 }
@@ -335,7 +335,7 @@ void cli_servers_emit_whole(const char *key, const char *uri, const CliServersSi
     {
         sink->emit(sink->context, "lsp-diagnostics", diag_json, diag_json_size);
     }
-    cli_cell_release(diag_json, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(diag_json, &g_cli_servers_cells);
     cli_servers_reading_released(&s_reading);
 }
 
@@ -373,5 +373,5 @@ void cli_servers_emit_reporting_attributes(const CliServersSink *sink)
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    cli_cell_release(reporting, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(reporting, &g_cli_servers_cells);
 }

@@ -250,7 +250,7 @@ int cli_paste_walked(const char *source, const char *target, CliPasteEach each, 
         const int folder = query_is_folder(from);
         walked = each(context, from, to, folder, err_msg) && (!folder || cli_pending_entries(from, to, err_msg));
     }
-    cli_cell_release(s_pending, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(s_pending, &g_cli_editor_cells);
     s_pending = NULL;
     cli_lock_give(&s_lock);
     return walked;

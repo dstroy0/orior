@@ -70,14 +70,14 @@ static void recv_diagnostics(const CliServersSink *sink, const char *params, uns
     if ((recv_empty_array(all, all_length) && cli_servers_letting_go(key)) ||
         cli_servers_gathered(key, all, all_length))
     {
-        cli_cell_release(mapped, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(mapped, &g_cli_servers_cells);
         return;
     }
     cli_servers_woken(key);
     cli_lock_take(&g_cli_servers_published_lock);
     (void)cli_keyed_put(&g_cli_servers_published, key, uri, all, all_length);
     cli_lock_give(&g_cli_servers_published_lock);
-    cli_cell_release(mapped, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(mapped, &g_cli_servers_cells);
     cli_servers_emit_whole(key, uri, sink);
 }
 
@@ -98,7 +98,7 @@ static void recv_edit(const CliServersSink *sink, const char *params, unsigned l
     {
         sink->emit(sink->context, "lsp-edits", edits, edits_size);
     }
-    cli_cell_release(edits, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(edits, &g_cli_servers_cells);
     cli_servers_reading_released(&s_reading);
 }
 

@@ -48,7 +48,7 @@ int cli_plugin_catalog_locked(VerbaLinea *err_msg)
 void cli_plugin_catalog_released(void)
 {
     cli_json_given(&g_cli_catalog->json);
-    cli_cell_release(g_cli_catalog->bytes, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(g_cli_catalog->bytes, &g_cli_plugins_cells);
     g_cli_catalog->bytes = NULL;
     g_cli_catalog = NULL;
     cli_lock_give(&s_catalog_lock);
@@ -70,7 +70,7 @@ static int catalog_begins(const char *text, const char *prefix)
 // g_cli_catalog->bytes, their count into `size`: 1, or 0 with why given
 int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned long long *size, VerbaLinea *err_msg)
 {
-    cli_cell_release(g_cli_catalog->bytes, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(g_cli_catalog->bytes, &g_cli_plugins_cells);
     g_cli_catalog->bytes = NULL;
     if (catalog_begins(address, "http://") || catalog_begins(address, "https://"))
     {
@@ -95,7 +95,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
             (unsigned char *)cli_pieces_joined(&pieces, &body, "the bytes a plugin catalog fetched", &joined_size);
         if (!got)
         {
-            cli_cell_release(joined, &g_cli_plugins_cells);
+            g_cli_cells->persistent_buf_release(joined, &g_cli_plugins_cells);
             mmgr_line_put(err_msg, address);
             mmgr_line_put(err_msg, ": ");
             mmgr_line_put_n(err_msg, why, failed.at);
@@ -103,7 +103,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
         }
         if ((status < 200u) || (status >= 300u))
         {
-            cli_cell_release(joined, &g_cli_plugins_cells);
+            g_cli_cells->persistent_buf_release(joined, &g_cli_plugins_cells);
             mmgr_line_put(err_msg, address);
             mmgr_line_put(err_msg, ": ");
             mmgr_line_decimal(err_msg, status, 1u);
@@ -113,7 +113,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
         }
         if (cut || (joined == NULL) || (joined_size > CLI_CATALOG_BYTES))
         {
-            cli_cell_release(joined, &g_cli_plugins_cells);
+            g_cli_cells->persistent_buf_release(joined, &g_cli_plugins_cells);
             mmgr_line_put(err_msg, address);
             mmgr_line_put(err_msg, " is larger than orior_cli reads");
             return 0;

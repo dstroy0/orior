@@ -351,7 +351,7 @@ static void prints_released(VerbaLinea *out)
 {
     cli_prints_written(out);
     cli_git_text_given(&s_prints->repositories.text);
-    cli_cell_release(s_prints, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(s_prints, &g_cli_code_cells);
     s_prints = NULL;
     cli_lock_give(&s_lock);
 }

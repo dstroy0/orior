@@ -63,7 +63,7 @@ static unsigned char *check_read(const char *text, unsigned long long size)
         (size <= CLI_SCONS_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &s_owner) : NULL;
     if ((class_of != NULL) && !cli_scons_read(text, size, class_of))
     {
-        cli_cell_release(class_of, &s_owner);
+        g_cli_cells->persistent_buf_release(class_of, &s_owner);
         return NULL;
     }
     return class_of;
@@ -221,7 +221,7 @@ static void check_others(const char *root, const char *path)
         {
             continue;
         }
-        unsigned char *const text = cli_lane_alloc(bytes + 1ull, &s_owner);
+        unsigned char *const text = g_cli_cells->temporary_buf_alloc(bytes + 1ull, &s_owner);
         const unsigned long long size = (text != NULL) ? qry_member_file_read(other, text, bytes) : QRY_MEMBER_UNREAD;
         unsigned char *const class_of = ((size != QRY_MEMBER_UNREAD) && cli_utf8_whole((const char *)text, size))
                                             ? check_read((const char *)text, size)
@@ -230,8 +230,8 @@ static void check_others(const char *root, const char *path)
         {
             cli_scons_exported(check_exported, NULL);
         }
-        cli_cell_release(class_of, &s_owner);
-        cli_cell_release(text, &s_owner);
+        g_cli_cells->persistent_buf_release(class_of, &s_owner);
+        g_cli_cells->persistent_buf_release(text, &s_owner);
     }
     cli_files_let(files);
 }
@@ -282,7 +282,7 @@ static void check_read_file(const char *root, const char *path, const char *text
         (void)cli_build_finding(found, &msg, lines, s_import[at].from, s_import[at].to, CLI_BUILD_WARNING,
                                 "scons-import");
     }
-    cli_cell_release(s_import, &s_owner);
+    g_cli_cells->persistent_buf_release(s_import, &s_owner);
     s_import = NULL;
 }
 
@@ -295,7 +295,7 @@ void cli_scons_check(const char *root, const char *path, const char *text, unsig
     {
         check_read_file(root, path, text, lines, found);
     }
-    cli_cell_release(class_of, &s_owner);
+    g_cli_cells->persistent_buf_release(class_of, &s_owner);
     cli_lock_give(&g_cli_scons_lock);
 }
 
@@ -328,7 +328,7 @@ void cli_scons_given(const char *text, unsigned long long size,
         CliSconsGiven given = {each, context};
         cli_scons_imported(check_given_import, &given);
     }
-    cli_cell_release(class_of, &s_owner);
+    g_cli_cells->persistent_buf_release(class_of, &s_owner);
     cli_lock_give(&g_cli_scons_lock);
 }
 
@@ -450,6 +450,6 @@ void cli_scons_complete(const char *text, unsigned long long size, unsigned long
     {
         check_completed(text, at, items);
     }
-    cli_cell_release(class_of, &s_owner);
+    g_cli_cells->persistent_buf_release(class_of, &s_owner);
     cli_lock_give(&g_cli_scons_lock);
 }

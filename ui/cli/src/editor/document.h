@@ -164,7 +164,7 @@ void cli_document_walked(void);
 // how many walkers walk the texts' colors out on threads of their own now (document_branch.c)
 unsigned int cli_document_walkers(void);
 // the lines from `first` to `last` of the text under `key` as UTF-8, each but the last followed by "\n", in a cell
-// taken for `owner`, given back with cli_cell_release, their bytes into `size`, and the state the first is entered in
+// taken for `owner`, given back with persistent_buf_release, their bytes into `size`, and the state the first is entered in
 // written into `state`, `room` bytes, root where it is not colored yet, empty where it does not fit: NULL where no text
 // is stored under `key` or the cells cannot meet the lines; and the same lines written into `out` as a JSON string: 1,
 // or 0 where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
@@ -176,7 +176,7 @@ int cli_document_bounds(const char *key, unsigned long long *low, unsigned long 
 int cli_document_text_written(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out,
                               char *state, unsigned long long room);
 // the text read whole stored under `key` as UTF-8, its lines joined by "\n" and a NUL after the last, in a cell taken
-// for `owner`, given back with cli_cell_release, its bytes into `size`: NULL where no text read whole is stored
+// for `owner`, given back with persistent_buf_release, its bytes into `size`: NULL where no text read whole is stored
 // under `key` or the cells cannot meet it (document_branch.c)
 char *cli_document_text_taken(const char *key, unsigned long long *size, CellOwner *owner);
 // the lines from `from` to before `to` of the branch under `key` the page's mirror, those about its view: those it did

@@ -45,7 +45,7 @@ int cli_validate_command_for(const char *program, const char *file, const char *
     }
     if (inside)
     {
-        memor.cpy(&(MemoriaCfg){.dst = dir, .src = project, .bytes = CLI_PATH_MAX_LEN});
+        (void)cellul.copy(&(CatenaFinitaCfg){.dst = dir, .src = project, .cap = CLI_PATH_MAX_LEN});
     }
     else if (!cli_path_parent(file, dir))
     {
@@ -135,7 +135,7 @@ int cli_validate_checked(const CliWords *words, const char *dir, double *seconds
     const unsigned long long out = cli_utf8_whole(ran->out, ran->out_size) ? ran->out_size : 0ull;
     const unsigned long long err = cli_utf8_whole(ran->err, ran->err_size) ? ran->err_size : 0ull;
     // the output stored in a cell of its size, the one stored before given back
-    cli_cell_release(g_cli_validate->output, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
     g_cli_validate->output_size = 0ull;
     g_cli_validate->output = g_cli_cells->persistent_buf_alloc(out + err + 2ull, &g_cli_plugins_cells);
     if (g_cli_validate->output == NULL)

@@ -101,7 +101,7 @@ static int stored_room_enter(CliLines *lines, unsigned long long units_most, uns
 // a room given back, its cell starting at its units or, for a paged text's, at its states, `lines` left empty
 static void stored_room_exit(CliLines *lines)
 {
-    cli_cell_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun, &g_cli_editor_cells);
     *lines = (CliLines){NULL, 0ull, 0ull, NULL, NULL, 0u, 0u, 0};
 }
 
@@ -215,11 +215,11 @@ static void stored_cells_given(CliStoredText *one)
 {
     stored_room_exit(&one->lines);
     stored_room_exit(&one->head);
-    cli_cell_release(one->state, &g_cli_editor_cells);
-    cli_cell_release(one->state_index, &g_cli_editor_cells);
-    cli_cell_release(one->roles, &g_cli_editor_cells);
-    cli_cell_release(one->run, &g_cli_editor_cells);
-    cli_cell_release(one, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one->state, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one->state_index, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one->roles, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one->run, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one, &g_cli_editor_cells);
 }
 
 // a text stored let go: taken off the texts stored, and its cells given back, at once where nothing holds it, else as

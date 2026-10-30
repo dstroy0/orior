@@ -261,7 +261,7 @@ def cmd_check(a):
     import harness_cli
 
     seen = []
-    code = harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, *a.names], seen=seen)
+    code = harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, *a.names], seen=seen, env=harness_cli.checks_env(a))
     checks, failed, exits = harness_cli.output_read("".join(seen))
     failing = sum(1 for one in exits if one != 0)
     print("window check: %d checks, %d failed, %d of %d files failing" % (checks, failed, failing, len(exits)), flush=True)
@@ -1224,6 +1224,8 @@ def register(sub):
     p.set_defaults(fn=cmd_move)
     p = window.add_parser("check", help="the window's C checked without a display, every check where none is named")
     p.add_argument("names", nargs="*", help="checks by name, raster or glyphs, each a *_test.c under utils/test/src/ui/gui")
+    p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the checks built and run under this sanitizer, a report failing its check")
+    p.add_argument("--owners", action="store_true", help="each check's end prints MMgr's owner table, every owner's bytes now and its peak")
     p.set_defaults(fn=cmd_check)
     p = window.add_parser("bench", help="the frame bench: a monitor-sized frame of the window drawn without a display, timed")
     p.set_defaults(fn=cmd_bench)

@@ -100,7 +100,7 @@ int cli_catalog_paths_room(CliPaths *paths, unsigned int most)
 
 void cli_catalog_entries_given(CliEntries *entries)
 {
-    cli_cell_release(entries->name, &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release(entries->name, &g_cli_catalog_cells);
     entries->name = NULL;
     entries->count = 0u;
     entries->room = 0u;
@@ -108,12 +108,12 @@ void cli_catalog_entries_given(CliEntries *entries)
 
 void cli_catalog_paths_given(CliPaths *paths)
 {
-    cli_cell_release(paths->path, &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release(paths->path, &g_cli_catalog_cells);
     paths->path = NULL;
     paths->room = 0u;
 }
 
 void cli_catalog_text_given(char *text)
 {
-    cli_cell_release(text, &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release(text, &g_cli_catalog_cells);
 }

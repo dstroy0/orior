@@ -174,7 +174,7 @@ int cli_trust_set_in(const char *path, const char *folder, int trusted, VerbaLin
         done = 0;
     }
     VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&out, CLI_TRUST_WRITTEN_FIRST, &g_cli_machine_cells);
+    (void)cli_growing_line_temporary(&out, CLI_TRUST_WRITTEN_FIRST, &g_cli_machine_cells);
     cli_json_write(&json, trust_obj, &out, 2u, 0);
     if (done && (!mmgr_line_ok(&out) || !query_file_written(path, out.out, out.at)))
     {
@@ -182,7 +182,7 @@ int cli_trust_set_in(const char *path, const char *folder, int trusted, VerbaLin
         mmgr_line_put(err_msg, ": it could not be written");
         done = 0;
     }
-    cli_cell_release(out.out, &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release(out.out, &g_cli_machine_cells);
     cli_json_given(&json);
     cli_lock_give(&s_trust_lock);
     if (done)

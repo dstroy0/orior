@@ -87,8 +87,8 @@ void cli_toolchains_chosen_each(void (*each)(void *context, const char *id, cons
         const char *const folder = cli_json_string(&json, item, NULL);
         if (folder != NULL)
         {
-            memor.cpy(
-                &(MemoriaCfg){.dst = s_ids[count], .bytes = CLI_NAME_MAX_LEN, .src = json.text + json.node[item].key});
+            (void)cellul.copy(&(CatenaFinitaCfg){
+                .dst = s_ids[count], .src = json.text + json.node[item].key, .cap = CLI_NAME_MAX_LEN});
             memor.cpy(
                 &(MemoriaCfg){.dst = s_folders[count],
                               .src = folder,

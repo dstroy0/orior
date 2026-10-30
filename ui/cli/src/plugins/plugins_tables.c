@@ -257,7 +257,7 @@ static int cli_tables_list_written(const CliJson *json, unsigned int list, const
 {
     char path[CLI_PATH_MAX_LEN];
     CliRegexpRoom *const room =
-        cli_lane_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpRoom), &g_cli_plugins_cells);
+        g_cli_cells->temporary_buf_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpRoom), &g_cli_plugins_cells);
     if (room == NULL)
     {
         mmgr_line_put(err_msg, "a table's patterns could not be given a cell");
@@ -282,7 +282,7 @@ static int cli_tables_list_written(const CliJson *json, unsigned int list, const
         (void)cli_defs_lines(path, cli_tables_line, &read);
     }
     mmgr_line_ch(out, ']');
-    cli_cell_release(room, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(room, &g_cli_plugins_cells);
     return read_whole;
 }
 
@@ -381,7 +381,7 @@ static int cli_tables_rule_written(const CliJson *json, unsigned int grammar, un
     const char *const before = cli_json_string(json, cli_json_member(json, pattern, "before"), NULL);
     const char *const after = cli_json_string(json, cli_json_member(json, pattern, "after"), NULL);
     VerbaLinea source;
-    if (!cli_growing_line_made(&source, CLI_TABLES_PATTERN_FIRST, &g_cli_plugins_cells))
+    if (!cli_growing_line_temporary(&source, CLI_TABLES_PATTERN_FIRST, &g_cli_plugins_cells))
     {
         *failed = 1;
         return 0;
@@ -399,7 +399,7 @@ static int cli_tables_rule_written(const CliJson *json, unsigned int grammar, un
         }
         mmgr_line_ch(out, ']');
     }
-    cli_cell_release(source.out, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(source.out, &g_cli_plugins_cells);
     return taken != 0u;
 }
 
@@ -453,7 +453,7 @@ int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const c
                               VerbaLinea *out, VerbaLinea *err_msg)
 {
     VerbaLinea lists;
-    if (!cli_growing_line_made(&lists, CLI_TABLES_FIRST, &g_cli_plugins_cells))
+    if (!cli_growing_line_temporary(&lists, CLI_TABLES_FIRST, &g_cli_plugins_cells))
     {
         mmgr_line_put(err_msg, "a grammar could not be given a cell to be made whole in");
         return 0;
@@ -462,10 +462,10 @@ int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const c
     CliJson filled;
     cli_json_begun(&filled, NULL, 0u, NULL, 0ull);
     const unsigned int filled_grammar =
-        whole ? cli_json_taken_laned(&filled, lists.out, lists.at, err_msg, &g_cli_plugins_cells) : CLI_JSON_NONE;
+        whole ? cli_json_taken_temporary(&filled, lists.out, lists.at, err_msg, &g_cli_plugins_cells) : CLI_JSON_NONE;
     whole = (filled_grammar != CLI_JSON_NONE) && cli_tables_rules_written(&filled, filled_grammar, out, err_msg);
     cli_json_given(&filled);
-    cli_cell_release(lists.out, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(lists.out, &g_cli_plugins_cells);
     return whole;
 }
 
@@ -518,7 +518,7 @@ int cli_plugins_folder_stands(const CliJson *json, unsigned int each, const char
     const unsigned int unless = cli_json_member(json, each, "unless");
     const char *const source = cli_json_string(json, cli_json_member(json, unless, "match"), NULL);
     CliRegexpRoom *const room =
-        (source != NULL) ? cli_lane_alloc(sizeof(CliRegexpRoom), &g_cli_plugins_cells) : NULL;
+        (source != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpRoom), &g_cli_plugins_cells) : NULL;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliRegexp pattern;
@@ -526,6 +526,6 @@ int cli_plugins_folder_stands(const CliJson *json, unsigned int each, const char
     CliTablesUnless matched = {json, unless, CLI_DEFS_CELLS, read ? &pattern : NULL, 0};
     const int stands =
         ((source == NULL) || read) && cli_defs_lines(path, cli_tables_unless_line, &matched) && !matched.matched;
-    cli_cell_release(room, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(room, &g_cli_plugins_cells);
     return stands;
 }

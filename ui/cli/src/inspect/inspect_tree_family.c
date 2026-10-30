@@ -49,8 +49,8 @@ static CliTreeFamilies s_family;
 
 void cli_tree_families_given(void)
 {
-    cli_cell_release(s_family.class_cell, &g_cli_inspect_cells);
-    cli_cell_release(s_family.ancestor_cell, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(s_family.class_cell, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(s_family.ancestor_cell, &g_cli_inspect_cells);
     memor.set(&(MemoriaCfg){.dst = &s_family, .val = 0, .bytes = sizeof(s_family)});
 }
 
@@ -497,7 +497,7 @@ void cli_inspect_tree_supplied(CliInspectSupplied each, void *context)
         buckets <<= 1u;
     }
     CliTreeSupplied *const table =
-        s_family.current ? cli_lane_alloc(buckets * sizeof(CliTreeSupplied), &g_cli_inspect_cells) : NULL;
+        s_family.current ? g_cli_cells->temporary_buf_alloc(buckets * sizeof(CliTreeSupplied), &g_cli_inspect_cells) : NULL;
     if (table != NULL)
     {
         memor.set(&(MemoriaCfg){.dst = table, .val = 0, .bytes = buckets * sizeof(CliTreeSupplied)});
@@ -531,6 +531,6 @@ void cli_inspect_tree_supplied(CliInspectSupplied each, void *context)
             }
         }
     }
-    cli_cell_release(table, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(table, &g_cli_inspect_cells);
     cli_lock_give(&g_cli_tree_lock);
 }

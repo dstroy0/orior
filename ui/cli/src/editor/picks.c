@@ -87,7 +87,7 @@ static int picks_room_taken(unsigned int rows)
     {
         return 0;
     }
-    cli_cell_release(s_picks.room, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(s_picks.room, &g_cli_editor_cells);
     s_picks.room = room;
     s_picks.room_rows = rows;
     s_picks.parts = parts;
@@ -123,7 +123,7 @@ unsigned long long cli_picks_store(const char *texts, unsigned long long length)
     }
     if (((s_picks.room == NULL) || (rows > s_picks.room_rows)) && !picks_room_taken((unsigned int)rows))
     {
-        cli_cell_release(cell, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(cell, &g_cli_editor_cells);
         cli_lock_give(&s_lock);
         return 0ull;
     }
@@ -171,7 +171,7 @@ void cli_picks_forget(unsigned long long id)
         cli_lock_give(&s_lock);
         return;
     }
-    cli_cell_release(s_picks.list[at].cell, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(s_picks.list[at].cell, &g_cli_editor_cells);
     for (unsigned int list = at + 1u; list < s_picks.lists; list += 1u)
     {
         s_picks.list[list - 1u] = s_picks.list[list];
@@ -179,7 +179,7 @@ void cli_picks_forget(unsigned long long id)
     s_picks.lists -= 1u;
     if (s_picks.lists == 0u)
     {
-        cli_cell_release(s_picks.room, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(s_picks.room, &g_cli_editor_cells);
         s_picks.room = NULL;
         s_picks.room_rows = 0u;
     }

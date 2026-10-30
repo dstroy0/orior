@@ -100,7 +100,7 @@ static void answer_variables(const CliJson *json, unsigned int arguments, VerbaL
         mmgr_line_put(body, ",\"type\":\"\",\"variablesReference\":0}");
     }
     mmgr_line_put(body, "]}");
-    cli_cell_release(values, &g_cli_debug_cells);
+    g_cli_cells->persistent_buf_release(values, &g_cli_debug_cells);
 }
 
 // a name looked up in the frame, then in each module's frame standing, one whose caller is none
@@ -140,11 +140,11 @@ static int answer_evaluated(const CliJson *json, unsigned int arguments, VerbaLi
                 cli_json_quoted_lossy(body, (const unsigned char *)values[at].value,
                                       cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_CELLS_POOL}));
                 mmgr_line_put(body, ",\"type\":\"\",\"variablesReference\":0}");
-                cli_cell_release(values, &g_cli_debug_cells);
+                g_cli_cells->persistent_buf_release(values, &g_cli_debug_cells);
                 return 1;
             }
         }
-        cli_cell_release(values, &g_cli_debug_cells);
+        g_cli_cells->persistent_buf_release(values, &g_cli_debug_cells);
     }
     mmgr_line_put(err_msg, "a recorded run reads the names its frames contained, and ");
     mmgr_line_put_n(err_msg, name, length);

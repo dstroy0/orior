@@ -203,7 +203,7 @@ char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
         char *const body = g_cli_cells->persistent_buf_alloc(length + 1ull, &g_cli_servers_cells);
         if (!wire_bytes(reader, body, length))
         {
-            cli_cell_release(body, &g_cli_servers_cells);
+            g_cli_cells->persistent_buf_release(body, &g_cli_servers_cells);
             return NULL;
         }
         if ((body != NULL) && wire_body_whole(body, length))
@@ -212,7 +212,7 @@ char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
             *size = length;
             return body;
         }
-        cli_cell_release(body, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(body, &g_cli_servers_cells);
     }
 }
 

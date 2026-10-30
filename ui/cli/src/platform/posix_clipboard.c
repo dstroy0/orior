@@ -167,7 +167,7 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
     (void)cut;
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_files_put_script, NULL};
     VerbaLinea input;
-    if (!cli_growing_line_made(&input, 4096u, &g_cli_platform_cells))
+    if (!cli_growing_line_temporary(&input, 4096u, &g_cli_platform_cells))
     {
         return 0;
     }
@@ -177,7 +177,7 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
         mmgr_line_ch(&input, '\n');
     }
     const int put = mmgr_line_ok(&input) && clipboard_ran(s_words, input.out, input.at, NULL);
-    cli_cell_release(input.out, &g_cli_platform_cells);
+    g_cli_cells->persistent_buf_release(input.out, &g_cli_platform_cells);
     return put;
 }
 
@@ -193,7 +193,7 @@ unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *pa
     *cut = -1;
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_files_held_script, NULL};
     VerbaLinea paths;
-    if (!cli_growing_line_made(&paths, 4096u, &g_cli_platform_cells))
+    if (!cli_growing_line_temporary(&paths, 4096u, &g_cli_platform_cells))
     {
         return 0u;
     }
@@ -221,7 +221,7 @@ unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *pa
             at = end + 1ull;
         }
     }
-    cli_cell_release(paths.out, &g_cli_platform_cells);
+    g_cli_cells->persistent_buf_release(paths.out, &g_cli_platform_cells);
     return count;
 }
 
@@ -1007,7 +1007,7 @@ static void owner_contents_given(void)
 {
     for (unsigned int place = 0u; place < 3u; place += 1u)
     {
-        cli_cell_release(s_owner.content[place], &g_cli_platform_cells);
+        g_cli_cells->persistent_buf_release(s_owner.content[place], &g_cli_platform_cells);
         s_owner.content[place] = NULL;
         s_owner.size[place] = 0ull;
     }
@@ -1130,9 +1130,9 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
     VerbaLinea uris;
     VerbaLinea copied;
     VerbaLinea text;
-    if (!cli_growing_line_made(&uris, 4096u, &g_cli_platform_cells) ||
-        !cli_growing_line_made(&copied, 4096u, &g_cli_platform_cells) ||
-        !cli_growing_line_made(&text, 4096u, &g_cli_platform_cells))
+    if (!cli_growing_line_temporary(&uris, 4096u, &g_cli_platform_cells) ||
+        !cli_growing_line_temporary(&copied, 4096u, &g_cli_platform_cells) ||
+        !cli_growing_line_temporary(&text, 4096u, &g_cli_platform_cells))
     {
         return 0;
     }
@@ -1153,9 +1153,9 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
                       owner_content_put(CLI_X11_OWNED_COPIED, copied.out, copied.at) &&
                       owner_content_put(CLI_X11_OWNED_TEXT, text.out, text.at) && owner_owned();
     cli_lock_give(&s_lock);
-    cli_cell_release(uris.out, &g_cli_platform_cells);
-    cli_cell_release(copied.out, &g_cli_platform_cells);
-    cli_cell_release(text.out, &g_cli_platform_cells);
+    g_cli_cells->persistent_buf_release(uris.out, &g_cli_platform_cells);
+    g_cli_cells->persistent_buf_release(copied.out, &g_cli_platform_cells);
+    g_cli_cells->persistent_buf_release(text.out, &g_cli_platform_cells);
     return owned;
 }
 
@@ -1191,7 +1191,7 @@ unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *pa
         return count;
     }
     VerbaLinea list;
-    if (!cli_growing_line_made(&list, 4096u, &g_cli_platform_cells))
+    if (!cli_growing_line_temporary(&list, 4096u, &g_cli_platform_cells))
     {
         return 0u;
     }
@@ -1213,7 +1213,7 @@ unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *pa
     }
     x11_closed(&x11);
     cli_lock_give(&s_read_lock);
-    cli_cell_release(list.out, &g_cli_platform_cells);
+    g_cli_cells->persistent_buf_release(list.out, &g_cli_platform_cells);
     return count;
 }
 

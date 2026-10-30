@@ -30,7 +30,6 @@ import harness_cdp  # noqa: E402
 import harness_input  # noqa: E402
 import harness_page  # noqa: E402
 import motion_read  # noqa: E402
-import motion_report  # noqa: E402
 from utils.tools import findroot  # noqa: E402
 
 RECORDER = findroot.at("ui", "test", "motion.js")
@@ -142,7 +141,10 @@ def started(run, monitor):
 
 
 def reported(taken, run):
-    """A recording read and reported into `run`, the findings said, the most first."""
+    """A recording read and reported into `run`, the findings said, the most first. motion_report is imported here
+    and not at the top, because it needs Pillow and the harness's other commands do not."""
+    import motion_report
+
     reading = motion_read.read(taken)
     report = motion_report.written(reading, taken, run)
     kinds = {}

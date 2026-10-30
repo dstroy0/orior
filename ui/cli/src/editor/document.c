@@ -182,7 +182,7 @@ static int cli_joined_of(const CliLines *lines, CliJoined *joined)
 // the cell the lines were joined in given back
 static void cli_joined_let_go(CliJoined *joined)
 {
-    cli_cell_release(joined->unit, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(joined->unit, &g_cli_editor_cells);
     *joined = (CliJoined){NULL, 0ull, NULL, 0u};
 }
 
@@ -287,7 +287,7 @@ static int cli_found_patterned(const CliLines *lines, const CliDocSought *sought
         longest = (lines->length[line] > longest) ? lines->length[line] : longest;
     }
     const unsigned long long bytes = sizeof(CliRegexpRoom) + (2ull * (longest + 1ull) * sizeof(unsigned int));
-    unsigned char *const cell = cli_lane_alloc(bytes, &g_cli_editor_cells);
+    unsigned char *const cell = g_cli_cells->temporary_buf_alloc(bytes, &g_cli_editor_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the text could not be searched: the cells cannot meet it");
@@ -329,7 +329,7 @@ static int cli_found_patterned(const CliLines *lines, const CliDocSought *sought
             at += 1ull;
         }
     }
-    cli_cell_release(cell, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_editor_cells);
     return read;
 }
 
@@ -417,9 +417,9 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     }
     const int done =
         roomed && (!sought_any || cli_found_each(&room, lines, &census, size, sought, most, each, context, err_msg));
-    cli_cell_release(room.match, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(room.match, &g_cli_editor_cells);
     cli_joined_let_go(&room.joined);
-    cli_cell_release(room.wanted, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(room.wanted, &g_cli_editor_cells);
     return done;
 }
 

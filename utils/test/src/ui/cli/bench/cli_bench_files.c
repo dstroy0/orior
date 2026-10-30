@@ -149,6 +149,6 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
         measure.bytes = corpus->whole;
         measure.least = (took < measure.least) ? took : measure.least;
     }
-    cli_cell_release(out.out, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(out.out, &g_checks_cells);
     return measure;
 }

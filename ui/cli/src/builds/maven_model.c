@@ -248,7 +248,7 @@ static int model_parent_pom(const char *path, const CliXml *xml, unsigned int pa
         if (query_is_folder(place))
         {
             char folder_place[CLI_PATH_MAX_LEN];
-            memor.cpy(&(MemoriaCfg){.dst = folder_place, .src = place, .bytes = CLI_PATH_MAX_LEN});
+            (void)cellul.copy(&(CatenaFinitaCfg){.dst = folder_place, .src = place, .cap = CLI_PATH_MAX_LEN});
             cli_full(folder_place, "pom.xml", place);
         }
         *mapped = model_mapped(place);

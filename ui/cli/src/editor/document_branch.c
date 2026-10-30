@@ -118,7 +118,7 @@ static int branch_room_made(void **cell, unsigned long long *room, unsigned long
     {
         memor.cpy(&(MemoriaCfg){.dst = made, .src = *cell, .bytes = kept});
     }
-    cli_cell_release(*cell, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(*cell, &g_cli_editor_cells);
     *cell = made;
     *room = grown;
     return 1;
@@ -142,11 +142,11 @@ static void branch_work_emptied(CliBranchWork *work)
 // a work's rooms given back, as its coloring ends
 static void branch_work_given(CliBranchWork *work)
 {
-    cli_cell_release(work->text, &g_cli_editor_cells);
-    cli_cell_release(work->starts, &g_cli_editor_cells);
-    cli_cell_release(work->named, &g_cli_editor_cells);
-    cli_cell_release(work->roles, &g_cli_editor_cells);
-    cli_cell_release(work->found, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(work->text, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(work->starts, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(work->named, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(work->roles, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(work->found, &g_cli_editor_cells);
 }
 
 // the hash of `length` bytes of `text`, FNV-1a over its bytes
@@ -496,7 +496,7 @@ static int branch_runs_roomed(CliStoredText *one, unsigned long long more)
             used += words;
         }
     }
-    cli_cell_release(one->run, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one->run, &g_cli_editor_cells);
     one->run = moved;
     // a room checked above to be no more than an unsigned int counts
     one->run_room = (unsigned int)room;
@@ -1238,7 +1238,7 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
         colored = cli_highlight_leaves(grammar, stated ? state : "root", line, spend,
                                        ((first + spend) == count) && whole, branch_found, &finding, &last, &err_msg);
     }
-    cli_cell_release(taken, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(taken, &g_cli_editor_cells);
     cli_document_lock_take();
     branch_claim_dropped(one, claim);
     if (one->let_go || (one->serial != serial))
@@ -1666,7 +1666,7 @@ static void branch_walked(CliBranchWalker *walker, int own)
         if (one == NULL)
         {
             // the step's line given back as the walk ends, before the walker is marked free to walk again
-            cli_cell_release(walker->step.out, &g_cli_editor_cells);
+            g_cli_cells->persistent_buf_release(walker->step.out, &g_cli_editor_cells);
             walker->step.out = NULL;
             walker->walking = own ? 0 : walker->walking;
             cli_document_lock_give();
@@ -1765,7 +1765,7 @@ int cli_document_colored_by(const char *key, const char *grammar, int named)
 int cli_document_viewed(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out)
 {
     VerbaLinea colors;
-    const int made = (out == NULL) && cli_growing_line_made(&colors, CLI_DOC_COLORS_FIRST, &g_cli_editor_cells);
+    const int made = (out == NULL) && cli_growing_line_temporary(&colors, CLI_DOC_COLORS_FIRST, &g_cli_editor_cells);
     VerbaLinea *const into = (out != NULL) ? out : &colors;
     cli_document_lock_take();
     CliStoredText *const one = cli_document_stored(key);
@@ -1821,7 +1821,7 @@ int cli_document_viewed(const char *key, unsigned long long first, unsigned long
     branch_handed_out(any && (out == NULL), &colors);
     if (made)
     {
-        cli_cell_release(colors.out, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(colors.out, &g_cli_editor_cells);
     }
     return found;
 }
@@ -1871,7 +1871,7 @@ static void branch_rehanded_sent(int any, VerbaLinea *colors, int made)
     branch_handed_out(any, colors);
     if (made)
     {
-        cli_cell_release(colors->out, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(colors->out, &g_cli_editor_cells);
     }
 }
 
@@ -2023,7 +2023,7 @@ char *cli_document_text_taken(const char *key, unsigned long long *size, CellOwn
         {
             room += (3ull * lines->length[line]) + 1ull;
         }
-        taken = cli_lane_alloc(room, owner);
+        taken = g_cli_cells->persistent_buf_alloc(room, owner);
         if (taken != NULL)
         {
             VerbaLinea text = {taken, room, 0ull};
@@ -2044,7 +2044,7 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
                                unsigned long long *size, char *state, unsigned long long room, CellOwner *owner)
 {
     VerbaLinea written;
-    const int made = cli_growing_line_made(&written, CLI_DOC_COLORS_FIRST, owner);
+    const int made = cli_growing_line_temporary(&written, CLI_DOC_COLORS_FIRST, owner);
     VerbaLinea *const text = &written;
     cli_document_lock_take();
     const CliStoredText *const one = cli_document_stored(key);
@@ -2093,7 +2093,7 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
             mmgr_line_put(text, line[at - from]);
             mmgr_line_put(text, (at < to) ? "\n" : "");
         }
-        cli_cell_release(taken, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(taken, &g_cli_editor_cells);
         branch_work_given(&work);
     }
     if ((mmgr_line_finish(&entered) == 0ull) && (room != 0ull))
@@ -2103,7 +2103,7 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
     const int taken = made && found && mmgr_line_ok(text);
     if (made && !taken)
     {
-        cli_cell_release(written.out, owner);
+        g_cli_cells->persistent_buf_release(written.out, owner);
     }
     *size = taken ? text->at : 0ull;
     return taken ? written.out : NULL;
@@ -2133,7 +2133,7 @@ int cli_document_text_written(const char *key, unsigned long long first, unsigne
     if (text != NULL)
     {
         cli_json_quoted(out, text, size);
-        cli_cell_release(text, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(text, &g_cli_editor_cells);
     }
     return text != NULL;
 }

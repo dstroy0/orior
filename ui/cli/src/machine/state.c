@@ -83,7 +83,7 @@ unsigned int cli_state_map_read(CliJson *json, const char *path, unsigned int no
     unsigned long long size = 0ull;
     const unsigned char *const bytes = cli_file_read(path, &size);
     char *const plain_text = ((bytes != NULL) && (size <= CLI_STATE_BYTES))
-                                 ? cli_lane_alloc(size + 1ull, &g_cli_state_cells)
+                                 ? g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_state_cells)
                                  : NULL;
     unsigned int root = CLI_JSON_NONE;
     if (plain_text != NULL)
@@ -97,7 +97,7 @@ unsigned int cli_state_map_read(CliJson *json, const char *path, unsigned int no
                                                      &g_cli_state_cells)
                                     : CLI_JSON_NONE;
     }
-    cli_cell_release(plain_text, &g_cli_state_cells);
+    g_cli_cells->persistent_buf_release(plain_text, &g_cli_state_cells);
     if (bytes != NULL)
     {
         cli_file_let_go(bytes, size);
@@ -186,7 +186,7 @@ void cli_state_json_files(const char *folder, CliJsonFiles *files)
 
 void cli_state_json_files_given(CliJsonFiles *files)
 {
-    cli_cell_release(files->name, &g_cli_state_cells);
+    g_cli_cells->persistent_buf_release(files->name, &g_cli_state_cells);
     files->name = NULL;
     files->count = 0u;
 }
@@ -283,7 +283,7 @@ int cli_state_read(const char *folder, VerbaLinea *out)
             unsigned long long size = 0ull;
             char *const joined = cli_state_writing_joined(&value, &size);
             cli_entry_put(&entries, object, key, (joined != NULL) ? joined : "", size);
-            cli_cell_release(joined, &g_cli_state_cells);
+            g_cli_cells->persistent_buf_release(joined, &g_cli_state_cells);
         }
         cli_json_given(&map);
     }
@@ -316,7 +316,7 @@ int cli_state_read(const char *folder, VerbaLinea *out)
     {
         cli_entry_put(&entries, object, s_themes, (themes_text != NULL) ? themes_text : "", themes_size);
     }
-    cli_cell_release(themes_text, &g_cli_state_cells);
+    g_cli_cells->persistent_buf_release(themes_text, &g_cli_state_cells);
     // each change not saved: its key and its text
     for (unsigned int at = 0u; at < backup_files.count; at += 1u)
     {

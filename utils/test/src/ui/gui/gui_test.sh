@@ -37,11 +37,14 @@ MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_
     -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
     -DMMGR_CARCER_OWNERS=1024u)
 
+source "$HERE/../sanitized.sh"
+
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "test exit 1"; exit 1; }
 CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"
-LIBRARY="$TOP/build/cli/$HOST/lib$CLI_NAME.a"
-RUN="$TOP/build/gui_test"
+LIBRARY="$TOP/build/cli/$HOST$SANITIZE_SUFFIX/lib$CLI_NAME.a"
+RUN="$TOP/build/gui_test$SANITIZE_SUFFIX"
 mkdir -p "$RUN"
+sanitized_checks_begin
 # the checks keep what they keep in a folder of their own, made fresh each run: nothing of the reader's is read or
 # written
 export ORIOR_HOME="$RUN/home"
@@ -77,7 +80,7 @@ for test in "${TESTS[@]}"; do
         *_test.c) OPTIMIZED=-O1 ;;
         *) OPTIMIZED=-O2 ;;
     esac
-    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" \
+    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" \
         "${MODULES[@]}" "$LIBRARY" "${LIBRARIES[@]}" > "$RUN/$name.log" 2>&1; then
         echo "  build failed: $name did not compile"
         tail -20 "$RUN/$name.log"
@@ -85,5 +88,6 @@ for test in "${TESTS[@]}"; do
         continue
     fi
     (cd "$RUN" && "./$name$SUFFIX")
+    sanitized_exit "$name" "$RUN" "$?"
     echo "test exit $?"
 done

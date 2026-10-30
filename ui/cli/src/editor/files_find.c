@@ -249,7 +249,7 @@ static int cli_finding_room(char (**list)[CLI_PATH_MAX_LEN], unsigned int count,
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = *list, .bytes = (size_t)count * CLI_PATH_MAX_LEN});
-    cli_cell_release(*list, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(*list, &g_cli_editor_cells);
     *list = larger;
     *room = grown;
     return 1;
@@ -258,8 +258,8 @@ static int cli_finding_room(char (**list)[CLI_PATH_MAX_LEN], unsigned int count,
 // the find's lists given back
 static void cli_finding_given(void)
 {
-    cli_cell_release(s_finding.found, &g_cli_editor_cells);
-    cli_cell_release(s_finding.pending, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(s_finding.found, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(s_finding.pending, &g_cli_editor_cells);
     s_finding.found = NULL;
     s_finding.pending = NULL;
     s_finding.found_room = 0u;

@@ -145,7 +145,7 @@ static int cli_archived_read(const char *root, const char *file, VerbaLinea *out
     {
         cli_opened_written(out, path, size, NULL, bytes, (size < CLI_SHOWN_BYTES) ? size : CLI_SHOWN_BYTES, 0);
     }
-    cli_cell_release(joined, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(joined, &g_cli_editor_cells);
     return 1;
 }
 

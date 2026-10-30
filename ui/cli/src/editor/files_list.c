@@ -261,9 +261,9 @@ static void cli_listed_each(void *context, const char *name, int is_folder)
 static void list_released(void)
 {
     cli_files_emptied(&s_listing->folders);
-    cli_cell_release(s_listing->item, &g_cli_editor_cells);
-    cli_cell_release(s_listing->text, &g_cli_editor_cells);
-    cli_cell_release(s_listing, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(s_listing->item, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(s_listing->text, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(s_listing, &g_cli_editor_cells);
     s_listing = NULL;
     cli_lock_give(&s_lock);
 }

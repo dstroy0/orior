@@ -374,7 +374,7 @@ static void cli_file_compared(const CliReviewFile *file)
         cli_piece_put(s_compare->removed, &s_compare->removeds,
                       cli_piece(file->was_path, &was->decl[least], "removed", was->decl[least].text, empty));
     }
-    cli_cell_release(cell, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_code_cells);
 }
 
 // whether a piece comes before another: by path, then line

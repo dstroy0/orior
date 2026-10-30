@@ -87,7 +87,7 @@ static void own_job(const void *job, unsigned long long size)
     {
         cli_servers_findings_stored(CLI_SERVERS_OWN, findings, found_size, 1, &own->sink);
     }
-    cli_cell_release(findings, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
 void cli_servers_check_own(const char *root, const char *path, const char *text, unsigned long long size,
@@ -110,7 +110,7 @@ void cli_servers_check_own(const char *root, const char *path, const char *text,
     (void)cli_keyed_put(&g_cli_servers_given, key, "", (given != NULL) ? given : "",
                         (given != NULL) ? names_size : 0ull);
     cli_lock_give(&g_cli_servers_checks_lock);
-    cli_cell_release(given, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(given, &g_cli_servers_cells);
     char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersOwnJob) + size, &g_cli_servers_cells);
     if (job == NULL)
     {
@@ -220,7 +220,7 @@ static void own_tree_job(const void *job, unsigned long long size)
     {
         cli_servers_findings_stored(CLI_SERVERS_OWN, findings, found_size, 0, &tree->sink);
     }
-    cli_cell_release(findings, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
 void cli_servers_check_tree_own(const char *root, const char *const *files, unsigned int count,

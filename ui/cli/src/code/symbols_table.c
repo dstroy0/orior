@@ -127,7 +127,7 @@ void cli_symbols_let_go(unsigned int file)
         }
         bucket = (bucket + 1u) % s_bucket_room;
     }
-    cli_cell_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
     g_cli_symbol_files[file].cell = NULL;
     g_cli_symbol_files[file].used = 0;
 }
@@ -136,13 +136,13 @@ void cli_symbols_tree_cleared(void)
 {
     for (unsigned int at = 0u; at < g_cli_symbol_file_count; at += 1u)
     {
-        cli_cell_release(g_cli_symbol_files[at].cell, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(g_cli_symbol_files[at].cell, &g_cli_code_cells);
         g_cli_symbol_files[at].cell = NULL;
         g_cli_symbol_files[at].used = 0;
     }
     g_cli_symbol_file_count = 0u;
-    cli_cell_release(g_cli_symbol_files, &g_cli_code_cells);
-    cli_cell_release(s_buckets, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(g_cli_symbol_files, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(s_buckets, &g_cli_code_cells);
     g_cli_symbol_files = NULL;
     s_buckets = NULL;
     s_file_room = 0u;

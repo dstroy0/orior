@@ -193,11 +193,7 @@ static int cli_leaves_grown(CliLeafRead *read)
 {
     const unsigned int room = (read->room == 0u) ? CLI_LEAVES_FIRST : (2u * read->room);
     const size_t bytes = (size_t)room * sizeof(CliLeaf);
-    // a laned read's first cell is taken on the lane, and a grown one follows its cell there
-    CliLeaf *const grown =
-        ((read->leaf == NULL) && read->laned)
-            ? cli_lane_alloc(bytes, &s_leaves_owner)
-            : cli_cell_regrown(read->leaf, (size_t)read->count * sizeof(CliLeaf), bytes, &s_leaves_owner);
+    CliLeaf *const grown = cli_cell_regrown(read->leaf, (size_t)read->count * sizeof(CliLeaf), bytes, &s_leaves_owner);
     if (grown == NULL)
     {
         return 0;
@@ -266,7 +262,7 @@ int cli_symbols_leaves_declared(CliSymbolsLanguages *languages, const char *path
     return cli_symbols_leaves_in(languages, path, state, text, size, cli_leaves_line, read) && !read->refused;
 }
 
-int cli_symbols_leaves_laned(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
+int cli_symbols_leaves_temporary(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
                              unsigned long long size, CliLeafRead *read)
 {
     *read = (CliLeafRead){text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
@@ -294,7 +290,7 @@ int cli_leaf_has(const CliLeafRead *read, unsigned int leaf, unsigned long long 
 
 void cli_symbols_leaves_given(CliLeafRead *read)
 {
-    cli_cell_release(read->leaf, &s_leaves_owner);
+    g_cli_cells->persistent_buf_release(read->leaf, &s_leaves_owner);
     read->leaf = NULL;
     read->count = 0u;
     read->room = 0u;

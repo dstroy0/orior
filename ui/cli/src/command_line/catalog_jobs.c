@@ -414,7 +414,7 @@ void cli_catalog_read(const char *root, CliCatalog *catalog)
     cli_stages(root, catalog);
     cli_tests(root, catalog);
     cli_jobs_given();
-    cli_cell_release(s_jobs, &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release(s_jobs, &g_cli_catalog_cells);
     s_jobs = NULL;
     cli_lock_give(&s_lock);
 }

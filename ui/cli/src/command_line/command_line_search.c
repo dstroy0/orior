@@ -15,7 +15,7 @@
 static void search_hit_written(const CliJson *hits, unsigned int hit)
 {
     VerbaLinea line;
-    if (!cli_growing_line_made(&line, CLI_SEARCH_LINE_FIRST, &g_cli_command_line_cells))
+    if (!cli_growing_line_temporary(&line, CLI_SEARCH_LINE_FIRST, &g_cli_command_line_cells))
     {
         return;
     }
@@ -39,7 +39,7 @@ static void search_hit_written(const CliJson *hits, unsigned int hit)
     cli_text_trimmed((text != NULL) ? text : "", (text != NULL) ? length : 0ull, &from, &to);
     mmgr_line_put_n(&line, (text != NULL) ? text + from : "", to - from);
     cli_out_line(line.out, mmgr_line_ok(&line) ? line.at : 0ull);
-    cli_cell_release(line.out, &g_cli_command_line_cells);
+    g_cli_cells->persistent_buf_release(line.out, &g_cli_command_line_cells);
 }
 
 int cli_console_search(const char *named, const char *const *words, unsigned int count)
@@ -75,14 +75,14 @@ int cli_console_search(const char *named, const char *const *words, unsigned int
     }
     static CliPatterns s_none;
     VerbaLinea found;
-    if (!cli_growing_line_made(&found, CLI_SEARCH_HITS_FIRST, &g_cli_command_line_cells))
+    if (!cli_growing_line_temporary(&found, CLI_SEARCH_HITS_FIRST, &g_cli_command_line_cells))
     {
         cli_err("the hits of a search could not be given a cell");
         return CLI_WRONG;
     }
     if (!cli_files_search(s_root, s_query, how, &s_none, &found, &err_msg))
     {
-        cli_cell_release(found.out, &g_cli_command_line_cells);
+        g_cli_cells->persistent_buf_release(found.out, &g_cli_command_line_cells);
         cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_WRONG;
     }
@@ -91,7 +91,7 @@ int cli_console_search(const char *named, const char *const *words, unsigned int
     err_msg.at = 0ull;
     const unsigned int list = cli_json_taken(&hits, found.out, mmgr_line_ok(&found) ? found.at : 0ull, 0u, 0ull,
                                              &err_msg, &g_cli_command_line_cells);
-    cli_cell_release(found.out, &g_cli_command_line_cells);
+    g_cli_cells->persistent_buf_release(found.out, &g_cli_command_line_cells);
     const int any = cli_json_is(&hits, list, CFG_JSON_ARRAY) && (hits.node[list].count != 0u);
     for (unsigned int hit = any ? hits.node[list].first : CLI_JSON_NONE; hit != CLI_JSON_NONE;
          hit = hits.node[hit].next)

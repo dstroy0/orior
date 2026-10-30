@@ -420,8 +420,10 @@ int main(void)
     gui_window_key(&window, "Escape");
     cli_check(!window.signature.shown, "Escape hides the signature");
     // the keys made the claim, which the ticks laid: let go, as a menu opening lets it go, the tabs row and the strip
-    // stand again for the presses below
+    // stand again for the presses below; ticked as the slide begins and again as it rests, as the window's loop ticks
+    // through a slide
     gui_claim_set(&window.claim, 0, cli_clock_milliseconds());
+    gui_window_ticked(&window);
     waited(&window, &count, GUI_CLAIM_SLIDE + 50ull);
     gui_window_ticked(&window);
     cli_check(window.frame.tabs.height > 0, "the claim let go, the tabs row stands again");

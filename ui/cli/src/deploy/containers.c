@@ -122,7 +122,7 @@ int cli_containers_locked(VerbaLinea *out, unsigned int most, unsigned long long
 
 void cli_containers_released(void)
 {
-    cli_cell_release(g_cli_containers.item, &g_cli_deploy_cells);
+    g_cli_cells->persistent_buf_release(g_cli_containers.item, &g_cli_deploy_cells);
     g_cli_containers = (CliContainers){NULL, NULL, 0u, 0u, NULL, 0ull, 0ull};
     cli_lock_give(&s_containers_lock);
 }

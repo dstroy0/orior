@@ -558,11 +558,11 @@ static void cli_flags_lifted(CliFlagsReading *reading)
 // the kept flags let go, their cells given back, under the lock
 static void cli_flags_let_go(void)
 {
-    cli_cell_release(s_kept.text.out, &g_cli_compile_cells);
-    cli_cell_release(s_kept.word, &g_cli_compile_cells);
-    cli_cell_release(s_kept.given, &g_cli_compile_cells);
-    cli_cell_release(s_kept.file, &g_cli_compile_cells);
-    cli_cell_release(s_kept.include, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(s_kept.text.out, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(s_kept.word, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(s_kept.given, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(s_kept.file, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(s_kept.include, &g_cli_compile_cells);
     s_kept.text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     s_kept.word = NULL;
     s_kept.words = 0u;
@@ -629,8 +629,8 @@ static void cli_flags_read(const char *root)
         cli_flags_lifted(&reading);
     }
     cli_json_given(&json);
-    cli_cell_release(reading.folder, &g_cli_compile_cells);
-    cli_cell_release(reading.id, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(reading.folder, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(reading.id, &g_cli_compile_cells);
 }
 
 // the define of the `-D` word's `name`, `NAME` or `NAME(PARAMS)`, and `value`, given to `node`, handed to `each`: a

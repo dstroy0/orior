@@ -23,8 +23,8 @@ void *cli_debug_grown(void *list, unsigned int count, unsigned int *room, unsign
 
 void cli_debug_place_freed(CliDebugSession *place)
 {
-    cli_cell_release(place->data, &g_cli_debug_cells);
-    cli_cell_release(place->placed, &g_cli_debug_cells);
+    g_cli_cells->persistent_buf_release(place->data, &g_cli_debug_cells);
+    g_cli_cells->persistent_buf_release(place->placed, &g_cli_debug_cells);
     place->data = NULL;
     place->data_count = 0u;
     place->data_room = 0u;

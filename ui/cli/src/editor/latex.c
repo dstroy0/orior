@@ -23,7 +23,7 @@ int cli_latex_locked(void)
 
 void cli_latex_released(void)
 {
-    cli_cell_release(g_cli_latex, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(g_cli_latex, &g_cli_editor_cells);
     g_cli_latex = NULL;
     cli_lock_give(&g_cli_latex_lock);
 }
@@ -97,7 +97,7 @@ static int latex_program(const char *name, char *program)
             cli_toolchains_program_in(g_cli_latex->found.folder, names, 1u, program))
         {
             cli_json_given(json);
-            cli_cell_release(path, &g_cli_editor_cells);
+            g_cli_cells->persistent_buf_release(path, &g_cli_editor_cells);
             return 1;
         }
     }
@@ -107,7 +107,7 @@ static int latex_program(const char *name, char *program)
     {
         found = cli_toolchains_program_in(folders[at], names, 1u, program);
     }
-    cli_cell_release(path, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(path, &g_cli_editor_cells);
     return found;
 }
 

@@ -245,7 +245,7 @@ static void scan_tokens_put(const char *text, unsigned long long size)
 
 void cli_cargo_tokens(const char *text, unsigned long long size)
 {
-    cli_cell_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
     g_cli_cargo_scan.tokens = NULL;
     g_cli_cargo_scan.token_room = 0ull;
     scan_tokens_put(text, size);
@@ -260,9 +260,9 @@ void cli_cargo_tokens(const char *text, unsigned long long size)
 
 void cli_cargo_scan_given(void)
 {
-    cli_cell_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
-    cli_cell_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
-    cli_cell_release(g_cli_cargo_scan.names, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.names, &g_cli_cargo_cells);
     memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
 }
 

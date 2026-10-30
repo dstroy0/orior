@@ -205,6 +205,6 @@ void cli_git_repositories(const char *root, CliRepositories *found)
         cli_relative(root, search->nested[at], relative);
         cli_repository_put(found, relative, search->nested[at]);
     }
-    cli_cell_release(search->pending, &g_cli_git_cells);
-    cli_cell_release(search->nested, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(search->pending, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(search->nested, &g_cli_git_cells);
 }

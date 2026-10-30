@@ -34,7 +34,7 @@ void cli_deploy_there_given(void)
     g_cli_deploy_last_count = 0u;
     s_pairs = NULL;
     cli_deploy_pool_given(&s_pool);
-    cli_cell_release(s_listing, &g_cli_deploy_cells);
+    g_cli_cells->persistent_buf_release(s_listing, &g_cli_deploy_cells);
     s_listing = NULL;
     cli_json_given(&s_record);
 }

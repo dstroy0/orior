@@ -175,7 +175,7 @@ static CliCargoTargets s_targets;
 
 void cli_cargo_firsts_given(void)
 {
-    cli_cell_release(s_targets.firsts, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(s_targets.firsts, &g_cli_cargo_cells);
     s_targets.firsts = NULL;
     s_targets.count = 0u;
     s_targets.room = 0u;
@@ -448,8 +448,8 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
     {
         found_auto("tests", CLI_CARGO_TEST, listed_first, taken);
     }
-    cli_cell_release(tables, &g_cli_cargo_cells);
-    cli_cell_release(s_targets.entries, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(tables, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(s_targets.entries, &g_cli_cargo_cells);
     s_targets.entries = NULL;
     s_targets.entry_count = 0u;
     s_targets.entry_room = 0u;

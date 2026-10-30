@@ -169,9 +169,9 @@ static void view_steps_cut(CliView *view, unsigned int from)
         CliViewStep *const step = &view->step[at];
         for (unsigned int edit = 0u; edit < step->edits; edit += 1u)
         {
-            cli_cell_release(step->edit[edit].put, &s_owner);
+            g_cli_cells->persistent_buf_release(step->edit[edit].put, &s_owner);
         }
-        cli_cell_release(step->edit, &s_owner);
+        g_cli_cells->persistent_buf_release(step->edit, &s_owner);
     }
     view->steps = (from < view->steps) ? from : view->steps;
     view->done = (view->done < view->steps) ? view->done : view->steps;
@@ -322,11 +322,11 @@ int cli_view_opened(const char *key, const char *path)
     if (view != NULL)
     {
         view_steps_cut(view, 0u);
-        cli_cell_release(view->step, &s_owner);
-        cli_cell_release(view->fold, &s_owner);
-        cli_cell_release(view->find_query, &s_owner);
-        cli_cell_release(view->match, &s_owner);
-        cli_cell_release(view->line_units, &s_owner);
+        g_cli_cells->persistent_buf_release(view->step, &s_owner);
+        g_cli_cells->persistent_buf_release(view->fold, &s_owner);
+        g_cli_cells->persistent_buf_release(view->find_query, &s_owner);
+        g_cli_cells->persistent_buf_release(view->match, &s_owner);
+        g_cli_cells->persistent_buf_release(view->line_units, &s_owner);
     }
     else
     {
@@ -363,11 +363,11 @@ void cli_view_closed(const char *key)
     if (view != NULL)
     {
         view_steps_cut(view, 0u);
-        cli_cell_release(view->step, &s_owner);
-        cli_cell_release(view->fold, &s_owner);
-        cli_cell_release(view->find_query, &s_owner);
-        cli_cell_release(view->match, &s_owner);
-        cli_cell_release(view->line_units, &s_owner);
+        g_cli_cells->persistent_buf_release(view->step, &s_owner);
+        g_cli_cells->persistent_buf_release(view->fold, &s_owner);
+        g_cli_cells->persistent_buf_release(view->find_query, &s_owner);
+        g_cli_cells->persistent_buf_release(view->match, &s_owner);
+        g_cli_cells->persistent_buf_release(view->line_units, &s_owner);
         memor.set(&(MemoriaCfg){.dst = view, .val = 0, .bytes = sizeof(*view)});
     }
     cli_lock_give(&s_lock);
@@ -677,7 +677,7 @@ static void view_line_read(CliView *view, unsigned long long line)
                 view->line_length = view_units_of(text, size, view->line_units, view->units_room);
             }
         }
-        cli_cell_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &s_owner);
         return;
     }
     cli_document_lock_take();
@@ -963,7 +963,7 @@ static void view_match_kept(void *context, unsigned long long line, unsigned lon
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = view->match, .bytes = view->matches * sizeof(*grown)});
-        cli_cell_release(view->match, &s_owner);
+        g_cli_cells->persistent_buf_release(view->match, &s_owner);
         view->match = grown;
         view->match_room = room;
     }
@@ -1040,7 +1040,7 @@ static void view_searched(CliView *view)
         return;
     }
     const unsigned long long query_room = (view->find_length * 4ull) + 1ull;
-    char *const query = cli_lane_alloc(query_room, &s_owner);
+    char *const query = g_cli_cells->temporary_buf_alloc(query_room, &s_owner);
     if (query == NULL)
     {
         return;
@@ -1054,7 +1054,7 @@ static void view_searched(CliView *view)
     if (view->paged)
     {
         const unsigned long long room = CLI_VIEW_MATCHES * 24ull;
-        char *const cell = cli_lane_alloc(room, &s_owner);
+        char *const cell = g_cli_cells->temporary_buf_alloc(room, &s_owner);
         if (cell != NULL)
         {
             VerbaLinea out = {cell, room, 0ull};
@@ -1062,7 +1062,7 @@ static void view_searched(CliView *view)
             {
                 view_matches_read(view, cell, out.at);
             }
-            cli_cell_release(cell, &s_owner);
+            g_cli_cells->persistent_buf_release(cell, &s_owner);
         }
     }
     else
@@ -1075,7 +1075,7 @@ static void view_searched(CliView *view)
         }
         cli_document_lock_give();
     }
-    cli_cell_release(query, &s_owner);
+    g_cli_cells->persistent_buf_release(query, &s_owner);
     view_current_settled(view);
 }
 
@@ -1347,7 +1347,7 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
     view->line_known = 0;
     if (!view_written(view, edits, counts, err_msg))
     {
-        cli_cell_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &s_owner);
         return 0;
     }
     // where the text put in ends
@@ -1378,7 +1378,7 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
                 cli_cell_regrown(view->step, view->steps * sizeof(*grown), room * sizeof(*grown), &s_owner);
             if (grown == NULL)
             {
-                cli_cell_release(cell, &s_owner);
+                g_cli_cells->persistent_buf_release(cell, &s_owner);
                 mmgr_line_put(err_msg, "the steps' cell could not be taken");
                 return 0;
             }
@@ -1399,7 +1399,7 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
             cli_cell_regrown(step->edit, step->edits * sizeof(*grown), room * sizeof(*grown), &s_owner);
         if (grown == NULL)
         {
-            cli_cell_release(cell, &s_owner);
+            g_cli_cells->persistent_buf_release(cell, &s_owner);
             mmgr_line_put(err_msg, "a step's cell could not be taken");
             return 0;
         }
@@ -1600,7 +1600,7 @@ static int view_opens_block(CliView *view, unsigned long long line, unsigned lon
     const unsigned long long length = view_length(view, line);
     const unsigned long long count = (col < length) ? col : length;
     unsigned char *const cell =
-        cli_lane_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &s_owner);
+        g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &s_owner);
     if (cell == NULL)
     {
         return 0;
@@ -1635,7 +1635,7 @@ static int view_opens_block(CliView *view, unsigned long long line, unsigned lon
                            ((at == read) || regexp.first.empty || cli_regexp_allows(&regexp.first, letters[at]));
         matched = starts && cli_regexp_match_into(&regexp, letters, read, at, groups);
     }
-    cli_cell_release(cell, &s_owner);
+    g_cli_cells->persistent_buf_release(cell, &s_owner);
     return matched;
 }
 
@@ -1833,7 +1833,7 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
         {
             room += (view_length(view, line) * 4ull) + 1ull;
         }
-        char *const cell = cli_lane_alloc(room + length + 8ull, &s_owner);
+        char *const cell = g_cli_cells->temporary_buf_alloc(room + length + 8ull, &s_owner);
         if (cell == NULL)
         {
             mmgr_line_put(err_msg, "the wrap's cell could not be taken");
@@ -1844,7 +1844,7 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
         view_span_written(view, from, to, &wrapped);
         cli_utf8_put(&wrapped, close);
         const int written = view_edited(view, from, to, cell, wrapped.at, CLI_VIEW_KIND_NONE, err_msg);
-        cli_cell_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &s_owner);
         if (!written)
         {
             return 0;
@@ -2124,11 +2124,11 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
         if (view->find_open && view->find_focus)
         {
             // text typed goes into the query, a byte a unit at the most
-            unsigned short *const units = cli_lane_alloc((input->length + 1ull) * sizeof(*units), &s_owner);
+            unsigned short *const units = g_cli_cells->temporary_buf_alloc((input->length + 1ull) * sizeof(*units), &s_owner);
             if (units != NULL)
             {
                 view_query_put(view, units, view_units_of(input->text, input->length, units, input->length + 1ull));
-                cli_cell_release(units, &s_owner);
+                g_cli_cells->persistent_buf_release(units, &s_owner);
             }
         }
         else
@@ -2226,7 +2226,7 @@ static int view_pair(const CliView *view, CliPlace *pair)
     const int paired =
         cli_symbols_pair(view->path, (state[0] != '\0') ? state : "root", text, size,
                          (CliSymbolPlace){(unsigned int)(line - first), (unsigned int)view->cursor.col}, found);
-    cli_cell_release(text, &s_owner);
+    g_cli_cells->persistent_buf_release(text, &s_owner);
     for (unsigned int at = 0u; paired && (at < 2u); at += 1u)
     {
         pair[at].line = first + found[at].line;
@@ -2270,7 +2270,7 @@ static void view_paged_rows_written(const CliView *view, const CliViewRows *show
                 mmgr_line_put(out, "\"\"");
             }
         }
-        cli_cell_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &s_owner);
         at = end + 1ull;
     }
 }
@@ -2580,7 +2580,7 @@ int cli_view_frame_written(const char *key, VerbaLinea *out)
     }
     mmgr_line_ch(out, ']');
     mmgr_line_ch(out, '}');
-    cli_cell_release(shown.number, &s_owner);
+    g_cli_cells->persistent_buf_release(shown.number, &s_owner);
     cli_lock_give(&s_lock);
     return 1;
 }
@@ -2732,8 +2732,8 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     mmgr_line_put(out, ",\"bars\":[");
     // the lines' runs read as the branch writes them, and their texts, a paged text's from its pages
     const unsigned long long count = (last >= first) ? last - first + 1ull : 0ull;
-    char *const room = cli_lane_alloc(CLI_VIEW_MAP_ROOM, &s_owner);
-    const char **const line = cli_lane_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &s_owner);
+    char *const room = g_cli_cells->temporary_buf_alloc(CLI_VIEW_MAP_ROOM, &s_owner);
+    const char **const line = g_cli_cells->temporary_buf_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &s_owner);
     VerbaLinea runs = {room, CLI_VIEW_MAP_ROOM, 0ull};
     CliJson json;
     unsigned int colors = CLI_JSON_NONE;
@@ -2741,7 +2741,7 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     if ((room != NULL) && cli_document_runs_written(key, first, last, 0, &runs) && mmgr_line_ok(&runs))
     {
-        colors = cli_json_taken_laned(&json, runs.out, runs.at, &err_msg, &s_owner);
+        colors = cli_json_taken_temporary(&json, runs.out, runs.at, &err_msg, &s_owner);
     }
     unsigned long long size = 0ull;
     unsigned long long read = 0ull;
@@ -2782,9 +2782,9 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     {
         cli_json_given(&json);
     }
-    cli_cell_release(texts, &s_owner);
-    cli_cell_release(line, &s_owner);
-    cli_cell_release(room, &s_owner);
+    g_cli_cells->persistent_buf_release(texts, &s_owner);
+    g_cli_cells->persistent_buf_release(line, &s_owner);
+    g_cli_cells->persistent_buf_release(room, &s_owner);
     cli_lock_give(&s_lock);
     return 1;
 }
@@ -3001,7 +3001,7 @@ int cli_view_words_written(const char *key, VerbaLinea *out)
     unsigned long long size = 0ull;
     char *const text =
         (last >= first) ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &s_owner) : NULL;
-    unsigned long long (*const table)[2] = cli_lane_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &s_owner);
+    unsigned long long (*const table)[2] = g_cli_cells->temporary_buf_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &s_owner);
     mmgr_line_ch(out, '[');
     if ((text != NULL) && (table != NULL))
     {
@@ -3049,7 +3049,7 @@ int cli_view_words_written(const char *key, VerbaLinea *out)
         }
     }
     mmgr_line_ch(out, ']');
-    cli_cell_release(table, &s_owner);
-    cli_cell_release(text, &s_owner);
+    g_cli_cells->persistent_buf_release(table, &s_owner);
+    g_cli_cells->persistent_buf_release(text, &s_owner);
     return 1;
 }

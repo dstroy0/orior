@@ -92,7 +92,7 @@ static unsigned char *cli_worker_roomed(void *context, unsigned long long size)
     }
     if ((size + 1ull) > worker->room_size)
     {
-        cli_cell_release(worker->room, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(worker->room, &g_cli_editor_cells);
         unsigned long long room = (worker->room_size * 2ull > size + 1ull) ? (worker->room_size * 2ull) : (size + 1ull);
         room = (room < CLI_WORKER_ROOM_FIRST) ? CLI_WORKER_ROOM_FIRST : room;
         worker->room = g_cli_cells->persistent_buf_alloc(room, &g_cli_editor_cells);
@@ -127,7 +127,7 @@ static void cli_worker(void *context)
             cli_searched(worker->room, size, index);
         }
     }
-    cli_cell_release(worker->room, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(worker->room, &g_cli_editor_cells);
     worker->room = NULL;
     worker->room_size = 0ull;
     cli_lock_take(&s_lock);

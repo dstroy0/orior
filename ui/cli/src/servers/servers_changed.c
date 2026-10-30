@@ -270,7 +270,7 @@ static void changed_gone_emitted(const char *uri, const CliServersSink *sink)
     {
         sink->emit(sink->context, "lsp-diagnostics", cleared, size);
     }
-    cli_cell_release(cleared, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(cleared, &g_cli_servers_cells);
 }
 
 // the servers notified of the files changed under `root` and of each file gone, and each gone reported to have no
@@ -308,7 +308,7 @@ static void changed_emitted(const char *root, const char *const *files, unsigned
     {
         changed_servers_sent(changes_json, size);
     }
-    cli_cell_release(changes_json, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(changes_json, &g_cli_servers_cells);
     unsigned long long gone_size = 0ull;
     char *const uris = cli_pieces_joined(&gone_pieces, &gone, "the files gone", &gone_size);
     for (unsigned long long at = 0ull; (uris != NULL) && (at < gone_size);
@@ -316,23 +316,23 @@ static void changed_emitted(const char *root, const char *const *files, unsigned
     {
         changed_gone_emitted(uris + at, sink);
     }
-    cli_cell_release(uris, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(uris, &g_cli_servers_cells);
 }
 
 // the round's parts given back
 static void changed_given(void)
 {
-    cli_cell_release(s_batch.tree_paths, &g_cli_servers_cells);
-    cli_cell_release(s_batch.tree, &g_cli_servers_cells);
-    cli_cell_release(s_batch.again, &g_cli_servers_cells);
-    cli_cell_release(s_batch.file_tool, &g_cli_servers_cells);
-    cli_cell_release(s_batch.tool, &g_cli_servers_cells);
-    cli_cell_release(s_batch.tool_language, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.tree_paths, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.tree, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.again, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.file_tool, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.tool, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.tool_language, &g_cli_servers_cells);
     if (s_batch.languages != NULL)
     {
         cli_plugins_languages_given(s_batch.languages);
     }
-    cli_cell_release(s_batch.languages, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_batch.languages, &g_cli_servers_cells);
     memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
 }
 

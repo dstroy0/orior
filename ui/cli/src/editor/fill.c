@@ -371,7 +371,7 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
         }
     }
     done = done && mmgr_line_ok(written);
-    cli_cell_release(g_cli_fill_slice, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(g_cli_fill_slice, &g_cli_editor_cells);
     g_cli_fill_slice = NULL;
     g_cli_fill_slice_size = NULL;
     g_cli_fill_slices = 0u;

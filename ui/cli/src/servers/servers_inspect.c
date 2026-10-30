@@ -120,7 +120,7 @@ static void inspect_supplied(void *context, const char *path, const char *class_
     const unsigned long long class_size = cellul.len(&(CatenaFinitaCfg){.src = class_name, .cap = CLI_CELLS_POOL});
     const unsigned long long attribute_size = cellul.len(&(CatenaFinitaCfg){.src = attribute, .cap = CLI_CELLS_POOL});
     const unsigned long long line_size = size + class_size + 1ull + attribute_size + 1ull;
-    char *const line = cli_lane_alloc(line_size, &g_cli_servers_cells);
+    char *const line = g_cli_cells->temporary_buf_alloc(line_size, &g_cli_servers_cells);
     if (line == NULL)
     {
         return;
@@ -132,7 +132,7 @@ static void inspect_supplied(void *context, const char *path, const char *class_
     memor.cpy(&(MemoriaCfg){.dst = line + size + class_size + 1ull, .src = attribute, .bytes = (size_t)attribute_size});
     line[line_size - 1ull] = '\n';
     (void)cli_keyed_put(&s_supplied_new, key, "", line, line_size);
-    cli_cell_release(line, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(line, &g_cli_servers_cells);
 }
 
 // what each family sets put in place of what was stored: 1 where it moved; under the checks' lock
@@ -250,7 +250,7 @@ static void inspect_passed_on(const char *root, const char *found, unsigned long
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    cli_cell_release(files, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(files, &g_cli_servers_cells);
 }
 
 // the tree read from `root`, each Python and JavaScript file of it read where it lies, the view of the
@@ -339,7 +339,7 @@ static void inspect_job(const void *job, unsigned long long size)
     {
         inspect_passed_on(read->root, findings, found_size, &read->sink);
     }
-    cli_cell_release(findings, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
     // what a family sets decides whether a server's reports of an attribute pass on
     if (moved)
     {
@@ -371,7 +371,7 @@ void cli_servers_inspect(const char *root, const char *path, const char *text, u
     // the read made in a cell of its size, the text after it where it is given
     const int has_text = (text != NULL) && (size <= CLI_SERVERS_LARGEST);
     const unsigned long long text_size = has_text ? size : 0ull;
-    char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersInspectJob) + text_size, &g_cli_servers_cells);
+    char *const job = g_cli_cells->temporary_buf_alloc(sizeof(CliServersInspectJob) + text_size, &g_cli_servers_cells);
     if (job == NULL)
     {
         return;
@@ -404,7 +404,7 @@ void cli_servers_inspect(const char *root, const char *path, const char *text, u
     if (ready)
     {
         inspect_job(job, sizeof(*read) + text_size);
-        cli_cell_release(job, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(job, &g_cli_servers_cells);
         return;
     }
     (void)cli_servers_later_handed(inspect_job, job, sizeof(*read) + text_size);

@@ -137,8 +137,8 @@ static const char *cli_change_path(const CliChanges *changes, unsigned int index
 // a list's cells given back, the list containing none
 static void cli_changes_given(CliChanges *changes)
 {
-    cli_cell_release(changes->change, &g_cli_watch_cells);
-    cli_cell_release(changes->text, &g_cli_watch_cells);
+    g_cli_cells->persistent_buf_release(changes->change, &g_cli_watch_cells);
+    g_cli_cells->persistent_buf_release(changes->text, &g_cli_watch_cells);
     *changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
 }
 
@@ -275,7 +275,7 @@ static void cli_batched(void *context)
 {
     (void)context;
     // the bundle a cell for as long as the batcher runs; with no room for it the batcher ends at once
-    CliBatch *const batch = cli_lane_alloc(sizeof(CliBatch), &g_cli_watch_cells);
+    CliBatch *const batch = g_cli_cells->temporary_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
     cli_lock_take(&s_lock);
     if (batch != NULL)
     {
@@ -318,14 +318,14 @@ static void cli_batched(void *context)
         }
         cli_lock_give(&s_lock);
         VerbaLinea out;
-        (void)cli_growing_line_made(&out, CLI_WATCH_JSON_FIRST, &g_cli_watch_cells);
+        (void)cli_growing_line_temporary(&out, CLI_WATCH_JSON_FIRST, &g_cli_watch_cells);
         const int any = cli_gathered(batch, &out);
         const int stopping = cli_watch_stopping();
         if (!stopping && any && mmgr_line_ok(&out))
         {
             s_watching.take(s_watching.context, out.out, out.at);
         }
-        cli_cell_release(out.out, &g_cli_watch_cells);
+        g_cli_cells->persistent_buf_release(out.out, &g_cli_watch_cells);
         cli_lock_take(&s_lock);
         if (stopping)
         {
@@ -336,7 +336,7 @@ static void cli_batched(void *context)
     s_watching.ended += 1u;
     cli_wake_all(&s_watching.wake);
     cli_lock_give(&s_lock);
-    cli_cell_release(batch, &g_cli_watch_cells);
+    g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
 }
 
 void cli_watch_stop(void)
@@ -412,7 +412,7 @@ int cli_watch_gathered_of(const char *root, const char *const *paths, const unsi
     memor.cpy(&(MemoriaCfg){.dst = s_watching.root,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    CliBatch *const batch = cli_lane_alloc(sizeof(CliBatch), &g_cli_watch_cells);
+    CliBatch *const batch = g_cli_cells->temporary_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
     if (batch == NULL)
     {
         return 0;
@@ -424,6 +424,6 @@ int cli_watch_gathered_of(const char *root, const char *const *paths, const unsi
         batch->lost = batch->lost || !cli_change_put(&batch->changes, paths[at], kinds[at], CLI_WATCH_GATHERED);
     }
     const int any = cli_gathered(batch, out);
-    cli_cell_release(batch, &g_cli_watch_cells);
+    g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
     return any;
 }

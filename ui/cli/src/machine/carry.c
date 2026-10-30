@@ -23,8 +23,8 @@ void cli_carried_clear(CliCarried *carried)
 {
     for (unsigned int at = 0u; at < carried->count; at += 1u)
     {
-        cli_cell_release(carried->value[at], &g_cli_machine_cells);
-        cli_cell_release(carried->place[at], &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(carried->value[at], &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(carried->place[at], &g_cli_machine_cells);
         carried->value[at] = NULL;
         carried->place[at] = NULL;
     }
@@ -74,7 +74,7 @@ static void carry_released(CliCarried *paths, CliCarryRoom *room, CliLock *lock)
 // `size` bytes of `text` in a cell of their own, a 0 after them: the cell, or NULL where none could be taken
 static char *cli_carried_cell(const char *text, unsigned long long size, const char *what)
 {
-    char *const cell = (size < CLI_CARRIED_TEXT) ? cli_lane_alloc(size + 1ull, &g_cli_machine_cells) : NULL;
+    char *const cell = (size < CLI_CARRIED_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_machine_cells) : NULL;
     if (cell != NULL)
     {
         // a size below CLI_CARRIED_TEXT fits a size_t
@@ -104,16 +104,16 @@ int cli_carried_put(CliCarried *carried, const char *place, const char *value, u
                                  "a carried place");
     if ((pooled_place == NULL) || (pooled_value == NULL))
     {
-        cli_cell_release(pooled_value, &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(pooled_value, &g_cli_machine_cells);
         if (!there)
         {
-            cli_cell_release(pooled_place, &g_cli_machine_cells);
+            g_cli_cells->persistent_buf_release(pooled_place, &g_cli_machine_cells);
         }
         return 0;
     }
     if (there)
     {
-        cli_cell_release(carried->value[at], &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(carried->value[at], &g_cli_machine_cells);
     }
     else
     {
@@ -151,7 +151,7 @@ int cli_carry_machine(const char *key)
 static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsigned long long size, int fresh,
                                      unsigned int nodes_more, unsigned long long text_more)
 {
-    char *const plain_text = cli_lane_alloc(size + 1ull, &g_cli_machine_cells);
+    char *const plain_text = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_machine_cells);
     VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (plain_text != NULL)
     {
@@ -175,12 +175,12 @@ static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsig
     {
         const unsigned int tokens_most = cli_json_tokens_counted(plain_text, plain.at) + 1u;
         CfgJsonToken *const tokens =
-            cli_lane_alloc((unsigned long long)tokens_most * sizeof(*tokens), &g_cli_machine_cells);
+            g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(*tokens), &g_cli_machine_cells);
         root = (tokens != NULL) ? cli_json_read(&room->json, plain_text, plain.at, tokens, tokens_most, &unread)
                                 : CLI_JSON_NONE;
-        cli_cell_release(tokens, &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(tokens, &g_cli_machine_cells);
     }
-    cli_cell_release(plain_text, &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release(plain_text, &g_cli_machine_cells);
     if (room->json.node == NULL)
     {
         return CLI_JSON_NONE;
@@ -350,14 +350,14 @@ int cli_carry_pack(const char *home, CliCarried *packed, VerbaLinea *err_msg)
             }
             VerbaLinea written;
             if ((object != CLI_JSON_NONE) &&
-                cli_growing_line_made(&written, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
+                cli_growing_line_temporary(&written, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
             {
                 cli_carry_settings_written(&s_room, object, &written);
                 if (mmgr_line_ok(&written))
                 {
                     cli_carried_put(packed, place, written.out, written.at);
                 }
-                cli_cell_release(written.out, &g_cli_machine_cells);
+                g_cli_cells->persistent_buf_release(written.out, &g_cli_machine_cells);
             }
         }
         else

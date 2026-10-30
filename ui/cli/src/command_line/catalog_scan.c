@@ -373,7 +373,7 @@ unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME
     }
     const char *const literals = found + cellul.len(&(CatenaFinitaCfg){.src = s_marker, .cap = CLI_CELLS_POOL});
     const unsigned long long length = cli_driver_joined(literals, NULL);
-    char *const joined = cli_lane_alloc(length + 1ull, &g_cli_catalog_cells);
+    char *const joined = g_cli_cells->temporary_buf_alloc(length + 1ull, &g_cli_catalog_cells);
     if (joined == NULL)
     {
         return 0u;
@@ -400,7 +400,7 @@ unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME
             from = cut + 1ull;
         }
     }
-    cli_cell_release(joined, &g_cli_catalog_cells);
+    g_cli_cells->persistent_buf_release(joined, &g_cli_catalog_cells);
     return count;
 }
 

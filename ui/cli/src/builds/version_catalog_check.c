@@ -45,8 +45,8 @@ int cli_versions_names_of(const char *name, CliVersionsNames *names)
     names->text = g_cli_cells->persistent_buf_alloc(names->room, &g_cli_versions_cells);
     if ((names->at == NULL) || (names->text == NULL))
     {
-        cli_cell_release(names->text, &g_cli_versions_cells);
-        cli_cell_release(names->at, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(names->text, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(names->at, &g_cli_versions_cells);
         names->at = NULL;
         names->size = NULL;
         names->text = NULL;

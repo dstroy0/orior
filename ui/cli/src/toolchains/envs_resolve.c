@@ -76,7 +76,7 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
     unsigned int folders = 0u;
     char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders, &g_cli_toolchains_cells);
     cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])path, folders, &s_room->found);
-    cli_cell_release(path, &g_cli_toolchains_cells);
+    g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_cells);
     cli_json_given(&json);
     if (!s_room->found.has_program)
     {
@@ -135,7 +135,7 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
         cli_ran_given(ran);
         return 0;
     }
-    cli_cell_release(s_room->output, &g_cli_toolchains_cells);
+    g_cli_cells->persistent_buf_release(s_room->output, &g_cli_toolchains_cells);
     s_room->output = g_cli_cells->persistent_buf_alloc(ran->out_size + 1ull, &g_cli_toolchains_cells);
     s_room->output_size = (s_room->output != NULL) ? ran->out_size : 0ull;
     if (s_room->output != NULL)
@@ -288,8 +288,8 @@ int cli_envs_resolve(const char *root, const char *kind, const char *place, CliT
                                 .src = place,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_cell_release(s_room->output, &g_cli_toolchains_cells);
-    cli_cell_release(s_room, &g_cli_toolchains_cells);
+    g_cli_cells->persistent_buf_release(s_room->output, &g_cli_toolchains_cells);
+    g_cli_cells->persistent_buf_release(s_room, &g_cli_toolchains_cells);
     s_room = NULL;
     cli_lock_give(&s_lock);
     return made;

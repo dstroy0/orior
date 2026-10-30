@@ -168,7 +168,7 @@ void cli_debug_processes(VerbaLinea *out)
         mmgr_line_ch(out, '}');
     }
     mmgr_line_ch(out, ']');
-    cli_cell_release(listing.sorted, &g_cli_debug_processes_cells);
-    cli_cell_release(listing.text, &g_cli_debug_processes_cells);
-    cli_cell_release(listing.process, &g_cli_debug_processes_cells);
+    g_cli_cells->persistent_buf_release(listing.sorted, &g_cli_debug_processes_cells);
+    g_cli_cells->persistent_buf_release(listing.text, &g_cli_debug_processes_cells);
+    g_cli_cells->persistent_buf_release(listing.process, &g_cli_debug_processes_cells);
 }

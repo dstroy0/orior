@@ -269,7 +269,7 @@ static int run_failed(const char *release, VerbaLinea *err_msg)
         const VerbaLinea whole = {joined, size, size};
         cli_deploy_print(&whole);
     }
-    cli_cell_release(joined, &g_cli_deploy_cells);
+    g_cli_cells->persistent_buf_release(joined, &g_cli_deploy_cells);
     mmgr_line_decimal(err_msg, failed, 1u);
     mmgr_line_put(err_msg, " of ");
     mmgr_line_decimal(err_msg, run->places, 1u);

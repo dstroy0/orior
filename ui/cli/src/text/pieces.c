@@ -75,7 +75,7 @@ void cli_pieces_given(CliPieces *pieces)
     while (piece != NULL)
     {
         CliPiece *const next = piece->next;
-        cli_cell_release(piece, pieces->owner);
+        g_cli_cells->persistent_buf_release(piece, pieces->owner);
         piece = next;
     }
     *pieces = (CliPieces){NULL, NULL, 0ull, 0, pieces->owner};

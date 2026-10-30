@@ -8,18 +8,34 @@
 
 static unsigned long long s_checks;
 static unsigned long long s_failed;
-// the mark of the lane this process runs its checks on, 0 while it is on none
-static size_t s_mark;
 
 void cli_check_begun(void)
 {
-    s_mark = cli_lane_entered(0u, CLI_LANE_COMMAND_MS);
 }
 
 // a line written to the output
 static void check_line(const VerbaLinea *line)
 {
     query_terminal_written(0, line->out, mmgr_line_ok(line) ? line->at : 0ull);
+}
+
+// ORIOR_CELLS_OWNERS set: the pool's report and MMgr's owner table written, each owner's bytes now and its peak
+static void check_owners_told(void)
+{
+    char asked[8];
+    if (!query_environment_read("ORIOR_CELLS_OWNERS", asked, sizeof(asked)))
+    {
+        return;
+    }
+    static char s_owners[256ull * 1024ull];
+    VerbaLinea owners = {s_owners, sizeof(s_owners), 0ull};
+    mmgr_line_put(&owners, "cells pool ");
+    cli_cells_usage_written(&owners);
+    mmgr_line_ch(&owners, '\n');
+    mmgr_line_put(&owners, "cells owners ");
+    cli_cells_owners_written(&owners);
+    mmgr_line_ch(&owners, '\n');
+    check_line(&owners);
 }
 
 void cli_check(int passed, const char *what)
@@ -30,6 +46,11 @@ void cli_check(int passed, const char *what)
     mmgr_line_put(&line, what);
     mmgr_line_ch(&line, '\n');
     check_line(&line);
+    // the table at the first failure, where a pool that has filled is still as it filled
+    if (!passed && (s_failed == 0ull))
+    {
+        check_owners_told();
+    }
     s_checks += 1ull;
     s_failed += passed ? 0ull : 1ull;
 }
@@ -172,7 +193,6 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
 int cli_checked(void)
 {
     cli_json_given(&s_json);
-    cli_lane_rewound(0u, s_mark);
     char text[128];
     VerbaLinea line = {text, sizeof(text), 0ull};
     mmgr_line_decimal(&line, s_checks, 1u);
@@ -182,5 +202,6 @@ int cli_checked(void)
     cli_cells_usage_written(&line);
     mmgr_line_ch(&line, '\n');
     check_line(&line);
+    check_owners_told();
     return (s_failed > 0ull) ? 1 : 0;
 }

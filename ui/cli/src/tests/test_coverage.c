@@ -505,7 +505,7 @@ void cli_test_coverage_emitted(CliTestRun *run)
         cli_test_file_let_go(text, size);
     }
     VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if ((s_cover->files > 0u) && cli_growing_line_made(&out, CLI_COVER_EVENT_INIT_CAP, &g_cli_tests_cells))
+    if ((s_cover->files > 0u) && cli_growing_line_temporary(&out, CLI_COVER_EVENT_INIT_CAP, &g_cli_tests_cells))
     {
         qsort(s_cover->lines, s_cover->line_count, sizeof(s_cover->lines[0]), cover_line_order);
         for (unsigned int file = 0u; file < s_cover->files; file += 1u)
@@ -541,8 +541,8 @@ void cli_test_coverage_emitted(CliTestRun *run)
             run->sink.emit(run->sink.context, out.out, out.at);
         }
     }
-    cli_cell_release(out.out, &g_cli_tests_cells);
-    cli_cell_release(s_cover->room, &g_cli_tests_cells);
+    g_cli_cells->persistent_buf_release(out.out, &g_cli_tests_cells);
+    g_cli_cells->persistent_buf_release(s_cover->room, &g_cli_tests_cells);
     s_cover->room = NULL;
     s_cover = NULL;
     cli_lock_give(&s_cover_lock);

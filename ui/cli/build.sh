@@ -69,8 +69,15 @@ SANITIZE="${ORIOR_SANITIZE:-}"
 SANITIZE_WORDS=()
 if [ -n "$SANITIZE" ]; then
     LTO_SUFFIX="$LTO_SUFFIX-$SANITIZE"
-    SANITIZE_WORDS=("-fsanitize=$SANITIZE" "-fsanitize-recover=$SANITIZE" -fno-omit-frame-pointer -fPIC)
+    SANITIZE_WORDS=("-fsanitize=$SANITIZE" "-fsanitize-recover=$SANITIZE" -fno-omit-frame-pointer)
     LINK_WORDS+=("-fsanitize=$SANITIZE")
+    # clang refuses -fPIC for the Windows target, whose code is position-independent without it; there every object and
+    # link names the C runtime's DLL, since the runtime's thunk for the static one collides with what MMgr's objects link
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) SANITIZE_WORDS+=(-fms-runtime-lib=dll)
+                              LINK_WORDS+=(-fms-runtime-lib=dll -D_DLL) ;;
+        *) SANITIZE_WORDS+=(-fPIC) ;;
+    esac
     export ASAN_OPTIONS="halt_on_error=0${ASAN_OPTIONS:+:$ASAN_OPTIONS}"
     export TSAN_OPTIONS="halt_on_error=0${TSAN_OPTIONS:+:$TSAN_OPTIONS}"
 fi

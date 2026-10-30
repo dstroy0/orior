@@ -142,7 +142,7 @@ static void actions_offered(unsigned int all, const char *plugin, int *written, 
     const CliJson *const json = &s_reading.json;
     const unsigned int offered = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].count : 0u;
     unsigned int *const action =
-        (offered > 0u) ? cli_lane_alloc((unsigned long long)offered * sizeof(unsigned int), &g_cli_servers_cells)
+        (offered > 0u) ? g_cli_cells->temporary_buf_alloc((unsigned long long)offered * sizeof(unsigned int), &g_cli_servers_cells)
                        : NULL;
     unsigned int count = 0u;
     for (unsigned int one = (action != NULL) ? json->node[all].first : CLI_JSON_NONE; one != CLI_JSON_NONE;
@@ -178,7 +178,7 @@ static void actions_offered(unsigned int all, const char *plugin, int *written, 
             }
         }
     }
-    cli_cell_release(action, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(action, &g_cli_servers_cells);
 }
 
 // `server`, the server of the plugin `plugin` where that is not NULL, queried for its actions on `from` to `to` of the
@@ -204,7 +204,7 @@ static int actions_request(CliLsp *server, const char *plugin, unsigned int all,
     cli_servers_answer_begun(&s_reading, &result);
     const int requested = (params != NULL) && cli_lsp_requested(server, "textDocument/codeAction", params, length,
                                                                 CLI_SERVERS_REQUEST_TIMEOUT_MS, &result, err_msg);
-    cli_cell_release(params, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(params, &g_cli_servers_cells);
     if (requested)
     {
         actions_offered(cli_servers_answer_read(&s_reading, &result), plugin, written, out);

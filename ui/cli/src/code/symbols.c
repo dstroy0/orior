@@ -62,7 +62,7 @@ static unsigned char *cli_file_roomed(void *context, unsigned long long size)
     }
     if ((size + CLI_SYMBOLS_FILE_SLACK) > reading->file_room)
     {
-        cli_cell_release(reading->file_bytes, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(reading->file_bytes, &g_cli_code_cells);
         unsigned long long room = (reading->file_room * 2ull > size + CLI_SYMBOLS_FILE_SLACK)
                                       ? (reading->file_room * 2ull)
                                       : (size + CLI_SYMBOLS_FILE_SLACK);
@@ -202,7 +202,7 @@ static int cli_symbol_file_put(const CliSymbolsReading *reading, const char *pat
     else
     {
         memor.cpy(&(MemoriaCfg){.dst = cell + symbols_size, .src = path, .bytes = path_length});
-        cli_cell_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
         g_cli_symbol_files[file].cell = cell;
         g_cli_symbol_files[file].path = (unsigned int)symbols_size;
     }
@@ -388,11 +388,11 @@ static void cli_reading(void *context)
         s_read = 1;
         s_read_at = cli_clock_milliseconds();
     }
-    cli_cell_release(reading->read_text, &g_cli_code_cells);
-    cli_cell_release(reading->read_symbols, &g_cli_code_cells);
-    cli_cell_release(reading->file_bytes, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(reading->read_text, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(reading->read_symbols, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(reading->file_bytes, &g_cli_code_cells);
     cli_symbols_languages_given(reading->languages);
-    cli_cell_release(reading, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(reading, &g_cli_code_cells);
     s_listing = NULL;
     s_running = 0;
     cli_wake_all(&s_wake);
@@ -491,8 +491,9 @@ void cli_symbols_refresh(const char *root, const char *const *paths, unsigned in
     s_listing->mounts = cli_mounts(mount_names, mount_paths, CLI_MOUNTS_MOST);
     for (unsigned int at = 0u; at < s_listing->mounts; at += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_listing->mount_name[at], .src = mount_names[at], .bytes = CLI_NAME_MAX_LEN});
-        memor.cpy(&(MemoriaCfg){.dst = s_listing->mount_path[at], .src = mount_paths[at], .bytes = CLI_PATH_MAX_LEN});
+        (void)cellul.copy(
+            &(CatenaFinitaCfg){.dst = s_listing->mount_name[at], .src = mount_names[at], .cap = CLI_NAME_MAX_LEN});
+        (void)cellul.copy(&(CatenaFinitaCfg){.dst = s_listing->mount_path[at], .src = mount_paths[at], .cap = CLI_PATH_MAX_LEN});
     }
     s_listing->read_text = NULL;
     s_listing->text_room = 0u;
@@ -520,7 +521,7 @@ void cli_symbols_refresh(const char *root, const char *const *paths, unsigned in
     if (!s_running)
     {
         cli_symbols_languages_given(s_listing->languages);
-        cli_cell_release(s_listing, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(s_listing, &g_cli_code_cells);
         s_listing = NULL;
     }
     g_cli_symbols_reading = s_running;

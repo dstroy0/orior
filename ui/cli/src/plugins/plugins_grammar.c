@@ -81,7 +81,7 @@ static void cli_grammar_each(void *context, const CliPlugin *plugin)
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     const unsigned int root =
-        cli_json_taken_laned(&json, plugin->text, plugin->size, sought->err_msg, &g_cli_plugins_cells);
+        cli_json_taken_temporary(&json, plugin->text, plugin->size, sought->err_msg, &g_cli_plugins_cells);
     const unsigned int grammar = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "grammar") : CLI_JSON_NONE;
     const int has_grammar = cli_json_is(&json, grammar, CFG_JSON_OBJECT);
     if ((root != CLI_JSON_NONE) && !has_grammar)
@@ -142,7 +142,7 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
         mmgr_line_put(err_msg, "a plugin's id is longer than orior_cli supports");
         return 0;
     }
-    if (!cli_growing_line_made(&whole, CLI_PLUGIN_GRAMMAR_FIRST, &g_cli_plugins_cells))
+    if (!cli_growing_line_temporary(&whole, CLI_PLUGIN_GRAMMAR_FIRST, &g_cli_plugins_cells))
     {
         mmgr_line_put(err_msg, "a plugin's grammar could not be given a cell to be made whole in");
         return 0;
@@ -180,7 +180,7 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
         }
     }
     cli_lock_give(&s_lock);
-    cli_cell_release(whole.out, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(whole.out, &g_cli_plugins_cells);
     if (!sought.found)
     {
         mmgr_line_put(err_msg, "no plugin is named ");

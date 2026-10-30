@@ -57,7 +57,7 @@ static void jobs_worker(void *context)
         cli_wake_all(&s_wake);
         cli_lock_give(&s_lock);
         run(bytes, size);
-        cli_cell_release(bytes, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(bytes, &g_cli_servers_cells);
     }
 }
 

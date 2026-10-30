@@ -66,14 +66,14 @@ static void bring_run(void *context)
     CliServeBring *const bring = context;
     char why[1024];
     VerbaLinea brought;
-    (void)cli_growing_line_made(&brought, CLI_SERVE_BRING_PROGRESS_INIT_CAP, &g_cli_serve_strings_cells);
+    (void)cli_growing_line_temporary(&brought, CLI_SERVE_BRING_PROGRESS_INIT_CAP, &g_cli_serve_strings_cells);
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const int done = bring->linked ? cli_files_bring_over(bring_linked_call, NULL, bring->into, bring->from,
                                                           bring->count, bring_progress, NULL, &brought, &err_msg)
                                    : cli_files_bring(bring->root, bring->into, bring->from, bring->count,
                                                      bring_progress, NULL, &brought, &err_msg);
     VerbaLinea line;
-    (void)cli_growing_line_made(&line, brought.at + CLI_SERVE_BRING_PROGRESS_INIT_CAP, &g_cli_serve_strings_cells);
+    (void)cli_growing_line_temporary(&line, brought.at + CLI_SERVE_BRING_PROGRESS_INIT_CAP, &g_cli_serve_strings_cells);
     mmgr_line_put(&line, "{\"into\":");
     cli_json_quoted_lossy(&line, (const unsigned char *)bring->into,
                           cellul.len(&(CatenaFinitaCfg){.src = bring->into, .cap = CLI_CELLS_POOL}));
@@ -89,10 +89,10 @@ static void bring_run(void *context)
     }
     mmgr_line_ch(&line, '}');
     cli_serve_emitted("bring-done", line.out, mmgr_line_ok(&line) ? line.at : 0ull);
-    cli_cell_release(line.out, &g_cli_serve_strings_cells);
-    cli_cell_release(brought.out, &g_cli_serve_strings_cells);
+    g_cli_cells->persistent_buf_release(line.out, &g_cli_serve_strings_cells);
+    g_cli_cells->persistent_buf_release(brought.out, &g_cli_serve_strings_cells);
     cli_lock_take(&s_bring_lock);
-    cli_cell_release(bring->from, &g_cli_serve_strings_cells);
+    g_cli_cells->persistent_buf_release(bring->from, &g_cli_serve_strings_cells);
     bring->from = NULL;
     bring->count = 0u;
     bring->busy = 0;

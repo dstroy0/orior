@@ -70,7 +70,7 @@ static int findings_put(const char *key, const char *uri, const char *id, unsign
     {
         (void)cli_keyed_put(&g_cli_servers_checked, key, uri, entry_written, written_size);
     }
-    cli_cell_release(entry_written, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(entry_written, &g_cli_servers_cells);
     cli_json_given(&json);
     return 1;
 }
@@ -84,7 +84,7 @@ void cli_servers_findings_stored(const char *id, const char *found, unsigned lon
     // the files whose findings changed, in a cell of one place for each file the findings name
     const unsigned int files = cli_json_is(json, root, CFG_JSON_ARRAY) ? json->node[root].count : 0u;
     unsigned int *const changed_files =
-        (files > 0u) ? cli_lane_alloc((unsigned long long)files * sizeof(unsigned int), &g_cli_servers_cells) : NULL;
+        (files > 0u) ? g_cli_cells->temporary_buf_alloc((unsigned long long)files * sizeof(unsigned int), &g_cli_servers_cells) : NULL;
     unsigned int changed = 0u;
     char uri[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
@@ -112,6 +112,6 @@ void cli_servers_findings_stored(const char *id, const char *found, unsigned lon
             cli_servers_emit_whole(key, uri, sink);
         }
     }
-    cli_cell_release(changed_files, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(changed_files, &g_cli_servers_cells);
     cli_servers_reading_released(&s_found);
 }

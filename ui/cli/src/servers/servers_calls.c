@@ -374,7 +374,7 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
                 cli_json_is(answer, ranges, CFG_JSON_ARRAY) ? answer->node[ranges].count : 0u;
             CliTextPlace *const site =
                 (given_ranges > 0u)
-                    ? cli_lane_alloc((unsigned long long)given_ranges * sizeof(CliTextPlace), &g_cli_servers_cells)
+                    ? g_cli_cells->temporary_buf_alloc((unsigned long long)given_ranges * sizeof(CliTextPlace), &g_cli_servers_cells)
                     : NULL;
             unsigned int count = 0u;
             for (unsigned int range = (site != NULL) ? answer->node[ranges].first : CLI_JSON_NONE;
@@ -389,7 +389,7 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
                                   ? calls_of(answer, cli_json_member(answer, one, "from"), NULL, site, count, tree, out)
                                   : calls_of(answer, cli_json_member(answer, one, "to"), has_parent ? parent : NULL,
                                              site, count, tree, out);
-            cli_cell_release(site, &g_cli_servers_cells);
+            g_cli_cells->persistent_buf_release(site, &g_cli_servers_cells);
             if (!wrote)
             {
                 out->at = before;

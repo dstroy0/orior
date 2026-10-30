@@ -16,7 +16,7 @@
 
 void cli_shape_ends_given(CliShapeMatcher *matcher)
 {
-    cli_cell_release(matcher->ends, &g_cli_shape_cells);
+    g_cli_cells->persistent_buf_release(matcher->ends, &g_cli_shape_cells);
     matcher->ends = NULL;
     matcher->ends_top = 0u;
     matcher->ends_room = 0u;

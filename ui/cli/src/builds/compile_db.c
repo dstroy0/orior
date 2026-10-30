@@ -46,13 +46,13 @@ void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsig
 
 void cli_compile_inputs_given(CliInputs *inputs)
 {
-    cli_cell_release(inputs->file, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(inputs->file, &g_cli_compile_cells);
     *inputs = (CliInputs){0, NULL, 0u, 0u};
 }
 
 void cli_compile_found_given(CliFoundFolders *found)
 {
-    cli_cell_release(found->path, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(found->path, &g_cli_compile_cells);
     *found = (CliFoundFolders){NULL, 0u, 0u};
 }
 
@@ -121,7 +121,7 @@ static void cli_walked_below(const char *top, int (*each)(void *context, const c
         below.folder_depth = depth;
         query_folder_each(folder, cli_below_each, &below);
     }
-    cli_cell_release(below.pending, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(below.pending, &g_cli_compile_cells);
 }
 
 // A search for folders ending in a tail, or for files of a name
@@ -316,7 +316,7 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path)
     }
     const unsigned int tokens_most = cli_json_tokens_counted((const char *)bytes, size) + 1u;
     CfgJsonToken *const tokens =
-        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_compile_cells);
+        g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_compile_cells);
     unsigned int root = CLI_JSON_NONE;
     if ((tokens != NULL) && cli_json_room(json, tokens_most, size))
     {
@@ -324,7 +324,7 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path)
         VerbaLinea unread = {why, sizeof(why), 0ull};
         root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
     }
-    cli_cell_release(tokens, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(tokens, &g_cli_compile_cells);
     cli_file_let_go(bytes, size);
     return root;
 }

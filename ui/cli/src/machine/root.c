@@ -170,7 +170,7 @@ int cli_mounted(const char *path, char *name, VerbaLinea *err_msg)
         mmgr_line_decimal(&name_line, count, 0u);
         mmgr_line_finish(&name_line);
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_mount_name[s_mounts], .src = name, .bytes = CLI_NAME_MAX_LEN});
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = s_mount_name[s_mounts], .src = name, .cap = CLI_NAME_MAX_LEN});
     memor.cpy(&(MemoriaCfg){.dst = s_mount_path[s_mounts], .src = full, .bytes = CLI_PATH_MAX_LEN});
     s_mounts += 1u;
     return 1;

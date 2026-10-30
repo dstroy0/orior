@@ -312,7 +312,7 @@ void cli_run_steps(void *context)
         CliCommand command;
         char shown[CLI_COMMAND_TEXT];
     } CliRunCommand;
-    CliRunCommand *const run_command = cli_lane_alloc(sizeof(CliRunCommand), &g_cli_runs_cells);
+    CliRunCommand *const run_command = g_cli_cells->temporary_buf_alloc(sizeof(CliRunCommand), &g_cli_runs_cells);
     if (run_command == NULL)
     {
         cli_run_print_text(run, "a run's command could not be taken");
@@ -417,7 +417,7 @@ void cli_run_steps(void *context)
             break;
         }
     }
-    cli_cell_release(run_command, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(run_command, &g_cli_runs_cells);
     char (*const pages_found)[CLI_PATH_MAX_LEN] =
         views ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_VIEWS_MOST * CLI_PATH_MAX_LEN,
                                                   &g_cli_runs_cells)
@@ -449,5 +449,5 @@ void cli_run_steps(void *context)
     }
     cli_run_ended(run, has_code, code, (const char (*)[CLI_PATH_MAX_LEN])pages_found, pages,
                   has_made ? made_text : NULL);
-    cli_cell_release(pages_found, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(pages_found, &g_cli_runs_cells);
 }

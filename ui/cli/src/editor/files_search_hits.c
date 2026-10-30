@@ -48,10 +48,10 @@ void cli_hits_sorted(CliSearchHits *hits)
 
 void cli_hits_given(CliSearchHits *hits)
 {
-    cli_cell_release(hits->pool, &g_cli_search_cells);
-    cli_cell_release(hits->live, &g_cli_search_cells);
-    cli_cell_release(hits->spare, &g_cli_search_cells);
-    cli_cell_release(hits->free, &g_cli_search_cells);
+    g_cli_cells->persistent_buf_release(hits->pool, &g_cli_search_cells);
+    g_cli_cells->persistent_buf_release(hits->live, &g_cli_search_cells);
+    g_cli_cells->persistent_buf_release(hits->spare, &g_cli_search_cells);
+    g_cli_cells->persistent_buf_release(hits->free, &g_cli_search_cells);
     *hits = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0u, 0u};
 }
 
@@ -74,9 +74,9 @@ static int hits_grown(CliSearchHits *hits)
         (spare != NULL) ? g_cli_cells->persistent_buf_alloc(entry_bytes, &g_cli_search_cells) : NULL;
     if (vacant == NULL)
     {
-        cli_cell_release(pool, &g_cli_search_cells);
-        cli_cell_release(live, &g_cli_search_cells);
-        cli_cell_release(spare, &g_cli_search_cells);
+        g_cli_cells->persistent_buf_release(pool, &g_cli_search_cells);
+        g_cli_cells->persistent_buf_release(live, &g_cli_search_cells);
+        g_cli_cells->persistent_buf_release(spare, &g_cli_search_cells);
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = pool, .src = hits->pool, .bytes = (size_t)was * sizeof(CliSearchHit)});

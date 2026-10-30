@@ -19,24 +19,6 @@ extern "C"
 // give them, taken up to the next 32 MiB
 #define CLI_CELLS_POOL ((256ull << 20u) + (32ull << 20u))
 
-// The lanes: a cellblock of its own for each context that runs a command, the window's rooms, the terminal's one
-// command and a check's process, and one for the window's own thread past the rooms', each over a block of
-// CLI_CELLS_LANE_POOL bytes taken from the system at the lane's first entry. A command's own cells, those it gives
-// back before it ends, are taken from its lane's temporary tier, marked as the command begins and rewound as it
-// ends, zeroed; the window's thread reads each answer on its lane the same way; what outlives a command is taken from
-// the shared cellblock's persistent tier
-#define CLI_CELLS_LANES 9u
-#define CLI_CELLS_LANE_WINDOW 8u
-#define CLI_CELLS_LANE_POOL (128ull << 20u)
-
-// The lifetimes a lane's cells are taken for, in milliseconds, each the longest the work its entry marks runs before
-// the rewind gives its cells back: a terminal command's, which may run as long as a run of the learn does; a window
-// room's call; and the window's reading of one answer. A cell past its lifetime is given back by MMgr's backstop and
-// logged
-#define CLI_LANE_COMMAND_MS 0x7FFFFFFFu
-#define CLI_LANE_ROOM_MS 3600000u
-#define CLI_LANE_WINDOW_MS 60000u
-
     // The shared cellblock's custodia, where what outlives a command lives. A cell is taken with
     // persistent_buf_alloc(bytes, owner) and given back with persistent_buf_release(cell, owner), owner the
     // CellOwner the cell counts to: a give naming another is refused and logged. An owner is registered in MMgr's
@@ -73,29 +55,12 @@ extern "C"
     extern CellOwner g_query_cells;
     extern CellOwner g_checks_cells;
 
-    // this thread put on lane `lane`, below CLI_CELLS_LANES, the lane's cellblock made at its first entry, the cells
-    // taken on it to live `lifetime_ms` milliseconds, and the lane's mark taken: the mark to rewind to, or 0 with the
-    // thread on no lane where the lane's block cannot be taken from the system
-    size_t cli_lane_entered(unsigned int lane, uint32_t lifetime_ms);
-    // this thread taken off its lane, the lane's cells kept until its rewind
-    void cli_lane_left(void);
-    // lane `lane` rewound to `mark` as cli_lane_entered gave it, every cell taken since dropped and zeroed, and this
-    // thread taken off the lane where it is on it
-    void cli_lane_rewound(unsigned int lane, size_t mark);
-    // a command's own cell of `size` bytes for `owner`: from this thread's lane's temporary tier, for the lifetime its
-    // entry gave, or from the shared cellblock's persistent tier where the thread is on no lane; NULL where refused
-    void *cli_lane_alloc(size_t size, CellOwner *owner);
-    // `cell` given back, zeroed, to the cellblock it was taken from, the shared one or a lane's, `owner` the owner it
-    // counts to; NULL gives nothing
-    void cli_cell_release(void *cell, CellOwner *owner);
+    // a cell of `size` bytes for `owner` from the tier `cell` lies in, the persistent one where `cell` is NULL
+    void *cli_cell_beside(const void *cell, size_t size, CellOwner *owner);
+
     // the owner `cell` counts to, read off the cell in the cellblock it was taken from: the owner a holder names that
     // grows or gives back a cell another module took for it, NULL where `cell` is NULL or no cell is taken
     CellOwner *cli_cell_owner(const void *cell);
-    // `cell` grown to `size` bytes where it stands, in the cellblock it was taken from, where it is the newest cell of
-    // its tier: the cell after the growth, at a lower address where a lane's cell moved down, its bytes kept and the
-    // added bytes zero; NULL with nothing changed where a cell was taken above it since or the gap cannot meet the
-    // growth, and the caller takes a larger cell, copies and gives the first back
-    void *cli_cell_grown(void *cell, size_t size, CellOwner *owner);
     // `cell`, holding `used` bytes, made `size` bytes: grown where it stands, else a cell of `size` taken from where
     // `cell` was taken, the shared cellblock for NULL, the used bytes copied into it and `cell` given back; the cell
     // after, or NULL with `cell` as it was where no cell can be taken

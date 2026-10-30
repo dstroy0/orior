@@ -140,8 +140,8 @@ CliDbOpen *cli_db_connect(const char *root, const CliDbConnection *config, const
                                     ? cli_pg_parameter(open->query.pg, "server_version")
                                 : (open->query.kind == CLI_DB_LINK_MY) ? cli_mysql_version(open->query.my)
                                                                        : open->query.lite->version;
-    memor.cpy(
-        &(MemoriaCfg){.dst = open->version, .bytes = sizeof(open->version), .src = (version != NULL) ? version : ""});
+    (void)cellul.copy(&(CatenaFinitaCfg){
+        .dst = open->version, .src = (version != NULL) ? version : "", .cap = sizeof(open->version)});
     open->has_stop = cli_db_link_stopper(&open->query, &open->stop);
     open->has_meta_stop = cli_db_link_stopper(&open->meta, &open->meta_stop);
     cli_db_zone_read(open);
@@ -174,7 +174,7 @@ void cli_db_close(CliDbOpen *open)
         s_opens[entry_at] = (s_opens[entry_at] == open) ? NULL : s_opens[entry_at];
     }
     cli_lock_give(&s_opens_lock);
-    cli_cell_release(open, &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release(open, &g_cli_db_cells);
 }
 
 // a link acquired and handed to `work`, made first where it is none, and let go where its connection broke, the next

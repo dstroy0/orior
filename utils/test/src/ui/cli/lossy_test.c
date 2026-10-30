@@ -53,6 +53,6 @@ int main(void)
     cli_lossy(&grown, (const unsigned char *)letters, sizeof(letters) - 1u);
     cli_check(mmgr_line_ok(&grown), "a line that grows holds every letter");
     cli_check_text(grown.out, grown.at, letters, "and holds them as they were read");
-    cli_cell_release(grown.out, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(grown.out, &g_checks_cells);
     return cli_checked();
 }

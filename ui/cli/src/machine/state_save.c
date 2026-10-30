@@ -74,7 +74,7 @@ static int cli_map_written(const char *path, CliJson *json, unsigned int object,
         return 0;
     }
     const int whole = cli_whole_written(path, written, size, err_msg);
-    cli_cell_release(written, &g_cli_state_cells);
+    g_cli_cells->persistent_buf_release(written, &g_cli_state_cells);
     return whole;
 }
 
@@ -90,7 +90,7 @@ static unsigned int cli_written(CliJson *json, const char *text, unsigned long l
     // where it is as long as it, which a cell one longer fits at every match
     const unsigned int tokens_most = cli_json_tokens_counted(text, length) + 1u;
     CfgJsonToken *const tokens =
-        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_state_cells);
+        g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_state_cells);
     char *const back_text = g_cli_cells->persistent_buf_alloc(length + 2ull, &g_cli_state_cells);
     const unsigned int value = ((tokens != NULL) && (back_text != NULL))
                                    ? cli_json_read(json, text, length, tokens, tokens_most, &err_msg)
@@ -103,8 +103,8 @@ static unsigned int cli_written(CliJson *json, const char *text, unsigned long l
         same = mmgr_line_ok(&back) && (back.at == length) &&
                (memor.cmp(&(MemoriaCfg){.src = back_text, .other = text, .bytes = length}) == 0);
     }
-    cli_cell_release(back_text, &g_cli_state_cells);
-    cli_cell_release(tokens, &g_cli_state_cells);
+    g_cli_cells->persistent_buf_release(back_text, &g_cli_state_cells);
+    g_cli_cells->persistent_buf_release(tokens, &g_cli_state_cells);
     if (same)
     {
         return value;
@@ -220,10 +220,10 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
         char path[CLI_PATH_MAX_LEN];
         cli_in(folder, name, path);
         const int whole = (written != NULL) && cli_whole_written(path, written, size, err_msg);
-        cli_cell_release(written, &g_cli_state_cells);
+        g_cli_cells->persistent_buf_release(written, &g_cli_state_cells);
         if (!whole)
         {
-            cli_cell_release(saved_names, &g_cli_state_cells);
+            g_cli_cells->persistent_buf_release(saved_names, &g_cli_state_cells);
             cli_json_given(&json);
             return 0;
         }
@@ -253,7 +253,7 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
         }
     }
     cli_state_json_files_given(&files);
-    cli_cell_release(saved_names, &g_cli_state_cells);
+    g_cli_cells->persistent_buf_release(saved_names, &g_cli_state_cells);
     cli_json_given(&json);
     return 1;
 }

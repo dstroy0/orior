@@ -312,7 +312,7 @@ static void cli_fullest_each(void *context, const char *name, int is_folder)
                      : NULL;
         }
     }
-    cli_cell_release(text, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
 }
 
 void cli_executables_ran_advice(const char *root, const char *id, int has_code, long long code, const CliLines *lines,
@@ -426,6 +426,6 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
         mmgr_line_finish(&line);
         cli_print(sink, print_buf);
     }
-    cli_cell_release(warned, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(warned, &g_cli_executables_cells);
     cli_lock_give(&s_lock);
 }

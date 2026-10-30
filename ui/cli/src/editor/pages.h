@@ -72,7 +72,7 @@ int cli_pages_viewed(const char *key, const CliPagesView *view, CliPagesPlaced *
 // is whole, into `whole`: 1, or 0 where none is stored under the key; and its lines from `from` to before `to` as far
 // as the index has read, as the walk of its colors reads them: each written as UTF-8 and ended by a NUL into a cell
 // taken for `owner`, its start put into `line`, room for `to` - `from` of them, and how many were read into `count`:
-// the cell, given back with cli_cell_release, or NULL where none is stored or they could not be read
+// the cell, given back with persistent_buf_release, or NULL where none is stored or they could not be read
 int cli_pages_counted(const char *key, unsigned long long *lines, int *whole);
 char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned long long to, const char **line,
                             unsigned long long *count, CellOwner *owner);

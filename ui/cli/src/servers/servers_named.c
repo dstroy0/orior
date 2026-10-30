@@ -87,7 +87,7 @@ static int named_dropped(const char *key, const char *uri)
         {
             (void)cli_keyed_put(&g_cli_servers_checked, key, uri, entry_written, written_size);
         }
-        cli_cell_release(entry_written, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(entry_written, &g_cli_servers_cells);
     }
     cli_json_given(&json);
     return dropped;
@@ -116,7 +116,7 @@ static void named_findings_dropped(const CliServersSink *sink)
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
     cli_lock_give(&g_cli_servers_checks_lock);
-    cli_cell_release(files, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(files, &g_cli_servers_cells);
     cli_lock_give(&g_cli_servers.lock);
     unsigned long long dropped_size = 0ull;
     char *const passed = cli_pieces_joined(&dropped_pieces, &dropped, "the files whose findings went", &dropped_size);
@@ -128,7 +128,7 @@ static void named_findings_dropped(const CliServersSink *sink)
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    cli_cell_release(passed, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(passed, &g_cli_servers_cells);
 }
 
 int cli_servers_set_checkers(const char *const *names, unsigned int count, const char *root, const CliServersSink *sink,
@@ -193,11 +193,11 @@ int cli_servers_set_checkers(const char *const *names, unsigned int count, const
         {
             cli_servers_run_checkers(root, path, text, text_size, 1, sink);
         }
-        cli_cell_release(text, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    cli_cell_release(files_text, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(files_text, &g_cli_servers_cells);
     if (cli_servers_check_on())
     {
         cli_servers_check_tree_with_checkers(root, sink);

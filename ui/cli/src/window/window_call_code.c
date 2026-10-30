@@ -60,7 +60,7 @@ static void code_edit_written(const CliInspectEdit *edit, const VerbaLinea *text
 static char *code_edit_room(unsigned long long length, VerbaLinea *written, VerbaLinea *err_msg)
 {
     const unsigned long long room = (2ull * length) + 4096ull;
-    char *const cell = cli_lane_alloc(room, &g_cli_window_cells);
+    char *const cell = g_cli_cells->persistent_buf_alloc(room, &g_cli_window_cells);
     *written = (VerbaLinea){cell, (cell != NULL) ? room : 0ull, 0ull};
     if (cell == NULL)
     {
@@ -110,7 +110,7 @@ static int code_docstring(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
         cli_text_place_written(place, out);
         mmgr_line_ch(out, ']');
     }
-    cli_cell_release(room, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(room, &g_cli_window_cells);
     return drawn;
 }
 
@@ -137,7 +137,7 @@ static int code_sort(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         code_edit_written(&edit, &written, out);
     }
-    cli_cell_release(room, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(room, &g_cli_window_cells);
     return sorted;
 }
 
@@ -165,7 +165,7 @@ static int code_fill(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         cli_text_edit_written(&edit, out);
     }
-    cli_cell_release(room, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(room, &g_cli_window_cells);
     return filled;
 }
 
@@ -409,9 +409,9 @@ static int code_devcontainer_line(const CliServeArgs *args, VerbaLinea *out, Ver
     {
         return 0;
     }
-    CliPlan *const plan = cli_lane_alloc(sizeof(*plan), &g_cli_window_cells);
+    CliPlan *const plan = g_cli_cells->temporary_buf_alloc(sizeof(*plan), &g_cli_window_cells);
     const int planned = (plan != NULL) && cli_devcontainer_plan(root, plan, err_msg);
-    cli_cell_release(plan, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(plan, &g_cli_window_cells);
     if (!planned)
     {
         return 0;

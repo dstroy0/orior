@@ -46,7 +46,7 @@ static int files_room_made(void)
 // the command's room given back
 static void files_released(void)
 {
-    cli_cell_release(s_room, &g_cli_command_line_cells);
+    g_cli_cells->persistent_buf_release(s_room, &g_cli_command_line_cells);
     s_room = NULL;
 }
 

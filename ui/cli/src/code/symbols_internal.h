@@ -166,7 +166,7 @@ typedef struct
     int refused;
     CliDeclared declared;
     void *declared_context;
-    int laned;
+    int temporary;
 } CliLeafRead;
 
 // the leaves of `size` bytes of `text` read in the language of the file at `path`, the first line starting in
@@ -182,7 +182,7 @@ int cli_symbols_leaves_declared(CliSymbolsLanguages *languages, const char *path
                                 unsigned long long size, CliLeafRead *read, CliDeclared each, void *context);
 // the leaves read as cli_symbols_leaves_kept reads them, their cell on the lane the thread is on, for a read given back
 // before the lane is rewound
-int cli_symbols_leaves_laned(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
+int cli_symbols_leaves_temporary(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
                              unsigned long long size, CliLeafRead *read);
 // the kind a token's name declares: the rest of the name past its segment `declaration`, or NULL where it has none
 // (symbols_read.c)

@@ -169,7 +169,7 @@ static void bench_sift_whole(unsigned long long whole)
         took = cli_clock_microseconds() - began;
         stored.least = (took < stored.least) ? took : stored.least;
     }
-    cli_cell_release(text, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(text, &g_checks_cells);
     bench_row("sift whole", counted);
     bench_row("sift stored", stored);
 }
@@ -267,9 +267,9 @@ BenchMeasure bench_colored(const char *key, const BenchFile *files, unsigned int
         0ull};
     (void)cli_growing_line_made(&coloring.out, 1ull << 22u, &g_checks_cells);
     const BenchMeasure measure = bench_pass(each_color, &coloring);
-    cli_cell_release(coloring.out.out, &g_checks_cells);
-    cli_cell_release(coloring.copy, &g_checks_cells);
-    cli_cell_release(coloring.lines, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(coloring.out.out, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(coloring.copy, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(coloring.lines, &g_checks_cells);
     return measure;
 }
 
@@ -405,7 +405,7 @@ static BenchMeasure bench_json(BenchMeasure *write)
                 cli_json_given(&json);
                 bytes += size;
             }
-            cli_cell_release(out.out, &g_checks_cells);
+            g_cli_cells->persistent_buf_release(out.out, &g_checks_cells);
             cli_file_let_go(text, size);
         }
         measure.bytes = bytes;
@@ -431,7 +431,7 @@ static BenchMeasure bench_sorted(void)
         measure.bytes = (unsigned long long)s_count * CLI_PATH_MAX_LEN;
         measure.least = (took < measure.least) ? took : measure.least;
     }
-    cli_cell_release(copy, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(copy, &g_checks_cells);
     return measure;
 }
 
@@ -447,7 +447,7 @@ static BenchMeasure bench_cells(void)
         for (unsigned int turn = 0u; turn < BENCH_CELL_TURNS; turn += 1u)
         {
             void *const cell = g_cli_cells->persistent_buf_alloc(4096ull, &g_checks_cells);
-            cli_cell_release(cell, &g_checks_cells);
+            g_cli_cells->persistent_buf_release(cell, &g_checks_cells);
         }
         const unsigned long long took = cli_clock_microseconds() - began;
         measure.bytes = (unsigned long long)BENCH_CELL_TURNS * 4096ull;
@@ -488,12 +488,12 @@ int main(int argc, char **argv)
     unsigned int *const letters =
         g_cli_cells->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), &g_checks_cells);
     bench_row("letters", bench_pass(each_letters, letters));
-    cli_cell_release(letters, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(letters, &g_checks_cells);
     // each byte that starts no letter written as U+FFFD's three bytes at the most
     char *const lossy_cell = g_cli_cells->persistent_buf_alloc((3ull * largest) + 1ull, &g_checks_cells);
     VerbaLinea lossy = {lossy_cell, (3ull * largest) + 1ull, 0ull};
     bench_row("lossy", bench_pass(each_lossy, &lossy));
-    cli_cell_release(lossy_cell, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(lossy_cell, &g_checks_cells);
     sum = 0ull;
     bench_row("find", bench_pass(each_find, &sum));
     sum = 0ull;

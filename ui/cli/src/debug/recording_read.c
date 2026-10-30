@@ -50,7 +50,7 @@ static void read_stacks_given(void)
 {
     for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
     {
-        cli_cell_release(s_stacks[thread], &g_cli_debug_cells);
+        g_cli_cells->persistent_buf_release(s_stacks[thread], &g_cli_debug_cells);
         s_stacks[thread] = NULL;
         s_rooms[thread] = 0u;
         s_depths[thread] = 0u;
@@ -388,7 +388,7 @@ void cli_recording_let_go(void)
         recording->path[0] = '\0';
     }
     recording->size = 0ull;
-    cli_cell_release(recording->room, &g_cli_debug_cells);
+    g_cli_cells->persistent_buf_release(recording->room, &g_cli_debug_cells);
     recording->room = NULL;
     recording->steps = NULL;
     recording->step_count = 0u;

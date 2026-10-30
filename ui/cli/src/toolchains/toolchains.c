@@ -49,7 +49,7 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
         (added_text != NULL) ? (cli_json_tokens_counted((const char *)added_text, added_size) + 1u) : 0u;
     const unsigned int tokens_most = (bundled_tokens > added_tokens) ? bundled_tokens : added_tokens;
     CfgJsonToken *const tokens =
-        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_toolchains_cells);
+        g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_toolchains_cells);
     const int reserved =
         (tokens != NULL) && cli_json_reserved(json, bundled_tokens + added_tokens + 1u + nodes_more,
                                               g_cli_toolchains_json_size + added_size + 1ull + text_more,
@@ -64,7 +64,7 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
         (cli_json_is(json, tools, CFG_JSON_ARRAY) && (added_text != NULL))
             ? cli_json_read(json, (const char *)added_text, added_size, tokens, tokens_most, &err_msg)
             : CLI_JSON_NONE;
-    cli_cell_release(tokens, &g_cli_toolchains_cells);
+    g_cli_cells->persistent_buf_release(tokens, &g_cli_toolchains_cells);
     if (added_text != NULL)
     {
         cli_file_let_go(added_text, added_size);

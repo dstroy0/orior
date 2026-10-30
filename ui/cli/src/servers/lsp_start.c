@@ -136,7 +136,7 @@ CliLsp *cli_lsp_started(const char *program, const char *const *args, unsigned i
     memor.cpy(&(MemoriaCfg){.dst = lsp->settings, .src = settings, .bytes = settings_used * sizeof(settings[0])});
     if (!cli_spawn_fed(&lsp->spawned, lsp->words.word, root, lsp->settings, settings_used, 1, err_msg))
     {
-        cli_cell_release(lsp, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(lsp, &g_cli_servers_cells);
         return NULL;
     }
     cli_lsp_readers_started(lsp);
@@ -159,12 +159,12 @@ CliLsp *cli_lsp_started(const char *program, const char *const *args, unsigned i
     }
     const int initialized = (params_json != NULL) && cli_lsp_requested(lsp, "initialize", params_json, params_size,
                                                                        CLI_LSP_STARTING, &answer, err_msg);
-    cli_cell_release(params_json, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(params_json, &g_cli_servers_cells);
     unsigned long long reply_size = 0ull;
     char *const reply = cli_pieces_joined(&answer_pieces, &answer, "a server's initialize answer", &reply_size);
     if (!initialized || (reply == NULL))
     {
-        cli_cell_release(reply, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(reply, &g_cli_servers_cells);
         query_paused(200u);
         char complaint[CLI_LSP_COMPLAINT];
         VerbaLinea complaint_line = {complaint, sizeof(complaint), 0ull};
@@ -190,7 +190,7 @@ CliLsp *cli_lsp_started(const char *program, const char *const *args, unsigned i
             .dst = lsp->capabilities, .src = has ? reply + at : "null", .bytes = (size_t)lsp->capabilities_size});
         lsp->capabilities[lsp->capabilities_size] = '\0';
     }
-    cli_cell_release(reply, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(reply, &g_cli_servers_cells);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unsent = {why, sizeof(why), 0ull};
     (void)cli_lsp_notified(lsp, "initialized", "{}", 2ull, &unsent);

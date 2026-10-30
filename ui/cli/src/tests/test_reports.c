@@ -84,7 +84,7 @@ static void report_attributes(const char *text, unsigned long long length, CliRe
     const unsigned long long room = (length < CLI_REPORT_VALUES) ? (length + 1ull) : CLI_REPORT_VALUES;
     if (tag->room < room)
     {
-        cli_cell_release(tag->values, &g_cli_test_report_cells);
+        g_cli_cells->persistent_buf_release(tag->values, &g_cli_test_report_cells);
         tag->values = g_cli_cells->persistent_buf_alloc(room, &g_cli_test_report_cells);
         tag->room = (tag->values != NULL) ? room : 0ull;
     }
@@ -354,7 +354,7 @@ static void report_case_emitted(CliTestWorker *worker, const char *open, unsigne
         // the text read takes no more bytes than it is written in, an entity read to one letter
         const unsigned long long text_room =
             ((text_end - text_start) < CLI_REPORT_TEXT) ? ((text_end - text_start) + 1ull) : CLI_REPORT_TEXT;
-        char *const text_cell = cli_lane_alloc(text_room, &g_cli_test_report_cells);
+        char *const text_cell = g_cli_cells->temporary_buf_alloc(text_room, &g_cli_test_report_cells);
         char refused[1] = {'\0'};
         VerbaLinea text = (text_cell != NULL) ? (VerbaLinea){text_cell, text_room, 0ull}
                                               : (VerbaLinea){refused, sizeof(refused), 0ull};
@@ -373,7 +373,7 @@ static void report_case_emitted(CliTestWorker *worker, const char *open, unsigne
                                 given ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL})
                                       : (found ? last_size : 0ull),
                                 wanted, line, taken);
-        cli_cell_release(text_cell, &g_cli_test_report_cells);
+        g_cli_cells->persistent_buf_release(text_cell, &g_cli_test_report_cells);
         return;
     }
     cli_test_result_emitted(worker, id, "passed", "", 0ull, wanted, own_line, taken);
@@ -401,8 +401,8 @@ void cli_test_report_emitted(CliTestWorker *worker, const char *xml, unsigned lo
         report_case_emitted(worker, at, open_end, at + body, close - body);
         rest = start + ((close < length) ? close : length);
     }
-    cli_cell_release(s_case.values, &g_cli_test_report_cells);
-    cli_cell_release(s_tag.values, &g_cli_test_report_cells);
+    g_cli_cells->persistent_buf_release(s_case.values, &g_cli_test_report_cells);
+    g_cli_cells->persistent_buf_release(s_tag.values, &g_cli_test_report_cells);
     s_case = (CliReportTag){0};
     s_tag = (CliReportTag){0};
     cli_lock_give(&s_report_lock);

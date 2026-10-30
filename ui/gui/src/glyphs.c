@@ -300,7 +300,7 @@ static int glyphs_rasterized(const GuiGlyphs *glyphs, GuiMask *mask)
         return 1;
     }
     const unsigned long long room = (measured.width * measured.height) + 4ull;
-    float *const floats = g_cli_cells->persistent_buf_alloc(room * sizeof(*floats), &s_owner);
+    float *const floats = g_cli_cells->temporary_buf_alloc(room * sizeof(*floats), &s_owner);
     unsigned char *const cover = g_cli_cells->persistent_buf_alloc(measured.width * measured.height, &s_owner);
     if ((floats == NULL) || (cover == NULL))
     {

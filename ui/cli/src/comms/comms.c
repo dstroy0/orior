@@ -223,7 +223,7 @@ void cli_comms_leave(const char *key)
     if (at < CLI_COMMS_PARTS)
     {
         g_cli_comms.parts[at].taken = 0;
-        cli_cell_release(g_cli_comms.parts[at].listen, &g_cli_comms_cells);
+        g_cli_cells->persistent_buf_release(g_cli_comms.parts[at].listen, &g_cli_comms_cells);
         g_cli_comms.parts[at].listen = NULL;
         g_cli_comms.parts[at].send_grant = NULL;
         for (unsigned int one = 0u; one < g_cli_comms.listeners_room; one += 1u)
@@ -375,7 +375,7 @@ static void comms_stored(CliCommsTraffic *traffic, const char *from, const char 
     if (traffic->count == CLI_COMMS_STORED_MAX)
     {
         traffic->first = (traffic->first + 1u) % CLI_COMMS_STORED_MAX;
-        cli_cell_release(stored_msg->from, &g_cli_comms_cells);
+        g_cli_cells->persistent_buf_release(stored_msg->from, &g_cli_comms_cells);
     }
     else
     {

@@ -132,7 +132,7 @@ static void cycles_reported(unsigned int file, unsigned int import, unsigned int
     {
         size += CLI_TREE_FILE(s_walk.way[at]).path_size + 32ull;
     }
-    char *const text = cli_lane_alloc(size, &g_cli_inspect_cells);
+    char *const text = g_cli_cells->temporary_buf_alloc(size, &g_cli_inspect_cells);
     if (text == NULL)
     {
         return;
@@ -149,7 +149,7 @@ static void cycles_reported(unsigned int file, unsigned int import, unsigned int
     {
         each(context, file, facts->import[import].from, facts->import[import].to, "import-cycle", &message);
     }
-    cli_cell_release(text, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(text, &g_cli_inspect_cells);
 }
 
 // the imports of the file at `file` that lead back round to it, each handed to `each`
@@ -211,6 +211,6 @@ void cli_tree_cycles(CliTreeFindingFn each, void *context)
             cycles_of(file, each, context);
         }
     }
-    cli_cell_release(cell, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
     memor.set(&(MemoriaCfg){.dst = &s_walk, .val = 0, .bytes = sizeof(s_walk)});
 }

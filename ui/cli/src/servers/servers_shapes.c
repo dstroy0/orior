@@ -18,7 +18,7 @@ void cli_servers_reading_locked(CliServersReading *reading)
 // the reading's answer given back, and its pieces
 static void reading_answer_given(CliServersReading *reading)
 {
-    cli_cell_release(reading->answer, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(reading->answer, &g_cli_servers_cells);
     reading->answer = NULL;
     reading->answer_size = 0ull;
     cli_pieces_given(&reading->pieces);
@@ -72,7 +72,7 @@ int cli_servers_request(CliLsp *server, const char *method, CliPieces *pieces, V
     const int requested =
         (params_json != NULL) && cli_lsp_requested(server, method, params_json, length, wait, result, err_msg);
     cli_servers_ask_ended(server);
-    cli_cell_release(params_json, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(params_json, &g_cli_servers_cells);
     return requested;
 }
 

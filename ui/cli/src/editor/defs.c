@@ -217,7 +217,7 @@ static void cli_header_written(const char *path, VerbaLinea *out)
 {
     const CliDefsFile file = cli_mapped(path);
     const unsigned long long size = (file.text != NULL) ? file.size : 0ull;
-    char *const text = cli_lane_alloc(size + 1ull, &g_cli_defs_cells);
+    char *const text = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_defs_cells);
     VerbaLinea joined = {text, (text != NULL) ? (size + 1ull) : 0ull, 0ull};
     const char *const end = (text != NULL) ? (file.text + size) : file.text;
     int first = 1;
@@ -262,7 +262,7 @@ static void cli_header_written(const char *path, VerbaLinea *out)
     }
     const unsigned long long length = mmgr_line_ok(&joined) ? joined.at : 0ull;
     cli_json_quoted(out, (text != NULL) ? text : "", length);
-    cli_cell_release(text, &g_cli_defs_cells);
+    g_cli_cells->persistent_buf_release(text, &g_cli_defs_cells);
     cli_unmapped(file);
 }
 
@@ -400,7 +400,7 @@ static int cli_name_room(CliDefsNames *names)
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = names->name, .bytes = (size_t)names->count * CLI_NAME_MAX_LEN});
-    cli_cell_release(names->name, &g_cli_defs_cells);
+    g_cli_cells->persistent_buf_release(names->name, &g_cli_defs_cells);
     names->name = larger;
     names->room = room;
     return 1;
@@ -425,7 +425,7 @@ static void cli_name_each(void *context, const char *name, int is_folder)
 // the names `folder` lists into `names`, in order, those it contained before given back
 static void cli_names_listed(const char *folder, int folders, CliDefsNames *names)
 {
-    cli_cell_release(names->name, &g_cli_defs_cells);
+    g_cli_cells->persistent_buf_release(names->name, &g_cli_defs_cells);
     *names = (CliDefsNames){NULL, 0u, 0u, folders};
     query_folder_each(folder, cli_name_each, names);
     char (*const name)[CLI_NAME_MAX_LEN] = names->name;
@@ -528,5 +528,5 @@ void cli_defs_read(const char *root, VerbaLinea *out)
         first = 0;
     }
     mmgr_line_put(out, "]}");
-    cli_cell_release(names.name, &g_cli_defs_cells);
+    g_cli_cells->persistent_buf_release(names.name, &g_cli_defs_cells);
 }

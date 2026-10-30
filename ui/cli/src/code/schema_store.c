@@ -180,7 +180,7 @@ static const char *store_text_of(const char *key, unsigned long long *size, int 
 // tokens in a cell of their count, both given back after: its root, CLI_JSON_NONE where it could not be read
 static unsigned int store_read(CliSchemaStore *store, const char *text, unsigned long long size)
 {
-    char *const stripped = cli_lane_alloc(size + 1ull, &g_cli_schema_cells);
+    char *const stripped = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_schema_cells);
     if (stripped == NULL)
     {
         return CLI_JSON_NONE;
@@ -188,7 +188,7 @@ static unsigned int store_read(CliSchemaStore *store, const char *text, unsigned
     store_stripped(text, size, stripped);
     const unsigned int tokens_most = cli_json_tokens_counted(stripped, size) + 1u;
     CfgJsonToken *const tokens = (tokens_most <= CLI_SCHEMA_TOKENS)
-                                     ? cli_lane_alloc(
+                                     ? g_cli_cells->temporary_buf_alloc(
                                            (unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_schema_cells)
                                      : NULL;
     unsigned int root = CLI_JSON_NONE;
@@ -199,8 +199,8 @@ static unsigned int store_read(CliSchemaStore *store, const char *text, unsigned
         root = cli_json_read(&store->json, stripped, size, tokens, tokens_most, &err_msg);
         root = store->json.full ? CLI_JSON_NONE : root;
     }
-    cli_cell_release(tokens, &g_cli_schema_cells);
-    cli_cell_release(stripped, &g_cli_schema_cells);
+    g_cli_cells->persistent_buf_release(tokens, &g_cli_schema_cells);
+    g_cli_cells->persistent_buf_release(stripped, &g_cli_schema_cells);
     return root;
 }
 

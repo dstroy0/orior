@@ -71,11 +71,14 @@ void cli_json_emptied(CliJson *json);
 // `size` bytes of `text` read into a tree in a cell of its own, sized to the tokens they contain and to their bytes,
 // with `nodes_more` nodes and `text_more` bytes over for what is made after: its root, or CLI_JSON_NONE with why given;
 // and the tree's cell given back, the tree left containing nothing, where it contains one or none
+// a growing tree whose cell the call that makes it gives back, each larger one from the temporary tier
+int cli_json_growing_temporary(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what,
+                               CellOwner *owner);
 unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long size, unsigned int nodes_more,
                             unsigned long long text_more, VerbaLinea *err_msg, CellOwner *owner);
 void cli_json_given(CliJson *json);
 // the same read with the tree's cell on the lane the thread is on, for a tree given back before the lane is rewound
-unsigned int cli_json_taken_laned(CliJson *json, const char *text, unsigned long long size, VerbaLinea *err_msg,
+unsigned int cli_json_taken_temporary(CliJson *json, const char *text, unsigned long long size, VerbaLinea *err_msg,
                                   CellOwner *owner);
 // the nodes a node and all under it take, and the bytes of their texts and keys, added to `nodes` and `text`, the room
 // a copy of it takes in another tree

@@ -77,7 +77,7 @@ static int cli_committing_taken(const char *message, unsigned int count, VerbaLi
 // the commit's room given back
 static void cli_committing_given(void)
 {
-    cli_cell_release(s_committing.own_parts, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(s_committing.own_parts, &g_cli_git_cells);
     s_committing = (CliCommitting){0};
 }
 
@@ -132,7 +132,7 @@ static int cli_commit_in(const char *folder, const char *const *paths, unsigned 
         }
     }
     VerbaLinea ran;
-    if (!cli_growing_line_made(&ran, CLI_GIT_OUTPUT_INIT_CAP, &g_cli_git_cells))
+    if (!cli_growing_line_temporary(&ran, CLI_GIT_OUTPUT_INIT_CAP, &g_cli_git_cells))
     {
         mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
@@ -156,7 +156,7 @@ static int cli_commit_in(const char *folder, const char *const *paths, unsigned 
     {
         cli_git_commit_line(ran.out, ran.at, out);
     }
-    cli_cell_release(ran.out, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(ran.out, &g_cli_git_cells);
     return made;
 }
 
@@ -196,7 +196,7 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
     mmgr_line_put(&joined, named);
     mmgr_line_finish(&joined);
     VerbaLinea ran;
-    if (!cli_growing_line_made(&ran, CLI_GIT_OUTPUT_INIT_CAP, &g_cli_git_cells))
+    if (!cli_growing_line_temporary(&ran, CLI_GIT_OUTPUT_INIT_CAP, &g_cli_git_cells))
     {
         mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
@@ -279,7 +279,7 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
     {
         cli_git_commit_line(ran.out, ran.at, out);
     }
-    cli_cell_release(ran.out, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(ran.out, &g_cli_git_cells);
     return made;
 }
 

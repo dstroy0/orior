@@ -119,7 +119,7 @@ static int actions_command(CliLsp *server, const char *plugin, const CliJson *js
     const int done =
         (params_json != NULL) && (passed || cli_lsp_requested(server, "workspace/executeCommand", params_json, length,
                                                               CLI_SERVERS_SEARCHING, &result, err_msg));
-    cli_cell_release(params_json, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(params_json, &g_cli_servers_cells);
     return done;
 }
 
@@ -191,11 +191,11 @@ static int actions_plugin_by(const char *tree, const CliJson *json, unsigned int
     // the action as the server gave it, for the server to fill in
     const unsigned int action = cli_json_member(json, wrapped, "action");
     VerbaLinea text = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&text, CLI_SERVERS_PIECE, &g_cli_servers_cells);
+    (void)cli_growing_line_temporary(&text, CLI_SERVERS_PIECE, &g_cli_servers_cells);
     cli_json_write(json, action, &text, 0u, 0);
     const int done =
         mmgr_line_ok(&text) && actions_by(server, plugin, tree, json, action, text.out, text.at, out, err_msg);
-    cli_cell_release(text.out, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(text.out, &g_cli_servers_cells);
     cli_lsp_unref(server);
     return done;
 }

@@ -33,12 +33,15 @@ MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_
     -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
     -DMMGR_CARCER_OWNERS=1024u)
 
+source "$HERE/../sanitized.sh"
+
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "test exit 1"; exit 1; }
 # the command line's library, named as bin_names.tsv at the top of the tree names the command line
 CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"
-LIBRARY="$TOP/build/cli/$HOST/lib$CLI_NAME.a"
-RUN="$TOP/build/cli_test"
+LIBRARY="$TOP/build/cli/$HOST$SANITIZE_SUFFIX/lib$CLI_NAME.a"
+RUN="$TOP/build/cli_test$SANITIZE_SUFFIX"
 mkdir -p "$RUN"
+sanitized_checks_begin
 
 # the checks named on the command line, each as its file's name without _test.c, or every check where none is named
 TESTS=()
@@ -53,7 +56,7 @@ export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=fal
 for test in "${TESTS[@]}"; do
     name="$(basename "$test" .c)"
     echo "== $name"
-    if ! "$CC" "--target=$HOST" -std=c11 -O1 -g "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$HERE/cli_check.c" "$LIBRARY" \
+    if ! "$CC" "--target=$HOST" -std=c11 -O1 -g "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$HERE/cli_check.c" "$LIBRARY" \
         "${LIBRARIES[@]}" > "$RUN/$name.log" 2>&1; then
         echo "  build failed: $name did not compile"
         tail -20 "$RUN/$name.log"
@@ -61,5 +64,6 @@ for test in "${TESTS[@]}"; do
         continue
     fi
     (cd "$RUN" && "./$name$SUFFIX")
+    sanitized_exit "$name" "$RUN" "$?"
     echo "test exit $?"
 done

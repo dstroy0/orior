@@ -180,7 +180,7 @@ static void detached_follower(void *context)
     cli_lock_take(&s_lock);
     s_follower[one->place] = NULL;
     cli_lock_give(&s_lock);
-    cli_cell_release(one, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(one, &g_cli_window_cells);
 }
 
 // the detached run `base` followed on a thread of its own: 1, or 0 where every follower is taken or no room for one is
@@ -213,7 +213,7 @@ static int detached_followed(const char *base)
         if (!cli_thread_started(&one->thread))
         {
             s_follower[at] = NULL;
-            cli_cell_release(one, &g_cli_window_cells);
+            g_cli_cells->persistent_buf_release(one, &g_cli_window_cells);
         }
     }
     cli_lock_give(&s_lock);

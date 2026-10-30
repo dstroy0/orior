@@ -235,7 +235,7 @@ static void calls_callees_handed(unsigned int file, unsigned int at, unsigned lo
         each(context, tree_file->path, &tree_file->facts, s_callee_at[callee], s_grouped + s_callee_first[callee],
              s_callee_sites[callee]);
     }
-    cli_cell_release(cell, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
 }
 
 void cli_inspect_tree_callees(const char *path, unsigned int at, CliInspectReached each, void *context)
@@ -259,7 +259,7 @@ void cli_inspect_tree_callees(const char *path, unsigned int at, CliInspectReach
         }
         calls_callees_handed(file, at, sites, each, context);
     }
-    cli_cell_release(reached, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(reached, &g_cli_inspect_cells);
     cli_lock_give(&g_cli_tree_lock);
 }
 
@@ -290,7 +290,7 @@ void cli_inspect_tree_callers(const char *path, unsigned int at, CliInspectReach
     calls_counted(&functions, &calls_most);
     const unsigned long long numbers = (g_cli_tree_files + 1ull) * sizeof(unsigned int);
     unsigned char *const cell =
-        cli_lane_alloc(numbers + ((calls_most + 1ull) * sizeof(CliInspectSpan)), &g_cli_inspect_cells);
+        g_cli_cells->temporary_buf_alloc(numbers + ((calls_most + 1ull) * sizeof(CliInspectSpan)), &g_cli_inspect_cells);
     if (cell == NULL)
     {
         cli_lock_give(&g_cli_tree_lock);
@@ -339,6 +339,6 @@ void cli_inspect_tree_callers(const char *path, unsigned int at, CliInspectReach
             }
         }
     }
-    cli_cell_release(cell, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
     cli_lock_give(&g_cli_tree_lock);
 }

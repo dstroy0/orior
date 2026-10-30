@@ -30,6 +30,12 @@ int gui_framebuffer_made(GuiFramebuffer *framebuffer, unsigned int width, unsign
     // the cellblock's record laid as MMgr lays its own, byte by byte from a record made over the region
     const CarcerCellBlock made = MMGR_CARCER_STATE((uint8_t *)framebuffer->pages, (size_t)bytes);
     memor.cpy(&(MemoriaCfg){.dst = &framebuffer->cellblock, .src = &made, .bytes = sizeof(made)});
+    // the owner registered in MMgr's queue before its first take, since every take refuses an owner not registered; a
+    // registration refused leaves the takes below refused, and the region given back
+    if (embed_atomic_usize_load(&s_owner.place) == 0u)
+    {
+        (void)mmgr_owner_register(&s_owner);
+    }
     for (unsigned int at = 0u; at < GUI_FRAMEBUFFER_RASTERS; at += 1u)
     {
         // a cell's size is far inside what a size_t holds

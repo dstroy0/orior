@@ -93,7 +93,7 @@ const char *cli_git_text_of(const CliGitText *text, unsigned int at)
 
 void cli_git_text_given(CliGitText *text)
 {
-    cli_cell_release(text->bytes, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(text->bytes, &g_cli_git_cells);
     text->bytes = NULL;
     text->used = 0ull;
     text->room = 0ull;
@@ -109,7 +109,7 @@ CliGitGave *cli_git_taken(void)
     room->out = g_cli_cells->persistent_buf_alloc(CLI_GIT_OUT_FIRST, &g_cli_git_cells);
     if (room->out == NULL)
     {
-        cli_cell_release(room, &g_cli_git_cells);
+        g_cli_cells->persistent_buf_release(room, &g_cli_git_cells);
         return &s_refused;
     }
     room->out_room = CLI_GIT_OUT_FIRST;
@@ -133,8 +133,8 @@ void cli_git_given(CliGitGave *gave)
 {
     if (gave != &s_refused)
     {
-        cli_cell_release(cli_room_of(gave)->out, &g_cli_git_cells);
-        cli_cell_release(cli_room_of(gave), &g_cli_git_cells);
+        g_cli_cells->persistent_buf_release(cli_room_of(gave)->out, &g_cli_git_cells);
+        g_cli_cells->persistent_buf_release(cli_room_of(gave), &g_cli_git_cells);
     }
 }
 
@@ -168,7 +168,7 @@ static int cli_output_room(CliGitRoom *room)
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = room->out, .bytes = gave->out_size});
-    cli_cell_release(room->out, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(room->out, &g_cli_git_cells);
     room->out = cell;
     room->out_room = grown;
     gave->out = cell;
@@ -362,7 +362,7 @@ int cli_git_ran(const char *root, const char *const *args, unsigned int count, c
     {
         mmgr_line_put_n(err_msg, from, (unsigned long long)(to - from));
     }
-    cli_cell_release(joined.out, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(joined.out, &g_cli_git_cells);
     cli_git_given(gave);
     return ok;
 }

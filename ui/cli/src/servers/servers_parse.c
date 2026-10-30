@@ -36,12 +36,12 @@ static CliServersReading s_reading = {CLI_LOCK_INIT};
 // the parse's storage given back
 static void parse_storage_given(void)
 {
-    cli_cell_release(s_room.run, &g_cli_servers_cells);
-    cli_cell_release(s_room.line_first, &g_cli_servers_cells);
-    cli_cell_release(s_room.line_runs, &g_cli_servers_cells);
-    cli_cell_release(s_room.fold_first, &g_cli_servers_cells);
-    cli_cell_release(s_room.fold_last, &g_cli_servers_cells);
-    cli_cell_release(s_room.range, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_room.run, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_room.line_first, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_room.line_runs, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_room.fold_first, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_room.fold_last, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_room.range, &g_cli_servers_cells);
     memor.set(&(MemoriaCfg){.dst = &s_room, .val = 0, .bytes = sizeof(s_room)});
 }
 
@@ -49,7 +49,7 @@ static void parse_storage_given(void)
 static void parse_released(void)
 {
     parse_storage_given();
-    cli_cell_release(s_text, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(s_text, &g_cli_servers_cells);
     s_text = NULL;
     cli_servers_reading_released(&s_reading);
 }
@@ -173,7 +173,7 @@ static void parse_stored(const char *key, const char *path, unsigned long long h
     const CliServersParseHead head = {hash,          (unsigned int)s_whole, s_parsed.lines,
                                       s_parsed.runs, s_parsed.folds,        s_parsed.ranges};
     const unsigned long long size = parse_stored_size(&head);
-    char *const stored = cli_lane_alloc(size, &g_cli_servers_cells);
+    char *const stored = g_cli_cells->temporary_buf_alloc(size, &g_cli_servers_cells);
     if (stored == NULL)
     {
         return;
@@ -189,7 +189,7 @@ static void parse_stored(const char *key, const char *path, unsigned long long h
     cli_lock_take(&g_cli_servers_texts_lock);
     (void)cli_keyed_put(&g_cli_servers_parses, key, path, stored, size);
     cli_lock_give(&g_cli_servers_texts_lock);
-    cli_cell_release(stored, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(stored, &g_cli_servers_cells);
 }
 
 // the class a server's semantic token of a type takes, by the type's name, CLI_INSPECT_CLASSES where it takes none
@@ -542,7 +542,7 @@ int cli_servers_spans(const char *path, const char *key, CliTextPlace from, CliT
             (spans != NULL) ? cli_inspect_ranges_at(s_room.range, s_parsed.ranges, start, end, spans, s_parsed.ranges)
                             : 0u;
         parse_spans_written(spans, count, out);
-        cli_cell_release(spans, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(spans, &g_cli_servers_cells);
         parse_released();
         return 1;
     }

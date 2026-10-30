@@ -91,7 +91,7 @@ void cli_templates_list(VerbaLinea *out)
                         cellul.len(&(CatenaFinitaCfg){.src = names.name[at], .cap = CLI_CELLS_POOL}));
     }
     mmgr_line_ch(out, ']');
-    cli_cell_release(names.name, &g_cli_templates_cells);
+    g_cli_cells->persistent_buf_release(names.name, &g_cli_templates_cells);
 }
 
 // whether a name is one a folder may take: not blank, no separator, no `..`, and none of the characters a path reads
@@ -180,7 +180,7 @@ static int cli_file_copied(const char *from, const char *to, const char *name, V
         at += names ? 8ull : 1ull;
     }
     CliFilePiece *const piece =
-        cli_lane_alloc(((2ull * named) + 1ull) * sizeof(*piece), &g_cli_templates_cells);
+        g_cli_cells->temporary_buf_alloc(((2ull * named) + 1ull) * sizeof(*piece), &g_cli_templates_cells);
     if (piece == NULL)
     {
         cli_file_let_go(bytes, size);
@@ -205,7 +205,7 @@ static int cli_file_copied(const char *from, const char *to, const char *name, V
     pieces += 1u;
     // a piece of no bytes contains no zeros either
     const int written = cli_file_pieces_written(to, piece, pieces);
-    cli_cell_release(piece, &g_cli_templates_cells);
+    g_cli_cells->persistent_buf_release(piece, &g_cli_templates_cells);
     cli_file_let_go(bytes, size);
     return written || cli_uncopied(to, err_msg);
 }

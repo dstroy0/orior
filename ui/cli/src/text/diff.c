@@ -87,8 +87,8 @@ static int diff_reserved(unsigned long long then_lines, unsigned long long now_l
 
 static void diff_released(void)
 {
-    cli_cell_release(s_diff->trace, &g_cli_text_cells);
-    cli_cell_release(s_diff->cell, &g_cli_text_cells);
+    g_cli_cells->persistent_buf_release(s_diff->trace, &g_cli_text_cells);
+    g_cli_cells->persistent_buf_release(s_diff->cell, &g_cli_text_cells);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
     cli_lock_give(&s_lock);
 }

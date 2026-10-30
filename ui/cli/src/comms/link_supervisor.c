@@ -202,7 +202,7 @@ static void link_joined(void *context)
         cli_lock_give(&g_cli_link_lock);
         wait = (wait * 2u < CLI_LINK_JOIN_MOST) ? (wait * 2u) : CLI_LINK_JOIN_MOST;
     }
-    cli_cell_release(g_cli_link_line, &g_cli_comms_cells);
+    g_cli_cells->persistent_buf_release(g_cli_link_line, &g_cli_comms_cells);
     g_cli_link_line = NULL;
     cli_lock_take(&g_cli_link_lock);
     g_cli_link.open = 0;

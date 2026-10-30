@@ -617,11 +617,11 @@ static void window_kept(GuiWindow *window)
     }
     VerbaLinea session;
     VerbaLinea args;
-    if (!cli_growing_line_made(&session, GUI_KEPT_FIRST, &g_gui_cells))
+    if (!cli_growing_line_temporary(&session, GUI_KEPT_FIRST, &g_gui_cells))
     {
         return;
     }
-    if (!cli_growing_line_made(&args, GUI_KEPT_FIRST, &g_gui_cells))
+    if (!cli_growing_line_temporary(&args, GUI_KEPT_FIRST, &g_gui_cells))
     {
         g_cli_cells->persistent_buf_release(session.out, &g_gui_cells);
         return;
@@ -1437,12 +1437,10 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     // the answer's tree read on the window thread's lane against a mark, the lane left before the answer is handled:
-    // what the handling keeps is taken where it is kept, and the lane rewound to the mark once the tree is given
+    // what the handling keeps is taken where it is kept, and the lane released at the mark once the tree is given
     // back
     CliJson json;
-    const size_t mark = cli_lane_entered(CLI_CELLS_LANE_WINDOW, CLI_LANE_WINDOW_MS);
-    const unsigned int root = ok ? cli_json_taken_laned(&json, text, size, &err_msg, &g_gui_cells) : CLI_JSON_NONE;
-    cli_lane_left();
+    const unsigned int root = ok ? cli_json_taken_temporary(&json, text, size, &err_msg, &g_gui_cells) : CLI_JSON_NONE;
     window->owed = 1;
     if ((ticket != 0ull) && (ticket == window->asked_launch))
     {
@@ -1722,7 +1720,6 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     {
         cli_json_given(&json);
     }
-    cli_lane_rewound(CLI_CELLS_LANE_WINDOW, mark);
 }
 
 // the memory reading asked for, where none is in flight and the last came GUI_MEMORY_EVERY milliseconds ago

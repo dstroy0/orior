@@ -51,14 +51,14 @@ unsigned int cli_json_tokens_counted(const char *text, unsigned long long size)
     return count;
 }
 
-// the tree's room reserved as cli_json_reserved says, its cell taken for `owner` on the lane the thread is on where
-// `laned` is set and the thread is on one, else from the shared cells' persistent tier
+// the tree's room reserved as cli_json_reserved says, its cell taken for `owner` from the temporary tier where
+// `temporary` is set, else from the persistent tier
 static int json_reserved_in(CliJson *json, unsigned int nodes_most, unsigned long long text_most, const char *what,
-                            CellOwner *owner, int laned)
+                            CellOwner *owner, int temporary)
 {
     const unsigned long long nodes_bytes = (unsigned long long)nodes_most * sizeof(CliJsonNode);
     const unsigned long long bytes = nodes_bytes + text_most + 1ull;
-    unsigned char *const cell = laned ? cli_lane_alloc(bytes, owner) : g_cli_cells->persistent_buf_alloc(bytes, owner);
+    unsigned char *const cell = temporary ? g_cli_cells->temporary_buf_alloc(bytes, owner) : g_cli_cells->persistent_buf_alloc(bytes, owner);
     cli_json_begun(json, (CliJsonNode *)cell, (cell != NULL) ? nodes_most : 0u,
                    (cell != NULL) ? (char *)(cell + nodes_bytes) : NULL, (cell != NULL) ? text_most + 1ull : 0ull);
     json->what = what;
@@ -75,6 +75,14 @@ int cli_json_growing(CliJson *json, unsigned int nodes_first, unsigned long long
                      CellOwner *owner)
 {
     const int reserved = cli_json_reserved(json, nodes_first, text_first, what, owner);
+    json->grows = reserved;
+    return reserved;
+}
+
+int cli_json_growing_temporary(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what,
+                               CellOwner *owner)
+{
+    const int reserved = json_reserved_in(json, nodes_first, text_first, what, owner, 1);
     json->grows = reserved;
     return reserved;
 }
@@ -102,7 +110,7 @@ int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
     CellOwner *const owner = cli_cell_owner(json->node);
     // the cell grown where it stands while the nodes keep their room ahead of the text, and the text alone gains room
     unsigned char *const grown =
-        (nodes_most == json->nodes_most) ? cli_cell_grown(json->node, nodes_bytes + text_most, owner) : NULL;
+        (nodes_most == json->nodes_most) ? g_cli_cells->buf_grow(json->node, nodes_bytes + text_most, owner) : NULL;
     if (grown != NULL)
     {
         json->node = (CliJsonNode *)grown;
@@ -110,7 +118,7 @@ int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
         json->text_most = text_most;
         return 1;
     }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(nodes_bytes + text_most, owner);
+    unsigned char *const cell = cli_cell_beside(json->node, nodes_bytes + text_most, owner);
     if (cell == NULL)
     {
         json->full = 1;
@@ -118,7 +126,7 @@ int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = json->node, .bytes = (size_t)json->nodes * sizeof(CliJsonNode)});
     memor.cpy(&(MemoriaCfg){.dst = cell + nodes_bytes, .src = json->text, .bytes = (size_t)json->used});
-    cli_cell_release(json->node, owner);
+    g_cli_cells->persistent_buf_release(json->node, owner);
     json->node = (CliJsonNode *)cell;
     json->nodes_most = nodes_most;
     json->text = (char *)(cell + nodes_bytes);
@@ -135,21 +143,21 @@ void cli_json_emptied(CliJson *json)
 
 // the tree read as cli_json_taken reads it, its own cell taken as json_reserved_in takes it
 static unsigned int json_taken_in(CliJson *json, const char *text, unsigned long long size, unsigned int nodes_more,
-                                  unsigned long long text_more, VerbaLinea *err_msg, CellOwner *owner, int laned)
+                                  unsigned long long text_more, VerbaLinea *err_msg, CellOwner *owner, int temporary)
 {
     // the tree begun empty before any take: a take refused leaves a tree with no cell for its holder to give back
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
     const unsigned int tokens_most = cli_json_tokens_counted(text, size) + 1u;
-    CfgJsonToken *const tokens = cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), owner);
+    CfgJsonToken *const tokens = g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), owner);
     if ((tokens == NULL) ||
-        !json_reserved_in(json, tokens_most + nodes_more, size + text_more, "a tree's nodes and texts", owner, laned))
+        !json_reserved_in(json, tokens_most + nodes_more, size + text_more, "a tree's nodes and texts", owner, temporary))
     {
-        cli_cell_release(tokens, owner);
+        g_cli_cells->persistent_buf_release(tokens, owner);
         mmgr_line_put(err_msg, "the cells a tree is read into could not be taken");
         return CLI_JSON_NONE;
     }
     const unsigned int root = cli_json_read(json, text, size, tokens, tokens_most, err_msg);
-    cli_cell_release(tokens, owner);
+    g_cli_cells->persistent_buf_release(tokens, owner);
     return root;
 }
 
@@ -159,7 +167,7 @@ unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long 
     return json_taken_in(json, text, size, nodes_more, text_more, err_msg, owner, 0);
 }
 
-unsigned int cli_json_taken_laned(CliJson *json, const char *text, unsigned long long size, VerbaLinea *err_msg,
+unsigned int cli_json_taken_temporary(CliJson *json, const char *text, unsigned long long size, VerbaLinea *err_msg,
                                   CellOwner *owner)
 {
     return json_taken_in(json, text, size, 0u, 0ull, err_msg, owner, 1);
@@ -208,6 +216,6 @@ unsigned int cli_json_file_taken(CliJson *json, const char *path, unsigned int n
 void cli_json_given(CliJson *json)
 {
     // the tree given back as the owner its cell counts to
-    cli_cell_release(json->node, cli_cell_owner(json->node));
+    g_cli_cells->persistent_buf_release(json->node, cli_cell_owner(json->node));
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
 }

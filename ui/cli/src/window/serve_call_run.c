@@ -83,8 +83,8 @@ static int made_libraries_copy(const CliServeArgs *args, VerbaLinea *out, VerbaL
                      cli_binary_copy_beside(file, report, made_copied, out, err_msg);
     mmgr_line_ch(out, ']');
     out->at = done ? out->at : start;
-    cli_cell_release(folders, &g_cli_window_cells);
-    cli_cell_release(report, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(folders, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(report, &g_cli_window_cells);
     return done;
 }
 
@@ -330,7 +330,7 @@ static int qry_joined(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     {
         cli_json_quoted_lossy(out, (const unsigned char *)joined, mmgr_line_ok(&bytes) ? bytes.at : 0ull);
     }
-    cli_cell_release(joined, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(joined, &g_cli_window_cells);
     return done;
 }
 

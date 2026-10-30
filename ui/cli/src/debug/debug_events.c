@@ -137,12 +137,12 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL});
     if (stopped)
     {
-        (void)cli_growing_line_made(&rewritten_body, size + CLI_DEBUG_EVENT_MORE_TEXT, &g_cli_debug_cells);
+        (void)cli_growing_line_temporary(&rewritten_body, size + CLI_DEBUG_EVENT_MORE_TEXT, &g_cli_debug_cells);
     }
     const int rewritten = stopped && data_stop_rewritten(session, body, size, &rewritten_body);
     session->sink.emit(session->sink.context, session->info.id, event, rewritten ? rewritten_body.out : body,
                        rewritten ? rewritten_body.at : size);
-    cli_cell_release(rewritten_body.out, &g_cli_debug_cells);
+    g_cli_cells->persistent_buf_release(rewritten_body.out, &g_cli_debug_cells);
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_CELLS_POOL}))
     {
         // the adapter's last event: its place may be freed once nothing else uses it

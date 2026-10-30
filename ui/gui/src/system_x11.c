@@ -511,7 +511,7 @@ static unsigned long system_icon_put(unsigned long *data, const GuiRaster *raste
 void gui_system_icon(GuiSystem *system, const GuiRaster *title_icon, const GuiRaster *taskbar_icon)
 {
     const unsigned long words = 4ul + ((unsigned long)title_icon->width * title_icon->height) + ((unsigned long)taskbar_icon->width * taskbar_icon->height);
-    unsigned long *const data = g_cli_cells->persistent_buf_alloc(words * sizeof(*data), &s_owner);
+    unsigned long *const data = g_cli_cells->temporary_buf_alloc(words * sizeof(*data), &s_owner);
     if (data == NULL)
     {
         return;

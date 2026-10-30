@@ -132,7 +132,7 @@ static void serve_thread_ended(CliDoorJoined *joined)
     cli_lock_take(&g_cli_door_served.lock);
     g_cli_door_served.joined[joined->place] = NULL;
     cli_lock_give(&g_cli_door_served.lock);
-    cli_cell_release(joined, &g_cli_door_cells);
+    g_cli_cells->persistent_buf_release(joined, &g_cli_door_cells);
 }
 
 // the messages queued sent to the process, one at a time, until the process is gone and its queue is empty; a message
@@ -198,7 +198,7 @@ static int serve_may_join(CliDoorJoined *joined, const char *key, const char *na
     unsigned int count = 0u;
     CliProcess *const parents = cli_processes_taken(&g_cli_door_cells, &count);
     const int under = joined->has_peer && ((joined->peer == given) || cli_under(given, joined->peer, parents, count));
-    cli_cell_release(parents, &g_cli_door_cells);
+    g_cli_cells->persistent_buf_release(parents, &g_cli_door_cells);
     if (!under)
     {
         mmgr_line_put(&err_msg, "the key of ");

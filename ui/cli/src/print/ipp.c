@@ -24,10 +24,10 @@ CellOwner g_cli_ipp_cells = MMGR_CELL_OWNER("cli_ipp");
 
 void cli_ipp_given(CliIppMessage *message)
 {
-    cli_cell_release(message->group, &g_cli_ipp_cells);
-    cli_cell_release(message->attribute, &g_cli_ipp_cells);
-    cli_cell_release(message->value, &g_cli_ipp_cells);
-    cli_cell_release(message->bytes, &g_cli_ipp_cells);
+    g_cli_cells->persistent_buf_release(message->group, &g_cli_ipp_cells);
+    g_cli_cells->persistent_buf_release(message->attribute, &g_cli_ipp_cells);
+    g_cli_cells->persistent_buf_release(message->value, &g_cli_ipp_cells);
+    g_cli_cells->persistent_buf_release(message->bytes, &g_cli_ipp_cells);
     *message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ull, 0};
 }
 

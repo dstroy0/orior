@@ -43,8 +43,8 @@ static CliWake s_wake = CLI_WAKE_INIT;
 // a profile's cells given back, under the profiles' lock
 static void profile_cells_given(CliProfile *profile)
 {
-    cli_cell_release(profile->words, &s_cells);
-    cli_cell_release(profile->path, &s_cells);
+    g_cli_cells->persistent_buf_release(profile->words, &s_cells);
+    g_cli_cells->persistent_buf_release(profile->path, &s_cells);
     profile->words = NULL;
     profile->path = NULL;
 }
@@ -68,7 +68,7 @@ void cli_profile_stop(void)
 static void profile_output_emitted(CliProfile *profile, const char *line, unsigned long long size, int error)
 {
     const unsigned long long room = (size * 6ull) + 64ull;
-    char *const json_buf = cli_lane_alloc(room, &s_cells);
+    char *const json_buf = g_cli_cells->temporary_buf_alloc(room, &s_cells);
     if (json_buf == NULL)
     {
         return;
@@ -81,7 +81,7 @@ static void profile_output_emitted(CliProfile *profile, const char *line, unsign
     {
         profile->sink.emit(profile->sink.context, out.out, out.at);
     }
-    cli_cell_release(json_buf, &s_cells);
+    g_cli_cells->persistent_buf_release(json_buf, &s_cells);
 }
 
 // a line of the program's output received: the counts so far where it starts with the mark, the code the program ended
@@ -98,7 +98,7 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     const unsigned long long length = size - mark;
     // the counts compacted are no longer than they are written
     const unsigned long long room = length + 64ull;
-    char *const json_buf = cli_lane_alloc(room, &s_cells);
+    char *const json_buf = g_cli_cells->temporary_buf_alloc(room, &s_cells);
     if (json_buf == NULL)
     {
         return;
@@ -134,7 +134,7 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     {
         profile->sink.emit(profile->sink.context, out.out, out.at);
     }
-    cli_cell_release(json_buf, &s_cells);
+    g_cli_cells->persistent_buf_release(json_buf, &s_cells);
 }
 
 // the lines of a pipe read until it ends, each in a cell grown as it fills, handed on with its "\r" before "\n" taken
@@ -163,7 +163,7 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
                 if (grown != NULL)
                 {
                     memor.cpy(&(MemoriaCfg){.dst = grown, .src = line, .bytes = (size_t)used});
-                    cli_cell_release(line, &s_cells);
+                    g_cli_cells->persistent_buf_release(line, &s_cells);
                     line = grown;
                     room = wanted;
                 }
@@ -185,7 +185,7 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
     {
         each_line(profile, line, used);
     }
-    cli_cell_release(line, &s_cells);
+    g_cli_cells->persistent_buf_release(line, &s_cells);
 }
 
 // a line the program wrote to its errors reported as output

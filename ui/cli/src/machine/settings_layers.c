@@ -41,7 +41,7 @@ static CliLock s_lock = CLI_LOCK_INIT;
 
 void cli_settings_layers_given(CliLayers *layers)
 {
-    cli_cell_release(layers->text, &g_cli_settings_cells);
+    g_cli_cells->persistent_buf_release(layers->text, &g_cli_settings_cells);
     layers->text = NULL;
     layers->used = 0ull;
     layers->room = 0ull;

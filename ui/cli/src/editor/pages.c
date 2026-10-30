@@ -21,9 +21,9 @@ CliWake g_cli_index_wake = CLI_WAKE_INIT;
 // the cells cannot meet them
 static void pages_cells_given(CliPaged *one)
 {
-    cli_cell_release(one->piece, &g_cli_editor_cells);
-    cli_cell_release(one->index.start, &g_cli_editor_cells);
-    cli_cell_release(one->index.line, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one->piece, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one->index.start, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one->index.line, &g_cli_editor_cells);
     one->piece = NULL;
     one->index.start = NULL;
     one->index.line = NULL;
@@ -73,7 +73,7 @@ static void pages_let_go(CliPaged *one)
     {
         (void)query_removed(one->shadow);
     }
-    cli_cell_release(one, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(one, &g_cli_editor_cells);
 }
 
 CliPaged *cli_paged_of(const char *key, VerbaLinea *err_msg)
@@ -226,7 +226,7 @@ int cli_page_open_reading(const char *key, const char *path, int behind, VerbaLi
     memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(*one)});
     if (!pages_cells_taken(one, size))
     {
-        cli_cell_release(one, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(one, &g_cli_editor_cells);
         mmgr_line_put(err_msg, "the paged text's cells could not be taken");
         return 0;
     }
@@ -600,7 +600,7 @@ char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned l
     const int read = (one != NULL) && cli_page_lines_of(one, from, to, &lines, &err_msg) && !lines.full;
     cli_lock_give(&g_cli_pages_lock);
     // each line's bytes and its NUL
-    char *const text = read ? cli_lane_alloc(lines.used + lines.count + 1ull, owner) : NULL;
+    char *const text = read ? g_cli_cells->persistent_buf_alloc(lines.used + lines.count + 1ull, owner) : NULL;
     const unsigned long long taken = (lines.count < wanted) ? lines.count : wanted;
     unsigned long long at = 0ull;
     for (unsigned long long each = 0ull; (text != NULL) && (each < taken); each += 1ull)

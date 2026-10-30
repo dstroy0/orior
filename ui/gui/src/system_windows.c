@@ -730,7 +730,7 @@ static BOOL CALLBACK system_monitor_seen(HMONITOR monitor, HDC context, LPRECT r
 unsigned int gui_system_areas(CliWindowArea *areas, unsigned int most)
 {
     // the count, the most and the areas handed to the enumeration together, the areas after two words
-    unsigned int *const words = g_cli_cells->persistent_buf_alloc((2u * sizeof(unsigned int)) + ((most != 0u ? most : 1u) * sizeof(*areas)), &s_owner);
+    unsigned int *const words = g_cli_cells->temporary_buf_alloc((2u * sizeof(unsigned int)) + ((most != 0u ? most : 1u) * sizeof(*areas)), &s_owner);
     if (words == NULL)
     {
         return 0u;

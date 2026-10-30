@@ -141,10 +141,20 @@ def cmd_cli_build(a):
     return streamed([bash(), CLI_BUILD])
 
 
+def checks_env(a):
+    """The settings `--sanitize` and `--owners` give the checks' scripts, or None where neither is named."""
+    env = {}
+    if a.sanitize:
+        env["ORIOR_SANITIZE"] = a.sanitize
+    if a.owners:
+        env["ORIOR_CELLS_OWNERS"] = "1"
+    return dict(os.environ, **env) if env else None
+
+
 def cmd_cli_test(a):
     # cli_test.sh runs every file and ends 0; a file's failure is its "test exit" or its check line, read as `run` reads them
     seen = []
-    code = streamed([bash(), CLI_TESTS, *a.names], seen=seen)
+    code = streamed([bash(), CLI_TESTS, *a.names], seen=seen, env=checks_env(a))
     checks, failed, exits = output_read("".join(seen))
     failing = sum(1 for one in exits if one != 0)
     print("cli test: %d checks, %d failed, %d of %d files failing" % (checks, failed, failing, len(exits)), flush=True)
@@ -174,6 +184,8 @@ def register(sub):
     p.set_defaults(fn=cmd_cli_build)
     p = cli.add_parser("test", help="the CLI's checks, every one where none is named")
     p.add_argument("names", nargs="*", help="check names, as cli_test.sh takes them")
+    p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the checks built and run under this sanitizer, a report failing its check")
+    p.add_argument("--owners", action="store_true", help="each check's end prints MMgr's owner table, every owner's bytes now and its peak")
     p.set_defaults(fn=cmd_cli_test)
     p = cli.add_parser("bench", help="the CLI's common paths timed over ui/cli/src, rows kept in build/harness/bench/bench.tsv")
     p.add_argument("--label", default="", help="the run's label in the kept rows, such as before or after")

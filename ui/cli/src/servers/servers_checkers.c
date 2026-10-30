@@ -103,7 +103,7 @@ static void checkers_file_job(const void *job, unsigned long long size)
     {
         cli_servers_findings_stored(one->id, findings, found_size, 0, &one->sink);
     }
-    cli_cell_release(findings, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
 // the tree checked whole by one checker, its findings written through pieces into a cell of their size and stored
@@ -127,7 +127,7 @@ static void checkers_tree_job(const void *job, unsigned long long size)
     {
         cli_servers_findings_stored(one->id, findings, found_size, 0, &one->sink);
     }
-    cli_cell_release(findings, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
 // a path copied into what is sized for CLI_PATH_MAX_LEN

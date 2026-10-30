@@ -37,7 +37,7 @@ unsigned int cli_window_tree_called(CliJson *json, const char *name, const char 
     mmgr_line_put(&line, more);
     mmgr_line_ch(&line, '}');
     VerbaLinea answer;
-    if (!cli_growing_line_made(&answer, CLI_WINDOW_TEXT_ANSWER, &g_cli_window_text_cells))
+    if (!cli_growing_line_temporary(&answer, CLI_WINDOW_TEXT_ANSWER, &g_cli_window_text_cells))
     {
         mmgr_line_put(err_msg, "the tree's answer on a text could not be taken");
         return CLI_JSON_NONE;
@@ -48,7 +48,7 @@ unsigned int cli_window_tree_called(CliJson *json, const char *name, const char 
         read = cli_json_taken(json, answer.out, mmgr_line_ok(&answer) ? answer.at : 0ull, 0u, 0ull, err_msg,
                               &g_cli_window_text_cells);
     }
-    cli_cell_release(answer.out, &g_cli_window_text_cells);
+    g_cli_cells->persistent_buf_release(answer.out, &g_cli_window_text_cells);
     return read;
 }
 
@@ -113,11 +113,11 @@ static int text_document_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLi
     }
     // a cell is taken for one of each where the page sent none: a taken cell is never of no bytes
     CliEdit *const edit_of =
-        cli_lane_alloc((edits_count + 1ull) * sizeof(*edit_of), &g_cli_window_text_cells);
+        g_cli_cells->temporary_buf_alloc((edits_count + 1ull) * sizeof(*edit_of), &g_cli_window_text_cells);
     const CliEdit **const change_of =
-        g_cli_cells->persistent_buf_alloc((changes_count + 1ull) * sizeof(*change_of), &g_cli_window_text_cells);
+        g_cli_cells->temporary_buf_alloc((changes_count + 1ull) * sizeof(*change_of), &g_cli_window_text_cells);
     unsigned int *const edits_of =
-        g_cli_cells->persistent_buf_alloc((changes_count + 1ull) * sizeof(*edits_of), &g_cli_window_text_cells);
+        g_cli_cells->temporary_buf_alloc((changes_count + 1ull) * sizeof(*edits_of), &g_cli_window_text_cells);
     int edited = 0;
     if ((edit_of == NULL) || (change_of == NULL) || (edits_of == NULL))
     {
@@ -155,9 +155,9 @@ static int text_document_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLi
             text_shape_written(&shape, out);
         }
     }
-    cli_cell_release(edits_of, &g_cli_window_text_cells);
-    cli_cell_release(change_of, &g_cli_window_text_cells);
-    cli_cell_release(edit_of, &g_cli_window_text_cells);
+    g_cli_cells->persistent_buf_release(edits_of, &g_cli_window_text_cells);
+    g_cli_cells->persistent_buf_release(change_of, &g_cli_window_text_cells);
+    g_cli_cells->persistent_buf_release(edit_of, &g_cli_window_text_cells);
     return edited;
 }
 
@@ -314,7 +314,7 @@ static int text_workspace_read(const CliServeArgs *args, VerbaLinea *out, VerbaL
     const unsigned char *const mapped = cli_file_read(path, &size);
     // a text made plain is never longer than the text, as it only leaves comments and commas out
     char *const plain_buf =
-        (mapped != NULL) ? cli_lane_alloc(size + 1ull, &g_cli_window_text_cells) : NULL;
+        (mapped != NULL) ? g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_window_text_cells) : NULL;
     VerbaLinea plain = {plain_buf, (plain_buf != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (plain_buf != NULL)
     {
@@ -333,7 +333,7 @@ static int text_workspace_read(const CliServeArgs *args, VerbaLinea *out, VerbaL
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int value = cli_json_taken(&json, plain_buf, mmgr_line_ok(&plain) ? plain.at : 0ull, 0u, 0ull,
                                               &unread, &g_cli_window_text_cells);
-    cli_cell_release(plain_buf, &g_cli_window_text_cells);
+    g_cli_cells->persistent_buf_release(plain_buf, &g_cli_window_text_cells);
     if (value == CLI_JSON_NONE)
     {
         cli_json_given(&json);

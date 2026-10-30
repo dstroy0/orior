@@ -91,7 +91,7 @@ static void document_found_in_little_room(void)
     if (taken != 0u)
     {
         taken -= 1u;
-        cli_cell_release(s_taken[taken], &g_checks_cells);
+        g_cli_cells->persistent_buf_release(s_taken[taken], &g_checks_cells);
     }
     CliShape shape;
     (void)cli_document_store("little", "one line\ntwo lines", 18ull, &shape);
@@ -100,7 +100,7 @@ static void document_found_in_little_room(void)
     cli_document_release("little");
     for (unsigned int at = 0u; at < taken; at += 1u)
     {
-        cli_cell_release(s_taken[at], &g_checks_cells);
+        g_cli_cells->persistent_buf_release(s_taken[at], &g_checks_cells);
     }
 }
 
@@ -153,7 +153,7 @@ static void document_edits_in_place(void)
     }
     CliShape shape;
     (void)cli_document_store("large", text, size, &shape);
-    cli_cell_release(text, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(text, &g_checks_cells);
     unsigned long long pool = 0ull;
     unsigned long long before = 0ull;
     unsigned long long temporary = 0ull;
@@ -736,7 +736,7 @@ static void document_walk_onward(void)
     cli_check((walked_again - walked) <= ((2ull * (walked - began)) + 100ull),
               "an edit that moves the state of every line after it is walked many lines to a step");
     cli_document_release("onward");
-    cli_cell_release(text, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(text, &g_checks_cells);
 }
 
 // a paged text's lines viewed far from its first: colored at once from root at the first line the page holds, only

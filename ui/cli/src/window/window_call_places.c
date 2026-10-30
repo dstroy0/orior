@@ -99,7 +99,7 @@ static int places_tags_room(CliWindowTags *tags)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = tags->tag, .bytes = tags->count * sizeof(*grown)});
     }
-    cli_cell_release(tags->tag, &g_cli_window_places_cells);
+    g_cli_cells->persistent_buf_release(tags->tag, &g_cli_window_places_cells);
     tags->tag = grown;
     tags->room = room;
     return 1;
@@ -147,7 +147,7 @@ static int places_languages_list(const CliServeArgs *args, VerbaLinea *out, Verb
         cli_window_quoted(out, tags.tag[at]);
     }
     mmgr_line_ch(out, ']');
-    cli_cell_release(tags.tag, &g_cli_window_places_cells);
+    g_cli_cells->persistent_buf_release(tags.tag, &g_cli_window_places_cells);
     return 1;
 }
 

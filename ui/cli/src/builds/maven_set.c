@@ -208,7 +208,7 @@ static int set_user(const char *name, const char *value, VerbaLinea *out, VerbaL
     const char *const text = (mapped != NULL) ? (const char *)mapped : "";
     const unsigned long long size = (mapped != NULL) ? mapped_size : 0ull;
     VerbaLinea written;
-    (void)cli_growing_line_made(&written, size + CLI_MAVEN_SET_MORE, &g_cli_build_cells);
+    (void)cli_growing_line_temporary(&written, size + CLI_MAVEN_SET_MORE, &g_cli_build_cells);
     unsigned int *starts = NULL;
     int settings = 1;
     if (cli_text_lead(text, size) == size)
@@ -238,8 +238,8 @@ static int set_user(const char *name, const char *value, VerbaLinea *out, VerbaL
     const int done = settings && mmgr_line_ok(&written) &&
                      !(cli_path_parent(path, parent) && !query_folder_made(parent)) &&
                      query_file_written(path, written.out, written.at);
-    cli_cell_release(starts, &g_cli_build_cells);
-    cli_cell_release(written.out, &g_cli_build_cells);
+    g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
+    g_cli_cells->persistent_buf_release(written.out, &g_cli_build_cells);
     if (mapped != NULL)
     {
         cli_file_let_go(mapped, mapped_size);
@@ -287,7 +287,7 @@ int cli_maven_set(const char *pom, const char *text, unsigned long long size, co
         unsigned int *const starts = cli_build_lines_taken(text, size, &lines);
         done = (setting < 4u) ? set_compiler(pom, setting, s_value, &lines, out, err_msg)
                               : set_plugin_version(pom, s_value, &lines, out, err_msg);
-        cli_cell_release(starts, &g_cli_build_cells);
+        g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "local-repository", .cap = CLI_CELLS_POOL}))
     {

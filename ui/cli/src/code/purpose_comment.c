@@ -89,7 +89,7 @@ static int cli_room_taken(const char *text, unsigned long long size)
 // the room's cell given back
 static void cli_room_given(void)
 {
-    cli_cell_release(s_room.line, &g_cli_purpose_cells);
+    g_cli_cells->persistent_buf_release(s_room.line, &g_cli_purpose_cells);
     s_room.line = NULL;
     s_room.body = NULL;
     s_room.lines = 0u;
@@ -113,8 +113,8 @@ static void cli_plugin_each(void *context, const CliPlugin *plugin)
     const char *const open = cli_json_string(&json, cli_json_item(&json, block, 0u), NULL);
     const char *const close = cli_json_string(&json, cli_json_item(&json, block, 1u), NULL);
     s_room.has_line = line != NULL;
-    memor.cpy(
-        &(MemoriaCfg){.dst = s_room.line_mark, .bytes = sizeof(s_room.line_mark), .src = (line != NULL) ? line : ""});
+    (void)cellul.copy(&(CatenaFinitaCfg){
+        .dst = s_room.line_mark, .src = (line != NULL) ? line : "", .cap = sizeof(s_room.line_mark)});
     s_room.has_block = (open != NULL) && (close != NULL);
     memor.cpy(&(MemoriaCfg){
         .dst = s_room.open,

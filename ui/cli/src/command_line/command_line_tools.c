@@ -62,7 +62,7 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = rows, .src = s_rows, .bytes = (size_t)s_row_count * sizeof(*rows)});
-        cli_cell_release(s_rows, &g_cli_command_line_cells);
+        g_cli_cells->persistent_buf_release(s_rows, &g_cli_command_line_cells);
         s_rows = rows;
         s_row_room = room;
     }
@@ -167,7 +167,7 @@ int cli_plugins_list(void)
         mmgr_line_put(&line, folder);
         cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
     }
-    cli_cell_release(s_rows, &g_cli_command_line_cells);
+    g_cli_cells->persistent_buf_release(s_rows, &g_cli_command_line_cells);
     s_rows = NULL;
     s_row_count = 0u;
     s_row_room = 0u;

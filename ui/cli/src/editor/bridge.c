@@ -566,7 +566,7 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         }
         cli_file_let_go(one->bytes, one->size);
     }
-    cli_cell_release(files.file, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(files.file, &g_cli_editor_cells);
     cli_json_set(json, bridge, "maps", maps);
     cli_json_set(json, bridge, "rulesets", rulesets);
     return json->full ? CLI_JSON_NONE : bridge;

@@ -94,7 +94,7 @@ static int reads(unsigned long long first, unsigned long long last, const char *
     const int same = (lines != NULL) &&
                      (size == cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL})) &&
                      (memor.cmp(&(MemoriaCfg){.src = lines, .other = wanted, .bytes = size}) == 0);
-    cli_cell_release(lines, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(lines, &g_checks_cells);
     return same;
 }
 

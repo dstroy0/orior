@@ -557,7 +557,7 @@ static unsigned int cli_effect_next(const CliLeafRead *read, unsigned int from, 
 static long long cli_effect_judged(CliEffect *effect, const CliLeafRead *read, unsigned int from, unsigned int to)
 {
     CliEffectToken *const token =
-        cli_lane_alloc((unsigned long long)((to - from) + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
+        g_cli_cells->temporary_buf_alloc((unsigned long long)((to - from) + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
     if (token == NULL)
     {
         effect->refused = 1;
@@ -576,7 +576,7 @@ static long long cli_effect_judged(CliEffect *effect, const CliLeafRead *read, u
         }
     }
     const long long value = cli_effect_value(effect, token, count, 0u);
-    cli_cell_release(token, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(token, &g_cli_code_cells);
     return value;
 }
 
@@ -763,7 +763,7 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
         return;
     }
     const unsigned int path_at = effect->walked[effect->walks - 1u];
-    CliEffectBranch *const branch = cli_lane_alloc(sizeof(CliEffectBranch), &g_cli_code_cells);
+    CliEffectBranch *const branch = g_cli_cells->temporary_buf_alloc(sizeof(CliEffectBranch), &g_cli_code_cells);
     char full[CLI_PATH_MAX_LEN];
     cli_full(effect->root, path, full);
     // the branch the walk starts from is the editor's text where one is given, else every branch is the disk's
@@ -776,7 +776,7 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
     if (bytes == NULL)
     {
         effect->refused |= branch == NULL;
-        cli_cell_release(branch, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(branch, &g_cli_code_cells);
         return;
     }
     branch->open = 0u;
@@ -884,8 +884,8 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
             cli_file_let_go(bytes, size);
         }
     }
-    cli_cell_release(branch->declared, &g_cli_code_cells);
-    cli_cell_release(branch, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(branch->declared, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(branch, &g_cli_code_cells);
 }
 
 CliEffect *cli_effect_made(const char *path, const char *name, int slicing, VerbaLinea *err_msg)
@@ -895,7 +895,7 @@ CliEffect *cli_effect_made(const char *path, const char *name, int slicing, Verb
     if ((languages == NULL) || !cli_growing_line_made(&effect->text, CLI_EFFECT_TEXT_FIRST, &g_cli_code_cells))
     {
         cli_symbols_languages_given(languages);
-        cli_cell_release(effect, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(effect, &g_cli_code_cells);
         mmgr_line_put(err_msg, "the cells cannot meet the walk");
         return NULL;
     }
@@ -969,15 +969,15 @@ void cli_effect_given_back(CliEffect *effect)
             cli_file_let_go(effect->branch_read[at].bytes, effect->branch_read[at].size);
         }
     }
-    cli_cell_release(effect->branch_read, &g_cli_code_cells);
-    cli_cell_release(effect->seen, &g_cli_code_cells);
-    cli_cell_release(effect->text.out, &g_cli_code_cells);
-    cli_cell_release(effect->macro, &g_cli_code_cells);
-    cli_cell_release(effect->value_leaf, &g_cli_code_cells);
-    cli_cell_release(effect->walked, &g_cli_code_cells);
-    cli_cell_release(effect->include, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(effect->branch_read, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(effect->seen, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(effect->text.out, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(effect->macro, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(effect->value_leaf, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(effect->walked, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(effect->include, &g_cli_code_cells);
     cli_symbols_languages_given(effect->languages);
-    cli_cell_release(effect, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(effect, &g_cli_code_cells);
 }
 
 int cli_symbols_effect(const char *path, unsigned int line, const char *name, VerbaLinea *out, VerbaLinea *err_msg)

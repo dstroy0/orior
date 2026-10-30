@@ -92,7 +92,7 @@ int cli_report_open_url(const char *url, VerbaLinea *err_msg)
 static CliLock s_report_lock = CLI_LOCK_INIT;
 
 // a field of a report struck into `into`, a growing line begun here and given back with
-// cli_cell_release(into->out, &g_cli_machine_cells): the field, "" where its cells are refused
+// g_cli_cells->persistent_buf_release(into->out, &g_cli_machine_cells): the field, "" where its cells are refused
 static const char *cli_struck(const char *text, const char *root, VerbaLinea *into)
 {
     if (!cli_growing_line_made(into, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
@@ -131,7 +131,7 @@ static int cli_file_by_gh(const CliReport *report, const char *root, const char 
         return 1;
     }
     VerbaLinea body;
-    if (!cli_growing_line_made(&body, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    if (!cli_growing_line_temporary(&body, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
     {
         return 0;
     }
@@ -148,7 +148,7 @@ static int cli_file_by_gh(const CliReport *report, const char *root, const char 
     // a repository without a category's label still takes the issue, unlabelled
     const int made = cli_gh(labelled, 12u, written, filed->url, sizeof(filed->url)) ||
                      cli_gh(labelled, 8u, written, filed->url, sizeof(filed->url));
-    cli_cell_release(body.out, &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release(body.out, &g_cli_machine_cells);
     if (made)
     {
         // the last line gh writes, the issue's address
@@ -182,13 +182,13 @@ static void cli_file_as(const CliReport *given, const char *root, int open, CliF
                               cli_struck(given->logs, root, &field[3])};
     char print[17];
     VerbaLinea joined;
-    if (cli_growing_line_made(&joined, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    if (cli_growing_line_temporary(&joined, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
     {
         mmgr_line_put(&joined, report.title);
         mmgr_line_ch(&joined, '\n');
         mmgr_line_put(&joined, report.logs);
         cli_report_fingerprint(report.category, (mmgr_line_finish(&joined) != 0ull) ? joined.out : "", print);
-        cli_cell_release(joined.out, &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(joined.out, &g_cli_machine_cells);
     }
     else
     {
@@ -204,7 +204,7 @@ static void cli_file_as(const CliReport *given, const char *root, int open, CliF
     }
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        cli_cell_release(field[at].out, &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(field[at].out, &g_cli_machine_cells);
     }
     cli_lock_give(&s_report_lock);
     if (!by_gh && open)
@@ -226,7 +226,7 @@ int cli_report_error(const char *category, const char *message, const char *deta
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
     VerbaLinea report_line;
-    if (cli_growing_line_made(&report_line, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    if (cli_growing_line_temporary(&report_line, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
     {
         mmgr_line_put(&report_line, message);
         mmgr_line_ch(&report_line, '\n');
@@ -235,7 +235,7 @@ int cli_report_error(const char *category, const char *message, const char *deta
         {
             cli_report_saved(report_line.out, root);
         }
-        cli_cell_release(report_line.out, &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(report_line.out, &g_cli_machine_cells);
     }
     if (!cli_report_auto() || cli_net_is_disabled())
     {
@@ -313,7 +313,7 @@ int cli_report_error(const char *category, const char *message, const char *deta
     }
     VerbaLinea what;
     const char *err_text = "";
-    if (cli_growing_line_made(&what, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    if (cli_growing_line_temporary(&what, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
     {
         mmgr_line_put(&what, "orior_cli reported this error on its own.\n\n");
         mmgr_line_put(&what, message);
@@ -321,7 +321,7 @@ int cli_report_error(const char *category, const char *message, const char *deta
     }
     const CliReport report = {category, title, err_text, "", detail};
     cli_file_as(&report, root, 0, filed);
-    cli_cell_release(what.out, &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release(what.out, &g_cli_machine_cells);
     cli_lock_give(&s_lock);
     return 1;
 }

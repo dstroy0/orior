@@ -329,7 +329,7 @@ void cli_versions_check(const char *root, const char *path, const char *text, un
             }
         }
     }
-    cli_cell_release(s_check.coordinates, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(s_check.coordinates, &g_cli_versions_cells);
     s_check.coordinates = NULL;
     s_check.full = NULL;
     cli_versions_released();

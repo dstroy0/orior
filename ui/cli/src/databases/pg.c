@@ -230,7 +230,7 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
         cli_lock_take(&s_links_lock);
         s_links[pg->place] = NULL;
         cli_lock_give(&s_links_lock);
-        cli_cell_release(pg, &g_cli_db_cells);
+        g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
         return NULL;
     }
     cli_socket_waited(&pg->socket, within);
@@ -240,7 +240,7 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
         cli_lock_take(&s_links_lock);
         s_links[pg->place] = NULL;
         cli_lock_give(&s_links_lock);
-        cli_cell_release(pg, &g_cli_db_cells);
+        g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
         return NULL;
     }
     cli_socket_waited(&pg->socket, 0u);
@@ -255,5 +255,5 @@ void cli_pg_closed(CliPg *pg)
     cli_lock_take(&s_links_lock);
     s_links[pg->place] = NULL;
     cli_lock_give(&s_links_lock);
-    cli_cell_release(pg, &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
 }

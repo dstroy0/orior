@@ -42,7 +42,7 @@ static char *keyed_cell_taken(const CliKeyed *keyed, unsigned long long size)
 
 static void keyed_cell_given(char *cell)
 {
-    cli_cell_release(cell, &g_cli_text_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_text_cells);
 }
 
 // that `key` could not be stored by `keyed`, and why, reported on the standard error

@@ -281,7 +281,7 @@ int cli_files_bring_over(CliCall call, void *call_context, const char *into, con
     (void)cli_growing_line_made(&over.arguments, CLI_OVER_ARGUMENTS_FIRST, &g_cli_editor_cells);
     (void)cli_growing_line_made(&over.answer, CLI_OVER_ANSWER_FIRST, &g_cli_editor_cells);
     const int brought = cli_over_brought(&over, into, from, count, out, err_msg);
-    cli_cell_release(over.arguments.out, &g_cli_editor_cells);
-    cli_cell_release(over.answer.out, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(over.arguments.out, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(over.answer.out, &g_cli_editor_cells);
     return brought;
 }

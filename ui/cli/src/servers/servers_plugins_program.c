@@ -33,7 +33,7 @@ int cli_servers_plugin_program(const CliJson *json, unsigned int server, char *p
         unsigned int count = 0u;
         char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_servers_cells);
         cli_toolchains_find(&manifest_json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &found);
-        cli_cell_release(folders, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(folders, &g_cli_servers_cells);
     }
     cli_json_given(&manifest_json);
     const char *const names[1] = {name};

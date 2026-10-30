@@ -173,10 +173,10 @@ int cli_report_set_auto(int on, VerbaLinea *err_msg)
         }
     }
     VerbaLinea out;
-    const int begun = cli_growing_line_made(&out, CLI_REPORT_WRITTEN_FIRST, &g_cli_machine_cells);
+    const int begun = cli_growing_line_temporary(&out, CLI_REPORT_WRITTEN_FIRST, &g_cli_machine_cells);
     cli_json_write(&json, made, &out, 2u, 0);
     const int written = begun && !json.full && mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
-    cli_cell_release(out.out, &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release(out.out, &g_cli_machine_cells);
     cli_json_given(&json);
     cli_lock_give(&s_settings_lock);
     if (!written)
@@ -246,11 +246,11 @@ static void cli_strike(char **struck, const char *found, const char *put)
         {
             cli_replaced(text, forms[form], put, &out);
         }
-        cli_cell_release(*struck, &g_cli_machine_cells);
+        g_cli_cells->persistent_buf_release(*struck, &g_cli_machine_cells);
         *struck = (begun && mmgr_line_ok(&out)) ? out.out : NULL;
         if (begun && (*struck == NULL))
         {
-            cli_cell_release(out.out, &g_cli_machine_cells);
+            g_cli_cells->persistent_buf_release(out.out, &g_cli_machine_cells);
         }
     }
 }
@@ -258,7 +258,7 @@ static void cli_strike(char **struck, const char *found, const char *put)
 void cli_report_scrub(const char *text, const char *root, VerbaLinea *out)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    char *struck = cli_lane_alloc(length + 1ull, &g_cli_machine_cells);
+    char *struck = g_cli_cells->temporary_buf_alloc(length + 1ull, &g_cli_machine_cells);
     if (struck != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = struck, .src = text, .bytes = length + 1u});
@@ -303,7 +303,7 @@ void cli_report_scrub(const char *text, const char *root, VerbaLinea *out)
         }
     }
     mmgr_line_put(out, (struck != NULL) ? struck : "");
-    cli_cell_release(struck, &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release(struck, &g_cli_machine_cells);
 }
 
 void cli_report_fingerprint(const char *category, const char *text, char *out)
@@ -339,7 +339,7 @@ void cli_report_saved(const char *text, const char *root)
     line.out[(line.at < line.capacity) ? line.at : (line.capacity - 1u)] = '\0';
     cli_lock_take(&s_errors_lock);
     const unsigned int place = (s_first + s_count) % CLI_REPORT_RETAIN_MAX;
-    cli_cell_release(s_errors[place], &g_cli_machine_cells);
+    g_cli_cells->persistent_buf_release(s_errors[place], &g_cli_machine_cells);
     s_errors[place] = line.out;
     if (s_count < CLI_REPORT_RETAIN_MAX)
     {

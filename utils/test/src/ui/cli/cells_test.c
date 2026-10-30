@@ -34,7 +34,7 @@ int main(void)
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(1000ull, &s_checked);
     cli_check(cell != NULL, "a cell is taken from the pool made");
     cli_check(!cli_cells_made(32ull << 20u), "the pool is not made anew while a cell is taken");
-    cli_cell_release(cell, &s_checked);
+    g_cli_cells->persistent_buf_release(cell, &s_checked);
     cli_check(cli_cells_made(32ull << 20u), "the pool is made anew once the cell is given back");
     // a cell counted to an owner, listed in the cellblock's audit while it is taken, and taken off as it is given back;
     // the pool made anew at its full size first, which the audit's parsed tree takes from
@@ -59,7 +59,7 @@ int main(void)
     }
     cli_check(listed_count == embed_atomic_usize_load(&s_checked.in_use),
               "the cellblock's audit lists the owner with the bytes it has taken");
-    cli_cell_release(counted, &s_checked);
+    g_cli_cells->persistent_buf_release(counted, &s_checked);
     cli_check(embed_atomic_usize_load(&s_checked.in_use) == 0ull,
               "and the bytes come off the owner as the cell is given back");
     cli_check(g_cli_cells->persistent_buf_alloc((size_t)CLI_CELLS_POOL, &s_checked) == NULL,

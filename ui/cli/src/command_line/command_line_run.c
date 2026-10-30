@@ -140,7 +140,7 @@ static void run_window(CliOutcome *outcome, const char *named, const char *remot
             return;
         }
         VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-        (void)cli_growing_line_made(&out, CLI_RUN_OUT_FIRST, &g_cli_command_line_cells);
+        (void)cli_growing_line_temporary(&out, CLI_RUN_OUT_FIRST, &g_cli_command_line_cells);
         err_msg.at = 0ull;
         const int ran = cli_at_terminal_run(s_found, command, args, count, &out, &err_msg);
         if (!ran)
@@ -151,7 +151,7 @@ static void run_window(CliOutcome *outcome, const char *named, const char *remot
         {
             cli_out_line(out.out, out.at);
         }
-        cli_cell_release(out.out, &g_cli_command_line_cells);
+        g_cli_cells->persistent_buf_release(out.out, &g_cli_command_line_cells);
         run_exit(outcome, ran ? 0 : CLI_WRONG);
         return;
     }
@@ -170,11 +170,11 @@ static void run_window(CliOutcome *outcome, const char *named, const char *remot
 static void run_help(void)
 {
     VerbaLinea help = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&help, CLI_RUN_HELP_FIRST, &g_cli_command_line_cells);
+    (void)cli_growing_line_temporary(&help, CLI_RUN_HELP_FIRST, &g_cli_command_line_cells);
     cli_help(&help);
     const unsigned long long size = mmgr_line_ok(&help) ? help.at : 0ull;
     cli_out_line(help.out, (help.out != NULL) ? cli_text_trimmed_end(help.out, size) : 0ull);
-    cli_cell_release(help.out, &g_cli_command_line_cells);
+    g_cli_cells->persistent_buf_release(help.out, &g_cli_command_line_cells);
 }
 
 // the words run as the menus run them, a command that acts in the window opened on the tree `remote` names where it

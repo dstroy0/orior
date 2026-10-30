@@ -142,10 +142,10 @@ static int usages_read(const char *tree, const char *path, unsigned int line, un
 // the usages read and their order given back
 static void usages_given(CliServersUsagesRead *read, unsigned int *order)
 {
-    cli_cell_release(order, &g_cli_servers_cells);
-    cli_cell_release(read->usage.out, &g_cli_servers_cells);
-    cli_cell_release(read->paths.out, &g_cli_servers_cells);
-    cli_cell_release(read->texts.out, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(order, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(read->usage.out, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(read->paths.out, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(read->texts.out, &g_cli_servers_cells);
 }
 
 int cli_servers_usages_written(const char *tree, const char *path, unsigned int line, unsigned int col, VerbaLinea *out,

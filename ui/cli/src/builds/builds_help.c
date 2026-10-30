@@ -15,7 +15,7 @@ unsigned int *cli_build_lines_taken(const char *text, unsigned long long size, C
         count += (text[at] == '\n') ? 1ull : 0ull;
     }
     unsigned int *const starts =
-        (count <= 0xffffffffull) ? cli_lane_alloc(count * sizeof(unsigned int), &g_cli_build_cells)
+        (count <= 0xffffffffull) ? g_cli_cells->persistent_buf_alloc(count * sizeof(unsigned int), &g_cli_build_cells)
                                  : NULL;
     // a count no more than 0xffffffff where the cell is taken, which an unsigned int stores
     cli_build_lines_of(text, size, starts, (starts != NULL) ? (unsigned int)count : 0u, lines);
@@ -109,9 +109,9 @@ void cli_build_findings_begun(CliBuildFindings *found)
 
 void cli_build_findings_given(CliBuildFindings *found)
 {
-    cli_cell_release(found->finding, &g_cli_build_cells);
-    cli_cell_release(found->fix, &g_cli_build_cells);
-    cli_cell_release(found->text, &g_cli_build_cells);
+    g_cli_cells->persistent_buf_release(found->finding, &g_cli_build_cells);
+    g_cli_cells->persistent_buf_release(found->fix, &g_cli_build_cells);
+    g_cli_cells->persistent_buf_release(found->text, &g_cli_build_cells);
     *found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
 }
 

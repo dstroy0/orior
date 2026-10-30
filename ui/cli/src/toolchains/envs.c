@@ -317,8 +317,8 @@ void cli_required_written(const CliRequired *required, VerbaLinea *out)
 
 void cli_required_given(CliRequired *required)
 {
-    cli_cell_release(required->name, &g_cli_envs_cells);
-    cli_cell_release(required->text, &g_cli_envs_cells);
+    g_cli_cells->persistent_buf_release(required->name, &g_cli_envs_cells);
+    g_cli_cells->persistent_buf_release(required->text, &g_cli_envs_cells);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
 }
 

@@ -59,7 +59,7 @@ static long long cli_effect_number(const CliEffectToken *token)
 static CliEffectToken *cli_effect_tokens_of(const CliEffect *effect, unsigned int first, unsigned int count)
 {
     CliEffectToken *const tokens =
-        cli_lane_alloc((unsigned long long)(count + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
+        g_cli_cells->persistent_buf_alloc((unsigned long long)(count + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
     for (unsigned int at = 0u; (tokens != NULL) && (at < count); at += 1u)
     {
         const CliEffectValueLeaf *const leaf = &effect->value_leaf[first + at];
@@ -96,15 +96,15 @@ static void cli_effect_called_put(CliEffectCalled *called, const CliEffectToken 
                 : NULL;
         if (places == NULL)
         {
-            cli_cell_release(grown, &g_cli_code_cells);
+            g_cli_cells->persistent_buf_release(grown, &g_cli_code_cells);
             called->refused = 1;
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = called->token, .bytes = called->count * sizeof(CliEffectToken)});
         memor.cpy(
             &(MemoriaCfg){.dst = places, .src = called->joined_at, .bytes = called->count * sizeof(unsigned int)});
-        cli_cell_release(called->token, &g_cli_code_cells);
-        cli_cell_release(called->joined_at, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(called->token, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(called->joined_at, &g_cli_code_cells);
         called->token = grown;
         called->joined_at = places;
         called->room = room;
@@ -208,8 +208,8 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
     if ((arguments > CLI_EFFECT_ARGUMENTS) || (value == NULL) ||
         !cli_growing_line_made(&called.joined, CLI_EFFECT_JOINED_FIRST, &g_cli_code_cells))
     {
-        cli_cell_release(value, &g_cli_code_cells);
-        cli_cell_release(called.joined.out, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
+        g_cli_cells->persistent_buf_release(called.joined.out, &g_cli_code_cells);
         return 0ll;
     }
     int joining = 0;
@@ -275,10 +275,10 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
     }
     const long long result =
         called.refused ? 0ll : cli_effect_value(effect, called.token, called.count, reading->through + 1u);
-    cli_cell_release(called.token, &g_cli_code_cells);
-    cli_cell_release(called.joined_at, &g_cli_code_cells);
-    cli_cell_release(called.joined.out, &g_cli_code_cells);
-    cli_cell_release(value, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(called.token, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(called.joined_at, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(called.joined.out, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
     return result;
 }
 
@@ -300,7 +300,7 @@ static long long cli_effect_named(CliEffectReading *reading, const CliEffectToke
     CliEffectToken *const value = cli_effect_tokens_of(effect, effect->macro[macro].first, effect->macro[macro].count);
     const long long result =
         (value != NULL) ? cli_effect_value(effect, value, effect->macro[macro].count, reading->through + 1u) : 0ll;
-    cli_cell_release(value, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
     return result;
 }
 

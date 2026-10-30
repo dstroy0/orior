@@ -372,7 +372,7 @@ int cli_symbols_pair(const char *path, const char *state, const char *text, unsi
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_read();
     CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
-    const int leaved = (languages != NULL) && cli_symbols_leaves_laned(languages, path, state, text, size, &read);
+    const int leaved = (languages != NULL) && cli_symbols_leaves_temporary(languages, path, state, text, size, &read);
     const unsigned int bracket = leaved ? spans_bracket_at(&read, spans_byte_of(text, size, at)) : read.count;
     const int opens = (bracket < read.count) && cli_leaf_has(&read, bracket, CLI_LEAF_OPEN);
     const unsigned int mate = (bracket >= read.count) ? read.count

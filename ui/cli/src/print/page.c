@@ -60,7 +60,7 @@ static void *room_grown(void *cell, unsigned int used, unsigned int *room, unsig
 void cli_print_take(void)
 {
     cli_lock_take(&s_lock);
-    s_room = cli_lane_alloc(sizeof(*s_room), &g_cli_print_cells);
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_print_cells);
     if (s_room != NULL)
     {
         memor.set(&(MemoriaCfg){.dst = s_room, .val = 0, .bytes = sizeof(*s_room)});
@@ -71,15 +71,15 @@ void cli_print_give(void)
 {
     if (s_room != NULL)
     {
-        cli_cell_release(s_room->listing.line, &g_cli_print_cells);
-        cli_cell_release(s_room->listing.run, &g_cli_print_cells);
-        cli_cell_release(s_room->listing.text, &g_cli_print_cells);
-        cli_cell_release(s_room->laid.row, &g_cli_print_cells);
-        cli_cell_release(s_room->laid.piece, &g_cli_print_cells);
-        cli_cell_release(s_room->laid.text, &g_cli_print_cells);
-        cli_cell_release(s_room->letters, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_room->listing.line, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_room->listing.run, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_room->listing.text, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_room->laid.row, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_room->laid.piece, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_room->laid.text, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_room->letters, &g_cli_print_cells);
     }
-    cli_cell_release(s_room, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(s_room, &g_cli_print_cells);
     s_room = NULL;
     cli_lock_give(&s_lock);
 }
@@ -203,8 +203,8 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
 void cli_print_layout_read(const CliJson *json, unsigned int node, CliPrintLayout *layout)
 {
     const char *const paper = cli_json_string(json, cli_json_member(json, node, "paper"), NULL);
-    memor.cpy(
-        &(MemoriaCfg){.dst = layout->paper, .bytes = sizeof(layout->paper), .src = (paper != NULL) ? paper : "a4"});
+    (void)cellul.copy(
+        &(CatenaFinitaCfg){.dst = layout->paper, .src = (paper != NULL) ? paper : "a4", .cap = sizeof(layout->paper)});
     layout->landscape = cli_json_is(json, cli_json_member(json, node, "landscape"), CFG_JSON_TRUE);
     layout->gray = cli_json_is(json, cli_json_member(json, node, "gray"), CFG_JSON_TRUE);
     const char *const pages = cli_json_string(json, cli_json_member(json, node, "pages"), NULL);

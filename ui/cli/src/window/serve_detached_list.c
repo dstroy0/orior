@@ -169,7 +169,7 @@ int cli_serve_runs_detached(const CliServeArgs *args, VerbaLinea *out, VerbaLine
         written = 1;
     }
     cli_json_given(&s_list_room->json);
-    cli_cell_release(s_list_room, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(s_list_room, &g_cli_window_cells);
     s_list_room = NULL;
     cli_lock_give(&s_list_lock);
     mmgr_line_ch(out, ']');

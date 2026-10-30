@@ -73,7 +73,7 @@ void cli_build_check(const char *root, const char *path, const char *text, unsig
     }
     cli_build_findings_written(&s_found, out);
     cli_build_findings_given(&s_found);
-    cli_cell_release(starts, &g_cli_build_cells);
+    g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
     cli_lock_give(&s_builds_lock);
 }
 

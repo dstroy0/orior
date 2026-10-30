@@ -254,7 +254,7 @@ static unsigned int tests_tree_of(CliJson *json, CliPieces *pieces, VerbaLinea *
     const unsigned int root = (joined != NULL)
                                   ? cli_json_taken(json, joined, size, 0u, 0ull, &ignored, &g_cli_command_line_cells)
                                   : CLI_JSON_NONE;
-    cli_cell_release(joined, &g_cli_command_line_cells);
+    g_cli_cells->persistent_buf_release(joined, &g_cli_command_line_cells);
     return root;
 }
 
@@ -279,7 +279,7 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
     const unsigned int all = tests_tree_of(json, &pieces, &differences, "the differences of what is carried");
     // a place and a key are each a node of the differences: as many as their nodes, and settings.json, contain them
     const unsigned int room = ((json->nodes + 1u) < CLI_AT_TERMINAL_TAKEN) ? (json->nodes + 1u) : CLI_AT_TERMINAL_TAKEN;
-    const char **const chosen_places = cli_lane_alloc(2ull * room * sizeof(const char *), &g_cli_command_line_cells);
+    const char **const chosen_places = g_cli_cells->temporary_buf_alloc(2ull * room * sizeof(const char *), &g_cli_command_line_cells);
     if (chosen_places == NULL)
     {
         cli_json_given(json);
@@ -361,7 +361,7 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
         }
         cli_json_given(&took_tree);
     }
-    cli_cell_release(chosen_places, &g_cli_command_line_cells);
+    g_cli_cells->persistent_buf_release(chosen_places, &g_cli_command_line_cells);
     cli_json_given(json);
     cli_lock_give(&s_take_lock);
     return done;

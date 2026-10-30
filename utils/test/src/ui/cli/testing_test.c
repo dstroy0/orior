@@ -86,7 +86,7 @@ static void testing_rules(void)
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = testing_values(&s_rules.classes, values), .other = "Should*", .cap = CLI_CELLS_POOL}),
               "and its classes");
-    cli_check(!cli_test_rules_in("[other]\nx = 1\n", 16ull, "[pytest]", &s_rules), "a file of no such section none");
+    cli_check(!cli_test_rules_in("[other]\nx = 1\n", 14ull, "[pytest]", &s_rules), "a file of no such section none");
     cli_check(cli_test_glob("test_*.py", "test_a.py", 9ull) && cli_test_glob("*_test.py", "a_test.py", 9ull) &&
                   !cli_test_glob("test_*.py", "a_test.py", 9ull),
               "a glob matches as pytest's do");

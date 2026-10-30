@@ -100,7 +100,7 @@ static void cli_symbols_grammar_noted(void *context, const CliPlugin *plugin)
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken_laned(&json, plugin->text, plugin->size, &err_msg, &g_cli_code_cells);
+    const unsigned int root = cli_json_taken_temporary(&json, plugin->text, plugin->size, &err_msg, &g_cli_code_cells);
     const char *const kind =
         (root != CLI_JSON_NONE) ? cli_json_string(&json, cli_json_member(&json, root, "kind"), NULL) : NULL;
     const int language =
@@ -152,7 +152,7 @@ void cli_symbols_languages_given(CliSymbolsLanguages *read)
     {
         cli_plugins_languages_given(&read->languages);
     }
-    cli_cell_release(read, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(read, &g_cli_code_cells);
 }
 
 // the place among `read`'s grammars of the language `id`, CLI_SYMBOLS_GRAMMARS where it is none whose grammar is read
@@ -226,7 +226,7 @@ static int cli_symbols_leaves_at(CliSymbolsLanguages *read, unsigned int place, 
     }
     // the text's lines in a cell of their own, each ended by a NUL in place of its line's end, its carriage return
     // before it dropped
-    char *const lines = (grammar->stored == 1) ? cli_lane_alloc(size + 1ull, &g_cli_code_cells) : NULL;
+    char *const lines = (grammar->stored == 1) ? g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_code_cells) : NULL;
     if (lines == NULL)
     {
         return 0;
@@ -279,7 +279,7 @@ static int cli_symbols_leaves_at(CliSymbolsLanguages *read, unsigned int place, 
                                 .src = (length != 0ull) ? ended_text : "root",
                                 .bytes = (length != 0ull) ? (length + 1u) : 5u});
     }
-    cli_cell_release(lines, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(lines, &g_cli_code_cells);
     return colored;
 }
 

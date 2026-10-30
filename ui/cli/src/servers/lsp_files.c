@@ -90,7 +90,7 @@ static void files_let_go(unsigned int at)
     char saved_path[CLI_PATH_MAX_LEN];
     files_saved_path(at, saved_path);
     (void)query_removed(saved_path);
-    cli_cell_release(s_files[at].uri, &g_cli_lsp_files_cells);
+    g_cli_cells->persistent_buf_release(s_files[at].uri, &g_cli_lsp_files_cells);
     s_files[at].uri = NULL;
     s_files[at].taken = 0;
 }
@@ -321,7 +321,7 @@ void cli_lsp_open_each(CliLsp *lsp,
             bytes += cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ull;
         }
     }
-    unsigned int *const places = cli_lane_alloc(
+    unsigned int *const places = g_cli_cells->temporary_buf_alloc(
         ((unsigned long long)count + 1ull) * sizeof(unsigned int), &g_cli_lsp_files_cells);
     char *const uris = g_cli_cells->persistent_buf_alloc(bytes + 1ull, &g_cli_lsp_files_cells);
     count = ((places != NULL) && (uris != NULL)) ? count : 0u;
@@ -361,8 +361,8 @@ void cli_lsp_open_each(CliLsp *lsp,
             cli_file_let_go(bytes, size);
         }
     }
-    cli_cell_release(uris, &g_cli_lsp_files_cells);
-    cli_cell_release(places, &g_cli_lsp_files_cells);
+    g_cli_cells->persistent_buf_release(uris, &g_cli_lsp_files_cells);
+    g_cli_cells->persistent_buf_release(places, &g_cli_lsp_files_cells);
 }
 
 void cli_lsp_files_let_go(const CliLsp *lsp)

@@ -72,7 +72,7 @@ static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned lo
         length -= 1ull;
     }
     const unsigned long long room = (3ull * length) + 1ull;
-    char *const text = cli_lane_alloc(room, &g_cli_runs_cells);
+    char *const text = g_cli_cells->temporary_buf_alloc(room, &g_cli_runs_cells);
     if (text == NULL)
     {
         return;
@@ -94,7 +94,7 @@ static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned lo
     }
     mmgr_line_finish(&line);
     cli_run_line(carrier->run, carrier->stream, text);
-    cli_cell_release(text, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(text, &g_cli_runs_cells);
 }
 
 // the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered, else joined
@@ -107,14 +107,14 @@ static void cli_pending_emitted(CliCarrier *carrier, const char *bytes, unsigned
         return;
     }
     const unsigned long long whole = carrier->pending.size + size;
-    char *const joined = cli_lane_alloc(whole + 1ull, &g_cli_runs_cells);
+    char *const joined = g_cli_cells->temporary_buf_alloc(whole + 1ull, &g_cli_runs_cells);
     if (joined != NULL)
     {
         cli_pieces_copied(&carrier->pending, joined);
         memor.cpy(&(MemoriaCfg){.dst = joined + carrier->pending.size, .src = bytes, .bytes = (size_t)size});
         cli_line_emitted(carrier, joined, whole);
     }
-    cli_cell_release(joined, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(joined, &g_cli_runs_cells);
     cli_pieces_given(&carrier->pending);
 }
 

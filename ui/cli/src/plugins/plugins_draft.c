@@ -268,11 +268,11 @@ static void cli_template_each(void *context, const CliPlugin *plugin)
     // the plugin's tokens in a cell of their count, given back once they are read into the tree
     const unsigned int count = cli_json_tokens_counted(plugin->text, plugin->size) + 1u;
     CfgJsonToken *const tokens =
-        cli_lane_alloc((unsigned long long)count * sizeof(*tokens), &g_cli_plugins_cells);
+        g_cli_cells->temporary_buf_alloc((unsigned long long)count * sizeof(*tokens), &g_cli_plugins_cells);
     template_of->found = (tokens != NULL)
                              ? cli_json_read(template_of->json, plugin->text, plugin->size, tokens, count, &err_msg)
                              : CLI_JSON_NONE;
-    cli_cell_release(tokens, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(tokens, &g_cli_plugins_cells);
 }
 
 // The room the plugin of `id` takes, the last found of that id: its tokens and its bytes

@@ -468,7 +468,7 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
 {
     // the two dynamic sections on the cell's boundary, then the folders
     const unsigned long long dynamics = 2ull * sizeof(CliDynamic);
-    char *const cell = cli_lane_alloc(dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN),
+    char *const cell = g_cli_cells->temporary_buf_alloc(dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN),
                                       &g_cli_programs_cells);
     if (cell == NULL)
     {
@@ -478,7 +478,7 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
     CliElfReading reading = {(CliDynamic *)(void *)cell, ((CliDynamic *)(void *)cell) + 1,
                              (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + dynamics), NULL, 0u};
     const int read = cli_elf_read(&reading, bytes, size, path, report, err_msg);
-    cli_cell_release(reading.queue, &g_cli_programs_cells);
-    cli_cell_release(cell, &g_cli_programs_cells);
+    g_cli_cells->persistent_buf_release(reading.queue, &g_cli_programs_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_programs_cells);
     return read;
 }

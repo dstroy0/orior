@@ -166,8 +166,8 @@ static void read_sought(void *context, const char *name, const char *value)
     {
         sought->found = 1;
         sought->has = (value != NULL);
-        memor.cpy(
-            &(MemoriaCfg){.dst = sought->value, .bytes = sizeof(sought->value), .src = (value != NULL) ? value : ""});
+        (void)cellul.copy(&(CatenaFinitaCfg){
+            .dst = sought->value, .src = (value != NULL) ? value : "", .cap = sizeof(sought->value)});
     }
 }
 

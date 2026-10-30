@@ -102,7 +102,7 @@ int cli_format_nearest(const char *path, const char *const *names, unsigned int 
                 continue;
             }
             // the settings stored in a cell sized to the file, ended by a 0, the ones stored before given back
-            cli_cell_release(g_cli_format.settings, &g_cli_toolchains_cells);
+            g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
             g_cli_format.settings = cli_format_utf8((const char *)bytes, size)
                                         ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_toolchains_cells)
                                         : NULL;

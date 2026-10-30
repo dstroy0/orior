@@ -85,9 +85,9 @@ int cli_schema_read_room(CliSchemaRead *read, unsigned long long nodes, unsigned
 
 void cli_schema_read_given(CliSchemaRead *read)
 {
-    cli_cell_release(read->node, &g_cli_schema_cells);
-    cli_cell_release(read->member, &g_cli_schema_cells);
-    cli_cell_release(read->pool, &g_cli_schema_cells);
+    g_cli_cells->persistent_buf_release(read->node, &g_cli_schema_cells);
+    g_cli_cells->persistent_buf_release(read->member, &g_cli_schema_cells);
+    g_cli_cells->persistent_buf_release(read->pool, &g_cli_schema_cells);
     read->node = NULL;
     read->member = NULL;
     read->pool = NULL;
@@ -106,8 +106,8 @@ void cli_schema_released(void)
     {
         cli_json_given(&g_cli_schema_store->json);
     }
-    cli_cell_release(g_cli_schema_store, &g_cli_code_cells);
-    cli_cell_release(g_cli_schema_read, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(g_cli_schema_store, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(g_cli_schema_read, &g_cli_code_cells);
     g_cli_schema_store = NULL;
     g_cli_schema_read = NULL;
     cli_lock_give(&g_cli_schema_lock);
@@ -222,6 +222,6 @@ void cli_schema_check(const char *root, const char *path, const char *text, unsi
     }
     cli_build_findings_written(&s_found, out);
     cli_build_findings_given(&s_found);
-    cli_cell_release(starts, &g_cli_build_cells);
+    g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
     cli_schema_released();
 }

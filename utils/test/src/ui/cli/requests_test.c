@@ -177,7 +177,7 @@ static void requests_values(void)
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = why, .cap = CLI_CELLS_POOL, .other = "{{host}}", .other_cap = CLI_CELLS_POOL}) != NULL),
               "no environment, no host");
-    cli_cell_release(body.out, &g_checks_cells);
+    g_cli_cells->persistent_buf_release(body.out, &g_checks_cells);
     static CliRequestsValues s_none;
     static const char s_dynamic[] = "{{$uuid}} {{$timestamp}}";
     out.at = 0ull;

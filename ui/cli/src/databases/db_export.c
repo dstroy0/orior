@@ -110,11 +110,11 @@ static void export_line(CliDbExport *export, const CliDbValue *values, unsigned 
                 continue;
             }
             VerbaLinea value;
-            (void)cli_growing_line_made(&value, values[column].size + CLI_DB_EXPORT_VALUE_FIRST, &g_cli_db_cells);
+            (void)cli_growing_line_temporary(&value, values[column].size + CLI_DB_EXPORT_VALUE_FIRST, &g_cli_db_cells);
             cli_json_quoted_lossy(&value, (const unsigned char *)values[column].text, values[column].size);
             export->broke = export->broke || !mmgr_line_ok(&value);
             export_put(export, value.out, mmgr_line_ok(&value) ? value.at : 0ull);
-            cli_cell_release(value.out, &g_cli_db_cells);
+            g_cli_cells->persistent_buf_release(value.out, &g_cli_db_cells);
         }
         export_put(export, "}\n", 2ull);
         return;
@@ -144,7 +144,7 @@ static void export_results_line(void *context, const char *line, unsigned long l
     // the values read back take no more bytes than the line writes them in, each string's quotes room for its
     // terminator
     const unsigned long long room = (size < CLI_DB_EXPORT_ROW) ? (size + 1ull) : CLI_DB_EXPORT_ROW;
-    char *const texts = cli_lane_alloc(room, &g_cli_db_cells);
+    char *const texts = g_cli_cells->temporary_buf_alloc(room, &g_cli_db_cells);
     if (texts == NULL)
     {
         export->broke = 1;
@@ -188,7 +188,7 @@ static void export_results_line(void *context, const char *line, unsigned long l
     }
     export_line(export, export->values, count);
     export->written += 1ull;
-    cli_cell_release(texts, &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release(texts, &g_cli_db_cells);
 }
 
 // a row read on from the run written, and counted past those buffered
@@ -260,7 +260,7 @@ int cli_db_export(CliDbOpen *open, const char *path, const char *format,
     const unsigned long long values_bytes = columns * sizeof(CliDbValue);
     const unsigned long long order_bytes = columns * sizeof(unsigned int);
     char *const cell =
-        cli_lane_alloc(values_bytes + order_bytes + CLI_DB_EXPORT_ROOM, &g_cli_db_cells);
+        g_cli_cells->temporary_buf_alloc(values_bytes + order_bytes + CLI_DB_EXPORT_ROOM, &g_cli_db_cells);
     if (cell == NULL)
     {
         cli_lock_give(&open->results_lock);
@@ -307,7 +307,7 @@ int cli_db_export(CliDbOpen *open, const char *path, const char *format,
     export_flushed(export);
     const int broke = export->broke;
     const unsigned long long written = export->written;
-    cli_cell_release(cell, &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_db_cells);
     cli_lock_give(&open->results_lock);
     if (!read)
     {

@@ -373,7 +373,7 @@ CliMysql *cli_mysql_connected(const char *host, unsigned int port, const char *u
         cli_lock_take(&s_links_lock);
         s_links[mysql->place] = NULL;
         cli_lock_give(&s_links_lock);
-        cli_cell_release(mysql, &g_cli_db_cells);
+        g_cli_cells->persistent_buf_release(mysql, &g_cli_db_cells);
         return NULL;
     }
     return mysql;
@@ -389,5 +389,5 @@ void cli_mysql_closed(CliMysql *mysql)
     cli_lock_take(&s_links_lock);
     s_links[mysql->place] = NULL;
     cli_lock_give(&s_links_lock);
-    cli_cell_release(mysql, &g_cli_db_cells);
+    g_cli_cells->persistent_buf_release(mysql, &g_cli_db_cells);
 }

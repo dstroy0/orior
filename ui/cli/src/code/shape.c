@@ -196,7 +196,7 @@ int cli_shape_tokens(CliSymbolsLanguages *languages, const char *language, const
     tokens->full = 0;
     CliShapeHolePlace places[CLI_SHAPE_HOLES];
     // the pattern's copy, its placeholders blank, which its grammar reads
-    char *const blank = (holes != NULL) ? cli_lane_alloc(size + 1ull, &g_cli_shape_cells) : NULL;
+    char *const blank = (holes != NULL) ? g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_shape_cells) : NULL;
     if ((holes != NULL) && (blank == NULL))
     {
         return 0;
@@ -216,6 +216,6 @@ int cli_shape_tokens(CliSymbolsLanguages *languages, const char *language, const
         shape_leaves_put(tokens, src, size, &read, holes, places);
     }
     cli_symbols_leaves_given(&read);
-    cli_cell_release(blank, &g_cli_shape_cells);
+    g_cli_cells->persistent_buf_release(blank, &g_cli_shape_cells);
     return leaved;
 }

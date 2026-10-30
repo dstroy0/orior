@@ -190,10 +190,10 @@ static int plugins_written(const char *dir, const CliJson *json, unsigned int pl
         return 0;
     }
     VerbaLinea text;
-    (void)cli_growing_line_made(&text, CLI_PLUGIN_TEXT_FIRST, &g_cli_plugins_cells);
+    (void)cli_growing_line_temporary(&text, CLI_PLUGIN_TEXT_FIRST, &g_cli_plugins_cells);
     cli_plugins_text_of(json, plugin, &text);
     int written = mmgr_line_ok(&text) && query_file_written(file, text.out, text.at);
-    cli_cell_release(text.out, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(text.out, &g_cli_plugins_cells);
     const char *const extension =
         cli_json_string(json, cli_json_item(json, cli_json_member(json, plugin, "extensions"), 0u), NULL);
     char sample[CLI_PATH_MAX_LEN];
@@ -205,11 +205,11 @@ static int plugins_written(const char *dir, const CliJson *json, unsigned int pl
     if (written)
     {
         VerbaLinea sample_text;
-        (void)cli_growing_line_made(&sample_text, CLI_PLUGIN_TEXT_FIRST, &g_cli_plugins_cells);
+        (void)cli_growing_line_temporary(&sample_text, CLI_PLUGIN_TEXT_FIRST, &g_cli_plugins_cells);
         cli_plugins_sample_of(json, plugin, &sample_text);
         const int sampled = (mmgr_line_finish(&sample_name) != 0ull) && mmgr_line_ok(&sample_text) &&
                             query_file_written(sample, sample_text.out, sample_text.at);
-        cli_cell_release(sample_text.out, &g_cli_plugins_cells);
+        g_cli_cells->persistent_buf_release(sample_text.out, &g_cli_plugins_cells);
         written = sampled ? 1 : 2;
     }
     if (written != 1)

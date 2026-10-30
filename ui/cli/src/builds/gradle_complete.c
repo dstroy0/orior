@@ -129,7 +129,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
     }
     cli_lock_take(&g_cli_gradle_lock);
     // the bytes before the cursor classed in a cell of their own, given back once the last of them is read
-    unsigned char *const before = cli_lane_alloc(at + 1ull, &g_cli_gradle_cells);
+    unsigned char *const before = g_cli_cells->temporary_buf_alloc(at + 1ull, &g_cli_gradle_cells);
     if (before == NULL)
     {
         cli_lock_give(&g_cli_gradle_lock);
@@ -137,7 +137,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
     }
     cli_gradle_classes(text, at, before);
     const int open = (at > 0u) && (before[at - 1u] != CLI_GRADLE_CODE) && (text[at - 1u] != '\n');
-    cli_cell_release(before, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(before, &g_cli_gradle_cells);
     const unsigned long long token = cli_build_run_before(text, at, complete_chain_letter);
     const char *const dot = memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(at - token)});
     if (open)
@@ -197,7 +197,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
         }
         count = (count < CLI_GRADLE_LINES) ? count : CLI_GRADLE_LINES;
         unsigned int *const starts =
-            cli_lane_alloc(count * sizeof(unsigned int), &g_cli_gradle_cells);
+            g_cli_cells->temporary_buf_alloc(count * sizeof(unsigned int), &g_cli_gradle_cells);
         if (starts != NULL)
         {
             CliBuildLines lines;
@@ -206,7 +206,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
             cli_gradle_declared(&lines);
             complete_declared(items);
         }
-        cli_cell_release(starts, &g_cli_gradle_cells);
+        g_cli_cells->persistent_buf_release(starts, &g_cli_gradle_cells);
     }
     else
     {

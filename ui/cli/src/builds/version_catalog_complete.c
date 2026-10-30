@@ -66,7 +66,7 @@ static void complete_names(const char *text, unsigned long long size, const char
     // a description names texts of the catalog's, with a few bytes between them and two a string of a list
     const int read = cli_versions_parse(text, size);
     const unsigned long long room = g_cli_versions.used + 16ull + (2ull * g_cli_versions.items);
-    char *const about_text = read ? cli_lane_alloc(room, &g_cli_versions_cells) : NULL;
+    char *const about_text = read ? g_cli_cells->temporary_buf_alloc(room, &g_cli_versions_cells) : NULL;
     for (unsigned int at = 0u; (about_text != NULL) && (at < g_cli_versions.sections); at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
@@ -84,7 +84,7 @@ static void complete_names(const char *text, unsigned long long size, const char
                                about_text, about.at);
         }
     }
-    cli_cell_release(about_text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(about_text, &g_cli_versions_cells);
     cli_versions_released();
     cli_lock_give(&g_cli_versions_lock);
 }

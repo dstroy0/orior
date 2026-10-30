@@ -325,7 +325,7 @@ static void door_big(void)
 
 // the door's other end of a frame test, accepted on a thread of its own
 static CliDoorEnd s_server;
-static int s_accepted;
+static embed_atomic_usize s_accepted;
 
 static void door_accept(void *context)
 {
@@ -334,7 +334,8 @@ static void door_accept(void *context)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     int has_peer = 0;
     unsigned int peer = 0u;
-    s_accepted = cli_door_accepted(listener, &s_server, &has_peer, &peer, &err_msg);
+    // Explicit cast widens the answer, 0 or 1, into the atomic word
+    embed_atomic_usize_store(&s_accepted, (embed_atomic_usize_value)cli_door_accepted(listener, &s_server, &has_peer, &peer, &err_msg));
 }
 
 // a frame past the most a frame takes is not read
@@ -355,7 +356,7 @@ static void door_frame(void)
     (void)cli_thread_started(&s_thread);
     cli_check(cli_door_connected(address, &client, &err_msg), "an end joins the listener");
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while (!s_accepted && (cli_clock_milliseconds() < until))
+    while ((embed_atomic_usize_load(&s_accepted) == 0u) && (cli_clock_milliseconds() < until))
     {
         query_paused(20u);
     }
@@ -384,7 +385,7 @@ static void door_frame_back(void)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliDoorEnd client;
     memor.set(&(MemoriaCfg){.dst = &client, .val = 0, .bytes = sizeof(client)});
-    s_accepted = 0;
+    embed_atomic_usize_store(&s_accepted, 0u);
     static CliDoorListener s_listener;
     if (!cli_door_listening(&s_listener, address, &err_msg))
     {
@@ -394,7 +395,7 @@ static void door_frame_back(void)
     (void)cli_thread_started(&s_thread);
     (void)cli_door_connected(address, &client, &err_msg);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while (!s_accepted && (cli_clock_milliseconds() < until))
+    while ((embed_atomic_usize_load(&s_accepted) == 0u) && (cli_clock_milliseconds() < until))
     {
         query_paused(20u);
     }

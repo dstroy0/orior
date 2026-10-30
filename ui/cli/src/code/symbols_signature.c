@@ -456,7 +456,7 @@ int cli_symbols_signature(const char *path, const char *state, const char *text,
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_read();
     CliSymbolSignature *const signature =
-        (languages != NULL) ? cli_lane_alloc(sizeof(CliSymbolSignature), &g_cli_code_cells) : NULL;
+        (languages != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliSymbolSignature), &g_cli_code_cells) : NULL;
     if (signature == NULL)
     {
         cli_symbols_languages_given(languages);
@@ -490,7 +490,7 @@ int cli_symbols_signature(const char *path, const char *state, const char *text,
     }
     const int refused = read.refused;
     cli_symbols_leaves_given(&read);
-    cli_cell_release(signature, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(signature, &g_cli_code_cells);
     cli_symbols_languages_given(languages);
     if (refused)
     {

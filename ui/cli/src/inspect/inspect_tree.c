@@ -180,7 +180,7 @@ static unsigned long long tree_size(const CliFacts *facts, unsigned long long pa
 static void tree_taken(unsigned int file)
 {
     tree_bucket_taken(file);
-    cli_cell_release(CLI_TREE_FILE(file).cell, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(CLI_TREE_FILE(file).cell, &g_cli_inspect_cells);
     CLI_TREE_FILE(file).cell = NULL;
     CLI_TREE_FILE(file).used = 0;
     cli_tree_families_given();
@@ -241,8 +241,8 @@ int cli_inspect_tree_set(const char *path, const char *language, const char *tex
     if (file == CLI_TREE_NONE)
     {
         cli_lock_give(&g_cli_tree_lock);
-        cli_cell_release(cell, &g_cli_inspect_cells);
-        cli_cell_release(work_cell, &g_cli_inspect_cells);
+        g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
+        g_cli_cells->persistent_buf_release(work_cell, &g_cli_inspect_cells);
         return 0;
     }
     CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
@@ -274,7 +274,7 @@ int cli_inspect_tree_set(const char *path, const char *language, const char *tex
     tree_bucket_put(file);
     cli_tree_families_given();
     cli_lock_give(&g_cli_tree_lock);
-    cli_cell_release(work_cell, &g_cli_inspect_cells);
+    g_cli_cells->persistent_buf_release(work_cell, &g_cli_inspect_cells);
     return 1;
 }
 
@@ -294,13 +294,13 @@ void cli_inspect_tree_cleared(void)
     cli_lock_take(&g_cli_tree_lock);
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
-        cli_cell_release(CLI_TREE_FILE(file).cell, &g_cli_inspect_cells);
+        g_cli_cells->persistent_buf_release(CLI_TREE_FILE(file).cell, &g_cli_inspect_cells);
         CLI_TREE_FILE(file).cell = NULL;
         CLI_TREE_FILE(file).used = 0;
     }
     for (unsigned int page = 0u; page < CLI_TREE_PAGES; page += 1u)
     {
-        cli_cell_release(g_cli_tree_page[page], &g_cli_inspect_cells);
+        g_cli_cells->persistent_buf_release(g_cli_tree_page[page], &g_cli_inspect_cells);
         g_cli_tree_page[page] = NULL;
     }
     g_cli_tree_files = 0u;

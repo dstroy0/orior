@@ -186,7 +186,7 @@ static int lsp_actions_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
 }
 
 // the argument `key` written as JSON into `line`, made growing, null where it is not given, the line given back with
-// cli_cell_release(line->out, &g_cli_window_cells) either way: 1, or 0 with why given where the cellblock could not
+// g_cli_cells->persistent_buf_release(line->out, &g_cli_window_cells) either way: 1, or 0 with why given where the cellblock could not
 // meet it
 static int lsp_json_written(const CliServeArgs *args, const char *key, VerbaLinea *line, VerbaLinea *err_msg)
 {
@@ -220,7 +220,7 @@ static int lsp_act_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     VerbaLinea raw = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
     const int done =
         lsp_json_written(args, "raw", &raw, err_msg) && cli_servers_act(root, full, raw.out, raw.at, out, err_msg);
-    cli_cell_release(raw.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(raw.out, &g_cli_window_cells);
     return done;
 }
 
@@ -281,7 +281,7 @@ static int calls_of_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     VerbaLinea item = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
     const int done = lsp_json_written(args, "item", &item, err_msg) &&
                      cli_servers_calls(root, full, item.out, item.at, incoming, out, err_msg);
-    cli_cell_release(item.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(item.out, &g_cli_window_cells);
     return done;
 }
 
@@ -368,7 +368,7 @@ static int plugin_server_start(const CliServeArgs *args, VerbaLinea *out, VerbaL
     const CliServersSink emit = cli_serve_emitter(root);
     const int started =
         read && cli_servers_plugin_start(root, id, options.out, options.at, first, firsts, &emit, err_msg);
-    cli_cell_release(options.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(options.out, &g_cli_window_cells);
     mmgr_line_put(out, "null");
     return started;
 }
@@ -396,7 +396,7 @@ static int plugin_server_request_now(const CliServeArgs *args, VerbaLinea *out, 
     }
     const int done = cli_servers_plugin_request(id, method, params.out, params.at,
                                                 cli_serve_whole_or(args, "wait", 30000ull), out, err_msg);
-    cli_cell_release(params.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(params.out, &g_cli_window_cells);
     return done;
 }
 
@@ -410,7 +410,7 @@ static int plugin_server_notify(const CliServeArgs *args, VerbaLinea *out, Verba
         return 0;
     }
     const int done = cli_servers_plugin_notify(id, method, params.out, params.at, err_msg);
-    cli_cell_release(params.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(params.out, &g_cli_window_cells);
     mmgr_line_put(out, "null");
     return done;
 }
@@ -429,8 +429,8 @@ static int plugin_server_answer(const CliServeArgs *args, VerbaLinea *out, Verba
     mmgr_line_ch(&request, '\0');
     const int done =
         read && mmgr_line_ok(&request) && cli_servers_plugin_answer(id, request.out, result.out, result.at, err_msg);
-    cli_cell_release(result.out, &g_cli_window_cells);
-    cli_cell_release(request.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(result.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(request.out, &g_cli_window_cells);
     mmgr_line_put(out, "null");
     return done;
 }

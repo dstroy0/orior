@@ -179,14 +179,14 @@ static int cli_sent(const CliSocket *socket, const char *host, unsigned int port
                     const CliIppMessage *request, const unsigned char *document, unsigned long long size)
 {
     VerbaLinea body;
-    if (!cli_growing_line_made(&body, CLI_IPP_FIRST, &g_cli_print_cells))
+    if (!cli_growing_line_temporary(&body, CLI_IPP_FIRST, &g_cli_print_cells))
     {
         return 0;
     }
     cli_ipp_encode(request, &body);
     if (!mmgr_line_ok(&body))
     {
-        cli_cell_release(body.out, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(body.out, &g_cli_print_cells);
         return 0;
     }
     char head[CLI_PATH_MAX_LEN * 3u];
@@ -205,7 +205,7 @@ static int cli_sent(const CliSocket *socket, const char *host, unsigned int port
     const int sent = mmgr_line_ok(&line) && cli_socket_written(socket, head, line.at) &&
                      cli_socket_written(socket, body.out, body.at) &&
                      ((size == 0ull) || cli_socket_written(socket, document, size));
-    cli_cell_release(body.out, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(body.out, &g_cli_print_cells);
     return sent;
 }
 
@@ -395,7 +395,7 @@ int cli_ipp_exchange(const char *uri, const CliIppMessage *request, const unsign
     // the answer's own texts are in its bytes; a document after them lay in the answer read, which is given back
     answer->data = NULL;
     answer->data_length = 0ull;
-    cli_cell_release(s_answer, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(s_answer, &g_cli_print_cells);
     s_answer = NULL;
     cli_lock_give(&s_lock);
     return done;

@@ -127,7 +127,7 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = pool, .src = values->text, .bytes = (size_t)values->used});
-        cli_cell_release(values->text, &g_cli_requests_cells);
+        g_cli_cells->persistent_buf_release(values->text, &g_cli_requests_cells);
         values->text = pool;
         values->room = room;
     }
@@ -150,7 +150,7 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
 
 void cli_requests_values_given(CliRequestsValues *values)
 {
-    cli_cell_release(values->text, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(values->text, &g_cli_requests_cells);
     values->text = NULL;
     values->room = 0ull;
     values->used = 0ull;
@@ -261,7 +261,7 @@ static int values_member_put(CliRequestsValues *values, unsigned int member)
                                       text, length);
     }
     VerbaLinea written;
-    if (!cli_growing_line_made(&written, CLI_REQUESTS_POOL_FIRST, &g_cli_requests_cells))
+    if (!cli_growing_line_temporary(&written, CLI_REQUESTS_POOL_FIRST, &g_cli_requests_cells))
     {
         return 0;
     }
@@ -270,7 +270,7 @@ static int values_member_put(CliRequestsValues *values, unsigned int member)
         mmgr_line_ok(&written) &&
         cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
                                written.out, written.at);
-    cli_cell_release(written.out, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(written.out, &g_cli_requests_cells);
     return put;
 }
 
@@ -373,7 +373,7 @@ static int values_ignored(const char *ignore, int *joined)
 static int values_private_written(const char *file)
 {
     VerbaLinea object;
-    if (!cli_growing_line_made(&object, CLI_REQUESTS_POOL_FIRST, &g_cli_requests_cells))
+    if (!cli_growing_line_temporary(&object, CLI_REQUESTS_POOL_FIRST, &g_cli_requests_cells))
     {
         return 0;
     }
@@ -390,7 +390,7 @@ static int values_private_written(const char *file)
     }
     mmgr_line_put(&object, "\n}\n");
     const int written = mmgr_line_ok(&object) && query_file_written(file, object.out, object.at);
-    cli_cell_release(object.out, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(object.out, &g_cli_requests_cells);
     return written;
 }
 

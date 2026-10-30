@@ -233,7 +233,7 @@ int cli_kernel_frames_sent(CliKernel *kernel, const CliSocket *socket, CliLock *
         (void)mmgr_line_finish(&flight);
     }
     cli_lock_give(lock);
-    cli_cell_release(message, &g_cli_notebook_cells);
+    g_cli_cells->persistent_buf_release(message, &g_cli_notebook_cells);
     return sent;
 }
 

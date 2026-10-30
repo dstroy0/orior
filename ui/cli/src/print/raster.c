@@ -70,9 +70,9 @@ int cli_print_faces(VerbaLinea *err_msg)
     }
     if (s_typefaces != NULL)
     {
-        cli_cell_release(s_typefaces->cover, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_typefaces->cover, &g_cli_print_cells);
     }
-    cli_cell_release(s_typefaces, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(s_typefaces, &g_cli_print_cells);
     s_typefaces = g_cli_cells->persistent_buf_alloc(sizeof(*s_typefaces), &g_cli_print_cells);
     if (s_typefaces == NULL)
     {
@@ -318,7 +318,7 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
                       void (*each)(void *context, const CliPixels *page, unsigned int index, unsigned int count),
                       void *context)
 {
-    s_room = (s_typefaces != NULL) ? cli_lane_alloc(sizeof(*s_room), &g_cli_print_cells) : NULL;
+    s_room = (s_typefaces != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(*s_room), &g_cli_print_cells) : NULL;
     if (s_room == NULL)
     {
         return;
@@ -332,11 +332,11 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
                       layout->gray ? 1ull : 3ull, NULL};
     // the page's pixels a cell of their own, sized to the page at the resolution asked
     const unsigned long long bytes = page.width * page.height * page.channels;
-    s_room->page = (bytes <= CLI_PAGE_BYTES) ? cli_lane_alloc(bytes, &g_cli_print_cells) : NULL;
+    s_room->page = (bytes <= CLI_PAGE_BYTES) ? g_cli_cells->temporary_buf_alloc(bytes, &g_cli_print_cells) : NULL;
     page.data = s_room->page;
     if (s_room->page == NULL)
     {
-        cli_cell_release(s_room, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_room, &g_cli_print_cells);
         s_room = NULL;
         return;
     }
@@ -390,8 +390,8 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
         each(context, &page, index, count);
         index += 1u;
     }
-    cli_cell_release(s_room->page, &g_cli_print_cells);
-    cli_cell_release(s_room, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(s_room->page, &g_cli_print_cells);
+    g_cli_cells->persistent_buf_release(s_room, &g_cli_print_cells);
     s_room = NULL;
 }
 

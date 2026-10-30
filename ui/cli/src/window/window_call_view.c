@@ -151,7 +151,7 @@ static void view_linked_served(const char *path, const char *media_type, CliWind
     cli_window_quoted(&args, path);
     mmgr_line_ch(&args, '}');
     VerbaLinea read;
-    if (!mmgr_line_ok(&args) || !cli_growing_line_made(&read, CLI_VIEW_LINKED_FIRST, &g_cli_window_cells))
+    if (!mmgr_line_ok(&args) || !cli_growing_line_temporary(&read, CLI_VIEW_LINKED_FIRST, &g_cli_window_cells))
     {
         mmgr_line_put(&err_msg, "the file's cells could not be taken");
         view_refused(served, context, 404u, &err_msg);
@@ -160,7 +160,7 @@ static void view_linked_served(const char *path, const char *media_type, CliWind
     const int answered = cli_window_tree_call("file_bytes", args.out, args.at, &read, &err_msg) &&
                          mmgr_line_ok(&read) && (read.at >= 2ull);
     unsigned char *const bytes =
-        answered ? cli_lane_alloc(((read.at / 4ull) * 3ull) + 3ull, &g_cli_window_cells) : NULL;
+        answered ? g_cli_cells->temporary_buf_alloc(((read.at / 4ull) * 3ull) + 3ull, &g_cli_window_cells) : NULL;
     unsigned long long size = 0ull;
     // the answer is a JSON string of base64, whose letters need no escape, its quotes about it
     const int decoded =
@@ -178,8 +178,8 @@ static void view_linked_served(const char *path, const char *media_type, CliWind
         }
         view_refused(served, context, 404u, &err_msg);
     }
-    cli_cell_release(bytes, &g_cli_window_cells);
-    cli_cell_release(read.out, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(bytes, &g_cli_window_cells);
+    g_cli_cells->persistent_buf_release(read.out, &g_cli_window_cells);
 }
 
 void cli_window_view_served(const char *path, unsigned long long size, CliWindowServed served, void *context)

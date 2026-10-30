@@ -173,13 +173,13 @@ static int place_written(const char *key, const char *path, const CliWindowPlace
     cli_json_set(&json, kept, "maximized", cli_json_made(&json, place->maximized ? CFG_JSON_TRUE : CFG_JSON_FALSE));
     cli_json_set(&json, places, key, kept);
     VerbaLinea out;
-    int written = !json.full && cli_growing_line_made(&out, CLI_PLACE_WRITTEN_FIRST, &g_cli_window_cells);
+    int written = !json.full && cli_growing_line_temporary(&out, CLI_PLACE_WRITTEN_FIRST, &g_cli_window_cells);
     if (written)
     {
         cli_json_sorted(&json, places);
         cli_json_write(&json, places, &out, 2u, 0);
         written = mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
-        cli_cell_release(out.out, &g_cli_window_cells);
+        g_cli_cells->persistent_buf_release(out.out, &g_cli_window_cells);
     }
     cli_json_given(&json);
     if (!written)

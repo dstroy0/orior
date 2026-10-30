@@ -20,7 +20,7 @@ CellOwner g_cli_xml_cells = MMGR_CELL_OWNER("cli_xml");
 
 void cli_xml_given(CliXml *xml)
 {
-    cli_cell_release(xml->element, &g_cli_xml_cells);
+    g_cli_cells->persistent_buf_release(xml->element, &g_cli_xml_cells);
     *xml = (CliXml){xml->text, 0ull, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
 }
 
