@@ -65,9 +65,26 @@ typedef struct
     unsigned int *rest;
 } GuiGlyphCell;
 
+// the printable ASCII letters a table holds, from the space on, and the tables kept at once, one a face, size and color
+#define GUI_ASCII_FIRST 32u
+#define GUI_ASCII_COUNT 95u
+#define GUI_ASCII_TABLES 32u
+
+// An ASCII table: whether it is in use, its key, and for each printable letter its glyph cell, NULL until the letter is
+// first asked for in the key, and its advance; a letter of the table is one index, its cell laid straight from there
+typedef struct
+{
+    int used;
+    unsigned int face;
+    unsigned int size;
+    GuiColor color;
+    const GuiGlyphCell *cell[GUI_ASCII_COUNT];
+    float advance[GUI_ASCII_COUNT];
+} GuiAsciiTable;
+
 // The glyphs: each face as read and whether it was, the file each was read from, the outline a glyph is drawn through,
 // the cache's entries, one rasterized glyph each, with how many of them are in use, and the cells, one glyph in one
-// color each, with how many of them are in use
+// color each, with how many of them are in use; and the ASCII tables, the one last found and the next to be taken
 typedef struct
 {
     CliFont face[GUI_FACES];
@@ -79,6 +96,9 @@ typedef struct
     unsigned int cached;
     GuiGlyphCell *cell;
     unsigned int celled;
+    GuiAsciiTable ascii[GUI_ASCII_TABLES];
+    unsigned int ascii_last;
+    unsigned int ascii_next;
 } GuiGlyphs;
 
 // the faces read from the system's fonts, the code face the monospace font orior_cli draws with: 1, or 0 with why

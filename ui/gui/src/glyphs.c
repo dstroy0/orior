@@ -97,6 +97,8 @@ static void glyphs_cells_emptied(GuiGlyphs *glyphs)
         }
     }
     glyphs->celled = 0u;
+    // the ASCII tables point into the cells: they go with them
+    memor.set(&(MemoriaCfg){.dst = glyphs->ascii, .val = 0, .bytes = sizeof(glyphs->ascii)});
 }
 
 int gui_glyphs_made(GuiGlyphs *glyphs, VerbaLinea *err_msg)
@@ -213,9 +215,9 @@ static float glyphs_darkening(unsigned int size)
     return GUI_DARKEN_MOST + ((GUI_DARKEN_LEAST - GUI_DARKEN_MOST) * along);
 }
 
+// the contours' strokes expanded by `reach` pixels a side: each point moved along the miter of its two edges' normals
 // to the side away from the ink, the ink lying to the right of a contour's travel as TrueType winds it with y up: an
 // outer contour grows and a counter shrinks, both widening the stroke; the miter kept to twice the reach at a sharp
-// an outer contour grows and a counter shrinks, both widening the stroke; the miter held to twice the reach at a sharp
 // turn
 static void glyphs_darkened(CliContours *contours, float reach)
 {
@@ -399,7 +401,7 @@ static GuiGlyphCell *glyphs_cell_slot(GuiGlyphs *glyphs, unsigned int face, unsi
     return &glyphs->cell[at];
 }
 
-const GuiGlyphCell *gui_glyph_cell(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color,
+static const GuiGlyphCell *glyphs_cell_made(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color,
                                    float *advance)
 {
     const unsigned int had = gui_face_had(glyphs, face);
@@ -450,6 +452,60 @@ const GuiGlyphCell *gui_glyph_cell(GuiGlyphs *glyphs, unsigned int face, unsigne
     }
     cell->used = 1;
     glyphs->celled += 1u;
+    return cell;
+}
+
+// the ASCII table keyed by `face`, `size` and `color`: the one last found where it is the key's, else found among the
+// tables, else the next taken in turn and cleared for the key
+static GuiAsciiTable *glyphs_ascii_table(GuiGlyphs *glyphs, unsigned int face, unsigned int size, GuiColor color)
+{
+    GuiAsciiTable *const last = &glyphs->ascii[glyphs->ascii_last];
+    if (last->used && (last->face == face) && (last->size == size) && (last->color == color))
+    {
+        return last;
+    }
+    for (unsigned int at = 0u; at < GUI_ASCII_TABLES; at += 1u)
+    {
+        GuiAsciiTable *const table = &glyphs->ascii[at];
+        if (table->used && (table->face == face) && (table->size == size) && (table->color == color))
+        {
+            glyphs->ascii_last = at;
+            return table;
+        }
+    }
+    const unsigned int taken = glyphs->ascii_next;
+    glyphs->ascii_next = (taken + 1u) % GUI_ASCII_TABLES;
+    GuiAsciiTable *const table = &glyphs->ascii[taken];
+    memor.set(&(MemoriaCfg){.dst = table, .val = 0, .bytes = sizeof(*table)});
+    table->used = 1;
+    table->face = face;
+    table->size = size;
+    table->color = color;
+    glyphs->ascii_last = taken;
+    return table;
+}
+
+const GuiGlyphCell *gui_glyph_cell(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color,
+                                   float *advance)
+{
+    if ((letter < GUI_ASCII_FIRST) || (letter >= GUI_ASCII_FIRST + GUI_ASCII_COUNT))
+    {
+        return glyphs_cell_made(glyphs, face, letter, size, color, advance);
+    }
+    const unsigned int had = gui_face_had(glyphs, face);
+    GuiAsciiTable *const table = glyphs_ascii_table(glyphs, had, size, color);
+    const unsigned int at = letter - GUI_ASCII_FIRST;
+    if (table->cell[at] != NULL)
+    {
+        *advance = table->advance[at];
+        return table->cell[at];
+    }
+    const unsigned int cells_before = glyphs->celled;
+    const GuiGlyphCell *const cell = glyphs_cell_made(glyphs, had, letter, size, color, advance);
+    // a cell made may have emptied every cell and every table with them: the table is found again before it is filled
+    GuiAsciiTable *const kept = (glyphs->celled < cells_before) ? glyphs_ascii_table(glyphs, had, size, color) : table;
+    kept->cell[at] = cell;
+    kept->advance[at] = *advance;
     return cell;
 }
 

@@ -75,6 +75,8 @@ int main(void)
               "the same cell asked again is the one kept");
     cli_check(gui_glyph_cell(&glyphs, GUI_FACE_CODE, 'M', 13u, GUI_RGB(0xffu, 0x00u, 0x00u), &cell_advance) != cell,
               "the glyph in another color is another cell");
+    cli_check((glyphs.ascii[glyphs.ascii_last].cell['M' - GUI_ASCII_FIRST] != NULL) && (glyphs.ascii[glyphs.ascii_last].color == GUI_RGB(0xffu, 0x00u, 0x00u)),
+              "an ASCII letter's cell stands in its face, size and color's table at its index");
     const GuiGlyphCell *const space_cell = gui_glyph_cell(&glyphs, GUI_FACE_CODE, ' ', 13u, GUI_RGB(0xffu, 0xffu, 0xffu), &cell_advance);
     cli_check((space_cell != NULL) && (space_cell->red_blue == NULL), "a space's cell has no lanes");
     unsigned int whole = 0u;
