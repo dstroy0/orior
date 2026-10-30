@@ -11,10 +11,10 @@
 
 // the most bytes of the SVG drawn and of the SyncTeX file unzipped, the most boxes open at once, the most lines marked
 // in them, the most files a SyncTeX file names and the bytes their names take
-#define CLI_LATEX_SVG (1u << 25u)
-#define CLI_LATEX_SYNC (1u << 25u)
+#define CLI_LATEX_SVG (1u << 22u)
+#define CLI_LATEX_SYNC (1u << 22u)
 #define CLI_LATEX_OPEN 4096u
-#define CLI_LATEX_MARKS (1u << 18u)
+#define CLI_LATEX_MARKS (1u << 16u)
 #define CLI_LATEX_INPUTS 8192u
 #define CLI_LATEX_INPUT_TEXT (1u << 20u)
 

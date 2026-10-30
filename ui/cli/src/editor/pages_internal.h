@@ -13,12 +13,12 @@
 // find searches at a time, its units and its search each taking cells of several times that
 #define CLI_PAGE_STEP 1024ull
 #define CLI_PAGE_SPAN (64ull * 1024ull)
-#define CLI_PAGE_STARTS (1u << 20u)
+#define CLI_PAGE_STARTS (1u << 18u)
 #define CLI_PAGE_BLOCK 16384ull
-#define CLI_PAGE_PIECES 65536u
-#define CLI_PAGE_READ_LINES (1u << 17u)
-#define CLI_PAGE_READ_TEXT (1u << 26u)
-#define CLI_PAGE_FIND_TEXT (1u << 23u)
+#define CLI_PAGE_PIECES 16384u
+#define CLI_PAGE_READ_LINES (1u << 15u)
+#define CLI_PAGE_READ_TEXT (1u << 24u)
+#define CLI_PAGE_FIND_TEXT (1u << 22u)
 
 // the end of the shadow's name, after a dot and the file's name, beside the file
 #define CLI_PAGE_SHADOW ".~"

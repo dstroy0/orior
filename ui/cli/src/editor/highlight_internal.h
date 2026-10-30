@@ -11,11 +11,11 @@
 #define CLI_HIGHLIGHT_NONE 0xffffffffu
 
 // the most of each part one grammar contains as it is read
-#define CLI_GRAMMAR_NODES (1u << 17u)
+#define CLI_GRAMMAR_NODES (1u << 16u)
 
-#define CLI_GRAMMAR_ITEMS (1u << 16u)
+#define CLI_GRAMMAR_ITEMS (1u << 15u)
 
-#define CLI_GRAMMAR_PARTS (1u << 17u)
+#define CLI_GRAMMAR_PARTS (1u << 16u)
 
 #define CLI_GRAMMAR_RULES 8192u
 
@@ -27,17 +27,17 @@
 
 #define CLI_GRAMMAR_WORD_LISTS 1024u
 
-#define CLI_GRAMMAR_WORDS 65536u
+#define CLI_GRAMMAR_WORDS 32768u
 
 #define CLI_GRAMMAR_NAMES 4096u
 
-#define CLI_GRAMMAR_TEXT (1u << 20u)
+#define CLI_GRAMMAR_TEXT (1u << 19u)
 
 // the most rules one state contains, its includes read in
 #define CLI_GRAMMAR_OWN 16384u
 
 // the most letters of a line read, the most states stacked, and the most bytes the states each line ends in take
-#define CLI_HIGHLIGHT_LETTERS (1u << 20u)
+#define CLI_HIGHLIGHT_LETTERS (1u << 19u)
 
 #define CLI_HIGHLIGHT_STACK 256u
 

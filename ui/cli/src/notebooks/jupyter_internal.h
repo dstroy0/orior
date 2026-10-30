@@ -14,8 +14,8 @@
 // each contains, half for the frames read and half for the message written, the longest line a kernel writes of itself,
 // the most frames a message has, and the most nodes and bytes of a header read
 #define CLI_KERNEL_WAITERS 16u
-#define CLI_KERNEL_IOPUB_ROOM (1u << 24u)
-#define CLI_KERNEL_REPLY_ROOM (1u << 21u)
+#define CLI_KERNEL_IOPUB_ROOM (1u << 22u)
+#define CLI_KERNEL_REPLY_ROOM (1u << 19u)
 #define CLI_KERNEL_LINE (1u << 16u)
 #define CLI_KERNEL_FRAMES 64u
 #define CLI_KERNEL_HEADER_NODES 512u
@@ -23,7 +23,7 @@
 
 // the most bytes of content a request orior_cli makes carries, and how long a kernel's readers are waited for as it is
 // let go, in milliseconds
-#define CLI_KERNEL_CONTENT (1u << 22u)
+#define CLI_KERNEL_CONTENT (1u << 20u)
 #define CLI_KERNEL_READERS_WAIT 5000ull
 
 // the readers a kernel has: what it publishes, its replies on the shell and the control sockets, and the lines its

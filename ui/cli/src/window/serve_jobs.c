@@ -10,12 +10,12 @@
 #include "serve_internal.h"
 
 // the most jobs, params, steps, arguments, list items and bytes of text the catalog read for the page contains
-#define CLI_SERVE_JOBS 4096u
-#define CLI_SERVE_PARAMS 16384u
-#define CLI_SERVE_STEPS 16384u
-#define CLI_SERVE_ARGS 65536u
-#define CLI_SERVE_LISTS 65536u
-#define CLI_SERVE_CATALOG_TEXT (4u << 20u)
+#define CLI_SERVE_JOBS 1024u
+#define CLI_SERVE_PARAMS 4096u
+#define CLI_SERVE_STEPS 4096u
+#define CLI_SERVE_ARGS 16384u
+#define CLI_SERVE_LISTS 16384u
+#define CLI_SERVE_CATALOG_TEXT (1u << 20u)
 // the most runs started here whose lines are gathered at once; the bytes of the lines a gathering buffers before they
 // go at once, and the bytes it is begun in, doubling as it fills; and the bytes a line printed is begun to be written
 // in

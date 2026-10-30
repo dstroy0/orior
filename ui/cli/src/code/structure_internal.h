@@ -9,17 +9,17 @@
 
 // the most tokens and lines a side contains, the most steps an edit takes, and the most texts the names number; a text
 // past them reads as too far apart
-#define CLI_STRUCTURE_TOKENS (1u << 18u)
+#define CLI_STRUCTURE_TOKENS (1u << 16u)
 
-#define CLI_STRUCTURE_LINES (1u << 18u)
+#define CLI_STRUCTURE_LINES (1u << 16u)
 
 #define CLI_STRUCTURE_STEPS (2u * CLI_STRUCTURE_TOKENS)
 
-#define CLI_STRUCTURE_NAMES (1u << 20u)
+#define CLI_STRUCTURE_NAMES (1u << 18u)
 
 // the most edits either comparison makes before the texts read as too far apart, and the fewest tokens a line contains
 // for it to read as moved
-#define CLI_MOST_EDITS 3000u
+#define CLI_MOST_EDITS 1500u
 
 #define CLI_MOVED_TOKENS 2u
 

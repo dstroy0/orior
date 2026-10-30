@@ -12,14 +12,14 @@
 // all, and the calls their room is begun with, doubling as they are found
 #define CLI_REVIEW_FILES 1024u
 #define CLI_REVIEW_TEXT (1u << 26u)
-#define CLI_REVIEW_PIECES 16384u
+#define CLI_REVIEW_PIECES 8192u
 #define CLI_REVIEW_TEXTS_MAX (1u << 26u)
 #define CLI_REVIEW_TEXT_FIRST 65536u
-#define CLI_REVIEW_CALLS (1u << 20u)
+#define CLI_REVIEW_CALLS (1u << 18u)
 #define CLI_REVIEW_CALLS_FIRST 256u
 
 // the most lines of a text the review reads
-#define CLI_REVIEW_LINES (1u << 20u)
+#define CLI_REVIEW_LINES (1u << 18u)
 
 // A file a change touched: its path now and its path before, and its text before and now, each where it has one, as
 // places in the texts

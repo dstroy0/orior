@@ -13,9 +13,9 @@
 #include "../text/patterns.h"
 
 // the most paths the tree's list contains, and the most bytes of them
-#define CLI_FILES_MOST 100000u
+#define CLI_FILES_MOST 50000u
 
-#define CLI_FILES_TEXT (1u << 24u)
+#define CLI_FILES_TEXT (1u << 23u)
 
 // The tree's files as a view stores them: each path where it starts in the text, ended by a 0, sorted by their bytes,
 // `count` of them in room for `most`; and the bytes the text uses, in room for `text_most`. A view's starts and text
