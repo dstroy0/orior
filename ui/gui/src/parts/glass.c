@@ -84,3 +84,16 @@ void gui_glass_drawn(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiCo
     gui_raster_rounded(raster, rect, radius, tint);
     gui_raster_grained(raster, rect, radius, gui_grain(), GUI_GRAIN_TILE);
 }
+
+GuiColor gui_glass_pane_tint(GuiColor glass)
+{
+    // an alpha by a share from 0 to 1, rounded, is a byte
+    const GuiColor alpha = (GuiColor)(((float)GUI_ALPHA_OF(glass) * GUI_PANE_SHARE) + 0.5f);
+    return (glass & 0x00ffffffu) | (alpha << 24u);
+}
+
+GuiUnder gui_glass_table(const GuiRaster *ground, GuiColor color, GuiColor glass)
+{
+    const GuiUnder table = {ground, glass, gui_grain(), GUI_GRAIN_TILE, color};
+    return table;
+}

@@ -4,6 +4,7 @@
 // entries as rows under the folder, a press on a folder opens it and asks for its listing once, a press on the folder
 // open closes it with its entries kept, a press on a file picks it to open, the rows scroll with the wheel, the
 // pointer marks the row it stands on, and the side drawn shows its ground, its rows and the row pointed
+#include "../../../../../ui/gui/src/base.h"
 #include "../../../../../ui/gui/src/parts/explorer.h"
 #include "../cli/cli_check.h"
 
@@ -144,8 +145,10 @@ int main(void)
     gui_frame_laid(&frame, 800u, 600u, 1.0f);
     gui_frame_sided(&frame, 1);
     GuiRaster raster;
-    cli_check(gui_raster_made(&raster, 800u, 600u), "a raster for the side is made");
-    gui_raster_filled(&raster, (GuiRect){0, 0, 800, 600}, palette->ground);
+    GuiBase base;
+    cli_check(gui_raster_made(&raster, 800u, 600u) && gui_base_made(&base, 800u, 600u), "a raster for the side and the base are made");
+    (void)gui_base_laid(&base, &frame, palette, 0);
+    gui_base_drawn(&base, &raster, NULL, palette->ground);
     explorer.pointed = 1;
     gui_explorer_drawn(&explorer, &raster, &glyphs, &icons, palette, &frame, "Explorer", 1, "anchor_sift", "ui/a.c");
     const GuiRect row = gui_explorer_row_rect(&frame, &explorer, 0u);
@@ -162,6 +165,7 @@ int main(void)
                   (pixel(&raster, current.x + 2, current.y + 2) != pixel(&raster, pointed.x + 2, pointed.y + 2)),
               "the row of the file shown stands on the selection's ground");
     gui_raster_given(&raster);
+    gui_base_given(&base);
     gui_explorer_given(&explorer);
     gui_icons_given(&icons);
     gui_glyphs_given(&glyphs);

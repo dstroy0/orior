@@ -1,11 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bar.c: the bar across the top: its tint, the tree's name in the interface face at its right before the controls,
+// bar.c: the bar across the top, on the pane the frame's base lays: the tree's name in the interface face at its right before the controls,
 // as the page's bar ends with it, and the controls at its right end; the menu bar's titles are drawn over it by the
 // menu bar part
 #include "chrome.h"
-
-#include "glass.h"
 
 #include <math.h>
 
@@ -14,11 +12,10 @@
 #define GUI_BAR_NAME_WIDE 256
 
 void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const GuiFrame *frame,
-                   const char *title)
+                   const char *title, GuiUnder table)
 {
-    // the bar's pane is the slat its edge shows, whole outside the claim, rounded by the claim's share of the radius
+    // the bar's pane is the slat its edge shows, whole outside the claim, laid by the frame's base
     const GuiRect pane = gui_rect_met(frame->bar_slat, frame->bar);
-    gui_glass_drawn(raster, pane, frame->pane_radius, palette->glass);
     const unsigned int size = (unsigned int)gui_scaled((int)GUI_HEAD_SIZE, frame->scale);
     const float ascent = gui_glyphs_ascent(glyphs, GUI_FACE_HEAD, size);
     const float descent = gui_glyphs_descent(glyphs, GUI_FACE_HEAD, size);
@@ -35,5 +32,5 @@ void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palet
     const GuiRect clip = {right - wide, frame->bar.y, wide, frame->bar.height};
     (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(right - wide), baseline, title, length,
                          palette->bar_text, gui_rect_met(clip, pane));
-    gui_controls_drawn(raster, palette, frame);
+    gui_controls_drawn(raster, palette, frame, table);
 }

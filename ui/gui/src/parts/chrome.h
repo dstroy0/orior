@@ -19,12 +19,14 @@
 #define GUI_HEAD_SIZE 13u
 #define GUI_CONTROL_GLYPH 14
 
-// the bar drawn: its tint across the frame's bar, `title`, the tree's name, in the interface face at its right before
-// the controls, and the controls
+// the bar drawn on its pane, which the frame's base lays: `title`, the tree's name, in the interface face at its
+// right before the controls, and the controls, their own pane on the `table`
 void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const GuiFrame *frame,
-                   const char *title);
-// the three controls drawn in the frame's controls rectangle, minimize, maximize and close; and the control the
-// pointer at x, y stands on, GUI_CONTROL_NONE off them all
-void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame);
+                   const char *title, GuiUnder table);
+// the controls' own pane while it comes down from the bar's place: a pane on the `table` thickening from the
+// sheet's tint to a pane's by the frame's share of it, whole; and the three controls drawn in the frame's controls
+// rectangle, minimize, maximize and close; and the control the pointer at x, y stands on, GUI_CONTROL_NONE off
+// them all
+void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame, GuiUnder table);
 unsigned int gui_controls_hit(const GuiFrame *frame, int x, int y);
 #endif

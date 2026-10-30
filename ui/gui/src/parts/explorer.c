@@ -501,7 +501,6 @@ void gui_explorer_drawn(const GuiExplorer *explorer, GuiRaster *raster, GuiGlyph
         return;
     }
     const int one = gui_scaled(1, scale);
-    gui_raster_filled(raster, side, palette->side_ground);
     gui_raster_filled(raster, (GuiRect){side.x + side.width - one, side.y, one, side.height}, palette->line);
     const GuiRect inside = {side.x, side.y, side.width - one, side.height};
     const int head = gui_scaled(GUI_EXPLORER_HEAD, scale);

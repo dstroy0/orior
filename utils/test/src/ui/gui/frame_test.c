@@ -92,7 +92,7 @@ int main(void)
     cli_check(same(frame.controls_pane, frame.controls.x - 8, 12, frame.controls.width + 8, 41) && (frame.controls_pane_share == 0.0f),
               "the controls stand in the bar, their own pane unseen");
     GuiRect holes[4];
-    cli_check((gui_frame_holes(&frame, holes) == 1u) && (holes[0].y == 14) && (holes[0].x == 356 - 12) && (holes[0].y + holes[0].height == 12 + 41 + 12),
+    cli_check((gui_frame_holes(&frame, holes) == 1u) && (holes[0].y == 12) && (holes[0].x == 356 - 12) && (holes[0].y + holes[0].height == 12 + 41 + 12),
               "the bar's slat makes one hole in the work's head, the gap about it");
     numbers.room_top = 1.0f;
     numbers.grown_top = 1.0f;
@@ -104,7 +104,7 @@ int main(void)
     numbers.room_top = 0.0f;
     gui_frame_claimed(&frame, &numbers);
     cli_check((frame.controls.y == 12) && (frame.bar.y == -41) && (frame.controls_pane_share == 1.0f), "the controls' tab stands the gap down while the bar is away");
-    cli_check((gui_frame_holes(&frame, holes) == 1u) && (holes[0].x + holes[0].width == 1440 - 14) && (holes[0].y == 14),
+    cli_check((gui_frame_holes(&frame, holes) == 1u) && (holes[0].x + holes[0].width == 1440 - 12) && (holes[0].y == 12),
               "the controls' tab makes a hole at the work's head, snapped to its right edge");
     // the left revealed: the strip comes in under the wordmark's corner
     numbers.reveal_down = 0.0f;

@@ -5,7 +5,7 @@
 // shows a tool's window, a press on another shows that one instead and a press on the one shown closes it; a tool's
 // keys do the same; and the strip drawn shows each icon, the one shown on its ground
 #include "../../../../../ui/gui/src/parts/strip.h"
-#include "../../../../../ui/gui/src/parts/glass.h"
+#include "../../../../../ui/gui/src/base.h"
 #include "../cli/cli_check.h"
 
 // whether any pixel of `rect` is not `ground`
@@ -84,9 +84,15 @@ int main(void)
     cli_check(gui_strip_keyed(&strip, "Mod+`") && (strip.shown == GUI_STRIP_NONE), "the keys of the one shown close it");
     cli_check(!gui_strip_keyed(&strip, "Mod+Q") && !gui_strip_keyed(&strip, "E"), "keys no tool has are not the strip's");
 
+    // the strip is drawn on the pane the frame's base lays; a raster of the base alone is what the strip leaves bare
     GuiRaster raster;
-    cli_check(gui_raster_made(&raster, 800u, 600u), "a raster for the strip is made");
-    gui_raster_filled(&raster, (GuiRect){0, 0, 800, 600}, palette->ground);
+    GuiRaster bare_base;
+    GuiBase base;
+    cli_check(gui_raster_made(&raster, 800u, 600u) && gui_raster_made(&bare_base, 800u, 600u) && gui_base_made(&base, 800u, 600u),
+              "a raster for the strip, one for the base alone and the base are made");
+    (void)gui_base_laid(&base, &frame, palette, 0);
+    gui_base_drawn(&base, &raster, NULL, palette->ground);
+    gui_base_drawn(&base, &bare_base, NULL, palette->ground);
     strip.shown = 1;
     strip.pointed = 2;
     gui_strip_drawn(&raster, &icons, palette, &frame, &strip);
@@ -98,24 +104,18 @@ int main(void)
               "the tool pointed stands on the pointed ground");
     cli_check(painted(&raster, (GuiRect){first.x + 5, first.y + 5, 28, 28}, plain), "a tool's icon is drawn in its button");
     cli_check(painted(&raster, (GuiRect){last.x + 5, last.y + 5, 28, 28}, plain), "the last tool's icon is drawn in its button");
-    // the gap between buttons is the glass alone: the tint over the ground, grained as the window grains it
+    // the gap between buttons is the pane alone, as the base laid it
     int bare = 1;
     for (int y = second.y - 4; y < second.y; y += 1)
     {
         for (int x = first.x; x < first.x + 38; x += 1)
         {
-            const unsigned int grain = gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
-            const unsigned int share = GUI_ALPHA_OF(palette->glass);
-            const GuiColor tinted = GUI_RGB(((GUI_RED_OF(palette->glass) * share) + (GUI_RED_OF(palette->ground) * (255u - share)) + 127u) / 255u,
-                                            ((GUI_GREEN_OF(palette->glass) * share) + (GUI_GREEN_OF(palette->ground) * (255u - share)) + 127u) / 255u,
-                                            ((GUI_BLUE_OF(palette->glass) * share) + (GUI_BLUE_OF(palette->ground) * (255u - share)) + 127u) / 255u);
-            const GuiColor grained = GUI_RGB(((0xffu * grain) + (GUI_RED_OF(tinted) * (255u - grain)) + 127u) / 255u,
-                                             ((0xffu * grain) + (GUI_GREEN_OF(tinted) * (255u - grain)) + 127u) / 255u,
-                                             ((0xffu * grain) + (GUI_BLUE_OF(tinted) * (255u - grain)) + 127u) / 255u);
-            bare = bare && (pixel(&raster, x, y) == grained);
+            bare = bare && (pixel(&raster, x, y) == pixel(&bare_base, x, y));
         }
     }
-    cli_check(bare, "the gap between buttons is bare, the glass alone");
+    cli_check(bare, "the gap between buttons is bare, the pane alone");
+    gui_base_given(&base);
+    gui_raster_given(&bare_base);
     gui_raster_given(&raster);
     gui_icons_given(&icons);
     return cli_checked();

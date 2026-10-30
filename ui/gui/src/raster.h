@@ -60,17 +60,54 @@ void gui_raster_given(GuiRaster *raster);
 // x0, y0 to x1, y1 in `color`, one pixel wide
 void gui_raster_filled(GuiRaster *raster, GuiRect rect, GuiColor color);
 void gui_raster_rounded(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor color);
-// The ground a cut lays bare: the raster it is read from, pixel for pixel, with `over` blended over it by its alpha,
-// or `over` alone where the raster is NULL
+// The ground a cut lays bare: the raster it is read from, pixel for pixel, or `color` where the raster is NULL, with
+// `over` blended over it by its alpha, and white blended over that by the alpha the tile of `grain` bytes, `tile` a
+// side, gives the pixel, where a grain is given; the tile is laid from the raster's own top left and repeated
 typedef struct
 {
     const GuiRaster *raster;
     GuiColor over;
+    const unsigned char *grain;
+    unsigned int tile;
+    GuiColor color;
 } GuiUnder;
 
+// `color` blended over `ground` by the color's alpha, the pixel left opaque
+GuiColor gui_color_over(GuiColor ground, GuiColor color);
 // the corners of `rect` cut round by `radius`: each corner pixel blended with the ground by the share of it outside
 // the arc, what was drawn inside the rectangle left standing inside the arcs
 void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiUnder ground);
+// a pane of `inner` tint on the table `ground` lays: every pixel of `rect`, or of its corners' squares alone where
+// `corners_only` is set, the ground's own pixel with the ink at an alpha between the table's tint's outside the
+// pane's arcs of `radius` and `inner`'s inside them, by the pixel's share inside, then the ground's grain; the two
+// tints share one ink, and a pane's edge is the ink thickening, never a second layer
+void gui_raster_paned(GuiRaster *raster, GuiUnder ground, GuiRect rect, unsigned int radius, GuiColor inner,
+                      int corners_only);
+// The lines the work stands in: along each edge its color and its width in pixels, the lines bending round the
+// work's corners from one into the next
+typedef struct
+{
+    GuiColor top;
+    GuiColor right;
+    GuiColor bottom;
+    GuiColor left;
+    int top_wide;
+    int right_wide;
+    int bottom_wide;
+    int left_wide;
+} GuiOutline;
+
+// the work's outline laid: `work` cut round by `radius` to the `table`, `inside`, the work less its lines, cut round
+// by a pixel less to the `clear` ground, the lines between the two laid along each edge and round each corner; and
+// round each of the `count` holes the parts make in the work: the hole's corners inside the work filleted by the
+// radius, the table laid inside each fillet's arc, the work's corners on the hole turned out to the table, and the
+// line of the edge the hole reaches run along the hole's sides inside the work, round its fillets and its turns; a
+// corner of the work a hole takes whole is the hole's
+void gui_raster_outlined(GuiRaster *raster, GuiRect work, GuiRect inside, unsigned int radius, const GuiOutline *lines,
+                         const GuiRect *holes, unsigned int count, GuiUnder table, GuiUnder clear);
+// the squares of `notch`'s corners inside `work`, each the notch's fillet there, `radius` a side, no more than half
+// the notch's shorter side, into `squares`, sized for four: their count
+unsigned int gui_raster_notch_fillets(GuiRect work, GuiRect notch, unsigned int radius, GuiRect *squares);
 // `notch`, a hole in `work` reaching one or more of its edges, cut out of what was drawn in `work`: the notch filled
 // with the ground, and the work's outline rounded by `radius` at each turn it makes round the notch, a corner of the
 // notch inside the work filleted, what was drawn left standing outside the arc, and a corner of the notch on the

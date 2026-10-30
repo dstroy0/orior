@@ -50,21 +50,37 @@ static GuiColor ground_at(const GuiWindow *window, int x, int y)
     return window->ground.raster.pixels[((unsigned int)y * window->ground.raster.width) + (unsigned int)x];
 }
 
-// the glass over the ground at x, y: the tint over the lattice, grained as the window grains it
+// whether two colors stand within a level of each other on every channel, as the base's one blend stands from two
+static int near(GuiColor one, GuiColor other)
+{
+    const int red = (int)GUI_RED_OF(one) - (int)GUI_RED_OF(other);
+    const int green = (int)GUI_GREEN_OF(one) - (int)GUI_GREEN_OF(other);
+    const int blue = (int)GUI_BLUE_OF(one) - (int)GUI_BLUE_OF(other);
+    return (red >= -1) && (red <= 1) && (green >= -1) && (green <= 1) && (blue >= -1) && (blue <= 1);
+}
+
+// the glass sheet over the ground at x, y: the tint over the lattice, grained as the window grains it; and a pane's
+// thinner tint over it with the grain
 static GuiColor glass_at(const GuiWindow *window, int x, int y)
 {
     const unsigned int grain = gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
     return over(over(ground_at(window, x, y), window->palette->glass), GUI_RGBA(0xffu, 0xffu, 0xffu, grain));
 }
 
-// whether any pixel of `rect` is other than the glass over the ground
-static int painted_on_glass(const GuiWindow *window, GuiRect rect)
+static GuiColor pane_at(const GuiWindow *window, int x, int y)
+{
+    const unsigned int grain = gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
+    return over(over(ground_at(window, x, y), gui_glass_pane_tint(window->palette->glass)), GUI_RGBA(0xffu, 0xffu, 0xffu, grain));
+}
+
+// whether any pixel of `rect` is other than the pane over the ground
+static int painted_on_pane(const GuiWindow *window, GuiRect rect)
 {
     for (int y = rect.y; y < rect.y + rect.height; y += 1)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            if (at(window, x, y) != glass_at(window, x, y))
+            if (!near(at(window, x, y), pane_at(window, x, y)))
             {
                 return 1;
             }
@@ -113,15 +129,18 @@ int main(void)
     cli_check((window.ground.raster.width == 800u) && (window.ground.frames == 1u) &&
                   (window.ground.raster.pixels[(2u * 800u) + 2u] != ground) && (window.ground.raster.pixels[(499u * 800u) + 0u] == ground),
               "the ground is the lattice, a dot at the first point's origin over the ground color");
-    cli_check((at(&window, 400, 20) == glass_at(&window, 400, 20)) && (at(&window, 400, 20) != ground_at(&window, 400, 20)),
-              "the bar is the glass over the ground, tinted and grained");
-    cli_check(at(&window, 20, 250) == glass_at(&window, 20, 250), "the strip is glass as the bar is");
-    cli_check(at(&window, 400, 490) == glass_at(&window, 400, 490), "the status bar is glass as the bar is");
-    cli_check(at(&window, 789, 250) == over(ground_at(&window, 789, 250), palette->glass), "the frame's gap at the right is tinted over the ground, with no grain");
-    cli_check(painted_on_glass(&window, (GuiRect){800 - 5 - 34, 10, 34, 20}), "the close control is drawn");
-    cli_check(painted_on_glass(&window, (GuiRect){800 - 5 - 106, 10, 34, 20}), "the minimize control is drawn");
-    cli_check((at(&window, 44 + 1, 41 + 2) == over(ground_at(&window, 44 + 1, 41 + 2), palette->glass)) && (at(&window, 44 + 1, 41 + 2) != palette->surface),
-              "the work's top left corner is rounded off to the frame's tint over the ground");
+    cli_check(near(at(&window, 400, 20), pane_at(&window, 400, 20)) && (at(&window, 400, 20) != ground_at(&window, 400, 20)),
+              "the bar is a pane over the ground, the thinner tint grained");
+    cli_check(near(at(&window, 20, 250), pane_at(&window, 20, 250)), "the strip is a pane as the bar is");
+    cli_check(near(at(&window, 400, 490), pane_at(&window, 400, 490)), "the status bar is a pane as the bar is");
+    cli_check(near(at(&window, 789, 250), glass_at(&window, 789, 250)),
+              "the frame's gap at the right is the sheet over the ground, grained");
+    cli_check(painted_on_pane(&window, (GuiRect){800 - 5 - 34, 10, 34, 20}), "the close control is drawn");
+    cli_check(painted_on_pane(&window, (GuiRect){800 - 5 - 106, 10, 34, 20}), "the minimize control is drawn");
+    cli_check(near(at(&window, 44, 41), glass_at(&window, 44, 41)) && (at(&window, 44, 41) != palette->surface),
+              "the work's top left corner is rounded off to the sheet");
+    cli_check((at(&window, 200, 41) == palette->signal) && (at(&window, 200, 42) == palette->signal), "the work's head is the signal line, two pixels deep");
+    cli_check(at(&window, 44 + 1 + 10, 41 + 1) != palette->surface, "the lines stand outside the tabs row");
     cli_check(at(&window, 44 + 1 + 10, 41 + 2 + 10) == palette->surface, "the tabs row is the surface color");
     const int dot = dot_column(&window, 300, 300);
     cli_check((at(&window, dot, 300) == over(ground_at(&window, dot, 300), palette->editor_ground)) && (at(&window, dot, 300) != ground) &&

@@ -3,7 +3,7 @@
 // statusbar_test.c: the status bar's check: the memory reading written in megabytes, the cursor as line and column
 // from one, the selection as lines or letters, the indentation as tabs or spaces; and the bar drawn with the file's
 // crumbs at its left and the editor's line at its right, the lock at the end, bare where no file is open
-#include "../../../../../ui/gui/src/parts/glass.h"
+#include "../../../../../ui/gui/src/base.h"
 #include "../../../../../ui/gui/src/parts/statusbar.h"
 #include "../cli/cli_check.h"
 
@@ -23,26 +23,14 @@ static int painted(const GuiRaster *raster, GuiRect rect, GuiColor ground)
     return 0;
 }
 
-// `color` over `under` by the color's alpha, as the raster blends
-static GuiColor over(GuiColor under, GuiColor color)
+// whether every pixel of `rect` is the pane alone, as `base`, the frame's base drawn by itself, laid it
+static int bare(const GuiRaster *raster, GuiRect rect, const GuiRaster *base)
 {
-    const unsigned int share = GUI_ALPHA_OF(color);
-    const unsigned int rest = 255u - share;
-    return GUI_RGB(((GUI_RED_OF(color) * share) + (GUI_RED_OF(under) * rest) + 127u) / 255u,
-                   ((GUI_GREEN_OF(color) * share) + (GUI_GREEN_OF(under) * rest) + 127u) / 255u,
-                   ((GUI_BLUE_OF(color) * share) + (GUI_BLUE_OF(under) * rest) + 127u) / 255u);
-}
-
-// whether every pixel of `rect` is the glass alone over the ground: the tint, grained as the window grains it
-static int bare(const GuiRaster *raster, GuiRect rect, const GuiPalette *palette)
-{
-    const GuiColor tinted = over(palette->ground, palette->glass);
     for (int y = rect.y; y < rect.y + rect.height; y += 1)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            const unsigned int grain = gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
-            if (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != over(tinted, GUI_RGBA(0xffu, 0xffu, 0xffu, grain)))
+            if (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != base->pixels[((unsigned int)y * base->width) + (unsigned int)x])
             {
                 return 0;
             }
@@ -109,8 +97,13 @@ int main(void)
     GuiFrame frame;
     gui_frame_laid(&frame, 900u, 300u, 1.0f);
     GuiRaster raster;
-    cli_check(gui_raster_made(&raster, 900u, 300u), "a raster for the bar is made");
-    gui_raster_filled(&raster, (GuiRect){0, 0, 900, 300}, palette->ground);
+    GuiRaster bare_base;
+    GuiBase base;
+    cli_check(gui_raster_made(&raster, 900u, 300u) && gui_raster_made(&bare_base, 900u, 300u) && gui_base_made(&base, 900u, 300u),
+              "a raster for the bar, one for the base alone and the base are made");
+    (void)gui_base_laid(&base, &frame, palette, 0);
+    gui_base_drawn(&base, &bare_base, NULL, palette->ground);
+    gui_base_drawn(&base, &raster, NULL, palette->ground);
     status.memory = 157286400ull;
     status.anchor_line = 11ull;
     status.anchor_col = 2ull;
@@ -120,16 +113,18 @@ int main(void)
     cli_check(painted(&raster, (GuiRect){frame.strip.width + 16, frame.status.y + 6, 120, 16}, tint), "the file's crumbs are drawn at the bar's left");
     cli_check(painted(&raster, (GuiRect){900 - 16 - 16 - 14, frame.status.y + 6, 14, 16}, tint), "the lock is drawn at the bar's right end");
     cli_check(painted(&raster, (GuiRect){900 - 16 - 16 - 14 - 18 - 60, frame.status.y + 6, 60, 16}, tint), "the indentation is drawn before the lock");
-    cli_check(bare(&raster, (GuiRect){400, frame.status.y + 3, 100, 20}, palette), "the bar's middle is bare");
+    cli_check(bare(&raster, (GuiRect){400, frame.status.y + 3, 100, 20}, &bare_base), "the bar's middle is bare");
 
-    gui_raster_filled(&raster, (GuiRect){0, 0, 900, 300}, palette->ground);
+    gui_base_drawn(&base, &raster, NULL, palette->ground);
     status.path = "";
     status.has_cursor = 0;
     gui_statusbar_drawn(&raster, &glyphs, &icons, palette, &frame, &status);
-    cli_check(bare(&raster, (GuiRect){frame.strip.width + 16, frame.status.y + 6, 120, 16}, palette), "with no file open the left is bare");
+    cli_check(bare(&raster, (GuiRect){frame.strip.width + 16, frame.status.y + 6, 120, 16}, &bare_base), "with no file open the left is bare");
     cli_check(painted(&raster, (GuiRect){900 - 16 - 30, frame.status.y + 6, 30, 16}, tint), "the memory reading ends at the bar's right padding");
-    cli_check(bare(&raster, (GuiRect){900 - 16 - 16 - 14 - 18 - 200, frame.status.y + 6, 180, 16}, palette), "and the editor's line is away");
+    cli_check(bare(&raster, (GuiRect){900 - 16 - 16 - 14 - 18 - 200, frame.status.y + 6, 180, 16}, &bare_base), "and the editor's line is away");
     gui_raster_given(&raster);
+    gui_raster_given(&bare_base);
+    gui_base_given(&base);
     gui_icons_given(&icons);
     gui_glyphs_given(&glyphs);
     return cli_checked();

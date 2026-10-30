@@ -26,13 +26,24 @@ static GuiColor controls_faded(GuiColor color, float share)
     return (color & 0x00ffffffu) | ((GuiColor)(alpha + 0.5f) << 24u);
 }
 
-void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame)
+void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame, GuiUnder table)
 {
     const int box = gui_scaled(GUI_CONTROL_GLYPH, frame->scale);
-    // the controls' own pane of glass, with its lip, while they stand off the bar as their tab or its ghost
-    if (frame->controls_pane_share > 0.0f)
+    // the controls' own pane, with its lip, while they stand off the bar as their tab or its ghost: a pane on the
+    // table whose tint thickens from the sheet's to a pane's by the share, whole while it comes down, and its
+    // corners alone once it stands, the base laying the rest of it
+    const GuiColor pane = gui_glass_pane_tint(palette->glass);
+    if (frame->controls_pane_share >= 1.0f)
     {
-        gui_glass_drawn(raster, frame->controls_pane, frame->radius, controls_faded(palette->glass, frame->controls_pane_share));
+        gui_raster_paned(raster, table, frame->controls_pane, frame->radius, pane, 1);
+    }
+    else if (frame->controls_pane_share > 0.0f)
+    {
+        const float sheet = (float)GUI_ALPHA_OF(table.over);
+        const float share = frame->controls_pane_share;
+        // an alpha between two bytes by a factor from 0 to 1, rounded, is a byte
+        const GuiColor alpha = (GuiColor)(sheet + (((float)GUI_ALPHA_OF(pane) - sheet) * share) + 0.5f);
+        gui_raster_paned(raster, table, frame->controls_pane, frame->radius, (pane & 0x00ffffffu) | (alpha << 24u), 0);
     }
     const GuiColor ink = controls_faded(palette->status_text, frame->controls_alpha);
     for (unsigned int which = GUI_CONTROL_MINIMIZE; which <= GUI_CONTROL_CLOSE; which += 1u)

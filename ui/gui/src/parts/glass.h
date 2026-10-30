@@ -15,9 +15,18 @@
 #define GUI_GRAIN_SEED 4099u
 #define GUI_GRAIN_ALPHA 0.07
 
+// the share of the glass's tint a pane that slides in over the glass lays: the bar, the strip, the status bar and
+// the controls' pane each read a little thinner than the sheet about the work
+#define GUI_PANE_SHARE 0.82f
+
 // the grain: each pixel of the tile the alpha of white laid there, 0 to GUI_GRAIN_ALPHA of 255, row after row, made
 // once from the seeded noise, the same every time
 const unsigned char *gui_grain(void);
+// the glass's tint as a pane lays it: the same ink at GUI_PANE_SHARE of the tint's alpha
+GuiColor gui_glass_pane_tint(GuiColor glass);
+// the table every frame lies on: the lattice's `ground` raster, or `color` where none is the window's size, the
+// glass's tint over it and the grain over that
+GuiUnder gui_glass_table(const GuiRaster *ground, GuiColor color, GuiColor glass);
 // a pane drawn over `rect`, its corners rounded by `radius`: `tint` blended over what stands, then the grain
 // blended over it inside the corners, the tile's pixel for each of the raster's
 void gui_glass_drawn(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor tint);

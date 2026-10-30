@@ -185,12 +185,12 @@ unsigned int gui_frame_holes(const GuiFrame *frame, GuiRect *holes)
     {
         return 0u;
     }
-    count += frame_hole(frame->inside, frame->bar_slat, grown, snap, &holes[count]) ? 1u : 0u;
-    count += frame_hole(frame->inside, frame->strip_slat, grown, snap, &holes[count]) ? 1u : 0u;
-    count += frame_hole(frame->inside, frame->status_slat, grown, snap, &holes[count]) ? 1u : 0u;
+    count += frame_hole(frame->work, frame->bar_slat, grown, snap, &holes[count]) ? 1u : 0u;
+    count += frame_hole(frame->work, frame->strip_slat, grown, snap, &holes[count]) ? 1u : 0u;
+    count += frame_hole(frame->work, frame->status_slat, grown, snap, &holes[count]) ? 1u : 0u;
     if (frame->controls_pane_share > 0.0f)
     {
-        count += frame_hole(frame->inside, frame->controls_pane, grown, snap, &holes[count]) ? 1u : 0u;
+        count += frame_hole(frame->work, frame->controls_pane, grown, snap, &holes[count]) ? 1u : 0u;
     }
     return count;
 }

@@ -3,6 +3,7 @@
 // tabs_test.c: the tabs row's check: each tab is named by the last part of its path and stands after the one before
 // it in the row, a pixel on a tab reads as it and one on its close mark as closing it, and the row drawn shows the
 // tab shown on its ground with the line along its top
+#include "../../../../../ui/gui/src/base.h"
 #include "../../../../../ui/gui/src/parts/tabs.h"
 #include "../cli/cli_check.h"
 
@@ -78,8 +79,10 @@ int main(void)
               "a pixel in the editor is no tab's");
 
     GuiRaster raster;
-    cli_check(gui_raster_made(&raster, 900u, 400u), "a raster for the row is made");
-    gui_raster_filled(&raster, (GuiRect){0, 0, 900, 400}, palette->ground);
+    GuiBase base;
+    cli_check(gui_raster_made(&raster, 900u, 400u) && gui_base_made(&base, 900u, 400u), "a raster for the row and the base are made");
+    (void)gui_base_laid(&base, &frame, palette, 0);
+    gui_base_drawn(&base, &raster, NULL, palette->ground);
     gui_tabs_drawn(&raster, &glyphs, palette, &frame, tab, 3u, 1);
     cli_check(raster.pixels[((unsigned int)two.y * 900u) + (unsigned int)(two.x + 10)] == palette->tab_line,
               "the tab shown has the line along its top");
@@ -90,6 +93,7 @@ int main(void)
     cli_check(painted(&raster, (GuiRect){one.x + 14, one.y + 6, 20, 18}, palette->surface), "a tab's name is drawn");
     cli_check(painted(&raster, (GuiRect){close.x, close.y + 6, close.width, 18}, palette->tab_ground), "its close mark is drawn");
     gui_raster_given(&raster);
+    gui_base_given(&base);
     gui_glyphs_given(&glyphs);
     return cli_checked();
 }

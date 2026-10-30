@@ -4,7 +4,6 @@
 // down from the strip's head and the foot group's up from its foot, each as the page's strip lays them out
 #include "strip.h"
 
-#include "glass.h"
 #include "menubar.h"
 
 // the tools, the top group then the foot group, as the page's strip lists them
@@ -142,11 +141,9 @@ int gui_strip_keyed(GuiStrip *strip, const char *name)
 void gui_strip_drawn(GuiRaster *raster, GuiIcons *icons, const GuiPalette *palette, const GuiFrame *frame,
                      const GuiStrip *strip)
 {
-    // the strip's pane is the slat its edge shows, whole outside the claim, rounded by the claim's share of the
-    // radius; the frame's gap column is glass whether the claim holds or not
+    // the strip's pane is the slat its edge shows, whole outside the claim, laid by the frame's base; the tools stand
+    // in the slat
     const GuiRect pane = gui_rect_met(frame->strip_slat, frame->strip);
-    gui_glass_drawn(raster, pane, frame->pane_radius, palette->glass);
-    gui_raster_filled(raster, frame->gap, palette->glass);
     const float scale = frame->scale;
     const unsigned int icon = (unsigned int)gui_scaled(GUI_STRIP_ICON, scale);
     const float stroke = GUI_STRIP_STROKE * (float)icon / GUI_ICON_UNITS;

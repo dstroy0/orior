@@ -87,6 +87,7 @@ int main(void)
     const GuiRect place = {0, 0, 320, 80};
     GuiRaster raster;
     cli_check(gui_raster_made(&raster, 320u, 80u), "a raster for the editor is made");
+    gui_raster_filled(&raster, place, palette->editor_ground);
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     const float cell = gui_glyphs_cell(&glyphs, GUI_CODE_SIZE);
     const int text_x = place.x + gui_editor_gutter(&editor, cell, 1.0f);
@@ -148,6 +149,7 @@ int main(void)
               "units past the line's end are cut to it");
     cli_check(!gui_editor_units_text(&editor, 5ull, 0ull, 1ull, &between, &between_length), "a line not stored has no bytes");
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));
+    gui_raster_filled(&raster, place, palette->editor_ground);
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     const int caret_x = text_x + (int)(3.0f * cell + 0.5f);
     const GuiColor under_caret = raster.pixels[(10u * 320u) + (unsigned int)caret_x];
@@ -194,6 +196,7 @@ int main(void)
                   (editor.fold[0].closer_length == 1ull) && (editor.closers[editor.fold[0].closer] == '}'),
               "the frame's fold is kept with its closer's text");
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));
+    gui_raster_filled(&raster, place, palette->editor_ground);
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     cli_check(painted(&raster, (GuiRect){text_x + (int)(2.0f * cell), 20, (int)(2.0f * cell), 20}, palette->current),
               "a closed fold's row ends in the folded mark");
@@ -214,6 +217,7 @@ int main(void)
                   (editor.match[0][1] == 4ull),
               "find's bar and the matches are kept");
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));
+    gui_raster_filled(&raster, place, palette->editor_ground);
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     const GuiColor under_match = raster.pixels[(1u * 320u) + (unsigned int)(text_x + (int)(4.0f * cell)) + 1u];
     cli_check((under_match != palette->selection) && (under_match != bare),

@@ -889,7 +889,6 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
     {
         return;
     }
-    gui_raster_filled(raster, place, palette->editor_ground);
     // the code's size and its line in pixels at the scale, the size a whole pixel
     const unsigned int size = (unsigned int)(((float)GUI_CODE_SIZE * scale) + 0.5f);
     const int line_tall = (int)(((float)GUI_CODE_LINE * scale) + 0.5f);

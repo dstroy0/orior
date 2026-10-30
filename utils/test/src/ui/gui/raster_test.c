@@ -162,6 +162,64 @@ int main(void)
     gui_raster_dotted(&raster, -3.0f, 20.0f, 1.0f, white);
     cli_check(raster.pixels[0] == 0xff000000u, "a dot off the raster draws nothing");
 
+    // a ground with a grain: the tint over the ground's color, and white over that by the grain's tile
+    cli_check(gui_color_over(black, GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u)) == 0xff808080u, "a half-clear white over black is mid gray");
+    const unsigned char grained[4] = {0u, 255u, 0u, 0u};
+    const GuiUnder table = {NULL, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u), grained, 2u, black};
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_corners_cut(&raster, whole, 3u, table);
+    cli_check((red_of(raster.pixels[0]) > 0x70u) && (red_of(raster.pixels[0]) < 0x90u) && (((raster.pixels[0] >> 8u) & 0xffu) < 0x10u),
+              "a corner cut to a grained table lays the tint over the table's color where the grain is 0");
+    cli_check((raster.pixels[1u] != 0xff000000u) && (red_of(raster.pixels[1u]) == ((raster.pixels[1u] >> 8u) & 0xffu)),
+              "and the grain's white where its tile gives it");
+
+    // a pane on the table: its tint inside the arcs, the table's outside, the ink thickening between
+    const GuiUnder plain_table = {NULL, GUI_RGBA(0x00u, 0x00u, 0xffu, 0x40u), NULL, 0u, black};
+    gui_raster_filled(&raster, whole, white);
+    gui_raster_paned(&raster, plain_table, whole, 2u, GUI_RGBA(0x00u, 0x00u, 0xffu, 0xc0u), 0);
+    cli_check((raster.pixels[(1u * 8u) + 3u] & 0xffu) == 0xc0u, "a pane's middle is the ink at the pane's alpha over the table's color");
+    cli_check((raster.pixels[0] & 0xffu) < 0x90u, "a pane's corner pixel lies between the table's tint and the pane's");
+    gui_raster_filled(&raster, whole, white);
+    gui_raster_paned(&raster, plain_table, whole, 2u, GUI_RGBA(0x00u, 0x00u, 0xffu, 0xc0u), 1);
+    cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a pane's corners alone leave its middle");
+    cli_check((raster.pixels[0] & 0xffu) < 0x90u, "and lay its corner pixel");
+
+    // the fillets of a notch: the squares of its corners inside the work
+    GuiRect fillets[4];
+    cli_check(gui_raster_notch_fillets((GuiRect){0, 0, 40, 30}, (GuiRect){10, 0, 20, 12}, 4u, fillets) == 2u, "a notch at the top has two fillets");
+    cli_check((fillets[0].x == 10) && (fillets[0].y == 8) && (fillets[0].width == 4) && (fillets[1].x == 26) && (fillets[1].y == 8),
+              "each the radius's square inside the hole at its corner");
+    cli_check(gui_raster_notch_fillets((GuiRect){0, 0, 40, 30}, (GuiRect){10, 10, 20, 12}, 4u, fillets) == 4u, "a hole inside the work has four");
+    cli_check(gui_raster_notch_fillets((GuiRect){0, 0, 40, 30}, (GuiRect){50, 0, 20, 12}, 4u, fillets) == 0u, "a notch off the work has none");
+    gui_raster_given(&raster);
+
+    // the work's outline: its lines along each edge, bent round its corners to the table, and round a hole
+    cli_check(gui_raster_made(&raster, 40u, 30u), "a raster of forty by thirty is made for the outline");
+    const GuiRect work = {2, 2, 36, 26};
+    const GuiRect inside = {3, 4, 33, 23};
+    const GuiColor top = GUI_RGB(0x10u, 0xe0u, 0xa0u);
+    const GuiColor side = GUI_RGB(0x40u, 0x60u, 0xa0u);
+    const GuiOutline lines = {top, side, side, GUI_RGBA(0x10u, 0xe0u, 0xa0u, 0x80u), 2, 2, 1, 1};
+    const GuiUnder dark = {NULL, 0u, NULL, 0u, black};
+    gui_raster_filled(&raster, (GuiRect){0, 0, 40, 30}, white);
+    gui_raster_outlined(&raster, work, inside, 4u, &lines, NULL, 0u, plain, dark);
+    cli_check((raster.pixels[(2u * 40u) + 20u] == top) && (raster.pixels[(3u * 40u) + 20u] == top), "the head's line is two pixels of the signal");
+    cli_check(raster.pixels[(4u * 40u) + 20u] == 0xffffffffu, "the work's inside stands under the head's line");
+    cli_check((raster.pixels[(27u * 40u) + 20u] == side) && (raster.pixels[(26u * 40u) + 20u] == 0xffffffffu), "the foot's line is one pixel of the darkened link");
+    cli_check((raster.pixels[(15u * 40u) + 36u] == side) && (raster.pixels[(15u * 40u) + 37u] == side), "the right's line is two pixels of it");
+    cli_check((raster.pixels[(15u * 40u) + 2u] != 0xffffffffu) && (raster.pixels[(15u * 40u) + 2u] != top), "the left's line is the signal at a share over the ground");
+    cli_check(raster.pixels[(2u * 40u) + 2u] == 0xff000000u, "the work's corner pixel is the table");
+    cli_check(raster.pixels[(15u * 40u) + 20u] == 0xffffffffu, "the work's middle stands");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 40, 30}, white);
+    const GuiRect notch = {12, 2, 16, 10};
+    gui_raster_outlined(&raster, work, inside, 4u, &lines, &notch, 1u, plain, dark);
+    cli_check(raster.pixels[(5u * 40u) + 20u] == 0xffffffffu, "a hole's middle is left to the base");
+    cli_check(red_of(raster.pixels[(11u * 40u) + 12u]) < 0x20u, "inside a fillet's arc the hole is the table");
+    cli_check(raster.pixels[(2u * 40u) + 7u] == top, "the head's line runs up to the hole's turn");
+    cli_check((raster.pixels[(7u * 40u) + 11u] == top) && (raster.pixels[(7u * 40u) + 10u] == top), "the hole's side inside the work carries the head's line down");
+    cli_check((raster.pixels[(12u * 40u) + 20u] == top) && (raster.pixels[(13u * 40u) + 20u] == top), "and its foot carries it across");
+    cli_check(raster.pixels[(20u * 40u) + 20u] == 0xffffffffu, "the work below the hole stands");
+
     gui_raster_given(&raster);
     cli_check(raster.pixels == NULL, "a raster given back holds no pixels");
     return cli_checked();

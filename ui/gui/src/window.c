@@ -109,6 +109,7 @@ void gui_window_ended(GuiWindow *window)
     gui_signature_given(&window->signature);
     gui_problems_given(&window->problems);
     gui_ground_given(&window->ground);
+    gui_base_given(&window->base);
     gui_raster_given(&window->raster);
 }
 
@@ -687,7 +688,8 @@ int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height,
     gui_frame_sided(&window->frame, window_side_shown(window));
     window_claim_laid(window);
     gui_raster_given(&window->raster);
-    const int made = gui_raster_made(&window->raster, width, height) &&
+    gui_base_given(&window->base);
+    const int made = gui_raster_made(&window->raster, width, height) && gui_base_made(&window->base, width, height) &&
                      gui_ground_laid(&window->ground, width, height, scale, window->palette, cli_clock_milliseconds());
     window_view_sized(window);
     return made;
@@ -1742,19 +1744,41 @@ void gui_window_drawn(GuiWindow *window)
     {
         return;
     }
-    // the ground, the lattice as it stands, where its raster is the window's size, else the ground color
+    // the base: the lattice as it stands, where its raster is the window's size, else the ground color, with the
+    // glass sheet about the work, the work's parts' grounds and the panes that have slid in laid over it in one
+    // pass through the map; the controls' pane is the base's once it stands
     const GuiRaster *ground = &window->ground.raster;
-    if ((ground->pixels != NULL) && (ground->width == raster->width) && (ground->height == raster->height))
+    if ((ground->pixels == NULL) || (ground->width != raster->width) || (ground->height != raster->height))
     {
-        memor.cpy(&(MemoriaCfg){.dst = raster->pixels, .src = ground->pixels, .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
-    }
-    else
-    {
-        gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
         ground = NULL;
     }
-    // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it, the corners
-    // cut round, and the holes the parts shown over the work make in it while the claim holds
+    (void)gui_base_laid(&window->base, frame, palette, frame->controls_pane_share >= 1.0f);
+    gui_base_drawn(&window->base, raster, ground, palette->ground);
+    // the table the panes lie on: the lattice with the sheet's tint and grain; each pane's corners rounded on it
+    const GuiUnder table = gui_glass_table(ground, palette->ground, palette->glass);
+    const GuiColor pane = gui_glass_pane_tint(palette->glass);
+    gui_raster_paned(raster, table, gui_rect_met(frame->bar_slat, frame->bar), frame->pane_radius, pane, 1);
+    gui_raster_paned(raster, table, gui_rect_met(frame->strip_slat, frame->strip), frame->pane_radius, pane, 1);
+    gui_raster_paned(raster, table, gui_rect_met(frame->status_slat, frame->status), frame->pane_radius, pane, 1);
+    // the work's outline: the lines it stands in, as the page draws them, the signal along its head, a thin line of
+    // it down its left, the link darkened down its right and along its foot, bent round its corners and round the
+    // holes the parts shown over the work make in it while the claim holds
+    const GuiColor right_line = GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
+                                        (GUI_BLUE_OF(palette->link) * 65u) / 100u);
+    const GuiOutline lines = {palette->signal,
+                              right_line,
+                              right_line,
+                              (palette->signal & 0x00ffffffu) | (0x59u << 24u),
+                              gui_scaled(GUI_WORK_PAD_TOP, frame->scale),
+                              gui_scaled(GUI_WORK_PAD_RIGHT, frame->scale),
+                              gui_scaled(GUI_WORK_PAD_BOTTOM, frame->scale),
+                              gui_scaled(GUI_WORK_PAD_LEFT, frame->scale)};
+    const GuiUnder clear = {ground, 0u, NULL, 0u, palette->ground};
+    GuiRect holes[4];
+    const unsigned int count = gui_frame_holes(frame, holes);
+    gui_raster_outlined(raster, frame->work, frame->inside, frame->radius, &lines, holes, count, table, clear);
+    // the work's inside: the tabs row, the editor with the map beside it, and the side where one is shown, each on
+    // the ground the base laid it
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
     // the shown file's diagnostics underlined on the rows drawn
@@ -1774,21 +1798,11 @@ void gui_window_drawn(GuiWindow *window)
             gui_problems_drawn(&window->problems, raster, &window->glyphs, palette, frame);
         }
     }
-    // outside the work's corners the frame's glass lies over the lattice; a hole a part makes shows the lattice clear
-    const GuiUnder tinted = {ground, palette->glass};
-    const GuiUnder clear = {ground, 0u};
-    gui_raster_corners_cut(raster, frame->inside, frame->radius, tinted);
-    GuiRect holes[4];
-    const unsigned int count = gui_frame_holes(frame, holes);
-    for (unsigned int at = 0u; at < count; at += 1u)
-    {
-        gui_raster_notched(raster, frame->inside, holes[at], frame->radius, clear);
-    }
     window_panels_drawn(window);
-    // the parts about the work, each on its pane: the strip with the frame's gap column, the bar with the menu bar's
-    // titles and the controls, and the status bar
+    // the parts about the work, each on its pane: the strip, the bar with the menu bar's titles and the controls,
+    // and the status bar
     gui_strip_drawn(raster, &window->icons, palette, frame, &window->strip);
-    gui_bar_drawn(raster, &window->glyphs, palette, frame, window->title);
+    gui_bar_drawn(raster, &window->glyphs, palette, frame, window->title, table);
     gui_menubar_titles_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
     const GuiStatus status = {window->path,
                               window->editor.has_cursor,

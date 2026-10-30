@@ -83,7 +83,6 @@ void gui_tabs_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *pale
 {
     const float scale = frame->scale;
     const int one = gui_scaled(1, scale);
-    gui_raster_filled(raster, frame->tabs, palette->surface);
     gui_raster_filled(raster, (GuiRect){frame->tabs.x, frame->tabs.y + frame->tabs.height - one, frame->tabs.width, one},
                       palette->line);
     const unsigned int size = (unsigned int)gui_scaled((int)GUI_TAB_SIZE, scale);

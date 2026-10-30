@@ -5,8 +5,6 @@
 // and the marks between them in the path's
 #include "statusbar.h"
 
-#include "glass.h"
-
 // the crumbs' mark between a folder and what it holds
 static const char s_crumb_mark[] = "\xe2\x80\xba";
 
@@ -88,10 +86,9 @@ void gui_statusbar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons, 
                          const GuiFrame *frame, const GuiStatus *status)
 {
     const float scale = frame->scale;
-    // the bar's pane is the slat its edge shows, whole outside the claim, rounded by the claim's share of the radius;
-    // the items stand in the slat
+    // the bar's pane is the slat its edge shows, whole outside the claim, laid by the frame's base; the items stand
+    // in the slat
     const GuiRect bar = gui_rect_met(frame->status_slat, frame->status);
-    gui_glass_drawn(raster, bar, frame->pane_radius, palette->glass);
     if (gui_rect_empty(bar))
     {
         return;

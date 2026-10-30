@@ -3,8 +3,8 @@
 // frame_bench.c: the frame bench, run by `harness.py window bench`: the window begun without a system, sized to a
 // monitor at the scale of one with the explorer's side shown and a text of many lines in the editor, its frame drawn
 // many times and timed, then drawn again with no text, the text's own cost the difference; each part of the frame
-// drawn alone and timed, the ground's copy, the editor's ground, the editor's text, the explorer, the tabs, the map,
-// the glass panes and the work's corners; and a blend of the whole raster at half alpha, timed alone, the one blend
+// drawn alone and timed, the base through the map and the map laid, the ground's copy and the editor's ground each alone, the editor's text, the explorer, the tabs, the map,
+// the panes' contents and corners and the work's outline; and a blend of the whole raster at half alpha, timed alone, the one blend
 // every drawing goes through
 #include "../../../../../ui/gui/src/parts/chrome.h"
 #include "../../../../../ui/gui/src/parts/glass.h"
@@ -42,6 +42,23 @@ static void part_frame(GuiWindow *window)
     gui_window_drawn(window);
 }
 
+// the table the window's panes lie on
+static GuiUnder bench_table(const GuiWindow *window)
+{
+    return gui_glass_table(&window->ground.raster, window->palette->ground, window->palette->glass);
+}
+
+static void part_base(GuiWindow *window)
+{
+    gui_base_drawn(&window->base, &window->raster, &window->ground.raster, window->palette->ground);
+}
+
+static void part_map_laid(GuiWindow *window)
+{
+    window->base.laid = 0;
+    (void)gui_base_laid(&window->base, &window->frame, window->palette, 0);
+}
+
 static void part_ground_copied(GuiWindow *window)
 {
     memor.cpy(&(MemoriaCfg){.dst = window->raster.pixels,
@@ -52,6 +69,29 @@ static void part_ground_copied(GuiWindow *window)
 static void part_editor_ground(GuiWindow *window)
 {
     gui_raster_filled(&window->raster, window->frame.editor, window->palette->editor_ground);
+}
+
+static void part_pane_corners(GuiWindow *window)
+{
+    const GuiUnder table = bench_table(window);
+    const GuiColor pane = gui_glass_pane_tint(window->palette->glass);
+    const GuiFrame *const frame = &window->frame;
+    gui_raster_paned(&window->raster, table, gui_rect_met(frame->bar_slat, frame->bar), frame->pane_radius, pane, 1);
+    gui_raster_paned(&window->raster, table, gui_rect_met(frame->strip_slat, frame->strip), frame->pane_radius, pane, 1);
+    gui_raster_paned(&window->raster, table, gui_rect_met(frame->status_slat, frame->status), frame->pane_radius, pane, 1);
+}
+
+static void part_outline(GuiWindow *window)
+{
+    const GuiPalette *const palette = window->palette;
+    const GuiFrame *const frame = &window->frame;
+    const GuiColor right_line = GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
+                                        (GUI_BLUE_OF(palette->link) * 65u) / 100u);
+    const GuiOutline lines = {palette->signal, right_line, right_line, (palette->signal & 0x00ffffffu) | (0x59u << 24u), 2, 2, 1, 1};
+    const GuiUnder clear = {&window->ground.raster, 0u, NULL, 0u, palette->ground};
+    GuiRect holes[4];
+    const unsigned int count = gui_frame_holes(frame, holes);
+    gui_raster_outlined(&window->raster, frame->work, frame->inside, frame->radius, &lines, holes, count, bench_table(window), clear);
 }
 
 static void part_editor(GuiWindow *window)
@@ -78,7 +118,7 @@ static void part_map(GuiWindow *window)
 static void part_glass(GuiWindow *window)
 {
     gui_strip_drawn(&window->raster, &window->icons, window->palette, &window->frame, &window->strip);
-    gui_bar_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->title);
+    gui_bar_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window));
     const GuiStatus status = {"ui/gui/src/raster.c", 1, 3ull, 4ull, 3ull, 4ull, 0, 0, 4u, 100000000ull};
     gui_statusbar_drawn(&window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
 }
@@ -90,24 +130,13 @@ static void part_strip(GuiWindow *window)
 
 static void part_bar(GuiWindow *window)
 {
-    gui_bar_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->title);
+    gui_bar_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window));
 }
 
 static void part_status(GuiWindow *window)
 {
     const GuiStatus status = {"ui/gui/src/raster.c", 1, 3ull, 4ull, 3ull, 4ull, 0, 0, 4u, 100000000ull};
     gui_statusbar_drawn(&window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
-}
-
-static void part_grain(GuiWindow *window)
-{
-    gui_raster_grained(&window->raster, window->frame.bar, window->frame.pane_radius, gui_grain(), GUI_GRAIN_TILE);
-}
-
-static void part_corners(GuiWindow *window)
-{
-    const GuiUnder tinted = {&window->ground.raster, window->palette->glass};
-    gui_raster_corners_cut(&window->raster, window->frame.inside, window->frame.radius, tinted);
 }
 
 int main(void)
@@ -144,18 +173,20 @@ int main(void)
     const unsigned long long frames_took = cli_clock_milliseconds() - frames_began;
     printf("frame: %.2f ms over %u frames at %u by %u\n", (double)frames_took / (double)BENCH_FRAMES, BENCH_FRAMES, BENCH_WIDTH, BENCH_HEIGHT);
     printf("the frame's parts, each drawn alone:\n");
-    bench_timed("the ground copied", part_ground_copied, &window);
-    bench_timed("the editor's ground", part_editor_ground, &window);
+    bench_timed("the base through the map", part_base, &window);
+    bench_timed("the map laid", part_map_laid, &window);
+    bench_timed("  the ground copied alone", part_ground_copied, &window);
+    bench_timed("  the editor's ground alone", part_editor_ground, &window);
     bench_timed("the editor's text", part_editor, &window);
     bench_timed("the explorer", part_explorer, &window);
     bench_timed("the tabs", part_tabs, &window);
     bench_timed("the map", part_map, &window);
-    bench_timed("the glass panes", part_glass, &window);
+    bench_timed("the panes' contents", part_glass, &window);
     bench_timed("  the strip", part_strip, &window);
     bench_timed("  the bar", part_bar, &window);
     bench_timed("  the status bar", part_status, &window);
-    bench_timed("  the bar's grain alone", part_grain, &window);
-    bench_timed("the work's corners", part_corners, &window);
+    bench_timed("the panes' corners", part_pane_corners, &window);
+    bench_timed("the work's outline", part_outline, &window);
     // the same frame with the editor holding no lines: the text's own cost is the difference
     gui_editor_given(&window.editor);
     gui_editor_made(&window.editor);
