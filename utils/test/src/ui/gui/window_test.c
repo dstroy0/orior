@@ -15,7 +15,7 @@ static void woken(void *context)
 
 static GuiColor at(const GuiWindow *window, int x, int y)
 {
-    return window->raster.pixels[((unsigned int)y * window->raster.width) + (unsigned int)x];
+    return window->raster->pixels[((unsigned int)y * window->raster->width) + (unsigned int)x];
 }
 
 // whether any pixel of `rect` is not `ground`
@@ -122,7 +122,7 @@ int main(void)
         return cli_checked();
     }
     cli_check(gui_window_sized(&window, 800u, 500u, 1.0f), "the window sized lays its parts out and makes its raster");
-    cli_check((window.raster.width == 800u) && (window.raster.height == 500u), "the raster is the window's size");
+    cli_check((window.raster->width == 800u) && (window.raster->height == 500u), "the raster is the window's size");
     gui_window_drawn(&window);
     const GuiPalette *const palette = window.palette;
     const GuiColor ground = palette->ground;
@@ -142,6 +142,15 @@ int main(void)
     cli_check((at(&window, 200, 41) == palette->signal) && (at(&window, 200, 42) == palette->signal), "the work's head is the signal line, two pixels deep");
     cli_check(at(&window, 44 + 1 + 10, 41 + 1) != palette->surface, "the lines stand outside the tabs row");
     cli_check(at(&window, 44 + 1 + 10, 41 + 2 + 10) == palette->surface, "the tabs row is the surface color");
+    {
+        const GuiRaster *const drawn = window.raster;
+        gui_window_flipped(&window);
+        cli_check((window.shown == drawn) && (window.raster != drawn) && (window.raster->pixels != NULL) && (window.raster->width == 800u),
+                  "the frame presented is the raster shown and the other, the window's size, is drawn into next");
+        gui_window_flipped(&window);
+        cli_check(window.raster == drawn, "flipped again the first is drawn into again");
+        window.shown = NULL;
+    }
     const int dot = dot_column(&window, 300, 300);
     cli_check((at(&window, dot, 300) == over(ground_at(&window, dot, 300), palette->editor_ground)) && (at(&window, dot, 300) != ground) &&
                   (at(&window, dot, 300) != ground_at(&window, dot, 300)),
@@ -229,9 +238,9 @@ int main(void)
     gui_raster_given(&icon);
 
     cli_check(gui_window_sized(&window, 640u, 400u, 1.0f), "the window sized again remakes its raster");
-    cli_check((window.raster.width == 640u) && (window.frame.bar.width == 640), "the parts follow the new size");
+    cli_check((window.raster->width == 640u) && (window.frame.bar.width == 640), "the parts follow the new size");
 
     gui_window_ended(&window);
-    cli_check(window.raster.pixels == NULL, "the window ended holds no raster");
+    cli_check(window.raster->pixels == NULL, "the window ended holds no raster");
     return cli_checked();
 }

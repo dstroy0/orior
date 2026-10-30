@@ -50,7 +50,7 @@ static GuiUnder bench_table(const GuiWindow *window)
 
 static void part_base(GuiWindow *window)
 {
-    gui_base_drawn(&window->base, &window->raster, &window->ground.raster, window->palette->ground);
+    gui_base_drawn(&window->base, window->raster, &window->ground.raster, window->palette->ground);
 }
 
 static void part_map_laid(GuiWindow *window)
@@ -61,14 +61,14 @@ static void part_map_laid(GuiWindow *window)
 
 static void part_ground_copied(GuiWindow *window)
 {
-    memor.cpy(&(MemoriaCfg){.dst = window->raster.pixels,
+    memor.cpy(&(MemoriaCfg){.dst = window->raster->pixels,
                             .src = window->ground.raster.pixels,
-                            .bytes = (unsigned long long)window->raster.width * window->raster.height * sizeof(GuiColor)});
+                            .bytes = (unsigned long long)window->raster->width * window->raster->height * sizeof(GuiColor)});
 }
 
 static void part_editor_ground(GuiWindow *window)
 {
-    gui_raster_filled(&window->raster, window->frame.editor, window->palette->editor_ground);
+    gui_raster_filled(window->raster, window->frame.editor, window->palette->editor_ground);
 }
 
 static void part_pane_corners(GuiWindow *window)
@@ -76,9 +76,9 @@ static void part_pane_corners(GuiWindow *window)
     const GuiUnder table = bench_table(window);
     const GuiColor pane = gui_glass_pane_tint(window->palette->glass);
     const GuiFrame *const frame = &window->frame;
-    gui_raster_paned(&window->raster, table, gui_rect_met(frame->bar_slat, frame->bar), frame->pane_radius, pane, 1);
-    gui_raster_paned(&window->raster, table, gui_rect_met(frame->strip_slat, frame->strip), frame->pane_radius, pane, 1);
-    gui_raster_paned(&window->raster, table, gui_rect_met(frame->status_slat, frame->status), frame->pane_radius, pane, 1);
+    gui_raster_paned(window->raster, table, gui_rect_met(frame->bar_slat, frame->bar), frame->pane_radius, pane, 1);
+    gui_raster_paned(window->raster, table, gui_rect_met(frame->strip_slat, frame->strip), frame->pane_radius, pane, 1);
+    gui_raster_paned(window->raster, table, gui_rect_met(frame->status_slat, frame->status), frame->pane_radius, pane, 1);
 }
 
 static void part_outline(GuiWindow *window)
@@ -91,52 +91,52 @@ static void part_outline(GuiWindow *window)
     const GuiUnder clear = {&window->ground.raster, 0u, NULL, 0u, palette->ground};
     GuiRect holes[4];
     const unsigned int count = gui_frame_holes(frame, holes);
-    gui_raster_outlined(&window->raster, frame->work, frame->inside, frame->radius, &lines, holes, count, bench_table(window), clear);
+    gui_raster_outlined(window->raster, frame->work, frame->inside, frame->radius, &lines, holes, count, bench_table(window), clear);
 }
 
 static void part_editor(GuiWindow *window)
 {
-    gui_editor_drawn(&window->editor, &window->raster, &window->glyphs, window->palette, window->frame.editor, window->frame.scale);
+    gui_editor_drawn(&window->editor, window->raster, &window->glyphs, window->palette, window->frame.editor, window->frame.scale);
 }
 
 static void part_explorer(GuiWindow *window)
 {
-    gui_explorer_drawn(&window->explorer, &window->raster, &window->glyphs, &window->icons, window->palette, &window->frame,
+    gui_explorer_drawn(&window->explorer, window->raster, &window->glyphs, &window->icons, window->palette, &window->frame,
                        gui_strip_tool(0u)->label, 1, window->title, window->path);
 }
 
 static void part_tabs(GuiWindow *window)
 {
-    gui_tabs_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->tab, window->tabs, window->active);
+    gui_tabs_drawn(window->raster, &window->glyphs, window->palette, &window->frame, window->tab, window->tabs, window->active);
 }
 
 static void part_map(GuiWindow *window)
 {
-    gui_minimap_drawn(&window->minimap, &window->raster, window->palette, &window->editor, window->frame.map, window->frame.scale, 60.0f);
+    gui_minimap_drawn(&window->minimap, window->raster, window->palette, &window->editor, window->frame.map, window->frame.scale, 60.0f);
 }
 
 static void part_glass(GuiWindow *window)
 {
-    gui_strip_drawn(&window->raster, &window->icons, window->palette, &window->frame, &window->strip);
-    gui_bar_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window));
+    gui_strip_drawn(window->raster, &window->icons, window->palette, &window->frame, &window->strip);
+    gui_bar_drawn(window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window));
     const GuiStatus status = {"ui/gui/src/raster.c", 1, 3ull, 4ull, 3ull, 4ull, 0, 0, 4u, 100000000ull};
-    gui_statusbar_drawn(&window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
+    gui_statusbar_drawn(window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
 }
 
 static void part_strip(GuiWindow *window)
 {
-    gui_strip_drawn(&window->raster, &window->icons, window->palette, &window->frame, &window->strip);
+    gui_strip_drawn(window->raster, &window->icons, window->palette, &window->frame, &window->strip);
 }
 
 static void part_bar(GuiWindow *window)
 {
-    gui_bar_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window));
+    gui_bar_drawn(window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window));
 }
 
 static void part_status(GuiWindow *window)
 {
     const GuiStatus status = {"ui/gui/src/raster.c", 1, 3ull, 4ull, 3ull, 4ull, 0, 0, 4u, 100000000ull};
-    gui_statusbar_drawn(&window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
+    gui_statusbar_drawn(window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
 }
 
 int main(void)
@@ -202,7 +202,7 @@ int main(void)
     const unsigned long long fills_began = cli_clock_milliseconds();
     for (unsigned int fill = 0u; fill < BENCH_FILLS; fill += 1u)
     {
-        gui_raster_filled(&window.raster, whole, GUI_RGBA(0x80u, 0x40u, 0xc0u, 0x80u));
+        gui_raster_filled(window.raster, whole, GUI_RGBA(0x80u, 0x40u, 0xc0u, 0x80u));
     }
     const unsigned long long fills_took = cli_clock_milliseconds() - fills_began;
     printf("blend of the whole raster: %.2f ms over %u fills\n", (double)fills_took / (double)BENCH_FILLS, BENCH_FILLS);

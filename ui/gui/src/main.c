@@ -108,13 +108,14 @@ static void main_idle(void *context)
             const GuiRect caret = gui_window_caret_drawn(window);
             if (!gui_rect_empty(caret))
             {
-                gui_system_present_part(s_system, &window->raster, caret);
+                gui_system_present_part(s_system, (window->shown != NULL) ? window->shown : window->raster, caret);
             }
         }
         else
         {
             gui_window_drawn(window);
-            gui_system_present(s_system, &window->raster);
+            gui_system_present(s_system, window->raster);
+            gui_window_flipped(window);
         }
     }
     gui_system_tick(s_system, gui_window_due(window));

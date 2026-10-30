@@ -28,6 +28,7 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
 {
     memor.set(&(MemoriaCfg){.dst = window, .val = 0, .bytes = sizeof(*window)});
     window->palette = gui_palette(GUI_SCHEME_DARK);
+    window->raster = &window->rasters[0];
     window->active = -1;
     window->last_active = -1;
     gui_editor_made(&window->editor);
@@ -110,7 +111,8 @@ void gui_window_ended(GuiWindow *window)
     gui_problems_given(&window->problems);
     gui_ground_given(&window->ground);
     gui_base_given(&window->base);
-    gui_raster_given(&window->raster);
+    gui_raster_given(&window->rasters[0]);
+    gui_raster_given(&window->rasters[1]);
 }
 
 // whether the strip's tool shown is named `name`
@@ -687,9 +689,13 @@ int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height,
     gui_frame_laid(&window->frame, width, height, scale);
     gui_frame_sided(&window->frame, window_side_shown(window));
     window_claim_laid(window);
-    gui_raster_given(&window->raster);
+    gui_raster_given(&window->rasters[0]);
+    gui_raster_given(&window->rasters[1]);
+    window->raster = &window->rasters[0];
+    window->shown = NULL;
     gui_base_given(&window->base);
-    const int made = gui_raster_made(&window->raster, width, height) && gui_base_made(&window->base, width, height) &&
+    const int made = gui_raster_made(&window->rasters[0], width, height) && gui_raster_made(&window->rasters[1], width, height) &&
+                     gui_base_made(&window->base, width, height) &&
                      gui_ground_laid(&window->ground, width, height, scale, window->palette, cli_clock_milliseconds());
     window_view_sized(window);
     return made;
@@ -839,13 +845,19 @@ static int window_caret_covered(const GuiWindow *window, GuiRect caret)
     return 0;
 }
 
+void gui_window_flipped(GuiWindow *window)
+{
+    window->shown = window->raster;
+    window->raster = (window->raster == &window->rasters[0]) ? &window->rasters[1] : &window->rasters[0];
+}
+
 GuiRect gui_window_caret_drawn(GuiWindow *window)
 {
     window->owed = 0;
     window->caret_alone = 0;
     window->caret_ink = window_caret_ink(window, cli_clock_milliseconds());
     window->editor.caret_ink = window->caret_ink;
-    return gui_editor_caret_redrawn(&window->editor, &window->raster, window->palette);
+    return gui_editor_caret_redrawn(&window->editor, (window->shown != NULL) ? window->shown : window->raster, window->palette);
 }
 
 // the milliseconds until the view's rest is told, 0 where no telling waits
@@ -1701,7 +1713,7 @@ static void window_panels_drawn(GuiWindow *window)
         if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->hover.line, window->hover.from, &anchor) &&
             gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->hover.line, end, &last))
         {
-            gui_hover_drawn(&window->hover, &window->raster, &window->glyphs, window->palette, anchor, last, frame->inside, frame->scale);
+            gui_hover_drawn(&window->hover, window->raster, &window->glyphs, window->palette, anchor, last, frame->inside, frame->scale);
         }
         else
         {
@@ -1712,7 +1724,7 @@ static void window_panels_drawn(GuiWindow *window)
     {
         if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->suggest.line, window->suggest.from, &anchor))
         {
-            gui_suggest_drawn(&window->suggest, &window->raster, &window->glyphs, window->palette, anchor, frame->inside, frame->scale);
+            gui_suggest_drawn(&window->suggest, window->raster, &window->glyphs, window->palette, anchor, frame->inside, frame->scale);
         }
         else
         {
@@ -1724,7 +1736,7 @@ static void window_panels_drawn(GuiWindow *window)
         if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->editor.cursor.line, window->editor.cursor.col,
                                   &anchor))
         {
-            gui_signature_drawn(&window->signature, &window->raster, &window->glyphs, window->palette, anchor, frame->inside, frame->scale);
+            gui_signature_drawn(&window->signature, window->raster, &window->glyphs, window->palette, anchor, frame->inside, frame->scale);
         }
         else
         {
@@ -1737,7 +1749,7 @@ void gui_window_drawn(GuiWindow *window)
 {
     const GuiFrame *const frame = &window->frame;
     const GuiPalette *const palette = window->palette;
-    GuiRaster *const raster = &window->raster;
+    GuiRaster *const raster = window->raster;
     window->owed = 0;
     window->caret_alone = 0;
     if (raster->pixels == NULL)

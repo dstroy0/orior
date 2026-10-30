@@ -41,7 +41,8 @@
 #define GUI_HIT_CLOSE 12u
 // the resize border's width in the page's pixels
 #define GUI_BORDER 5
-// The window: its frame, raster, the base every frame starts from and the ground under it, glyphs, icons, palette, editor, minimap, menu
+// The window: its frame; its two rasters, the one the frame is drawn into and the one shown, flipped as a frame is
+// presented, the shown one NULL before any; the base every frame starts from and the ground under it, glyphs, icons, palette, editor, minimap, menu
 // The window: its frame, raster, the ground every frame starts from, glyphs, icons, palette, editor, minimap, menu
 // bar, strip, explorer and link; the
 // panels over the editor, the hover, the completion and the signature, with the tickets of their asks in flight, 0
@@ -70,7 +71,9 @@
 typedef struct
 {
     GuiFrame frame;
-    GuiRaster raster;
+    GuiRaster rasters[2];
+    GuiRaster *raster;
+    GuiRaster *shown;
     GuiBase base;
     GuiGround ground;
     GuiGlyphs glyphs;
@@ -165,9 +168,11 @@ void gui_window_ended(GuiWindow *window);
 int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height, float scale);
 // the first calls made as the window opens: the launch command taken and the tree's root asked
 void gui_window_started(GuiWindow *window);
-// the frame drawn into the raster, the frame owed no more
+// the frame drawn into the raster not shown, the frame owed no more; and the two flipped once that frame is presented,
+// the raster drawn the one shown and the other the one to draw into
 void gui_window_drawn(GuiWindow *window);
-// the caret drawn again over the frame last drawn at the ink its breath stands at now, the frame owed for its ink
+void gui_window_flipped(GuiWindow *window);
+// the caret drawn again on the raster shown, over the frame last drawn, at the ink its breath stands at now, the frame owed for its ink
 // alone paid: the caret's rectangle, the rows of which are to be shown again, empty where no caret stands
 GuiRect gui_window_caret_drawn(GuiWindow *window);
 // where the pointer at x, y stands
