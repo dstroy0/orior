@@ -64,32 +64,16 @@ void cli_check_folder(const char *name, char *full)
     (void)query_folder_made(full);
 }
 
-// The tree a text is parsed into, a cell taken at the first parse and given back as the checks end
-typedef struct
-{
-    CliJsonNode node[1u << 18u];
-    char tree_text[32u << 20u];
-    CfgJsonToken token[1u << 18u];
-} CliCheckTree;
-
-static CliCheckTree *s_tree;
+// The tree a text is parsed into, a cell sized to the text at each parse, the one before given back, and the last
+// given back as the checks end
 static CliJson s_json;
 
 const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
-    *root = CLI_JSON_NONE;
-    s_tree = (s_tree != NULL) ? s_tree : g_cli_cells->persistent_buf_alloc(sizeof(*s_tree), NULL);
-    if (s_tree == NULL)
-    {
-        cli_check(0, "a check's parsed tree is taken");
-        return &s_json;
-    }
-    cli_json_begun(&s_json, s_tree->node, sizeof(s_tree->node) / sizeof(s_tree->node[0]), s_tree->tree_text,
-                   sizeof(s_tree->tree_text));
+    cli_json_given(&s_json);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    *root =
-        cli_json_read(&s_json, text, size, s_tree->token, sizeof(s_tree->token) / sizeof(s_tree->token[0]), &err_msg);
+    *root = cli_json_taken(&s_json, text, size, 0u, 0ull, &err_msg);
     return &s_json;
 }
 
@@ -187,8 +171,7 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
 
 int cli_checked(void)
 {
-    cli_cell_release(s_tree, NULL);
-    s_tree = NULL;
+    cli_json_given(&s_json);
     cli_lane_rewound(0u, s_mark);
     char text[128];
     VerbaLinea line = {text, sizeof(text), 0ull};

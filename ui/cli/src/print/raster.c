@@ -15,6 +15,8 @@
 #define CLI_GLYPH_CACHE 8192u
 
 #define CLI_COVER_CACHE (1u << 23u)
+// the coverage floats a glyph is given room for ahead of its drawing
+#define CLI_COVER_LEAST (1u << 18u)
 
 // the color of the line numbers
 static const unsigned char s_number_color[3] = {0x88u, 0x88u, 0x88u};
@@ -41,7 +43,8 @@ typedef struct
     CliFont faces[4];
     int has[4];
     CliCachedGlyph glyphs[CLI_GLYPH_CACHE];
-    float cover[CLI_COVER_CACHE];
+    float *cover;
+    unsigned long long cover_room;
     unsigned long long cover_used;
 } CliTypefaces;
 
@@ -65,6 +68,10 @@ int cli_print_faces(VerbaLinea *err_msg)
     {
         cli_file_let_go(s_typefaces->face_data[face], s_typefaces->face_size[face]);
     }
+    if (s_typefaces != NULL)
+    {
+        cli_cell_release(s_typefaces->cover, NULL);
+    }
     cli_cell_release(s_typefaces, NULL);
     s_typefaces = g_cli_cells->persistent_buf_alloc(sizeof(*s_typefaces), NULL);
     if (s_typefaces == NULL)
@@ -72,6 +79,8 @@ int cli_print_faces(VerbaLinea *err_msg)
         mmgr_line_put(err_msg, "the faces drawn with could not be taken");
         return 0;
     }
+    s_typefaces->cover = NULL;
+    s_typefaces->cover_room = 0ull;
     char paths[4][CLI_PATH_MAX_LEN];
     cli_font_monospace(paths);
     for (unsigned int face = 0u; face < 4u; face += 1u)
@@ -135,6 +144,51 @@ static int cli_embolden(CliMask *mask, unsigned long long by, unsigned long long
     return 1;
 }
 
+// every cached glyph forgotten, each drawn again as it is next requested, and the coverage empty
+static void cli_glyphs_forgotten(void)
+{
+    for (unsigned int at = 0u; at < CLI_GLYPH_CACHE; at += 1u)
+    {
+        s_typefaces->glyphs[at].used = 0;
+    }
+    s_typefaces->cover_used = 0ull;
+}
+
+// the coverage given room for a glyph, CLI_COVER_LEAST floats past those used: grown where it stands or moved, every
+// cached mask pointed into the moved cell, up to CLI_COVER_CACHE; at that ceiling, or where the cells refuse the
+// growth, the glyphs are forgotten and the coverage begins again: 1, or 0 where no coverage can be had at all
+static int cli_cover_roomed(void)
+{
+    if ((s_typefaces->cover_room - s_typefaces->cover_used) >= CLI_COVER_LEAST)
+    {
+        return 1;
+    }
+    const unsigned long long wanted = s_typefaces->cover_used + CLI_COVER_LEAST;
+    if (wanted <= CLI_COVER_CACHE)
+    {
+        const unsigned long long doubled = 2ull * s_typefaces->cover_room;
+        const unsigned long long more = (doubled > wanted) ? doubled : wanted;
+        const unsigned long long taken = (more < CLI_COVER_CACHE) ? more : CLI_COVER_CACHE;
+        const float *const before = s_typefaces->cover;
+        float *const grown =
+            cli_cell_regrown(s_typefaces->cover, s_typefaces->cover_used * sizeof(float), taken * sizeof(float), NULL);
+        if (grown != NULL)
+        {
+            for (unsigned int at = 0u; (grown != before) && (at < CLI_GLYPH_CACHE); at += 1u)
+            {
+                CliCachedGlyph *const one = &s_typefaces->glyphs[at];
+                // a mask's coverage keeps its place in the cell, the cell having moved whole
+                one->mask.cover = one->used ? (grown + (one->mask.cover - before)) : one->mask.cover;
+            }
+            s_typefaces->cover = grown;
+            s_typefaces->cover_room = taken;
+            return 1;
+        }
+    }
+    cli_glyphs_forgotten();
+    return s_typefaces->cover_room >= CLI_COVER_LEAST;
+}
+
 // the mask of a glyph of a face, made bolder or slanted, drawn once and cached: NULL where it cannot be drawn
 static const CliMask *cli_mask_of(unsigned int key_face, const CliFont *font, unsigned int glyph, int bold, int slant,
                                   float em)
@@ -156,16 +210,18 @@ static const CliMask *cli_mask_of(unsigned int key_face, const CliFont *font, un
             break;
         }
     }
-    // a table or coverage full is let go whole, every glyph drawn again as it is next requested
-    if (s_typefaces->glyphs[bucket].used || ((CLI_COVER_CACHE - s_typefaces->cover_used) < (1u << 18u)))
+    // a table full is let go whole, every glyph drawn again as it is next requested; the coverage is given room for
+    // the glyph, and where that forgets the glyphs the bucket is the first again
+    if (s_typefaces->glyphs[bucket].used)
     {
-        for (unsigned int at = 0u; at < CLI_GLYPH_CACHE; at += 1u)
-        {
-            s_typefaces->glyphs[at].used = 0;
-        }
-        s_typefaces->cover_used = 0ull;
+        cli_glyphs_forgotten();
         bucket = bucket_start;
     }
+    if (!cli_cover_roomed())
+    {
+        return NULL;
+    }
+    bucket = s_typefaces->glyphs[bucket_start].used ? bucket : bucket_start;
     const float font_scale = em / font->units;
     const float shear = slant ? (0.2f * font_scale) : 0.0f;
     const float matrix[6] = {font_scale, 0.0f, shear, font_scale, 0.0f, 0.0f};
@@ -174,13 +230,13 @@ static const CliMask *cli_mask_of(unsigned int key_face, const CliFont *font, un
     cli_font_outline(font, glyph, matrix, 0u, &s_room->contours);
     CliCachedGlyph *const cached = &s_typefaces->glyphs[bucket];
     cli_font_rasterize(&s_room->contours, &cached->mask, s_typefaces->cover + s_typefaces->cover_used,
-                       CLI_COVER_CACHE - s_typefaces->cover_used);
+                       s_typefaces->cover_room - s_typefaces->cover_used);
     if (bold)
     {
         const float spread = em / 28.0f;
         // a spread of whole pixels, at least one
         const unsigned long long by = (unsigned long long)((spread > 1.0f) ? spread : 1.0f);
-        if (!cli_embolden(&cached->mask, by, CLI_COVER_CACHE - s_typefaces->cover_used))
+        if (!cli_embolden(&cached->mask, by, s_typefaces->cover_room - s_typefaces->cover_used))
         {
             return NULL;
         }
