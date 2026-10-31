@@ -39,11 +39,10 @@ static CliGrammarEntry *s_grammars;
 static unsigned int s_grammar_room;
 static CliGrammar s_read;
 static CliLock s_lock = CLI_LOCK_INIT;
-static CellOwner s_owner = MMGR_CELL_OWNER("cli_grammars");
 
 void cli_highlight_cells_usage_written(VerbaLinea *out)
 {
-    cli_cells_owner_usage_written(&s_owner, out);
+    cli_cells_owner_usage_written(&g_cli_grammars_cells, out);
 }
 
 // the head of the grammar whose cell is `region`
@@ -60,7 +59,7 @@ static void cli_grammar_put_out(unsigned char *region)
         atomic_fetch_or_explicit(&cli_grammar_head(region)->readers, CLI_GRAMMAR_PUT_OUT, memory_order_acq_rel);
     if (readers == 0ull)
     {
-        g_cli_cells->persistent_buf_release(region, &s_owner);
+        g_cli_cells->persistent_buf_release(region, &g_cli_grammars_cells);
     }
 }
 
@@ -72,7 +71,7 @@ static void cli_grammar_let_go(unsigned char *region)
         atomic_fetch_sub_explicit(&cli_grammar_head(region)->readers, 1ull, memory_order_acq_rel);
     if (readers == (CLI_GRAMMAR_PUT_OUT | 1ull))
     {
-        g_cli_cells->persistent_buf_release(region, &s_owner);
+        g_cli_cells->persistent_buf_release(region, &g_cli_grammars_cells);
     }
 }
 
@@ -151,7 +150,7 @@ static int cli_grammars_grown(void)
 {
     const unsigned int room = (s_grammar_room == 0u) ? CLI_GRAMMARS_FIRST : (2u * s_grammar_room);
     CliGrammarEntry *const grown = cli_cell_regrown(s_grammars, (size_t)s_grammar_room * sizeof(*grown),
-                                                    (unsigned long long)room * sizeof(*grown), &s_owner);
+                                                    (unsigned long long)room * sizeof(*grown), &g_cli_grammars_cells);
     if (grown == NULL)
     {
         return 0;
@@ -201,7 +200,7 @@ static int cli_grammar_stored(const char *key, const CliJson *json, unsigned int
         mmgr_line_put(err_msg, "the grammars stored take more than orior_cli supports");
         return 0;
     }
-    unsigned char *const region = g_cli_cells->persistent_buf_alloc(CLI_GRAMMAR_HEAD + size, &s_owner);
+    unsigned char *const region = g_cli_cells->persistent_buf_alloc(CLI_GRAMMAR_HEAD + size, &g_cli_grammars_cells);
     if (region == NULL)
     {
         mmgr_line_put(err_msg, "the grammars stored take more than orior_cli supports");
@@ -280,7 +279,7 @@ static unsigned char *cli_grammar_roomed(CliGrammarRoom *room, const CliJson *js
     room->names_most = cli_bounded(nodes + 1ull, CLI_GRAMMAR_NAMES);
     room->own_most = cli_bounded(nodes, CLI_GRAMMAR_OWN);
     room->text_most = cli_bounded((4ull * bytes) + nodes + 1ull, CLI_GRAMMAR_TEXT);
-    unsigned char *const cell = g_cli_cells->temporary_buf_alloc(cli_grammar_parts(room, NULL), &s_owner);
+    unsigned char *const cell = g_cli_cells->temporary_buf_alloc(cli_grammar_parts(room, NULL), &g_cli_grammars_cells);
     if (cell != NULL)
     {
         (void)cli_grammar_parts(room, cell);
@@ -322,7 +321,7 @@ static CliHighlightRoom *cli_coloring_roomed(CliHighlightRoom *room, unsigned ch
     room->count = count;
     // each line's ending, and the byte the endings reserve back for their terminator
     room->endings_size = (room->count * CLI_HIGHLIGHT_ENDING) + 1ull;
-    *cell = g_cli_cells->temporary_buf_alloc(cli_coloring_parts(room, NULL), &s_owner);
+    *cell = g_cli_cells->temporary_buf_alloc(cli_coloring_parts(room, NULL), &g_cli_grammars_cells);
     if (*cell == NULL)
     {
         return NULL;
@@ -337,7 +336,7 @@ int cli_highlight_store(const char *key, const CliJson *json, unsigned int def, 
     CliGrammarRoom room;
     unsigned char *const cell = cli_grammar_roomed(&room, json);
     const int stored = (cell != NULL) && cli_grammar_stored(key, json, def, &room, err_msg);
-    g_cli_cells->persistent_buf_release(cell, &s_owner);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_grammars_cells);
     cli_lock_give(&s_lock);
     if (cell == NULL)
     {
@@ -408,7 +407,7 @@ static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *e
     {
         cli_highlight_lines(&grammar, room, colored->state, colored->lines, colored->count, colored->out);
     }
-    g_cli_cells->persistent_buf_release(cell, &s_owner);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_grammars_cells);
     cli_grammar_let_go(region);
     if (room == NULL)
     {

@@ -12,8 +12,6 @@
 // the bytes a match's template is begun to be written in, doubling as it is
 #define CLI_SHAPE_WITH_FIRST 256u
 
-CellOwner g_cli_shape_cells = MMGR_CELL_OWNER("cli_shape");
-
 // A search's room, a cell taken with the search's lock and given back with it: the code's tokens and the pattern's
 // parts, each part's hole, the holes and the matcher, the tokens' and the holes' lists after it in the same cell, as
 // long as the code and the pattern are in bytes

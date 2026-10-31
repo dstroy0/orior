@@ -263,7 +263,8 @@ def cmd_check(a):
     seen = []
     code = harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, *a.names], seen=seen, env=harness_cli.checks_env(a))
     checks, failed, exits = harness_cli.output_read("".join(seen))
-    failing = sum(1 for one in exits if one != 0)
+    # a file ended as stalled printed no exit of its own
+    failing = sum(1 for one in exits if one != 0) + (1 if code == 124 else 0)
     print("window check: %d checks, %d failed, %d of %d files failing" % (checks, failed, failing, len(exits)), flush=True)
     return code or (1 if (failed or failing) else 0)
 

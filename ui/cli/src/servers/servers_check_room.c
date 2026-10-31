@@ -18,19 +18,16 @@
 #define CLI_SERVERS_FILES_FIRST 1024u
 #define CLI_SERVERS_ROOM_FIRST (64ull << 10u)
 
-// the owner every cell of the room is counted to, as the cells' audit lists it
-static CellOwner s_owner = MMGR_CELL_OWNER("the tree's check");
-
 // the files waiting by their places in the ring, sorted by where their paths stand, and the queue they are of
 static unsigned int s_order[CLI_SERVERS_WAITING];
 static const CliServersQueue *s_ordering;
 
 void cli_servers_check_room_given(CliServersQueue *queue)
 {
-    g_cli_cells->persistent_buf_release(queue->files, &s_owner);
-    g_cli_cells->persistent_buf_release(queue->file_at, &s_owner);
-    g_cli_cells->persistent_buf_release(queue->waiting, &s_owner);
-    g_cli_cells->persistent_buf_release(queue->room, &s_owner);
+    g_cli_cells->persistent_buf_release(queue->files, &g_cli_servers_check_room_cells);
+    g_cli_cells->persistent_buf_release(queue->file_at, &g_cli_servers_check_room_cells);
+    g_cli_cells->persistent_buf_release(queue->waiting, &g_cli_servers_check_room_cells);
+    g_cli_cells->persistent_buf_release(queue->room, &g_cli_servers_check_room_cells);
     queue->files = NULL;
     queue->file_at = NULL;
     queue->waiting = NULL;
@@ -43,10 +40,10 @@ int cli_servers_check_room_made(CliServersQueue *queue)
     {
         return 1;
     }
-    queue->files = g_cli_cells->persistent_buf_alloc(CLI_SERVERS_ROOM_FIRST, &s_owner);
-    queue->file_at = g_cli_cells->persistent_buf_alloc(CLI_SERVERS_FILES_FIRST * sizeof(*queue->file_at), &s_owner);
-    queue->waiting = g_cli_cells->persistent_buf_alloc(CLI_SERVERS_WAITING_FIRST * sizeof(*queue->waiting), &s_owner);
-    queue->room = g_cli_cells->persistent_buf_alloc(CLI_SERVERS_ROOM_FIRST, &s_owner);
+    queue->files = g_cli_cells->persistent_buf_alloc(CLI_SERVERS_ROOM_FIRST, &g_cli_servers_check_room_cells);
+    queue->file_at = g_cli_cells->persistent_buf_alloc(CLI_SERVERS_FILES_FIRST * sizeof(*queue->file_at), &g_cli_servers_check_room_cells);
+    queue->waiting = g_cli_cells->persistent_buf_alloc(CLI_SERVERS_WAITING_FIRST * sizeof(*queue->waiting), &g_cli_servers_check_room_cells);
+    queue->room = g_cli_cells->persistent_buf_alloc(CLI_SERVERS_ROOM_FIRST, &g_cli_servers_check_room_cells);
     queue->files_most = CLI_SERVERS_ROOM_FIRST;
     queue->file_at_most = CLI_SERVERS_FILES_FIRST;
     queue->waiting_most = CLI_SERVERS_WAITING_FIRST;
@@ -69,7 +66,7 @@ static unsigned long long room_doubled(unsigned long long most, unsigned long lo
 // retained where the cells cannot meet it
 static void *room_grown(void *cell, unsigned long long used, unsigned long long bytes)
 {
-    return cli_cell_regrown(cell, (size_t)used, bytes, &s_owner);
+    return cli_cell_regrown(cell, (size_t)used, bytes, &g_cli_servers_check_room_cells);
 }
 
 CliServersQueued *cli_servers_check_queued_at(const CliServersQueue *queue, unsigned int at)
@@ -84,7 +81,7 @@ static int room_waiting_grown(CliServersQueue *queue)
     // the places are at most CLI_SERVERS_WAITING, which an unsigned int stores
     const unsigned int most = (unsigned int)room_doubled(queue->waiting_most, CLI_SERVERS_WAITING);
     CliServersQueued *const larger =
-        (most > queue->waiting_most) ? g_cli_cells->persistent_buf_alloc(most * sizeof(*larger), &s_owner) : NULL;
+        (most > queue->waiting_most) ? g_cli_cells->persistent_buf_alloc(most * sizeof(*larger), &g_cli_servers_check_room_cells) : NULL;
     if (larger == NULL)
     {
         return 0;
@@ -93,7 +90,7 @@ static int room_waiting_grown(CliServersQueue *queue)
     {
         larger[at] = *cli_servers_check_queued_at(queue, at);
     }
-    g_cli_cells->persistent_buf_release(queue->waiting, &s_owner);
+    g_cli_cells->persistent_buf_release(queue->waiting, &g_cli_servers_check_room_cells);
     queue->waiting = larger;
     queue->waiting_most = most;
     queue->head = 0u;

@@ -11,7 +11,6 @@
 #define CLI_PY_TEXT_ANY (256ull << 10u)
 
 CliPy g_cli_py;
-CellOwner g_cli_python_cells = MMGR_CELL_OWNER("cli_python_paths");
 
 // the reading's cell, taken by cli_py_reading_taken
 static unsigned char *s_reading;

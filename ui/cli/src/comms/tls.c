@@ -4,8 +4,6 @@
 // sessions occupy
 #include "tls.h"
 
-CellOwner g_cli_tls_cells = MMGR_CELL_OWNER("cli_tls");
-
 int cli_tls_written(CliTls *tls, const void *data, unsigned long long size, VerbaLinea *err_msg)
 {
     const unsigned char *const bytes = (const unsigned char *)data;

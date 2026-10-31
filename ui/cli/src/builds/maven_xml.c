@@ -16,8 +16,6 @@ int cli_xml_name_letter(unsigned int letter)
     return cli_text_alphanumeric(letter) || (letter == '_') || (letter == ':') || (letter == '.') || (letter == '-');
 }
 
-CellOwner g_cli_xml_cells = MMGR_CELL_OWNER("cli_xml");
-
 void cli_xml_given(CliXml *xml)
 {
     g_cli_cells->persistent_buf_release(xml->element, &g_cli_xml_cells);

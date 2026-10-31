@@ -11,8 +11,6 @@
 
 #include <math.h>
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_raster");
-
 int gui_rect_empty(GuiRect rect)
 {
     return (rect.width <= 0) || (rect.height <= 0);
@@ -58,7 +56,7 @@ int gui_raster_made(GuiRaster *raster, unsigned int width, unsigned int height)
     raster->pages = NULL;
     raster->pages_bytes = 0ull;
     raster->placed = 0ull;
-    raster->pixels = g_cli_cells->persistent_buf_alloc(bytes, &s_owner);
+    raster->pixels = g_cli_cells->persistent_buf_alloc(bytes, &g_gui_raster_cells);
     if (raster->pixels == NULL)
     {
         return 0;
@@ -69,7 +67,7 @@ int gui_raster_made(GuiRaster *raster, unsigned int width, unsigned int height)
 
 void gui_raster_given(GuiRaster *raster)
 {
-    g_cli_cells->persistent_buf_release(raster->pixels, &s_owner);
+    g_cli_cells->persistent_buf_release(raster->pixels, &g_gui_raster_cells);
     raster->pixels = NULL;
     raster->width = 0u;
     raster->height = 0u;

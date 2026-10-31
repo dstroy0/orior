@@ -22,8 +22,6 @@ static const char *const s_eslint[5] = {".eslintrc.js", ".eslintrc.cjs", "eslint
 #define CLI_TRUST_TREES 8u
 #define CLI_TRUST_PATHS_FIRST 1024u
 
-CellOwner g_cli_trust_cells = MMGR_CELL_OWNER("cli_trust");
-
 // The code found in a tree looked through, and when
 typedef struct
 {

@@ -12,8 +12,6 @@
 #define CLI_DEBUG_PROCESSES_FIRST 256u
 #define CLI_DEBUG_PROCESS_TEXT_FIRST 16384ull
 
-CellOwner g_cli_debug_processes_cells = MMGR_CELL_OWNER("cli_debug_processes");
-
 // A process listed: its number, and where its name and its line start in the text
 typedef struct
 {

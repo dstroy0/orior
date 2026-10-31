@@ -5,7 +5,6 @@
 #include "cargo_tests_internal.h"
 
 CliCargoScan g_cli_cargo_scan;
-CellOwner g_cli_cargo_cells = MMGR_CELL_OWNER("cli_cargo_tests");
 
 void *cli_cargo_grown(void *cell, unsigned long long *room, unsigned long long most, unsigned long long width,
                       const char *what)

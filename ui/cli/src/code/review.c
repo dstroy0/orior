@@ -8,7 +8,6 @@
 #include "review_internal.h"
 
 CliReview g_cli_review;
-CellOwner g_cli_review_cells = MMGR_CELL_OWNER("cli_review");
 
 // The lists git gives a review, and the room the pieces are grouped in
 typedef struct

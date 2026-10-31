@@ -9,8 +9,6 @@
 
 #define CLI_SEA_WANTED 64u
 
-CellOwner g_cli_sea_cells = MMGR_CELL_OWNER("cli_sea");
-
 // a line printed through `sink`
 static void cli_print(QuerySink sink, const char *text)
 {

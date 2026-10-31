@@ -11,8 +11,6 @@
 // the most files one workspace edit changes
 #define CLI_SERVERS_EDITED 1024u
 
-CellOwner g_cli_servers_edits_cells = MMGR_CELL_OWNER("cli_servers_edits");
-
 // One edit of a workspace edit: the file it changes, its span, the node of its text, and its place among the edits
 typedef struct
 {

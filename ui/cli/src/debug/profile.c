@@ -34,7 +34,6 @@ typedef struct
     char *path;
 } CliProfile;
 
-static CellOwner s_cells = MMGR_CELL_OWNER("cli_profile");
 static CliProfile s_profiles[CLI_PROFILES];
 static CliProfile *s_running;
 static CliLock s_lock = CLI_LOCK_INIT;
@@ -43,8 +42,8 @@ static CliWake s_wake = CLI_WAKE_INIT;
 // a profile's cells given back, under the profiles' lock
 static void profile_cells_given(CliProfile *profile)
 {
-    g_cli_cells->persistent_buf_release(profile->words, &s_cells);
-    g_cli_cells->persistent_buf_release(profile->path, &s_cells);
+    g_cli_cells->persistent_buf_release(profile->words, &g_cli_profile_cells);
+    g_cli_cells->persistent_buf_release(profile->path, &g_cli_profile_cells);
     profile->words = NULL;
     profile->path = NULL;
 }
@@ -68,7 +67,7 @@ void cli_profile_stop(void)
 static void profile_output_emitted(CliProfile *profile, const char *line, unsigned long long size, int error)
 {
     const unsigned long long room = (size * 6ull) + 64ull;
-    char *const json_buf = g_cli_cells->temporary_buf_alloc(room, &s_cells);
+    char *const json_buf = g_cli_cells->temporary_buf_alloc(room, &g_cli_profile_cells);
     if (json_buf == NULL)
     {
         return;
@@ -81,7 +80,7 @@ static void profile_output_emitted(CliProfile *profile, const char *line, unsign
     {
         profile->sink.emit(profile->sink.context, out.out, out.at);
     }
-    g_cli_cells->persistent_buf_release(json_buf, &s_cells);
+    g_cli_cells->persistent_buf_release(json_buf, &g_cli_profile_cells);
 }
 
 // a line of the program's output received: the counts so far where it starts with the mark, the code the program ended
@@ -98,7 +97,7 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     const unsigned long long length = size - mark;
     // the counts compacted are no longer than they are written
     const unsigned long long room = length + 64ull;
-    char *const json_buf = g_cli_cells->temporary_buf_alloc(room, &s_cells);
+    char *const json_buf = g_cli_cells->temporary_buf_alloc(room, &g_cli_profile_cells);
     if (json_buf == NULL)
     {
         return;
@@ -134,7 +133,7 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     {
         profile->sink.emit(profile->sink.context, out.out, out.at);
     }
-    g_cli_cells->persistent_buf_release(json_buf, &s_cells);
+    g_cli_cells->persistent_buf_release(json_buf, &g_cli_profile_cells);
 }
 
 // the lines of a pipe read until it ends, each in a cell grown as it fills, handed on with its "\r" before "\n" taken
@@ -159,11 +158,11 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
             {
                 const unsigned long long doubled = (room == 0ull) ? CLI_PROFILE_LINE_FIRST : (2ull * room);
                 const unsigned long long wanted = (doubled < CLI_PROFILE_LINE) ? doubled : CLI_PROFILE_LINE;
-                char *const grown = g_cli_cells->persistent_buf_alloc(wanted, &s_cells);
+                char *const grown = g_cli_cells->persistent_buf_alloc(wanted, &g_cli_profile_cells);
                 if (grown != NULL)
                 {
                     memor.cpy(&(MemoriaCfg){.dst = grown, .src = line, .bytes = (size_t)used});
-                    g_cli_cells->persistent_buf_release(line, &s_cells);
+                    g_cli_cells->persistent_buf_release(line, &g_cli_profile_cells);
                     line = grown;
                     room = wanted;
                 }
@@ -185,7 +184,7 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
     {
         each_line(profile, line, used);
     }
-    g_cli_cells->persistent_buf_release(line, &s_cells);
+    g_cli_cells->persistent_buf_release(line, &g_cli_profile_cells);
 }
 
 // a line the program wrote to its errors reported as output
@@ -293,7 +292,7 @@ static CliProfile *profile_taken(CliJsonSink sink)
     profile->has_code = 0;
     profile->code = 0ll;
     memor.set(&(MemoriaCfg){.dst = &profile->spawned, .val = 0, .bytes = sizeof(profile->spawned)});
-    profile->words = g_cli_cells->persistent_buf_alloc(sizeof(*profile->words), &s_cells);
+    profile->words = g_cli_cells->persistent_buf_alloc(sizeof(*profile->words), &g_cli_profile_cells);
     profile->path = NULL;
     cli_lock_give(&s_lock);
     if (profile->words != NULL)
@@ -353,7 +352,7 @@ int cli_profile_start(const char *root, const char *file, const char *remote, Cl
     CliProfile *const profile = profile_taken(sink);
     // the PATH a program here runs with, as long as the system lets an environment's value be
     profile->path =
-        ((profile->words != NULL) && !far) ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &s_cells) : NULL;
+        ((profile->words != NULL) && !far) ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &g_cli_profile_cells) : NULL;
     if ((profile->words == NULL) || (!far && (profile->path == NULL)))
     {
         profile_let_go(profile);

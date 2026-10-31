@@ -20,8 +20,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_system");
-
 // the rows one notch of the wheel scrolls; the Motif hints that take the decorations off, their flags word and the
 // decorations word; and the window manager's move and resize directions, as the specification numbers them, and its
 // request to move
@@ -302,7 +300,7 @@ unsigned int gui_system_areas(CliWindowArea *areas, unsigned int most)
 GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, const GuiSystemEvents *events,
                              void *context, VerbaLinea *err_msg)
 {
-    GuiSystem *const system = g_cli_cells->persistent_buf_alloc(sizeof(*system), &s_owner);
+    GuiSystem *const system = g_cli_cells->persistent_buf_alloc(sizeof(*system), &g_gui_system_cells);
     if (system == NULL)
     {
         mmgr_line_put(err_msg, "the system window's cell could not be taken");
@@ -314,14 +312,14 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
     system->display = XOpenDisplay(NULL);
     if (system->display == NULL)
     {
-        g_cli_cells->persistent_buf_release(system, &s_owner);
+        g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
         mmgr_line_put(err_msg, "no X display is open to the window");
         return NULL;
     }
     if (pipe(system->wake_pipe) != 0)
     {
         XCloseDisplay(system->display);
-        g_cli_cells->persistent_buf_release(system, &s_owner);
+        g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
         mmgr_line_put(err_msg, "the pipe the window's thread is woken through could not be made");
         return NULL;
     }
@@ -453,7 +451,7 @@ void gui_system_given(GuiSystem *system)
 {
     close(system->wake_pipe[0]);
     close(system->wake_pipe[1]);
-    g_cli_cells->persistent_buf_release(system, &s_owner);
+    g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
 }
 
 void *gui_system_pages(unsigned long long bytes)
@@ -511,7 +509,7 @@ static unsigned long system_icon_put(unsigned long *data, const GuiRaster *raste
 void gui_system_icon(GuiSystem *system, const GuiRaster *title_icon, const GuiRaster *taskbar_icon)
 {
     const unsigned long words = 4ul + ((unsigned long)title_icon->width * title_icon->height) + ((unsigned long)taskbar_icon->width * taskbar_icon->height);
-    unsigned long *const data = g_cli_cells->temporary_buf_alloc(words * sizeof(*data), &s_owner);
+    unsigned long *const data = g_cli_cells->temporary_buf_alloc(words * sizeof(*data), &g_gui_system_cells);
     if (data == NULL)
     {
         return;
@@ -522,7 +520,7 @@ void gui_system_icon(GuiSystem *system, const GuiRaster *title_icon, const GuiRa
     // the words are far fewer than an int counts
     XChangeProperty(system->display, system->window, icon, XA_CARDINAL, 32, PropModeReplace, (const unsigned char *)data, (int)words);
     XFlush(system->display);
-    g_cli_cells->persistent_buf_release(data, &s_owner);
+    g_cli_cells->persistent_buf_release(data, &g_gui_system_cells);
 }
 
 void gui_system_act(GuiSystem *system, unsigned int act)

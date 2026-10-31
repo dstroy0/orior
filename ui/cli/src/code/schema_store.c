@@ -12,8 +12,6 @@
 #define CLI_SCHEMA_DOCUMENT_TEXT (1u << 22u)
 #define CLI_SCHEMA_TOKENS (1u << 18u)
 
-CellOwner g_cli_schema_cells = MMGR_CELL_OWNER("cli_schemas");
-
 void cli_schema_store_begun(CliSchemaStore *store)
 {
     cli_json_emptied(&store->json);

@@ -11,8 +11,6 @@
 
 #include <math.h>
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_editor");
-
 void gui_editor_made(GuiEditor *editor)
 {
     memor.set(&(MemoriaCfg){.dst = editor, .val = 0, .bytes = sizeof(*editor)});
@@ -29,12 +27,12 @@ static int editor_roomed(void **cell, unsigned long long *room, unsigned long lo
         return 1;
     }
     const unsigned long long bytes = asked + (asked / 2ull);
-    void *const taken = g_cli_cells->persistent_buf_alloc((size_t)bytes, &s_owner);
+    void *const taken = g_cli_cells->persistent_buf_alloc((size_t)bytes, &g_gui_editor_cells);
     if (taken == NULL)
     {
         return 0;
     }
-    g_cli_cells->persistent_buf_release(*cell, &s_owner);
+    g_cli_cells->persistent_buf_release(*cell, &g_gui_editor_cells);
     *cell = taken;
     *room = bytes;
     return 1;
@@ -56,14 +54,14 @@ static void editor_lines_emptied(GuiEditor *editor)
 // the lines' cells given back, with those of the folds, find's query and the matches
 static void editor_lines_given(GuiEditor *editor)
 {
-    g_cli_cells->persistent_buf_release(editor->line, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->bytes, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->run, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->run_laid, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->fold, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->closers, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->find.query, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->match, &s_owner);
+    g_cli_cells->persistent_buf_release(editor->line, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->bytes, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->run, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->run_laid, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->fold, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->closers, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->find.query, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->match, &g_gui_editor_cells);
     editor->line = NULL;
     editor->bytes = NULL;
     editor->run = NULL;
@@ -79,8 +77,8 @@ static void editor_lines_given(GuiEditor *editor)
 void gui_editor_given(GuiEditor *editor)
 {
     editor_lines_given(editor);
-    g_cli_cells->persistent_buf_release(editor->names, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->name_at, &s_owner);
+    g_cli_cells->persistent_buf_release(editor->names, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->name_at, &g_gui_editor_cells);
     editor->names = NULL;
     editor->name_at = NULL;
     editor->name_count = 0u;
@@ -97,8 +95,8 @@ void gui_editor_shaped(GuiEditor *editor, unsigned long long lines)
 
 int gui_editor_named(GuiEditor *editor, const CliJson *json, unsigned int names)
 {
-    g_cli_cells->persistent_buf_release(editor->names, &s_owner);
-    g_cli_cells->persistent_buf_release(editor->name_at, &s_owner);
+    g_cli_cells->persistent_buf_release(editor->names, &g_gui_editor_cells);
+    g_cli_cells->persistent_buf_release(editor->name_at, &g_gui_editor_cells);
     editor->names = NULL;
     editor->name_at = NULL;
     editor->name_count = 0u;
@@ -114,8 +112,8 @@ int gui_editor_named(GuiEditor *editor, const CliJson *json, unsigned int names)
         (void)cli_json_string(json, cli_json_item(json, names, at), &length);
         bytes += length + 1ull;
     }
-    editor->names = g_cli_cells->persistent_buf_alloc((bytes != 0ull) ? bytes : 1ull, &s_owner);
-    editor->name_at = g_cli_cells->persistent_buf_alloc(((count != 0u) ? count : 1u) * sizeof(*editor->name_at), &s_owner);
+    editor->names = g_cli_cells->persistent_buf_alloc((bytes != 0ull) ? bytes : 1ull, &g_gui_editor_cells);
+    editor->name_at = g_cli_cells->persistent_buf_alloc(((count != 0u) ? count : 1u) * sizeof(*editor->name_at), &g_gui_editor_cells);
     if ((editor->names == NULL) || (editor->name_at == NULL))
     {
         gui_editor_given(editor);

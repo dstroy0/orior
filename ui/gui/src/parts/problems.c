@@ -12,14 +12,12 @@
 
 #include <stdlib.h>
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_problems");
-
 int gui_problems_made(GuiProblems *problems)
 {
     memor.set(&(MemoriaCfg){.dst = problems, .val = 0, .bytes = sizeof(*problems)});
     problems->pointed = GUI_PROBLEMS_NONE;
-    problems->file = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_FILES * sizeof(GuiProblemFile), &s_owner);
-    problems->item = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_ITEMS * sizeof(GuiProblem), &s_owner);
+    problems->file = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_FILES * sizeof(GuiProblemFile), &g_gui_problems_cells);
+    problems->item = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_ITEMS * sizeof(GuiProblem), &g_gui_problems_cells);
     if ((problems->file == NULL) || (problems->item == NULL))
     {
         gui_problems_given(problems);
@@ -30,9 +28,9 @@ int gui_problems_made(GuiProblems *problems)
 
 void gui_problems_given(GuiProblems *problems)
 {
-    g_cli_cells->persistent_buf_release(problems->file, &s_owner);
-    g_cli_cells->persistent_buf_release(problems->item, &s_owner);
-    g_cli_cells->persistent_buf_release(problems->texts.out, &s_owner);
+    g_cli_cells->persistent_buf_release(problems->file, &g_gui_problems_cells);
+    g_cli_cells->persistent_buf_release(problems->item, &g_gui_problems_cells);
+    g_cli_cells->persistent_buf_release(problems->texts.out, &g_gui_problems_cells);
     problems->file = NULL;
     problems->item = NULL;
     memor.set(&(MemoriaCfg){.dst = &problems->texts, .val = 0, .bytes = sizeof(problems->texts)});
@@ -47,7 +45,7 @@ static void problems_packed(GuiProblems *problems)
 {
     const VerbaLinea old = problems->texts;
     const unsigned long long live = (old.at > problems->dead) ? old.at - problems->dead : 0ull;
-    if (!cli_growing_line_made(&problems->texts, live + GUI_PROBLEMS_TEXT_FIRST, &s_owner))
+    if (!cli_growing_line_made(&problems->texts, live + GUI_PROBLEMS_TEXT_FIRST, &g_gui_problems_cells))
     {
         problems->texts = old;
         return;
@@ -66,14 +64,14 @@ static void problems_packed(GuiProblems *problems)
         mmgr_line_put_n(&problems->texts, old.out + item->message, item->message_length);
         item->message = start;
     }
-    g_cli_cells->persistent_buf_release(old.out, &s_owner);
+    g_cli_cells->persistent_buf_release(old.out, &g_gui_problems_cells);
     problems->dead = 0ull;
 }
 
 // `length` bytes of `text` stored among the texts: where they start into `at`: 1, or 0 where the line is full
 static int problems_stored(GuiProblems *problems, const char *text, unsigned long long length, unsigned long long *at)
 {
-    if ((problems->texts.out == NULL) && !cli_growing_line_made(&problems->texts, GUI_PROBLEMS_TEXT_FIRST, &s_owner))
+    if ((problems->texts.out == NULL) && !cli_growing_line_made(&problems->texts, GUI_PROBLEMS_TEXT_FIRST, &g_gui_problems_cells))
     {
         return 0;
     }

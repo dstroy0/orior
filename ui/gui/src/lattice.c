@@ -20,8 +20,6 @@ LATTICE_IMPORT(remainder) double lattice_remainder(double value, double by);
 
 #include <math.h>
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_lattice");
-
 static double lattice_cos(double angle)
 {
     return cos(angle);
@@ -117,12 +115,12 @@ static void *lattice_taken(void *before, uintptr_t bytes)
 // kept
 static void *lattice_taken(void *before, uintptr_t bytes)
 {
-    void *const taken = g_cli_cells->persistent_buf_alloc(bytes, &s_owner);
+    void *const taken = g_cli_cells->persistent_buf_alloc(bytes, &g_gui_lattice_cells);
     if (taken == NULL)
     {
         return 0;
     }
-    g_cli_cells->persistent_buf_release(before, &s_owner);
+    g_cli_cells->persistent_buf_release(before, &g_gui_lattice_cells);
     return taken;
 }
 
@@ -133,9 +131,9 @@ void lattice_given(uint32_t slot)
         return;
     }
     LatticeSlot *const held = &s_lattice_slots[slot];
-    g_cli_cells->persistent_buf_release(held->offsets, &s_owner);
-    g_cli_cells->persistent_buf_release(held->dots, &s_owner);
-    g_cli_cells->persistent_buf_release(held->placed, &s_owner);
+    g_cli_cells->persistent_buf_release(held->offsets, &g_gui_lattice_cells);
+    g_cli_cells->persistent_buf_release(held->dots, &g_gui_lattice_cells);
+    g_cli_cells->persistent_buf_release(held->placed, &g_gui_lattice_cells);
     *held = (LatticeSlot){0};
 }
 #endif

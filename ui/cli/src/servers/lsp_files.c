@@ -11,8 +11,6 @@
 #define CLI_LSP_FILES_FIRST 16u
 #define CLI_LSP_URI 2048u
 
-CellOwner g_cli_lsp_files_cells = MMGR_CELL_OWNER("cli_lsp_files");
-
 // A file a server has open: whether its place is taken, the server, its URI in a cell of its length, and its version
 typedef struct
 {

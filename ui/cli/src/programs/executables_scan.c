@@ -5,8 +5,6 @@
 // (executables_scan_more.c reads the rest)
 #include "executables_internal.h"
 
-CellOwner g_cli_executables_cells = MMGR_CELL_OWNER("cli_executables");
-
 char *cli_uncommented_taken(const char *text, char quote)
 {
     // the code with its comments taken out is no longer than the text

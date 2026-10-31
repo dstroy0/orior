@@ -10,9 +10,6 @@
 // the room the first cell of leaves holds
 #define CLI_LEAVES_FIRST 256u
 
-// the owner every read's leaves are taken and given back for
-static CellOwner s_leaves_owner = MMGR_CELL_OWNER("cli_leaves");
-
 // whether the segment of `name` from `from`, `length` bytes, is `segment`
 static int cli_leaf_segment_is(const char *name, unsigned long long from, unsigned long long length,
                                const char *segment)
@@ -193,7 +190,7 @@ static int cli_leaves_grown(CliLeafRead *read)
 {
     const unsigned int room = (read->room == 0u) ? CLI_LEAVES_FIRST : (2u * read->room);
     const size_t bytes = (size_t)room * sizeof(CliLeaf);
-    CliLeaf *const grown = cli_cell_regrown(read->leaf, (size_t)read->count * sizeof(CliLeaf), bytes, &s_leaves_owner);
+    CliLeaf *const grown = cli_cell_regrown(read->leaf, (size_t)read->count * sizeof(CliLeaf), bytes, &g_cli_leaves_cells);
     if (grown == NULL)
     {
         return 0;
@@ -290,7 +287,7 @@ int cli_leaf_has(const CliLeafRead *read, unsigned int leaf, unsigned long long 
 
 void cli_symbols_leaves_given(CliLeafRead *read)
 {
-    g_cli_cells->persistent_buf_release(read->leaf, &s_leaves_owner);
+    g_cli_cells->persistent_buf_release(read->leaf, &g_cli_leaves_cells);
     read->leaf = NULL;
     read->count = 0u;
     read->room = 0u;

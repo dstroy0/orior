@@ -13,8 +13,6 @@
 #define CLI_WINDOW_LANGUAGES_FIRST 16u
 #define CLI_WINDOW_PLACE_FILE (1u << 22u)
 
-CellOwner g_cli_window_places_cells = MMGR_CELL_OWNER("cli_window_places");
-
 // the file at `path` written as a JSON string, the empty string where it cannot be read or is larger than
 // CLI_WINDOW_PLACE_FILE
 static void places_file_quoted(const char *path, int has_path, VerbaLinea *out)

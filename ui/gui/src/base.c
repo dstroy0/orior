@@ -17,8 +17,6 @@
 
 #include "../../cli/src/command_line/cli_internal.h"
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_base");
-
 // the tile tables' words: the sheet's tile and the pane's, each a word a pixel of the grain's tile, in each of the
 // three lanes
 #define BASE_TILE_WORDS (2u * GUI_GRAIN_TILE * GUI_GRAIN_TILE)
@@ -28,7 +26,7 @@ int gui_base_made(GuiBase *base, unsigned int width, unsigned int height)
     memor.set(&(MemoriaCfg){.dst = base, .val = 0, .bytes = sizeof(*base)});
     base->width = width;
     base->height = height;
-    base->tile_red_blue = g_cli_cells->persistent_buf_alloc(3ull * BASE_TILE_WORDS * sizeof(unsigned int), &s_owner);
+    base->tile_red_blue = g_cli_cells->persistent_buf_alloc(3ull * BASE_TILE_WORDS * sizeof(unsigned int), &g_gui_base_cells);
     if (base->tile_red_blue == NULL)
     {
         return 0;
@@ -49,7 +47,7 @@ void gui_base_sized(GuiBase *base, unsigned int width, unsigned int height)
 
 void gui_base_given(GuiBase *base)
 {
-    g_cli_cells->persistent_buf_release(base->tile_red_blue, &s_owner);
+    g_cli_cells->persistent_buf_release(base->tile_red_blue, &g_gui_base_cells);
     base->tile_red_blue = NULL;
     base->tile_green = NULL;
     base->tile_rest = NULL;

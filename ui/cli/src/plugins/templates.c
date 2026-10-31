@@ -7,8 +7,6 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-CellOwner g_cli_templates_cells = MMGR_CELL_OWNER("cli_templates");
-
 int cli_templates_folder(char *folder)
 {
     char home[CLI_PATH_MAX_LEN];

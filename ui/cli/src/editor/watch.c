@@ -20,8 +20,6 @@
 #define CLI_WATCH_TEXT_FIRST 4096u
 #define CLI_WATCH_JSON_FIRST 4096u
 
-CellOwner g_cli_watch_cells = MMGR_CELL_OWNER("cli_watch");
-
 // A change: its path's place in the list's texts, and its kind
 typedef struct
 {

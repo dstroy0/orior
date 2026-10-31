@@ -7,8 +7,6 @@
 #include "../text/text.h"
 #include "envs_internal.h"
 
-CellOwner g_cli_envs_cells = MMGR_CELL_OWNER("cli_envs");
-
 void *cli_envs_moved(void *cell, unsigned long long used, unsigned long long room, const char *what)
 {
     return cli_cell_regrown(cell, (size_t)used, room, &g_cli_envs_cells);

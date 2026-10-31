@@ -12,8 +12,6 @@
 
 #define CLI_DESCRIPTION_TOKENS 65536u
 
-CellOwner g_cli_devcontainer_cells = MMGR_CELL_OWNER("cli_devcontainer");
-
 // the description made plain, a cell of the bytes it was read in and one more, and its tokens, a cell of their count;
 // guarded by the plan's lock from the read to the plan made
 static char *s_plain;

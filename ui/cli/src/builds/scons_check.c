@@ -47,11 +47,10 @@ static unsigned int s_imports_most;
 static unsigned int s_imports;
 static unsigned int s_exports;
 static unsigned int s_export_used;
-static CellOwner s_owner = MMGR_CELL_OWNER("cli_scons_rooms");
 
 void cli_scons_cells_usage_written(VerbaLinea *out)
 {
-    cli_cells_owner_usage_written(&s_owner, out);
+    cli_cells_owner_usage_written(&g_cli_scons_rooms_cells, out);
 }
 
 // `size` bytes of `text` read as a file of SCons, its class bytes a cell: the cell, for the caller to give back, or
@@ -60,10 +59,10 @@ void cli_scons_cells_usage_written(VerbaLinea *out)
 static unsigned char *check_read(const char *text, unsigned long long size)
 {
     unsigned char *const class_of =
-        (size <= CLI_SCONS_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &s_owner) : NULL;
+        (size <= CLI_SCONS_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_scons_rooms_cells) : NULL;
     if ((class_of != NULL) && !cli_scons_read(text, size, class_of))
     {
-        g_cli_cells->persistent_buf_release(class_of, &s_owner);
+        g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
         return NULL;
     }
     return class_of;
@@ -221,7 +220,7 @@ static void check_others(const char *root, const char *path)
         {
             continue;
         }
-        unsigned char *const text = g_cli_cells->temporary_buf_alloc(bytes + 1ull, &s_owner);
+        unsigned char *const text = g_cli_cells->temporary_buf_alloc(bytes + 1ull, &g_cli_scons_rooms_cells);
         const unsigned long long size = (text != NULL) ? qry_member_file_read(other, text, bytes) : QRY_MEMBER_UNREAD;
         unsigned char *const class_of = ((size != QRY_MEMBER_UNREAD) && cli_utf8_whole((const char *)text, size))
                                             ? check_read((const char *)text, size)
@@ -230,8 +229,8 @@ static void check_others(const char *root, const char *path)
         {
             cli_scons_exported(check_exported, NULL);
         }
-        g_cli_cells->persistent_buf_release(class_of, &s_owner);
-        g_cli_cells->persistent_buf_release(text, &s_owner);
+        g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
+        g_cli_cells->persistent_buf_release(text, &g_cli_scons_rooms_cells);
     }
     cli_files_let(files);
 }
@@ -255,7 +254,7 @@ static void check_read_file(const char *root, const char *path, const char *text
     cli_scons_imported(check_imported, NULL);
     s_imports_most = s_imports;
     s_import = (s_imports_most > 0u)
-                   ? g_cli_cells->persistent_buf_alloc(s_imports_most * sizeof(CliSconsImport), &s_owner)
+                   ? g_cli_cells->persistent_buf_alloc(s_imports_most * sizeof(CliSconsImport), &g_cli_scons_rooms_cells)
                    : NULL;
     if (s_import == NULL)
     {
@@ -282,7 +281,7 @@ static void check_read_file(const char *root, const char *path, const char *text
         (void)cli_build_finding(found, &msg, lines, s_import[at].from, s_import[at].to, CLI_BUILD_WARNING,
                                 "scons-import");
     }
-    g_cli_cells->persistent_buf_release(s_import, &s_owner);
+    g_cli_cells->persistent_buf_release(s_import, &g_cli_scons_rooms_cells);
     s_import = NULL;
 }
 
@@ -295,7 +294,7 @@ void cli_scons_check(const char *root, const char *path, const char *text, unsig
     {
         check_read_file(root, path, text, lines, found);
     }
-    g_cli_cells->persistent_buf_release(class_of, &s_owner);
+    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
     cli_lock_give(&g_cli_scons_lock);
 }
 
@@ -328,7 +327,7 @@ void cli_scons_given(const char *text, unsigned long long size,
         CliSconsGiven given = {each, context};
         cli_scons_imported(check_given_import, &given);
     }
-    g_cli_cells->persistent_buf_release(class_of, &s_owner);
+    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
     cli_lock_give(&g_cli_scons_lock);
 }
 
@@ -450,6 +449,6 @@ void cli_scons_complete(const char *text, unsigned long long size, unsigned long
     {
         check_completed(text, at, items);
     }
-    g_cli_cells->persistent_buf_release(class_of, &s_owner);
+    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
     cli_lock_give(&g_cli_scons_lock);
 }

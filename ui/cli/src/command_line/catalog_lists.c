@@ -5,8 +5,6 @@
 #include "../text/text.h"
 #include "catalog_internal.h"
 
-CellOwner g_cli_catalog_cells = MMGR_CELL_OWNER("cli_catalog");
-
 // What a folder's walk includes: its entries, what it includes of them, and the count of those it includes
 typedef struct
 {

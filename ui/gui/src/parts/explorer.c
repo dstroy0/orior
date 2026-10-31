@@ -9,8 +9,6 @@
 #include "../../../cli/src/command_line/cli_internal.h"
 #include "../answer.h"
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_explorer");
-
 // A mark: the type or name it stands for, its text, and which of the palette's mark colors it takes, 0 for the
 // quieter text color
 typedef struct
@@ -65,8 +63,8 @@ int gui_explorer_made(GuiExplorer *explorer)
 {
     memor.set(&(MemoriaCfg){.dst = explorer, .val = 0, .bytes = sizeof(*explorer)});
     explorer->pointed = GUI_EXPLORER_NONE;
-    explorer->node = g_cli_cells->persistent_buf_alloc(GUI_EXPLORER_NODES * sizeof(*explorer->node), &s_owner);
-    explorer->text = g_cli_cells->persistent_buf_alloc(GUI_EXPLORER_TEXT, &s_owner);
+    explorer->node = g_cli_cells->persistent_buf_alloc(GUI_EXPLORER_NODES * sizeof(*explorer->node), &g_gui_explorer_cells);
+    explorer->text = g_cli_cells->persistent_buf_alloc(GUI_EXPLORER_TEXT, &g_gui_explorer_cells);
     if ((explorer->node == NULL) || (explorer->text == NULL))
     {
         gui_explorer_given(explorer);
@@ -77,8 +75,8 @@ int gui_explorer_made(GuiExplorer *explorer)
 
 void gui_explorer_given(GuiExplorer *explorer)
 {
-    g_cli_cells->persistent_buf_release(explorer->node, &s_owner);
-    g_cli_cells->persistent_buf_release(explorer->text, &s_owner);
+    g_cli_cells->persistent_buf_release(explorer->node, &g_gui_explorer_cells);
+    g_cli_cells->persistent_buf_release(explorer->text, &g_gui_explorer_cells);
     explorer->node = NULL;
     explorer->text = NULL;
     explorer->nodes = 0u;

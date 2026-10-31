@@ -28,6 +28,7 @@ static unsigned long long cells_whole(const CliJson *json, unsigned int node, co
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    (void)mmgr_owner_register(&s_checked);
     cli_check_begun();
     cli_check(cli_cells_made(64ull << 20u), "the pool is made anew for a request of 64 MiB while no cell is taken");
     cli_check(cli_cells_zero(), "the pool made stands zero with no cell taken");

@@ -50,7 +50,6 @@ typedef struct
     VerbaLinea lines;
 } CliServeGathering;
 
-CellOwner g_cli_serve_gathering_cells = MMGR_CELL_OWNER("cli_serve_gathering");
 static CliServeGathering *s_gathering[CLI_SERVE_GATHERING];
 static CliLock s_gathering_lock = CLI_LOCK_INIT;
 static CliThread s_flusher;

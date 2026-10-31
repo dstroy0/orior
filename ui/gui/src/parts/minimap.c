@@ -8,8 +8,6 @@
 #include "../answer.h"
 #include "../frame.h"
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_minimap");
-
 // the share of a bar's color laid over the ground, 80%
 #define MAP_BAR_ALPHA 0xccu
 
@@ -17,8 +15,8 @@ int gui_minimap_made(GuiMinimap *map)
 {
     memor.set(&(MemoriaCfg){.dst = map, .val = 0, .bytes = sizeof(*map)});
     map->stale = 1;
-    map->line_at = g_cli_cells->persistent_buf_alloc((GUI_MAP_LINES_MOST + 1u) * sizeof(*map->line_at), &s_owner);
-    map->bar = g_cli_cells->persistent_buf_alloc(GUI_MAP_BARS_MOST * sizeof(*map->bar), &s_owner);
+    map->line_at = g_cli_cells->persistent_buf_alloc((GUI_MAP_LINES_MOST + 1u) * sizeof(*map->line_at), &g_gui_minimap_cells);
+    map->bar = g_cli_cells->persistent_buf_alloc(GUI_MAP_BARS_MOST * sizeof(*map->bar), &g_gui_minimap_cells);
     if ((map->line_at == NULL) || (map->bar == NULL))
     {
         gui_minimap_given(map);
@@ -29,8 +27,8 @@ int gui_minimap_made(GuiMinimap *map)
 
 void gui_minimap_given(GuiMinimap *map)
 {
-    g_cli_cells->persistent_buf_release(map->line_at, &s_owner);
-    g_cli_cells->persistent_buf_release(map->bar, &s_owner);
+    g_cli_cells->persistent_buf_release(map->line_at, &g_gui_minimap_cells);
+    g_cli_cells->persistent_buf_release(map->bar, &g_gui_minimap_cells);
     map->line_at = NULL;
     map->bar = NULL;
     map->count = 0u;

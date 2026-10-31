@@ -22,8 +22,6 @@
 #include <dwmapi.h>
 #include <windowsx.h>
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_system");
-
 // the message another thread posts to wake the window's thread
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
 // the rows one notch of the wheel scrolls
@@ -730,7 +728,7 @@ static BOOL CALLBACK system_monitor_seen(HMONITOR monitor, HDC context, LPRECT r
 unsigned int gui_system_areas(CliWindowArea *areas, unsigned int most)
 {
     // the count, the most and the areas handed to the enumeration together, the areas after two words
-    unsigned int *const words = g_cli_cells->temporary_buf_alloc((2u * sizeof(unsigned int)) + ((most != 0u ? most : 1u) * sizeof(*areas)), &s_owner);
+    unsigned int *const words = g_cli_cells->temporary_buf_alloc((2u * sizeof(unsigned int)) + ((most != 0u ? most : 1u) * sizeof(*areas)), &g_gui_system_cells);
     if (words == NULL)
     {
         return 0u;
@@ -740,7 +738,7 @@ unsigned int gui_system_areas(CliWindowArea *areas, unsigned int most)
     EnumDisplayMonitors(NULL, NULL, system_monitor_seen, (LPARAM)words);
     const unsigned int count = words[0];
     memor.cpy(&(MemoriaCfg){.dst = areas, .src = words + 2, .bytes = count * sizeof(*areas)});
-    g_cli_cells->persistent_buf_release(words, &s_owner);
+    g_cli_cells->persistent_buf_release(words, &g_gui_system_cells);
     return count;
 }
 
@@ -748,7 +746,7 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
                              void *context, VerbaLinea *err_msg)
 {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    GuiSystem *const system = g_cli_cells->persistent_buf_alloc(sizeof(*system), &s_owner);
+    GuiSystem *const system = g_cli_cells->persistent_buf_alloc(sizeof(*system), &g_gui_system_cells);
     if (system == NULL)
     {
         mmgr_line_put(err_msg, "the system window's cell could not be taken");
@@ -767,7 +765,7 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
     class_of.lpszClassName = s_class;
     if ((RegisterClassExW(&class_of) == 0) && (GetLastError() != ERROR_CLASS_ALREADY_EXISTS))
     {
-        g_cli_cells->persistent_buf_release(system, &s_owner);
+        g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
         mmgr_line_put(err_msg, "the window's class could not be registered");
         return NULL;
     }
@@ -783,7 +781,7 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
                                      class_of.hInstance, NULL);
     if (system->window == NULL)
     {
-        g_cli_cells->persistent_buf_release(system, &s_owner);
+        g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
         mmgr_line_put(err_msg, "the window could not be made");
         return NULL;
     }
@@ -860,7 +858,7 @@ void gui_system_closed(GuiSystem *system)
 
 void gui_system_given(GuiSystem *system)
 {
-    g_cli_cells->persistent_buf_release(system, &s_owner);
+    g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
 }
 
 void gui_system_present(GuiSystem *system, const GuiRaster *raster)

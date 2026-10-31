@@ -43,8 +43,6 @@ typedef struct
 static CliChannel s_channels[CLI_CHANNELS];
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
-// what the channels' rings occupy in the cellblock
-static CellOwner s_owner = MMGR_CELL_OWNER("cli_queue");
 // what the queue has done: the records appended, those that found no run or no room, and what the last of those
 // reported
 static unsigned long long s_handed;
@@ -130,7 +128,7 @@ void cli_qry_queue(unsigned int channel_named, const char *path, const char *nam
         return;
     }
     channel->ring =
-        (channel->ring != NULL) ? channel->ring : g_cli_cells->persistent_buf_alloc(CLI_QUEUE_BYTES, &s_owner);
+        (channel->ring != NULL) ? channel->ring : g_cli_cells->persistent_buf_alloc(CLI_QUEUE_BYTES, &g_cli_queue_cells);
     if (channel->ring == NULL)
     {
         s_failed += 1ull;

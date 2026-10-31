@@ -12,10 +12,6 @@
 // the bytes the tree's answer is begun in before it grows
 #define CLI_WINDOW_TEXT_ANSWER (64ull << 10u)
 
-// the cells a call on a text occupies while it answers: the tree's answer read, one writing's edits and changes, the
-// lines colored, and a workspace file made plain, each sized to what it contains
-CellOwner g_cli_window_text_cells = MMGR_CELL_OWNER("cli_window_text");
-
 // a text's shape written as the page reads it
 static void text_shape_written(const CliShape *shape, VerbaLinea *out)
 {

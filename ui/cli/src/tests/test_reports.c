@@ -26,8 +26,6 @@ typedef struct
     unsigned long long used;
 } CliReportTag;
 
-CellOwner g_cli_test_report_cells = MMGR_CELL_OWNER("cli_test_report");
-
 static CliReportTag s_case;
 static CliReportTag s_tag;
 static CliLock s_report_lock = CLI_LOCK_INIT;

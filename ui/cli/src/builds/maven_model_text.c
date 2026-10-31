@@ -8,8 +8,6 @@
 #define CLI_MAVEN_FIRST 16u
 #define CLI_MAVEN_TEXT_FIRST 1024u
 
-CellOwner g_cli_maven_model_cells = MMGR_CELL_OWNER("cli_maven_model");
-
 void cli_maven_model_given(CliMavenModel *model)
 {
     g_cli_cells->persistent_buf_release(model->name_at, &g_cli_maven_model_cells);

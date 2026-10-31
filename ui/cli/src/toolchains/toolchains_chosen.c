@@ -31,7 +31,6 @@ typedef struct
 
 static CliToolsFound s_found;
 static CliLock s_found_lock = CLI_LOCK_INIT;
-static CellOwner s_found_cells = MMGR_CELL_OWNER("cli_toolchains_found");
 
 // the states a search is cached with: those found by what the search reads, not by a variable or the tree
 static const char *const s_found_states[4] = {"chosen", "path", "found", "missing"};
@@ -246,7 +245,7 @@ static int found_put(const char *id, const char *state, const char *program)
     {
         const unsigned int most = (s_found.most == 0u) ? CLI_FOUND_FIRST : (s_found.most * 2u);
         CliToolFound *const grown = cli_cell_regrown(s_found.tool, s_found.count * sizeof(*grown),
-                                                     (unsigned long long)most * sizeof(*grown), &s_found_cells);
+                                                     (unsigned long long)most * sizeof(*grown), &g_cli_toolchains_found_cells);
         if (grown == NULL)
         {
             return 0;

@@ -20,8 +20,6 @@
 
 #define CLI_LISTED_FIRST 16u
 
-CellOwner g_cli_qry_listed_cells = MMGR_CELL_OWNER("cli_qry_listed");
-
 // A tree's walk: its root, when it was walked on the clock that only goes forward, whether the tree's watch lost
 // changes since, and its folders of runs in order, in a cell of `room` grown as they are found and cached with the walk
 typedef struct

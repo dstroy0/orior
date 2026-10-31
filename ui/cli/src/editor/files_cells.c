@@ -7,23 +7,19 @@
 #include "../text/text.h"
 #include "files_internal.h"
 
-// what the views, a walk's folders, and the lists the search, the quick open, a folder's listing and the watch make
-// occupy in the cellblock
-static CellOwner s_owner = MMGR_CELL_OWNER("cli_files_views");
-
 void cli_files_cells_usage_written(VerbaLinea *out)
 {
-    cli_cells_owner_usage_written(&s_owner, out);
+    cli_cells_owner_usage_written(&g_cli_files_views_cells, out);
 }
 
 void *cli_files_cell_taken(unsigned long long bytes)
 {
-    return g_cli_cells->persistent_buf_alloc(bytes, &s_owner);
+    return g_cli_cells->persistent_buf_alloc(bytes, &g_cli_files_views_cells);
 }
 
 void cli_files_cell_given(void *cell)
 {
-    g_cli_cells->persistent_buf_release(cell, &s_owner);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_files_views_cells);
 }
 
 const char *cli_files_at(const CliFiles *files, unsigned int index)

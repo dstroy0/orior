@@ -123,6 +123,7 @@ static void catalog_tree(void)
     }
     cli_check(every, "the tree gives a job of every group");
     static CellOwner s_grown_cells = MMGR_CELL_OWNER("catalog_test_grown");
+    (void)mmgr_owner_register(&s_grown_cells);
     CliCatalog grown;
     cli_catalog_growing(&grown, &s_grown_cells, 2048u);
     cli_catalog_read(root, &grown);

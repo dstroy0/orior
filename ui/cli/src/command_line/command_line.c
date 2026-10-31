@@ -7,8 +7,6 @@
 #include "../toolchains/toolchains.h"
 #include "command_line_internal.h"
 
-// the catalog the command line reads, in cells of its size, stored until it is read again
-CellOwner g_cli_line_catalog_cells = MMGR_CELL_OWNER("cli_line_catalog");
 static CliCatalog s_catalog;
 
 void cli_out_line(const char *text, unsigned long long size)

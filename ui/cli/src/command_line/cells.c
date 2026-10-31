@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cells.c: the cells every module stores its work in: one cellblock over one pool, a block taken from the system for
 // the bytes requested as a program starts and made anew for another request while no cell is allocated. Every take and
-// give goes through the cellblock's custodia, each one swap on an atomic word, and counts the cell to the owner named,
-// registered in MMgr's owner queue the first time a take, give or growth names it. MMgr's clock is the CLI's, and its
-// reports of a cell given back at the end of its lifetime and of a give naming the wrong owner are logged. The reports
+// give goes through the cellblock's custodia and counts the cell to the owner named, each owner listed in
+// cells_owners.h and registered in MMgr's owner queue as the pool is made. MMgr's clock is the CLI's, and its report
+// of a give naming the wrong owner is logged. The reports
 // read the cellblock's peaks and the owner queue off their atomic words, and are written at a command's end
 #include "cells.h"
 
@@ -21,31 +21,9 @@ LocusCarcerumHospes(cli_cells_site, MMGR_MAXIMUM_SECURITY(cli_cells_pool));
 // the cellblock's record, as the site declares it
 #define CLI_CELLS_RECORD cli_cells_site_cli_cells_pool_ctx
 
-CellOwner g_cli_code_cells = MMGR_CELL_OWNER("cli_code");
-CellOwner g_cli_command_line_cells = MMGR_CELL_OWNER("cli_command_line");
-CellOwner g_cli_deploy_cells = MMGR_CELL_OWNER("cli_deploy");
-CellOwner g_cli_editor_cells = MMGR_CELL_OWNER("cli_editor");
-CellOwner g_cli_inspect_cells = MMGR_CELL_OWNER("cli_inspect");
-CellOwner g_cli_machine_cells = MMGR_CELL_OWNER("cli_machine");
-CellOwner g_cli_platform_cells = MMGR_CELL_OWNER("cli_platform");
-CellOwner g_cli_print_cells = MMGR_CELL_OWNER("cli_print");
-CellOwner g_cli_programs_cells = MMGR_CELL_OWNER("cli_programs");
-CellOwner g_cli_runs_cells = MMGR_CELL_OWNER("cli_runs");
-CellOwner g_cli_servers_cells = MMGR_CELL_OWNER("cli_servers");
-CellOwner g_cli_tests_cells = MMGR_CELL_OWNER("cli_tests");
-CellOwner g_cli_text_cells = MMGR_CELL_OWNER("cli_text");
-CellOwner g_cli_toolchains_cells = MMGR_CELL_OWNER("cli_toolchains");
-CellOwner g_cli_window_cells = MMGR_CELL_OWNER("cli_window");
-CellOwner g_cli_bundle_cells = MMGR_CELL_OWNER("cli_bundle");
-CellOwner g_cli_build_cells = MMGR_CELL_OWNER("cli_builds");
-CellOwner g_cli_comms_cells = MMGR_CELL_OWNER("cli_comms");
-CellOwner g_cli_db_cells = MMGR_CELL_OWNER("cli_databases");
-CellOwner g_cli_debug_cells = MMGR_CELL_OWNER("cli_debug");
-CellOwner g_cli_notebook_cells = MMGR_CELL_OWNER("cli_notebooks");
-CellOwner g_cli_plugins_cells = MMGR_CELL_OWNER("cli_plugins");
-CellOwner g_cli_requests_cells = MMGR_CELL_OWNER("cli_requests");
-CellOwner g_gui_cells = MMGR_CELL_OWNER("gui");
-CellOwner g_checks_cells = MMGR_CELL_OWNER("checks");
+#define CLI_CELL_OWNER(name_, text_) CellOwner name_ = MMGR_CELL_OWNER(text_);
+#include "cells_owners.h"
+#undef CLI_CELL_OWNER
 
 // A line of the cells' log: written to the run this process is a member of as the record `cells/<kind>`, and to the
 // process's error stream, where the harness keeps the window's
@@ -58,20 +36,17 @@ static void cells_logged(const char *kind, const VerbaLinea *line)
     }
 }
 
-// An owner registered in MMgr's queue the first time a take, give or growth names it. Two threads naming it at once
-// both ask, and MMgr registers it once and refuses the second, whose owner then stands registered. A refusal that
-// leaves the owner unregistered, an owner of a name already registered or a queue past its room, is logged: every take
-// for that owner is refused
+// An owner registered in MMgr's queue, where it does not stand there already. A refusal that leaves it unregistered, an
+// owner of a name already registered or a queue past its room, is logged: every take for that owner is refused
 static void cells_owner_ready(CellOwner *owner)
 {
-    if ((owner == NULL) || (embed_atomic_usize_load(&owner->place) != 0u) || mmgr_owner_register(owner) ||
-        (embed_atomic_usize_load(&owner->place) != 0u))
+    if ((embed_atomic_usize_load(&owner->place) != 0u) || mmgr_owner_register(owner))
     {
         return;
     }
     char text[160];
     VerbaLinea line = {text, sizeof(text), 0u, NULL, NULL, 0u};
-    mmgr_line_put(&line, (owner->name != NULL) ? owner->name : "(no name)");
+    mmgr_line_put(&line, owner->name);
     mmgr_line_put(&line, " not registered: its name is registered already, or the queue holds ");
     mmgr_line_decimal(&line, (unsigned long long)mmgr_owner_count(), 1u);
     mmgr_line_put(&line, " owners");
@@ -97,62 +72,7 @@ void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner
     cells_logged("misnamed", &line);
 }
 
-// The shared cellblock's entries, each registering the owner it is handed before the site's own entry runs
-static void *cells_persistent_buf_alloc(size_t size, CellOwner *owner)
-{
-    cells_owner_ready(owner);
-    return cli_cells_site.cli_cells_pool.persistent_buf_alloc(size, owner);
-}
-
-static void cells_persistent_buf_release(void *prisoner, CellOwner *owner)
-{
-    cells_owner_ready(owner);
-    cli_cells_site.cli_cells_pool.persistent_buf_release(prisoner, owner);
-}
-
-static void *cells_temporary_buf_alloc(size_t size, CellOwner *owner)
-{
-    cells_owner_ready(owner);
-    return cli_cells_site.cli_cells_pool.temporary_buf_alloc(size, owner);
-}
-
-static size_t cells_temporary_buf_mark(void)
-{
-    return cli_cells_site.cli_cells_pool.temporary_buf_mark();
-}
-
-static void cells_temporary_buf_release(size_t mark)
-{
-    cli_cells_site.cli_cells_pool.temporary_buf_release(mark);
-}
-
-static void cells_temporary_buf_reset(void)
-{
-    cli_cells_site.cli_cells_pool.temporary_buf_reset();
-}
-
-static embed_bool cells_who_owns_buf(const void *at)
-{
-    return cli_cells_site.cli_cells_pool.who_owns_buf(at);
-}
-
-static size_t cells_buf_available(void)
-{
-    return cli_cells_site.cli_cells_pool.buf_available();
-}
-
-static void *cells_buf_grow(void *prisoner, size_t size, CellOwner *owner)
-{
-    cells_owner_ready(owner);
-    return cli_cells_site.cli_cells_pool.buf_grow(prisoner, size, owner);
-}
-
-static const MaximumSecurityGuard s_cells_guard = {
-    cells_persistent_buf_alloc, cells_persistent_buf_release, cells_temporary_buf_alloc,
-    cells_temporary_buf_mark,   cells_temporary_buf_release,  cells_temporary_buf_reset,
-    cells_who_owns_buf,         cells_buf_available,          cells_buf_grow};
-
-const MaximumSecurityGuard *const g_cli_cells = &s_cells_guard;
+const MaximumSecurityGuard *const g_cli_cells = &cli_cells_site.cli_cells_pool;
 
 // a peak read off the cellblock's state, `member_` persistent_hw or temporary_hw, 0 where the build tracks none
 #if defined(MMGR_ENABLE_HW_MEM_CAPACITY_CB) && MMGR_ENABLE_HW_MEM_CAPACITY_CB
@@ -259,6 +179,16 @@ void cli_cells_reported(const char *name, const VerbaLinea *report)
 
 int cli_cells_made(unsigned long long bytes)
 {
+    // every owner registered ahead of the first take, and a pool made anew finds them registered
+    static CellOwner *const s_owners[] = {
+#define CLI_CELL_OWNER(name_, text_) &name_,
+#include "cells_owners.h"
+#undef CLI_CELL_OWNER
+    };
+    for (size_t at = 0u; at < (sizeof(s_owners) / sizeof(s_owners[0])); at += 1u)
+    {
+        cells_owner_ready(s_owners[at]);
+    }
     // a program makes its pool before any thread takes a cell, and makes it anew only while no cell is allocated: the
     // idle test reads both tiers off one word, and nothing takes between the test and the making
     const int idle =

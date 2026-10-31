@@ -11,13 +11,11 @@
 
 #include <stdlib.h>
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_suggest");
-
 int gui_suggest_made(GuiSuggest *suggest)
 {
     memor.set(&(MemoriaCfg){.dst = suggest, .val = 0, .bytes = sizeof(*suggest)});
-    suggest->item = g_cli_cells->persistent_buf_alloc(GUI_SUGGEST_ITEMS_MOST * sizeof(GuiItem), &s_owner);
-    suggest->shown = g_cli_cells->persistent_buf_alloc(GUI_SUGGEST_ITEMS_MOST * sizeof(unsigned int), &s_owner);
+    suggest->item = g_cli_cells->persistent_buf_alloc(GUI_SUGGEST_ITEMS_MOST * sizeof(GuiItem), &g_gui_suggest_cells);
+    suggest->shown = g_cli_cells->persistent_buf_alloc(GUI_SUGGEST_ITEMS_MOST * sizeof(unsigned int), &g_gui_suggest_cells);
     if ((suggest->item == NULL) || (suggest->shown == NULL))
     {
         gui_suggest_given(suggest);
@@ -29,14 +27,14 @@ int gui_suggest_made(GuiSuggest *suggest)
 // the items' texts freed, the line left empty
 static void suggest_texts_given(GuiSuggest *suggest)
 {
-    g_cli_cells->persistent_buf_release(suggest->texts.out, &s_owner);
+    g_cli_cells->persistent_buf_release(suggest->texts.out, &g_gui_suggest_cells);
     memor.set(&(MemoriaCfg){.dst = &suggest->texts, .val = 0, .bytes = sizeof(suggest->texts)});
 }
 
 void gui_suggest_given(GuiSuggest *suggest)
 {
-    g_cli_cells->persistent_buf_release(suggest->item, &s_owner);
-    g_cli_cells->persistent_buf_release(suggest->shown, &s_owner);
+    g_cli_cells->persistent_buf_release(suggest->item, &g_gui_suggest_cells);
+    g_cli_cells->persistent_buf_release(suggest->shown, &g_gui_suggest_cells);
     suggest_texts_given(suggest);
     suggest->item = NULL;
     suggest->shown = NULL;
@@ -114,7 +112,7 @@ unsigned int gui_suggest_score(const char *label, unsigned long long length, con
 // fit: 1, or 0 where it could not grow
 static int suggest_stored(GuiSuggest *suggest, const char *text, unsigned long long length, unsigned long long *at)
 {
-    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST, &s_owner))
+    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST, &g_gui_suggest_cells))
     {
         return 0;
     }
@@ -129,7 +127,7 @@ static int suggest_stored(GuiSuggest *suggest, const char *text, unsigned long l
 static int suggest_snippet_stored(GuiSuggest *suggest, const char *text, unsigned long long length,
                                   unsigned long long *at)
 {
-    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST, &s_owner))
+    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST, &g_gui_suggest_cells))
     {
         return 0;
     }

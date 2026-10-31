@@ -135,7 +135,6 @@ typedef struct
 
 static CliView *s_views;
 static CliLock s_lock = CLI_LOCK_INIT;
-static CellOwner s_owner = MMGR_CELL_OWNER("cli_views");
 
 // the view open under `key`, or NULL; under the lock
 static CliView *view_of(const char *key)
@@ -169,9 +168,9 @@ static void view_steps_cut(CliView *view, unsigned int from)
         CliViewStep *const step = &view->step[at];
         for (unsigned int edit = 0u; edit < step->edits; edit += 1u)
         {
-            g_cli_cells->persistent_buf_release(step->edit[edit].put, &s_owner);
+            g_cli_cells->persistent_buf_release(step->edit[edit].put, &g_cli_views_cells);
         }
-        g_cli_cells->persistent_buf_release(step->edit, &s_owner);
+        g_cli_cells->persistent_buf_release(step->edit, &g_cli_views_cells);
     }
     view->steps = (from < view->steps) ? from : view->steps;
     view->done = (view->done < view->steps) ? view->done : view->steps;
@@ -207,7 +206,7 @@ static void view_plugin_read(void *context, const CliPlugin *plugin)
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
-    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &why, &s_owner);
+    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &why, &g_cli_views_cells);
     if (root == CLI_JSON_NONE)
     {
         return;
@@ -310,7 +309,7 @@ int cli_view_opened(const char *key, const char *path)
     cli_lock_take(&s_lock);
     if (s_views == NULL)
     {
-        s_views = g_cli_cells->persistent_buf_alloc(CLI_VIEWS * sizeof(*s_views), &s_owner);
+        s_views = g_cli_cells->persistent_buf_alloc(CLI_VIEWS * sizeof(*s_views), &g_cli_views_cells);
         if (s_views == NULL)
         {
             cli_lock_give(&s_lock);
@@ -322,11 +321,11 @@ int cli_view_opened(const char *key, const char *path)
     if (view != NULL)
     {
         view_steps_cut(view, 0u);
-        g_cli_cells->persistent_buf_release(view->step, &s_owner);
-        g_cli_cells->persistent_buf_release(view->fold, &s_owner);
-        g_cli_cells->persistent_buf_release(view->find_query, &s_owner);
-        g_cli_cells->persistent_buf_release(view->match, &s_owner);
-        g_cli_cells->persistent_buf_release(view->line_units, &s_owner);
+        g_cli_cells->persistent_buf_release(view->step, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(view->fold, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(view->find_query, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(view->match, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(view->line_units, &g_cli_views_cells);
     }
     else
     {
@@ -363,11 +362,11 @@ void cli_view_closed(const char *key)
     if (view != NULL)
     {
         view_steps_cut(view, 0u);
-        g_cli_cells->persistent_buf_release(view->step, &s_owner);
-        g_cli_cells->persistent_buf_release(view->fold, &s_owner);
-        g_cli_cells->persistent_buf_release(view->find_query, &s_owner);
-        g_cli_cells->persistent_buf_release(view->match, &s_owner);
-        g_cli_cells->persistent_buf_release(view->line_units, &s_owner);
+        g_cli_cells->persistent_buf_release(view->step, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(view->fold, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(view->find_query, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(view->match, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(view->line_units, &g_cli_views_cells);
         memor.set(&(MemoriaCfg){.dst = view, .val = 0, .bytes = sizeof(*view)});
     }
     cli_lock_give(&s_lock);
@@ -550,7 +549,7 @@ static int view_fold_put(CliView *view, unsigned long long first, unsigned long 
     {
         const unsigned int room = (view->folds_room != 0u) ? view->folds_room * 2u : 16u;
         CliViewFold *const grown =
-            cli_cell_regrown(view->fold, view->folds * sizeof(*grown), room * sizeof(*grown), &s_owner);
+            cli_cell_regrown(view->fold, view->folds * sizeof(*grown), room * sizeof(*grown), &g_cli_views_cells);
         if (grown == NULL)
         {
             return 0;
@@ -643,7 +642,7 @@ static int view_units_room(CliView *view, unsigned long long units)
     }
     const unsigned long long room = (units > 256ull) ? units : 256ull;
     // the line's units are read anew into the cell: nothing of the old ones is carried
-    unsigned short *const grown = cli_cell_regrown(view->line_units, 0u, room * sizeof(*grown), &s_owner);
+    unsigned short *const grown = cli_cell_regrown(view->line_units, 0u, room * sizeof(*grown), &g_cli_views_cells);
     if (grown == NULL)
     {
         return 0;
@@ -668,7 +667,7 @@ static void view_line_read(CliView *view, unsigned long long line)
     {
         const char *text = NULL;
         unsigned long long count = 0ull;
-        char *const cell = cli_pages_lines_taken(view->key, line, line + 1ull, &text, &count, &s_owner);
+        char *const cell = cli_pages_lines_taken(view->key, line, line + 1ull, &text, &count, &g_cli_views_cells);
         if ((cell != NULL) && (count != 0ull))
         {
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
@@ -677,7 +676,7 @@ static void view_line_read(CliView *view, unsigned long long line)
                 view->line_length = view_units_of(text, size, view->line_units, view->units_room);
             }
         }
-        g_cli_cells->persistent_buf_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
         return;
     }
     cli_document_lock_take();
@@ -911,7 +910,7 @@ static int view_query_room(CliView *view, unsigned long long more)
     }
     const unsigned long long room = (wanted > 32ull) ? wanted * 2ull : 64ull;
     unsigned short *const grown =
-        cli_cell_regrown(view->find_query, view->find_length * sizeof(*grown), room * sizeof(*grown), &s_owner);
+        cli_cell_regrown(view->find_query, view->find_length * sizeof(*grown), room * sizeof(*grown), &g_cli_views_cells);
     if (grown == NULL)
     {
         return 0;
@@ -957,13 +956,13 @@ static void view_match_kept(void *context, unsigned long long line, unsigned lon
     if (view->matches == view->match_room)
     {
         const unsigned long long room = (view->match_room != 0ull) ? view->match_room * 2ull : 256ull;
-        unsigned long long(*const grown)[3] = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &s_owner);
+        unsigned long long(*const grown)[3] = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &g_cli_views_cells);
         if (grown == NULL)
         {
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = view->match, .bytes = view->matches * sizeof(*grown)});
-        g_cli_cells->persistent_buf_release(view->match, &s_owner);
+        g_cli_cells->persistent_buf_release(view->match, &g_cli_views_cells);
         view->match = grown;
         view->match_room = room;
     }
@@ -1040,7 +1039,7 @@ static void view_searched(CliView *view)
         return;
     }
     const unsigned long long query_room = (view->find_length * 4ull) + 1ull;
-    char *const query = g_cli_cells->temporary_buf_alloc(query_room, &s_owner);
+    char *const query = g_cli_cells->temporary_buf_alloc(query_room, &g_cli_views_cells);
     if (query == NULL)
     {
         return;
@@ -1054,7 +1053,7 @@ static void view_searched(CliView *view)
     if (view->paged)
     {
         const unsigned long long room = CLI_VIEW_MATCHES * 24ull;
-        char *const cell = g_cli_cells->temporary_buf_alloc(room, &s_owner);
+        char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_views_cells);
         if (cell != NULL)
         {
             VerbaLinea out = {cell, room, 0ull};
@@ -1062,7 +1061,7 @@ static void view_searched(CliView *view)
             {
                 view_matches_read(view, cell, out.at);
             }
-            g_cli_cells->persistent_buf_release(cell, &s_owner);
+            g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
         }
     }
     else
@@ -1075,7 +1074,7 @@ static void view_searched(CliView *view)
         }
         cli_document_lock_give();
     }
-    g_cli_cells->persistent_buf_release(query, &s_owner);
+    g_cli_cells->persistent_buf_release(query, &g_cli_views_cells);
     view_current_settled(view);
 }
 
@@ -1315,7 +1314,7 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
     {
         took_room += (view_length(view, line) * 4ull) + 1ull;
     }
-    char *const cell = g_cli_cells->persistent_buf_alloc(length + 1ull + took_room + 1ull, &s_owner);
+    char *const cell = g_cli_cells->persistent_buf_alloc(length + 1ull + took_room + 1ull, &g_cli_views_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the edit's cell could not be taken");
@@ -1347,7 +1346,7 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
     view->line_known = 0;
     if (!view_written(view, edits, counts, err_msg))
     {
-        g_cli_cells->persistent_buf_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
         return 0;
     }
     // where the text put in ends
@@ -1375,10 +1374,10 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
         {
             const unsigned int room = (view->steps_room != 0u) ? view->steps_room * 2u : 16u;
             CliViewStep *const grown =
-                cli_cell_regrown(view->step, view->steps * sizeof(*grown), room * sizeof(*grown), &s_owner);
+                cli_cell_regrown(view->step, view->steps * sizeof(*grown), room * sizeof(*grown), &g_cli_views_cells);
             if (grown == NULL)
             {
-                g_cli_cells->persistent_buf_release(cell, &s_owner);
+                g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
                 mmgr_line_put(err_msg, "the steps' cell could not be taken");
                 return 0;
             }
@@ -1396,10 +1395,10 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
     {
         const unsigned int room = (step->room != 0u) ? step->room * 2u : 4u;
         CliViewEdit *const grown =
-            cli_cell_regrown(step->edit, step->edits * sizeof(*grown), room * sizeof(*grown), &s_owner);
+            cli_cell_regrown(step->edit, step->edits * sizeof(*grown), room * sizeof(*grown), &g_cli_views_cells);
         if (grown == NULL)
         {
-            g_cli_cells->persistent_buf_release(cell, &s_owner);
+            g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
             mmgr_line_put(err_msg, "a step's cell could not be taken");
             return 0;
         }
@@ -1600,7 +1599,7 @@ static int view_opens_block(CliView *view, unsigned long long line, unsigned lon
     const unsigned long long length = view_length(view, line);
     const unsigned long long count = (col < length) ? col : length;
     unsigned char *const cell =
-        g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &s_owner);
+        g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &g_cli_views_cells);
     if (cell == NULL)
     {
         return 0;
@@ -1635,7 +1634,7 @@ static int view_opens_block(CliView *view, unsigned long long line, unsigned lon
                            ((at == read) || regexp.first.empty || cli_regexp_allows(&regexp.first, letters[at]));
         matched = starts && cli_regexp_match_into(&regexp, letters, read, at, groups);
     }
-    g_cli_cells->persistent_buf_release(cell, &s_owner);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
     return matched;
 }
 
@@ -1833,7 +1832,7 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
         {
             room += (view_length(view, line) * 4ull) + 1ull;
         }
-        char *const cell = g_cli_cells->temporary_buf_alloc(room + length + 8ull, &s_owner);
+        char *const cell = g_cli_cells->temporary_buf_alloc(room + length + 8ull, &g_cli_views_cells);
         if (cell == NULL)
         {
             mmgr_line_put(err_msg, "the wrap's cell could not be taken");
@@ -1844,7 +1843,7 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
         view_span_written(view, from, to, &wrapped);
         cli_utf8_put(&wrapped, close);
         const int written = view_edited(view, from, to, cell, wrapped.at, CLI_VIEW_KIND_NONE, err_msg);
-        g_cli_cells->persistent_buf_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
         if (!written)
         {
             return 0;
@@ -2124,11 +2123,11 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
         if (view->find_open && view->find_focus)
         {
             // text typed goes into the query, a byte a unit at the most
-            unsigned short *const units = g_cli_cells->temporary_buf_alloc((input->length + 1ull) * sizeof(*units), &s_owner);
+            unsigned short *const units = g_cli_cells->temporary_buf_alloc((input->length + 1ull) * sizeof(*units), &g_cli_views_cells);
             if (units != NULL)
             {
                 view_query_put(view, units, view_units_of(input->text, input->length, units, input->length + 1ull));
-                g_cli_cells->persistent_buf_release(units, &s_owner);
+                g_cli_cells->persistent_buf_release(units, &g_cli_views_cells);
             }
         }
         else
@@ -2216,7 +2215,7 @@ static int view_pair(const CliView *view, CliPlace *pair)
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ull;
-    char *const text = cli_document_lines_taken(view->key, first, last, &size, state, sizeof(state), &s_owner);
+    char *const text = cli_document_lines_taken(view->key, first, last, &size, state, sizeof(state), &g_cli_views_cells);
     if (text == NULL)
     {
         return 0;
@@ -2226,7 +2225,7 @@ static int view_pair(const CliView *view, CliPlace *pair)
     const int paired =
         cli_symbols_pair(view->path, (state[0] != '\0') ? state : "root", text, size,
                          (CliSymbolPlace){(unsigned int)(line - first), (unsigned int)view->cursor.col}, found);
-    g_cli_cells->persistent_buf_release(text, &s_owner);
+    g_cli_cells->persistent_buf_release(text, &g_cli_views_cells);
     for (unsigned int at = 0u; paired && (at < 2u); at += 1u)
     {
         pair[at].line = first + found[at].line;
@@ -2256,7 +2255,7 @@ static void view_paged_rows_written(const CliView *view, const CliViewRows *show
         }
         unsigned long long count = 0ull;
         char *const cell = cli_pages_lines_taken(view->key, shown->number[at], shown->number[end] + 1ull,
-                                                 shown->text + at, &count, &s_owner);
+                                                 shown->text + at, &count, &g_cli_views_cells);
         for (unsigned long long each = at; each <= end; each += 1ull)
         {
             mmgr_line_put(out, (each > 0ull) ? "," : "");
@@ -2270,7 +2269,7 @@ static void view_paged_rows_written(const CliView *view, const CliViewRows *show
                 mmgr_line_put(out, "\"\"");
             }
         }
-        g_cli_cells->persistent_buf_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
         at = end + 1ull;
     }
 }
@@ -2379,7 +2378,7 @@ int cli_view_frame_written(const char *key, VerbaLinea *out)
     // for a paged text's lines read and for the folds that open on them
     CliViewRows shown = {NULL, NULL, 0ull};
     shown.number = g_cli_cells->persistent_buf_alloc(
-        rows * (sizeof(*shown.number) + sizeof(*shown.text) + sizeof(CliViewFoldSeen)), &s_owner);
+        rows * (sizeof(*shown.number) + sizeof(*shown.text) + sizeof(CliViewFoldSeen)), &g_cli_views_cells);
     shown.text = (shown.number != NULL) ? (const char **)(shown.number + rows) : NULL;
     CliViewFoldsSeen folds = {&shown, (shown.text != NULL) ? (CliViewFoldSeen *)(shown.text + rows) : NULL, 0ull};
     for (unsigned long long line = from; (shown.number != NULL) && (shown.count < rows) && (line < lines);)
@@ -2580,7 +2579,7 @@ int cli_view_frame_written(const char *key, VerbaLinea *out)
     }
     mmgr_line_ch(out, ']');
     mmgr_line_ch(out, '}');
-    g_cli_cells->persistent_buf_release(shown.number, &s_owner);
+    g_cli_cells->persistent_buf_release(shown.number, &g_cli_views_cells);
     cli_lock_give(&s_lock);
     return 1;
 }
@@ -2732,8 +2731,8 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     mmgr_line_put(out, ",\"bars\":[");
     // the lines' runs read as the branch writes them, and their texts, a paged text's from its pages
     const unsigned long long count = (last >= first) ? last - first + 1ull : 0ull;
-    char *const room = g_cli_cells->temporary_buf_alloc(CLI_VIEW_MAP_ROOM, &s_owner);
-    const char **const line = g_cli_cells->temporary_buf_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &s_owner);
+    char *const room = g_cli_cells->temporary_buf_alloc(CLI_VIEW_MAP_ROOM, &g_cli_views_cells);
+    const char **const line = g_cli_cells->temporary_buf_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &g_cli_views_cells);
     VerbaLinea runs = {room, CLI_VIEW_MAP_ROOM, 0ull};
     CliJson json;
     unsigned int colors = CLI_JSON_NONE;
@@ -2741,15 +2740,15 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     if ((room != NULL) && cli_document_runs_written(key, first, last, 0, &runs) && mmgr_line_ok(&runs))
     {
-        colors = cli_json_taken_temporary(&json, runs.out, runs.at, &err_msg, &s_owner);
+        colors = cli_json_taken_temporary(&json, runs.out, runs.at, &err_msg, &g_cli_views_cells);
     }
     unsigned long long size = 0ull;
     unsigned long long read = 0ull;
     char state[64];
     char *const texts =
         (line == NULL) ? NULL
-                       : (paged ? cli_pages_lines_taken(key, first, last + 1ull, line, &read, &s_owner)
-                                : cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &s_owner));
+                       : (paged ? cli_pages_lines_taken(key, first, last + 1ull, line, &read, &g_cli_views_cells)
+                                : cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &g_cli_views_cells));
     const char *rest = texts;
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
@@ -2782,9 +2781,9 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     {
         cli_json_given(&json);
     }
-    g_cli_cells->persistent_buf_release(texts, &s_owner);
-    g_cli_cells->persistent_buf_release(line, &s_owner);
-    g_cli_cells->persistent_buf_release(room, &s_owner);
+    g_cli_cells->persistent_buf_release(texts, &g_cli_views_cells);
+    g_cli_cells->persistent_buf_release(line, &g_cli_views_cells);
+    g_cli_cells->persistent_buf_release(room, &g_cli_views_cells);
     cli_lock_give(&s_lock);
     return 1;
 }
@@ -3000,8 +2999,8 @@ int cli_view_words_written(const char *key, VerbaLinea *out)
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ull;
     char *const text =
-        (last >= first) ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &s_owner) : NULL;
-    unsigned long long (*const table)[2] = g_cli_cells->temporary_buf_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &s_owner);
+        (last >= first) ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &g_cli_views_cells) : NULL;
+    unsigned long long (*const table)[2] = g_cli_cells->temporary_buf_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &g_cli_views_cells);
     mmgr_line_ch(out, '[');
     if ((text != NULL) && (table != NULL))
     {
@@ -3049,7 +3048,7 @@ int cli_view_words_written(const char *key, VerbaLinea *out)
         }
     }
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(table, &s_owner);
-    g_cli_cells->persistent_buf_release(text, &s_owner);
+    g_cli_cells->persistent_buf_release(table, &g_cli_views_cells);
+    g_cli_cells->persistent_buf_release(text, &g_cli_views_cells);
     return 1;
 }

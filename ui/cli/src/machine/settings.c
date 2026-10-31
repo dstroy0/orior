@@ -24,8 +24,6 @@ static const char *const s_tree_scoped_keys[7] = {"signing.", "environment.",   
 // the most bytes of a settings file read
 #define CLI_SETTINGS_FILE (1u << 20u)
 
-CellOwner g_cli_settings_cells = MMGR_CELL_OWNER("cli_settings");
-
 const char *cli_settings_system(void)
 {
 #if defined(_WIN32)

@@ -36,8 +36,6 @@ typedef struct
 
 static CliCommentRoom s_room;
 
-CellOwner g_cli_purpose_cells = MMGR_CELL_OWNER("cli_purpose");
-
 // a text's lines, as Rust's lines() splits them, CLI_COMMENT_LINES at the most, read into the room where it has room
 // for a list of them: their count
 static unsigned int cli_lines_read(const char *text, unsigned long long size)

@@ -10,7 +10,6 @@
 #include "container.h"
 
 CliDoorServed g_cli_door_served = {.lock = CLI_LOCK_INIT};
-CellOwner g_cli_door_cells = MMGR_CELL_OWNER("cli_door");
 
 // the listener the door is joined through
 static CliDoorListener s_listener;

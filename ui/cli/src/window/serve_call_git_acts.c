@@ -10,14 +10,11 @@
 #define CLI_SERVE_WORDS_FIRST (4ull << 10u)
 #define CLI_SERVE_TEXT_AT_FIRST (64ull << 10u)
 
-// the cells a call having git act occupies while it answers, each sized to what it contains
-static CellOwner s_cells = MMGR_CELL_OWNER("cli_serve_git");
-
 // a growing line begun of `first` bytes for git's words or a file's text: 1, or 0 with why given where its cell is
 // refused
 static int git_line_begun(VerbaLinea *line, unsigned long long first, VerbaLinea *err_msg)
 {
-    const int begun = cli_growing_line_made(line, first, &s_cells);
+    const int begun = cli_growing_line_made(line, first, &g_cli_serve_git_cells);
     if (!begun)
     {
         mmgr_line_put(err_msg, "git's words could not be given a cell");
@@ -44,7 +41,7 @@ static int git_words_given(int done, VerbaLinea *words, VerbaLinea *out)
     {
         cli_json_quoted_lossy(out, (const unsigned char *)words->out, mmgr_line_ok(words) ? words->at : 0ull);
     }
-    g_cli_cells->persistent_buf_release(words->out, &s_cells);
+    g_cli_cells->persistent_buf_release(words->out, &g_cli_serve_git_cells);
     return done;
 }
 
@@ -72,8 +69,8 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     const unsigned int first = cli_json_is(json, parts, CFG_JSON_ARRAY) ? json->node[parts].first : CLI_JSON_NONE;
     const unsigned int whole_most = git_items(json, cli_serve_arg(args, "whole"));
     const unsigned int parts_most = git_items(json, parts);
-    const char **const whole_of = g_cli_cells->temporary_buf_alloc((whole_most + 1ull) * sizeof(*whole_of), &s_cells);
-    CliGitPart *const part_of = g_cli_cells->temporary_buf_alloc((parts_most + 1ull) * sizeof(*part_of), &s_cells);
+    const char **const whole_of = g_cli_cells->temporary_buf_alloc((whole_most + 1ull) * sizeof(*whole_of), &g_cli_serve_git_cells);
+    CliGitPart *const part_of = g_cli_cells->temporary_buf_alloc((parts_most + 1ull) * sizeof(*part_of), &g_cli_serve_git_cells);
     const char *const message = cli_serve_string(args, "message", err_msg);
     VerbaLinea words = {NULL, 0ull, 0ull};
     int done = (whole_of != NULL) && (part_of != NULL) && (message != NULL) &&
@@ -108,8 +105,8 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     {
         done = 0;
     }
-    g_cli_cells->persistent_buf_release(part_of, &s_cells);
-    g_cli_cells->persistent_buf_release(whole_of, &s_cells);
+    g_cli_cells->persistent_buf_release(part_of, &g_cli_serve_git_cells);
+    g_cli_cells->persistent_buf_release(whole_of, &g_cli_serve_git_cells);
     return done;
 }
 
@@ -142,7 +139,7 @@ static int file_head(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         mmgr_line_put(out, "null");
     }
-    g_cli_cells->persistent_buf_release(text.out, &s_cells);
+    g_cli_cells->persistent_buf_release(text.out, &g_cli_serve_git_cells);
     return 1;
 }
 
@@ -151,7 +148,7 @@ static int git_commit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     char root[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     const unsigned int most = git_items(args->json, cli_serve_arg(args, "paths"));
-    const char **const paths = g_cli_cells->temporary_buf_alloc((most + 1ull) * sizeof(*paths), &s_cells);
+    const char **const paths = g_cli_cells->temporary_buf_alloc((most + 1ull) * sizeof(*paths), &g_cli_serve_git_cells);
     const char *const message = (paths != NULL) ? cli_serve_string(args, "message", err_msg) : NULL;
     VerbaLinea words;
     int done = 0;
@@ -164,7 +161,7 @@ static int git_commit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     {
         done = git_words_given(cli_git_commit(root, message, paths, count, &words, err_msg), &words, out);
     }
-    g_cli_cells->persistent_buf_release(paths, &s_cells);
+    g_cli_cells->persistent_buf_release(paths, &g_cli_serve_git_cells);
     return done;
 }
 
@@ -264,7 +261,7 @@ static int repo_init(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
         return 0;
     }
     const int done = cli_git_init(folder, &words, err_msg);
-    g_cli_cells->persistent_buf_release(words.out, &s_cells);
+    g_cli_cells->persistent_buf_release(words.out, &g_cli_serve_git_cells);
     if (done)
     {
         cli_json_quoted_lossy(out, (const unsigned char *)folder,

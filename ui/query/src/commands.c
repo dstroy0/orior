@@ -6,8 +6,6 @@
 #include "query_internal.h"
 #include "query_loops.h"
 
-CellOwner g_query_cells = MMGR_CELL_OWNER("cli_query");
-
 // the name of the record this process's own lines go to, `<loop>.console`
 static char s_console[QRY_NAME_MAX_LEN + 1u];
 

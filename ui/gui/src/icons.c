@@ -11,8 +11,6 @@
 
 #include <math.h>
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_icons");
-
 // the pixels between the points a curve is flattened to, and the most parts an icon's path has
 #define ICONS_STEP 0.5f
 #define ICONS_PATHS 3u
@@ -662,7 +660,7 @@ void gui_icons_given(GuiIcons *icons)
     {
         if (icons->slot[at].used)
         {
-            g_cli_cells->persistent_buf_release(icons->slot[at].mask.cover, &s_owner);
+            g_cli_cells->persistent_buf_release(icons->slot[at].mask.cover, &g_gui_icons_cells);
             icons->slot[at].mask.cover = NULL;
             icons->slot[at].used = 0;
         }
@@ -675,12 +673,12 @@ void gui_icons_given(GuiIcons *icons)
 static int icons_drawn(const GuiIconShape *shape, unsigned int size, float stroke, GuiMask *mask)
 {
     const unsigned long long pixels = (unsigned long long)size * size;
-    float *const floats = g_cli_cells->persistent_buf_alloc(pixels * sizeof(*floats), &s_owner);
-    unsigned char *const cover = g_cli_cells->persistent_buf_alloc(pixels, &s_owner);
+    float *const floats = g_cli_cells->persistent_buf_alloc(pixels * sizeof(*floats), &g_gui_icons_cells);
+    unsigned char *const cover = g_cli_cells->persistent_buf_alloc(pixels, &g_gui_icons_cells);
     if ((floats == NULL) || (cover == NULL))
     {
-        g_cli_cells->persistent_buf_release(floats, &s_owner);
-        g_cli_cells->persistent_buf_release(cover, &s_owner);
+        g_cli_cells->persistent_buf_release(floats, &g_gui_icons_cells);
+        g_cli_cells->persistent_buf_release(cover, &g_gui_icons_cells);
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = floats, .val = 0, .bytes = pixels * sizeof(*floats)});
@@ -728,7 +726,7 @@ static int icons_drawn(const GuiIconShape *shape, unsigned int size, float strok
         // a coverage from 0 to 1 by 255, rounded, is a byte
         cover[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);
     }
-    g_cli_cells->persistent_buf_release(floats, &s_owner);
+    g_cli_cells->persistent_buf_release(floats, &g_gui_icons_cells);
     mask->width = size;
     mask->height = size;
     mask->left = 0;

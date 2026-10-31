@@ -25,12 +25,11 @@ typedef struct
 // the lock a call on orior's folder answers under, one at a time, and the cells it occupies while it answers, each
 // sized to what it contains
 static CliLock s_lock = CLI_LOCK_INIT;
-static CellOwner s_cells = MMGR_CELL_OWNER("cli_window_home");
 
 // a growing line begun for a text of orior's folder: 1, or 0 with why given where its cell is refused
 static int home_line_begun(VerbaLinea *line, VerbaLinea *err_msg)
 {
-    const int begun = cli_growing_line_made(line, CLI_HOME_TEXT_FIRST, &s_cells);
+    const int begun = cli_growing_line_made(line, CLI_HOME_TEXT_FIRST, &g_cli_window_home_cells);
     if (!begun)
     {
         mmgr_line_put(err_msg, "a text of orior's folder could not be given a cell");
@@ -39,7 +38,7 @@ static int home_line_begun(VerbaLinea *line, VerbaLinea *err_msg)
 }
 
 // the strings of the argument `key` into a cell of their count, `*items`, given back with
-// g_cli_cells->persistent_buf_release(&s_cells,
+// g_cli_cells->persistent_buf_release(&g_cli_window_home_cells,
 // ...) either way, their count into `count`: 1, or 0 with why given
 static int home_strings(const CliServeArgs *args, const char *key, const char ***items, unsigned int *count,
                         VerbaLinea *err_msg)
@@ -53,7 +52,7 @@ static int home_strings(const CliServeArgs *args, const char *key, const char **
         most += 1u;
     }
     *count = 0u;
-    *items = g_cli_cells->persistent_buf_alloc((most + 1ull) * sizeof(**items), &s_cells);
+    *items = g_cli_cells->persistent_buf_alloc((most + 1ull) * sizeof(**items), &g_cli_window_home_cells);
     if (*items == NULL)
     {
         mmgr_line_put(err_msg, "the strings a call on orior's folder names could not be given a cell");
@@ -97,7 +96,7 @@ static int home_state_write(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     mmgr_line_ch(&state_line, '}');
     const int done = mmgr_line_ok(&state_line) && cli_state_save(folder, state_line.out, state_line.at, err_msg);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(state_line.out, &s_cells);
+    g_cli_cells->persistent_buf_release(state_line.out, &g_cli_window_home_cells);
     return done;
 }
 
@@ -115,9 +114,9 @@ static unsigned int home_state_tree(CliJson *json)
         return CLI_JSON_NONE;
     }
     const unsigned int tree = (cli_state_read(folder, &state_line) && mmgr_line_ok(&state_line))
-                                  ? cli_json_taken(json, state_line.out, state_line.at, 0u, 0ull, &ignored, &s_cells)
+                                  ? cli_json_taken(json, state_line.out, state_line.at, 0u, 0ull, &ignored, &g_cli_window_home_cells)
                                   : CLI_JSON_NONE;
-    g_cli_cells->persistent_buf_release(state_line.out, &s_cells);
+    g_cli_cells->persistent_buf_release(state_line.out, &g_cli_window_home_cells);
     return cli_json_is(json, tree, CFG_JSON_OBJECT) ? tree : CLI_JSON_NONE;
 }
 
@@ -172,7 +171,7 @@ static VerbaLinea s_kept_script;
 const char *cli_window_kept_script(unsigned long long *size)
 {
     *size = 0ull;
-    if (!cli_growing_line_made(&s_kept_script, CLI_WINDOW_KEPT_SCRIPT_FIRST, &s_cells))
+    if (!cli_growing_line_made(&s_kept_script, CLI_WINDOW_KEPT_SCRIPT_FIRST, &g_cli_window_home_cells))
     {
         return NULL;
     }
@@ -187,7 +186,7 @@ const char *cli_window_kept_script(unsigned long long *size)
 
 void cli_window_kept_script_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_kept_script.out, &s_cells);
+    g_cli_cells->persistent_buf_release(s_kept_script.out, &g_cli_window_home_cells);
     s_kept_script = (VerbaLinea){NULL, 0ull, 0ull};
 }
 
@@ -212,7 +211,7 @@ static int home_state_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     const char **keys = NULL;
     if (!home_strings(args, "keys", &keys, &count, err_msg))
     {
-        g_cli_cells->persistent_buf_release(keys, &s_cells);
+        g_cli_cells->persistent_buf_release(keys, &g_cli_window_home_cells);
         return 0;
     }
     CliJson json;
@@ -251,7 +250,7 @@ static int home_state_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     mmgr_line_put(out, "]}");
     cli_json_given(&json);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(keys, &s_cells);
+    g_cli_cells->persistent_buf_release(keys, &g_cli_window_home_cells);
     return 1;
 }
 
@@ -264,10 +263,10 @@ static int home_settings_layers(const CliServeArgs *args, VerbaLinea *out, Verba
     {
         return 0;
     }
-    CliHomeSettings *const settings = g_cli_cells->temporary_buf_alloc(sizeof(*settings), &s_cells);
+    CliHomeSettings *const settings = g_cli_cells->temporary_buf_alloc(sizeof(*settings), &g_cli_window_home_cells);
     if (settings == NULL)
     {
-        g_cli_cells->persistent_buf_release(tree.out, &s_cells);
+        g_cli_cells->persistent_buf_release(tree.out, &g_cli_window_home_cells);
         mmgr_line_put(err_msg, "the settings' chains and layers could not be given a cell");
         return 0;
     }
@@ -284,8 +283,8 @@ static int home_settings_layers(const CliServeArgs *args, VerbaLinea *out, Verba
     }
     cli_settings_chain_given(&settings->tree);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(settings, &s_cells);
-    g_cli_cells->persistent_buf_release(tree.out, &s_cells);
+    g_cli_cells->persistent_buf_release(settings, &g_cli_window_home_cells);
+    g_cli_cells->persistent_buf_release(tree.out, &g_cli_window_home_cells);
     return read;
 }
 
@@ -318,7 +317,7 @@ static int home_carry_send(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     {
         cli_window_counted(out, done.out, mmgr_line_ok(&done) ? done.at : 0ull);
     }
-    g_cli_cells->persistent_buf_release(done.out, &s_cells);
+    g_cli_cells->persistent_buf_release(done.out, &g_cli_window_home_cells);
     return sent;
 }
 
@@ -331,7 +330,7 @@ static int home_carry_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     {
         return 0;
     }
-    CliCarried *const carried = g_cli_cells->temporary_buf_alloc(sizeof(*carried), &s_cells);
+    CliCarried *const carried = g_cli_cells->temporary_buf_alloc(sizeof(*carried), &g_cli_window_home_cells);
     if (carried == NULL)
     {
         mmgr_line_put(err_msg, "the files a carry contains could not be given a cell");
@@ -350,7 +349,7 @@ static int home_carry_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     }
     cli_carried_clear(carried);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(carried, &s_cells);
+    g_cli_cells->persistent_buf_release(carried, &g_cli_window_home_cells);
     return read;
 }
 
@@ -367,7 +366,7 @@ static int home_carry_take(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     }
     const char **place_of = NULL;
     const char **key_of = NULL;
-    CliCarried *const carried = g_cli_cells->temporary_buf_alloc(sizeof(*carried), &s_cells);
+    CliCarried *const carried = g_cli_cells->temporary_buf_alloc(sizeof(*carried), &g_cli_window_home_cells);
     if ((carried == NULL) || !home_strings(args, "places", &place_of, &places, err_msg) ||
         !home_strings(args, "keys", &key_of, &keys, err_msg))
     {
@@ -375,9 +374,9 @@ static int home_carry_take(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
         {
             mmgr_line_put(err_msg, "the files a carry contains could not be given a cell");
         }
-        g_cli_cells->persistent_buf_release(key_of, &s_cells);
-        g_cli_cells->persistent_buf_release(place_of, &s_cells);
-        g_cli_cells->persistent_buf_release(carried, &s_cells);
+        g_cli_cells->persistent_buf_release(key_of, &g_cli_window_home_cells);
+        g_cli_cells->persistent_buf_release(place_of, &g_cli_window_home_cells);
+        g_cli_cells->persistent_buf_release(carried, &g_cli_window_home_cells);
         return 0;
     }
     carried->count = 0u;
@@ -397,9 +396,9 @@ static int home_carry_take(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     const int taken = cli_carry_take(home, from, carried, place_of, places, key_of, keys, out, err_msg);
     cli_carried_clear(carried);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(key_of, &s_cells);
-    g_cli_cells->persistent_buf_release(place_of, &s_cells);
-    g_cli_cells->persistent_buf_release(carried, &s_cells);
+    g_cli_cells->persistent_buf_release(key_of, &g_cli_window_home_cells);
+    g_cli_cells->persistent_buf_release(place_of, &g_cli_window_home_cells);
+    g_cli_cells->persistent_buf_release(carried, &g_cli_window_home_cells);
     return taken;
 }
 
@@ -506,7 +505,7 @@ static int home_plugin_settings_write(const CliServeArgs *args, VerbaLinea *out,
     mmgr_line_ch(&text, '\n');
     const int written = mmgr_line_ok(&text) && query_file_written(path, text.out, text.at);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(text.out, &s_cells);
+    g_cli_cells->persistent_buf_release(text.out, &g_cli_window_home_cells);
     if (!written)
     {
         mmgr_line_put(err_msg, path);

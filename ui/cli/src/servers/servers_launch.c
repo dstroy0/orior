@@ -28,8 +28,6 @@
 static CliServersSink s_server_sinks[64];
 static unsigned int s_server_sink_next;
 
-CellOwner g_cli_servers_launch_cells = MMGR_CELL_OWNER("cli_servers_launch");
-
 // The search for projects: the file name looked for, the folder read and its depth, and the projects found, their
 // paths one after another, each with its zero after it, in a growing line, and their count
 typedef struct

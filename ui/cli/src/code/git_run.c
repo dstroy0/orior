@@ -37,8 +37,6 @@ typedef struct
 static char s_nothing[1];
 static CliGitGave s_refused = {s_nothing, 0ull, 1, s_nothing, 0ull, 0};
 
-CellOwner g_cli_git_cells = MMGR_CELL_OWNER("cli_git");
-
 // the bytes a list's texts are first taken with
 #define CLI_GIT_TEXT_FIRST 256ull
 

@@ -4,8 +4,6 @@
 // files and their places, the first CLI_HITS_MOST retained where more are found than are stored
 #include "files_search_hits.h"
 
-CellOwner g_cli_search_cells = MMGR_CELL_OWNER("cli_files_search");
-
 // whether the line in slot `one` comes before the line in slot `other`: by its file, then its place in it
 static int hits_before(const CliSearchHits *hits, unsigned int one, unsigned int other)
 {

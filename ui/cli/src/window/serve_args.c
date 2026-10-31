@@ -226,8 +226,6 @@ int cli_serve_strings_or(const CliServeArgs *args, const char *key, const char *
     return cli_serve_strings(args, key, items, room, count, err_msg);
 }
 
-CellOwner g_cli_serve_strings_cells = MMGR_CELL_OWNER("cli_serve_strings");
-
 int cli_serve_strings_taken(const CliServeArgs *args, const char *key, unsigned int most, const char ***items,
                             unsigned int *count, VerbaLinea *err_msg)
 {

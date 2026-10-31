@@ -9,8 +9,6 @@
 // closed on its line, so the longest line contains it
 #include "version_catalog_internal.h"
 
-CellOwner g_cli_versions_cells = MMGR_CELL_OWNER("cli_version_catalogs");
-
 // `count` up to `most`
 static unsigned long long cells_most(unsigned long long count, unsigned long long most)
 {

@@ -20,8 +20,6 @@ void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int reque
 #define CLI_IPP_FIRST 16u
 #define CLI_IPP_BYTES_FIRST 1024u
 
-CellOwner g_cli_ipp_cells = MMGR_CELL_OWNER("cli_ipp");
-
 void cli_ipp_given(CliIppMessage *message)
 {
     g_cli_cells->persistent_buf_release(message->group, &g_cli_ipp_cells);

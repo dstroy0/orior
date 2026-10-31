@@ -308,6 +308,17 @@ static int line_starts(const GuiEditor *editor, unsigned int line, const char *h
     return head[at] == '\0';
 }
 
+// the first line of the editor that begins with `head`, or the editor's count where none does
+static unsigned int line_beginning(const GuiEditor *editor, const char *head)
+{
+    unsigned int line = 0u;
+    while ((line < editor->count) && !line_starts(editor, line, head))
+    {
+        line += 1u;
+    }
+    return line;
+}
+
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
@@ -371,11 +382,15 @@ int main(void)
         waited(&window, &count, 100ull);
     }
     cli_check(!cli_symbols_unread(), "the tree's declarations are read within a minute of the first search");
+    // the file is a file of the tree: the declaration is found, and the statement two lines under it is pressed
+    const unsigned int declared = line_beginning(&window.editor, "int gui_rect_empty(");
+    const unsigned long long statement = (unsigned long long)declared + 2ull;
+    cli_check(declared < window.editor.count, "the declaration's line is among the file's lines");
     GuiRect named;
-    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 15ull, 6ull, &named),
-              "the sixteenth line's seventh cell is among the rows drawn");
+    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, declared, 6ull, &named),
+              "the declaration's seventh cell is among the rows drawn");
     gui_window_moved(&window, named.x + 2, named.y + 5);
-    cli_check(window.hover.in_text && (window.hover.row == 15ull) && (gui_window_due(&window) <= GUI_HOVER_RESTS),
+    cli_check(window.hover.in_text && (window.hover.row == declared) && (gui_window_due(&window) <= GUI_HOVER_RESTS),
               "the pointer in the text begins the hover's rest");
     waited(&window, &count, GUI_HOVER_RESTS + 20ull);
     gui_window_ticked(&window);
@@ -388,17 +403,17 @@ int main(void)
     gui_window_key(&window, "Escape");
     cli_check(!window.hover.shown, "Escape hides the hover");
     GuiRect start;
-    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 17ull, 0ull, &start),
-              "the eighteenth line's first cell is among the rows drawn");
+    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, statement, 0ull, &start),
+              "the statement's first cell is among the rows drawn");
     gui_window_pressed(&window, start.x + 1, start.y + 5, 0u);
     gui_window_released(&window, start.x + 1, start.y + 5);
-    cli_check(cursor_came_at(&window, &count, 17ull, 0ull), "a press in the text places the cursor at its cell");
+    cli_check(cursor_came_at(&window, &count, statement, 0ull), "a press in the text places the cursor at its cell");
     gui_window_key(&window, "Enter");
-    cli_check(cursor_came_at(&window, &count, 18ull, 0ull), "Enter opens a line before the statement");
+    cli_check(cursor_came_at(&window, &count, statement + 1ull, 0ull), "Enter opens a line before the statement");
     gui_window_key(&window, "Up");
-    cli_check(cursor_came_at(&window, &count, 17ull, 0ull), "Up stands on the line opened");
+    cli_check(cursor_came_at(&window, &count, statement, 0ull), "Up stands on the line opened");
     gui_window_text(&window, "gui_re", 6ull);
-    cli_check(cursor_came_at(&window, &count, 17ull, 6ull) && suggest_came(&window, &count),
+    cli_check(cursor_came_at(&window, &count, statement, 6ull) && suggest_came(&window, &count),
               "a word's letters typed open the completion's list");
     cli_check(suggest_shows(&window.suggest, "gui_rect_met") && suggest_shows(&window.suggest, "gui_rect_empty") &&
                   cellul.eq(&(CatenaFinitaCfg){.src = window.suggest.prefix, .other = "gui_re", .cap = 16ull}),
@@ -406,7 +421,8 @@ int main(void)
     gui_window_key(&window, "Escape");
     cli_check(!window.suggest.open, "Escape closes the list");
     gui_window_text(&window, "ct_met(", 7ull);
-    cli_check(cursor_came_at(&window, &count, 17ull, 13ull) && line_has(&window.editor, 17u, "gui_rect_met("),
+    cli_check(cursor_came_at(&window, &count, statement, 13ull) &&
+                  line_has(&window.editor, (unsigned int)statement, "gui_rect_met("),
               "the call's name and its bracket are written");
     cli_check(gui_window_due(&window) <= GUI_SIGNATURE_WAIT, "the bracket typed begins the signature's wait");
     waited(&window, &count, GUI_SIGNATURE_WAIT + 20ull);
@@ -459,7 +475,7 @@ int main(void)
     cli_check(lines_came(&window, &count) && top_came(&window, &count, 3ull) &&
                   line_starts(&window.editor, 0u, "// space"),
               "the frame of its view comes again, the view where the wheel left it");
-    cli_check(cursor_came_at(&window, &count, 17ull, 13ull), "the cursor stands where it was left");
+    cli_check(cursor_came_at(&window, &count, statement, 13ull), "the cursor stands where it was left");
     gui_window_file_opened(&window, "ui/gui/src/frame.c");
     cli_check((window.tabs == 3u) && (window.active == 2), "a file open already is shown, not opened again");
     const GuiRect close = gui_tab_close_rect(&window.glyphs, &window.frame, window.tab, window.tabs, 2u);

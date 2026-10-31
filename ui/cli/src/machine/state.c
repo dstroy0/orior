@@ -73,8 +73,6 @@ void cli_state_read_back(const CliJson *json, unsigned int value, VerbaLinea *ou
     }
 }
 
-CellOwner g_cli_state_cells = MMGR_CELL_OWNER("cli_state");
-
 unsigned int cli_state_map_read(CliJson *json, const char *path, unsigned int nodes_more, unsigned long long text_more)
 {
     // the file mapped and made plain in a cell no larger than it; a file larger than CLI_STATE_BYTES, or one with no

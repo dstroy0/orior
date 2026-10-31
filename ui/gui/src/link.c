@@ -8,14 +8,12 @@
 
 #include "../../cli/src/command_line/cells.h"
 
-static CellOwner s_owner = MMGR_CELL_OWNER("gui_link");
-
 // `name` and `size` bytes of `text` copied into one cell, each ended by a NUL, `*text_at` the text's start: the cell,
 // or NULL where it could not be taken
 static char *link_copied(const char *name, const char *text, unsigned long long size, char **text_at)
 {
     const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    char *const cell = g_cli_cells->persistent_buf_alloc(name_length + 1ull + size + 1ull, &s_owner);
+    char *const cell = g_cli_cells->persistent_buf_alloc(name_length + 1ull + size + 1ull, &g_gui_link_cells);
     if (cell == NULL)
     {
         return NULL;
@@ -35,7 +33,7 @@ static void link_item_given(const GuiLinkItem *item)
     {
         cli_window_given(item->room);
     }
-    g_cli_cells->persistent_buf_release(item->name, &s_owner);
+    g_cli_cells->persistent_buf_release(item->name, &g_gui_link_cells);
 }
 
 // an item put at the ring's tail, under the lock, waiting for room where the ring is full, and the window woken; an
@@ -114,10 +112,10 @@ static void link_ring_given(GuiLinkRing *ring)
     {
         for (unsigned int at = 0u; at < ring->count; at += 1u)
         {
-            g_cli_cells->persistent_buf_release(ring->call[(ring->head + at) % GUI_LINK_PENDING].name, &s_owner);
+            g_cli_cells->persistent_buf_release(ring->call[(ring->head + at) % GUI_LINK_PENDING].name, &g_gui_link_cells);
         }
     }
-    g_cli_cells->persistent_buf_release(ring->call, &s_owner);
+    g_cli_cells->persistent_buf_release(ring->call, &g_gui_link_cells);
     ring->call = NULL;
     ring->count = 0u;
 }
@@ -130,9 +128,9 @@ int gui_link_begun(GuiLink *link, GuiLinkWoken woken, void *context)
     link->room = (CliWake)CLI_WAKE_INIT;
     link->woken = woken;
     link->context = context;
-    link->own.call = g_cli_cells->persistent_buf_alloc(GUI_LINK_PENDING * sizeof(*link->own.call), &s_owner);
-    link->tree.call = g_cli_cells->persistent_buf_alloc(GUI_LINK_PENDING * sizeof(*link->tree.call), &s_owner);
-    link->done = g_cli_cells->persistent_buf_alloc(GUI_LINK_DONE * sizeof(*link->done), &s_owner);
+    link->own.call = g_cli_cells->persistent_buf_alloc(GUI_LINK_PENDING * sizeof(*link->own.call), &g_gui_link_cells);
+    link->tree.call = g_cli_cells->persistent_buf_alloc(GUI_LINK_PENDING * sizeof(*link->tree.call), &g_gui_link_cells);
+    link->done = g_cli_cells->persistent_buf_alloc(GUI_LINK_DONE * sizeof(*link->done), &g_gui_link_cells);
     if ((link->own.call == NULL) || (link->tree.call == NULL) || (link->done == NULL))
     {
         gui_link_ended(link);
@@ -179,7 +177,7 @@ void gui_link_ended(GuiLink *link)
     }
     link_ring_given(&link->own);
     link_ring_given(&link->tree);
-    g_cli_cells->persistent_buf_release(link->done, &s_owner);
+    g_cli_cells->persistent_buf_release(link->done, &g_gui_link_cells);
     link->done = NULL;
     cli_lock_give(&link->lock);
 }
@@ -198,7 +196,7 @@ unsigned long long gui_link_called(GuiLink *link, int own, const char *name, con
     if ((ring->count == GUI_LINK_PENDING) || link->ending)
     {
         cli_lock_give(&link->lock);
-        g_cli_cells->persistent_buf_release(cell, &s_owner);
+        g_cli_cells->persistent_buf_release(cell, &g_gui_link_cells);
         return 0ull;
     }
     link->tickets += 1ull;

@@ -10,8 +10,6 @@
 #define CLI_DEFS_NAMES_FIRST 32u
 #define CLI_DEFS_NAMES 512u
 
-CellOwner g_cli_defs_cells = MMGR_CELL_OWNER("cli_defs");
-
 // A file read: its text, mapped, and its size; the text NULL where it could not be read
 typedef struct
 {

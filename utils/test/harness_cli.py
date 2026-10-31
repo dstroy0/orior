@@ -59,12 +59,28 @@ def processor_seconds(process, job=None):
         import harness_win32 as win
 
         return win.job_processor_seconds(job) if job else None
-    try:
-        with open("/proc/%d/stat" % process.pid, encoding="ascii") as stat:
-            fields = stat.read().rsplit(")", 1)[1].split()
-        return (int(fields[11]) + int(fields[12]) + int(fields[13]) + int(fields[14])) / os.sysconf("SC_CLK_TCK")
-    except (OSError, IndexError, ValueError):
+    # every process under the child, running or ended: a process's own stat counts its running children not at all
+    parents = {}
+    ticks = {}
+    for name in os.listdir("/proc"):
+        if not name.isdigit():
+            continue
+        try:
+            with open("/proc/%s/stat" % name, encoding="ascii", errors="replace") as stat:
+                fields = stat.read().rsplit(")", 1)[1].split()
+            parents[int(name)] = int(fields[1])
+            ticks[int(name)] = int(fields[11]) + int(fields[12]) + int(fields[13]) + int(fields[14])
+        except (OSError, IndexError, ValueError):
+            continue
+    if process.pid not in ticks:
         return None
+    total = 0
+    for pid, ticked in ticks.items():
+        above = pid
+        while (above != process.pid) and (above in parents) and (above != 1):
+            above = parents[above]
+        total += ticked if above == process.pid else 0
+    return total / os.sysconf("SC_CLK_TCK")
 
 
 # how long a child may go without a line or any processor time before it is called stalled and ended, and how often
@@ -159,7 +175,8 @@ def cmd_cli_test(a):
     seen = []
     code = streamed([bash(), CLI_TESTS, *a.names], seen=seen, env=checks_env(a))
     checks, failed, exits = output_read("".join(seen))
-    failing = sum(1 for one in exits if one != 0)
+    # a file ended as stalled printed no exit of its own
+    failing = sum(1 for one in exits if one != 0) + (1 if code == 124 else 0)
     print("cli test: %d checks, %d failed, %d of %d files failing" % (checks, failed, failing, len(exits)), flush=True)
     return code or (1 if (failed or failing) else 0)
 

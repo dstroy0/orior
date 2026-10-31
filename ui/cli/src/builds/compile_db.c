@@ -22,8 +22,6 @@ int cli_compile_stamped(const char *path, CliStamped *stamped)
     return 1;
 }
 
-CellOwner g_cli_compile_cells = MMGR_CELL_OWNER("cli_compile_db");
-
 void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsigned long long each, unsigned int most,
                        const char *what)
 {
