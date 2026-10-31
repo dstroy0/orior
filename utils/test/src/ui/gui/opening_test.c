@@ -548,6 +548,7 @@ int main(void)
     // started again on the tree brings them back with the one shown
     cli_check(kept_came(&window, &count, picked) && kept_came(&window, &count, "active"),
               "the tabs and the one shown are kept in orior's folder");
+    gui_window_ended(&window);
     static GuiWindow again;
     cli_check(gui_window_begun(&again, woken, &count, &why) && gui_window_sized(&again, 800u, 500u, 1.0f),
               "a window begins again");
@@ -558,8 +559,6 @@ int main(void)
               "the window started again brings the kept tabs back and shows the one kept shown");
     cli_check(lines_came(&again, &count), "the tab brought back shows its lines");
     gui_window_ended(&again);
-
-    gui_window_ended(&window);
     cli_window_ended();
     return cli_checked();
 }

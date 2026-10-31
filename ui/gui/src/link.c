@@ -164,12 +164,7 @@ void gui_link_ended(GuiLink *link)
     link->ending = 1;
     cli_wake_all(&link->wake);
     cli_wake_all(&link->room);
-    while (link->workers > 0u)
-    {
-        cli_wake_wait(&link->wake, &link->lock);
-    }
-    link_ring_given(&link->own);
-    link_ring_given(&link->tree);
+    // the answers waiting hold their rooms, and a worker at a call waits for a room: given back ahead of the workers' end
     if (link->done != NULL)
     {
         for (unsigned int at = 0u; at < link->done_count; at += 1u)
@@ -177,9 +172,15 @@ void gui_link_ended(GuiLink *link)
             link_item_given(&link->done[(link->done_head + at) % GUI_LINK_DONE]);
         }
     }
+    link->done_count = 0u;
+    while (link->workers > 0u)
+    {
+        cli_wake_wait(&link->wake, &link->lock);
+    }
+    link_ring_given(&link->own);
+    link_ring_given(&link->tree);
     g_cli_cells->persistent_buf_release(link->done, &s_owner);
     link->done = NULL;
-    link->done_count = 0u;
     cli_lock_give(&link->lock);
 }
 

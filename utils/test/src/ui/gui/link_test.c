@@ -125,6 +125,16 @@ int main(void)
     cli_check(drained.came == 40u, "forty answers drain");
     cli_check(drained.ordered, "the own calls' answers come in the order queued");
 
+    // every room taken by an answer no one drains and a worker at the next call waiting for a room: the link still ends,
+    // and a run where it does not is ended as stalled
+    queued = 1;
+    for (unsigned int at = 0u; at < 40u; at += 1u)
+    {
+        queued = queued && (gui_link_called(&link, 1, "root", "{}", 2ull) != 0ull);
+    }
+    cli_check(queued, "forty more own calls queue");
+    cli_check(waited(&count, 44u + CLI_WINDOW_ROOMS), "the answers fill every room");
+
     gui_link_ended(&link);
     cli_check(link.workers == 0u, "the link ended has no workers");
     return cli_checked();

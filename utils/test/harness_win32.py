@@ -338,6 +338,11 @@ def job_joined(process_handle):
     return job
 
 
+def job_ended(job):
+    """Every process in the job ended, whatever started it."""
+    return bool(kernel32.TerminateJobObject(job, 124))
+
+
 def job_processor_seconds(job):
     """The processor time every process assigned to the job has used, the ended ones with the running, in seconds; None
     where it cannot be read."""

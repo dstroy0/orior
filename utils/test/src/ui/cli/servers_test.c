@@ -446,6 +446,7 @@ static void servers_projects(void)
                               cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
     }
     mmgr_line_ch(&want, ']');
+    (void)mmgr_line_finish(&want);
     cli_check_text(listed, out.at, wanted, "the projects a server is given are found to six folders down, in order");
     cli_check(embed_atomic_usize_load(&g_cli_servers_launch_cells.in_use) == 0ull, "and the cells the search took are given back");
 }

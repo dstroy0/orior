@@ -121,6 +121,9 @@ def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS, seen=None):
             cpu_was = cpu if cpu is not None else cpu_was
             if (stall is not None) and (now - max(cpu_moved_at, quiet_since) >= stall):
                 print("stalled: no output and no processor time for %d s, ended: %s" % (stall, " ".join(command)), flush=True)
+                # the child's own children are in its job, and a stalled check is such a child of its script
+                if job is not None:
+                    win.job_ended(job)
                 process.kill()
                 process.wait()
                 return 124
