@@ -84,9 +84,11 @@ int cli_view_cursor(const char *key, CliPlace *cursor, CliPlace *anchor);
 int cli_view_path(const char *key, char *path);
 // the view under `key` marked as served by its language server at the whole path `full`, or no longer where `full` is
 // empty: 1, or 0 where no view is open under it; the whole path into `full`, sized for CLI_PATH_MAX_LEN: 1 where the
-// view is served, else 0; and whether the view's text changed since this was last asked, 1 once for each change
+// view is served, else 0; whether any open view is served at the whole path `full`; and whether the view's text changed
+// since this was last asked, 1 once for each change
 int cli_view_served_set(const char *key, const char *full);
 int cli_view_served(const char *key, char *full);
+int cli_view_serving(const char *full);
 int cli_view_changed_taken(const char *key);
 // the place of the cell `column` of the row `row` from the top of the view under `key`: its line into `line`, the
 // lines a closed fold hides stepped over, and its column in units into `col`, the line's end where the cell is past

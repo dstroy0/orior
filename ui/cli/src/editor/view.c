@@ -2832,6 +2832,19 @@ int cli_view_served(const char *key, char *full)
     return served;
 }
 
+int cli_view_serving(const char *full)
+{
+    int serving = 0;
+    cli_lock_take(&s_lock);
+    for (unsigned int at = 0u; !serving && (s_views != NULL) && (at < CLI_VIEWS); at += 1u)
+    {
+        serving = s_views[at].used &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].served, .other = full, .cap = sizeof(s_views[at].served)});
+    }
+    cli_lock_give(&s_lock);
+    return serving;
+}
+
 int cli_view_changed_taken(const char *key)
 {
     cli_lock_take(&s_lock);

@@ -18,6 +18,9 @@
 // the bytes an answer of the tree's or the server's is begun in before it grows, the most declarations a hover
 // shows, and the most bytes a word takes
 #define CLI_EDITOR_ANSWER_FIRST 4096u
+
+// a server taking a file and the view marked served, as one step against a server letting a file go
+static CliLock s_serving_lock = CLI_LOCK_INIT;
 #define CLI_EDITOR_HOVER_MOST 6u
 #define CLI_EDITOR_WORD 256u
 
@@ -152,13 +155,21 @@ static int editor_view_serve(const CliServeArgs *args, VerbaLinea *out, VerbaLin
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea refused = {why, sizeof(why), 0ull};
         const CliServersSink sink = cli_serve_emitter(root);
+        cli_lock_take(&s_serving_lock);
         served = cli_servers_open(root, full, id, text, size, &sink, &said, &refused) && mmgr_line_ok(&said) &&
                  (said.at == 4ull) && (memor.cmp(&(MemoriaCfg){.src = said.out, .other = "true", .bytes = 4u}) == 0);
+        // a view closed while the server took its file leaves the file with no view to let it go
+        if (served && !cli_view_served_set(key, full))
+        {
+            served = 0;
+            if (!cli_view_serving(full))
+            {
+                refused.at = 0ull;
+                (void)cli_servers_close(full, &refused);
+            }
+        }
+        cli_lock_give(&s_serving_lock);
         g_cli_cells->persistent_buf_release(text, &g_cli_window_cells);
-    }
-    if (served)
-    {
-        (void)cli_view_served_set(key, full);
     }
     mmgr_line_put(out, served ? "{\"served\":true}" : "{\"served\":false}");
     return 1;
@@ -411,7 +422,7 @@ static int editor_view_map(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     return 1;
 }
 
-// the view under `key` closed
+// the view under `key` closed, on the lane its open comes on, so a later open under the key finds it closed
 static int editor_view_close(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     const char *const key = cli_serve_string(args, "key", err_msg);
@@ -419,15 +430,30 @@ static int editor_view_close(const CliServeArgs *args, VerbaLinea *out, VerbaLin
     {
         return 0;
     }
-    // the server let go of the file as the view closes
-    char full[CLI_PATH_MAX_LEN];
-    if (cli_view_served(key, full))
+    cli_view_closed(key);
+    mmgr_line_put(out, "null");
+    return 1;
+}
+
+// the server of the file at `path`, from the tree's top, let go of it, unless a view of the file is served by now
+static int editor_server_close(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+{
+    const char *const path = cli_serve_string(args, "path", err_msg);
+    char root[CLI_PATH_MAX_LEN];
+    if ((path == NULL) || !cli_serve_tree(root, err_msg))
     {
-        char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea ignored = {why, sizeof(why), 0ull};
+        return 0;
+    }
+    char full[CLI_PATH_MAX_LEN];
+    cli_full(root, path, full);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea ignored = {why, sizeof(why), 0ull};
+    cli_lock_take(&s_serving_lock);
+    if (!cli_view_serving(full))
+    {
         (void)cli_servers_close(full, &ignored);
     }
-    cli_view_closed(key);
+    cli_lock_give(&s_serving_lock);
     mmgr_line_put(out, "null");
     return 1;
 }
@@ -442,5 +468,6 @@ const CliServeCall g_cli_window_editor_calls[] = {
     {"editor_view_complete", editor_view_complete},
     {"editor_view_signature", editor_view_signature},
     {"editor_view_close", editor_view_close},
+    {"editor_server_close", editor_server_close},
 };
 const unsigned int g_cli_window_editor_count = sizeof(g_cli_window_editor_calls) / sizeof(g_cli_window_editor_calls[0]);

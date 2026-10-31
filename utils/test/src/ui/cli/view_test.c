@@ -50,6 +50,62 @@ static CliViewInput view_pointer(unsigned int pointer, unsigned long long row, u
     return input;
 }
 
+// `rounds` rounds of the calls a tab shown makes of its view, over the views under `first` and `second` in turn: its
+// size, then a scroll three rows down and back, a frame written after each: 1 where every one was answered
+static int view_rounds_taken(const char *first, const char *second, unsigned int rounds)
+{
+    char why_text[256];
+    VerbaLinea why = {why_text, sizeof(why_text), 0ull};
+    CliViewInput sized = view_key("");
+    sized.kind = CLI_VIEW_SIZE;
+    sized.rows = 3u;
+    sized.columns = 40u;
+    CliViewInput scroll = view_key("");
+    scroll.kind = CLI_VIEW_SCROLL;
+    int taken = 1;
+    for (unsigned int round = 0u; round < rounds; round += 1u)
+    {
+        const char *const shown = ((round % 2u) == 0u) ? first : second;
+        for (unsigned int step = 0u; step < 3u; step += 1u)
+        {
+            scroll.top = (step == 1u) ? 3ull : 0ull;
+            VerbaLinea frame = {s_out, sizeof(s_out), 0ull};
+            taken = taken && cli_view_input(shown, (step == 0u) ? &sized : &scroll, &why) &&
+                    cli_view_frame_written(shown, &frame);
+        }
+    }
+    return taken;
+}
+
+// the calls a tab shown makes of its view take nothing that stays: read with the walk of the texts ended, past the first
+// rounds, the bytes the views' and the editor's owners have in use are the same
+static void view_rounds_checked(void)
+{
+    static const char s_round_one[] = "check:round one";
+    static const char s_round_two[] = "check:round two";
+    static const char s_round_text[] = "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\n";
+    CliShape shape;
+    cli_check(cli_document_store(s_round_one, s_round_text, sizeof(s_round_text) - 1u, &shape) &&
+                  cli_view_opened(s_round_one, "check/round_one.txt") &&
+                  cli_document_store(s_round_two, s_round_text, sizeof(s_round_text) - 1u, &shape) &&
+                  cli_view_opened(s_round_two, "check/round_two.txt"),
+              "two texts are stored and viewed");
+    cli_check(view_rounds_taken(s_round_one, s_round_two, 4u), "the first rounds of sizes, scrolls and frames are answered");
+    cli_document_walked();
+    const size_t views_before = (size_t)embed_atomic_usize_load(&g_cli_views_cells.in_use);
+    const size_t editor_before = (size_t)embed_atomic_usize_load(&g_cli_editor_cells.in_use);
+    cli_check(view_rounds_taken(s_round_one, s_round_two, 40u), "forty more rounds are answered");
+    cli_document_walked();
+    cli_check((size_t)embed_atomic_usize_load(&g_cli_views_cells.in_use) == views_before,
+              "the bytes the views' owner has in use are the same after those rounds");
+    cli_check((size_t)embed_atomic_usize_load(&g_cli_editor_cells.in_use) == editor_before,
+              "the bytes the editor's owner has in use are the same after those rounds");
+    cli_view_closed(s_round_one);
+    cli_view_closed(s_round_two);
+    cli_document_release(s_round_one);
+    cli_document_release(s_round_two);
+}
+
 // the input given to the view: whether it was taken
 static int given(const CliViewInput *input)
 {
@@ -139,6 +195,7 @@ int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check_begun();
+    view_rounds_checked();
     CliShape shape;
     static const char s_text[] = "int main\n{\n    return 0;\n}\n";
     cli_check(cli_document_store(s_key, s_text, sizeof(s_text) - 1u, &shape), "the text is stored");
@@ -319,10 +376,13 @@ int main(void)
                   cli_view_served(s_key2, full) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = full, .other = "/tree/check/words.txt", .cap = sizeof(full)}),
               "a view served records the server's path");
+    cli_check(cli_view_serving("/tree/check/words.txt") && !cli_view_serving("/tree/check/other.txt"),
+              "an open view served at a path is found by the path, and no view by another");
     cli_check(cli_view_path(s_key2, full) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = full, .other = "check/words.txt", .cap = sizeof(full)}),
               "the view's path is the file's");
     cli_view_closed(s_key2);
+    cli_check(!cli_view_serving("/tree/check/words.txt"), "a view closed serves its path no longer");
     cli_document_release(s_key2);
     VerbaLinea same = {s_out, sizeof(s_out), 0ull};
     cli_check(given(&size) && cli_view_frame_written(s_key, &same) && (mmgr_line_finish(&same) != 0ull) &&

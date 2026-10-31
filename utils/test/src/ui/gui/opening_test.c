@@ -560,6 +560,14 @@ int main(void)
     gui_window_pressed(&window, explorer_button.x + 10, explorer_button.y + 10, 0u);
     cli_check(window.strip.shown == 0, "the explorer's tool pressed shows the tree again");
 
+    // a file closed and opened again keeps its view as its close ends: another tab shown, then the file's again, its
+    // lines come
+    const unsigned int shown_tab = (unsigned int)window.active;
+    gui_window_tab_shown(&window, 0u);
+    cli_check(lines_came(&window, &count), "another tab shown shows its lines");
+    gui_window_tab_shown(&window, shown_tab);
+    cli_check(lines_came(&window, &count), "a file closed and opened again keeps its view as its close ends");
+
     // the tabs and the one shown are kept in orior's folder, the checks' own, as the page keeps them, and a window
     // started again on the tree brings them back with the one shown
     cli_check(kept_came(&window, &count, picked) && kept_came(&window, &count, "active"),

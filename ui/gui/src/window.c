@@ -1077,8 +1077,18 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
     mmgr_line_ch(&args, '}');
     if (tab->viewed)
     {
-        // the close waits on the server where the view is served: it runs on the pool, off the inputs' lane
-        (void)window_called(window, 0, "editor_view_close", &args);
+        // the view closes on the inputs' lane, in order with a later open under its key; the server's letting go waits
+        // on the server: it runs on the pool, off that lane
+        (void)window_called(window, 1, "editor_view_close", &args);
+    }
+    if (tab->served)
+    {
+        char file_text[CLI_PATH_MAX_LEN + 32u];
+        VerbaLinea file_args = {file_text, sizeof(file_text), 0ull};
+        mmgr_line_put(&file_args, "{\"path\":");
+        cli_json_quoted(&file_args, tab->path, cellul.len(&(CatenaFinitaCfg){.src = tab->path, .cap = sizeof(tab->path)}));
+        mmgr_line_ch(&file_args, '}');
+        (void)window_called(window, 0, "editor_server_close", &file_args);
     }
     (void)window_called(window, 1, "document_release", &args);
     g_cli_cells->persistent_buf_release(tab->names, &g_gui_cells);
