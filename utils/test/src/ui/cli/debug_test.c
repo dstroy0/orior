@@ -246,16 +246,14 @@ static void debug_stepping(void)
               "lldb avoids the patterns it is given");
 }
 
-// a place's breakpoints grow in a cell as they come, the tree it starts with is a cell of its own, and both go back
-// as the place is freed
+// a place's breakpoints stand in a cell taken with the place, the tree it starts with is a cell of its own, and both go
+// back as the place is freed
 static void debug_places(void)
 {
     CliDebugSession *const place = cli_debug_place();
     cli_check(place != NULL, "a session's place is taken");
     for (long long number = 0ll; (place != NULL) && (number < 100ll); number += 1ll)
     {
-        place->placed = cli_debug_grown(place->placed, place->placed_count, &place->placed_room, sizeof(*place->placed),
-                                        CLI_DEBUG_PLACED);
         place->placed[place->placed_count] = number;
         place->placed_count += 1u;
     }
@@ -269,10 +267,10 @@ static void debug_places(void)
     {
         (void)cli_debug_planned(place, ".", json, read, CLI_JSON_NONE, &s_plan, &err_msg);
     }
-    cli_check((place != NULL) && (place->placed_count == 100u) && (place->placed_room == 128u) &&
+    cli_check((place != NULL) && (place->placed_count == 100u) && (place->placed_room == CLI_DEBUG_PLACED) &&
                   (place->placed[99] == 99ll) && (place->start.nodes_most != 0u) &&
                   (embed_atomic_usize_load(&g_cli_debug_cells.in_use) != 0ull),
-              "its breakpoints grow as they come, and its start is a tree of its own");
+              "its breakpoints stand in one cell of the most it takes, and its start is a tree of its own");
     cli_lock_take(&g_cli_debug.lock);
     if (place != NULL)
     {

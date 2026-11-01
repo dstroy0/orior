@@ -5,7 +5,7 @@
 // of the terminal, or a list of the explorer, the jobs or the debugger takes the keys once the
 // pointer has rested on it for REST: the editor its own, the terminal the shell under the pointer,
 // and a list the row under the pointer. The keys stay where they are while a menu, a sheet or Go to
-// File is open, while a field is being typed in, and while a button of the pointer is held.
+// File is open, while a field is being typed in, and while a button of the pointer is pressed.
 
 import { menuOpen } from "./menu.js";
 
@@ -42,7 +42,7 @@ function partOf(target, hooks) {
 }
 
 // Whether the keys stay where they are: a menu, a sheet or Go to File open, or a field being typed in.
-function held() {
+function pressed() {
   if (menuOpen() || document.querySelector("dialog[open]") || document.querySelector(".quick:not([hidden])")) {
     return true;
   }
@@ -68,7 +68,7 @@ export function startFocusFollows(hooks) {
       window.clearTimeout(resting);
       if (part) {
         resting = window.setTimeout(() => {
-          if (!held() && over === part.node && !part.node.contains(document.activeElement)) {
+          if (!pressed() && over === part.node && !part.node.contains(document.activeElement)) {
             part.take();
           }
         }, REST);

@@ -7,6 +7,7 @@
 #include "../text/json_tree.h"
 #include "../text/regexp.h"
 #include "../text/sift.h"
+#include "../text/text.h"
 #include "../text/vector.h"
 
 // a letter put after the lines' units, as UTF-16
@@ -231,14 +232,7 @@ static void cli_pattern_source(const CliDocSought *sought, VerbaLinea *out)
         return;
     }
     static const char s_signs[] = ".*+?^${}()|[]\\";
-    for (const char *at = sought->query; at[0] != '\0'; at += 1)
-    {
-        if (cellul.chr(&(CatenaFinitaCfg){.src = s_signs, .cap = CLI_CELLS_POOL, .byte = at[0]}) != NULL)
-        {
-            mmgr_line_ch(out, '\\');
-        }
-        mmgr_line_ch(out, at[0]);
-    }
+    cli_text_put_marked(out, sought->query, s_signs, '\\');
 }
 
 // the line `line` of `lines` as code points into `letters`, each one's col in UTF-16 units into `cols` and the line's
@@ -255,8 +249,8 @@ static unsigned long long cli_line_letters(const CliLines *lines, unsigned int l
                            (unit[place + 1ull] >= 0xdc00u) && (unit[place + 1ull] < 0xe000u);
         // a line's cols stand below its length, which an unsigned int counts
         cols[count] = (unsigned int)place;
-        letters[count] = paired ? (0x10000u + ((unit[place] - 0xd800u) << 10u) + (unit[place + 1ull] - 0xdc00u))
-                                : unit[place];
+        letters[count] =
+            paired ? (0x10000u + ((unit[place] - 0xd800u) << 10u) + (unit[place + 1ull] - 0xdc00u)) : unit[place];
         place += paired ? 2ull : 1ull;
     }
     // the length stands below 2^32, as a line's cols do
@@ -314,8 +308,8 @@ static int cli_found_patterned(const CliLines *lines, const CliDocSought *sought
             CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
             const int starts = (!regexp.anchored || (at == 0ull)) &&
                                (regexp.first.empty || cli_regexp_allows(&regexp.first, letters[at]));
-            const int matched = starts && cli_regexp_match_into(&regexp, letters, count, at, groups) &&
-                                (groups[0].to > groups[0].from);
+            const int matched =
+                starts && cli_regexp_match_into(&regexp, letters, count, at, groups) && (groups[0].to > groups[0].from);
             const unsigned long long to = matched ? groups[0].to : at;
             const int whole = !sought->word || (((at == 0ull) || !cli_word_letter(letters[at - 1ull])) &&
                                                 ((to == count) || !cli_word_letter(letters[to])));
@@ -354,10 +348,8 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
                            void *context, VerbaLinea *err_msg)
 {
     int ascii = 1;
-    for (const char *at = sought->query; at[0] != '\0'; at += 1)
-    {
-        ascii = ascii && ((unsigned char)at[0] < 0x80u);
-    }
+    ascii = ascii &&
+            cli_text_ascii(sought->query, cellul.len(&(CatenaFinitaCfg){.src = sought->query, .cap = CLI_CELLS_POOL}));
     if (sought->regex || (!sought->match_case && !ascii))
     {
         return cli_found_patterned(lines, sought, most, each, context, err_msg);

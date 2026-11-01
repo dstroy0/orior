@@ -32,9 +32,9 @@ test("a line of a diagram's text has its %% comment cut and its ends trimmed", (
   assert.equal(lineOf("%% only a comment"), "");
 });
 
-test("a drawing is held in an SVG of its kind, its size rounded up, with the markers every edge can end in", () => {
-  const held = new DOMParser().parseFromString(svg(10.2, 20.7, "<g/>", "pie"), "image/svg+xml").documentElement;
-  assert.equal(held.getAttribute("class"), "mermaid-diagram pie");
-  assert.deepEqual([held.getAttribute("width"), held.getAttribute("height"), held.getAttribute("viewBox")], ["11", "21", "0 0 11 21"]);
-  assert.deepEqual([...held.querySelectorAll("marker")].map((one) => one.id), ["mm-arrow", "mm-arrow-back", "mm-circle", "mm-cross", "mm-triangle", "mm-diamond", "mm-diamond-open"]);
+test("a drawing is kept in an SVG of its kind, its size rounded up, with the markers every edge can end in", () => {
+  const drawing = new DOMParser().parseFromString(svg(10.2, 20.7, "<g/>", "pie"), "image/svg+xml").documentElement;
+  assert.equal(drawing.getAttribute("class"), "mermaid-diagram pie");
+  assert.deepEqual([drawing.getAttribute("width"), drawing.getAttribute("height"), drawing.getAttribute("viewBox")], ["11", "21", "0 0 11 21"]);
+  assert.deepEqual([...drawing.querySelectorAll("marker")].map((one) => one.id), ["mm-arrow", "mm-arrow-back", "mm-circle", "mm-cross", "mm-triangle", "mm-diamond", "mm-diamond-open"]);
 });

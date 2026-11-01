@@ -5,7 +5,7 @@
 // a SQLite file of the run's tree. Each test goes on from the state the one before it left: the
 // rest run on the connection the first makes.
 
-import { heldRows, readConnections, runOn } from "../../gui/src-js/database.js";
+import { cachedRows, readConnections, runOn } from "../../gui/src-js/database.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
 import { invoke } from "../../gui/src-js/bridge.js";
@@ -214,12 +214,12 @@ test("rows are read ahead the way the grid scrolls, as far as its speed carries 
   await ui.rest(400);
   const reads = callsTo("db_rows").slice(asked);
   assert.ok(reads.some((one) => one.args.from < first() - 40), `a read reached past the least above the view at ${first()}: ${JSON.stringify(reads.map((one) => one.args))}`);
-  const held = heldRows();
-  assert.ok(!held.some((row) => row >= 4900), `the rows farthest behind the motion, at the end, went first: ${Math.max(...held)}`);
+  const cached = cachedRows();
+  assert.ok(!cached.some((row) => row >= 4900), `the rows farthest behind the motion, at the end, went first: ${Math.max(...cached)}`);
   for (let row = first(); row < first() + 10; row += 1) {
-    assert.ok(held.includes(row), `row ${row} in view is held`);
+    assert.ok(cached.includes(row), `row ${row} in view is kept`);
   }
-  assert.ok(held.length <= 600 + 200, `the grid holds no more than its most and a read: ${held.length}`);
+  assert.ok(cached.length <= 600 + 200, `the grid holds no more than its most and a read: ${cached.length}`);
 });
 
 test("Stop stops a statement as it runs", async () => {

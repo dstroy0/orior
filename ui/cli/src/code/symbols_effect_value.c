@@ -6,14 +6,13 @@
 // roles their grammar names, and each operator doing the operation its grammar names. Nothing of a language is read
 // here but by its plugin's grammar
 #include "../command_line/cells.h"
-#include "../command_line/file_writing.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 
-// the most arguments of one call read, and the room a call's leaves and joined texts are begun with
+// the most arguments of one call read, the most leaves one call's value is made of, and the bytes of its joined texts
 #define CLI_EFFECT_ARGUMENTS 64u
-#define CLI_EFFECT_CALLED_FIRST 64u
-#define CLI_EFFECT_JOINED_FIRST 256u
+#define CLI_EFFECT_CALLED_MOST 4096u
+#define CLI_EFFECT_JOINED_ROOM (64ull << 10u)
 
 // A condition being read: the walk, its leaves, how many, the one at hand, and how many macros deep the reading is
 typedef struct
@@ -69,9 +68,8 @@ static CliEffectToken *cli_effect_tokens_of(const CliEffect *effect, unsigned in
     return tokens;
 }
 
-// The leaves a call's value is made of as it is expanded: in a cell whose room doubles as they are put, how many and
-// the room; and the texts of leaves joined, a growing line whose cell moves as it grows, and a joined leaf's text is
-// read from the line once every leaf is put
+// The leaves a call's value is made of as it is expanded, how many and the room; and the texts of leaves joined, whose
+// places a joined leaf's text is read from once every leaf is put; all in one cell
 typedef struct
 {
     CliEffectToken *token;
@@ -85,29 +83,10 @@ typedef struct
 // `token` put after the call's leaves; `joined_at` its joined text's place, or 0xffffffff for a text of its own
 static void cli_effect_called_put(CliEffectCalled *called, const CliEffectToken *token, unsigned int joined_at)
 {
-    if (called->count == called->room)
+    if (called->count >= called->room)
     {
-        const unsigned int room = (called->room == 0u) ? CLI_EFFECT_CALLED_FIRST : (2u * called->room);
-        CliEffectToken *const grown =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(CliEffectToken), &g_cli_code_cells);
-        unsigned int *const places =
-            (grown != NULL)
-                ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(unsigned int), &g_cli_code_cells)
-                : NULL;
-        if (places == NULL)
-        {
-            g_cli_cells->persistent_buf_release(grown, &g_cli_code_cells);
-            called->refused = 1;
-            return;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = called->token, .bytes = called->count * sizeof(CliEffectToken)});
-        memor.cpy(
-            &(MemoriaCfg){.dst = places, .src = called->joined_at, .bytes = called->count * sizeof(unsigned int)});
-        g_cli_cells->persistent_buf_release(called->token, &g_cli_code_cells);
-        g_cli_cells->persistent_buf_release(called->joined_at, &g_cli_code_cells);
-        called->token = grown;
-        called->joined_at = places;
-        called->room = room;
+        called->refused = 1;
+        return;
     }
     called->token[called->count] = *token;
     called->joined_at[called->count] = joined_at;
@@ -128,11 +107,8 @@ static void cli_effect_called_joined(CliEffectCalled *called, const CliEffectTok
     const char *const before = (was == 0xffffffffu) ? last->text : (called->joined.out + was);
     // a call's joined texts are far under 4 GiB
     const unsigned int at = (unsigned int)called->joined.at;
-    // the last leaf's text copied first, as the line it may stand in moves as it grows
-    char before_text[CLI_PATH_MAX_LEN];
-    const unsigned long long length = (last->length < sizeof(before_text)) ? last->length : (sizeof(before_text) - 1u);
-    memor.cpy(&(MemoriaCfg){.dst = before_text, .src = before, .bytes = (size_t)length});
-    mmgr_line_put_n(&called->joined, before_text, length);
+    const unsigned long long length = last->length;
+    mmgr_line_put_n(&called->joined, before, length);
     mmgr_line_put_n(&called->joined, token->text, token->length);
     called->refused |= !mmgr_line_ok(&called->joined);
     last->length = length + token->length;
@@ -202,16 +178,33 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
     unsigned int first[CLI_EFFECT_ARGUMENTS];
     unsigned int end[CLI_EFFECT_ARGUMENTS];
     const unsigned int arguments = cli_effect_arguments(reading, first, end);
-    const CliEffectMacro macro = effect->macro[macro_at];
-    CliEffectToken *const value = cli_effect_tokens_of(effect, macro.first, macro.count);
-    CliEffectCalled called = {NULL, 0u, 0u, {NULL, 0ull, 0ull, NULL, NULL, 0ull}, NULL, 0};
-    if ((arguments > CLI_EFFECT_ARGUMENTS) || (value == NULL) ||
-        !cli_growing_line_made(&called.joined, CLI_EFFECT_JOINED_FIRST, &g_cli_code_cells))
+    if (arguments > CLI_EFFECT_ARGUMENTS)
     {
-        g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
-        g_cli_cells->persistent_buf_release(called.joined.out, &g_cli_code_cells);
         return 0ll;
     }
+    const CliEffectMacro macro = effect->macro[macro_at];
+    CliEffectToken *const value = cli_effect_tokens_of(effect, macro.first, macro.count);
+    // each leaf of the macro's value stands for itself or for no more leaves than the arguments span
+    const unsigned long long span = (arguments != 0u) ? (unsigned long long)(end[arguments - 1u] - first[0]) : 0ull;
+    const unsigned long long wanted = ((unsigned long long)macro.count * (span + 1ull)) + 1ull;
+    const unsigned int room = (wanted < CLI_EFFECT_CALLED_MOST) ? (unsigned int)wanted : CLI_EFFECT_CALLED_MOST;
+    const unsigned long long token_bytes = (unsigned long long)room * sizeof(CliEffectToken);
+    const unsigned long long place_bytes = (unsigned long long)room * sizeof(unsigned int);
+    char *const cell =
+        (value != NULL)
+            ? g_cli_cells->temporary_buf_alloc(token_bytes + place_bytes + CLI_EFFECT_JOINED_ROOM, &g_cli_code_cells)
+            : NULL;
+    if (cell == NULL)
+    {
+        g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
+        return 0ll;
+    }
+    CliEffectCalled called = {(CliEffectToken *)(void *)cell,
+                              0u,
+                              room,
+                              {cell + token_bytes + place_bytes, CLI_EFFECT_JOINED_ROOM, 0ull},
+                              (unsigned int *)(void *)(cell + token_bytes),
+                              0};
     int joining = 0;
     int quoting = 0;
     for (unsigned int at = 0u; !called.refused && (at < macro.count); at += 1u)
@@ -267,7 +260,7 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
             cli_effect_called_put(&called, &source[each], 0xffffffffu);
         }
     }
-    // each joined leaf's text read from the line, which has stopped moving
+    // each joined leaf's text read from the line
     for (unsigned int at = 0u; at < called.count; at += 1u)
     {
         called.token[at].text =
@@ -275,9 +268,7 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
     }
     const long long result =
         called.refused ? 0ll : cli_effect_value(effect, called.token, called.count, reading->through + 1u);
-    g_cli_cells->persistent_buf_release(called.token, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(called.joined_at, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(called.joined.out, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
     return result;
 }

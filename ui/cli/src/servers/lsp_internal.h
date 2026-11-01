@@ -9,13 +9,13 @@
 #include "../toolchains/toolchains.h"
 #include "lsp.h"
 
-// A request waiting on its answer: its id, where its result is written, whether it came, and the error it came with,
-// empty where none did
+// A request waiting on its answer: its id, where its answer is handed over, whether it came, and the error it came
+// with, empty where none did
 typedef struct
 {
     int waiting;
     unsigned long long id;
-    VerbaLinea *result;
+    CliLspAnswer *answer;
     int answered;
     char error[1024];
 } CliLspWaiter;

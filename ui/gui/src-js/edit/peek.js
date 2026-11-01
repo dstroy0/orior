@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { element, state } from "../edit.js";
-import { markChanges } from "./held.js";
+import { markChanges } from "./mirror.js";
 import { jumpTo } from "./places.js";
 import { tabOf } from "./tabs.js";
 

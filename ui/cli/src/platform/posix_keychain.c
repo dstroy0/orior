@@ -3,6 +3,7 @@
 // posix_keychain.c: a secret stored in macOS's keychain through `security`, and elsewhere in the Secret Service through
 // `secret-tool`, under the service "orior" and its service, such as "orior database", and its account
 #include "../text/json_tree.h"
+#include "../text/text.h"
 
 #if !defined(_WIN32)
 
@@ -91,10 +92,7 @@ int cli_keychain_read(const char *service, const char *account, char *out, unsig
     if (found)
     {
         unsigned long long end = ran->out_size;
-        while ((end > 0u) && (ran->out[end - 1u] == '\n'))
-        {
-            end -= 1u;
-        }
+        end = cli_text_back_past(ran->out, end, "\n");
         VerbaLinea line = {out, room, 0ull};
         cli_lossy(&line, (const unsigned char *)ran->out, end);
         mmgr_line_finish(&line);

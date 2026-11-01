@@ -58,10 +58,17 @@ void cli_priority_own(unsigned int priority)
                       : (priority == CLI_PRIORITY_GUEST) ? THREAD_PRIORITY_BELOW_NORMAL
                       : (priority == CLI_PRIORITY_IDLE)  ? THREAD_PRIORITY_IDLE
                                                          : THREAD_PRIORITY_NORMAL;
-    if (level != THREAD_PRIORITY_NORMAL)
-    {
-        SetThreadPriority(GetCurrentThread(), level);
-    }
+    SetThreadPriority(GetCurrentThread(), level);
+}
+
+size_t cli_thread_id(void)
+{
+    return (size_t)GetCurrentThreadId();
+}
+
+void cli_thread_yield(void)
+{
+    (void)SwitchToThread();
 }
 
 int cli_thread_started(CliThread *thread)

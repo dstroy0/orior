@@ -11,7 +11,7 @@ import { coloredLines } from "../screen.js";
 import { isNotebook, openNotebook } from "../notebook.js";
 import { say } from "../statusbar.js";
 import { element, show, state } from "../edit.js";
-import { mirror } from "./held.js";
+import { mirror } from "./mirror.js";
 import { backupKey, keepRecent } from "./places.js";
 import { actingPath, closeTab, dirty, drawTabs, mainTabs, markSaved, tabName, tabOf } from "./tabs.js";
 

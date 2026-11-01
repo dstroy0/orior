@@ -9,6 +9,7 @@
 #include "commands.h"
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "cells.h"
 
 // the list as it is built in, with a zero after it, read where it lies; and its tokens, a cell of their count allocated
@@ -91,10 +92,7 @@ void cli_menu_title(unsigned int menu, char *title)
 void cli_menu_word(unsigned int menu, char *word)
 {
     cli_menu_title(menu, word);
-    for (char *at = word; *at != '\0'; at += 1)
-    {
-        *at = ((*at >= 'A') && (*at <= 'Z')) ? (char)(*at - 'A' + 'a') : *at;
-    }
+    cli_text_lowered(word, cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}));
 }
 
 void cli_menu_split(unsigned int menu, char *split)
@@ -207,11 +205,14 @@ unsigned int cli_item_words_needed(const CliItem *item)
 {
     unsigned int needed = 0u;
     unsigned int depth = 0u;
-    for (const char *at = item->args; *at != '\0'; at += 1)
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = item->args, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = cli_text_to_any(item->args, 0ull, size, "[]<"); at < size;
+         at = cli_text_to_any(item->args, at + 1ull, size, "[]<"))
     {
-        depth += (*at == '[') ? 1u : 0u;
-        depth -= ((*at == ']') && (depth > 0u)) ? 1u : 0u;
-        needed += ((*at == '<') && (depth == 0u)) ? 1u : 0u;
+        const char mark = item->args[at];
+        depth += (mark == '[') ? 1u : 0u;
+        depth -= ((mark == ']') && (depth > 0u)) ? 1u : 0u;
+        needed += ((mark == '<') && (depth == 0u)) ? 1u : 0u;
     }
     return needed;
 }

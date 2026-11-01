@@ -8,7 +8,7 @@
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
-import { bringBack, focusOn, kindOf, noticesAway, noticesHeld, noticesSaid, noticesUnseen, say, setFocus } from "../../gui/src-js/statusbar.js";
+import { bringBack, focusOn, kindOf, noticesAway, noticesWaiting, noticesSaid, noticesUnseen, say, setFocus } from "../../gui/src-js/statusbar.js";
 import { showView } from "../../gui/src-js/views.js";
 
 const { test, assert, ui } = window.__harness;
@@ -41,21 +41,21 @@ test("a notice that comes while the reader types waits for the keys to rest, and
   say("Came while typing");
   assert.ok(!shown("Came while typing"), "not at once");
   assert.equal(noticesSaid().length, before, "the bell has not got it yet");
-  assert.deepEqual(noticesHeld().map((one) => one.text), ["Came while typing"]);
+  assert.deepEqual(noticesWaiting().map((one) => one.text), ["Came while typing"]);
   await ui.type(" three");
   await ui.rest(1200);
   assert.ok(!shown("Came while typing"), "the keys have not rested");
-  await ui.waitFor(() => !noticesHeld().length && noticesSaid().some((one) => one.text === "Came while typing"), 4000);
-  assert.ok(shown(noticesSaid().at(-1).text), "the last held shows on the bar");
+  await ui.waitFor(() => !noticesWaiting().length && noticesSaid().some((one) => one.text === "Came while typing"), 4000);
+  assert.ok(shown(noticesSaid().at(-1).text), "the last waiting shows on the bar");
   assert.ok(document.activeElement.classList.contains("ed-input"), "the editor keeps the keys");
 });
 
-test("a save is a break, and the notices held show at it", async () => {
+test("a save is a break, and the notices waiting show at it", async () => {
   await typing();
-  say("Held for the save");
-  assert.ok(!shown("Held for the save"));
+  say("Waiting for the save");
+  assert.ok(!shown("Waiting for the save"));
   await invoke("file_write", { path: "notices.txt", text: "saved\n" });
-  await ui.waitFor(() => shown("Held for the save"), 500);
+  await ui.waitFor(() => shown("Waiting for the save"), 500);
 });
 
 test("Focus holds every notice until it ends, even at a break, and then shows them", async () => {
@@ -68,13 +68,13 @@ test("Focus holds every notice until it ends, even at a break, and then shows th
   await invoke("file_write", { path: "notices.txt", text: "saved again\n" });
   await ui.rest(2500);
   assert.ok(!shown("First while focused") && !shown("Second while focused"), "a press, a save and the keys at rest all wait");
-  const held = noticesHeld().map((one) => one.text);
-  assert.ok(held.includes("First while focused") && held.includes("Second while focused"), JSON.stringify(held));
-  assert.equal(document.getElementById("status-focus").textContent, `Focus, ${held.length} held`);
+  const waiting = noticesWaiting().map((one) => one.text);
+  assert.ok(waiting.includes("First while focused") && waiting.includes("Second while focused"), JSON.stringify(waiting));
+  assert.equal(document.getElementById("status-focus").textContent, `Focus, ${waiting.length} waiting`);
   await ui.click("#status-focus");
   assert.equal(focusOn(), false);
-  assert.equal(noticesHeld().length, 0);
-  assert.ok(shown(held.at(-1)), "the last on the bar");
+  assert.equal(noticesWaiting().length, 0);
+  assert.ok(shown(waiting.at(-1)), "the last on the bar");
   const bell = noticesSaid().map((one) => one.text);
   assert.ok(bell.indexOf("First while focused") < bell.indexOf("Second while focused") && bell.indexOf("First while focused") >= 0, "each in the bell, in order");
   assert.equal(document.getElementById("status-focus").hidden, true);

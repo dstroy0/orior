@@ -36,12 +36,12 @@ test("a rest in the gap at the left brings the strip in as a pane under the word
   await ui.waitFor(() => revealed() === "", 3000, "the reveal let go");
 });
 
-test("a slide's numbers stay on the parts that move, none of them held by what the parts hold", async () => {
+test("a slide's numbers stay on the parts that move, none of them kept by what the parts hold", async () => {
   await editingHello();
   await restedAt(middle().x, 4, "top");
   const inside = document.querySelector("#mode-edit .ed");
   for (const name of ["--claim", "--reveal-top", "--reveal-down"]) {
-    assert.equal(getComputedStyle(inside).getPropertyValue(name).trim(), "0", `${name} not held inside the work`);
+    assert.equal(getComputedStyle(inside).getPropertyValue(name).trim(), "0", `${name} not kept inside the work`);
   }
   assert.equal(getComputedStyle(document.querySelector("header.bar")).getPropertyValue("--reveal-top").trim(), "1", "the bar holds its own");
   await ui.hover(middle());

@@ -9,14 +9,12 @@
 // function it stands in shadows set aside. A name, a local, a parameter, a region's brackets and a statement's end
 // are known by the roles their grammar's tokens name; a function's region by its head declaring a function
 #include "../command_line/cells.h"
-#include "../command_line/file_writing.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 #include "symbols_tree.h"
 
-// the bytes the notes, their texts, the definitions' paths, the regions and the tree's paths are each begun in,
-// doubling as they fill
-#define CLI_USAGES_FIRST 4096u
+// the bytes the notes, their texts, the definitions' paths, the regions and the tree's paths are each written in
+#define CLI_USAGES_ROOM (16ull << 20u)
 
 // One leaf of the name a walk noted: its line, its span in UTF-16 units, its line's text, a place among the texts, and
 // how many bytes; the definition in effect there, its path a place among the paths, CLI_JSON_NONE for none, and its
@@ -47,9 +45,8 @@ typedef struct
     int declares;
 } CliUsageRegion;
 
-// The usages being read: the name and its length; each walk's notes, their lines' texts and the definitions' paths,
-// and the regions of the branch noted last, each a growing line; that branch's leaves; and whether the cells refused
-// a note
+// The usages being read: the name and its length; each walk's notes, their lines' texts and the definitions' paths, and
+// the regions of the branch noted last, each a line; that branch's leaves; and whether the cells refused a note
 typedef struct
 {
     const char *name;
@@ -293,11 +290,12 @@ static int usages_first_handed(const CliUsages *usages, const char *path, unsign
     return 0;
 }
 
-// the text of the tree's file at `path`, `held`'s, else the disk's mapped, its size into `size`, `*mapped` 1 where it
-// is the disk's: NULL where neither has it
-static char *usages_text(const char *path, CliHeld held, void *held_context, unsigned long long *size, int *mapped)
+// the text of the tree's file at `path`, `open_text`'s, else the disk's mapped, its size into `size`, `*mapped` 1 where
+// it is the disk's: NULL where neither has it
+static char *usages_text(const char *path, CliOpenText open_text, void *open_text_context, unsigned long long *size,
+                         int *mapped)
 {
-    char *const given = (held != NULL) ? held(held_context, path, size) : NULL;
+    char *const given = (open_text != NULL) ? open_text(open_text_context, path, size) : NULL;
     *mapped = given == NULL;
     if (given != NULL)
     {
@@ -308,7 +306,7 @@ static char *usages_text(const char *path, CliHeld held, void *held_context, uns
     cli_full(g_cli_symbols_root, path, full);
     cli_lock_give(&g_cli_symbols_lock);
     // a text read mapped is read and never written
-    return (char *)cli_file_read(full, size);
+    return (char *)cli_file_taken(full, size, &g_cli_code_cells);
 }
 
 // a text `usages_text` gave let go
@@ -316,7 +314,7 @@ static void usages_text_given(char *text, unsigned long long size, int mapped)
 {
     if (mapped && (text != NULL))
     {
-        cli_file_let_go((const unsigned char *)text, size);
+        cli_file_given((const unsigned char *)text, &g_cli_code_cells);
     }
     else
     {
@@ -342,10 +340,7 @@ static unsigned long long usages_name_at(const char *path, const char *text, uns
     {
         const unsigned long long start = read.leaf[leaf].from;
         unsigned long long end = start;
-        while ((end < size) && (text[end] != '\n'))
-        {
-            end += 1ull;
-        }
+        end = cli_text_to_any(text, end, size, "\n");
         unsigned long long byte = 0ull;
         unsigned int units = 0u;
         const unsigned long long at = start + cli_symbols_byte_at(text + start, end - start, col, &byte, &units);
@@ -383,8 +378,12 @@ static void usages_tree_paths(const char *path, VerbaLinea *paths)
     cli_lock_take(&g_cli_symbols_lock);
     for (unsigned int at = 0u; at < g_cli_symbol_file_count; at += 1u)
     {
-        const char *const one = g_cli_symbol_files[at].used ? cli_symbol_file_path(&g_cli_symbol_files[at]) : NULL;
-        if ((one != NULL) && (one[0] != '@') &&
+        char one[CLI_PATH_MAX_LEN];
+        if (g_cli_symbol_files[at].used)
+        {
+            cli_symbol_path_read(&g_cli_symbol_files[at], one);
+        }
+        if (g_cli_symbol_files[at].used && (one[0] != '@') &&
             !cellul.eq(&(CatenaFinitaCfg){.src = one, .other = path, .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(paths, one);
@@ -396,11 +395,13 @@ static void usages_tree_paths(const char *path, VerbaLinea *paths)
 
 // the usages read across the tree's files but `path`, each holding the name walked, the notes whose definition is
 // `defined` at `line` handed on: 1, or 0 with why given
-static int usages_across(CliUsages *usages, const char *path, const char *defined, unsigned int line, CliHeld held,
-                         void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
+static int usages_across(CliUsages *usages, const char *path, const char *defined, unsigned int line,
+                         CliOpenText open_text, void *open_text_context, CliUsage each, void *context,
+                         VerbaLinea *err_msg)
 {
-    VerbaLinea paths = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if (!cli_growing_line_made(&paths, CLI_USAGES_FIRST, &g_cli_code_cells))
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_USAGES_ROOM, &g_cli_code_cells);
+    VerbaLinea paths = mmgr_line_over(paths_cell, CLI_USAGES_ROOM);
+    if (paths.out == NULL)
     {
         mmgr_line_put(err_msg, "the cells cannot meet the usages' walk");
         return 0;
@@ -413,7 +414,7 @@ static int usages_across(CliUsages *usages, const char *path, const char *define
         const char *const one = paths.out + at;
         unsigned long long size = 0ull;
         int mapped = 0;
-        char *const text = usages_text(one, held, held_context, &size, &mapped);
+        char *const text = usages_text(one, open_text, open_text_context, &size, &mapped);
         unsigned long long found = 0ull;
         // a file whose bytes hold the name nowhere holds no leaf of it, and is not walked
         if ((text != NULL) && cli_text_find(text, size, usages->name, usages->length, &found))
@@ -431,13 +432,14 @@ static int usages_across(CliUsages *usages, const char *path, const char *define
 // about in the file at `path`, handed on, that file walked where it is not `path`: 1, 0 where its walk notes none
 // there, as for a define the compile database gives, or -1 with why given
 static int usages_definition_handed(CliUsages *usages, const char *path, const char *defined, unsigned int line,
-                                    CliHeld held, void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
+                                    CliOpenText open_text, void *open_text_context, CliUsage each, void *context,
+                                    VerbaLinea *err_msg)
 {
     if (!cellul.eq(&(CatenaFinitaCfg){.src = path, .other = defined, .cap = CLI_CELLS_POOL}))
     {
         unsigned long long size = 0ull;
         int mapped = 0;
-        char *const text = usages_text(defined, held, held_context, &size, &mapped);
+        char *const text = usages_text(defined, open_text, open_text_context, &size, &mapped);
         if (text == NULL)
         {
             return 0;
@@ -456,8 +458,8 @@ static int usages_definition_handed(CliUsages *usages, const char *path, const c
 // `across` is 1, or the definition in effect alone where `definition` is 1: 1, 0 where the place's leaf is no note or
 // its name has no definition, or -1 with why given
 static int usages_read(CliUsages *usages, const char *path, const char *text, unsigned long long size,
-                       unsigned int line, unsigned int col, int across, int definition, CliHeld held,
-                       void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
+                       unsigned int line, unsigned int col, int across, int definition, CliOpenText open_text,
+                       void *open_text_context, CliUsage each, void *context, VerbaLinea *err_msg)
 {
     if (!usages_walked(usages, path, text, size, err_msg))
     {
@@ -498,11 +500,12 @@ static int usages_read(CliUsages *usages, const char *path, const char *text, un
     (void)mmgr_line_finish(&defined_line);
     if (definition)
     {
-        return usages_definition_handed(usages, path, defined, at.defined_line, held, held_context, each, context,
-                                        err_msg);
+        return usages_definition_handed(usages, path, defined, at.defined_line, open_text, open_text_context, each,
+                                        context, err_msg);
     }
     usages_handed(usages, path, CLI_JSON_NONE, defined, at.defined_line, each, context);
-    if (across && !usages_across(usages, path, defined, at.defined_line, held, held_context, each, context, err_msg))
+    if (across &&
+        !usages_across(usages, path, defined, at.defined_line, open_text, open_text_context, each, context, err_msg))
     {
         return -1;
     }
@@ -511,33 +514,36 @@ static int usages_read(CliUsages *usages, const char *path, const char *text, un
 
 // the usages of the name at `line`, `col` of the tree's file at `path`, or its definition in effect alone where
 // `definition` is 1, as cli_symbols_usages and cli_symbols_definition answer
-static int usages_asked(const char *path, unsigned int line, unsigned int col, int across, int definition, CliHeld held,
-                        void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
+static int usages_asked(const char *path, unsigned int line, unsigned int col, int across, int definition,
+                        CliOpenText open_text, void *open_text_context, CliUsage each, void *context,
+                        VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
     int mapped = 0;
-    char *const text = usages_text(path, held, held_context, &size, &mapped);
+    char *const text = usages_text(path, open_text, open_text_context, &size, &mapped);
     char name[CLI_NAME_MAX_LEN];
     const unsigned long long length = (text != NULL) ? usages_name_at(path, text, size, line, col, name) : 0ull;
+    const unsigned long long room = (length != 0ull) ? CLI_USAGES_ROOM : 0ull;
+    char *const notes_cell = (room != 0ull) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_code_cells) : NULL;
+    char *const texts_cell = (room != 0ull) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_code_cells) : NULL;
+    char *const paths_cell = (room != 0ull) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_code_cells) : NULL;
+    char *const regions_cell = (room != 0ull) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_code_cells) : NULL;
     CliUsages usages = {name,
                         length,
-                        {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                        {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                        {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                        {NULL, 0ull, 0ull, NULL, NULL, 0ull},
+                        mmgr_line_over(notes_cell, room),
+                        mmgr_line_over(texts_cell, room),
+                        mmgr_line_over(paths_cell, room),
+                        mmgr_line_over(regions_cell, room),
                         NULL,
                         0u,
                         0u,
                         0};
-    const int made = (length != 0ull) && cli_growing_line_made(&usages.notes, CLI_USAGES_FIRST, &g_cli_code_cells) &&
-                     cli_growing_line_made(&usages.texts, CLI_USAGES_FIRST, &g_cli_code_cells) &&
-                     cli_growing_line_made(&usages.paths, CLI_USAGES_FIRST, &g_cli_code_cells) &&
-                     cli_growing_line_made(&usages.regions, CLI_USAGES_FIRST, &g_cli_code_cells);
+    const int made = (notes_cell != NULL) && (texts_cell != NULL) && (paths_cell != NULL) && (regions_cell != NULL);
     int read = 0;
     if (made)
     {
-        read = usages_read(&usages, path, text, size, line, col, across, definition, held, held_context, each, context,
-                           err_msg);
+        read = usages_read(&usages, path, text, size, line, col, across, definition, open_text, open_text_context, each,
+                           context, err_msg);
     }
     else if (length != 0ull)
     {
@@ -552,14 +558,14 @@ static int usages_asked(const char *path, unsigned int line, unsigned int col, i
     return read;
 }
 
-int cli_symbols_usages(const char *path, unsigned int line, unsigned int col, int across, CliHeld held,
-                       void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
+int cli_symbols_usages(const char *path, unsigned int line, unsigned int col, int across, CliOpenText open_text,
+                       void *open_text_context, CliUsage each, void *context, VerbaLinea *err_msg)
 {
-    return usages_asked(path, line, col, across, 0, held, held_context, each, context, err_msg);
+    return usages_asked(path, line, col, across, 0, open_text, open_text_context, each, context, err_msg);
 }
 
-int cli_symbols_definition(const char *path, unsigned int line, unsigned int col, CliHeld held, void *held_context,
-                           CliUsage each, void *context, VerbaLinea *err_msg)
+int cli_symbols_definition(const char *path, unsigned int line, unsigned int col, CliOpenText open_text,
+                           void *open_text_context, CliUsage each, void *context, VerbaLinea *err_msg)
 {
-    return usages_asked(path, line, col, 0, 1, held, held_context, each, context, err_msg);
+    return usages_asked(path, line, col, 0, 1, open_text, open_text_context, each, context, err_msg);
 }

@@ -1,11 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // opening_test.c: the window opening a file through the CLI, no system under it: the CLI's side begun on the tree the
-// check runs in, a file of the tree opened by its path from the tree's top and by its whole path, its lines held
+// check runs in, a file of the tree opened by its path from the tree's top and by its whole path, its lines stored
 // and the first drawn; a door command to open a file, as the CLI emits one, taken the same way and answered; the
 // tabs and the one shown kept in orior's folder, the checks' own, and brought back by a window started again
 #include "../../../../../ui/cli/src/code/symbols.h"
-#include "../../../../../ui/cli/src/command_line/file_writing.h"
 #include "../../../../../ui/cli/src/machine/state.h"
 #include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/gui/src/window.h"
@@ -133,8 +132,10 @@ static int kept_came(GuiWindow *window, Woken *count, const char *needle)
         (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
         cli_lock_give(&count->lock);
         gui_window_drained(window);
-        VerbaLinea line;
-        if (!cli_growing_line_made(&line, 4096u, &g_checks_cells))
+        const unsigned long long line_room = 1ull << 20u;
+        char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_checks_cells);
+        VerbaLinea line = mmgr_line_over(line_cell, line_room);
+        if (line.out == NULL)
         {
             return 0;
         }
@@ -285,6 +286,28 @@ static int file_row(const GuiExplorer *explorer)
     {
         unsigned int node = 0u;
         if (gui_explorer_row(explorer, row, &node) && !explorer->node[node].dir)
+        {
+            // the rows are fewer than an int counts
+            return (int)row;
+        }
+    }
+    return -1;
+}
+
+// The pane's row of the diagnostic whose message is `message`, -1 where it lists none: a language server reports on the
+// files the check has open, and the pane lists theirs beside it
+static int problem_row(const GuiProblems *problems, const char *message)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_NAME_MAX_LEN});
+    const unsigned int rows = gui_problems_rows(problems);
+    for (unsigned int row = 0u; row < rows; row += 1u)
+    {
+        unsigned int file = 0u;
+        int item = GUI_PROBLEMS_NONE;
+        if (gui_problems_row(problems, row, &file, &item) && (item != GUI_PROBLEMS_NONE) &&
+            (problems->item[item].message_length == length) &&
+            (memor.cmp(&(MemoriaCfg){
+                 .src = problems->texts.out + problems->item[item].message, .other = message, .bytes = length}) == 0))
         {
             // the rows are fewer than an int counts
             return (int)row;
@@ -511,27 +534,29 @@ int main(void)
               "the wheel over the side scrolls the row into view");
     unsigned int node = 0u;
     unsigned long long length = 0ull;
-    const char *const held =
+    const char *const stored_text =
         gui_explorer_row(&window.explorer, row, &node) ? gui_explorer_path(&window.explorer, node, &length) : "";
     char picked[CLI_PATH_MAX_LEN];
     VerbaLinea kept = {picked, sizeof(picked), 0ull};
-    mmgr_line_put_n(&kept, held, length);
+    mmgr_line_put_n(&kept, stored_text, length);
     (void)mmgr_line_finish(&kept);
     gui_editor_made(&window.editor);
     gui_window_pressed(&window, file.x + 40, file.y + 10, 0u);
-    cli_check((window.tabs == 2u) && lines_came(&window, &count) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = window.tab[window.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
-              "a file pressed in the tree opens as a tab");
+    cli_check(window.tabs == 2u, "a file pressed in the tree opens as a tab");
+    cli_check(lines_came(&window, &count), "the file pressed shows its lines");
+    cli_check(
+        cellul.eq(&(CatenaFinitaCfg){.src = window.tab[window.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
+        "the tab shown is the file pressed");
 
     // the problems pane: a file's diagnostics come as an event, the strip's Problems tool is marked while an error
-    // stands, the tool pressed shows the pane in the side, and a diagnostic's row pressed opens its file at its place
+    // stands, the tool pressed shows the pane in the side, and a diagnostic's row pressed opens its file at its place.
+    // The file is one no tab has opened: no language server is reporting on it and none clears what the event says
     static const char s_diagnostics[] = "{\"path\":\"ui/gui/src/"
-                                        "raster.c\",\"items\":[{\"from\":{\"line\":13,\"col\":4},\"to\":{\"line\":13,"
+                                        "palette.c\",\"items\":[{\"from\":{\"line\":13,\"col\":4},\"to\":{\"line\":13,"
                                         "\"col\":18},\"severity\":1,\"message\":\"a test's error\"}]}";
     gui_link_emitted(&window.link, "lsp-diagnostics", s_diagnostics, sizeof(s_diagnostics) - 1u);
     waited(&window, &count, 50ull);
-    cli_check((window.problems.files == 1u) && (window.problems.errors == 1u) && window.strip.problems_marked,
+    cli_check((problem_row(&window.problems, "a test's error") >= 0) && window.strip.problems_marked,
               "a file's diagnostics event is taken and the Problems tool marked");
     int problems_tool = -1;
     for (unsigned int at = 0u; at < gui_strip_tools(); at += 1u)
@@ -549,14 +574,18 @@ int main(void)
     cli_check((window.strip.shown == problems_tool) && (window.frame.side.width > 0),
               "the Problems tool pressed shows its pane in the side");
     gui_window_drawn(&window);
-    cli_check(gui_problems_rows(&window.problems) == 2u, "the pane lists the file and its diagnostic");
-    const GuiRect problem_row = gui_problems_row_rect(&window.problems, &window.frame, 1u);
+    const int problem_at = problem_row(&window.problems, "a test's error");
+    cli_check(problem_at >= 0, "the pane lists the file and its diagnostic");
+    // the row is among the rows; the wheel over the side scrolls it into view where it stands past the rows shown
+    gui_window_wheel(&window, window.frame.side.x + 10, window.frame.side.y + 100, problem_at);
+    const GuiRect problem_rect =
+        gui_problems_row_rect(&window.problems, &window.frame, (problem_at >= 0) ? (unsigned int)problem_at : 0u);
     gui_editor_made(&window.editor);
-    gui_window_pressed(&window, problem_row.x + 40, problem_row.y + 5, 0u);
+    gui_window_pressed(&window, problem_rect.x + 40, problem_rect.y + 5, 0u);
     cli_check(cellul.eq(&(CatenaFinitaCfg){
-                  .src = window.tab[window.active].path, .other = "ui/gui/src/raster.c", .cap = CLI_PATH_MAX_LEN}) &&
-                  cursor_came_at(&window, &count, 13ull, 4ull),
-              "a diagnostic's row pressed opens its file at its place");
+                  .src = window.tab[window.active].path, .other = "ui/gui/src/palette.c", .cap = CLI_PATH_MAX_LEN}),
+              "a diagnostic's row pressed opens its file");
+    cli_check(cursor_came_at(&window, &count, 13ull, 4ull), "the cursor stands at the diagnostic's place");
     gui_window_pressed(&window, explorer_button.x + 10, explorer_button.y + 10, 0u);
     cli_check(window.strip.shown == 0, "the explorer's tool pressed shows the tree again");
 
@@ -572,14 +601,22 @@ int main(void)
     // started again on the tree brings them back with the one shown
     cli_check(kept_came(&window, &count, picked) && kept_came(&window, &count, "active"),
               "the tabs and the one shown are kept in orior's folder");
+    // the last change is kept however soon the window ends after it
+    gui_window_tab_shown(&window, 0u);
+    gui_window_tab_shown(&window, shown_tab);
     gui_window_ended(&window);
     static GuiWindow again;
-    cli_check(gui_window_begun(&again, woken, &count, &why) && gui_window_sized(&again, 800u, 500u, 1.0f),
-              "a window begins again");
+    const int begun_again = gui_window_begun(&again, woken, &count, &why) && gui_window_sized(&again, 800u, 500u, 1.0f);
+    cli_check(begun_again, "a window begins again");
+    if (!begun_again)
+    {
+        cli_window_ended();
+        return cli_checked();
+    }
     gui_window_started(&again);
     cli_check(tabs_came(&again, &count, 3u) && (again.active >= 0) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = again.tab[again.active].path, .other = "ui/gui/src/raster.c", .cap = CLI_PATH_MAX_LEN}),
+                      .src = again.tab[again.active].path, .other = "ui/gui/src/palette.c", .cap = CLI_PATH_MAX_LEN}),
               "the window started again brings the kept tabs back and shows the one kept shown");
     cli_check(lines_came(&again, &count), "the tab brought back shows its lines");
     gui_window_ended(&again);

@@ -199,10 +199,10 @@ int cli_report_line(const char *text, unsigned long long size, unsigned long lon
         return 0;
     }
     *start = *at;
-    const char *const newline = memor.chr(&(MemoriaCfg){.src = text + *at, .val = '\n', .bytes = size - *at});
-    *end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
-    *at = (newline != NULL) ? *end + 1ull : size;
-    *end -= ((newline != NULL) && (*end > *start) && (text[*end - 1ull] == '\r')) ? 1ull : 0ull;
+    const CliTextLine bounds = cli_text_line_at(text, *at, size);
+    *end = bounds.stop;
+    *at = bounds.next;
+    *end -= bounds.stop - bounds.cut;
     return 1;
 }
 
@@ -222,10 +222,7 @@ static int report_traceback_line(const char *text, unsigned long long size, cons
             continue;
         }
         unsigned long long colon = place;
-        while ((colon > start) && (text[colon - 1ull] != ':'))
-        {
-            colon -= 1ull;
-        }
+        colon = (start + cli_text_back_any(text + start, colon - start, ":"));
         long long number = 0ll;
         if ((colon > start) && cli_report_ends_with(text + start, colon - 1ull - start, wanted) &&
             cli_report_count(text + colon, place - colon, &number))
@@ -307,20 +304,17 @@ static void report_case_emitted(CliTestWorker *worker, const char *open, unsigne
          cli_text_same(classname, module, cellul.len(&(CatenaFinitaCfg){.src = module, .cap = CLI_CELLS_POOL})))
             ? classname + cellul.len(&(CatenaFinitaCfg){.src = module, .cap = CLI_CELLS_POOL})
             : NULL;
-    while ((class_name != NULL) && (*class_name == '.'))
+    if (class_name != NULL)
     {
-        class_name += 1;
+        class_name += cli_text_past_any(class_name, 0ull,
+                                        cellul.len(&(CatenaFinitaCfg){.src = class_name, .cap = CLI_CELLS_POOL}), ".");
     }
     VerbaLinea id_line = {id, sizeof(id), 0ull};
     mmgr_line_put(&id_line, wanted);
     mmgr_line_put(&id_line, "::");
-    for (const char *letter = ((class_name != NULL) && (*class_name != '\0')) ? class_name : ""; *letter != '\0';
-         letter += 1)
-    {
-        mmgr_line_put(&id_line, (*letter == '.') ? "::" : "");
-        mmgr_line_put_n(&id_line, letter, (*letter == '.') ? 0ull : 1ull);
-    }
-    mmgr_line_put(&id_line, ((class_name != NULL) && (*class_name != '\0')) ? "::" : "");
+    const char *const class_part = (class_name != NULL) ? class_name : "";
+    cli_text_put_replaced(&id_line, class_part, ".", "::");
+    mmgr_line_put(&id_line, (class_part[0] != '\0') ? "::" : "");
     mmgr_line_put(&id_line, (name != NULL) ? name : "");
     mmgr_line_finish(&id_line);
     const char *const time = report_attribute(&s_case, "time");

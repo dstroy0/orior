@@ -13,13 +13,14 @@
 #include "../palette.h"
 #include "editor.h"
 
-// the most files and diagnostics stored and the bytes their texts are stored in before they grow; no row; the
-// sizes in the page's pixels: a file's row, a diagnostic's row, the pane's head, a row's padding at the left, the
-// guide's width before a diagnostic, the mark's side, the gap after it, the count's padding and its corner radius,
-// the file's name size, the folder's size, the message's size, the count's size and the head's; and the severities
+// the most files and diagnostics stored and the bytes their texts are stored in; no row; the sizes in the page's
+// pixels: a file's row, a diagnostic's row, the pane's head, a row's padding at the left, the guide's width before a
+// diagnostic, the mark's side, the gap after it, the count's padding and its corner radius, the file's name size, the
+// folder's size, the message's size, the count's size and the head's; and the severities
 #define GUI_PROBLEMS_FILES 512u
 #define GUI_PROBLEMS_ITEMS 8192u
-#define GUI_PROBLEMS_TEXT_FIRST 65536u
+#define GUI_PROBLEMS_TEXT_ROOM (4ull << 20u)
+#define GUI_PROBLEMS_DEAD_MOST 65536ull
 #define GUI_PROBLEMS_NONE (-1)
 #define GUI_PROBLEMS_FILE_ROW 24
 #define GUI_PROBLEMS_ROW 22
@@ -82,7 +83,7 @@ typedef struct
 } GuiProblemPick;
 
 // The problems: the files in a cell, how many, and the diagnostics in a cell, each file's together, how many; their
-// texts in a line that grows in a cell of its own and the bytes of it no file or diagnostic reads any more; how many
+// texts in a line in a cell of its own and the bytes of it no file or diagnostic reads any more; how many
 // errors stand; the check's files done and total, the total 0 where no check runs; the row the pointer stands on,
 // GUI_PROBLEMS_NONE for none; and how many rows are scrolled off the pane's top
 typedef struct

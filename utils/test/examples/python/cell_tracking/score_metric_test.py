@@ -22,7 +22,7 @@ class Tally(object):
         self.checks = 0
         self.failures = 0
 
-    def held(self, what, got, want):
+    def checked(self, what, got, want):
         self.checks += 1
         if got != want:
             self.failures += 1
@@ -36,7 +36,7 @@ class Tally(object):
             print("  FAILED: %s: %r, and was to be %r" % (what, got, want))
 
     def true(self, what, got):
-        self.held(what, bool(got), True)
+        self.checked(what, bool(got), True)
 
 
 TALLY = Tally()
@@ -149,11 +149,11 @@ def sandbox_cases():
         gt_spec, pred_spec, want, max_distance = SANDBOX[name]
         gt, _ = build(*gt_spec)
         pred, _ = build(*pred_spec)
-        TALLY.held("sandbox %s: edge TP, FP, FN, division TP, FP, FN" % name,
+        TALLY.checked("sandbox %s: edge TP, FP, FN, division TP, FP, FN" % name,
                    all_counts(evaluate(pred, gt, max_distance)), want)
     gt, _ = build(*HACK2_GT)
     pred, ids = build(*HACK2_PRED)
-    TALLY.held("sandbox hack2: the false forks", named(ids, evaluate(pred, gt, 10.0)["divisions"]["fp_forks"]),
+    TALLY.checked("sandbox hack2: the false forks", named(ids, evaluate(pred, gt, 10.0)["divisions"]["fp_forks"]),
                {"105", "106", "122", "124"})
 
 
@@ -181,58 +181,58 @@ TWO_DIVISIONS_GT = ({"P1": xyz(0, 0.0, 10.0, 0.0), "D1": xyz(1, 0.0, 10.0, 0.0),
 
 def windows(graph):
     # extract_divisions: each divider's window, its nodes and the key's edges among them
-    held = {}
+    windows_by_divider = {}
     for divider in range(len(graph.times)):
         if graph.out_degree[divider] != 2:
             continue
         nodes = set(score_metric.division_window(graph, divider))
         edges = sum(1 for source, target in zip(graph.sources, graph.targets) if source in nodes and target in nodes)
-        held[divider] = (len(nodes), edges)
-    return held
+        windows_by_divider[divider] = (len(nodes), edges)
+    return windows_by_divider
 
 
 def extract_divisions_cases():
     graph, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C": xyz(2, 0.0, 0.0, 0.0)},
                      [("A", "B"), ("B", "C")])
-    TALLY.held("test_no_divisions", windows(graph), {})
+    TALLY.checked("test_no_divisions", windows(graph), {})
     graph, ids = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 5.0, 0.0),
                         "C2": xyz(2, 0.0, -5.0, 0.0), "D": xyz(3, 0.0, -5.0, 0.0), "E": xyz(3, 0.0, 5.0, 0.0)},
                        [("A", "B"), ("B", "C1"), ("B", "C2"), ("C2", "D"), ("C1", "E")])
-    TALLY.held("test_single_division", windows(graph), {ids["B"]: (6, 5)})
+    TALLY.checked("test_single_division", windows(graph), {ids["B"]: (6, 5)})
     graph, ids = build({"B": xyz(0, 0.0, 0.0, 0.0), "C1": xyz(1, 0.0, 5.0, 0.0), "C2": xyz(1, 0.0, -5.0, 0.0),
                         "D": xyz(2, 0.0, -5.0, 0.0), "E": xyz(2, 0.0, 5.0, 0.0)},
                        [("B", "C1"), ("B", "C2"), ("C2", "D"), ("C1", "E")])
-    TALLY.held("test_single_division_no_parent", windows(graph), {ids["B"]: (5, 4)})
+    TALLY.checked("test_single_division_no_parent", windows(graph), {ids["B"]: (5, 4)})
     graph, ids = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 5.0, 0.0),
                         "C2": xyz(2, 0.0, -5.0, 0.0)},
                        [("A", "B"), ("B", "C1"), ("B", "C2")])
-    TALLY.held("test_single_division_leaf_children", windows(graph), {ids["B"]: (4, 3)})
+    TALLY.checked("test_single_division_leaf_children", windows(graph), {ids["B"]: (4, 3)})
     graph, ids = build(*TWO_DIVISIONS_GT)
-    TALLY.held("test_two_independent_divisions", windows(graph), {ids["D1"]: (6, 5), ids["D2"]: (6, 5)})
+    TALLY.checked("test_two_independent_divisions", windows(graph), {ids["D1"]: (6, 5), ids["D2"]: (6, 5)})
     graph, ids = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 5.0, 0.0),
                         "C2": xyz(2, 0.0, -5.0, 0.0), "E": xyz(3, 0.0, 5.0, 0.0), "G": xyz(3, 0.0, -5.0, 0.0),
                         "F1": xyz(4, 0.0, 8.0, 0.0), "F2": xyz(4, 0.0, 2.0, 0.0)},
                        [("A", "B"), ("B", "C1"), ("B", "C2"), ("C1", "E"), ("C2", "G"), ("E", "F1"), ("E", "F2")])
-    TALLY.held("test_chained_divisions_are_separate", windows(graph), {ids["B"]: (6, 5), ids["E"]: (4, 3)})
+    TALLY.checked("test_chained_divisions_are_separate", windows(graph), {ids["B"]: (6, 5), ids["E"]: (4, 3)})
     graph, _ = build({}, [])
-    TALLY.held("test_empty_graph", windows(graph), {})
+    TALLY.checked("test_empty_graph", windows(graph), {})
 
 
 def strongly_connected_cases():
     pred, ids = build({"GP": xyz(0, 0.0, 0.0, 0.0), "P": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 1.0, 0.0),
                        "C2": xyz(2, 0.0, -1.0, 0.0), "G2": xyz(3, 0.0, -1.0, 0.0)},
                       [("GP", "P"), ("P", "C1"), ("P", "C2"), ("C2", "G2")])
-    TALLY.held("test_accepts_local_division_window",
+    TALLY.checked("test_accepts_local_division_window",
                score_metric.strongly_connected(pred, ids["P"], {ids["GP"]}, [{ids["C1"]}, {ids["G2"]}]), True)
     pred, ids = build({"P": xyz(0, 0.0, 0.0, 0.0), "C1": xyz(1, 0.0, 1.0, 0.0), "C2": xyz(1, 0.0, -1.0, 0.0),
                        "G2": xyz(2, 0.0, -1.0, 0.0), "GG2": xyz(3, 0.0, -1.0, 0.0)},
                       [("P", "C1"), ("P", "C2"), ("C2", "G2"), ("G2", "GG2")])
-    TALLY.held("test_rejects_great_grandchild_match",
+    TALLY.checked("test_rejects_great_grandchild_match",
                score_metric.strongly_connected(pred, ids["P"], {ids["P"]}, [{ids["C1"]}, {ids["GG2"]}]), False)
     pred, ids = build({"P": xyz(0, 0.0, 0.0, 0.0), "C": xyz(1, 0.0, 1.0, 0.0), "G": xyz(2, 0.0, 1.0, 0.0),
                        "X": xyz(1, 0.0, 20.0, 0.0)},
                       [("P", "C"), ("P", "X"), ("C", "G")])
-    TALLY.held("test_requires_distinct_pred_daughter_lineages",
+    TALLY.checked("test_requires_distinct_pred_daughter_lineages",
                score_metric.strongly_connected(pred, ids["P"], {ids["P"]}, [{ids["C"]}, {ids["G"]}]), False)
 
 
@@ -240,31 +240,31 @@ def score_divisions_cases():
     gt, _ = build(GT_NODES, GT_EDGES)
     pred, _ = build(GT_NODES, GT_EDGES)
     result = evaluate(pred, gt, 1.0)["divisions"]
-    TALLY.held("TestScoreDivisions test_perfect_prediction: the scores", set(result["scores"].values()), {1})
-    TALLY.held("TestScoreDivisions test_perfect_prediction: the paired forks", len(result["tp_forks"]), 1)
-    TALLY.held("TestScoreDivisions test_perfect_prediction: the false forks", result["fp_forks"], set())
+    TALLY.checked("TestScoreDivisions test_perfect_prediction: the scores", set(result["scores"].values()), {1})
+    TALLY.checked("TestScoreDivisions test_perfect_prediction: the paired forks", len(result["tp_forks"]), 1)
+    TALLY.checked("TestScoreDivisions test_perfect_prediction: the false forks", result["fp_forks"], set())
     pred, _ = build(GT_NODES, [("P", "D"), ("D", "C1"), ("C1", "G1"), ("C2", "G2")])
-    TALLY.held("test_disconnected_child", set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {0})
+    TALLY.checked("test_disconnected_child", set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {0})
     pred, _ = build({"P": xyz(0, 0.0, 0.0, 0.0), "D": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 5.0, 0.0),
                      "G1": xyz(3, 0.0, 5.0, 0.0)},
                     [("P", "D"), ("D", "C1"), ("C1", "G1")])
-    TALLY.held("test_linear_no_fork", set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {0})
+    TALLY.checked("test_linear_no_fork", set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {0})
     pred, _ = build({"X": xyz(0, 0.0, 100.0, 100.0), "Y": xyz(1, 0.0, 100.0, 100.0)}, [("X", "Y")])
-    TALLY.held("test_no_matched_nodes", set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {0})
+    TALLY.checked("test_no_matched_nodes", set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {0})
     gt, gt_ids = build(GT_NODES, GT_EDGES)
     pred, pred_ids = build({"P": xyz(0, 0.0, 0.0, 0.0), "D": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 5.0, 0.0),
                             "X": xyz(2, 0.0, 50.0, 0.0), "G2": xyz(3, 0.0, -5.0, 0.0)},
                            [("P", "D"), ("D", "C1"), ("D", "X"), ("C1", "G2")])
     result = evaluate(pred, gt, 1.0)["divisions"]
-    TALLY.held("test_rejected_local_fork_is_false_positive: D's score", result["scores"][gt_ids["D"]], 0)
-    TALLY.held("test_rejected_local_fork_is_false_positive: the paired forks", result["tp_forks"], set())
-    TALLY.held("test_rejected_local_fork_is_false_positive: the false forks", named(pred_ids, result["fp_forks"]),
+    TALLY.checked("test_rejected_local_fork_is_false_positive: D's score", result["scores"][gt_ids["D"]], 0)
+    TALLY.checked("test_rejected_local_fork_is_false_positive: the paired forks", result["tp_forks"], set())
+    TALLY.checked("test_rejected_local_fork_is_false_positive: the false forks", named(pred_ids, result["fp_forks"]),
                {"D"})
-    TALLY.held("test_rejected_local_fork_is_false_positive: tp, fn, fp", division_counts(pred, gt, 1.0), (0, 1, 1))
+    TALLY.checked("test_rejected_local_fork_is_false_positive: tp, fn, fp", division_counts(pred, gt, 1.0), (0, 1, 1))
     pred, _ = build({"P": xyz(0, 0.0, 0.0, 0.0), "D": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 5.0, 0.0),
                      "C2": xyz(2, 0.0, -5.0, 0.0), "G1": xyz(3, 0.0, 5.0, 0.0), "G2": xyz(3, 0.0, -5.0, 0.0)},
                     [("P", "D"), ("D", "C1"), ("C1", "G1"), ("C2", "G2")])
-    TALLY.held("test_fork_but_wrong_topology", set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {0})
+    TALLY.checked("test_fork_but_wrong_topology", set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {0})
     gt, gt_ids = build(*TWO_DIVISIONS_GT)
     pred, _ = build({"P1": xyz(0, 0.0, 10.0, 0.0), "D1": xyz(1, 0.0, 10.0, 0.0), "C1a": xyz(2, 0.0, 15.0, 0.0),
                      "C1b": xyz(2, 0.0, 5.0, 0.0), "C1a2": xyz(3, 0.0, 15.0, 0.0), "C1b2": xyz(3, 0.0, 5.0, 0.0),
@@ -273,15 +273,15 @@ def score_divisions_cases():
                     [("P1", "D1"), ("D1", "C1a"), ("D1", "C1b"), ("C1a", "C1a2"), ("C1b", "C1b2"), ("P2", "D2"),
                      ("D2", "C2a"), ("C2a", "C2a2")])
     scores = evaluate(pred, gt, 1.0)["divisions"]["scores"]
-    TALLY.held("test_two_divisions_mixed_scores", (scores[gt_ids["D1"]], scores[gt_ids["D2"]]), (1, 0))
+    TALLY.checked("test_two_divisions_mixed_scores", (scores[gt_ids["D1"]], scores[gt_ids["D2"]]), (1, 0))
     gt, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0)}, [("A", "B")])
     pred, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0)}, [("A", "B")])
-    TALLY.held("test_no_gt_divisions", evaluate(pred, gt, 1.0)["divisions"]["scores"], {})
+    TALLY.checked("test_no_gt_divisions", evaluate(pred, gt, 1.0)["divisions"]["scores"], {})
     gt, _ = build(GT_NODES, GT_EDGES)
     pred, _ = build({"P": xyz(0, 0.0, 0.0, 0.0), "D": xyz(1, 0.0, 0.0, 0.0), "M": xyz(2, 0.0, 0.0, 0.0),
                      "C1": xyz(3, 0.0, 5.0, 0.0), "C2": xyz(3, 0.0, -5.0, 0.0)},
                     [("P", "D"), ("D", "M"), ("M", "C1"), ("M", "C2")])
-    TALLY.held("test_connected_via_intermediate_nodes",
+    TALLY.checked("test_connected_via_intermediate_nodes",
                set(evaluate(pred, gt, 1.0)["divisions"]["scores"].values()), {1})
     gt, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "D": xyz(2, 0.0, 0.0, 0.0),
                    "C1": xyz(3, 0.0, 5.0, 0.0), "C2": xyz(3, 0.0, -5.0, 0.0)},
@@ -290,7 +290,7 @@ def score_divisions_cases():
                      "P4": xyz(3, 0.0, 5.0, 0.0), "P5": xyz(3, 0.0, -5.0, 0.0), "Q1": xyz(0, 0.0, 0.1, 0.0),
                      "Q2": xyz(1, 0.0, 0.1, 0.0), "Q3": xyz(2, 0.0, 50.0, 0.0)},
                     [("P1", "P2"), ("P2", "P3"), ("P3", "P4"), ("P3", "P5"), ("Q1", "Q2"), ("Q2", "Q3")])
-    TALLY.held("test_matched_parent_from_different_track",
+    TALLY.checked("test_matched_parent_from_different_track",
                set(evaluate(pred, gt, 5.0)["divisions"]["scores"].values()), {1})
 
 
@@ -300,13 +300,13 @@ def count_matched_cases():
 
     gt, _ = build(GT_NODES, GT_EDGES)
     pred, _ = build(GT_NODES, GT_EDGES)
-    TALLY.held("TestCountMatchedPredDivisions test_perfect_prediction", evaluable(pred, gt), 1)
+    TALLY.checked("TestCountMatchedPredDivisions test_perfect_prediction", evaluable(pred, gt), 1)
     gt, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C": xyz(2, 0.0, 0.0, 0.0)},
                   [("A", "B"), ("B", "C")])
     pred, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 0.0, 0.0),
                      "C2": xyz(2, 0.0, 5.0, 0.0)},
                     [("A", "B"), ("B", "C1"), ("B", "C2")])
-    TALLY.held("test_spurious_division_on_linear_gt", evaluable(pred, gt), 1)
+    TALLY.checked("test_spurious_division_on_linear_gt", evaluable(pred, gt), 1)
     gt, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C": xyz(2, 0.0, 0.0, 0.0),
                    "D": xyz(0, 0.0, 20.0, 0.0), "E": xyz(1, 0.0, 20.0, 0.0), "F": xyz(2, 0.0, 20.0, 0.0)},
                   [("A", "B"), ("B", "C"), ("D", "E"), ("E", "F")])
@@ -314,11 +314,11 @@ def count_matched_cases():
                      "C2": xyz(2, 0.0, 5.0, 0.0), "D": xyz(0, 0.0, 20.0, 0.0), "E": xyz(1, 0.0, 20.0, 0.0),
                      "F1": xyz(2, 0.0, 20.0, 0.0), "F2": xyz(2, 0.0, 25.0, 0.0)},
                     [("A", "B"), ("B", "C1"), ("B", "C2"), ("D", "E"), ("E", "F1"), ("E", "F2")])
-    TALLY.held("test_two_divisions", evaluable(pred, gt), 2)
+    TALLY.checked("test_two_divisions", evaluable(pred, gt), 2)
     gt, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0)}, [("A", "B")])
     pred, _ = build({"X": xyz(0, 0.0, 100.0, 0.0), "Y": xyz(1, 0.0, 105.0, 0.0), "Z": xyz(1, 0.0, 95.0, 0.0)},
                     [("X", "Y"), ("X", "Z")])
-    TALLY.held("test_unmatched_division_not_counted", evaluable(pred, gt), 0)
+    TALLY.checked("test_unmatched_division_not_counted", evaluable(pred, gt), 0)
     gt, _ = build({"P": xyz(0, 0.0, 0.0, 0.0), "D": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 5.0, 0.0),
                    "C2": xyz(2, 0.0, -5.0, 0.0), "A": xyz(0, 0.0, 20.0, 0.0), "B": xyz(1, 0.0, 20.0, 0.0),
                    "C": xyz(2, 0.0, 20.0, 0.0)},
@@ -327,47 +327,47 @@ def count_matched_cases():
                      "C2": xyz(2, 0.0, -5.0, 0.0), "A": xyz(0, 0.0, 20.0, 0.0), "B": xyz(1, 0.0, 20.0, 0.0),
                      "E1": xyz(2, 0.0, 20.0, 0.0), "E2": xyz(2, 0.0, 25.0, 0.0)},
                     [("P", "D"), ("D", "C1"), ("D", "C2"), ("A", "B"), ("B", "E1"), ("B", "E2")])
-    TALLY.held("test_mixed_real_and_spurious", evaluable(pred, gt), 2)
+    TALLY.checked("test_mixed_real_and_spurious", evaluable(pred, gt), 2)
 
 
 def evaluate_divisions_cases():
     gt, _ = build(GT_NODES, GT_EDGES)
     pred, _ = build(GT_NODES, GT_EDGES)
-    TALLY.held("TestEvaluateDivisions test_perfect_prediction", division_counts(pred, gt, 1.0), (1, 0, 0))
+    TALLY.checked("TestEvaluateDivisions test_perfect_prediction", division_counts(pred, gt, 1.0), (1, 0, 0))
     pred, _ = build({"P": xyz(0, 0.0, 0.0, 0.0), "D": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 5.0, 0.0),
                      "G1": xyz(3, 0.0, 5.0, 0.0)},
                     [("P", "D"), ("D", "C1"), ("C1", "G1")])
-    TALLY.held("test_missed_division", division_counts(pred, gt, 1.0), (0, 1, 0))
+    TALLY.checked("test_missed_division", division_counts(pred, gt, 1.0), (0, 1, 0))
     gt, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C": xyz(2, 0.0, 0.0, 0.0)},
                   [("A", "B"), ("B", "C")])
     pred, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0), "C1": xyz(2, 0.0, 0.0, 0.0),
                      "C2": xyz(2, 0.0, 5.0, 0.0)},
                     [("A", "B"), ("B", "C1"), ("B", "C2")])
-    TALLY.held("test_spurious_division", division_counts(pred, gt, 1.0), (0, 0, 1))
+    TALLY.checked("test_spurious_division", division_counts(pred, gt, 1.0), (0, 0, 1))
     two = ({"A0": xyz(0, 0.0, 0.0, 0.0), "A1": xyz(1, 0.0, 0.0, 0.0), "B0": xyz(0, 0.0, 20.0, 0.0),
             "B1": xyz(1, 0.0, 20.0, 0.0)},
            [("A0", "A1"), ("B0", "B1")])
     gt, _ = build(*two)
     pred, pred_ids = build({"P": xyz(0, 0.0, 0.0, 0.0), "C1": xyz(1, 0.0, 0.0, 0.0), "C2": xyz(1, 0.0, 20.0, 0.0)},
                            [("P", "C1"), ("P", "C2")])
-    TALLY.held("test_children_matched_to_distinct_gt_components_are_one_fp: the false forks",
+    TALLY.checked("test_children_matched_to_distinct_gt_components_are_one_fp: the false forks",
                named(pred_ids, evaluate(pred, gt, 1.0)["divisions"]["fp_forks"]), {"P"})
-    TALLY.held("test_children_matched_to_distinct_gt_components_are_one_fp: tp, fn, fp",
+    TALLY.checked("test_children_matched_to_distinct_gt_components_are_one_fp: tp, fn, fp",
                division_counts(pred, gt, 1.0), (0, 0, 1))
     pred, _ = build({"P": xyz(0, 0.0, 10.0, 0.0), "C": xyz(1, 0.0, 0.0, 0.0), "X": xyz(1, 0.0, 50.0, 0.0)},
                     [("P", "C"), ("P", "X")])
-    TALLY.held("test_cross_component_rule_requires_two_matched_branches", division_counts(pred, gt, 1.0),
+    TALLY.checked("test_cross_component_rule_requires_two_matched_branches", division_counts(pred, gt, 1.0),
                (0, 0, 0))
     gt, _ = build(TWO_COMPONENT_NODES, TWO_COMPONENT_EDGES)
     pred, pred_ids = build({"F": xyz(0, 0.0, 10.0, 0.0), "A": xyz(1, 0.0, 0.0, 0.0), "U": xyz(1, 0.0, 40.0, 0.0),
                             "B": xyz(2, 0.0, 20.0, 0.0)},
                            [("F", "A"), ("F", "U"), ("U", "B")])
-    TALLY.held("test_uses_grandchild_when_direct_child_is_unmatched",
+    TALLY.checked("test_uses_grandchild_when_direct_child_is_unmatched",
                named(pred_ids, evaluate(pred, gt, 1.0)["divisions"]["fp_forks"]), {"F"})
     pred, _ = build({"F": xyz(0, 0.0, 10.0, 0.0), "A": xyz(1, 0.0, 0.0, 0.0), "U": xyz(1, 0.0, 40.0, 0.0),
                      "B": xyz(2, 0.0, 20.0, 0.0)},
                     [("F", "A"), ("F", "U"), ("A", "B")])
-    TALLY.held("test_does_not_mix_child_and_grandchild_from_one_branch", division_counts(pred, gt, 1.0), (0, 0, 0))
+    TALLY.checked("test_does_not_mix_child_and_grandchild_from_one_branch", division_counts(pred, gt, 1.0), (0, 0, 0))
     gt_nodes = dict(GT_NODES)
     gt_nodes.update({"X2": xyz(2, 0.0, 40.0, 0.0), "X3": xyz(3, 0.0, 40.0, 0.0), "Y2": xyz(2, 0.0, -40.0, 0.0),
                      "Y3": xyz(3, 0.0, -40.0, 0.0)})
@@ -375,13 +375,13 @@ def evaluate_divisions_cases():
     pred, _ = build({"P": GT_NODES["P"], "D": GT_NODES["D"], "C1": GT_NODES["C1"], "C2": GT_NODES["C2"],
                      "W1": gt_nodes["X3"], "W2": gt_nodes["Y3"]},
                     [("P", "D"), ("D", "C1"), ("D", "C2"), ("C1", "W1"), ("C2", "W2")])
-    TALLY.held("test_matched_children_take_precedence_over_wrong_grandchildren", division_counts(pred, gt, 1.0),
+    TALLY.checked("test_matched_children_take_precedence_over_wrong_grandchildren", division_counts(pred, gt, 1.0),
                (1, 0, 0))
     gt, _ = build(TWO_COMPONENT_NODES, TWO_COMPONENT_EDGES)
     pred, pred_ids = build({"F": xyz(0, 0.0, 10.0, 0.0), "U1": xyz(1, 0.0, 40.0, 0.0), "U2": xyz(1, 0.0, 50.0, 0.0),
                             "G": xyz(2, 0.0, 0.0, 0.0)},
                            [("F", "U1"), ("F", "U2"), ("U1", "G"), ("U2", "G")])
-    TALLY.held("test_merged_grandchild_makes_fork_malformed",
+    TALLY.checked("test_merged_grandchild_makes_fork_malformed",
                named(pred_ids, evaluate(pred, gt, 1.0)["divisions"]["fp_forks"]), {"F"})
     gt_spec = dict(TWO_DIVISIONS_GT[0])
     gt_spec.update({"A": xyz(0, 0.0, 30.0, 0.0), "B": xyz(1, 0.0, 30.0, 0.0), "C": xyz(2, 0.0, 30.0, 0.0)})
@@ -393,10 +393,10 @@ def evaluate_divisions_cases():
                      "E1": xyz(2, 0.0, 30.0, 0.0), "E2": xyz(2, 0.0, 35.0, 0.0)},
                     [("P1", "D1"), ("D1", "C1a"), ("D1", "C1b"), ("C1a", "C1a2"), ("C1b", "C1b2"), ("P2", "D2"),
                      ("D2", "C2a"), ("C2a", "C2a2"), ("A", "B"), ("B", "E1"), ("B", "E2")])
-    TALLY.held("test_mixed_tp_fn_fp", division_counts(pred, gt, 1.0), (1, 1, 1))
+    TALLY.checked("test_mixed_tp_fn_fp", division_counts(pred, gt, 1.0), (1, 1, 1))
     gt, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0)}, [("A", "B")])
     pred, _ = build({"A": xyz(0, 0.0, 0.0, 0.0), "B": xyz(1, 0.0, 0.0, 0.0)}, [("A", "B")])
-    TALLY.held("test_no_divisions_in_either", division_counts(pred, gt, 1.0), (0, 0, 0))
+    TALLY.checked("test_no_divisions_in_either", division_counts(pred, gt, 1.0), (0, 0, 0))
     gt, _ = build(GT_NODES, GT_EDGES)
     copies = {}
     copy_edges = []
@@ -407,7 +407,7 @@ def evaluate_divisions_cases():
         copy_edges += [("P%d" % copy, "D%d" % copy), ("D%d" % copy, "C%da" % copy), ("D%d" % copy, "C%db" % copy),
                        ("C%da" % copy, "G%da" % copy), ("C%db" % copy, "G%db" % copy)]
     pred, _ = build(copies, copy_edges)
-    TALLY.held("test_duplicate_pred_divisions_no_tp_inflation", division_counts(pred, gt, 1.0), (1, 0, 0))
+    TALLY.checked("test_duplicate_pred_divisions_no_tp_inflation", division_counts(pred, gt, 1.0), (1, 0, 0))
 
 
 # test_metrics.py
@@ -423,9 +423,9 @@ def make_graph_cases():
                   [("0", "1"), ("1", "2"), ("1", "3")])
     record = []
     tp, fp, fn, _ = score_metric.edge_counts(graph, gt, {1: 0, 2: 1, 5: 3}, record)
-    TALLY.held("test_evaluate_matched_graph_overlap",
+    TALLY.checked("test_evaluate_matched_graph_overlap",
                sorted([source, target] for source, target, matched, _ in record if matched), [[1, 2], [2, 5]])
-    TALLY.held("test_evaluate_matched_graph_pred_valid",
+    TALLY.checked("test_evaluate_matched_graph_pred_valid",
                sorted([source, target] for source, target, _, counted in record if counted),
                [[1, 2], [1, 3], [2, 4], [2, 5]])
     TALLY.near("test_compute_score_jaccard", tp / (tp + fp + fn), 2 / 5)
@@ -507,7 +507,7 @@ def edge_rule_cases():
     pred, _ = build(background, [("p0", "p1")])
     result = evaluate(pred, gt)
     TALLY.true("test_unmatched_gt_node_does_not_corrupt_nearby_match", jaccard_of(pred, gt) >= 0.0)
-    TALLY.held("test_unmatched_gt_node_does_not_corrupt_nearby_match: edge TP, FP, FN, by hand",
+    TALLY.checked("test_unmatched_gt_node_does_not_corrupt_nearby_match: edge TP, FP, FN, by hand",
                (result["edge_tp"], result["edge_fp"], result["edge_fn"]), (1, 0, 1))
 
     tracks = {"A": ORIGIN, "B": xyz(1, 0.0, 0.0, 0.0), "C": xyz(2, 0.0, 0.0, 0.0), "D": xyz(0, 0.0, 50.0, 0.0),
@@ -625,9 +625,9 @@ def edge_rule_cases():
 
 
 def with_d_at(nodes, t):
-    held = dict(nodes)
-    held["D"] = xyz(t, 100.0, 100.0, 100.0)
-    return held
+    moved = dict(nodes)
+    moved["D"] = xyz(t, 100.0, 100.0, 100.0)
+    return moved
 
 
 def without(graph, nodes=(), edges=()):
@@ -707,14 +707,14 @@ def csv_cases():
         "",
     ])
     graphs = score_metric.read_submission(io.StringIO(text))
-    TALLY.held("the CSV: its datasets", sorted(graphs), ["a", "b"])
-    TALLY.held("the CSV: a's nodes in row order", (graphs["a"].times, graphs["a"].places),
+    TALLY.checked("the CSV: its datasets", sorted(graphs), ["a", "b"])
+    TALLY.checked("the CSV: a's nodes in row order", (graphs["a"].times, graphs["a"].places),
                ([0, 1, 1], [(0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (0.0, 0.0, 2.0)]))
-    TALLY.held("the CSV: a's edges in row order, as its node ids name them", list(zip(graphs["a"].sources,
+    TALLY.checked("the CSV: a's edges in row order, as its node ids name them", list(zip(graphs["a"].sources,
                                                                                     graphs["a"].targets)),
                [(0, 1), (0, 2)])
-    TALLY.held("the CSV: a's frame 1 in row order", graphs["a"].by_time[1], [1, 2])
-    TALLY.held("the CSV: b's nodes, and its edge row ahead of them", (graphs["b"].times, graphs["b"].places,
+    TALLY.checked("the CSV: a's frame 1 in row order", graphs["a"].by_time[1], [1, 2])
+    TALLY.checked("the CSV: b's nodes, and its edge row ahead of them", (graphs["b"].times, graphs["b"].places,
                                                                       list(zip(graphs["b"].sources,
                                                                                graphs["b"].targets))),
                ([1, 0], [(1.5, 2.0, 3.0), (0.0, 0.0, 0.0)], [(1, 0)]))
@@ -723,7 +723,7 @@ def csv_cases():
         error = False
     except ValueError:
         error = True
-    TALLY.held("the CSV: an edge naming no node errors", error, True)
+    TALLY.checked("the CSV: an edge naming no node errors", error, True)
 
 
 def main():

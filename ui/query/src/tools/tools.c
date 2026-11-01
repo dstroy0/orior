@@ -14,33 +14,12 @@ QueryPaths g_query_cxx_sources;
 QueryPaths g_query_tool_sources;
 QueryPaths g_query_objects;
 
-int query_paths_reserved(QueryPaths *paths, unsigned int count)
+int query_paths_taken(QueryPaths *paths, unsigned int count)
 {
-    if (count <= paths->room)
-    {
-        return 1;
-    }
-    char (*const larger)[QUERY_PATH_MAX_LEN] =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)count * QUERY_PATH_MAX_LEN, &g_query_cells);
-    if (larger == NULL)
-    {
-        return 0;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = paths->path, .bytes = (size_t)paths->count * QUERY_PATH_MAX_LEN});
-    g_cli_cells->persistent_buf_release(paths->path, &g_query_cells);
-    paths->path = larger;
-    paths->room = count;
-    return 1;
-}
-
-int query_paths_room(QueryPaths *paths, unsigned int most)
-{
-    if (paths->count < paths->room)
-    {
-        return 1;
-    }
-    const unsigned int doubled = (paths->room == 0u) ? QUERY_PATHS_FIRST : (paths->room * 2u);
-    return (paths->count < most) && query_paths_reserved(paths, (doubled < most) ? doubled : most);
+    query_paths_given(paths);
+    paths->path = g_cli_cells->persistent_buf_alloc((unsigned long long)count * QUERY_PATH_MAX_LEN, &g_query_cells);
+    paths->room = (paths->path != NULL) ? count : 0u;
+    return paths->path != NULL;
 }
 
 void query_paths_given(QueryPaths *paths)
@@ -80,7 +59,7 @@ static void query_source_walked(void *context, const char *name, int is_folder)
 {
     QuerySourceWalk *const walk = (QuerySourceWalk *)context;
     QueryPaths *const found = walk->found;
-    if (is_folder || !query_extension_is(name, walk->extension) || !query_paths_room(found, QUERY_SOURCES_MOST))
+    if (is_folder || !query_extension_is(name, walk->extension) || (found->count >= found->room))
     {
         return;
     }
@@ -132,7 +111,7 @@ unsigned int query_sources(const char *root, const char *const *patterns, QueryP
             }
             continue;
         }
-        if (!query_paths_room(found, QUERY_SOURCES_MOST))
+        if (found->count >= found->room)
         {
             break;
         }
@@ -190,6 +169,9 @@ void query_every_source(const char *root, const QueryTool *tool, unsigned int *c
                         unsigned int *tools)
 {
     query_every_source_given();
+    (void)query_paths_taken(&g_query_c_sources, QUERY_SOURCES_MOST);
+    (void)query_paths_taken(&g_query_cxx_sources, QUERY_SOURCES_MOST);
+    (void)query_paths_taken(&g_query_tool_sources, QUERY_SOURCES_MOST);
     for (unsigned int group = 0u; (group < QUERY_TOOL_GROUPS) && (tool->c[group] != NULL); group += 1u)
     {
         (void)query_sources(root, tool->c[group], &g_query_c_sources);

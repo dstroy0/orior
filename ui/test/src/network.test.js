@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The network: Off the Network refusing each reach, saying what it was for; Network listing each
-// address reached with when and what for; and this machine's own addresses neither held nor listed.
+// address reached with when and what for; and this machine's own addresses neither kept nor listed.
 
 import { invoke } from "../../gui/src-js/bridge.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
@@ -44,7 +44,7 @@ test("Network lists each address reached, with when and what for, and turns Off 
   const box = document.querySelector(".sheet-network input[type=checkbox]");
   assert.equal(box.checked, false);
   await ui.click(box);
-  await ui.waitFor(() => offNetwork() && /held off the network/.test(document.querySelector(".network-said").textContent), 2000);
+  await ui.waitFor(() => offNetwork() && /kept off the network/.test(document.querySelector(".network-said").textContent), 2000);
   document.querySelector("dialog.sheet")?.close();
   runCommand("network-off", ["off"]);
   await ui.waitFor(() => !offNetwork(), 2000);

@@ -5,6 +5,7 @@
 // or the file it is read from; and the variables the file sets. Its lines are split as Rust's str::lines splits them
 // and trimmed of white letters as Rust's str::trim trims them
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "requests_internal.h"
 
 // the most lines of a file read, and the bytes its pool reserves past twice the file's, every text stored being of the
@@ -99,10 +100,7 @@ static int parse_head_line(CliRequestsParsed *parsed, CliRequest *request, const
         {
             start += 5u;
             cli_requests_trimmed(text, &start, &end);
-            while ((start < end) && (text[start] == '='))
-            {
-                start += 1u;
-            }
+            start = cli_text_past_any(text, start, end, "=");
             cli_requests_trimmed(text, &start, &end);
             request->name = parse_stored(parsed, text + start, end - start);
         }
@@ -364,9 +362,7 @@ static unsigned long long parse_lines_counted(const char *text, unsigned long lo
     unsigned long long lines = 0ull;
     for (unsigned long long at = 0ull; (at < size) && (lines < CLI_REQUESTS_LINES); lines += 1ull)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = (size_t)(size - at)});
-        at = (newline != NULL) ? ((unsigned long long)(newline - text) + 1ull) : size;
+        at = cli_text_line_at(text, at, size).next;
     }
     return lines;
 }
@@ -378,12 +374,11 @@ static int parse_read(const char *text, unsigned long long size, CliRequestsPars
     unsigned long long at = 0ull;
     while ((at < size) && (lines < CLI_REQUESTS_LINES))
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = (size_t)(size - at)});
-        unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        unsigned long long end = bounds.stop;
         s_line_start[lines] = at;
-        at = (newline != NULL) ? end + 1u : size;
-        end -= ((newline != NULL) && (end > s_line_start[lines]) && (text[end - 1u] == '\r')) ? 1u : 0u;
+        at = bounds.next;
+        end -= bounds.stop - bounds.cut;
         s_line_end[lines] = end;
         lines += 1ull;
     }

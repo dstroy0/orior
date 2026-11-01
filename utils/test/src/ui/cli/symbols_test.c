@@ -158,8 +158,8 @@ static void symbols_tree(void)
 
 // the signature of the call the cursor stands in at `line`, `col` of `text`, handed as the file `path`, checked
 // against `wanted` whole, or against its arguments and first declaration where `part` is set
-static void symbols_signature_held(const char *path, const char *text, unsigned int line, unsigned int col,
-                                   const char *wanted, int part, const char *what)
+static void symbols_signature_open_text(const char *path, const char *text, unsigned int line, unsigned int col,
+                                        const char *wanted, int part, const char *what)
 {
     char why[256];
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
@@ -210,7 +210,7 @@ static void symbols_signature(void)
     cli_symbols_forget();
     cli_symbols_refresh(root, s_paths, 4u);
     symbols_read_waited();
-    symbols_signature_held(
+    symbols_signature_open_text(
         "use.c", "static void run(unsigned int count)\n{\n    const char *name = \"x\";\n    total(count, name", 3u,
         21u,
         "{\"name\":\"total\",\"active\":1,\"arguments\":[{\"text\":\"count\",\"type\":\"unsigned int\"},{\"text\":"
@@ -221,26 +221,28 @@ static void symbols_signature(void)
         "\"variadic\":false,\"differs\":[0]},{\"path\":\"other.c\",\"line\":0,\"label\":\"int total(int first)\","
         "\"params\":[[10,19]],\"types\":[\"int\"],\"count\":false,\"variadic\":false,\"differs\":[0]}],"
         "\"reading\":false}",
-        0, "a call's declarations in order of fit, a parameter's and a local's types held against each");
-    symbols_signature_held("use.c", "    total(LIMIT, \"(\" ", 0u, 21u,
-                           "\"arguments\":[{\"text\":\"LIMIT\",\"type\":\"number\"},{\"text\":\"\\\"(\\\"\",\"type\":"
-                           "\"string\"}],\"declarations\":[{\"path\":\"lib.c\",\"line\":1",
-                           1, "a bracket in a string is not counted, and a name's type is read from the tree");
-    symbols_signature_held("use.c", "    total(LIMIT, \"(\" ", 0u, 21u,
-                           "\"differs\":[]},{\"path\":\"lib.c\",\"line\":2", 1,
-                           "and literals fit the parameters they are held against");
-    symbols_signature_held(
+        0, "a call's declarations in order of fit, a parameter's and a local's types open_text against each");
+    symbols_signature_open_text(
+        "use.c", "    total(LIMIT, \"(\" ", 0u, 21u,
+        "\"arguments\":[{\"text\":\"LIMIT\",\"type\":\"number\"},{\"text\":\"\\\"(\\\"\",\"type\":"
+        "\"string\"}],\"declarations\":[{\"path\":\"lib.c\",\"line\":1",
+        1, "a bracket in a string is not counted, and a name's type is read from the tree");
+    symbols_signature_open_text("use.c", "    total(LIMIT, \"(\" ", 0u, 21u,
+                                "\"differs\":[]},{\"path\":\"lib.c\",\"line\":2", 1,
+                                "and literals fit the parameters they are open_text against");
+    symbols_signature_open_text(
         "use.py", "def run(count: int):\n    label = \"y\"\n    total(count, label", 2u, 22u,
         "{\"name\":\"total\",\"active\":1,\"arguments\":[{\"text\":\"count\",\"type\":\"int\"},{\"text\":\"label\","
         "\"type\":\"string\"}],\"declarations\":[{\"path\":\"lib.py\",\"line\":0,\"label\":\"def total(first: int, "
         "second=\\\"x\\\")\",\"params\":[[10,20],[22,32]],\"types\":[\"int\",\"string\"],\"count\":true,"
         "\"variadic\":false,\"differs\":[]}],\"reading\":false}",
-        0, "Python's call held against its own language's declarations alone");
-    symbols_signature_held("use.py", "x = [total(1)]\n", 0u, 5u, "null", 0,
-                           "and a cursor in a bracket that opens no call has none");
-    symbols_signature_held("served.c", "int add(int a, int b) { return a + b; }\n\nint main(void) {\n  return add(1, 2)",
-                           3u, 16u, "\"declarations\":[{\"path\":\"served.c\",\"line\":0,\"label\":\"int add(int a, int b)\"",
-                           1, "a call of a function its own file defines on one line, its call left without its end");
+        0, "Python's call open_text against its own language's declarations alone");
+    symbols_signature_open_text("use.py", "x = [total(1)]\n", 0u, 5u, "null", 0,
+                                "and a cursor in a bracket that opens no call has none");
+    symbols_signature_open_text(
+        "served.c", "int add(int a, int b) { return a + b; }\n\nint main(void) {\n  return add(1, 2)", 3u, 16u,
+        "\"declarations\":[{\"path\":\"served.c\",\"line\":0,\"label\":\"int add(int a, int b)\"", 1,
+        "a call of a function its own file defines on one line, its call left without its end");
 }
 
 // `text` written as the file `name` under `root`, the folders above it made
@@ -257,8 +259,8 @@ static void symbols_written(const char *root, const char *name, const char *text
 }
 
 // the definition of `name` in effect at `line` of the file `path`, checked against `wanted`
-static void symbols_effect_held(const char *path, unsigned int line, const char *name, const char *wanted,
-                                const char *what)
+static void symbols_effect_open_text(const char *path, unsigned int line, const char *name, const char *wanted,
+                                     const char *what)
 {
     char why[256];
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
@@ -348,49 +350,51 @@ static void symbols_effect(void)
     cli_symbols_forget();
     cli_symbols_refresh(root, s_paths, 9u);
     symbols_read_waited();
-    symbols_effect_held("src/a/use.c", 2u, "LIMIT",
-                        "{\"name\":\"LIMIT\",\"path\":\"src/two.h\",\"line\":2,\"text\":\"16\"}",
-                        "a macro redefined under a condition the file's own define makes hold");
-    symbols_effect_held("src/a/more.c", 2u, "LIMIT",
-                        "{\"name\":\"LIMIT\",\"path\":\"src/one.h\",\"line\":3,\"text\":\"8\"}",
-                        "and under one its folder's define makes hold, where the redefinition's does not");
-    symbols_effect_held("tools/t.c", 1u, "LIMIT",
-                        "{\"name\":\"LIMIT\",\"path\":\"src/one.h\",\"line\":6,\"text\":\"4\"}",
-                        "and where neither holds, the other arm's");
-    symbols_effect_held("src/a/use.c", 2u, "FAST", "{\"name\":\"FAST\",\"path\":\"src\",\"line\":null,\"text\":\"1\"}",
-                        "a define every entry under a folder gives is the folder's");
-    symbols_effect_held("src/a/use.c", 2u, "LEVEL",
-                        "{\"name\":\"LEVEL\",\"path\":\"src/a/use.c\",\"line\":null,\"text\":\"2\"}",
-                        "and one the folder's other entries do not give is the file's");
-    symbols_effect_held("src/a/more.c", 2u, "speed",
-                        "{\"name\":\"speed\",\"path\":\"src/one.h\",\"line\":4,\"text\":\"int speed(void);\"}",
-                        "a declaration in effect is the one in the region that holds");
-    symbols_effect_held("tools/t.c", 1u, "speed",
-                        "{\"name\":\"speed\",\"path\":\"src/one.h\",\"line\":7,\"text\":\"int speed(int slow);\"}",
-                        "and the other where the other holds");
-    symbols_effect_held("tools/t.c", 1u, "none_such", "null", "and a name nothing defines has none");
-    symbols_effect_held("src/c/calls.c", 17u, "CHOSEN",
-                        "{\"name\":\"CHOSEN\",\"path\":\"src/c/calls.c\",\"line\":3,\"text\":\"1\"}",
-                        "a macro called with arguments in a condition, its value a choice and an argument octal");
-    symbols_effect_held("src/c/calls.c", 17u, "JOINED",
-                        "{\"name\":\"JOINED\",\"path\":\"src/c/calls.c\",\"line\":6,\"text\":\"1\"}",
-                        "two arguments joined into the name of a macro whose value is hexadecimal");
-    symbols_effect_held("src/c/calls.c", 17u, "PAST",
-                        "{\"name\":\"PAST\",\"path\":\"src/c/calls.c\",\"line\":9,\"text\":\"1\"}",
-                        "the arguments past the parameters handed on, one the define of an include folder outside the "
-                        "tree");
-    symbols_effect_held("src/c/calls.c", 17u, "BEFORE",
-                        "{\"name\":\"BEFORE\",\"path\":\"src/c/calls.c\",\"line\":12,\"text\":\"1\"}",
-                        "a define of a file included before the first line");
-    symbols_effect_held("src/c/calls.c", 17u, "ORDER",
-                        "{\"name\":\"ORDER\",\"path\":\"src/c/calls.c\",\"line\":15,\"text\":\"1\"}",
-                        "an argument put as its leaves, and a define the database gives called with arguments");
-    symbols_effect_held("src/c/calls.c", 17u, "OUTSIDE",
-                        "{\"name\":\"OUTSIDE\",\"path\":\"@symbols_effect_inc/out.h\",\"line\":0,\"text\":\"0x2A\"}",
-                        "a define of an include folder outside the tree is found under its mount");
-    symbols_effect_held("src/c/calls.c", 17u, "GIVEN",
-                        "{\"name\":\"GIVEN\",\"path\":\"src/c\",\"line\":null,\"text\":\"v+1\"}",
-                        "and a define the database gives called with arguments is its folder's");
+    symbols_effect_open_text("src/a/use.c", 2u, "LIMIT",
+                             "{\"name\":\"LIMIT\",\"path\":\"src/two.h\",\"line\":2,\"text\":\"16\"}",
+                             "a macro redefined under a condition the file's own define makes hold");
+    symbols_effect_open_text("src/a/more.c", 2u, "LIMIT",
+                             "{\"name\":\"LIMIT\",\"path\":\"src/one.h\",\"line\":3,\"text\":\"8\"}",
+                             "and under one its folder's define makes hold, where the redefinition's does not");
+    symbols_effect_open_text("tools/t.c", 1u, "LIMIT",
+                             "{\"name\":\"LIMIT\",\"path\":\"src/one.h\",\"line\":6,\"text\":\"4\"}",
+                             "and where neither holds, the other arm's");
+    symbols_effect_open_text("src/a/use.c", 2u, "FAST",
+                             "{\"name\":\"FAST\",\"path\":\"src\",\"line\":null,\"text\":\"1\"}",
+                             "a define every entry under a folder gives is the folder's");
+    symbols_effect_open_text("src/a/use.c", 2u, "LEVEL",
+                             "{\"name\":\"LEVEL\",\"path\":\"src/a/use.c\",\"line\":null,\"text\":\"2\"}",
+                             "and one the folder's other entries do not give is the file's");
+    symbols_effect_open_text("src/a/more.c", 2u, "speed",
+                             "{\"name\":\"speed\",\"path\":\"src/one.h\",\"line\":4,\"text\":\"int speed(void);\"}",
+                             "a declaration in effect is the one in the region that holds");
+    symbols_effect_open_text("tools/t.c", 1u, "speed",
+                             "{\"name\":\"speed\",\"path\":\"src/one.h\",\"line\":7,\"text\":\"int speed(int slow);\"}",
+                             "and the other where the other holds");
+    symbols_effect_open_text("tools/t.c", 1u, "none_such", "null", "and a name nothing defines has none");
+    symbols_effect_open_text("src/c/calls.c", 17u, "CHOSEN",
+                             "{\"name\":\"CHOSEN\",\"path\":\"src/c/calls.c\",\"line\":3,\"text\":\"1\"}",
+                             "a macro called with arguments in a condition, its value a choice and an argument octal");
+    symbols_effect_open_text("src/c/calls.c", 17u, "JOINED",
+                             "{\"name\":\"JOINED\",\"path\":\"src/c/calls.c\",\"line\":6,\"text\":\"1\"}",
+                             "two arguments joined into the name of a macro whose value is hexadecimal");
+    symbols_effect_open_text(
+        "src/c/calls.c", 17u, "PAST", "{\"name\":\"PAST\",\"path\":\"src/c/calls.c\",\"line\":9,\"text\":\"1\"}",
+        "the arguments past the parameters handed on, one the define of an include folder outside the "
+        "tree");
+    symbols_effect_open_text("src/c/calls.c", 17u, "BEFORE",
+                             "{\"name\":\"BEFORE\",\"path\":\"src/c/calls.c\",\"line\":12,\"text\":\"1\"}",
+                             "a define of a file included before the first line");
+    symbols_effect_open_text("src/c/calls.c", 17u, "ORDER",
+                             "{\"name\":\"ORDER\",\"path\":\"src/c/calls.c\",\"line\":15,\"text\":\"1\"}",
+                             "an argument put as its leaves, and a define the database gives called with arguments");
+    symbols_effect_open_text(
+        "src/c/calls.c", 17u, "OUTSIDE",
+        "{\"name\":\"OUTSIDE\",\"path\":\"@symbols_effect_inc/out.h\",\"line\":0,\"text\":\"0x2A\"}",
+        "a define of an include folder outside the tree is found under its mount");
+    symbols_effect_open_text("src/c/calls.c", 17u, "GIVEN",
+                             "{\"name\":\"GIVEN\",\"path\":\"src/c\",\"line\":null,\"text\":\"v+1\"}",
+                             "and a define the database gives called with arguments is its folder's");
 }
 
 // the slice for lines inside a loop inside a function: before them the include of no file of the tree, the defines,
@@ -442,12 +446,13 @@ static int symbols_definition_of(const char *path, unsigned int line, unsigned i
 static void symbols_completed(const char *typed, const char *wanted, const char *what)
 {
     char text[256];
-    VerbaLinea held = {text, sizeof(text), 0ull};
-    mmgr_line_put(&held, "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + ");
-    mmgr_line_put(&held, typed);
+    VerbaLinea open_text = {text, sizeof(text), 0ull};
+    mmgr_line_put(&open_text,
+                  "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + ");
+    mmgr_line_put(&open_text, typed);
     const unsigned int col = 15u + (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = typed, .cap = CLI_CELLS_POOL});
-    mmgr_line_put(&held, "\n}\n");
-    const unsigned long long size = mmgr_line_finish(&held);
+    mmgr_line_put(&open_text, "\n}\n");
+    const unsigned long long size = mmgr_line_finish(&open_text);
     char why[256];
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};

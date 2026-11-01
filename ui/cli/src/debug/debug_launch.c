@@ -270,17 +270,13 @@ int cli_debug_start(const char *root, const CliJson *json, unsigned int start, u
     {
         launch_configured(place, root, json, options, &info);
     }
-    // the launch's arguments written through pieces into a cell of their size, given back once sent
-    char piece[1024];
-    CliPieces pieces;
-    VerbaLinea arguments;
-    cli_pieces_begun(&pieces, &arguments, piece, sizeof(piece), &g_cli_debug_cells);
+    // the launch's arguments in a cell of the most they hold, given back once sent
+    char *const written = g_cli_cells->temporary_buf_alloc(CLI_DEBUG_ARGS, &g_cli_debug_cells);
+    VerbaLinea arguments = mmgr_line_over(written, CLI_DEBUG_ARGS);
     cli_json_write(&place->start, plan.arguments, &arguments, 0u, 0);
-    unsigned long long arguments_size = 0ull;
-    char *const written = cli_pieces_joined(&pieces, &arguments, "a launch's arguments", &arguments_size);
     unsigned long long seq = 0ull;
     const int sent =
-        (written != NULL) && cli_dap_sent(place->dap, plan.request, written, arguments_size, &seq, err_msg);
+        mmgr_line_ok(&arguments) && cli_dap_sent(place->dap, plan.request, written, arguments.at, &seq, err_msg);
     g_cli_cells->persistent_buf_release(written, &g_cli_debug_cells);
     if (!sent)
     {
@@ -306,12 +302,12 @@ int cli_debug_start(const char *root, const CliJson *json, unsigned int start, u
     {
         return launch_failed(place, &plan, err_msg);
     }
-    char body[1024];
-    VerbaLinea launched = {body, sizeof(body), 0ull};
+    CliLspAnswer launched;
     if (!cli_dap_waited(place->dap, plan.request, seq, CLI_DEBUG_STARTING, &launched, err_msg))
     {
         return launch_failed(place, &plan, err_msg);
     }
+    g_cli_cells->persistent_buf_release(launched.message, &g_cli_debug_cells);
     cli_lock_take(&g_cli_debug.lock);
     if (!info.has_process && (place->pid != 0ull))
     {

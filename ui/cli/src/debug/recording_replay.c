@@ -2,20 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // recording_replay.c: where the replay goes and what it stops at: a step forward or back, a stop at a breakpoint or a
 // raise, a frame's last step, the stop reported, the paths it compares, and a frame as a stack frame
+#include "../text/text.h"
 #include "recording_internal.h"
 
 // a path of the tree as the replay compares it: whole, with one kind of slash, and without case on Windows, into `key`
 void cli_replay_key(const char *path, char *key)
 {
     VerbaLinea out = {key, CLI_PATH_MAX_LEN, 0ull};
-    for (const char *letter = path; *letter != '\0'; letter += 1)
-    {
-        char one = (*letter == '\\') ? '/' : *letter;
+    (void)cli_text_put_swapped(&out, path, '\\', '/');
 #if defined(_WIN32)
-        one = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
+    cli_text_lowered(key, out.at);
 #endif
-        mmgr_line_ch(&out, one);
-    }
     mmgr_line_finish(&out);
 }
 
@@ -235,10 +232,7 @@ void cli_replay_frame_written(VerbaLinea *out, unsigned int serial, unsigned int
     mmgr_line_put(out, ",\"column\":1,\"source\":{\"name\":");
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL});
     size_t start = end;
-    while ((start > 0u) && (full[start - 1u] != '/') && (full[start - 1u] != '\\'))
-    {
-        start -= 1u;
-    }
+    start = (size_t)cli_text_back_any(full, start, "/\\");
     if (start == end)
     {
         mmgr_line_put(out, "null");

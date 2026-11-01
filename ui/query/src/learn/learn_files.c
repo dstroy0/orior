@@ -3,6 +3,7 @@
 // learn_files.c: what the part passes share with the cross, the pairs and the writers: a program's list of words, the
 // part's files in the tree and the vendor's tables, the carrier's words for a live pass, the base source through the
 // vendor's compiler, and nvdisasm beside nvcc
+#include "../../../cli/src/text/text.h"
 #include "../query_loops.h"
 
 void query_words_add(QueryWords *words, const char *word)
@@ -133,10 +134,9 @@ int query_base_compiled(QueryContext *context, const QueryRun *run, const char *
         listed = listing_code == 0ll;
     }
     const char *name = base;
-    for (const char *at = base; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (base + name_past) : name;
     char line[QUERY_LINE_MAX_LEN];
     VerbaLinea print_line = {line, sizeof(line), 0ull};
     mmgr_line_put(&print_line, listed ? "  the vendor's compiler read " : "  the vendor's compiler did not read ");

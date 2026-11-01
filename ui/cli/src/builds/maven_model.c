@@ -29,10 +29,10 @@ typedef struct
 static CliMavenMapped model_mapped(const char *path)
 {
     CliMavenMapped mapped = {NULL, 0ull};
-    mapped.bytes = cli_file_read(path, &mapped.size);
+    mapped.bytes = cli_file_taken(path, &mapped.size, &g_cli_maven_model_cells);
     if ((mapped.bytes != NULL) && (mapped.size > CLI_MAVEN_POM_TEXT))
     {
-        cli_file_let_go(mapped.bytes, mapped.size);
+        cli_file_given(mapped.bytes, &g_cli_maven_model_cells);
         mapped.bytes = NULL;
     }
     return mapped;
@@ -40,10 +40,7 @@ static CliMavenMapped model_mapped(const char *path)
 
 static void model_unmapped(CliMavenMapped mapped)
 {
-    if (mapped.bytes != NULL)
-    {
-        cli_file_let_go(mapped.bytes, mapped.size);
-    }
+    cli_file_given(mapped.bytes, &g_cli_maven_model_cells);
 }
 
 const char *cli_maven_property(const CliMavenModel *model, const char *name, unsigned long long size,
@@ -79,7 +76,7 @@ static void model_set(CliMavenModel *model, const char *name, unsigned long long
     {
         return;
     }
-    if ((at == model->properties) && !cli_maven_property_room(model))
+    if ((at == model->properties) && (at >= model->property_room))
     {
         return;
     }
@@ -326,7 +323,7 @@ static void model_holder(const CliXml *xml, unsigned int holder, CliMavenModel *
         unsigned long long artifact_size = 0ull;
         if (model_text_of(xml, one, "groupId", s_group, sizeof(s_group), &group_size) &&
             model_text_of(xml, one, "artifactId", s_artifact, sizeof(s_artifact), &artifact_size) &&
-            cli_maven_managed_room(model))
+            (model->managed < model->managed_room))
         {
             VerbaLinea key = {s_value, sizeof(s_value), 0ull};
             cli_maven_resolve(s_group, group_size, model, &key);
@@ -413,7 +410,8 @@ void cli_maven_model_of(const char *path, const char *text, unsigned long long s
 {
     cli_lock_take(&s_model_lock);
     cli_maven_model_given(model);
-    model->whole = 1;
+    cli_maven_model_taken(model);
+    model->whole = model->text != NULL;
     model_read(path, text, size, 0u, model);
     cli_lock_give(&s_model_lock);
 }

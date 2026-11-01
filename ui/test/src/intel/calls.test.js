@@ -4,7 +4,7 @@
 // The language server's places: definitions, the peeks, usages and the call hierarchy.
 
 import { editing } from "../../../gui/src-js/edit.js";
-import { noticesHeld, noticesSaid } from "../../../gui/src-js/statusbar.js";
+import { noticesWaiting, noticesSaid } from "../../../gui/src-js/statusbar.js";
 import { closePeek, peekShown } from "../../../gui/src-js/peek.js";
 import { made, PLUGINS_OFF, press, putBackAsFound, served } from "../../menus.js";
 
@@ -17,7 +17,7 @@ test("Go, Definition, the peeks, Find Usages and Call Hierarchy ask the language
     await press("peek-definition");
     return peekShown()?.places.length > 0;
   }, 30000, "clangd to find the definition").catch((error) => {
-    throw new Error(`${error.message}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesHeld()].slice(-4).map((one) => one.text))}; calls: ${JSON.stringify(made("lsp_definition").slice(-2))}; the language: ${editing().editor.s.language?.name}; plugins off: ${localStorage.getItem(PLUGINS_OFF)}`);
+    throw new Error(`${error.message}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesWaiting()].slice(-4).map((one) => one.text))}; calls: ${JSON.stringify(made("lsp_definition").slice(-2))}; the language: ${editing().editor.s.language?.name}; plugins off: ${localStorage.getItem(PLUGINS_OFF)}`);
   });
   assert.equal(peekShown().title, "Definition of helper");
   closePeek();

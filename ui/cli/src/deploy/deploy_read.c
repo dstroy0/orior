@@ -44,11 +44,14 @@ void *cli_deploy_placed(CliDeployPool *pool, unsigned long long size)
         }
         return own->bytes;
     }
-    const unsigned long long at = (newest != NULL) ? ((newest->used + 7u) & ~7ull) : 0ull;
-    if ((newest != NULL) && (at <= newest->size) && (size <= newest->size - at))
+    if (newest != NULL)
     {
-        newest->used = at + size;
-        return newest->bytes + at;
+        const unsigned long long at = (newest->used + 7u) & ~7ull;
+        if ((at <= newest->size) && (size <= newest->size - at))
+        {
+            newest->used = at + size;
+            return newest->bytes + at;
+        }
     }
     CliDeployPage *const page = read_page(pool, CLI_DEPLOY_PAGE);
     if (page == NULL)
@@ -242,20 +245,17 @@ int cli_deploy_read(const char *root, CliDeployTree *tree, const CliDeployment *
     *deployments = NULL;
     *count = 0u;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_deploy_cells);
     if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
     {
-        if (bytes != NULL)
-        {
-            cli_file_let_go(bytes, size);
-        }
+        cli_file_given(bytes, &g_cli_deploy_cells);
         return 1;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
     const unsigned int top =
         cli_json_taken(&tree->json, (const char *)bytes, size, 0u, 0ull, &read_err_msg, &g_cli_deploy_cells);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_deploy_cells);
     const CliJson *const json = &tree->json;
     if (top == CLI_JSON_NONE)
     {

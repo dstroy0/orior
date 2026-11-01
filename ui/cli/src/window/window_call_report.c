@@ -7,8 +7,8 @@
 #include "../machine/report.h"
 #include "window_internal.h"
 
-// the bytes the recent errors a report takes are begun to be read in, doubling as they are
-#define CLI_WINDOW_REPORT_FIRST 4096u
+// the bytes the recent errors a report takes are read in
+#define CLI_WINDOW_REPORT_ROOM (2ull << 20u)
 
 static CliLock s_lock = CLI_LOCK_INIT;
 
@@ -93,13 +93,14 @@ static int report_bug(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         field[at] = (text != NULL) ? text : "";
     }
     static CliFiled s_filed;
-    // the recent errors and the logs with them in growing lines, given back once the report is filed
+    // the recent errors and the logs with them in lines of their own, given back once the report is filed
     VerbaLinea recent = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
     VerbaLinea logs = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
     cli_lock_take(&s_lock);
     if (with_errors)
     {
-        (void)cli_growing_line_temporary(&recent, CLI_WINDOW_REPORT_FIRST, &g_cli_window_cells);
+        char *const recent_cell = g_cli_cells->temporary_buf_alloc(CLI_WINDOW_REPORT_ROOM, &g_cli_window_cells);
+        recent = mmgr_line_over(recent_cell, CLI_WINDOW_REPORT_ROOM);
         cli_report_recent(&recent);
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
@@ -107,7 +108,9 @@ static int report_bug(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         unsigned long long errors_to = 0ull;
         cli_text_trimmed(field[4], cellul.len(&(CatenaFinitaCfg){.src = field[4], .cap = CLI_CELLS_POOL}), &from, &to);
         cli_text_trimmed(recent.out, mmgr_line_ok(&recent) ? recent.at : 0ull, &errors_from, &errors_to);
-        (void)cli_growing_line_temporary(&logs, (to - from) + (errors_to - errors_from) + 4ull, &g_cli_window_cells);
+        const unsigned long long logs_room = (to - from) + (errors_to - errors_from) + 4ull;
+        char *const logs_cell = g_cli_cells->temporary_buf_alloc(logs_room, &g_cli_window_cells);
+        logs = mmgr_line_over(logs_cell, logs_room);
         mmgr_line_put_n(&logs, field[4] + from, to - from);
         mmgr_line_put(&logs, ((to > from) && (errors_to > errors_from)) ? "\n\n" : "");
         mmgr_line_put_n(&logs, recent.out + errors_from, errors_to - errors_from);

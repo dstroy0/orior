@@ -7,11 +7,10 @@
 #include "../editor/files.h"
 #include "serve_internal.h"
 
-// the most files one bring copies, the most bytes of their paths, and the bytes what it reports is begun to be written
-// in, doubling as it is
+// the most files one bring copies, the most bytes of their paths, and the bytes what it reports is written in
 #define CLI_SERVE_BRINGS 4096u
 #define CLI_SERVE_BRING_PATHS (1u << 20u)
-#define CLI_SERVE_BRING_PROGRESS_INIT_CAP 4096u
+#define CLI_SERVE_BRING_MORE (64ull << 10u)
 
 // A bring of files on a thread of its own: the tree, whether it is on another machine over the link, the folder they go
 // into, the files and the texts of their paths, one cell of their count and their bytes the bring gives back as it ends
@@ -65,15 +64,18 @@ static void bring_run(void *context)
 {
     CliServeBring *const bring = context;
     char why[1024];
-    VerbaLinea brought;
-    (void)cli_growing_line_temporary(&brought, CLI_SERVE_BRING_PROGRESS_INIT_CAP, &g_cli_serve_strings_cells);
+    const unsigned long long brought_room =
+        ((unsigned long long)bring->count * ((CLI_PATH_MAX_LEN * 6ull) + 16ull)) + CLI_SERVE_BRING_MORE;
+    char *const brought_cell = g_cli_cells->temporary_buf_alloc(brought_room, &g_cli_serve_strings_cells);
+    VerbaLinea brought = mmgr_line_over(brought_cell, brought_room);
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const int done = bring->linked ? cli_files_bring_over(bring_linked_call, NULL, bring->into, bring->from,
                                                           bring->count, bring_progress, NULL, &brought, &err_msg)
                                    : cli_files_bring(bring->root, bring->into, bring->from, bring->count,
                                                      bring_progress, NULL, &brought, &err_msg);
-    VerbaLinea line;
-    (void)cli_growing_line_temporary(&line, brought.at + CLI_SERVE_BRING_PROGRESS_INIT_CAP, &g_cli_serve_strings_cells);
+    const unsigned long long line_room = brought.at + CLI_SERVE_BRING_MORE;
+    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_serve_strings_cells);
+    VerbaLinea line = mmgr_line_over(line_cell, line_room);
     mmgr_line_put(&line, "{\"into\":");
     cli_json_quoted_lossy(&line, (const unsigned char *)bring->into,
                           cellul.len(&(CatenaFinitaCfg){.src = bring->into, .cap = CLI_CELLS_POOL}));

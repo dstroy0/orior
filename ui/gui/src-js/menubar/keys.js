@@ -102,9 +102,9 @@ export function applyKeys() {
 // Every command of the menus, each once, for Preferences' keys.
 export const allCommands = () => state.menus.flatMap((menu) => menu.all.map((item) => ({ ...item, menu: menu.title, item })));
 
-// Runs the command that holds `name`, a button of the mouse or the wheel turned with a key held, where
+// Runs the command that holds `name`, a button of the mouse or the wheel turned with a key pressed, where
 // one does and can act now; says whether one did.
-export function runHeld(name) {
+export function runPressed(name) {
   if (!name) {
     return false;
   }

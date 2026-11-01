@@ -121,10 +121,9 @@ static int cli_zmtp_greeted(const CliSocket *socket, const char *kind, VerbaLine
     {
         mmgr_line_put(err_msg, "the peer requests the ");
         unsigned int length = 0u;
-        while ((length < 20u) && (theirs[12u + length] != 0u))
-        {
-            length += 1u;
-        }
+        const unsigned char *const ended = memor.chr(&(MemoriaCfg){.src = &theirs[12], .val = 0, .bytes = 20u});
+        // a 0 found lies in the 20 bytes, which an unsigned int stores
+        length = (ended != NULL) ? (unsigned int)(ended - &theirs[12]) : 20u;
         mmgr_line_put_n(err_msg, (const char *)&theirs[12], length);
         mmgr_line_put(err_msg, " mechanism, where orior_cli supports NULL");
         return 0;

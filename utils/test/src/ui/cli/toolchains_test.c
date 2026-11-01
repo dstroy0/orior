@@ -347,10 +347,29 @@ static void toolchains_run_path(void)
     g_cli_cells->persistent_buf_release(path, &g_checks_cells);
 }
 
+// the chosen folders told counted
+static void toolchains_chosen_counted(void *context, const char *id, const char *folder)
+{
+    (void)id;
+    (void)folder;
+    *(unsigned int *)context += 1u;
+}
+
+// A pool too small for the chosen list's read: the read refused tells nothing and stops there
+static void toolchains_chosen_refused(void)
+{
+    cli_check(cli_cells_made(256ull), "the pool is made too small for the chosen list's read");
+    unsigned int told = 0u;
+    cli_toolchains_chosen_each(toolchains_chosen_counted, &told);
+    cli_check(told == 0u, "a read the cells refuse tells no chosen folder");
+    cli_check(cli_cells_made(CLI_CELLS_POOL), "and takes nothing it does not give back");
+}
+
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check_begun();
+    toolchains_chosen_refused();
     char home[CLI_PATH_MAX_LEN];
     cli_check_folder("toolchains_home", home);
     (void)query_environment_set("ORIOR_HOME", home);

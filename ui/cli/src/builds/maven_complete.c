@@ -211,10 +211,7 @@ static void complete_coordinates(const char *text, unsigned long long tag_end, c
     if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "groupId", .cap = CLI_CELLS_POOL}))
     {
         unsigned long long typed = token_size;
-        while ((typed > 0u) && (token[typed - 1u] != '.'))
-        {
-            typed -= 1u;
-        }
+        typed = cli_text_back_any(token, typed, ".");
         complete_group_path(repository, token, typed, folder);
         complete_repository(folder, token, typed, token, token_size, items);
         return;
@@ -296,10 +293,7 @@ void cli_maven_complete(const char *path, const char *text, unsigned long long s
     cli_lock_take(&s_complete_lock);
     const unsigned long long token = cli_build_run_before(text, at, complete_name_letter);
     unsigned long long line_start = token;
-    while ((line_start > 0u) && (text[line_start - 1u] != '\n'))
-    {
-        line_start -= 1u;
-    }
+    line_start = cli_text_back_any(text, line_start, "\n");
     const char *const lead = text + line_start;
     const unsigned long long lead_size = token - line_start;
     const char *const typed = text + token;
@@ -330,10 +324,7 @@ void cli_maven_complete(const char *path, const char *text, unsigned long long s
     else
     {
         unsigned long long tag = lead_size;
-        while ((tag > 0u) && (lead[tag - 1u] != '<'))
-        {
-            tag -= 1u;
-        }
+        tag = cli_text_back_any(lead, tag, "<");
         if ((tag > 0u) && (tag < lead_size) && (lead[tag] != '/') &&
             (memor.chr(&(MemoriaCfg){.src = lead + tag, .val = '>', .bytes = (size_t)(lead_size - tag)}) != NULL))
         {

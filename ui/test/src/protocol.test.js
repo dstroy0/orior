@@ -198,7 +198,7 @@ test("a round's line gives the latency, and the errors are counted off the conso
   telemetryStep(telemetry, blob("conference_q7", 400, PANIC), 100);
   const read = telemetryRead(telemetry, { nowMs: 200, reading: panelStart() });
   assert.deepEqual([read.airlock, read.cross, read.carrier], [0.62, 0.5, 0.3]);
-  assert.deepEqual([read.held, read.refused, read.faulted, read.panics], [1, 1, 1, 1]);
+  assert.deepEqual([read.blocked, read.refused, read.faulted, read.panics], [1, 1, 1, 1]);
   assert.equal(telemetry.questions, 21);
 });
 

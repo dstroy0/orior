@@ -4,6 +4,7 @@
 // it read and may leave. Every process a loop starts reaches the run by QRY. A run's .qry contains everything the run
 // did and every file it ran against, as it read each one and as it left each one it changed. As a run ends only the
 // newest QRY_RETAINED runs of its folder are retained, 64 where it is not set
+#include "../../../cli/src/text/text.h"
 #include "../query_internal.h"
 
 // the folder the course's runs are stored in (course.c)
@@ -13,10 +14,9 @@
 static void query_parent_of(const char *path, const char *root, char *folder)
 {
     const char *slash = NULL;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        slash = ((*at == '/') || (*at == '\\')) ? at : slash;
-    }
+    const unsigned long long slash_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    slash = (slash_past != 0ull) ? (path + (slash_past - 1ull)) : slash;
     VerbaLinea line = {folder, QUERY_PATH_MAX_LEN, 0ull};
     if (slash != NULL)
     {
@@ -35,6 +35,13 @@ static void query_run_paths_given(QueryRun *run)
 {
     query_paths_given(&run->read);
     query_paths_given(&run->left);
+}
+
+// the cells of the files a run reads and may leave taken at their most
+static void query_run_paths_taken(QueryRun *run)
+{
+    (void)query_paths_taken(&run->read, QUERY_LEAVES_MOST);
+    (void)query_paths_taken(&run->left, QUERY_LEAVES_MOST);
 }
 
 // the run's writer named: its program built where stale, its .qry and the top of the tree
@@ -72,6 +79,7 @@ int query_run_joining(QueryRun *run, const char *root, const char *qry, const Qu
     }
     query_parent_of(qry, root, run->folder);
     run->joined = 1;
+    query_run_paths_taken(run);
     return 1;
 }
 
@@ -90,6 +98,7 @@ int query_run_started(QueryRun *run, const char *root, const char *folder, const
             *run = joined;
             query_parent_of(qry_path, root, run->folder);
             run->joined = 1;
+            query_run_paths_taken(run);
             return 1;
         }
         err_msg->at = 0ull;
@@ -131,6 +140,7 @@ int query_run_started(QueryRun *run, const char *root, const char *folder, const
         mmgr_line_put(err_msg, "the run's buffer could not be opened");
         return 0;
     }
+    query_run_paths_taken(run);
     return 1;
 }
 
@@ -138,10 +148,9 @@ int query_run_started(QueryRun *run, const char *root, const char *folder, const
 static const char *query_base(const char *path)
 {
     const char *base = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        base = ((*at == '/') || (*at == '\\')) ? (at + 1) : base;
-    }
+    const unsigned long long base_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    base = (base_past != 0ull) ? (path + base_past) : base;
     return base;
 }
 
@@ -300,7 +309,7 @@ int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, 
                 return 0;
             }
         }
-        if (query_paths_room(&run->read, QUERY_LEAVES_MOST))
+        if (run->read.count < run->read.room)
         {
             memor.cpy(
                 &(MemoriaCfg){.dst = run->read.path[run->read.count],
@@ -314,7 +323,7 @@ int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, 
 
 void query_run_left(QueryRun *run, const char *const *paths, unsigned int count)
 {
-    for (unsigned int at = 0u; (at < count) && query_paths_room(&run->left, QUERY_LEAVES_MOST); at += 1u)
+    for (unsigned int at = 0u; (at < count) && (run->left.count < run->left.room); at += 1u)
     {
         memor.cpy(&(MemoriaCfg){.dst = run->left.path[run->left.count],
                                 .src = paths[at],

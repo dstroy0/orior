@@ -10,15 +10,13 @@
 #include "watch_internal.h"
 
 // how long a bundle waits for another change before it goes, the longest it gathers changes for, in milliseconds; the
-// most changes waiting and gathered in one bundle; the changes and the bytes of their paths a list of them is begun
-// with, doubling as they come; and the bytes a bundle is begun to be written in, doubling as it is
+// most changes waiting and gathered in one bundle; the changes and the bytes of their paths a list of them is taken
+// with; and the bytes a bundle is written in
 #define CLI_WATCH_QUIET 150ull
 #define CLI_WATCH_BATCH_MOST 1000ull
 #define CLI_WATCH_QUEUE 4096u
 #define CLI_WATCH_GATHERED 16384u
-#define CLI_WATCH_CHANGES_FIRST 64u
-#define CLI_WATCH_TEXT_FIRST 4096u
-#define CLI_WATCH_JSON_FIRST 4096u
+#define CLI_WATCH_TEXT_ROOM (256ull << 10u)
 
 // A change: its path's place in the list's texts, and its kind
 typedef struct
@@ -28,7 +26,7 @@ typedef struct
 } CliChange;
 
 // A list of changes: `count` of them in a cell of `change_bytes`, and their paths, `used` bytes in a cell of `bytes`;
-// each cell grown as changes are put and given back as the list is let go
+// each cell at their most
 typedef struct
 {
     CliChange *change;
@@ -71,30 +69,6 @@ typedef struct
 static CliWatching s_watching = {.wake = CLI_WAKE_INIT};
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// a cell of `*room` bytes, `used` of them in use, made to fit `wanted`: moved into a cell of twice its room, or of
-// `first` where it has none, doubled until it does, its bytes copied and the old cell given back. The cell after, or
-// NULL where the cellblock could not meet it, the old cell retained
-static void *cli_watch_grown(void *cell, unsigned long long used, unsigned long long *room, unsigned long long wanted,
-                             unsigned long long first)
-{
-    if (wanted <= *room)
-    {
-        return cell;
-    }
-    unsigned long long grown = (*room == 0ull) ? first : *room;
-    while (grown < wanted)
-    {
-        grown *= 2ull;
-    }
-    void *const larger = cli_cell_regrown(cell, (size_t)used, grown, &g_cli_watch_cells);
-    if (larger == NULL)
-    {
-        return NULL;
-    }
-    *room = grown;
-    return larger;
-}
-
 // the change of `kind` at `path` put after the list's: 1, or 0 where it contains `most` or the cellblock could not meet
 // the room for it
 static int cli_change_put(CliChanges *changes, const char *path, unsigned int kind, unsigned int most)
@@ -104,23 +78,20 @@ static int cli_change_put(CliChanges *changes, const char *path, unsigned int ki
         return 0;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1ull;
-    char *const text =
-        cli_watch_grown(changes->text, changes->used, &changes->bytes, changes->used + length, CLI_WATCH_TEXT_FIRST);
-    if (text == NULL)
+    if (changes->text == NULL)
+    {
+        changes->text = g_cli_cells->persistent_buf_alloc(CLI_WATCH_TEXT_ROOM, &g_cli_watch_cells);
+        changes->change =
+            g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CliChange), &g_cli_watch_cells);
+        changes->bytes = (changes->text != NULL) ? CLI_WATCH_TEXT_ROOM : 0ull;
+        changes->change_bytes = (changes->change != NULL) ? ((unsigned long long)most * sizeof(CliChange)) : 0ull;
+    }
+    if ((changes->change == NULL) || ((changes->used + length) > changes->bytes))
     {
         return 0;
     }
-    changes->text = text;
-    CliChange *const change =
-        cli_watch_grown(changes->change, changes->count * sizeof(CliChange), &changes->change_bytes,
-                        (changes->count + 1ull) * sizeof(CliChange), CLI_WATCH_CHANGES_FIRST * sizeof(CliChange));
-    if (change == NULL)
-    {
-        return 0;
-    }
-    changes->change = change;
-    memor.cpy(&(MemoriaCfg){.dst = text + changes->used, .src = path, .bytes = (size_t)length});
-    change[changes->count] = (CliChange){changes->used, kind};
+    memor.cpy(&(MemoriaCfg){.dst = changes->text + changes->used, .src = path, .bytes = (size_t)length});
+    changes->change[changes->count] = (CliChange){changes->used, kind};
     changes->used += length;
     changes->count += 1u;
     return 1;
@@ -315,8 +286,10 @@ static void cli_batched(void *context)
             cli_waiting_taken(batch);
         }
         cli_lock_give(&s_lock);
-        VerbaLinea out;
-        (void)cli_growing_line_temporary(&out, CLI_WATCH_JSON_FIRST, &g_cli_watch_cells);
+        const unsigned long long out_room =
+            (batch->changes.used * 12ull) + ((unsigned long long)batch->changes.count * 32ull) + 256ull;
+        char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_cli_watch_cells);
+        VerbaLinea out = mmgr_line_over(out_cell, out_room);
         const int any = cli_gathered(batch, &out);
         const int stopping = cli_watch_stopping();
         if (!stopping && any && mmgr_line_ok(&out))

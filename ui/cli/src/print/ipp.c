@@ -5,70 +5,43 @@
 
 void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int request_id)
 {
+    cli_ipp_given(message);
     message->code = code;
     message->request_id = request_id;
-    message->groups = 0u;
-    message->attributes = 0u;
-    message->values = 0u;
-    message->used = 0u;
-    message->data = NULL;
-    message->data_length = 0ull;
-    message->full = 0;
+    const unsigned long long group_bytes = (unsigned long long)CLI_IPP_GROUPS * sizeof(CliIppGroup);
+    const unsigned long long attribute_bytes = (unsigned long long)CLI_IPP_ATTRIBUTES * sizeof(CliIppAttribute);
+    const unsigned long long value_bytes = (unsigned long long)CLI_IPP_VALUES * sizeof(CliIppValue);
+    char *const cell = g_cli_cells->persistent_buf_alloc(group_bytes + attribute_bytes + value_bytes + CLI_IPP_BYTES,
+                                                         &g_cli_ipp_cells);
+    if (cell == NULL)
+    {
+        message->full = 1;
+        return;
+    }
+    message->group = (CliIppGroup *)(void *)cell;
+    message->group_room = CLI_IPP_GROUPS;
+    message->attribute = (CliIppAttribute *)(void *)(cell + group_bytes);
+    message->attribute_room = CLI_IPP_ATTRIBUTES;
+    message->value = (CliIppValue *)(void *)(cell + group_bytes + attribute_bytes);
+    message->value_room = CLI_IPP_VALUES;
+    message->bytes = (unsigned char *)(cell + group_bytes + attribute_bytes + value_bytes);
+    message->byte_room = CLI_IPP_BYTES;
 }
-
-// the groups, attributes and values, and the bytes, a message's rooms are begun with, each doubling as it is put
-#define CLI_IPP_FIRST 16u
-#define CLI_IPP_BYTES_FIRST 1024u
 
 void cli_ipp_given(CliIppMessage *message)
 {
     g_cli_cells->persistent_buf_release(message->group, &g_cli_ipp_cells);
-    g_cli_cells->persistent_buf_release(message->attribute, &g_cli_ipp_cells);
-    g_cli_cells->persistent_buf_release(message->value, &g_cli_ipp_cells);
-    g_cli_cells->persistent_buf_release(message->bytes, &g_cli_ipp_cells);
     *message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ull, 0};
-}
-
-// `list`, `count` items of `each` bytes in a room of `*room`, made to fit `wanted` in all, `most` at the most, its
-// room begun at `first`: the list, moved into a cell of doubled room where it is too small; or NULL with the message
-// full where `wanted` is past `most` or the cell is refused
-static void *cli_room(CliIppMessage *message, void *list, unsigned int count, unsigned int *room,
-                      unsigned long long each, unsigned long long wanted, unsigned int most, unsigned int first,
-                      const char *what)
-{
-    if (wanted <= *room)
-    {
-        return list;
-    }
-    unsigned long long grown = (*room == 0u) ? first : *room;
-    while (grown < wanted)
-    {
-        grown *= 2ull;
-    }
-    grown = (grown < most) ? grown : most;
-    void *const larger =
-        (wanted <= most) ? cli_cell_regrown(list, (size_t)(count * each), grown * each, &g_cli_ipp_cells) : NULL;
-    if (larger == NULL)
-    {
-        message->full = 1;
-        return NULL;
-    }
-    // a room no more than `most`, which an unsigned int stores
-    *room = (unsigned int)grown;
-    return larger;
 }
 
 // `length` bytes stored among the message's: where they start
 static unsigned int cli_bytes_stored(CliIppMessage *message, const void *bytes, unsigned long long length)
 {
-    unsigned char *const bytes_at =
-        cli_room(message, message->bytes, message->used, &message->byte_room, 1ull, message->used + length,
-                 CLI_IPP_BYTES, CLI_IPP_BYTES_FIRST, "an IPP message's bytes");
-    if (bytes_at == NULL)
+    if ((message->used + length) > message->byte_room)
     {
+        message->full = 1;
         return 0u;
     }
-    message->bytes = bytes_at;
     const unsigned int at = message->used;
     memor.cpy(&(MemoriaCfg){.dst = message->bytes + at, .src = bytes, .bytes = length});
     // the bytes are below CLI_IPP_BYTES, which an unsigned int counts
@@ -78,33 +51,24 @@ static unsigned int cli_bytes_stored(CliIppMessage *message, const void *bytes, 
 
 void cli_ipp_group(CliIppMessage *message, unsigned int tag)
 {
-    CliIppGroup *const groups =
-        cli_room(message, message->group, message->groups, &message->group_room, sizeof(CliIppGroup),
-                 message->groups + 1ull, CLI_IPP_GROUPS, CLI_IPP_FIRST, "an IPP message's groups");
-    if (groups == NULL)
+    if (message->groups >= message->group_room)
     {
+        message->full = 1;
         return;
     }
-    message->group = groups;
     const CliIppGroup group = {tag, message->attributes, 0u};
     message->group[message->groups] = group;
     message->groups += 1u;
 }
 
-// an attribute of `length` bytes of `name` begun in the last group
+// an attribute of `length` bytes of `name` written in the last group
 static void cli_attribute_counted(CliIppMessage *message, const void *name, unsigned long long length)
 {
-    CliIppAttribute *const attributes =
-        (message->groups != 0u) ? cli_room(message, message->attribute, message->attributes, &message->attribute_room,
-                                           sizeof(CliIppAttribute), message->attributes + 1ull, CLI_IPP_ATTRIBUTES,
-                                           CLI_IPP_FIRST, "an IPP message's attributes")
-                                : NULL;
-    if (attributes == NULL)
+    if ((message->groups == 0u) || (message->attributes >= message->attribute_room))
     {
         message->full = 1;
         return;
     }
-    message->attribute = attributes;
     // a name is at most what the encoding's 16 bits count
     const CliIppAttribute attribute = {cli_bytes_stored(message, name, length), (unsigned int)length, message->values,
                                        0u};
@@ -121,17 +85,11 @@ void cli_ipp_attribute(CliIppMessage *message, const char *name)
 // a value put after the last attribute's
 static void cli_value(CliIppMessage *message, const CliIppValue *value)
 {
-    CliIppValue *const values =
-        (message->attributes != 0u)
-            ? cli_room(message, message->value, message->values, &message->value_room, sizeof(CliIppValue),
-                       message->values + 1ull, CLI_IPP_VALUES, CLI_IPP_FIRST, "an IPP message's values")
-            : NULL;
-    if (values == NULL)
+    if ((message->attributes == 0u) || (message->values >= message->value_room))
     {
         message->full = 1;
         return;
     }
-    message->value = values;
     message->value[message->values] = *value;
     message->values += 1u;
     message->attribute[message->attributes - 1u].count += 1u;

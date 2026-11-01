@@ -47,10 +47,7 @@ int query_version_of(const unsigned char *output, unsigned long long size, char 
             continue;
         }
         unsigned long long end = at + 1ull;
-        while ((end < size) && (((output[end] >= '0') && (output[end] <= '9')) || (output[end] == '.')))
-        {
-            end += 1ull;
-        }
+        end = cli_text_past_class(output, end, size, CLI_TEXT_DIGITS, ".");
         if ((end > (at + 1ull)) &&
             ((end == size) || (output[end] == ' ') || (output[end] == '\n') || (output[end] == '\r')))
         {
@@ -78,17 +75,9 @@ unsigned int query_architectures_of(const unsigned char *output, unsigned long l
     unsigned long long at = 0ull;
     while ((at < size) && (count < QUERY_ARCHITECTURES_MOST))
     {
-        while ((at < size) &&
-               ((output[at] == ' ') || (output[at] == '\n') || (output[at] == '\r') || (output[at] == '\t')))
-        {
-            at += 1ull;
-        }
+        at = cli_text_past_any((const char *)output, at, size, " \n\r\t");
         const unsigned long long first = at;
-        while ((at < size) && (output[at] != ' ') && (output[at] != '\n') && (output[at] != '\r') &&
-               (output[at] != '\t'))
-        {
-            at += 1ull;
-        }
+        at = cli_text_to_any((const char *)output, at, size, " \n\r\t");
         if (((at - first) > 8ull) && ((at - first) < 18ull) &&
             (memor.cmp(&(MemoriaCfg){.src = output + first, .other = "compute_", .bytes = 8u}) == 0))
         {
@@ -110,10 +99,7 @@ void query_in_container(const char *root, const char *path, char *inside)
                             : path;
     VerbaLinea line = {inside, QUERY_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, "/tree/");
-    for (const char *at = under; *at != '\0'; at += 1)
-    {
-        mmgr_line_ch(&line, (*at == '\\') ? '/' : *at);
-    }
+    (void)cli_text_put_swapped(&line, under, '\\', '/');
     mmgr_line_finish(&line);
 }
 

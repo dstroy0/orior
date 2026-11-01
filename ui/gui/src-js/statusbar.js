@@ -18,7 +18,7 @@ import { still } from "./motion.js";
 const MEMORY_EVERY = 2000;
 
 // The memory budget: the setting's key, and the budget in megabytes where none is set. While the app
-// holds more in RAM than the budget, it is held to it no more often than HOLD_EVERY.
+// holds more in RAM than the budget, it is kept to it no more often than HOLD_EVERY.
 const BUDGET_KEY = "orior.memory-budget";
 const BUDGET = 2048;
 const HOLD_EVERY = 10000;
@@ -40,7 +40,7 @@ export function setMemoryBudget(mb) {
 }
 
 // The last reading, and what holds the app to its budget, which the editor gives.
-const memory = { read: null, hold: null, held: 0 };
+const memory = { read: null, hold: null, lastAt: 0 };
 
 export function lastMemory() {
   return memory.read;
@@ -52,7 +52,7 @@ export function onOverBudget(hold) {
 
 // What the app holds in RAM on the bar, and over it the budget, then each program's share: its
 // processes, what it holds in RAM and what it has reserved, which is the most it could come to hold
-// and not what it holds. Over the budget, the reading is marked and the app held to the budget.
+// and not what it holds. Over the budget, the reading is marked and the app kept to the budget.
 async function drawMemory() {
   const node = document.getElementById("status-memory");
   if (still()) {
@@ -81,8 +81,8 @@ async function drawMemory() {
   if (!node.matches(":hover")) {
     node.title = [`orior and its web view: ${megabytes(read.orior.working)} in RAM`, `with the tools it started: ${megabytes(read.working)} in RAM of a budget of ${megabytes(budget)}`, ...rows, cellblock, `Reserved is the most a program could come to hold, not what it holds.`].filter(Boolean).join("\n");
   }
-  if (over && memory.hold && performance.now() - memory.held > HOLD_EVERY) {
-    memory.held = performance.now();
+  if (over && memory.hold && performance.now() - memory.lastAt > HOLD_EVERY) {
+    memory.lastAt = performance.now();
     memory.hold(budget);
   }
 }
@@ -143,7 +143,7 @@ export function onNotice(listener) {
 const ANSWERS = 1500;
 const REST = 2000;
 const BREAKS = new Set(["file_write", "git_commit", "git_commit_parts"]);
-const breaks = { commanded: -Infinity, input: performance.now(), held: [], timer: 0, focus: false, listeners: [] };
+const breaks = { commanded: -Infinity, input: performance.now(), waiting: [], timer: 0, focus: false, listeners: [] };
 
 // Notices put away for good: each by its kind, kept with the reader's settings. A notice of a kind
 // put away shows no more and counts as nothing unseen; the bell still keeps it. Preferences brings a
@@ -185,7 +185,7 @@ export function say(text, { failed = false, act = null, kind = null } = {}) {
     return;
   }
   if (breaks.focus || performance.now() - breaks.commanded > ANSWERS) {
-    breaks.held.push(notice);
+    breaks.waiting.push(notice);
     focusChanged();
     restLater();
     return;
@@ -193,23 +193,23 @@ export function say(text, { failed = false, act = null, kind = null } = {}) {
   show(notice);
 }
 
-// The notices held for a break, for the tests and for Focus's count.
-export const noticesHeld = () => breaks.held;
+// The notices waiting for a break, for the tests and for Focus's count.
+export const noticesWaiting = () => breaks.waiting;
 
-// Shows the notices held, where Focus holds none: each kept by the bell, the last on the bar.
+// Shows the notices waiting, where Focus holds none: each kept by the bell, the last on the bar.
 export function breakTaken() {
-  if (breaks.focus || !breaks.held.length) {
+  if (breaks.focus || !breaks.waiting.length) {
     return;
   }
-  const held = breaks.held.splice(0);
-  held.slice(0, -1).forEach((notice) => keepNotice(notice));
-  show(held.at(-1));
+  const waiting = breaks.waiting.splice(0);
+  waiting.slice(0, -1).forEach((notice) => keepNotice(notice));
+  show(waiting.at(-1));
   focusChanged();
 }
 
 function restLater() {
   window.clearTimeout(breaks.timer);
-  if (breaks.focus || !breaks.held.length) {
+  if (breaks.focus || !breaks.waiting.length) {
     return;
   }
   const left = REST - (performance.now() - breaks.input);
@@ -229,11 +229,11 @@ function focusChanged() {
     return;
   }
   node.hidden = !breaks.focus;
-  node.textContent = breaks.held.length ? `Focus, ${breaks.held.length} held` : "Focus";
+  node.textContent = breaks.waiting.length ? `Focus, ${breaks.waiting.length} waiting` : "Focus";
   node.title = "Focus holds every notice until it ends: a press ends it";
 }
 
-// Focus: every notice held until it ends, and then those held shown.
+// Focus: every notice kept until it ends, and then those kept shown.
 export function setFocus(on = !breaks.focus) {
   breaks.focus = on;
   focusChanged();

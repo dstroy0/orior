@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_read.c: what a process of a run writes: its output read line by line as it comes, each line stored in its output
 // file, and its errors read whole into its errors file on a thread of their own
+#include "../command_line/cells.h"
 #include "test_runs_internal.h"
 
 // the output read and not yet written added to the process's output file, which is made anew with the first
@@ -128,10 +129,10 @@ void cli_test_errors_waited(CliTestWorker *worker)
 const char *cli_test_file_read(const char *path, unsigned long long *size)
 {
     *size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, size);
+    const unsigned char *const bytes = cli_file_taken(path, size, &g_cli_tests_cells);
     if ((bytes != NULL) && !cli_utf8_whole((const char *)bytes, *size))
     {
-        cli_file_let_go(bytes, *size);
+        cli_file_given(bytes, &g_cli_tests_cells);
         *size = 0ull;
         return NULL;
     }
@@ -140,8 +141,5 @@ const char *cli_test_file_read(const char *path, unsigned long long *size)
 
 void cli_test_file_let_go(const char *text, unsigned long long size)
 {
-    if (text != NULL)
-    {
-        cli_file_let_go((const unsigned char *)text, size);
-    }
+    cli_file_given((const unsigned char *)text, &g_cli_tests_cells);
 }

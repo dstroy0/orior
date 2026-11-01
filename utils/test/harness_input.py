@@ -109,12 +109,12 @@ def modifier_bits(keys):
 def chord(text):
     """The modifier bits and the key of one chord, as Ctrl+Shift+P; a chord whose key is a plus ends ++."""
     if text.endswith("++"):
-        held, last = text[:-2], "+"
+        modifier_names, last = text[:-2], "+"
     elif "+" in text:
-        held, last = text.rsplit("+", 1)
+        modifier_names, last = text.rsplit("+", 1)
     else:
-        held, last = "", text
-    bits = modifier_bits(held)
+        modifier_names, last = "", text
+    bits = modifier_bits(modifier_names)
     pressed = key(last, bool(bits & SHIFT))
     if pressed is None:
         raise ValueError("%s in %s is no key" % (last, text))
@@ -138,19 +138,19 @@ def send_key(conn, kind, pressed, bits, repeating=False):
 
 def hold(conn, bits):
     """The modifier keys of `bits` pressed down, in order."""
-    held = 0
+    modifiers_down = 0
     for bit, modifier_key, code, key_code in MODIFIER_ORDER:
         if bits & bit:
-            held |= bit
-            send_key(conn, "rawKeyDown", {"key": modifier_key, "code": code, "key_code": key_code, "text": None}, held)
+            modifiers_down |= bit
+            send_key(conn, "rawKeyDown", {"key": modifier_key, "code": code, "key_code": key_code, "text": None}, modifiers_down)
 
 
 def release(conn, bits):
-    held = bits
+    modifiers_down = bits
     for bit, modifier_key, code, key_code in reversed(MODIFIER_ORDER):
         if bits & bit:
-            held &= ~bit
-            send_key(conn, "keyUp", {"key": modifier_key, "code": code, "key_code": key_code, "text": None}, held)
+            modifiers_down &= ~bit
+            send_key(conn, "keyUp", {"key": modifier_key, "code": code, "key_code": key_code, "text": None}, modifiers_down)
 
 
 def press(conn, keys):

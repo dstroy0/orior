@@ -349,20 +349,16 @@ int cli_raised_platform(const char *from, const char *to, VerbaLinea *err_msg)
     for (unsigned int path = 0u; path < 2u; path += 1u)
     {
         mmgr_line_put(&script, (path == 0u) ? "'" : " '");
-        for (const char *at = paths[path]; *at != '\0'; at += 1)
+        const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = paths[path], .cap = CLI_CELLS_POOL});
+        for (unsigned long long at = 0ull; at < whole;)
         {
-            if (*at == '\'')
+            const unsigned long long stop = cli_text_to_any(paths[path], at, whole, "'\"");
+            mmgr_line_put_n(&script, paths[path] + at, (size_t)(stop - at));
+            if (stop < whole)
             {
-                mmgr_line_put(&script, "'\\\\''");
+                mmgr_line_put(&script, (paths[path][stop] == '\'') ? "'\\\\''" : "\\\"");
             }
-            else if (*at == '"')
-            {
-                mmgr_line_put(&script, "\\\"");
-            }
-            else
-            {
-                mmgr_line_ch(&script, *at);
-            }
+            at = stop + 1ull;
         }
         mmgr_line_ch(&script, '\'');
     }

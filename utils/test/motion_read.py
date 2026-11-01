@@ -188,15 +188,15 @@ def motions_of(key, times, values, marks):
             index += 1
             continue
         first = last = index
-        held = 0
+        still_frames = 0
         ahead = index + 1
         while ahead < len(values):
             if moves[ahead]:
                 last = ahead
-                held = 0
+                still_frames = 0
             else:
-                held += 1
-                if held > HOLD:
+                still_frames += 1
+                if still_frames > HOLD:
                     break
             ahead += 1
         if abs(values[last] - values[first - 1]) >= LEAST[unit]:
@@ -375,13 +375,13 @@ def collapsed(findings):
         if key not in kept:
             kept[key] = one
             continue
-        held = kept[key]
-        keys = held.keys + [name for name in one.keys if name not in held.keys]
-        if one.measure > held.measure:
+        existing = kept[key]
+        keys = existing.keys + [name for name in one.keys if name not in existing.keys]
+        if one.measure > existing.measure:
             one.keys = keys
             kept[key] = one
         else:
-            held.keys = keys
+            existing.keys = keys
     return sorted(kept.values(), key=lambda one: -one.measure)
 
 

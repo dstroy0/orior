@@ -49,10 +49,7 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
     for (const char *line = text; line[0] != '\0';)
     {
         const char *stop = line;
-        while ((stop[0] != '\0') && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
         cli_scan_trim(&from, &length);
@@ -69,8 +66,9 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
         memor.cpy(&(MemoriaCfg){
             .dst = top, .src = ".", .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    CliWalk go_walk = {NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
+    CliWalk go_walk;
     CliWalk *const walk = &go_walk;
+    cli_executables_walk_taken(walk);
     cli_executables_walked(walk, top, cli_go_each);
     const unsigned long long top_length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
     for (unsigned int at = 0u; at < walk->found_count; at += 1u)
@@ -81,10 +79,7 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
         memor.cpy(&(MemoriaCfg){.dst = package,
                                 .src = inner,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL}) + 1u});
-        for (char *slash = package; slash[0] != '\0'; slash += 1)
-        {
-            slash[0] = (slash[0] == '\\') ? '/' : slash[0];
-        }
+        cli_text_swapped(package, cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}), '\\', '/');
         const char *const named = (package[0] == '\0') ? path : package;
         const char *const name =
             (cli_text_last(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), '/') != NULL)

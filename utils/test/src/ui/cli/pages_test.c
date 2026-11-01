@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pages_test.c: the paged text's check: lines are read as the page splits them from anywhere in the file; a view is
-// placed the lines it takes, a wrapping one by its rows and a step by the bytes it reads; and edits are written over the
-// file's lines and saved through a file beside it
+// placed the lines it takes, a wrapping one by its rows and a step by the bytes it reads; and edits are written over
+// the file's lines and saved through a file beside it
 #include "../../../../../ui/cli/src/editor/pages.h"
 #include "cli_check.h"
 
@@ -138,7 +138,8 @@ static void pages_long_checked(const char *key, unsigned long long from, unsigne
         mmgr_line_put(&name, "long ");
         mmgr_line_decimal(&name, from + at, 1u);
         whole = whole && (text != NULL) && (length == 1000ull) &&
-                (memor.cmp(&(MemoriaCfg){.src = text, .other = named, .bytes = name.at}) == 0) && (text[name.at] == 'x');
+                (memor.cmp(&(MemoriaCfg){.src = text, .other = named, .bytes = name.at}) == 0) &&
+                (text[name.at] == 'x');
         count += 1u;
     }
     cli_check(whole && (count == (to - from)), what);
@@ -254,46 +255,46 @@ static void pages_viewed(void)
                   (placed.to >= 120ull) && (placed.to - placed.from < 60ull),
               "a view first reported rests: its rows are answered whole, and few more");
     pages_cut_checked("viewed", &placed, "the rows of a view at rest are read whole");
-    view.held_from = placed.from;
-    view.held_to = placed.to;
+    view.cached_from = placed.from;
+    view.cached_to = placed.to;
     view.top = 110ull;
-    const unsigned long long held_end = view.held_to;
-    cli_check(cli_pages_viewed("viewed", &view, &placed) && (placed.cut == 64ull) && (placed.from == held_end) &&
-                  (placed.to == 401ull) && (placed.keep_from <= view.held_from) && (placed.keep_to >= placed.to),
+    const unsigned long long cached_end = view.cached_to;
+    cli_check(cli_pages_viewed("viewed", &view, &placed) && (placed.cut == 64ull) && (placed.from == cached_end) &&
+                  (placed.to == 401ull) && (placed.keep_from <= view.cached_from) && (placed.keep_to >= placed.to),
               "a view that moved 10 lines past the page's lines is answered a step of the lines after them, as far as "
               "the file goes here, cut at its reach");
     pages_cut_checked("viewed", &placed, "the lines of a moving view are read cut at its reach, their lengths whole");
-    view.held_to = placed.to;
-    view.held_cut = placed.cut;
+    view.cached_to = placed.to;
+    view.cached_cut = placed.cut;
     view.top = 115ull;
     cli_check(cli_pages_viewed("viewed", &view, &placed) && (placed.from == placed.to) &&
-                  (placed.keep_from <= view.held_from) && (placed.keep_to >= view.held_to),
+                  (placed.keep_from <= view.cached_from) && (placed.keep_to >= view.cached_to),
               "a view the page's lines hold far from their end is answered nothing, and lets none go");
-    view.held_to = 200ull;
+    view.cached_to = 200ull;
     view.top = 120ull;
     cli_check(cli_pages_viewed("viewed", &view, &placed) && (placed.from == 200ull) && (placed.to == 401ull),
               "a view moving down within NEAR lines of the page's last line is answered the step after it");
-    view.held_to = 148ull;
+    view.cached_to = 148ull;
     view.top = 165ull;
     cli_check(cli_pages_viewed("viewed", &view, &placed) && (placed.cut == 64ull) && (placed.from > 165ull) &&
                   (placed.from <= 191ull) && (placed.to >= 249ull) && (placed.to - placed.from < 60ull),
               "a view that moved 45 lines away from the page's lines, more than its rows, is answered the rows 45 "
               "lines on alone, with EDGE and a quarter of the 45 lines on either side of them");
-    view.held_from = placed.from;
-    view.held_to = placed.to;
+    view.cached_from = placed.from;
+    view.cached_to = placed.to;
     cli_check(cli_pages_viewed("viewed", &view, &placed) && (placed.cut == 0ull) && (placed.from <= 165ull) &&
                   (placed.to >= 185ull),
               "a view reported where it was reported last rests: its rows are answered whole");
-    view.held_from = placed.from;
-    view.held_to = placed.to;
-    view.held_cut = 0ull;
+    view.cached_from = placed.from;
+    view.cached_to = placed.to;
+    view.cached_cut = 0ull;
     view.map_from = 60ull;
     view.map_to = 300ull;
-    cli_check(cli_pages_viewed("viewed", &view, &placed) && (placed.cut == 0ull) && (placed.from == view.held_to) &&
+    cli_check(cli_pages_viewed("viewed", &view, &placed) && (placed.cut == 0ull) && (placed.from == view.cached_to) &&
                   (placed.to > placed.from) && (placed.keep_from <= 60ull) && (placed.keep_to >= 300ull),
               "a view at rest whose lines are whole is answered the lines below them it keeps, a step");
-    view.held_from = 300ull;
-    view.held_to = 400ull;
+    view.cached_from = 300ull;
+    view.cached_to = 400ull;
     view.top = 350ull;
     (void)cli_pages_viewed("viewed", &view, &placed);
     view.top = 230ull;
@@ -304,8 +305,8 @@ static void pages_viewed(void)
 }
 
 // A view that wraps its lines at 100 letters, each line of the file of long lines ten rows: placed the lines its rows
-// take, as many about its top as fill the rows placed on either side, at rest and as it moves; and a view the page holds
-// those lines for at rest answered the step below them, never those lines again
+// take, as many about its top as fill the rows placed on either side, at rest and as it moves; and a view the page
+// holds those lines for at rest answered the step below them, never those lines again
 static void pages_wrapped(void)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -319,8 +320,8 @@ static void pages_wrapped(void)
     CliPagesPlaced placed = {0ull, 0ull, 0ull, 0ull, 0ull};
     cli_check(cli_pages_viewed("wrapped", &view, &placed) && (placed.from == 99ull) && (placed.to == 103ull),
               "a wrapping view at rest is placed the lines its rows take: the line above its top, and three from it");
-    view.held_from = placed.from;
-    view.held_to = placed.to;
+    view.cached_from = placed.from;
+    view.cached_to = placed.to;
     cli_check(cli_pages_viewed("wrapped", &view, &placed) && (placed.from == 103ull) && (placed.to > placed.from),
               "and once the page holds them, the step below them");
     view.top = 200ull;
@@ -368,15 +369,15 @@ static void pages_step_bytes(void)
     view.top = 2010ull;
     view.map_from = 2000ull;
     view.map_to = 2040ull;
-    view.held_from = 0ull;
-    view.held_to = 0ull;
+    view.cached_from = 0ull;
+    view.cached_to = 0ull;
     (void)cli_pages_viewed("mixed", &view, &placed);
     cli_check(cli_pages_viewed("mixed", &view, &placed) && (placed.from == 2002ull) &&
                   ((placed.to - placed.from) >= 1ull) && ((placed.to - placed.from) <= 7ull),
               "a view at rest among the long lines is answered its rows whole from EDGE above its top, as many as "
               "128 KB reach");
-    view.held_from = placed.from;
-    view.held_to = placed.to;
+    view.cached_from = placed.from;
+    view.cached_to = placed.to;
     const unsigned long long whole_to = placed.to;
     cli_check(cli_pages_viewed("mixed", &view, &placed) && (placed.from == whole_to) && (placed.to > placed.from),
               "and once the page holds those whole, the rows after them");

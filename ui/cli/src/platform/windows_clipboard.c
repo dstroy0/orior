@@ -33,7 +33,7 @@
 static CliLock s_clipboard_lock = CLI_LOCK_INIT;
 
 // the clipboard opened for this thread, the lock taken first, asked for again while another program holds it: 1, or
-// 0 with the lock given back where it stays held
+// 0 with the lock given back where it stays locked
 static int clipboard_opened(void)
 {
     cli_lock_take(&s_clipboard_lock);
@@ -68,11 +68,11 @@ int cli_clipboard_text_read(VerbaLinea *text)
     {
         return 0;
     }
-    const HANDLE held = GetClipboardData(CF_UNICODETEXT);
-    const wchar_t *const wide = (held != NULL) ? (const wchar_t *)GlobalLock(held) : NULL;
+    const HANDLE clipboard_data = GetClipboardData(CF_UNICODETEXT);
+    const wchar_t *const wide = (clipboard_data != NULL) ? (const wchar_t *)GlobalLock(clipboard_data) : NULL;
     if (wide != NULL)
     {
-        const SIZE_T units_most = GlobalSize(held) / sizeof(wchar_t);
+        const SIZE_T units_most = GlobalSize(clipboard_data) / sizeof(wchar_t);
         SIZE_T units = 0u;
         while ((units < units_most) && (wide[units] != L'\0'))
         {
@@ -91,7 +91,7 @@ int cli_clipboard_text_read(VerbaLinea *text)
             mmgr_line_put_n(text, piece, (bytes > 0) ? (unsigned long long)bytes : 0ull);
             at += count;
         }
-        GlobalUnlock(held);
+        GlobalUnlock(clipboard_data);
     }
     clipboard_closed();
     return 1;
@@ -190,21 +190,21 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
     return clipboard_put(CF_HDROP, memory, clipboard_effect_format(), effect);
 }
 
-unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *path), void *context, int *cut)
+unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *path), void *context, int *cut)
 {
     *cut = -1;
     if (!clipboard_opened())
     {
         return 0u;
     }
-    const HDROP held = (HDROP)GetClipboardData(CF_HDROP);
+    const HDROP clipboard_data = (HDROP)GetClipboardData(CF_HDROP);
     unsigned int count = 0u;
-    const UINT files = (held != NULL) ? DragQueryFileW(held, 0xffffffffu, NULL, 0u) : 0u;
+    const UINT files = (clipboard_data != NULL) ? DragQueryFileW(clipboard_data, 0xffffffffu, NULL, 0u) : 0u;
     for (UINT at = 0u; at < files; at += 1u)
     {
         wchar_t wide[CLI_PATH_MAX_LEN];
         char path[CLI_PATH_MAX_LEN];
-        const int converted = (DragQueryFileW(held, at, wide, CLI_PATH_MAX_LEN) != 0u) &&
+        const int converted = (DragQueryFileW(clipboard_data, at, wide, CLI_PATH_MAX_LEN) != 0u) &&
                               (WideCharToMultiByte(CP_UTF8, 0u, wide, -1, path, (int)sizeof(path), NULL, NULL) > 0);
         if (converted)
         {

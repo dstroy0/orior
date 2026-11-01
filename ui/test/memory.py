@@ -7,7 +7,7 @@
 # once the command is closed and put back and the heap collected, by module and by function; the
 # heap's growth; each process's; and the bytes each call of the tree's side took and kept, which the
 # window counts as its allocator gives them. Nothing is timed or filmed, the profiler taking the
-# page's time. memory.md says it, the most held first, beside memory.json.
+# page's time. memory.md says it, the most retained first, beside memory.json.
 #
 #   Usage:  python -I ui/test/memory.py [--only <command,...>] [--menus <title,...>] [--skip <command,...>]
 #                                            [--port 9222] [--wait 8] [--sampling 64]
@@ -19,4 +19,4 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from walk import Walker, options  # noqa: E402
 
 if __name__ == "__main__":
-    Walker(options("Watch the memory each command of orior's menus leaves held, by module, function and call.", memory_only=True)).run()
+    Walker(options("Watch the memory each command of orior's menus leaves retained, by module, function and call.", memory_only=True)).run()

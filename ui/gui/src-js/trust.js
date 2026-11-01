@@ -5,7 +5,7 @@
 // holds code of its own, with no answer kept for it or for a folder above it, is asked about once as
 // it opens; the answer holds for the tree, or for every tree in the folder above where the reader
 // says so. A tree with no code of its own is never asked about. Until a tree is trusted its code is
-// held back, and the status bar says so; a press there, or File, Trust This Tree, asks again. The
+// kept back, and the status bar says so; a press there, or File, Trust This Tree, asks again. The
 // question takes no keys from the editor until it is pressed.
 
 import { invoke } from "./bridge.js";
@@ -68,15 +68,15 @@ export function askTrust(told = state.told) {
   node.hidden = false;
 }
 
-// Reads what is kept for the tree open, shows on the status bar whether its build scripts are held
+// Reads what is kept for the tree open, shows on the status bar whether its build scripts are kept
 // back, and asks where it has scripts of its own and no answer is kept.
 export async function readTrust() {
   const told = await invoke("trust_read").catch(() => null);
   state.told = told;
-  const held = Boolean(told?.code.length) && told.answer !== true;
+  const blocked = Boolean(told?.code.length) && told.answer !== true;
   const status = document.getElementById("status-trust");
-  status.hidden = !held;
-  status.title = held ? `${listOf(told.code)}: press to trust the tree` : "";
+  status.hidden = !blocked;
+  status.title = blocked ? `${listOf(told.code)}: press to trust the tree` : "";
   if (told?.answer === null && told.code.length) {
     askTrust(told);
   } else {

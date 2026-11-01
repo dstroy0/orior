@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_unittest_report.c: unittest's report of its failures read, each with its last line and the line of its file its
 // traceback last names
+#include "../text/text.h"
 #include "test_runs_internal.h"
 
 // one failure of unittest's report reported: its name as pytest gives it, the last line of its traceback, and the line
@@ -18,9 +19,9 @@ static void report_failure_emitted(CliTestWorker *worker, const char *block, uns
         return;
     }
     unsigned long long dotted_end = end;
-    while ((dotted_end > open + 2ull) && (block[dotted_end - 1ull] == ')'))
+    if (dotted_end > (open + 2ull))
     {
-        dotted_end -= 1ull;
+        dotted_end = (open + 2ull) + cli_text_back_past(block + open + 2ull, dotted_end - (open + 2ull), ")");
     }
     char id[CLI_PATH_MAX_LEN * 2u];
     if (!cli_test_unittest_id(block + open + 2ull, dotted_end - open - 2ull, id, sizeof(id)))

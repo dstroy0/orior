@@ -64,8 +64,8 @@ static void schema_json(void)
     mmgr_line_ch(&many, ']');
     cli_schema_read(s_many, many.at, &s_read);
     cli_check((s_read.errors == 0u) && (s_read.full == 0) && (s_read.nodes == 6001u) && (s_read.members == 3000u) &&
-                  (s_read.nodes_most == 8192u),
-              "a file of more values than a read's lists begin with reads whole, its lists grown to it");
+                  (s_read.nodes_most >= s_read.nodes),
+              "a file of many values reads whole, its lists in one cell");
     cli_schema_read_given(&s_read);
 }
 
@@ -239,9 +239,11 @@ int main(void)
     schema_file();
     schema_own();
     schema_completes();
-    cli_check((embed_atomic_usize_load(&g_cli_schema_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_schema_cells.hw) != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_schema_cells.in_use) == 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_schema_cells.hw) != 0ull),
               "every schema's text and tokens are given back once it is read, the most they used marked");
-    cli_check((embed_atomic_usize_load(&g_cli_build_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_build_cells.hw) != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_build_cells.in_use) == 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_build_cells.hw) != 0ull),
               "and a file's findings and its lines indexed, once the findings are written");
     return cli_checked();
 }

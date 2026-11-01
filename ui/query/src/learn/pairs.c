@@ -7,6 +7,7 @@
 // the host over every case, and sifts the engine's writing through what nvcc writes. Every mode that puts questions
 // runs them through the airlock, and the decoder reads a pair run's log back into the bridge. This file reads the words
 // and gives the settings; pairs_modes.c runs the modes
+#include "../../../cli/src/text/text.h"
 #include "pairs_internal.h"
 
 #include <stdlib.h>
@@ -76,12 +77,14 @@ int query_pairs_read(const char *const *words, unsigned int count, QueryPairsMod
 void query_part_read(const char *part, char *name, size_t room)
 {
     VerbaLinea line = {name, room, 0ull};
-    for (const char *at = part; *at != '\0'; at += 1)
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; at < whole;)
     {
-        if (*at != '_')
-        {
-            mmgr_line_ch(&line, ((*at >= 'a') && (*at <= 'z')) ? (char)(*at - 'a' + 'A') : *at);
-        }
+        const unsigned long long stop = cli_text_to_any(part, at, whole, "_");
+        const size_t from = line.at;
+        const size_t taken = mmgr_line_put_n(&line, part + at, (size_t)(stop - at));
+        cli_text_raised(line.out + from, taken);
+        at = stop + 1ull;
     }
     mmgr_line_finish(&line);
 }
@@ -349,12 +352,7 @@ static int query_pairs_mode_run(QueryContext *context, const QueryPairsMode *mod
         return -1;
     }
     char folder[QUERY_PATH_MAX_LEN];
-    memor.cpy(&(MemoriaCfg){
-        .dst = folder,
-        .src = (mode->trace != NULL) ? mode->trace : QUERY_PAIRS_FOLDER,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (mode->trace != NULL) ? mode->trace : QUERY_PAIRS_FOLDER,
-                                               .cap = CLI_CELLS_POOL}) +
-                 1u});
+    cli_text_copied_or(folder, mode->trace, QUERY_PAIRS_FOLDER);
     int code = -1;
     if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "text_identity", .cap = CLI_CELLS_POOL}))
     {

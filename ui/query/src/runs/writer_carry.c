@@ -281,15 +281,9 @@ int query_writer_carry_listed(const QueryWriter *writer, const char *from, const
     {
         const size_t length = cli_text_upto(line, "\r\n");
         size_t first = 0u;
-        while ((first < length) && ((line[first] == ' ') || (line[first] == '\t')))
-        {
-            first += 1u;
-        }
+        first = (size_t)cli_text_past_any(line, first, length, " \t");
         size_t last = length;
-        while ((last > first) && ((line[last - 1u] == ' ') || (line[last - 1u] == '\t')))
-        {
-            last -= 1u;
-        }
+        last = (size_t)(first + cli_text_back_past(line + first, last - first, " \t"));
         const size_t gap = cli_text_over(line + length, "\r\n");
         if ((last > first) && ((last - first) <= QRY_NAME_MAX_LEN))
         {

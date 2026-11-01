@@ -1,16 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pages_shadow.c: the paths beside a paged text's file, and where a written piece's lines lie in the shadow beside it
+#include "../command_line/cells.h"
+#include "../text/text.h"
 #include "pages_internal.h"
 
 void cli_page_beside(const char *path, const char *ending, char *beside)
 {
     char parent[CLI_PATH_MAX_LEN];
     const char *name = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     VerbaLinea line = {beside, CLI_PATH_MAX_LEN, 0ull};
     if (cli_path_parent(path, parent))
     {
@@ -30,19 +31,13 @@ unsigned long long cli_page_written_at(const CliPaged *one, const CliPagePiece *
         return piece->to;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(one->shadow, &size);
-    const unsigned long long end = ((bytes != NULL) && (piece->to < size)) ? piece->to : size;
+    const unsigned char *const bytes = cli_file_taken(one->shadow, &size, &g_cli_editor_cells);
+    const unsigned long long end = (piece->to < size) ? piece->to : size;
     unsigned long long at = piece->from;
-    for (unsigned long long passed = 0ull; (bytes != NULL) && (passed < line) && (at < end); passed += 1ull)
+    for (unsigned long long passed = 0ull; (passed < line) && (at < end); passed += 1ull)
     {
-        const unsigned char *const newline =
-            memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = end - at});
-        // a newline found lies in the piece, at or past `at`
-        at = (newline != NULL) ? ((unsigned long long)(newline - bytes) + 1ull) : end;
+        at = cli_text_line_at((const char *)bytes, at, end).next;
     }
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, size);
-    }
+    cli_file_given(bytes, &g_cli_editor_cells);
     return at;
 }

@@ -19,7 +19,7 @@ import { drawEmpty, editing, show, state } from "../edit.js";
 import { compareCommit, openComment, openDiff, openMerge, openTouched, reloadFromDisk, revertSnapshot, showSnapshot, textNow } from "./compare.js";
 import { checkShown, problemFiles, problemsChanged } from "./crumbs.js";
 import { drawDefs } from "./defs.js";
-import { forgetHeads, markChanges } from "./held.js";
+import { forgetHeads, markChanges } from "./mirror.js";
 import { copyFiles, editorItems, fileItems, folderOfRow, pasteFiles, readClipFiles, tabItems, tabMenu } from "./menus.js";
 import { openCommit, openFile } from "./open.js";
 import { closePeek, PEEK_SETTLES } from "./peek.js";

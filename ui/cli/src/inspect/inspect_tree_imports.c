@@ -5,6 +5,7 @@
 // package's `__init__.py`; a relative one from its package; and a Python import runs each package on the way to its
 // module, the module, and each module a `from` import takes from a package. A JavaScript import is a relative path,
 // with `.js`, `.mjs` or `/index.js` after it where the path names no file
+#include "../text/text.h"
 #include "inspect_tree_internal.h"
 
 // the most files one import runs that are recorded
@@ -42,10 +43,7 @@ unsigned int cli_tree_python_module(unsigned int file, const char *spec, unsigne
     const char *const path = CLI_TREE_FILE(file).path;
     const unsigned long long path_size = CLI_TREE_FILE(file).path_size;
     unsigned long long dots = 0ull;
-    while ((dots < size) && (spec[dots] == '.'))
-    {
-        dots += 1u;
-    }
+    dots = cli_text_past_any(spec, dots, size, ".");
     const char *const dotted = spec + dots;
     const unsigned long long dotted_size = size - dots;
     if (dots > 0u)
@@ -98,10 +96,7 @@ static unsigned int imports_python(unsigned int file, const CliInspectImport *im
     const unsigned long long size = import->spec.size;
     unsigned int count = 0u;
     unsigned long long dots = 0ull;
-    while ((dots < size) && (spec[dots] == '.'))
-    {
-        dots += 1u;
-    }
+    dots = cli_text_past_any(spec, dots, size, ".");
     char joined[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {joined, sizeof(joined), 0ull};
     mmgr_line_put_n(&line, spec, dots);
@@ -113,10 +108,7 @@ static unsigned int imports_python(unsigned int file, const CliInspectImport *im
             continue;
         }
         unsigned long long start = at;
-        while ((start > dots) && (spec[start - 1u] != '.'))
-        {
-            start -= 1u;
-        }
+        start = (dots + cli_text_back_any(spec + dots, start - dots, "."));
         if (at == start)
         {
             continue;

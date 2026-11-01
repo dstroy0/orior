@@ -126,9 +126,9 @@ test("as the name goes to the bar orior and the eye pour up together, tabula sli
     assert.ok(underNow < underBefore - 4 && underNow > eyeMiddle - 1, `tabula sliding up toward the middle: ${underBefore} to ${underNow}, the middle at ${eyeMiddle}`);
     await ui.rest(200);
     assert.ok(Math.abs(middle(under.getBoundingClientRect()) - eyeMiddle) < 1.5, `tabula at the middle: ${middle(under.getBoundingClientRect())}, the middle at ${eyeMiddle}`);
-    assert.equal(Number(getComputedStyle(under).opacity), 1, "tabula held there whole");
+    assert.equal(Number(getComputedStyle(under).opacity), 1, "tabula kept there whole");
     await ui.waitFor(() => home.classList.contains("home"), FLIES, "the bar's eye shown as orior and the eye land");
-    assert.equal(Number(getComputedStyle(under).opacity), 1, "tabula still held whole at the middle as they land, the window's name shown");
+    assert.equal(Number(getComputedStyle(under).opacity), 1, "tabula still kept whole at the middle as they land, the window's name shown");
     await ui.waitFor(() => Number(getComputedStyle(under).opacity) < 1, 1000, "tabula fading after its hold");
     await ui.waitFor(() => getComputedStyle(node).visibility === "hidden", 1000, "the large name cleared once tabula has faded");
     assert.equal(document.querySelectorAll("canvas.genie").length, 0, "the funnel taken away");

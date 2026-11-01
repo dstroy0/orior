@@ -30,9 +30,9 @@ export async function runCell(book, cell) {
   try {
     const id = await invoke("kernel_execute", { key: book.path, code: cell.session.doc.text() });
     book.waiting.set(id, cell);
-    const held = book.early.get(id) ?? [];
+    const kept = book.early.get(id) ?? [];
     book.early.delete(id);
-    held.forEach((message) => heard(book, message));
+    kept.forEach((message) => heard(book, message));
   } catch (error) {
     cell.running = false;
     say(String(error), { failed: true });
@@ -232,9 +232,9 @@ export async function checkFromTop(book) {
     for (const cell of code) {
       const id = await invoke("kernel_execute", { key, code: cell.session.doc.text() });
       book.check.cells.set(id, cell);
-      const held = book.check.early.get(id) ?? [];
+      const kept = book.check.early.get(id) ?? [];
       book.check.early.delete(id);
-      held.forEach((message) => heardCheck(book, message));
+      kept.forEach((message) => heardCheck(book, message));
     }
     if (code.length === 0) {
       book.check.done();

@@ -5,6 +5,7 @@
 // line and its end each a line of JSON, and the run stopped where its stop file is made. A run that cannot start
 // reports why as a line of its errors and ends
 #include "../runs/runner.h"
+#include "../text/text.h"
 #include "serve_internal.h"
 
 // how often the stop file is looked for, in milliseconds
@@ -81,17 +82,14 @@ static void detached_run_stopper(void *context)
 int cli_serve_detached_run(const char *base)
 {
     const char *name = base;
-    for (const char *at = base; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? at + 1 : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (base + name_past) : name;
     s_run = 0ull;
     int number = (name[0] != '\0');
-    for (const char *at = name; number && (*at != '\0'); at += 1)
-    {
-        number = (*at >= '0') && (*at <= '9') && (s_run <= (~0ull - 9ull) / 10ull);
-        s_run = number ? (s_run * 10ull) + (unsigned long long)(*at - '0') : s_run;
-    }
+    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    number = number && (digits <= 19ull) && (cli_text_past_class(name, 0ull, digits, CLI_TEXT_DIGITS, "") == digits);
+    s_run = number ? cli_text_number(name, 0ull, digits, NULL) : s_run;
     if (!number)
     {
         return 2;

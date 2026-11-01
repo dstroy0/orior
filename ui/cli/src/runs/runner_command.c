@@ -4,6 +4,7 @@
 // line the window shows for it, each setting leading it as a shell writes it
 #include "../code/git.h"
 #include "../programs/executables.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "runner.h"
 
@@ -21,10 +22,7 @@ static const char *cli_for_bash(const char *value, char *out)
     memor.cpy(&(MemoriaCfg){
         .dst = out, .src = value, .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
 #if defined(_WIN32)
-    for (char *at = out; at[0] != '\0'; at += 1)
-    {
-        at[0] = (at[0] == '\\') ? '/' : at[0];
-    }
+    cli_text_swapped(out, cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL}), '\\', '/');
 #endif
     return out;
 }

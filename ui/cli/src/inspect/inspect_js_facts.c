@@ -3,6 +3,7 @@
 // inspect_js_facts.c: what one JavaScript file shows alone: a `const`, `let` or `var` a function declares and never
 // reads, and code after a return, a throw, a break or a continue in the same block; and, for the tree's checks, the
 // functions it declares with the calls in each, and the files it imports by a relative path
+#include "../text/text.h"
 #include "inspect_js.h"
 
 // the most names one function declares that are recorded
@@ -32,15 +33,9 @@ static int facts_whole_lines(const char *src, unsigned long long size, unsigned 
     const CliInspectTok *const first = &g_cli_inspect_tok[from];
     const CliInspectTok *const last = &g_cli_inspect_tok[to];
     unsigned long long line_start = first->start;
-    while ((line_start > 0u) && (src[line_start - 1u] != '\n'))
-    {
-        line_start -= 1u;
-    }
+    line_start = cli_text_back_any(src, line_start, "\n");
     unsigned long long line_end = last->end;
-    while ((line_end < size) && (src[line_end] != '\n'))
-    {
-        line_end += 1u;
-    }
+    line_end = cli_text_to_any(src, line_end, size, "\n");
     for (unsigned long long at = line_start; at < first->start; at += 1u)
     {
         if (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\v\f", .cap = CLI_CELLS_POOL, .byte = src[at]}) == NULL)

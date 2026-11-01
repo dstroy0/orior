@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // commands.c: the dispatch: words in, lines out through a sink, the code back. Each loop runs under a context: the
 // tree, the programs, the sink and the leave, which starts its run, builds its tools and runs its programs
-#include "../../cli/src/text/pieces.h"
+#include "../../cli/src/text/text.h"
 #include "query_internal.h"
 #include "query_loops.h"
+
+// the most bytes of a program's output a run records
+#define QUERY_OUTPUT_MOST (64ull << 20u)
 
 // the name of the record this process's own lines go to, `<loop>.console`
 static char s_console[QRY_NAME_MAX_LEN + 1u];
@@ -108,31 +111,34 @@ int query_context_handed(QueryContext *context, const QueryRun *run, const char 
         mmgr_line_put(err_msg, ": it could not be started");
         return 0;
     }
-    // the output read to its end a piece at a time, each piece buffered, and joined into a cell of its size
-    char piece[1u << 16u];
-    CliPieces pieces = {NULL, NULL, 0ull, 0, &g_query_cells};
+    // the output read to its end into a cell of the most it holds; what it writes past that is read and let go, for the
+    // program to run to its end, and the output refused
+    char *const output = g_cli_cells->temporary_buf_alloc(QUERY_OUTPUT_MOST, &g_query_cells);
+    const unsigned long long room = (output != NULL) ? QUERY_OUTPUT_MOST - 1ull : 0ull;
+    unsigned long long used = 0ull;
+    int whole = (output != NULL);
     for (;;)
     {
-        const unsigned long long got = query_process_read(&process, piece, sizeof(piece));
+        char over[4096];
+        const int fits = (used < room);
+        const unsigned long long got = fits ? query_process_read(&process, output + used, room - used)
+                                            : query_process_read(&process, over, sizeof(over));
         if (got == 0ull)
         {
             break;
         }
-        (void)cli_pieces_added(&pieces, piece, got);
+        used += fits ? got : 0ull;
+        whole = whole && fits;
     }
     *code = query_process_wait(&process);
-    char *const output = g_cli_cells->persistent_buf_alloc(pieces.size + 1ull, &g_query_cells);
-    if ((output == NULL) || pieces.refused)
+    if (!whole)
     {
-        cli_pieces_given(&pieces);
         g_cli_cells->persistent_buf_release(output, &g_query_cells);
         mmgr_line_put(err_msg, words[0]);
         mmgr_line_put(err_msg, ": its output could not be stored");
         return 0;
     }
-    cli_pieces_copied(&pieces, output);
-    const int appended = query_writer_append(&run->writer, name, output, pieces.size, QRY_ORDINARY, err_msg);
-    cli_pieces_given(&pieces);
+    const int appended = query_writer_append(&run->writer, name, output, used, QRY_ORDINARY, err_msg);
     g_cli_cells->persistent_buf_release(output, &g_query_cells);
     return appended;
 }
@@ -196,10 +202,7 @@ int query_run(const char *root, const QueryPrograms *programs, const char *const
     memor.set(&(MemoriaCfg){.dst = &s_context, .val = 0, .bytes = sizeof(s_context)});
     // a path as the compilers and the tools are given it: forward slashes throughout
     VerbaLinea root_line = {s_root, sizeof(s_root), 0ull};
-    for (const char *at = root; *at != '\0'; at += 1)
-    {
-        mmgr_line_ch(&root_line, (*at == '\\') ? '/' : *at);
-    }
+    (void)cli_text_put_swapped(&root_line, root, '\\', '/');
     mmgr_line_finish(&root_line);
     s_context.root = s_root;
     s_context.programs = programs;

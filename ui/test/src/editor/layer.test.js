@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A layer's rows: written once and again only where their markup changes, kept where the drawing
-// keeps them, drawn outward, and, where the layer flows, held in blocks in their order.
+// keeps them, drawn outward, and, where the layer flows, kept in blocks in their order.
 
 import { Layer } from "../../../gui/src-js/editor/layer.js";
 
@@ -28,15 +28,15 @@ test("a row is made once and written again only where its markup changes", () =>
 test("a row written again is put in place by its own writer where it has one that takes it, else written whole", () => {
   const layer = new Layer(document.createElement("div"));
   layer.draw(parts([0, 1]));
-  const node = layer.held.get(0).node;
+  const node = layer.drawn.get(0).node;
   const placed = [];
-  const inPlace = (text) => (held) => {
+  const inPlace = (text) => (drawn) => {
     placed.push(text);
-    held.textContent = text;
+    drawn.textContent = text;
     return true;
   };
   layer.draw(new Map([[0, ["ed-row", "row 0 again", inPlace("row 0 again")]], [1, ["ed-row", "row 1", inPlace("never")]]]));
-  assert.equal(layer.held.get(0).node, node, "the row keeps its node");
+  assert.equal(layer.drawn.get(0).node, node, "the row keeps its node");
   assert.deepEqual([node.textContent, placed, layer.writes], ["row 0 again", ["row 0 again"], 1], "written in place, and a row unchanged not at all");
   layer.draw(new Map([[0, ["ed-row", "<b>whole</b>", () => false]]]));
   assert.equal(node.innerHTML, "<b>whole</b>", "a writer that does not take it leaves the row written whole");
@@ -46,7 +46,7 @@ test("a row the drawing lets go gives its node to a row that comes in, which its
   const host = document.createElement("div");
   const layer = new Layer(host, { flow: true });
   layer.draw(parts([0, 1, 2]), (row) => row * 20);
-  const nodes = new Set([0, 1, 2].map((row) => layer.held.get(row).node));
+  const nodes = new Set([0, 1, 2].map((row) => layer.drawn.get(row).node));
   const placed = [];
   const inPlace = (row) => (node) => {
     placed.push(row);
@@ -54,7 +54,7 @@ test("a row the drawing lets go gives its node to a row that comes in, which its
     return true;
   };
   layer.draw(new Map([9, 10].map((row) => [row, ["ed-row", `row ${row}`, inPlace(row)]])), (row) => row * 20);
-  assert.ok([9, 10].every((row) => nodes.has(layer.held.get(row).node)), "the rows that came in hold nodes the rows let go held");
+  assert.ok([9, 10].every((row) => nodes.has(layer.drawn.get(row).node)), "the rows that came in hold nodes the rows let go kept");
   assert.deepEqual(placed.sort((a, b) => a - b), [9, 10], "each put in place by its writer");
   assert.deepEqual(blocksOf(host), [["row 9", "row 10"]], "the node no row took gone, the rows in their block");
   assert.deepEqual([layer.made, layer.writes], [3, 2], "no node made");
@@ -63,9 +63,9 @@ test("a row the drawing lets go gives its node to a row that comes in, which its
 test("a row kept where its top moves is placed again where it stands", () => {
   const layer = new Layer(document.createElement("div"));
   layer.draw(parts([0, 1]), (row) => row * 20);
-  const node = layer.held.get(1).node;
+  const node = layer.drawn.get(1).node;
   layer.draw(parts([0, 1]), (row) => (row - 4) * 20);
-  assert.equal(layer.held.get(1).node, node, "the row keeps its node");
+  assert.equal(layer.drawn.get(1).node, node, "the row keeps its node");
   assert.equal(node.style.top, "-60px");
 });
 
@@ -74,11 +74,11 @@ test("a row the drawing keeps stays, and drawing outward adds rows and lets none
   const layer = new Layer(host, { flow: true });
   layer.draw(parts([10, 11, 12]), (row) => row * 20);
   layer.extend(parts([13, 14, 15]), (row) => row * 20);
-  assert.deepEqual([...layer.held.keys()].sort((a, b) => a - b), [10, 11, 12, 13, 14, 15]);
+  assert.deepEqual([...layer.drawn.keys()].sort((a, b) => a - b), [10, 11, 12, 13, 14, 15]);
   layer.draw(parts([11, 12]), (row) => row * 20, (row) => row >= 11 && row <= 14);
-  assert.deepEqual([...layer.held.keys()].sort((a, b) => a - b), [11, 12, 13, 14], "the rows kept, and the rest let go");
+  assert.deepEqual([...layer.drawn.keys()].sort((a, b) => a - b), [11, 12, 13, 14], "the rows kept, and the rest let go");
   layer.draw(parts([12]), (row) => row * 20);
-  assert.deepEqual([...layer.held.keys()], [12], "kept by nothing, a row out of the drawing goes");
+  assert.deepEqual([...layer.drawn.keys()], [12], "kept by nothing, a row out of the drawing goes");
 });
 
 test("a layer that flows holds its rows in blocks of four in their order, each block where its first row stands", () => {

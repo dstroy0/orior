@@ -34,16 +34,16 @@ let pending = 0;
 // Writes values into one part. For a part that is a map, `values` is [key, value], and a value of
 // null takes the key out.
 export function write(part, values) {
-  const held = status[part];
-  if (held instanceof Map) {
+  const current = status[part];
+  if (current instanceof Map) {
     const [key, value] = values;
     if (value === null) {
-      held.delete(key);
+      current.delete(key);
     } else {
-      held.set(key, value);
+      current.set(key, value);
     }
   } else {
-    Object.assign(held, values);
+    Object.assign(current, values);
   }
   // Watchers hear once a frame, whatever was written in it.
   if (!pending) {

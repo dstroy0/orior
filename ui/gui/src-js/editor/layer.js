@@ -21,24 +21,24 @@ export class Layer {
   constructor(host, { flow = false } = {}) {
     this.host = host;
     this.flow = flow;
-    this.held = new Map();
+    this.drawn = new Map();
     this.writes = 0;
     this.made = 0;
     this.blocks = null;
   }
 
   // `parts` gives each row on screen its class and markup, and where it has one, the writer that puts
-  // the row into the node it is held in, in place of its markup written whole: 1 where it took the
+  // the row into the node it is kept in, in place of its markup written whole: 1 where it took the
   // row, the node's own spans given their text and their classes, so the page parses nothing and
   // styles only the spans whose class changed. `top` places a row's node, where the layer's rows are
   // placed one by one, and the first row's, where they flow. A row `keep` says to keep stays though
   // `parts` does not give it.
   draw(parts, top = null, keep = null) {
     const spare = [];
-    for (const [row, held] of this.held) {
+    for (const [row, drawn] of this.drawn) {
       if (!parts.has(row) && !keep?.(row)) {
-        spare.push(held);
-        this.held.delete(row);
+        spare.push(drawn);
+        this.drawn.delete(row);
       }
     }
     this.write(parts, top, spare);
@@ -53,43 +53,43 @@ export class Layer {
   // lets go of the nodes left in `spare`.
   write(parts, top, spare) {
     for (const [row, [name, html, inPlace]] of parts) {
-      let held = this.held.get(row);
-      if (!held) {
-        held = spare.pop();
-        if (!held) {
+      let drawn = this.drawn.get(row);
+      if (!drawn) {
+        drawn = spare.pop();
+        if (!drawn) {
           const node = document.createElement("div");
           if (!this.flow) {
             this.host.append(node);
           }
-          held = { node, name: null, html: null, gap: 0, top: null };
+          drawn = { node, name: null, html: null, gap: 0, top: null };
         }
-        this.held.set(row, held);
+        this.drawn.set(row, drawn);
       }
       if (top && !this.flow) {
         const at = top(row);
-        if (held.top !== at) {
-          held.node.style.top = `${at}px`;
-          held.top = at;
+        if (drawn.top !== at) {
+          drawn.node.style.top = `${at}px`;
+          drawn.top = at;
         }
       }
-      if (held.name !== name) {
-        held.node.className = name;
-        held.name = name;
+      if (drawn.name !== name) {
+        drawn.node.className = name;
+        drawn.name = name;
       }
-      if (held.html !== html) {
-        if (held.html === null || !inPlace?.(held.node)) {
-          held.node.innerHTML = html;
+      if (drawn.html !== html) {
+        if (drawn.html === null || !inPlace?.(drawn.node)) {
+          drawn.node.innerHTML = html;
         }
-        if (held.html === null) {
+        if (drawn.html === null) {
           this.made += 1;
         } else {
           this.writes += 1;
         }
-        held.html = html;
+        drawn.html = html;
       }
     }
-    for (const held of spare) {
-      held.node.remove();
+    for (const drawn of spare) {
+      drawn.node.remove();
     }
     if (this.flow) {
       this.place(top);
@@ -100,7 +100,7 @@ export class Layer {
   // where `top` puts its first row and its rows in their order in it, a row after a gap by the rows
   // missing before it.
   place(top) {
-    const rows = [...this.held.keys()].sort((a, b) => a - b);
+    const rows = [...this.drawn.keys()].sort((a, b) => a - b);
     const blocks = new Map();
     for (const row of rows) {
       const number = Math.floor(row / BLOCK);
@@ -132,16 +132,16 @@ export class Layer {
       let at = block.node.firstChild;
       let before = number * BLOCK - 1;
       for (const row of inside) {
-        const held = this.held.get(row);
+        const drawn = this.drawn.get(row);
         const gap = row - before - 1;
-        if (held.gap !== gap) {
-          held.node.style.marginTop = gap ? `calc(var(--code-line) * ${gap})` : "";
-          held.gap = gap;
+        if (drawn.gap !== gap) {
+          drawn.node.style.marginTop = gap ? `calc(var(--code-line) * ${gap})` : "";
+          drawn.gap = gap;
         }
-        if (held.node === at) {
+        if (drawn.node === at) {
           at = at.nextSibling;
         } else {
-          block.node.insertBefore(held.node, at);
+          block.node.insertBefore(drawn.node, at);
         }
         before = row;
       }
@@ -152,15 +152,15 @@ export class Layer {
   // and its markup under its new number.
   shift(by) {
     if (by) {
-      this.held = new Map([...this.held].map(([row, held]) => [row + by, held]));
+      this.drawn = new Map([...this.drawn].map(([row, drawn]) => [row + by, drawn]));
     }
   }
 
   clear() {
-    for (const held of this.held.values()) {
-      held.node.remove();
+    for (const drawn of this.drawn.values()) {
+      drawn.node.remove();
     }
-    this.held.clear();
+    this.drawn.clear();
     for (const block of this.blocks?.values() ?? []) {
       block.node.remove();
     }

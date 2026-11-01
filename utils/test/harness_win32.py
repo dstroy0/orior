@@ -433,21 +433,21 @@ def keys_sent(handle, names):
     for name in names:
         parts = name.split("+")
         key = parts.pop() or "+"
-        held = [VK_CONTROL for part in parts if part in ("Mod", "Ctrl")] + [VK_MENU for part in parts if part == "Alt"]
-        held += [VK_SHIFT for part in parts if part == "Shift"]
-        for modifier in held:
+        pressed = [VK_CONTROL for part in parts if part in ("Mod", "Ctrl")] + [VK_MENU for part in parts if part == "Alt"]
+        pressed += [VK_SHIFT for part in parts if part == "Shift"]
+        for modifier in pressed:
             user32.PostMessageW(handle, WM_KEYDOWN, modifier, 0)
         if key in VK_OF:
             user32.PostMessageW(handle, WM_KEYDOWN, VK_OF[key], 0)
             user32.PostMessageW(handle, WM_KEYUP, VK_OF[key], 0)
-        elif len(key) == 1 and not held:
+        elif len(key) == 1 and not pressed:
             user32.PostMessageW(handle, WM_CHAR, ord(key), 0)
         elif len(key) == 1:
             user32.PostMessageW(handle, WM_KEYDOWN, ord(key.upper()), 0)
             user32.PostMessageW(handle, WM_KEYUP, ord(key.upper()), 0)
         else:
             raise SystemExit("no key is named %s" % name)
-        for modifier in reversed(held):
+        for modifier in reversed(pressed):
             user32.PostMessageW(handle, WM_KEYUP, modifier, 0)
         time.sleep(0.02)
     return True

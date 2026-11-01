@@ -4,6 +4,7 @@
 // plugin's version and its arguments; and Maven's own, from the user's `settings.xml` and the global one in Maven's
 // home: the folders, the local repository, whether it works offline, and its mirrors, proxies and active profiles.
 // One reading runs at a time; a settings file larger than CLI_MAVEN_SETTINGS_TEXT is read as empty
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 #include "maven.h"
@@ -203,7 +204,7 @@ static void settings_listed(const char *list, const char *each, const char *cons
 static void settings_read(unsigned int at, const char *path)
 {
     s_files.size[at] = 0ull;
-    s_files.bytes[at] = (path[0] != '\0') ? cli_file_read(path, &s_files.size[at]) : NULL;
+    s_files.bytes[at] = (path[0] != '\0') ? cli_file_taken(path, &s_files.size[at], &g_cli_build_cells) : NULL;
     s_files.read[at] = (s_files.bytes[at] != NULL) && (s_files.size[at] <= CLI_MAVEN_SETTINGS_TEXT);
     // the file's bytes are read as its text
     cli_xml_parse(s_files.read[at] ? (const char *)s_files.bytes[at] : "", s_files.read[at] ? s_files.size[at] : 0ull,
@@ -216,10 +217,7 @@ static void settings_let_go(void)
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         cli_xml_given(&s_files.xml[at]);
-        if (s_files.bytes[at] != NULL)
-        {
-            cli_file_let_go(s_files.bytes[at], s_files.size[at]);
-        }
+        cli_file_given(s_files.bytes[at], &g_cli_build_cells);
         s_files.bytes[at] = NULL;
         s_files.read[at] = 0;
     }

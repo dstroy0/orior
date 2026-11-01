@@ -174,29 +174,15 @@ int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, VerbaLi
     }
     else if (head_is(answer, encoding, "deflate"))
     {
-        // a deflate gives no size: the room begins at four times the packed bytes and doubles while it fills
+        // a deflate gives no size: the room is taken at the most a body holds
         const int zlib =
             (size > 2u) && ((raw[0] & 0x0fu) == 8u) && ((((unsigned int)raw[0] << 8u) | raw[1]) % 31u == 0u);
-        const unsigned long long err_at = err_msg->at;
-        unsigned long long room_bytes = 4ull * size;
-        for (;;)
+        unsigned long long used = 0ull;
+        if (!head_unpacked_room(room, CLI_REQUESTS_BODY, err_msg) ||
+            !cli_inflate(zlib ? (raw + 2) : raw, zlib ? (size - 2u) : size, room->unpacked, room->unpacked_room,
+                         &unpacked, &used, err_msg))
         {
-            unsigned long long used = 0ull;
-            if (!head_unpacked_room(room, room_bytes, err_msg))
-            {
-                return 0;
-            }
-            if (cli_inflate(zlib ? (raw + 2) : raw, zlib ? (size - 2u) : size, room->unpacked, room->unpacked_room,
-                            &unpacked, &used, err_msg))
-            {
-                break;
-            }
-            if ((unpacked < room->unpacked_room) || (room->unpacked_room >= CLI_REQUESTS_BODY))
-            {
-                return 0;
-            }
-            err_msg->at = err_at;
-            room_bytes = 2ull * room->unpacked_room;
+            return 0;
         }
     }
     else
@@ -211,8 +197,13 @@ int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, VerbaLi
 int cli_requests_is_text(const CliRequestsAnswer *answer)
 {
     const CliRequestsText *const type = cli_requests_header(answer, "Content-Type");
-    const char *const kind = (type != NULL) ? (answer->head + type->at) : "";
-    const unsigned long long size = (type != NULL) ? type->size : 0ull;
+    const char *kind = "";
+    unsigned long long size = 0ull;
+    if (type != NULL)
+    {
+        kind = answer->head + type->at;
+        size = type->size;
+    }
     static const char *const texts[7] = {"json", "xml", "javascript", "x-www-form-urlencoded",
                                          "yaml", "csv", "graphql"};
     int text = (size >= 5u) && cli_requests_contains(kind, 5u, "text/");

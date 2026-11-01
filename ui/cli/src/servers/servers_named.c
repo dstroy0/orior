@@ -23,12 +23,12 @@ static void named_put(void *context, const char *key, const char *beside, const 
 // the cell, or NULL where none are or the cell could not be taken; under the keeper's lock
 static char *named_files(CliKeyed *keyed, unsigned long long *size)
 {
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea files;
-    cli_pieces_begun(&pieces, &files, piece, sizeof(piece), &g_cli_servers_cells);
+    const unsigned long long room = cli_keyed_listed_size(keyed) + 1ull;
+    char *const text = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+    VerbaLinea files = mmgr_line_over(text, room);
     cli_keyed_each(keyed, named_put, &files);
-    return cli_pieces_joined(&pieces, &files, "the files a naming of checkers reaches", size);
+    *size = mmgr_line_ok(&files) ? files.at : 0ull;
+    return text;
 }
 
 // whether `id` is among the checkers named
@@ -45,8 +45,8 @@ static int named_among(const char *id)
 }
 
 // the findings of the checkers no longer named taken out of the file of `key`: 1 where it had some; under the
-// servers' and the checks' locks. The file's entry is read into a tree of its size and written through pieces into a
-// cell of the size it writes to
+// servers' and the checks' locks. The file's entry is read into a tree of its size and written into a cell of the most
+// the tree writes to
 static int named_dropped(const char *key, const char *uri)
 {
     const char *beside = NULL;
@@ -76,16 +76,13 @@ static int named_dropped(const char *key, const char *uri)
     }
     if (dropped)
     {
-        char piece[CLI_SERVERS_PIECE];
-        CliPieces pieces;
-        VerbaLinea written;
-        cli_pieces_begun(&pieces, &written, piece, sizeof(piece), &g_cli_servers_cells);
+        const unsigned long long room = cli_json_written_room(&json);
+        char *const entry_written = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+        VerbaLinea written = mmgr_line_over(entry_written, room);
         cli_json_write(&json, entry, &written, 0u, 1);
-        unsigned long long written_size = 0ull;
-        char *const entry_written = cli_pieces_joined(&pieces, &written, "a file's findings written", &written_size);
-        if (entry_written != NULL)
+        if (mmgr_line_ok(&written))
         {
-            (void)cli_keyed_put(&g_cli_servers_checked, key, uri, entry_written, written_size);
+            (void)cli_keyed_put(&g_cli_servers_checked, key, uri, written.out, written.at);
         }
         g_cli_cells->persistent_buf_release(entry_written, &g_cli_servers_cells);
     }
@@ -96,14 +93,13 @@ static int named_dropped(const char *key, const char *uri)
 // the checkers no longer named take their findings with them, each file that had some passed on whole
 static void named_findings_dropped(const CliServersSink *sink)
 {
-    char dropped_piece[CLI_SERVERS_PIECE];
-    CliPieces dropped_pieces;
-    VerbaLinea dropped;
-    cli_pieces_begun(&dropped_pieces, &dropped, dropped_piece, sizeof(dropped_piece), &g_cli_servers_cells);
     cli_lock_take(&g_cli_servers_checks_lock);
     unsigned long long size = 0ull;
     char *const files = named_files(&g_cli_servers_checked, &size);
-    for (unsigned long long at = 0ull; (files != NULL) && (at < size);)
+    // the files that had findings of a checker gone are among those listed
+    char *const passed = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_servers_cells);
+    VerbaLinea dropped = mmgr_line_over(passed, size + 1ull);
+    for (unsigned long long at = 0ull; at < size;)
     {
         const char *const key = files + at;
         const char *const uri = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;
@@ -118,9 +114,8 @@ static void named_findings_dropped(const CliServersSink *sink)
     cli_lock_give(&g_cli_servers_checks_lock);
     g_cli_cells->persistent_buf_release(files, &g_cli_servers_cells);
     cli_lock_give(&g_cli_servers.lock);
-    unsigned long long dropped_size = 0ull;
-    char *const passed = cli_pieces_joined(&dropped_pieces, &dropped, "the files whose findings went", &dropped_size);
-    for (unsigned long long at = 0ull; (passed != NULL) && (at < dropped_size);)
+    const unsigned long long dropped_size = mmgr_line_ok(&dropped) ? dropped.at : 0ull;
+    for (unsigned long long at = 0ull; at < dropped_size;)
     {
         const char *const key = passed + at;
         const char *const uri = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;
@@ -183,7 +178,7 @@ int cli_servers_set_checkers(const char *const *names, unsigned int count, const
     unsigned long long size = 0ull;
     char *const files_text = named_files(&g_cli_servers_texts, &size);
     cli_lock_give(&g_cli_servers_texts_lock);
-    for (unsigned long long at = 0ull; (files_text != NULL) && (at < size);)
+    for (unsigned long long at = 0ull; at < size;)
     {
         const char *const key = files_text + at;
         const char *const path = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;

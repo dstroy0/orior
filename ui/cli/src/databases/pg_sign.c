@@ -59,11 +59,13 @@ int cli_pg_scram_final(const char *password, const char *first_bare, const char 
     unsigned long long rounds = 0ull;
     int counted = sign_field(server_first, "i=", rounds_text, sizeof(rounds_text)) && (rounds_text[0] != '\0') &&
                   (cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}) <= 10u);
-    for (const char *digit = rounds_text; counted && (*digit != '\0'); digit += 1)
-    {
-        counted = (*digit >= '0') && (*digit <= '9');
-        rounds = (rounds * 10ull) + (unsigned long long)(*digit - '0');
-    }
+    counted = counted && (cli_text_past_class(rounds_text, 0ull,
+                                              cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}),
+                                              CLI_TEXT_DIGITS, "") ==
+                          cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}));
+    rounds = counted ? cli_text_number(rounds_text, 0ull,
+                                       cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}), NULL)
+                     : 0ull;
     if (!counted || (rounds > 0xffffffffull))
     {
         cli_db_failure_set(failure, "the server gave no count of rounds");

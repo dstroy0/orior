@@ -107,17 +107,17 @@ export function wrapColumns() {
 // tab's width stay as they are.
 export function breaksOf(line, columns) {
   const size = this.s.indent.size;
-  if (this.wraps?.columns !== columns || this.wraps.size !== size || this.wraps.held.size > WRAPS_KEPT) {
-    this.wraps = { columns, size, held: new Map() };
+  if (this.wraps?.columns !== columns || this.wraps.size !== size || this.wraps.byText.size > WRAPS_KEPT) {
+    this.wraps = { columns, size, byText: new Map() };
   }
   const text = this.s.doc.line(line);
   if (text.length <= columns && !text.includes("\t")) {
     return null;
   }
-  let breaks = this.wraps.held.get(text);
+  let breaks = this.wraps.byText.get(text);
   if (breaks === undefined) {
     breaks = wrapBreaks(text, columns, size);
-    this.wraps.held.set(text, breaks);
+    this.wraps.byText.set(text, breaks);
   }
   return breaks;
 }
@@ -223,7 +223,7 @@ export function widest() {
     this.widestWait = window.setTimeout(() => {
       this.later("widest", () => {
         if (this.s?.doc === doc) {
-          // a file held as pages keeps the widest any of its windows held, so the space never narrows under the view
+          // a file stored as pages keeps the widest any of its windows kept, so the space never narrows under the view
           const width = this.widthOf(doc.lines);
           this.widestCache = this.s.window?.paged ? Math.max(this.widestCache, width) : width;
           this.schedule();
@@ -285,12 +285,12 @@ export function replaced(session) {
   if (session !== this.s) {
     return;
   }
-  // the markup and the breaks kept for the lines the window held go with them
+  // the markup and the breaks kept for the lines the window kept go with them
   this.rowsKept = null;
   this.wraps = null;
-  const kept = this.heldLine;
-  this.heldLine = undefined;
-  // the space across as wide as the widest line any window of the file has held, so it neither widens nor narrows
+  const kept = this.anchorLine;
+  this.anchorLine = undefined;
+  // the space across as wide as the widest line any window of the file has kept, so it neither widens nor narrows
   // as the window moves, a window of cut lines measured by their whole lengths
   const lengths = session.window?.lengths;
   const width = lengths ? Math.min(SHOWN, lengths.reduce((most, length) => Math.max(most, length), 0)) : this.widthOf(session.doc.lines);
@@ -321,18 +321,18 @@ export function replaced(session) {
 // Reads the line of the file at the top of the view, before a paged file's window moves under it.
 export function holdLine(session) {
   if (session === this.s && session.window?.paged) {
-    this.heldLine = session.base + this.scrollY() / LINE;
+    this.anchorLine = session.base + this.scrollY() / LINE;
   }
 }
 
 // Puts the line `holdLine` read back at the top of the view once the window has moved, a glide
 // under way carried with it, and the scroll that does it not counted as speed.
 export function keepLine() {
-  if (this.heldLine === undefined || !this.s) {
+  if (this.anchorLine === undefined || !this.s) {
     return;
   }
-  const line = this.heldLine;
-  this.heldLine = undefined;
+  const line = this.anchorLine;
+  this.anchorLine = undefined;
   this.size();
   const want = this.pad + (line - this.s.base) * LINE;
   const by = want - this.scroller.scrollTop;

@@ -217,7 +217,7 @@ class Walker:
         self.conn.on("Page.screencastFrame", self.framed)
 
     def js(self, expression, timeout=60):
-        """The value of `expression` in the page. A page that does not answer is held by something
+        """The value of `expression` in the page. A page that does not answer is blocked by something
         over it, as a dialog of the system's: an Escape goes to it and the question is asked again,
         and a page that still does not answer stops the walk."""
         try:
@@ -232,15 +232,15 @@ class Walker:
 
     def watch(self):
         """Puts monitor.js into the page, and stops the walk unless its watch holds every call: a call
-        held says so, where one let through would only be refused by the server as no command."""
+        blocked says so, where one let through would only be refused by the server as no command."""
         self.js((HERE / "monitor.js").read_text(encoding="utf-8"))
         holds = self.js(
             "(async () => { if (!(await window.__walk.guarded)) return false;"
             " try { await (await import('/bridge.js')).invoke('walker_probe'); return false; }"
-            " catch (error) { return String(error).includes('held by the walker'); } })()"
+            " catch (error) { return String(error).includes('blocked by the walker'); } })()"
         )
         if holds is not True:
-            raise SystemExit("the page's calls are not held by the walker's watch: no command is pressed")
+            raise SystemExit("the page's calls are not blocked by the walker's watch: no command is pressed")
 
     def framed(self, params):
         """Keeps a frame of the screen, on the connection's reading thread, and asks for the next."""
@@ -336,7 +336,7 @@ class Walker:
 
     def weigh(self, item):
         """Presses a command under the sampling heap profiler and gives what it left: the page's bytes
-        still held once it was closed, put back and the heap collected, by module and function; the
+        still retained once it was closed, put back and the heap collected, by module and function; the
         heap's growth; and each process's."""
         self.baseline()
         self.settle(2)
@@ -364,7 +364,7 @@ class Walker:
         }
 
     def judge_memory(self, memory):
-        """What a command's memory says needs a look: the page's bytes it left held, and a process that
+        """What a command's memory says needs a look: the page's bytes it left retained, and a process that
         grew."""
         flags = []
         if memory["kept"] > 1 << 20:
@@ -380,7 +380,7 @@ class Walker:
         flags = []
         if ran.get("missing"):
             return [(100, "missing", "no command of the window answers this item")]
-        if ran.get("threw") and "held by the walker" not in ran["threw"]:
+        if ran.get("threw") and "blocked by the walker" not in ran["threw"]:
             flags.append((90, "threw", ran["threw"].splitlines()[0][:300]))
         for error in report["errors"]:
             flags.append((85, error["kind"], error["text"].splitlines()[0][:300]))
@@ -402,7 +402,7 @@ class Walker:
         for loaf in report.get("loafs") or []:
             if loaf["blocking"] > 100:
                 scripts = ", ".join(f"{one['fn'] or one['invoker']} {one['at']} {one['ms']} ms" for one in sorted(loaf["scripts"], key=lambda one: -one["ms"])[:3])
-                flags.append((38, "blocked", f"the page was held {loaf['blocking']:.0f} ms at {loaf['t']} ms: {scripts}"))
+                flags.append((38, "blocked", f"the page was blocked {loaf['blocking']:.0f} ms at {loaf['t']} ms: {scripts}"))
         score = sum(shift["value"] for shift in report["shifts"])
         if score > 0.005:
             moved = []
@@ -503,7 +503,7 @@ class Walker:
                 except Hung as error:
                     record["flags"] = [{"weight": 99, "kind": "hung the page", "text": str(error)[:300]}]
                     self.records.append(record)
-                    print(f"{command} held the page: the walk stops")
+                    print(f"{command} blocked the page: the walk stops")
                     break
                 except (RuntimeError, TimeoutError) as error:
                     record["flags"] = [{"weight": 95, "kind": "walker", "text": str(error)[:300]}]
@@ -558,11 +558,11 @@ class Walker:
             f"# Memory of the walk of {self.stamp}",
             "",
             f"{len(weighed)} commands, each pressed under V8's sampling heap profiler, one sample each {self.options.sampling} bytes. "
-            "What the page holds is what it still held once the command was closed, put back and its heap collected.",
+            "What the page holds is what it still retained once the command was closed, put back and its heap collected.",
             "",
-            "## What each command left held",
+            "## What each command left retained",
             "",
-            "| # | command | menu | page KiB kept | heap after KiB | held the most | processes that grew |",
+            "| # | command | menu | page KiB kept | heap after KiB | retained the most | processes that grew |",
             "| ---: | --- | --- | ---: | ---: | --- | --- |",
         ]
         for record in sorted(weighed, key=lambda one: -one["memory"]["kept"]):
@@ -573,9 +573,9 @@ class Walker:
                 f"| {record['index']} | `{record['command']}` | {record['path']} | {kib(memory['kept'])} | {kib(memory['heapAfter'])} | "
                 f"{(top[0] + ' ' + kib(top[1])) if top else ''} | {grew} |"
             )
-        lines += ["", "## Held by module, over the walk", "", "| module | KiB |", "| --- | ---: |"]
+        lines += ["", "## Retained by module, over the walk", "", "| module | KiB |", "| --- | ---: |"]
         lines += [f"| {name} | {kib(size)} |" for name, size in modules.most_common(40)]
-        lines += ["", "## Held by function, over the walk", "", "| function | KiB |", "| --- | ---: |"]
+        lines += ["", "## Retained by function, over the walk", "", "| function | KiB |", "| --- | ---: |"]
         lines += [f"| `{name}` | {kib(size)} |" for name, size in functions.most_common(80)]
         (self.out / "memory.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"memory: {self.out / 'memory.md'}")
@@ -592,7 +592,7 @@ class Walker:
             shot = f"[shot]({record['shot']})" if record.get("shot") else ""
             frames = f"[frames]({record['frames']})" if record.get("frames") else ""
             lines.append(f"| {weight} | `{record['command']}` | {record['path']} | {flag['kind']} | {text} | {shot} | {frames} |")
-        lines += ["", "## Every command", "", "| # | command | menu | worked ms | calls | slowest call | frames | longest frame | moved | shift | held |", "| ---: | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- |"]
+        lines += ["", "## Every command", "", "| # | command | menu | worked ms | calls | slowest call | frames | longest frame | moved | shift | blocked |", "| ---: | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- |"]
         for record in self.records:
             report = record.get("report")
             if not report:
@@ -600,11 +600,11 @@ class Walker:
                 continue
             slowest = max(report["calls"], key=lambda call: call["ms"], default=None)
             shift = sum(one["value"] for one in report["shifts"])
-            held = ", ".join(sorted({one["name"] for one in report["held"]}))
+            blocked = ", ".join(sorted({one["name"] for one in report["blocked"]}))
             lines.append(
                 f"| {record['index']} | `{record['command']}` | {record['path']} | {report.get('active', 0)} | {len(report['calls'])} | "
                 f"{(slowest['name'] + ' ' + str(slowest['ms']) + ' ms') if slowest else ''} | {report['frames']} | {max(report['gaps'], default=0):.0f} | "
-                f"{len(report['moves'])} | {shift:.3f} | {held} |"
+                f"{len(report['moves'])} | {shift:.3f} | {blocked} |"
             )
         (self.out / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"report: {self.out / 'report.md'}")

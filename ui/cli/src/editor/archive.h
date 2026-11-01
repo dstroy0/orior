@@ -103,12 +103,15 @@ unsigned long long cli_gzip(const unsigned char *data, unsigned long long size, 
 void cli_dos(const unsigned char *bytes, unsigned long long size, VerbaLinea *out);
 // where a path of the tree runs into an archive: the archive's file into `file`, sized for CLI_PATH_MAX_LEN, and the
 // path's parts past it, joined by `/`, into `inner`, sized for CLI_PATH_MAX_LEN: 1, or 0 where the path runs into no
-// archive; the children of the folder of the tree `path` that is an archive or runs into one; the bytes of the file of
-// the tree `path` within an archive, into `out`; and `size` bytes of `data` saved as that file, the archive written
-// anew beside the old one and then put in its place. Each 1, or 0 with why given (archive_path.c)
+// archive; the children of the folder of the tree `path` that is an archive or runs into one: 1, or 0 with why given;
+// the bytes of the file of the tree `path` within an archive, in a cell of their size and a 0 after counted to `owner`,
+// their size into `size`: the cell, given back by the caller, or NULL with why given; and `size` bytes of `data` saved
+// as that file, the archive written anew beside the old one and then put in its place: 1, or 0 with why given
+// (archive_path.c)
 int cli_archive_split(const char *root, const char *path, char *file, char *inner);
 int cli_archive_list(const char *root, const char *path, CliChildren *found, VerbaLinea *err_msg);
-int cli_archive_read(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg);
+char *cli_archive_taken(const char *root, const char *path, unsigned long long *size, CellOwner *owner,
+                        VerbaLinea *err_msg);
 int cli_archive_write(const char *root, const char *path, const unsigned char *data, unsigned long long size,
                       VerbaLinea *err_msg);
 

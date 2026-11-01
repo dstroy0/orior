@@ -6,6 +6,7 @@
 // that one file and ends; on Linux by cp run through pkexec; on macOS by cp run with the system's authorization. A
 // reader who declines the prompt leaves the file as it was
 #include "raised.h"
+#include "../text/text.h"
 
 // whether `err_text`, what a write that failed reported, is the system refusing it the rights
 int cli_raised_is_refused(const char *err_text)
@@ -14,11 +15,7 @@ int cli_raised_is_refused(const char *err_text)
                                            "os error 5)",      "os error 13)",      "os error 1)"};
     char lower[CLI_ERR_MSG_MAX_LEN];
     size_t length = 0u;
-    for (; (err_text[length] != '\0') && (length < (sizeof(lower) - 1u)); length += 1u)
-    {
-        const char letter = err_text[length];
-        lower[length] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter;
-    }
+    length = (size_t)cli_text_lowered_into(lower, sizeof(lower), err_text);
     lower[length] = '\0';
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {

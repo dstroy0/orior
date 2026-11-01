@@ -99,22 +99,22 @@ int cli_symbols_slices_each(const char *path, const char *text, unsigned long lo
 // the editor holds none
 typedef void (*CliUsage)(void *context, const char *path, unsigned int line, unsigned int from, unsigned int to,
                          const char *text, unsigned long long length);
-typedef char *(*CliHeld)(void *context, const char *path, unsigned long long *size);
+typedef char *(*CliOpenText)(void *context, const char *path, unsigned long long *size);
 // the usages of the name at `line`, `col` in UTF-16 units of the tree's file at `path`, each handed to `each`, the
-// place's own among them, each file's text the one `held` gives, else the disk's: a local's or a parameter's, the
+// place's own among them, each file's text the one `open_text` gives, else the disk's: a local's or a parameter's, the
 // leaves of its name in the region of the function that declares it; any other name's, the leaves of it whose
 // definition in effect is the one at the place, in the file at `path` alone where `across` is 0, else in every file of
 // the tree. 1, or 0 where the place names no name or the tree knows no definition of it, nothing handed on, or -1 with
 // why given where the cells cannot meet it (symbols_usages.c)
-int cli_symbols_usages(const char *path, unsigned int line, unsigned int col, int across, CliHeld held,
-                       void *held_context, CliUsage each, void *context, VerbaLinea *err_msg);
+int cli_symbols_usages(const char *path, unsigned int line, unsigned int col, int across, CliOpenText open_text,
+                       void *open_text_context, CliUsage each, void *context, VerbaLinea *err_msg);
 // the definition in effect of the name at `line`, `col` in UTF-16 units of the tree's file at `path`, handed to `each`
 // as a usage: a local's or a parameter's first leaf in the region of the function that declares it, any other name's
 // leaf on the line of the define in effect or of the first declaration the walk met, in that declaration's file, each
-// file's text the one `held` gives. 1, or 0 where the place names no name or the tree knows no definition of it, as for
-// a define the compile database gives, nothing handed on, or -1 with why given (symbols_usages.c)
-int cli_symbols_definition(const char *path, unsigned int line, unsigned int col, CliHeld held, void *held_context,
-                           CliUsage each, void *context, VerbaLinea *err_msg);
+// file's text the one `open_text` gives. 1, or 0 where the place names no name or the tree knows no definition of it,
+// as for a define the compile database gives, nothing handed on, or -1 with why given (symbols_usages.c)
+int cli_symbols_definition(const char *path, unsigned int line, unsigned int col, CliOpenText open_text,
+                           void *open_text_context, CliUsage each, void *context, VerbaLinea *err_msg);
 // the names that complete the word that ends at `line`, `col` in UTF-16 units of `size` bytes of `text`, the editor's
 // text of the tree's file at `path`, each handed to `each` once with what it is and the line it is declared on, in its
 // own file: every define in effect at the line, then every declaration a walk of the file to the line met in an active
@@ -145,19 +145,19 @@ typedef struct
 typedef void (*CliCallReached)(void *context, const char *path, unsigned int line, unsigned int from, unsigned int to,
                                const char *name, unsigned long long length, const CliSymbolPlace *sites,
                                unsigned int count);
-// the call hierarchy over the tree's files, each file's text the one `held` gives, else the disk's: the function of the
-// tree's file at `path` whose name or body stands on line `line`, handed to `each` with no calls; the functions that
-// call the function whose name stands on that line, each with the places of its calls of it in its file, a call a
+// the call hierarchy over the tree's files, each file's text the one `open_text` gives, else the disk's: the function
+// of the tree's file at `path` whose name or body stands on line `line`, handed to `each` with no calls; the functions
+// that call the function whose name stands on that line, each with the places of its calls of it in its file, a call a
 // usage of the name a bracket `(` follows; and the functions it calls, each the definition in effect of a call in its
 // body, with the places of those calls in it. A function is a region its bracket `{` opens at no depth whose head
 // holds a bracket `(` after a leaf that declares its name. Each 1, 0 where no function stands there, or -1 with why
 // given (symbols_calls.c)
-int cli_symbols_function_at(const char *path, unsigned int line, CliHeld held, void *held_context, CliCallReached each,
-                            void *context, VerbaLinea *err_msg);
-int cli_symbols_callers(const char *path, unsigned int line, CliHeld held, void *held_context, CliCallReached each,
-                        void *context, VerbaLinea *err_msg);
-int cli_symbols_callees(const char *path, unsigned int line, CliHeld held, void *held_context, CliCallReached each,
-                        void *context, VerbaLinea *err_msg);
+int cli_symbols_function_at(const char *path, unsigned int line, CliOpenText open_text, void *open_text_context,
+                            CliCallReached each, void *context, VerbaLinea *err_msg);
+int cli_symbols_callers(const char *path, unsigned int line, CliOpenText open_text, void *open_text_context,
+                        CliCallReached each, void *context, VerbaLinea *err_msg);
+int cli_symbols_callees(const char *path, unsigned int line, CliOpenText open_text, void *open_text_context,
+                        CliCallReached each, void *context, VerbaLinea *err_msg);
 // one span Expand Selection steps through, from `from` to `to`
 typedef void (*CliSpanned)(void *context, CliSymbolPlace from, CliSymbolPlace to);
 // the spans of `size` bytes of `text`, the editor's text of the tree's file at `path`, that hold `from` to `to` and are

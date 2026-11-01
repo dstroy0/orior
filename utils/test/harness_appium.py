@@ -162,8 +162,8 @@ class Window:
         self.keys(list(text))
 
     def file_text(self, path):
-        with open(os.path.join(self.tree, path), encoding="utf-8", errors="replace") as held:
-            return held.read()
+        with open(os.path.join(self.tree, path), encoding="utf-8", errors="replace") as handle:
+            return handle.read()
 
     def until(self, holds, said, wait=LOOK_WAIT):
         """Waits until `holds()` is true, or fails saying `said`."""

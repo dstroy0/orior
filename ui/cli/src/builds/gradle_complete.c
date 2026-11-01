@@ -5,7 +5,9 @@
 // what the block it stands in takes, a settings script's own words or a build script's at the top, and in
 // `dependencies` the configurations, what the block calls beside them, and those the script declares. Nothing completes
 // in a string or a comment
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "gradle_internal.h"
 #include "version_catalog_internal.h"
 
@@ -53,12 +55,12 @@ static void complete_catalog(const char *root, const char *path, const char *fir
     }
     // the catalog read where it lies, mapped while its aliases are read and let go after
     unsigned long long read = 0ull;
-    const unsigned char *const catalog = cli_file_read(s_catalogs.path[chosen], &read);
+    const unsigned char *const catalog = cli_file_taken(s_catalogs.path[chosen], &read, &g_cli_gradle_cells);
     CliVersionsAliases aliases;
     const int whole = (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
                       cli_utf8_whole((const char *)catalog, read) &&
                       cli_versions_aliases((const char *)catalog, read, &aliases);
-    cli_file_let_go(catalog, read);
+    cli_file_given(catalog, &g_cli_gradle_cells);
     if (!whole)
     {
         return;
@@ -93,10 +95,9 @@ static void complete_catalog(const char *root, const char *path, const char *fir
 static int complete_settings(const char *path)
 {
     const char *name = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? at + 1 : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     static const char s_settings[] = "settings.gradle";
     for (unsigned int at = 0u; at < sizeof(s_settings) - 1u; at += 1u)
     {
@@ -153,10 +154,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
         return;
     }
     unsigned long long line_start = token;
-    while ((line_start > 0u) && (text[line_start - 1u] != '\n'))
-    {
-        line_start -= 1u;
-    }
+    line_start = cli_text_back_any(text, line_start, "\n");
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
     cli_text_trimmed(text + line_start, token - line_start, &from, &to);

@@ -49,7 +49,7 @@ async function closed(path) {
 // made them, and the calls before them done.
 async function settled(doc) {
   await new Promise((rest) => setTimeout(rest, 50));
-  await doc.held?.chain;
+  await doc.mirrored?.chain;
 }
 
 // Whether the branch under `key` is gone from the window's side, as closing its tab lets it go, within 5 s.
@@ -97,7 +97,7 @@ test("a ten-megabyte file opened, pasted into, undone and closed ten times leave
     // a round measured once its work is done: the paste and the undo answered on the window's side, and the branch
     // let go there after the tab closes
     await settled(doc);
-    const key = doc.held?.key;
+    const key = doc.mirrored?.key;
     await closed(name);
     assert.ok(!key || (await released(key)), `round ${round}: the branch let go on the window's side`);
     rounds.push(await measured());
@@ -114,22 +114,22 @@ test("a ten-megabyte file opened, pasted into, undone and closed ten times leave
   // leavings measures them with its own
 }, { timeout: 240000, tries: 1 });
 
-test("a large text is held on the window's side, each change follows it there, and its gutter's marks come from there as the page's own diff gives them", async () => {
+test("a large text is stored on the window's side, each change follows it there, and its gutter's marks come from there as the page's own diff gives them", async () => {
   const lines = Array.from({ length: 20000 }, (_, line) => `value_${line} = compute(${line}) + ${line % 7}`);
   const root = await invoke("root_get");
-  await invoke("folder_create", { path: "held" }).catch(() => {});
+  await invoke("folder_create", { path: "mirrored" }).catch(() => {});
   // a try after the first finds the repository made and the file committed as it is written again
-  await invoke("repo_init", { folder: `${root}/held` }).catch((error) => assert.match(String(error), /is a repository already/));
-  await invoke("file_write", { path: "held/held.py", text: `${lines.join("\n")}\n` });
-  await invoke("git_commit", { message: "a large file held", paths: ["held/held.py"] }).catch(async (error) => {
-    assert.equal((await invoke("file_head", { path: "held/held.py" })).split(/\r?\n/).length, lines.length + 1, `the commit refused: ${error}`);
+  await invoke("repo_init", { folder: `${root}/mirrored` }).catch((error) => assert.match(String(error), /is a repository already/));
+  await invoke("file_write", { path: "mirrored/mirrored.py", text: `${lines.join("\n")}\n` });
+  await invoke("git_commit", { message: "a large file mirrored", paths: ["mirrored/mirrored.py"] }).catch(async (error) => {
+    assert.equal((await invoke("file_head", { path: "mirrored/mirrored.py" })).split(/\r?\n/).length, lines.length + 1, `the commit refused: ${error}`);
   });
   showView("edit");
-  await openFile("held/held.py");
-  await ui.waitFor(() => editing().active === "held/held.py" && editing().editor?.s?.doc.held?.ready, 10000);
+  await openFile("mirrored/mirrored.py");
+  await ui.waitFor(() => editing().active === "mirrored/mirrored.py" && editing().editor?.s?.doc.mirrored?.ready, 10000);
   const view = editing().editor;
   const s = view.s;
-  const held = s.doc.held;
+  const mirrored = s.doc.mirrored;
   view.goTo(5000, 0);
   view.focus();
   await ui.type("changed_");
@@ -141,9 +141,9 @@ test("a large text is held on the window's side, each change follows it there, a
   // Each change has gone to the window's side, once the calls about the text are answered, and the text
   // there is the page's, line for line and unit for unit.
   await settled(s.doc);
-  const shape = await invoke("document_edit", { key: held.key, changes: [] });
+  const shape = await invoke("document_edit", { key: mirrored.key, changes: [] });
   assert.deepEqual(shape, { lines: s.doc.count, units: s.doc.lines.reduce((sum, line) => sum + line.length, 0) });
-  const head = (await invoke("file_head", { path: "held/held.py" })).split(/\r?\n/);
+  const head = (await invoke("file_head", { path: "mirrored/mirrored.py" })).split(/\r?\n/);
   const own = lineChanges(head, s.doc.lines);
   await ui.waitFor(() => s.changes && s.changes.hunks.length === own.hunks.length, 5000);
   assert.deepEqual([...s.changes.changed].sort((a, b) => a - b), [...own.changed].sort((a, b) => a - b), "changed");
@@ -156,7 +156,7 @@ test("a large text is held on the window's side, each change follows it there, a
   // Closed, its tab's text is let go on the window's side. The tab strip is drawn again as the marks
   // come, and the editing claims the window's edges, so each press is by the close button's selector:
   // the press brings the strip back from its edge and finds the button as it then stands.
-  const mark = `#tabs .tab .close[title="held/held.py"]`;
+  const mark = `#tabs .tab .close[title="mirrored/mirrored.py"]`;
   const closer = () => document.querySelector(mark);
   // a press brings the strip back, one asks again of a changed tab, one closes it
   for (let press = 0; press < 4 && closer(); press += 1) {
@@ -168,5 +168,5 @@ test("a large text is held on the window's side, each change follows it there, a
     const at = box ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
     throw new Error(`${error.message}; the close at ${box ? `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}` : "nowhere"}, shown ${closer()?.checkVisibility()}, under it ${at?.outerHTML.slice(0, 160)}; sheet ${document.querySelector("dialog[open]")?.textContent.slice(0, 200)}; status ${document.getElementById("status-said")?.textContent}`);
   });
-  assert.ok(await released(held.key), "no branch is stored under its key");
+  assert.ok(await released(mirrored.key), "no branch is stored under its key");
 });

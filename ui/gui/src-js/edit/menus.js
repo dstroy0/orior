@@ -16,7 +16,7 @@ import { say } from "../statusbar.js";
 import { extOf, show, state } from "../edit.js";
 import { compareFiles } from "./compare.js";
 import { drawCrumbs, goToDefinition } from "./crumbs.js";
-import { letMirrorGo, mirror } from "./held.js";
+import { letMirrorGo, mirror } from "./mirror.js";
 import { keyFor, load, openFile, openInSplit, splitEditor, splittable, VIEW_LINES } from "./open.js";
 import { backupKey, forgetBackup } from "./places.js";
 import { holdMemory } from "./refactor.js";
@@ -285,7 +285,7 @@ export function editorItems() {
     return null;
   }
   // A right click leaves the keys with the page, and the clipboard's commands act on what holds them.
-  const held = (command) => () => {
+  const keptCommand = (command) => () => {
     editor.focus();
     document.execCommand(command);
   };
@@ -310,8 +310,8 @@ export function editorItems() {
       ],
     },
     "-",
-    { command: "cut", args: [], label: "Cut", keys: "Ctrl+X", run: held("cut") },
-    { command: "copy", args: [], label: "Copy", keys: "Ctrl+C", run: held("copy") },
+    { command: "cut", args: [], label: "Cut", keys: "Ctrl+X", run: keptCommand("cut") },
+    { command: "copy", args: [], label: "Copy", keys: "Ctrl+C", run: keptCommand("copy") },
     { command: "paste", args: [], label: "Paste", keys: "Ctrl+V", run: pasted },
     "-",
     { command: "select-all", args: [], label: "Select all", keys: "Ctrl+A", run: () => editor.selectAll() },

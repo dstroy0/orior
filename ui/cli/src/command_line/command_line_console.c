@@ -128,10 +128,9 @@ static int console_dev_container(const char *named)
     char program[CLI_PATH_MAX_LEN] = "";
     const int own = cli_program_own(program, sizeof(program));
     const char *leaf = program;
-    for (const char *at = program; *at != '\0'; at += 1)
-    {
-        leaf = ((*at == '/') || (*at == '\\')) ? at + 1 : leaf;
-    }
+    const unsigned long long leaf_past =
+        cli_text_back_any(program, cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), "/\\");
+    leaf = (leaf_past != 0ull) ? (program + leaf_past) : leaf;
     const char *const dot =
         cli_text_last(leaf, cellul.len(&(CatenaFinitaCfg){.src = leaf, .cap = CLI_CELLS_POOL}), '.');
     const size_t stem = ((dot != NULL) && (dot != leaf))
@@ -379,10 +378,7 @@ int cli_file_word(const char *named, const char *word, VerbaLinea *out, VerbaLin
     for (unsigned int part = 0u; part < 2u; part += 1u)
     {
         size_t colon = path;
-        while ((colon > 0u) && (word[colon - 1u] != ':'))
-        {
-            colon -= 1u;
-        }
+        colon = (size_t)cli_text_back_any(word, colon, ":");
         int digits = (colon > 0u) && (colon < path);
         for (size_t at = colon; (at < path) && digits; at += 1u)
         {
@@ -421,14 +417,8 @@ int cli_file_word(const char *named, const char *word, VerbaLinea *out, VerbaLin
         return 0;
     }
     const char *inner = full + root;
-    while ((*inner == '/') || (*inner == '\\'))
-    {
-        inner += 1;
-    }
-    for (; *inner != '\0'; inner += 1)
-    {
-        mmgr_line_ch(out, (*inner == '\\') ? '/' : *inner);
-    }
+    inner += cli_text_past_any(inner, 0ull, cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL}), "/\\");
+    inner += cli_text_put_swapped(out, inner, '\\', '/');
     mmgr_line_put(out, word + path);
     return 1;
 }

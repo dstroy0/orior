@@ -17,12 +17,11 @@
 #define CLI_SERVE_LISTS 16384u
 #define CLI_SERVE_CATALOG_TEXT (1u << 20u)
 // the most runs started here whose lines are gathered at once; the bytes of the lines a gathering buffers before they
-// go at once, and the bytes it is begun in, doubling as it fills; and the bytes a line printed is begun to be written
-// in
+// go at once, and the bytes it is written in; and the bytes a line printed is written in
 #define CLI_SERVE_GATHERING 64u
 #define CLI_SERVE_GATHERED (1u << 20u)
-#define CLI_SERVE_GATHERED_FIRST 4096u
-#define CLI_SERVE_EVENT_INIT_CAP 1024u
+#define CLI_SERVE_GATHERED_ROOM (CLI_SERVE_GATHERED + (1ull << 20u))
+#define CLI_SERVE_EVENT_ROOM (1ull << 20u)
 // how often the lines gathered go to the page, in milliseconds
 #define CLI_SERVE_FLUSH 50u
 
@@ -43,7 +42,7 @@ static CliServeCatalogRoom *s_catalog;
 static CliLock s_catalog_lock = CLI_LOCK_INIT;
 
 // A run's gathering, a cell taken as its run starts and given back as it ends: its place among the gatherings, and the
-// lines it printed since they last went, a growing line containing a JSON array's opening and its items
+// lines it printed since they last went, a line containing a JSON array's opening and its items
 typedef struct
 {
     unsigned int place;
@@ -158,8 +157,8 @@ static void jobs_run_event(void *context, const CliRunEvent *event)
         return;
     }
     // the line printed written after an array's opening, which a line printed where it has no gathering goes in alone
-    VerbaLinea line = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_temporary(&line, CLI_SERVE_EVENT_INIT_CAP, &g_cli_serve_gathering_cells);
+    char *const line_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_EVENT_ROOM, &g_cli_serve_gathering_cells);
+    VerbaLinea line = mmgr_line_over(line_cell, CLI_SERVE_EVENT_ROOM);
     mmgr_line_ch(&line, '[');
     cli_run_event_written(event, &line);
     if (event->kind == CLI_RUN_EVENT_LINE)
@@ -225,8 +224,10 @@ int cli_serve_job_start(const char *job, const CliServeArgs *args, VerbaLinea *o
     if (one != NULL)
     {
         one->place = place;
-        one->lines = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-        if (cli_growing_line_made(&one->lines, CLI_SERVE_GATHERED_FIRST, &g_cli_serve_gathering_cells))
+        char *const lines_cell =
+            g_cli_cells->temporary_buf_alloc(CLI_SERVE_GATHERED_ROOM, &g_cli_serve_gathering_cells);
+        one->lines = mmgr_line_over(lines_cell, CLI_SERVE_GATHERED_ROOM);
+        if (lines_cell != NULL)
         {
             mmgr_line_ch(&one->lines, '[');
             s_gathering[place] = one;

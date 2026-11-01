@@ -110,7 +110,8 @@ static void cli_case_put(CliGrammar *grammar, unsigned int place, const char *ke
     grammar->cases[place] = entry;
 }
 
-// the pair at `item` of the grammar's brackets, `*pair`, and the bytes its first letter takes, `*first`, and its second,
+// the pair at `item` of the grammar's brackets, `*pair`, and the bytes its first letter takes, `*first`, and its
+// second,
 // `*second`: 1 where it is two letters that differ, else 0
 static int cli_pair_split(const CliJson *json, unsigned int item, const char **pair, unsigned long long *first,
                           unsigned long long *second)

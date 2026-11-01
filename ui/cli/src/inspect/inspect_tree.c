@@ -4,6 +4,7 @@
 // laid one after another; a file found by its path through a table; and the function of a file that contains a line, or
 // whose name starts on it
 #include "../command_line/cells.h"
+#include "../text/text.h"
 #include "inspect_tree_internal.h"
 
 // the buckets of the table a path is found by: each a file's place and one, 0 where none is and CLI_TREE_NONE where
@@ -119,10 +120,7 @@ unsigned int cli_tree_find_joined(const char *folder, unsigned long long folder_
 unsigned long long cli_tree_parent(const char *path, unsigned long long size)
 {
     unsigned long long end = size;
-    while ((end > 0u) && (path[end - 1u] != '/'))
-    {
-        end -= 1u;
-    }
+    end = cli_text_back_any(path, end, "/");
     return (end > 0u) ? (end - 1u) : 0ull;
 }
 

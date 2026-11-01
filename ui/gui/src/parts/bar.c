@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bar.c: the bar across the top, on the pane the frame's base lays: the tree's name in the interface face at its right before the controls,
-// as the page's bar ends with it, and the controls at its right end; the menu bar's titles are drawn over it by the
-// menu bar part
+// bar.c: the bar across the top, on the pane the frame's base lays: the tree's name in the interface face at its right
+// before the controls, as the page's bar ends with it, and the controls at its right end; the menu bar's titles are
+// drawn over it by the menu bar part
 #include "chrome.h"
 
 #include <math.h>
@@ -21,10 +21,7 @@ void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palet
     const float descent = gui_glyphs_descent(glyphs, GUI_FACE_HEAD, size);
     const int baseline = frame->bar.y + (int)((((float)frame->bar.height - ascent - descent) / 2.0f) + ascent + 0.5f);
     unsigned long long length = 0ull;
-    while (title[length] != '\0')
-    {
-        length += 1ull;
-    }
+    length = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_CELLS_POOL});
     const int most = gui_scaled(GUI_BAR_NAME_WIDE, frame->scale);
     const float measured = gui_text_width(glyphs, GUI_FACE_HEAD, size, title, length);
     const int wide = (measured > (float)most) ? most : (int)roundf(measured);

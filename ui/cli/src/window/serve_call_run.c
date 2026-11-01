@@ -6,6 +6,7 @@
 // named or to the run the window is joined to and the call answered at once, the backend's own threads handing it on;
 // the cores reserved for the window's work; the tests found, run and stopped; a profile started and stopped; and the
 // comms layer's parts, channels and door
+#include "../command_line/cells.h"
 #include "../comms/comms.h"
 #include "../debug/profile.h"
 #include "../machine/cores.h"
@@ -13,6 +14,7 @@
 #include "../runs/qry.h"
 #include "../tests/test_runs.h"
 #include "../tests/testing.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "serve_internal.h"
 
@@ -193,7 +195,7 @@ static int qry_append_file(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     }
     cli_full(root, file, full);
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_read(full, &size);
+    const unsigned char *const mapped = cli_file_taken(full, &size, &g_cli_window_cells);
     if ((mapped == NULL) && (!cli_file_size(full, &size) || (size > 0ull)))
     {
         mmgr_line_put(err_msg, file);
@@ -202,16 +204,10 @@ static int qry_append_file(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     }
     char name[CLI_PATH_MAX_LEN];
     VerbaLinea named = {name, sizeof(name), 0ull};
-    for (const char *at = file; *at != '\0'; at += 1)
-    {
-        mmgr_line_ch(&named, (*at == '\\') ? '/' : *at);
-    }
+    (void)cli_text_put_swapped(&named, file, '\\', '/');
     (void)mmgr_line_finish(&named);
     cli_qry_queue(CLI_CHANNEL_PRIMARY, run, name, (mapped != NULL) ? mapped : (const unsigned char *)"", size, 2u);
-    if (mapped != NULL)
-    {
-        cli_file_let_go(mapped, size);
-    }
+    cli_file_given(mapped, &g_cli_window_cells);
     mmgr_line_put(out, "null");
     return 1;
 }

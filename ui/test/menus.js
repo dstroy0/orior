@@ -12,7 +12,7 @@ import { toggleTerminal } from "../gui/src-js/terminal.js";
 import { showView } from "../gui/src-js/views.js";
 import { closeDiff } from "../gui/src-js/diffview.js";
 import { closeChange } from "../gui/src-js/changeview.js";
-import { noticesHeld, noticesSaid } from "../gui/src-js/statusbar.js";
+import { noticesWaiting, noticesSaid } from "../gui/src-js/statusbar.js";
 import { zoom } from "../gui/src-js/zoom.js";
 import { closePeek } from "../gui/src-js/peek.js";
 import { closeBoard } from "../gui/src-js/gather.js";
@@ -248,7 +248,7 @@ export async function sheetShown(selector) {
 }
 
 // Whether the window has told the reader something `pattern` matches.
-export const told = (pattern) => [...noticesSaid(), ...noticesHeld()].some((one) => pattern.test(one.text));
+export const told = (pattern) => [...noticesSaid(), ...noticesWaiting()].some((one) => pattern.test(one.text));
 
 // The calls named `name` the window has made since the test began.
 export const made = (name) => calls.made.filter((one) => one.name === name);

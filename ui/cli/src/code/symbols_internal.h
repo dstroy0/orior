@@ -151,10 +151,9 @@ typedef struct
     unsigned char does;
 } CliLeaf;
 
-// A text's leaves kept: the text, its leaves in a cell whose room doubles as they come, how many, the room, the lines
-// read, whether the cells refused a leaf, and where each declaration a leaf names goes as it is kept, NULL for nowhere;
-// and whether the leaves' first cell is taken on the lane the thread is on, for a read given back before the lane is
-// rewound
+// A text's leaves kept: the text, its leaves in a cell at their most, how many, the room, the lines read, whether the
+// cells refused a leaf, and where each declaration a leaf names goes as it is kept, NULL for nowhere; and whether the
+// leaves' first cell is taken on the lane the thread is on, for a read given back before the lane is rewound
 typedef struct
 {
     const char *text;
@@ -167,6 +166,7 @@ typedef struct
     CliDeclared declared;
     void *declared_context;
     int temporary;
+    unsigned long long size;
 } CliLeafRead;
 
 // the leaves of `size` bytes of `text` read in the language of the file at `path`, the first line starting in
@@ -183,7 +183,7 @@ int cli_symbols_leaves_declared(CliSymbolsLanguages *languages, const char *path
 // the leaves read as cli_symbols_leaves_kept reads them, their cell on the lane the thread is on, for a read given back
 // before the lane is rewound
 int cli_symbols_leaves_temporary(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
-                             unsigned long long size, CliLeafRead *read);
+                                 unsigned long long size, CliLeafRead *read);
 // the kind a token's name declares: the rest of the name past its segment `declaration`, or NULL where it has none
 // (symbols_read.c)
 const char *cli_symbols_declares(const char *name);
@@ -345,14 +345,14 @@ typedef void (*CliEffectNoted)(void *context, const CliLeafRead *read, unsigned 
 typedef int (*CliEffectReached)(void *context, const CliLeafRead *read, unsigned int leaf, int active);
 
 // A walk from a branch's first line to a line of it: the languages, the tree's top, the branch it starts from and its
-// text where the editor's stands in for the disk's, NULL where none does, and how many bytes, its texts a growing line,
-// the macros met with the leaves of their values, the branches walked and the include folders
-// and files of the branch it starts from, each in a cell whose room doubles as they come, the name sought, the last
-// declaration of it the walk reached in an active region, its branch and its line's text places among the texts, its
-// line, and whether one was reached, and the first, its branch and its line, and whether one was; whether it is a
-// slice's walk, and if so each branch it read whole and what it met, each in a cell whose room doubles as they come;
-// where each leaf of the name in the branch it starts from goes, NULL for nowhere; where each line of that branch goes
-// as the walk reaches it, NULL for nowhere; and whether the cells refused it
+// text where the editor's stands in for the disk's, NULL where none does, and how many bytes, its texts a line, the
+// macros met with the leaves of their values, the branches walked and the include folders and files of the branch it
+// starts from, each in a cell at their most, the name sought, the last declaration of it the walk reached in an active
+// region, its branch and its line's text places among the texts, its line, and whether one was reached, and the first,
+// its branch and its line, and whether one was; whether it is a slice's walk, and if so each branch it read whole and
+// what it met, each in a cell at their most; where each leaf of the name in the branch it starts from goes, NULL for
+// nowhere; where each line of that branch goes as the walk reaches it, NULL for nowhere; and whether the cells refused
+// it
 typedef struct
 {
     CliSymbolsLanguages *languages;
@@ -398,14 +398,14 @@ typedef struct
 
 // the text at `at` among the walk's texts; the macro of `name`, `length` bytes, the walk met last, its place, or
 // CLI_JSON_NONE where it met none or met it undefined; and `length` bytes of `text` put after the walk's texts with a
-// zero after them, their place, or CLI_JSON_NONE with the walk refused where the line could not grow
-// (symbols_effect.c)
+// zero after them, their place, or CLI_JSON_NONE with the walk refused where the line is full (symbols_effect.c)
 const char *cli_effect_text(const CliEffect *effect, unsigned int at);
 unsigned int cli_effect_macro(const CliEffect *effect, const char *name, unsigned long long length);
 unsigned int cli_effect_put(CliEffect *effect, const char *text, unsigned long long length);
-// `list`, `count` items of `each` bytes in a room of `*room`, made to fit one more: the list, moved into a cell of
-// twice its room where it is full, or NULL where the cells cannot meet it (symbols_effect.c)
-void *cli_effect_room(void *list, unsigned int count, unsigned int *room, unsigned long long each);
+// the most entries a walk's list takes, and its values' and one branch's declarations'
+#define CLI_EFFECT_LIST_MOST (1u << 15u)
+#define CLI_EFFECT_VALUES_MOST (1u << 17u)
+#define CLI_EFFECT_DECLARED_MOST 4096u
 // a walk made for the tree's file at `path` and the name `name`, a slice's walk where `slicing` is 1: the walk, or NULL
 // with why given where the cells cannot meet it; the walk taken from the file's first line to before line `line`, the
 // defines and include folders the compilation database gives the file first and the files it includes before its

@@ -283,6 +283,22 @@ static void system_event(GuiSystem *system, XEvent *event)
     }
 }
 
+void gui_system_display_most(unsigned int *width, unsigned int *height)
+{
+    *width = 0u;
+    *height = 0u;
+    Display *const display = XOpenDisplay(NULL);
+    if (display == NULL)
+    {
+        return;
+    }
+    const int screen = DefaultScreen(display);
+    // a screen's sides are not negative
+    *width = (unsigned int)DisplayWidth(display, screen);
+    *height = (unsigned int)DisplayHeight(display, screen);
+    XCloseDisplay(display);
+}
+
 unsigned int gui_system_areas(CliWindowArea *areas, unsigned int most)
 {
     Display *const display = XOpenDisplay(NULL);

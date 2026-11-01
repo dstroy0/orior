@@ -43,11 +43,10 @@ static unsigned int cli_lines_read(const char *text, unsigned long long size)
     unsigned int lines = 0u;
     for (unsigned long long at = 0ull; (at < size) && (lines < CLI_COMMENT_LINES);)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
-        length -= ((newline != NULL) && (length > 0ull) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
+        length -= bounds.stop - bounds.cut;
         if (s_room.line != NULL)
         {
             s_room.line[lines] = (CliSpan){text + at, length};
@@ -114,14 +113,8 @@ static void cli_plugin_each(void *context, const CliPlugin *plugin)
     (void)cellul.copy(&(CatenaFinitaCfg){
         .dst = s_room.line_mark, .src = (line != NULL) ? line : "", .cap = sizeof(s_room.line_mark)});
     s_room.has_block = (open != NULL) && (close != NULL);
-    memor.cpy(&(MemoriaCfg){
-        .dst = s_room.open,
-        .src = (open != NULL) ? open : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (open != NULL) ? open : "", .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(&(MemoriaCfg){
-        .dst = s_room.close,
-        .src = (close != NULL) ? close : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (close != NULL) ? close : "", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(s_room.open, open, "");
+    cli_text_copied_or(s_room.close, close, "");
     cli_json_given(&json);
     // the first plugin of the id names the marks
     s_room.id[0] = '\0';
@@ -318,15 +311,10 @@ static void cli_block_read(unsigned int *at, VerbaLinea *out)
     const unsigned long long length = (end > from) ? (end - from) : 0ull;
     for (unsigned long long place = 0ull; (place < length) && (count < s_room.line_room);)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = joined + from + place, .val = '\n', .bytes = length - place});
-        // a newline found lies in the body, at or past `place`
-        const unsigned long long stop = (newline != NULL) ? (unsigned long long)(newline - (joined + from)) : length;
-        unsigned long long size = stop - place;
-        size -= ((newline != NULL) && (size > 0ull) && (joined[from + stop - 1ull] == '\r')) ? 1ull : 0ull;
-        s_room.body[count] = (CliSpan){joined + from + place, size};
+        const CliTextLine bounds = cli_text_line_at(joined + from, place, length);
+        s_room.body[count] = (CliSpan){joined + from + place, bounds.cut - place};
         count += 1u;
-        place = stop + 1ull;
+        place = bounds.next;
     }
     cli_purpose_uncommented(s_room.body, count, "*", out);
 }
@@ -336,18 +324,15 @@ static void cli_comment_read(const char *path, const char *text, VerbaLinea *out
 {
     // the extension of the file's name, in lower case
     const char *name = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     char extension[16] = "";
-    for (unsigned int at = 0u; (dot != NULL) && (dot != name) && (dot[at + 1u] != '\0') && (at < 15u); at += 1u)
+    if ((dot != NULL) && (dot != name))
     {
-        const char letter = dot[at + 1u];
-        extension[at] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + 32) : letter;
-        extension[at + 1u] = '\0';
+        (void)cli_text_lowered_into(extension, sizeof(extension), dot + 1);
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "md", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "markdown", .cap = CLI_CELLS_POOL})) ||

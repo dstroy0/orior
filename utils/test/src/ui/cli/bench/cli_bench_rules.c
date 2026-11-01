@@ -77,8 +77,10 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
     const unsigned int tokenizer = cli_json_member(json, grammar, "tokenizer");
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        VerbaLinea made;
-        if (!cli_growing_line_made(&made, 1ull << 16u, &g_checks_cells))
+        const unsigned long long made_room = 1ull << 16u;
+        char *const made_cell = g_cli_cells->temporary_buf_alloc(made_room, &g_checks_cells);
+        VerbaLinea made = mmgr_line_over(made_cell, made_room);
+        if (made.out == NULL)
         {
             return;
         }
@@ -118,7 +120,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     char path[CLI_PATH_MAX_LEN];
     cli_full(root, "ui/plugins/c/plugin.json", path);
     unsigned long long size = 0ull;
-    const unsigned char *const text = cli_file_read(path, &size);
+    const unsigned char *const text = cli_file_taken(path, &size, &g_checks_cells);
     if (text == NULL)
     {
         return;
@@ -170,5 +172,5 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     g_cli_cells->persistent_buf_release(letters, &g_checks_cells);
     rules_cut_down(&json, grammar, files, count, repeat, largest);
     cli_json_given(&json);
-    cli_file_let_go(text, size);
+    cli_file_given(text, &g_checks_cells);
 }

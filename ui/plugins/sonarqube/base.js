@@ -28,7 +28,7 @@ const sonar = {
   statuses: [],
   // the last check of each connection, by its id
   checks: new Map(),
-  // the new code each folder is held to, and the branch each is compared against, by folder URI
+  // the new code each folder is kept to, and the branch each is compared against, by folder URI
   newCode: new Map(),
   branches: new Map(),
   // the rules, by language, as last listed, and the filter they are shown by

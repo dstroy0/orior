@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // catalog_read.c: the catalog read from the tree: the build scripts, the sims, the driver's parts, the runners, the
 // page builders, the stage scripts and their pipelines, and the test suites
+#include "../command_line/cells.h"
 #include "../text/text.h"
 #include "catalog_internal.h"
 
@@ -67,15 +68,9 @@ void cli_catalog_short(const char *file, char *out)
     if (last != NULL)
     {
         folder = last;
-        while ((folder > file) && (folder[-1] != '/'))
-        {
-            folder -= 1;
-        }
+        folder = file + cli_text_back_any(file, (unsigned long long)(folder - file), "/");
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = out,
-        .src = (last != NULL) ? folder : file,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (last != NULL) ? folder : file, .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(out, folder, file);
 }
 
 // a job of a script: its id the group and its file, its title its file
@@ -216,7 +211,7 @@ static int cli_find_file(const char *under, const char *name, unsigned int depth
 char *cli_catalog_script_taken(const char *path)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_catalog_cells);
     if (bytes == NULL)
     {
         return NULL;
@@ -227,7 +222,7 @@ char *cli_catalog_script_taken(const char *path)
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
         text[size] = '\0';
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_catalog_cells);
     return text;
 }
 

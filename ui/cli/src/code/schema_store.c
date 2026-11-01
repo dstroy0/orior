@@ -4,6 +4,7 @@
 // those stored from a fetch, or by its path, its file mapped where it lies, its comments taken out in a cell of its
 // size and read in a cell of the tokens it contains, into one tree. A document larger than CLI_SCHEMA_DOCUMENT_TEXT, of
 // more tokens than CLI_SCHEMA_TOKENS, or whose values the tree cannot represent, is one that could not be read
+#include "../command_line/cells.h"
 #include "schema_internal.h"
 
 #include "../text/text.h"
@@ -26,10 +27,7 @@ static void store_url_key(const char *url, VerbaLinea *out)
         cellul.find(&(CatenaFinitaCfg){.src = url, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
     const char *const rest = (scheme != NULL) ? scheme + 3 : url;
     unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL});
-    while ((size > 0u) && ((rest[size - 1u] == '#') || (rest[size - 1u] == '/')))
-    {
-        size -= 1u;
-    }
+    size = cli_text_back_past(rest, size, "#/");
     mmgr_line_put_n(out, rest, size);
 }
 
@@ -164,10 +162,10 @@ static const char *store_text_of(const char *key, unsigned long long *size, int 
         }
         path = path_buf;
     }
-    const unsigned char *const bytes = cli_file_read(path, size);
+    const unsigned char *const bytes = cli_file_taken(path, size, &g_cli_schema_cells);
     if ((bytes != NULL) && (*size > CLI_SCHEMA_DOCUMENT_TEXT))
     {
-        cli_file_let_go(bytes, *size);
+        cli_file_given(bytes, &g_cli_schema_cells);
         return NULL;
     }
     *mapped = (bytes != NULL);
@@ -222,7 +220,7 @@ unsigned int cli_schema_load(CliSchemaStore *store, const char *key)
         ((text != NULL) && cli_utf8_whole(text, size)) ? store_read(store, text, size) : CLI_JSON_NONE;
     if (mapped)
     {
-        cli_file_let_go((const unsigned char *)text, size);
+        cli_file_given((const unsigned char *)text, &g_cli_schema_cells);
     }
     if (root == CLI_JSON_NONE)
     {

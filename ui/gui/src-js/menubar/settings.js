@@ -251,7 +251,7 @@ export async function askCheckers(given) {
   }
 }
 
-// View, Memory Budget: the megabytes the app is held to in RAM, as given or asked for.
+// View, Memory Budget: the megabytes the app is kept to in RAM, as given or asked for.
 export async function askBudget(given) {
   const answer = given ?? (await askFor("The memory budget, in megabytes", String(memoryBudget())));
   const mb = Number(answer);

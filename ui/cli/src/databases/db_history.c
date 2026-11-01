@@ -3,7 +3,9 @@
 // db_history.c: each statement run on a connection recorded in its history, a JSON line each in orior's own folder
 // under databases/, by the account's hash, the newest 1000 of them; the history read back, newest first; and the
 // statements of an editor's text found by their spans, counted in characters as the editor counts them
+#include "../command_line/cells.h"
 #include "../text/digest.h"
+#include "../text/text.h"
 #include "db_internal.h"
 #include "sql.h"
 
@@ -64,27 +66,22 @@ void cli_db_remembered(CliDbOpen *open, const char *statement, unsigned long lon
     mmgr_line_put(&entry, "}\n");
     // the history's newest lines but one retained, then the entry after them
     unsigned long long history_size = 0ull;
-    const unsigned char *const history = cli_file_read(path, &history_size);
+    const unsigned char *const history = cli_file_taken(path, &history_size, &g_cli_db_cells);
     // each newline before the last line's end starts one more line retained, counted back from the end
     unsigned long long start = 0ull;
-    unsigned long long end = ((history != NULL) && (history_size > 0u) && (history[history_size - 1u] == '\n'))
-                                 ? history_size - 1u
-                                 : history_size;
+    unsigned long long end =
+        ((history_size > 0u) && (history[history_size - 1u] == '\n')) ? history_size - 1u : history_size;
     unsigned int count = 0u;
-    for (unsigned long long at = end; (history != NULL) && (at > 0u); at -= 1u)
+    const char *newline = cli_text_last((const char *)history, end, '\n');
+    while ((newline != NULL) && (count < CLI_DB_HISTORY - 2u))
     {
-        if (history[at - 1u] == '\n')
-        {
-            count += 1u;
-            if (count == CLI_DB_HISTORY - 1u)
-            {
-                start = at;
-                break;
-            }
-        }
+        count += 1u;
+        // a newline found lies in the bytes
+        newline = cli_text_last((const char *)history, (unsigned long long)(newline - (const char *)history), '\n');
     }
+    start = (newline != NULL) ? ((unsigned long long)(newline - (const char *)history) + 1ull) : 0ull;
     int written = mmgr_line_ok(&entry) && cli_file_appended(next, "", 0ull, 1);
-    if (written && (history != NULL) && (start < history_size))
+    if (written && (start < history_size))
     {
         written = cli_file_appended(next, history + start, history_size - start, 0);
         if (written && (history[history_size - 1u] != '\n'))
@@ -92,10 +89,7 @@ void cli_db_remembered(CliDbOpen *open, const char *statement, unsigned long lon
             written = cli_file_appended(next, "\n", 1ull, 0);
         }
     }
-    if (history != NULL)
-    {
-        cli_file_let_go(history, history_size);
-    }
+    cli_file_given(history, &g_cli_db_cells);
     written = written && cli_file_appended(next, entry.out, entry.at, 0);
     if (written)
     {
@@ -108,17 +102,14 @@ void cli_db_history(CliDbOpen *open, VerbaLinea *out)
 {
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = history_file(open, path) ? cli_file_read(path, &size) : NULL;
+    const unsigned char *const bytes = history_file(open, path) ? cli_file_taken(path, &size, &g_cli_db_cells) : NULL;
     mmgr_line_ch(out, '[');
     unsigned int written = 0u;
     // the lines from the last back, each that reads as JSON
     for (unsigned long long end = size; (bytes != NULL) && (end > 0u);)
     {
         unsigned long long start = end;
-        while ((start > 0u) && (bytes[start - 1u] != '\n'))
-        {
-            start -= 1u;
-        }
+        start = cli_text_back_any((const char *)bytes, start, "\n");
         VerbaLinea none = {NULL, 0ull, 0ull};
         if ((end > start) && cli_json_compacted((const char *)bytes + start, end - start, &none))
         {
@@ -128,10 +119,7 @@ void cli_db_history(CliDbOpen *open, VerbaLinea *out)
         }
         end = (start > 0u) ? start - 1u : 0u;
     }
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, size);
-    }
+    cli_file_given(bytes, &g_cli_db_cells);
     mmgr_line_ch(out, ']');
 }
 

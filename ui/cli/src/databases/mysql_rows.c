@@ -4,6 +4,7 @@
 // at a time, a binary value written as MySQL writes a binary literal, the results after a procedure's first read past,
 // and a statement running stopped by KILL QUERY on a connection of its own
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "mysql_internal.h"
 
 // the type name of MySQL's column types, and whether their values are numbers: "" where orior_cli names it by its code
@@ -452,20 +453,6 @@ int cli_mysql_cancel_sent(const CliMysqlCancel *cancel, VerbaLinea *err_msg)
 void cli_mysql_literal(const char *text, VerbaLinea *out)
 {
     mmgr_line_ch(out, '\'');
-    for (const char *letter = text; *letter != '\0'; letter += 1)
-    {
-        if (*letter == '\\')
-        {
-            mmgr_line_put(out, "\\\\");
-        }
-        else if (*letter == '\'')
-        {
-            mmgr_line_put(out, "''");
-        }
-        else
-        {
-            mmgr_line_ch(out, *letter);
-        }
-    }
+    cli_text_put_doubled(out, text, "\\'");
     mmgr_line_ch(out, '\'');
 }

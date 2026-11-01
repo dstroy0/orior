@@ -302,11 +302,11 @@ export function pageOf(kind, text, { base, sheet = () => null }) {
     }
   }
   for (const link of doc.querySelectorAll('link[rel~="stylesheet" i][href]')) {
-    const held = sheet(link.getAttribute("href"));
-    if (held) {
+    const stored = sheet(link.getAttribute("href"));
+    if (stored) {
       const style = doc.createElement("style");
       style.setAttribute("data-orior-sheet", link.getAttribute("href"));
-      style.textContent = rebase(held.text, held.base);
+      style.textContent = rebase(stored.text, stored.base);
       link.replaceWith(style);
     }
   }

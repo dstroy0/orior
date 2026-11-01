@@ -60,8 +60,8 @@ static void code_edit_written(const CliInspectEdit *edit, const VerbaLinea *text
 static char *code_edit_room(unsigned long long length, VerbaLinea *written, VerbaLinea *err_msg)
 {
     const unsigned long long room = (2ull * length) + 4096ull;
-    char *const cell = g_cli_cells->persistent_buf_alloc(room, &g_cli_window_cells);
-    *written = (VerbaLinea){cell, (cell != NULL) ? room : 0ull, 0ull};
+    char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_window_cells);
+    *written = mmgr_line_over(cell, room);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "an edit's text could not be taken");

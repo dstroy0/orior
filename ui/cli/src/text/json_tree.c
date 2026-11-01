@@ -16,7 +16,6 @@ void cli_json_begun(CliJson *json, CliJsonNode *node, unsigned int nodes_most, c
     json->used = 0ull;
     json->text_most = text_most;
     json->full = 0;
-    json->grows = 0;
     json->what = NULL;
 }
 

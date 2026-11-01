@@ -80,11 +80,11 @@ function typedSearch(list) {
   shown.className = "list-typed";
   shown.hidden = true;
   document.body.append(shown);
-  const held = { text: "", matches: [], model: null };
+  const search = { text: "", matches: [], model: null };
   const mark = () => {
     const ranges = [];
-    for (const { row: given, at, hits } of held.matches) {
-      const row = given ?? held.model.shownAt(at);
+    for (const { row: given, at, hits } of search.matches) {
+      const row = given ?? search.model.shownAt(at);
       const node = row && nameOf(row).firstChild;
       if (node?.nodeType !== Node.TEXT_NODE) {
         continue;
@@ -101,37 +101,37 @@ function typedSearch(list) {
   // What is typed, shown over the list's top right, marked where nothing matches.
   const show = () => {
     const box = list.getBoundingClientRect();
-    shown.textContent = held.text;
-    shown.classList.toggle("none", !held.matches.length);
+    shown.textContent = search.text;
+    shown.classList.toggle("none", !search.matches.length);
     shown.style.top = `${Math.round(box.top + 4)}px`;
     shown.style.right = `${Math.round(window.innerWidth - box.right + 8)}px`;
     shown.hidden = false;
   };
   return {
     get text() {
-      return held.text;
+      return search.text;
     },
     // The matches for what is typed now, the row from `from` on that takes the keys.
     find(text, from) {
-      held.text = text;
+      search.text = text;
       const model = modelOf(from);
-      if (held.model !== model && held.model) {
-        held.model.onDraw = null;
+      if (search.model !== model && search.model) {
+        search.model.onDraw = null;
       }
-      held.model = model;
+      search.model = model;
       if (model) {
         // Every row of the model, on the page or not, and those it puts on the page marked as they come.
         model.onDraw = mark;
-        held.matches = [];
+        search.matches = [];
         for (let at = 0; at < model.count; at += 1) {
           const found = fuzzy(text, model.name(at));
           if (found) {
-            held.matches.push({ at, hits: found.hits });
+            search.matches.push({ at, hits: found.hits });
           }
         }
         show();
         const start = Math.max(0, model.indexOf(from.dataset.key));
-        const first = held.matches.find((one) => one.at >= start) ?? held.matches[0];
+        const first = search.matches.find((one) => one.at >= start) ?? search.matches[0];
         const row = first ? model.element(first.at, { reveal: true }) : null;
         mark();
         return row;
@@ -141,32 +141,32 @@ function typedSearch(list) {
       const all = rowsOf(list);
       const named = all.filter((row) => row.querySelector(".name"));
       const rows = named.length ? named : all;
-      held.matches = rows.map((row) => ({ row, found: fuzzy(text, nameOf(row).textContent) })).filter((one) => one.found).map(({ row, found }) => ({ row, hits: found.hits }));
+      search.matches = rows.map((row) => ({ row, found: fuzzy(text, nameOf(row).textContent) })).filter((one) => one.found).map(({ row, found }) => ({ row, hits: found.hits }));
       show();
       mark();
       const start = Math.max(0, rows.indexOf(from));
-      const first = held.matches.find((one) => rows.indexOf(one.row) >= start) ?? held.matches[0];
+      const first = search.matches.find((one) => rows.indexOf(one.row) >= start) ?? search.matches[0];
       return first?.row ?? null;
     },
     // The match `by` matches on from `row`, the last or the first where there is no further one.
     step(row, by) {
-      if (held.model) {
-        const at = held.matches.findIndex((one) => one.at === held.model.indexOf(row.dataset.key));
-        const next = held.matches[Math.max(0, Math.min(held.matches.length - 1, at + by))];
-        return next ? held.model.element(next.at, { reveal: true }) : row;
+      if (search.model) {
+        const at = search.matches.findIndex((one) => one.at === search.model.indexOf(row.dataset.key));
+        const next = search.matches[Math.max(0, Math.min(search.matches.length - 1, at + by))];
+        return next ? search.model.element(next.at, { reveal: true }) : row;
       }
-      const at = held.matches.findIndex((one) => one.row === row);
-      const next = held.matches[Math.max(0, Math.min(held.matches.length - 1, at + by))];
+      const at = search.matches.findIndex((one) => one.row === row);
+      const next = search.matches[Math.max(0, Math.min(search.matches.length - 1, at + by))];
       return next?.row ?? row;
     },
     end() {
-      if (held.model) {
-        held.model.onDraw = null;
-        held.model = null;
+      if (search.model) {
+        search.model.onDraw = null;
+        search.model = null;
       }
-      if (held.text) {
-        held.text = "";
-        held.matches = [];
+      if (search.text) {
+        search.text = "";
+        search.matches = [];
         shown.hidden = true;
         CSS.highlights?.delete("list-typed");
       }

@@ -17,7 +17,7 @@
 // signal. It hears when a file opens, changes, saves and the cursor moves, and reads and writes
 // files, from the second form on keeps settings of its own, and from the third sends requests to
 // hosts. A plugin runs only once the reader has let it read, write and reach what its plugin.json
-// asks for, and each call is held to that: a file it did not ask to read or write, or a host it did
+// asks for, and each call is kept to that: a file it did not ask to read or write, or a host it did
 // not ask to reach, is refused; one that asks for more after an update waits to be let again. A
 // plugin names the form of the calls it was written for, `api` in its plugin.json, and orior
 // keeps each form it has given: a plugin of an older form gets that form's calls, each answered as
@@ -94,7 +94,7 @@ PRELUDES[2] = PRELUDES[1].replace("api: 1,", "api: 2,").replace("    files: Obje
 PRELUDES[3] = PRELUDES[2].replace("api: 2,", "api: 3,").replace("    files: Object.freeze(", '    net: Object.freeze({ request: (request) => call("net.request", request) }),\n    files: Object.freeze(');
 
 // The fourth form: the third's calls, and a part of a file's lines, from a line to before another, the
-// one way a file held as pages is read (paged.js).
+// one way a file stored as pages is read (paged.js).
 PRELUDES[4] = PRELUDES[3].replace("api: 3,", "api: 4,").replace('active: () => call("editor.active") }),', 'active: () => call("editor.active"), lines: (path, from, to) => call("editor.lines", path, from, to) }),');
 
 // The fifth form: the fourth's calls, and the plugin's language server, its commands, its secrets and the

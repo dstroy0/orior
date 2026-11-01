@@ -8,15 +8,13 @@
 #include "review.h"
 
 // the most files a change reviewed touches and the bytes of their texts; the most pieces and the bytes of their
-// texts; the bytes either texts' room is begun with, doubling as they are put; and the most calls the pieces make in
-// all, and the calls their room is begun with, doubling as they are found
+// texts; the bytes each text is read in; and the most calls the pieces make in all
 #define CLI_REVIEW_FILES 1024u
-#define CLI_REVIEW_TEXT (1u << 26u)
+#define CLI_REVIEW_TEXT (1u << 25u)
 #define CLI_REVIEW_PIECES 8192u
-#define CLI_REVIEW_TEXTS_MAX (1u << 26u)
-#define CLI_REVIEW_TEXT_FIRST 65536u
+#define CLI_REVIEW_TEXTS_MAX (1u << 25u)
+#define CLI_REVIEW_TEXT_ROOM (16ull << 20u)
 #define CLI_REVIEW_CALLS (1u << 18u)
-#define CLI_REVIEW_CALLS_FIRST 256u
 
 // the most lines of a text the review reads
 #define CLI_REVIEW_LINES (1u << 18u)
@@ -53,11 +51,9 @@ typedef struct
     unsigned int count;
 } CliReviewPiece;
 
-// A review: the files, their texts, the pieces, their texts and calls, and the files named apart; the files' and the
-// pieces' texts are cells of `text_room` and `texts_room` bytes that double as texts are put, to CLI_REVIEW_TEXT and
-// CLI_REVIEW_TEXTS_MAX at the most, the comparison's room a cell of cli_review_compared_bytes(), and the calls a cell
-// of `call_room` that doubles as they are found, each taken for one review under its lock and given back before the
-// lock is
+// A review: the files, their texts, the pieces, their texts and calls, and the files named apart; the texts and the
+// calls stand in one cell at their most, the comparison's room a cell of cli_review_compared_bytes(), each taken for
+// one review under its lock and given back before the lock is
 typedef struct
 {
     void *compared;
@@ -73,7 +69,6 @@ typedef struct
     unsigned long long texts_room;
     unsigned int *call;
     unsigned int calls;
-    unsigned int call_room;
     unsigned int other[CLI_REVIEW_FILES];
     unsigned int others;
 } CliReview;
@@ -85,14 +80,9 @@ extern CellOwner g_cli_review_cells;
 // `length` bytes put in the pieces' texts, a 0 after them: their place, 0 where they do not fit, an empty text there
 // (review_compare.c)
 unsigned int cli_review_piece_text_put(const char *text, unsigned long long length);
-// the room `*room` of `*size` bytes, `used` of them taken, made to fit `more` bytes past them, moved into a cell of
-// twice its size, or as many times twice as they need, where they do not fit, no more than `most`: 1, or 0 where they
-// cannot be met;
 // `length` bytes put in the files' texts, a 0 after them: their place, 0 where they do not fit; a text written into a
-// growing line put after the files' texts where it was written whole, and the line given back: 1, or 0; and a growing
-// line a text the review reads is written into, given back by cli_review_text_added (review_texts.c)
-int cli_review_room(char **room, unsigned long long *size, unsigned long long used, unsigned long long more,
-                    unsigned long long most, const char *what);
+// line put after the files' texts where it was written whole, and the line given back: 1, or 0; and a line a text the
+// review reads is written into, given back by cli_review_text_added (review_texts.c)
 unsigned int cli_review_text_put(const char *text, unsigned long long length);
 int cli_review_text_added(VerbaLinea *line, int written, unsigned int *at, unsigned long long *size);
 VerbaLinea cli_review_text_line(void);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // executables_jobs.c: the facts of this machine a build job is made from, the C compiler and linker a build for another
 // machine needs, and the params of the job that builds each program the tree's scripts make
+#include "../text/text.h"
 #include "executables_internal.h"
 
 // the target choice that builds for the machine the build runs on, and the cgo choice that leaves it to Go
@@ -182,13 +183,10 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
         .dst = upper, .src = rust, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL}) + 1u});
     memor.cpy(&(MemoriaCfg){
         .dst = lower, .src = rust, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL}) + 1u});
-    for (unsigned long long at = 0ull; upper[at] != '\0'; at += 1ull)
-    {
-        upper[at] = (upper[at] == '-')
-                        ? '_'
-                        : (((upper[at] >= 'a') && (upper[at] <= 'z')) ? (char)(upper[at] - 32) : upper[at]);
-        lower[at] = (lower[at] == '-') ? '_' : lower[at];
-    }
+    const unsigned long long upper_size = cellul.len(&(CatenaFinitaCfg){.src = upper, .cap = CLI_CELLS_POOL});
+    cli_text_swapped(upper, upper_size, '-', '_');
+    cli_text_raised(upper, upper_size);
+    cli_text_swapped(lower, upper_size, '-', '_');
     char linker[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea named = {linker, sizeof(linker), 0ull};
     mmgr_line_put(&named, "CARGO_TARGET_");
@@ -340,10 +338,9 @@ void cli_executables_jobs(const char *root, CliCatalog *catalog)
             if (cli_path_parent(exe->script, folder))
             {
                 base = folder;
-                for (const char *at = folder; at[0] != '\0'; at += 1)
-                {
-                    base = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : base;
-                }
+                const unsigned long long base_past = cli_text_back_any(
+                    folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), "/\\");
+                base = (base_past != 0ull) ? (folder + base_past) : base;
             }
             mmgr_line_put(&line, base);
             mmgr_line_ch(&line, '/');

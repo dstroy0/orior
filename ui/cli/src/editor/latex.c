@@ -4,6 +4,7 @@
 // folder for the file, and what the make left written as the preview reads it
 #include "../command_line/cells.h"
 #include "../text/digest.h"
+#include "../text/text.h"
 #include "archive.h"
 #include "latex_internal.h"
 
@@ -33,19 +34,13 @@ static void latex_stem(const char *path, unsigned long long *start, unsigned lon
 {
     unsigned long long from = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
     const unsigned long long end = from;
-    while ((from > 0ull) && (path[from - 1ull] != '/')
 #if defined(_WIN32)
-           && (path[from - 1ull] != '\\')
+    from = cli_text_back_any(path, from, "/\\");
+#else
+    from = cli_text_back_any(path, from, "/");
 #endif
-    )
-    {
-        from -= 1ull;
-    }
     unsigned long long dot = end;
-    while ((dot > from) && (path[dot - 1ull] != '.'))
-    {
-        dot -= 1ull;
-    }
+    dot = (from + cli_text_back_any(path + from, dot - from, "."));
     // a name with no dot, or whose only dot opens it, is its own stem
     *start = from;
     *size = ((dot > from + 1ull) ? dot - 1ull : end) - from;
@@ -282,17 +277,14 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
         char log_path[CLI_PATH_MAX_LEN];
         latex_file(dir, job, ".log", log_path);
         unsigned long long size = 0ull;
-        const unsigned char *const log = cli_file_read(log_path, &size);
+        const unsigned char *const log = cli_file_taken(log_path, &size, &g_cli_editor_cells);
         const char *const read = (log != NULL) ? (const char *)log : "";
-        const unsigned long long read_size = (log != NULL) ? size : 0ull;
+        const unsigned long long read_size = size;
         if (cli_tex_errors_written(read, read_size, &names, out) == 0u)
         {
             latex_tail_written(read, read_size, path, engine, out);
         }
-        if (log != NULL)
-        {
-            cli_file_let_go(log, size);
-        }
+        cli_file_given(log, &g_cli_editor_cells);
         mmgr_line_put(out, "],\"ms\":");
         mmgr_line_decimal(out, cli_clock_milliseconds() - began, 1u);
         mmgr_line_ch(out, '}');
@@ -325,14 +317,11 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     char drawn[CLI_PATH_MAX_LEN];
     latex_file(dir, job, ".svg", drawn);
     unsigned long long svg_size = 0ull;
-    const unsigned char *const svg = cli_file_read(drawn, &svg_size);
+    const unsigned char *const svg = cli_file_taken(drawn, &svg_size, &g_cli_editor_cells);
     const int whole = (svg != NULL) && cli_utf8_whole((const char *)svg, svg_size);
     mmgr_line_ch(out, ',');
     const int fits = whole && cli_tex_pages_written((const char *)svg, svg_size, out);
-    if (svg != NULL)
-    {
-        cli_file_let_go(svg, svg_size);
-    }
+    cli_file_given(svg, &g_cli_editor_cells);
     if (!fits)
     {
         mmgr_line_put(err_msg, drawn);
@@ -344,7 +333,7 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     char sync_path[CLI_PATH_MAX_LEN];
     latex_file(dir, job, ".synctex.gz", sync_path);
     unsigned long long zipped_size = 0ull;
-    const unsigned char *const zipped = cli_file_read(sync_path, &zipped_size);
+    const unsigned char *const zipped = cli_file_taken(sync_path, &zipped_size, &g_cli_editor_cells);
     unsigned long long sync_size = 0ull;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unzipped = {why, sizeof(why), 0ull};
@@ -356,10 +345,7 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     {
         mmgr_line_put(out, "[]");
     }
-    if (zipped != NULL)
-    {
-        cli_file_let_go(zipped, zipped_size);
-    }
+    cli_file_given(zipped, &g_cli_editor_cells);
     mmgr_line_put(out, ",\"errors\":[],\"ms\":");
     mmgr_line_decimal(out, cli_clock_milliseconds() - began, 1u);
     mmgr_line_ch(out, '}');

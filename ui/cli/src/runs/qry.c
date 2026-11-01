@@ -3,6 +3,7 @@
 // qry.c: a run read from its shared memory while its writer runs and from its .qry where none does, its records of a
 // name joined, records appended to it, and the run the window is joined to
 #include "qry.h"
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
 
 // what a record contains is read for at most so many of its bytes, and in whole where it is at most so many; the most
@@ -131,7 +132,7 @@ int cli_qry_read_file_from(const char *path, unsigned long long from, VerbaLinea
     }
     mmgr_line_put(out, "{\"live\":false,\"blobs\":[");
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_runs_cells);
     unsigned long long at = (bytes == NULL) ? from : ((from < size) ? from : size);
     unsigned long long panicked = 0ull;
     unsigned int count = 0u;
@@ -145,10 +146,7 @@ int cli_qry_read_file_from(const char *path, unsigned long long from, VerbaLinea
             count += 1u;
         }
     }
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, size);
-    }
+    cli_file_given(bytes, &g_cli_runs_cells);
     mmgr_line_put(out, "],\"next\":");
     mmgr_line_decimal(out, at, 1u);
     mmgr_line_put(out, ",\"stepped\":0,\"table\":true,\"panicked\":");
@@ -209,17 +207,14 @@ int cli_qry_joined_bytes(const char *path, const char *name, VerbaLinea *out, Ve
     }
     cli_lock_give(&s_lock);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_runs_cells);
     unsigned long long at = 0ull;
     while ((bytes != NULL) && qry_record_read(bytes, size, &at, &record))
     {
         mmgr_line_put_n(out, (const char *)QRY_RECORD_BLOB(record),
                         cli_named(record, name) ? record->blob_length : 0ull);
     }
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, size);
-    }
+    cli_file_given(bytes, &g_cli_runs_cells);
     if ((bytes == NULL) || (at != size))
     {
         mmgr_line_put(err_msg, path);

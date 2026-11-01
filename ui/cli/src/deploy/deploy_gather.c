@@ -3,6 +3,7 @@
 // deploy_gather.c: whether a file is left out by a deployment's patterns, the mode git's index gives a file, else the
 // one it has here, and a release's name by the time it is made
 #include "../command_line/cells.h"
+#include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -59,10 +60,7 @@ int cli_deploy_fits(const char *pattern, const char *name, unsigned long long si
             return 0;
         }
     }
-    while ((p < length) && (pattern[p] == '*'))
-    {
-        p += 1u;
-    }
+    p = cli_text_past_any(pattern, p, length, "*");
     return p == length;
 }
 
@@ -138,10 +136,8 @@ const char *cli_deploy_left_out_by(const char *const *patterns, unsigned int cou
         if (memor.chr(&(MemoriaCfg){.src = pattern, .bytes = (size_t)size, .val = (uint8_t)'/'}) != NULL)
         {
             const char *trimmed = pattern;
-            while (*trimmed == '/')
-            {
-                trimmed += 1;
-            }
+            trimmed += cli_text_past_any(trimmed, 0ull,
+                                         cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), "/");
             if (cli_deploy_fits(trimmed, path, length))
             {
                 return pattern;

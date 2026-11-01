@@ -8,8 +8,10 @@
 // under build/harness/disasm_verify/<module> of the tree: the IR, the symbols, the two disassemblies and Ghidra's
 // project, which is deleted once read
 #include "disasm_verify.h"
+#include "../command_line/cells.h"
 #include "../command_line/command_line_internal.h"
 #include "../runs/runner.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "executables.h"
 
@@ -92,7 +94,7 @@ static int verify_cli_named(const char *top, char *name)
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const text = cli_file_read(path, &size);
+    const unsigned char *const text = cli_file_taken(path, &size, &g_cli_programs_cells);
     if (text == NULL)
     {
         return 0;
@@ -101,10 +103,7 @@ static int verify_cli_named(const char *top, char *name)
     for (unsigned long long at = 0ull; !found && (at < size);)
     {
         unsigned long long end = at;
-        while ((end < size) && (text[end] != '\n'))
-        {
-            end += 1ull;
-        }
+        end = cli_text_to_any((const char *)text, end, size, "\n");
         const int row =
             ((end - at) > 4ull) &&
             cellul.starts(&(CatenaFinitaCfg){.src = (const char *)text + at, .other = "cli\t", .cap = end - at});
@@ -113,10 +112,7 @@ static int verify_cli_named(const char *top, char *name)
             // the row's second column alone: up to the next tab, or the line's end without its carriage return
             const unsigned long long value = at + 4ull;
             unsigned long long value_end = value;
-            while ((value_end < end) && (text[value_end] != '\t') && (text[value_end] != '\r'))
-            {
-                value_end += 1ull;
-            }
+            value_end = cli_text_to_any((const char *)text, value_end, end, "\t\r");
             const unsigned long long length = value_end - value;
             found = length < CLI_NAME_MAX_LEN;
             if (found)
@@ -127,7 +123,7 @@ static int verify_cli_named(const char *top, char *name)
         }
         at = end + 1ull;
     }
-    cli_file_let_go(text, size);
+    cli_file_given(text, &g_cli_programs_cells);
     return found;
 }
 
@@ -144,17 +140,7 @@ int cli_disasm_path(char *path, const char *const *parts)
 // the module's object's name as build.sh names it, the path within the tree with each separator as two underscores
 static void verify_object_named(const char *relative, VerbaLinea *line)
 {
-    for (const char *letter = relative; *letter != '\0'; letter += 1)
-    {
-        if ((*letter == '/') || (*letter == '\\'))
-        {
-            mmgr_line_put(line, "__");
-        }
-        else
-        {
-            mmgr_line_ch(line, *letter);
-        }
-    }
+    cli_text_put_replaced(line, relative, "/\\", "__");
 }
 
 // one function's row written to the output: its name, how many instructions each reader gave, and the verdict: same,
@@ -290,7 +276,7 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
     mmgr_line_put(&object_line, top);
     mmgr_line_put(&object_line, "/build/cli/");
     mmgr_line_put(&object_line, target);
-    mmgr_line_put(&object_line, "-lto/objects/");
+    mmgr_line_put(&object_line, "/objects/");
     verify_object_named(relative, &object_line);
     mmgr_line_put(&object_line, ".o");
     VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
@@ -298,7 +284,7 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
     mmgr_line_put(&folder_line, "/build/harness/disasm_verify/");
     verify_object_named(relative, &folder_line);
     if (!mmgr_line_finish(&object_line) || !mmgr_line_finish(&folder_line) || !cli_private_folder_made(folder) ||
-        !cli_disasm_path(program, (const char *const[]){top, "/build/cli/", target, "-lto/", cli_name, NULL}) ||
+        !cli_disasm_path(program, (const char *const[]){top, "/build/cli/", target, "/", cli_name, NULL}) ||
         !cli_disasm_path(ir, (const char *const[]){folder, "/module.ll", NULL}) ||
         !cli_disasm_path(llvm_text, (const char *const[]){folder, "/llvm.txt", NULL}) ||
         !cli_disasm_path(ghidra_text, (const char *const[]){folder, "/ghidra.txt", NULL}))
@@ -375,10 +361,7 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
     }
     g_cli_cells->persistent_buf_release(one.instruction, &g_cli_programs_cells);
     g_cli_cells->persistent_buf_release(other.instruction, &g_cli_programs_cells);
-    if (ghidra != NULL)
-    {
-        cli_file_let_go(ghidra, ghidra_size);
-    }
+    cli_file_given(ghidra, &g_cli_programs_cells);
     if (disassembled != NULL)
     {
         cli_ran_given(disassembled);

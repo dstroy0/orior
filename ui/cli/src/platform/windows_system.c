@@ -4,6 +4,7 @@
 // files, an event a started process inherits, by which ipykernel is interrupted, when the machine started, and the
 // reader's log in
 #include "../command_line/cli_internal.h"
+#include "../text/text.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -42,10 +43,7 @@ void cli_temp_folder(char *folder)
         return;
     }
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
-    while ((end > 3u) && ((folder[end - 1u] == '\\') || (folder[end - 1u] == '/')))
-    {
-        end -= 1u;
-    }
+    end = (size_t)(3u + cli_text_back_past(folder + 3u, end - 3u, "\\/"));
     folder[end] = '\0';
 }
 

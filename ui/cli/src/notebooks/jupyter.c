@@ -171,17 +171,7 @@ static void jupyter_replaced(const char *text, const char *name, const char *val
 {
     VerbaLinea line = {out, room, 0ull};
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    for (const char *at = text; *at != '\0';)
-    {
-        if (cli_text_same(at, name, size))
-        {
-            mmgr_line_put(&line, value);
-            at += size;
-            continue;
-        }
-        mmgr_line_ch(&line, *at);
-        at += 1;
-    }
+    cli_text_put_filled(&line, text, name, value);
     mmgr_line_finish(&line);
 }
 

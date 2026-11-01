@@ -30,36 +30,10 @@ CC="${CC:-clang}"
 # the archiver: LLVM's where the machine has it, else the system's ar, which takes the same words
 AR="${AR:-$(command -v llvm-ar > /dev/null 2>&1 && echo llvm-ar || echo ar)}"
 JOBS=16
-# LTO=1 builds every object as bitcode and links each program with the whole program optimized at its link, into
-# build/cli/<target>-lto beside the plain build; the archive it leaves is bitcode, for an LTO link alone
-LTO="${LTO:-0}"
-LTO_SUFFIX=""
-LTO_WORDS=()
-LINK_WORDS=()
-if [ "$LTO" = 1 ]; then
-    LTO_SUFFIX="-lto"
-    # GCC's link-time optimization is one flag on both sides; clang's is thin, linked by lld where the system's linker
-    # is not Apple's, which optimizes at its link itself
-    case "$CC" in
-        *gcc*) LTO_WORDS=(-flto); LINK_WORDS=(-flto) ;;
-        *) LTO_WORDS=(-flto=thin); LINK_WORDS=(-flto=thin)
-           # on Windows lld by its name, which clang's MSVC driver runs as lld-link; elsewhere lld where the machine
-           # has it, on PATH or beside the compiler, under its plain name or a versioned one, the newest first; else
-           # the system's linker, which links thin LTO through the compiler's plugin
-           case "$(uname -s)" in
-               MINGW*|MSYS*|CYGWIN*) LINK_WORDS+=(-fuse-ld=lld) ;;
-           esac
-           if [ "$(uname -s)" != "Darwin" ] && [ "${LINK_WORDS[*]}" = "-flto=thin" ]; then
-               lld=""
-               for name in ld.lld ld.lld-21 ld.lld-20 ld.lld-19 ld.lld-18 ld.lld-17; do
-                   found="$(command -v "$name" 2>/dev/null || true)"
-                   [ -n "$found" ] || { beside="$(dirname "$(command -v "$CC")")/$name"; [ -x "$beside" ] && found="$beside"; }
-                   if [ -n "$found" ]; then lld="$found"; break; fi
-               done
-               [ -z "$lld" ] || LINK_WORDS+=("-fuse-ld=$lld")
-           fi ;;
-    esac
-fi
+# every object bitcode and every program optimized whole at its link; the archive left is bitcode, for an LTO link
+source "$HERE/lto_words.sh"
+# the folder a build's objects and programs go in, beside the target's name
+BUILD_SUFFIX=""
 # ORIOR_SANITIZE=address or thread builds every object and link under that sanitizer, with frame pointers kept for
 # its stacks and the code position-independent, since the sanitizer's constructors keep every object's sections in
 # the window's shared library, into build/cli/<target>-<sanitizer> beside the plain build; the window's build links
@@ -68,7 +42,7 @@ fi
 SANITIZE="${ORIOR_SANITIZE:-}"
 SANITIZE_WORDS=()
 if [ -n "$SANITIZE" ]; then
-    LTO_SUFFIX="$LTO_SUFFIX-$SANITIZE"
+    BUILD_SUFFIX="-$SANITIZE"
     SANITIZE_WORDS=("-fsanitize=$SANITIZE" "-fsanitize-recover=$SANITIZE" -fno-omit-frame-pointer)
     LINK_WORDS+=("-fsanitize=$SANITIZE")
     # clang refuses -fPIC for the Windows target, whose code is position-independent without it; there every object and
@@ -157,7 +131,7 @@ words_of() {
 # looked for; only its orior_mmgr target is built; the objects of its host environment's modules into MMGR_OBJECTS
 mmgr_built() {
     local target="$1"
-    local into="$TOP/build/orior_cmake/$target$LTO_SUFFIX"
+    local into="$TOP/build/orior_cmake/$target$BUILD_SUFFIX"
     mkdir -p "$TOP/build/orior_cmake"
     vector_words_of "$target"
     # a cache configured for another compiler goes first: CMake re-runs its configure when the compiler changes and
@@ -236,12 +210,12 @@ archived() {
     ( cd "$TOP" && "$AR" rcs "${archive#"$TOP/"}" "@${archive#"$TOP/"}.objects" )
 }
 
-OUT="$TOP/build/cli/$TARGET$LTO_SUFFIX"
+OUT="$TOP/build/cli/$TARGET$BUILD_SUFFIX"
 mkdir -p "$OUT"
 
 # the bundler, built for this machine from the library it shares, run to write what comes with orior
-BUNDLE="$TOP/build/cli/$HOST$LTO_SUFFIX/bundle"
-compiled "$HOST" "$TOP/build/cli/$HOST$LTO_SUFFIX/objects" "${SOURCES[@]}"
+BUNDLE="$TOP/build/cli/$HOST$BUILD_SUFFIX/bundle"
+compiled "$HOST" "$TOP/build/cli/$HOST$BUILD_SUFFIX/objects" "${SOURCES[@]}"
 mmgr_built "$HOST"
 HOST_OBJECTS=("${OBJECTS[@]}" "${MMGR_OBJECTS[@]}")
 words_of "$HOST"

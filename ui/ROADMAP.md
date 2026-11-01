@@ -17,7 +17,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Calm design keeps most of what is told at the edge of attention, asks the least attention it can, and works even when it fails ([calm technology][66], [calmtech.com][67], [Fuzzy Math][68]).
 3. **A light theme as well as a dark.** orior's look comes in a light ground for bright rooms and small text, beside its dark one, and can follow the light of the system.
    - Light text grounds read better for small text in good light, readers do not notice they do better, and a dark ground is easier in dim light ([NN/G][69], [TIDS 2025][70], [Gadget Hacks][71]).
-4. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that held it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
+4. **The window says what made it slow.** A key, a frame or a command that runs past its budget is named on the status bar with the part that kept it, a plugin, a language server or the page's own work, and the memory and processor each part takes are one press away.
    - A slow start, indexing, completion that drags, costly language servers and plugins that eat memory, with no way to see what takes the time; a feature that saves ten seconds later still angers where it adds a delay to every key. orior holds each key to its frame and names whatever runs past its budget.
    - Readers struggle to find which part causes a lag. Time and processor are put to each language server, plugin, index and piece of work behind, and the test of it slows each in turn and checks that the window names it.
    - "Why is indexing so slow" and "why is completion so slow" show the cost of the work and nothing of its cause.
@@ -209,7 +209,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 5. **Build files read whole.** Every source gets the settings of its target, a compiler the build tool does not know is read too, and the commands are read again when the environment changes.
    - An unknown compiler makes the tool ignore every setting, a source outside a target gets none, commands go stale, and a file whose includes cannot be found is not checked ([vscode-cmake-tools #1096][257], [fvdb][258], [VS Code][259]).
    - CMake's generated files call back into cmake, there is no help with outside dependencies, and a release changes behavior ([annoying build systems][260], [cmake-developers][261], [curl][262]). orior names the CMake version a tree needs.
-6. **Python held in little memory.** Code help for a large package stays under a set memory, typing in a long file does not pin a core, and definitions answer at once.
+6. **Python kept in little memory.** Code help for a large package stays under a set memory, typing in a long file does not pin a core, and definitions answer at once.
    - The server passes 2 GB and must be restarted, a file over 1,000 lines pins a core, and a definition takes 60 s ([Genesys][263], [vscode-python #25357][264], [NVIDIA][265], [Cursor forum][266]).
 7. **Compiler errors cut to the line that matters.** A long error is folded to its cause, with the rest a press away.
    - Compiler errors confuse, and a template error is eighty lines to search; readers take a message that says how to mend it ([NSF study][270], [gcc-help][271], [D #7768][272], [GameDev.net][273]).

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Find: every search runs on the window's side, over the branch a text is held as or the pages a paged file is, and
+// Find: every search runs on the window's side, over the branch a text is stored as or the pages a paged file is, and
 // finds what the lines hold as the find bar's flags read them, a pattern among them; a pattern that does not read marks
 // the bar; a small text is a branch searched there as a large one is; and a paged file is searched whole, a match
 // outside its window brought into it.
@@ -61,10 +61,10 @@ test("a search of a large branch runs on the window's side and finds what the li
   await invoke("file_write", { path: "found.txt", text: `${lines.join("\n")}\n` });
   showView("edit");
   await openFile("found.txt");
-  await ui.waitFor(() => editing().active === "found.txt" && editing().editor?.s?.doc.held?.ready, 40000);
+  await ui.waitFor(() => editing().active === "found.txt" && editing().editor?.s?.doc.mirrored?.ready, 40000);
   const view = editing().editor;
   const find = view.find;
-  const key = view.doc.held.key;
+  const key = view.doc.mirrored.key;
   find.open(false);
   try {
     const runs = [
@@ -98,7 +98,7 @@ test("a small text is a branch searched on the window's side as a large one is",
   await invoke("file_write", { path: "small_found.txt", text: "one line\ntwo lines\n" });
   showView("edit");
   await openFile("small_found.txt");
-  await ui.waitFor(() => editing().active === "small_found.txt" && editing().editor?.s?.doc.held?.ready, 5000);
+  await ui.waitFor(() => editing().active === "small_found.txt" && editing().editor?.s?.doc.mirrored?.ready, 5000);
   const find = editing().editor.find;
   find.open(false);
   try {

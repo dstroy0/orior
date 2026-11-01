@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // validate_code.c: a file's code as the validation reads it: its comments and strings blanked, its words with their
 // lines and columns, the theorems it declares, and the flagged words it uses
+#include "../text/text.h"
 #include "validate_internal.h"
 
 // the most namespaces and sections open at once
@@ -257,10 +258,10 @@ void cli_validate_flags_in(void)
         const CliCodeWord *const word = &g_cli_validate->words[at];
         const char *bare = g_cli_validate->code + word->start;
         unsigned long long size = word->size;
-        while ((size > 0ull) && (bare[0] == '@'))
         {
-            bare += 1;
-            size -= 1ull;
+            const unsigned long long lead = cli_text_past_any(bare, 0ull, size, "@");
+            bare += lead;
+            size -= lead;
         }
         for (unsigned int flag = 0u; flag < tool->flag_count; flag += 1u)
         {

@@ -43,15 +43,21 @@ CliKeyedEntry *cli_keyed_entry(const CliKeyed *keyed, unsigned int at);
 // the texts made empty, at most `entries_most` of them; `size` bytes of `text` stored under `key` with `beside`, in
 // place of what it contained: 1, or 0, reported, where they do not fit; the text stored under `key`, its size into
 // `size` and the text beside it into `beside`: NULL where none is stored, each good until the texts next change; the
-// text under `key` taken out; every text taken out; and each key handed to `each` with its texts
+// text under `key` taken out; every text taken out; each key handed to `each` with its texts; and the bytes of every
+// key and the text beside it, each ended by a 0
 void cli_keyed_begun(CliKeyed *keyed, const char *name, unsigned int entries_most);
 int cli_keyed_put(CliKeyed *keyed, const char *key, const char *beside, const char *text, unsigned long long size);
 const char *cli_keyed_get(const CliKeyed *keyed, const char *key, const char **beside, unsigned long long *size);
+// the hash a key is found by, for a key looked up more than once; and the same get with that hash
+unsigned int cli_keyed_hash(const char *key);
+const char *cli_keyed_get_hashed(const CliKeyed *keyed, const char *key, unsigned int hash, const char **beside,
+                                 unsigned long long *size);
 void cli_keyed_remove(CliKeyed *keyed, const char *key);
 void cli_keyed_clear(CliKeyed *keyed);
 void cli_keyed_each(const CliKeyed *keyed,
                     void (*each)(void *context, const char *key, const char *beside, const char *text,
                                  unsigned long long size),
                     void *context);
+unsigned long long cli_keyed_listed_size(const CliKeyed *keyed);
 
 #endif

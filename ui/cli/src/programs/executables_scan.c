@@ -3,6 +3,7 @@
 // executables_scan.c: what each kind of build script declares of the programs it makes, read from its text: CMake's and
 // Meson's executables and projects, the calls of a command in a script's code, and the comments taken out of it
 // (executables_scan_more.c reads the rest)
+#include "../text/text.h"
 #include "executables_internal.h"
 
 char *cli_uncommented_taken(const char *text, char quote)
@@ -72,10 +73,7 @@ void cli_names_put(CliNames *names, const char *name, unsigned long long length,
     if (names->count < CLI_EXECUTABLES_NAMES)
     {
         cli_scan_copied(name, length, names->name[names->count], CLI_NAME_MAX_LEN);
-        memor.cpy(&(MemoriaCfg){
-            .dst = names->value[names->count],
-            .src = (value != NULL) ? value : "",
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = (value != NULL) ? value : "", .cap = CLI_CELLS_POOL}) + 1u});
+        cli_text_copied_or(names->value[names->count], value, "");
         names->count += 1u;
     }
 }
@@ -88,10 +86,7 @@ void cli_uncommented(const char *text, char quote, char *out, unsigned long long
     {
         int quoted = 0;
         const char *stop = at;
-        while ((stop[0] != '\0') && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
         const char *const end = ((stop > at) && (stop[-1] == '\r')) ? (stop - 1) : stop;
         for (const char *letter = at; letter < end; letter += 1)
         {
@@ -132,9 +127,10 @@ static unsigned long long cli_inside_length(const char *code, unsigned long long
 {
     long long depth = 0ll;
     unsigned long long at = open;
-    for (; code[at] != '\0'; at += 1ull)
+    const unsigned long long size = at + cellul.len(&(CatenaFinitaCfg){.src = code + at, .cap = CLI_CELLS_POOL});
+    for (at = cli_text_to_any(code, at, size, "()"); at < size; at = cli_text_to_any(code, at + 1ull, size, "()"))
     {
-        depth += (code[at] == '(') ? 1ll : (code[at] == ')') ? -1ll : 0ll;
+        depth += (code[at] == '(') ? 1ll : -1ll;
         if ((code[at] == ')') && (depth == 0ll))
         {
             return at - open - 1ull;
@@ -152,21 +148,19 @@ unsigned int cli_calls(const char *code, const char *command, CliCall *calls, un
     {
         // the command found from `from`, its case aside
         unsigned long long at = from;
-        while ((code[at] != '\0') && !cli_matched(code + at, command, length))
-        {
-            at += 1ull;
-        }
+        const char *const hit = cellul.find(&(CatenaFinitaCfg){
+            .src = code + from, .cap = CLI_CELLS_POOL, .other = command, .other_cap = (size_t)length + 1u, .ci = 1});
+        at = (hit != NULL) ? (unsigned long long)(hit - code)
+                           : (from + cellul.len(&(CatenaFinitaCfg){.src = code + from, .cap = CLI_CELLS_POOL}));
         if (code[at] == '\0')
         {
             break;
         }
         from = at + length;
         const int starts_word = (at == 0ull) || !cli_wordy(code[at - 1ull]);
-        unsigned long long gap = 0ull;
-        while (cli_scan_white(code[from + gap]))
-        {
-            gap += 1ull;
-        }
+        const unsigned long long gap = cli_text_past_any(
+            code + from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = code + from, .cap = CLI_CELLS_POOL}),
+            CLI_TEXT_WHITE);
         if (!starts_word || (code[from + gap] != '('))
         {
             continue;
@@ -210,15 +204,9 @@ static int cli_cmake_word(const CliCall *call, unsigned int index, char *out)
         if (word == index)
         {
             const char *from = at;
-            while ((from < stop) && (from[0] == '"'))
-            {
-                from += 1;
-            }
+            from += cli_text_past_any(from, 0ull, (unsigned long long)(stop - from), "\"");
             const char *to = stop;
-            while ((to > from) && (to[-1] == '"'))
-            {
-                to -= 1;
-            }
+            to = from + cli_text_back_past(from, (unsigned long long)(to - from), "\"");
             cli_scan_copied(from, (unsigned long long)(to - from), out, CLI_NAME_MAX_LEN);
             return 1;
         }
@@ -249,19 +237,7 @@ void cli_cmake_targets(const char *text, const char *project, CliNames *names)
         }
         char name[CLI_NAME_MAX_LEN];
         VerbaLinea line = {name, sizeof(name), 0ull};
-        for (const char *letter = first; letter[0] != '\0';)
-        {
-            if (cellul.starts(&(CatenaFinitaCfg){.src = letter, .other = "${PROJECT_NAME}", .cap = CLI_CELLS_POOL}))
-            {
-                mmgr_line_put(&line, project);
-                letter += 15;
-            }
-            else
-            {
-                mmgr_line_ch(&line, letter[0]);
-                letter += 1;
-            }
-        }
+        cli_text_put_filled(&line, first, "${PROJECT_NAME}", project);
         const unsigned long long length = mmgr_line_finish(&line);
         if ((length != 0ull) &&
             (cellul.find(&(CatenaFinitaCfg){
@@ -294,10 +270,7 @@ static int cli_meson_first(const CliCall *call, char *out)
 {
     const char *first = call->text;
     unsigned long long length = 0ull;
-    while ((length < call->length) && (first[length] != ','))
-    {
-        length += 1ull;
-    }
+    length = cli_text_to_any(first, length, call->length, ",");
     cli_scan_trim(&first, &length);
     if ((length < 3ull) || (first[0] != '\'') || (first[length - 1ull] != '\''))
     {

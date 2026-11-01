@@ -10,7 +10,7 @@
 #include <stdlib.h>
 
 // What the search of one package records: the tree, where the tests go, the manifest, package and target, and the files
-// followed, where each starts in their texts, both in cells grown as they fill
+// followed, where each starts in their texts, both in cells at their most
 typedef struct
 {
     const char *root;
@@ -90,18 +90,6 @@ static int found_seen(CliCargoWalk *walk, const char *file)
         }
     }
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u;
-    if (walk->seen_count + 1ull > walk->seen_room)
-    {
-        unsigned long long *const grown = cli_cargo_grown(walk->seen, &walk->seen_room, walk->seen_count + 1ull,
-                                                          sizeof(*walk->seen), "files followed");
-        walk->seen = (grown != NULL) ? grown : walk->seen;
-    }
-    if (walk->seen_used + length > walk->seen_text_room)
-    {
-        char *const grown = cli_cargo_grown(walk->seen_text, &walk->seen_text_room, walk->seen_used + length, 1ull,
-                                            "the paths of the files followed");
-        walk->seen_text = (grown != NULL) ? grown : walk->seen_text;
-    }
     if ((walk->seen_count < walk->seen_room) && (walk->seen_used + length <= walk->seen_text_room))
     {
         memor.cpy(&(MemoriaCfg){.dst = walk->seen_text + walk->seen_used, .src = file, .bytes = length});
@@ -118,24 +106,10 @@ static void found_test(CliCargoWalk *walk, const char *file, const char *path, c
     const char *const inline_names = g_cli_cargo_scan.names + item->inline_names;
     const char *const name = g_cli_cargo_scan.names + item->name;
     CliCargoTests *const tests = walk->tests;
-    if (tests->count == CLI_CARGO_FOUND)
+    if (tests->count >= tests->room)
     {
         tests->full = 1;
         return;
-    }
-    if (tests->count == tests->room)
-    {
-        unsigned long long room = tests->room;
-        CliCargoFound *const grown =
-            cli_cargo_grown(tests->found, &room, tests->count + 1ull, sizeof(*tests->found), "the Rust tests");
-        if (grown == NULL)
-        {
-            tests->full = 1;
-            return;
-        }
-        tests->found = grown;
-        // the room doubles from a count below CLI_CARGO_FOUND, which an unsigned int stores twice over
-        tests->room = (unsigned int)room;
     }
     char inside[4096];
     char full[4096];
@@ -171,7 +145,7 @@ static void found_walk(CliCargoWalk *walk, const char *file, const char *path, i
     char full[CLI_PATH_MAX_LEN];
     cli_full(walk->root, file, full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(full, &size);
+    const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_cargo_cells);
     if (bytes == NULL)
     {
         return;
@@ -184,7 +158,7 @@ static void found_walk(CliCargoWalk *walk, const char *file, const char *path, i
         cli_cargo_tokens((const char *)bytes, size);
         count = cli_cargo_scan((const char *)bytes);
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_cargo_cells);
     for (unsigned int at = first; at < first + count; at += 1u)
     {
         if (g_cli_cargo_scan.items[at].test)
@@ -278,6 +252,18 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
     CliCargoWalk walk = {root, tests, NULL, NULL, {0u, NULL}, NULL, 0ull, 0ull, NULL, 0ull, 0ull};
     cli_cargo_tests_given(tests);
     cli_cargo_scan_given();
+    tests->found = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_CARGO_FOUND * sizeof(*tests->found),
+                                                     &g_cli_cargo_cells);
+    tests->room = (tests->found != NULL) ? CLI_CARGO_FOUND : 0u;
+    const unsigned long long seen_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(*walk.seen);
+    char *const seen_cell = g_cli_cells->temporary_buf_alloc(seen_bytes + CLI_CARGO_TEXT, &g_cli_cargo_cells);
+    if (seen_cell != NULL)
+    {
+        walk.seen = (unsigned long long *)(void *)seen_cell;
+        walk.seen_room = CLI_CARGO_FOUND;
+        walk.seen_text = seen_cell + seen_bytes;
+        walk.seen_text_room = CLI_CARGO_TEXT;
+    }
     const CliFiles *const files = cli_files_view(root);
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
     {
@@ -308,7 +294,7 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
         char manifest_full[CLI_PATH_MAX_LEN];
         cli_full(root, manifest, manifest_full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = searched ? cli_file_read(manifest_full, &size) : NULL;
+        const unsigned char *const bytes = searched ? cli_file_taken(manifest_full, &size, &g_cli_cargo_cells) : NULL;
         if (bytes == NULL)
         {
             continue;
@@ -317,10 +303,7 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
         char folder[CLI_PATH_MAX_LEN];
         VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
         size_t folder_size = length - 10u;
-        while ((folder_size > 0u) && (manifest[folder_size - 1u] == '/'))
-        {
-            folder_size -= 1u;
-        }
+        folder_size = (size_t)cli_text_back_past(manifest, folder_size, "/");
         mmgr_line_put_n(&folder_line, manifest, folder_size);
         mmgr_line_finish(&folder_line);
         const int read =
@@ -330,7 +313,7 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
         unsigned int target_count = 0u;
         const CliCargoFirst *const firsts =
             read ? cli_cargo_targets(package_folder, (const char *)bytes, size, package, &target_count) : NULL;
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_cargo_cells);
         if (!read)
         {
             continue;
@@ -355,8 +338,7 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
     }
     cli_cargo_firsts_given();
     cli_files_let(files);
-    g_cli_cells->persistent_buf_release(walk.seen, &g_cli_cargo_cells);
-    g_cli_cells->persistent_buf_release(walk.seen_text, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(seen_cell, &g_cli_cargo_cells);
     cli_cargo_scan_given();
     cli_lock_give(&s_found_lock);
 }

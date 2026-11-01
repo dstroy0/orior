@@ -85,10 +85,7 @@ void cli_archive_parts_of(const char *path, CliParts *parts)
     for (const char *at = path; at[0] != '\0';)
     {
         const char *stop = at;
-        while ((stop[0] != '\0') && (stop[0] != '/') && (stop[0] != '\\'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "/\\");
         if ((stop > at) && (parts->count < CLI_ARCHIVE_PARTS))
         {
             VerbaLinea line = {parts->part[parts->count], CLI_NAME_MAX_LEN, 0ull};
@@ -162,10 +159,7 @@ int cli_archive_split(const char *root, const char *path, char *file, char *inne
     rest += ((rest[0] == '/') || (rest[0] == '\\')) ? 1 : 0;
     memor.cpy(&(MemoriaCfg){
         .dst = inner, .src = rest, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = inner; at[0] != '\0'; at += 1)
-    {
-        at[0] = (at[0] == '\\') ? '/' : at[0];
-    }
+    cli_text_swapped(inner, cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL}), '\\', '/');
     return 1;
 }
 
@@ -330,15 +324,9 @@ static void cli_children(const CliDescent *descent, const CliParts *parts, const
             const char *const raw = members->text + member->raw;
             const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = raw, .cap = CLI_CELLS_POOL});
             unsigned long long end = length;
-            while ((end > 0ull) && (raw[end - 1ull] == '/'))
-            {
-                end -= 1ull;
-            }
+            end = cli_text_back_past(raw, end, "/");
             unsigned long long start = end;
-            while ((start > 0ull) && (raw[start - 1ull] != '/'))
-            {
-                start -= 1ull;
-            }
+            start = cli_text_back_any(raw, start, "/");
             one->raw =
                 (end > start) ? cli_hex_stored(found, raw + start, end - start) : cli_hex_stored(found, raw, length);
         }
@@ -382,7 +370,7 @@ int cli_archive_opened(const char *root, const char *path, const char *missing, 
             ? (cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '\\') + 1)
             : file;
     descent->kind = cli_archive_kind_of(base);
-    descent->bytes = cli_file_read(file, &descent->size);
+    descent->bytes = cli_file_taken(file, &descent->size, &g_cli_editor_cells);
     if (descent->bytes == NULL)
     {
         mmgr_line_put(err_msg, file);
@@ -421,31 +409,29 @@ int cli_archive_list(const char *root, const char *path, CliChildren *found, Ver
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
         unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = CLI_CELLS_POOL});
-        while ((length > 0ull) && (prefix[length - 1ull] == '/'))
-        {
-            length -= 1ull;
-        }
+        length = cli_text_back_past(prefix, length, "/");
         prefix[length] = '\0';
         cli_children(&descent, &s_parts, prefix, found);
     }
-    cli_file_let_go(mapped, mapped_size);
+    cli_file_given(mapped, &g_cli_editor_cells);
     cli_archive_released();
     return done;
 }
 
-int cli_archive_read(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
+char *cli_archive_taken(const char *root, const char *path, unsigned long long *size, CellOwner *owner,
+                        VerbaLinea *err_msg)
 {
     static CliParts s_parts;
     CliDescent descent;
     char file[CLI_PATH_MAX_LEN];
     if (!cli_archive_locked(err_msg))
     {
-        return 0;
+        return NULL;
     }
     if (!cli_archive_opened(root, path, " is in no archive", &descent, &s_parts, file, err_msg))
     {
         cli_archive_released();
-        return 0;
+        return NULL;
     }
     const unsigned char *const mapped = descent.bytes;
     const unsigned long long mapped_size = descent.size;
@@ -465,15 +451,24 @@ int cli_archive_read(const char *root, const char *path, VerbaLinea *out, VerbaL
         mmgr_line_put(err_msg, wanted);
         done = 0;
     }
-    unsigned long long size = 0ull;
-    done = done &&
-           cli_data_of(descent.bytes, descent.size, descent.kind, g_cli_archive_levels->unpacked[0].bytes, unpacked,
-                       &g_cli_archive_levels->members[0], member, &g_cli_archive_levels->written[0], &size, err_msg);
-    if (done)
+    unsigned long long data_size = 0ull;
+    done = done && cli_data_of(descent.bytes, descent.size, descent.kind, g_cli_archive_levels->unpacked[0].bytes,
+                               unpacked, &g_cli_archive_levels->members[0], member, &g_cli_archive_levels->written[0],
+                               &data_size, err_msg);
+    char *const cell = done ? g_cli_cells->temporary_buf_alloc(data_size + 1ull, owner) : NULL;
+    if (cell != NULL)
     {
-        mmgr_line_put_n(out, (const char *)g_cli_archive_levels->written[0].bytes, size);
+        // a member unpacked whole, which a size_t counts
+        memor.cpy(
+            &(MemoriaCfg){.dst = cell, .src = g_cli_archive_levels->written[0].bytes, .bytes = (size_t)data_size});
+        cell[data_size] = '\0';
+        *size = data_size;
     }
-    cli_file_let_go(mapped, mapped_size);
+    else if (done)
+    {
+        mmgr_line_put(err_msg, "the file read out of the archive could not be stored");
+    }
+    cli_file_given(mapped, &g_cli_editor_cells);
     cli_archive_released();
-    return done;
+    return cell;
 }

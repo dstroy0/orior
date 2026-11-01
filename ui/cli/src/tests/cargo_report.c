@@ -3,6 +3,7 @@
 // cargo_report.c: what cargo test and the test harness write, read: results, failures, the places they name, a build's
 // first error, and the folder a package's paths are written from
 #include "cargo_report.h"
+#include "../command_line/cells.h"
 
 #include "../text/text.h"
 
@@ -19,10 +20,10 @@ static int report_line(const char *text, unsigned long long size, unsigned long 
         return 0;
     }
     *start = *at;
-    const char *const newline = memor.chr(&(MemoriaCfg){.src = text + *at, .val = '\n', .bytes = size - *at});
-    unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
-    *at = (newline != NULL) ? end + 1ull : size;
-    end -= ((newline != NULL) && (end > *start) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
+    const CliTextLine bounds = cli_text_line_at(text, *at, size);
+    unsigned long long end = bounds.stop;
+    *at = bounds.next;
+    end -= bounds.stop - bounds.cut;
     *length = end - *start;
     return 1;
 }
@@ -112,19 +113,13 @@ int cli_cargo_place_of(const char *text, unsigned long long size, char *path, lo
     // the column after the last colon, the line before it, and the path before that
     const char *const base = text + start;
     unsigned long long column = length;
-    while ((column > 0ull) && (base[column - 1ull] != ':'))
-    {
-        column -= 1ull;
-    }
+    column = cli_text_back_any(base, column, ":");
     if (column == 0ull)
     {
         return 0;
     }
     unsigned long long number = column - 1ull;
-    while ((number > 0ull) && (base[number - 1ull] != ':'))
-    {
-        number -= 1ull;
-    }
+    number = cli_text_back_any(base, number, ":");
     if (number == 0ull)
     {
         return 0;
@@ -231,10 +226,7 @@ static void report_failure_read(const char *out, unsigned long long size, unsign
         }
         // panicked at src/lib.rs:4:5:, the message on the lines after it
         unsigned long long place_size = rest;
-        while ((place_size > 0ull) && (out[after + place_size - 1ull] == ':'))
-        {
-            place_size -= 1ull;
-        }
+        place_size = cli_text_back_past(out + after, place_size, ":");
         failure->placed = cli_cargo_place_of(out + after, place_size, failure->path, &failure->line);
         failure->message_size = 0ull;
         while (report_line(out, size, &peek, &start, &length))
@@ -272,10 +264,10 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
     {
         named += report_failure_named(out, start, length) ? 1u : 0u;
     }
-    CliCargoFailure *const failures =
-        g_cli_cells->temporary_buf_alloc(((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), &g_cli_tests_cells);
+    CliCargoFailure *const failures = g_cli_cells->temporary_buf_alloc(
+        ((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), &g_cli_tests_cells);
     char *const texts = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_tests_cells);
-    VerbaLinea text = {texts, (texts != NULL) ? (size + 1ull) : 0ull, 0ull};
+    VerbaLinea text = mmgr_line_over(texts, size + 1ull);
     unsigned int count = 0u;
     at = 0ull;
     while ((failures != NULL) && (texts != NULL) && report_line(out, size, &at, &start, &length) && (count < named))
@@ -400,7 +392,7 @@ void cli_cargo_workspace_of(const char *root, const char *package, char *workspa
         char manifest[CLI_PATH_MAX_LEN];
         cli_full(folder, "Cargo.toml", manifest);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_read(manifest, &size);
+        const unsigned char *const bytes = cli_file_taken(manifest, &size, &g_cli_tests_cells);
         unsigned long long at = 0ull;
         unsigned long long start = 0ull;
         unsigned long long length = 0ull;
@@ -412,10 +404,7 @@ void cli_cargo_workspace_of(const char *root, const char *package, char *workspa
                 (length == 11ull) &&
                 (memor.cmp(&(MemoriaCfg){.src = bytes + start, .other = "[workspace]", .bytes = 11u}) == 0);
         }
-        if (bytes != NULL)
-        {
-            cli_file_let_go(bytes, size);
-        }
+        cli_file_given(bytes, &g_cli_tests_cells);
         if (workspace_table)
         {
             memor.cpy(

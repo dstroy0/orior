@@ -3,7 +3,6 @@
 // runner_lines.c: a run's output and errors carried line by line as they come, each printed and stored, and the pages a
 // job wrote found
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
 #include "runner_internal.h"
 
 #include "../text/text.h"
@@ -53,24 +52,22 @@ static unsigned int cli_sequence(const unsigned char *at, const unsigned char *e
 }
 
 // What one stream's carrier reads: its run, its pipe, its stream's name, whether it has ended, and the line it buffers
-// so far, in pieces of the reads that brought it
+// so far, in a cell of the most a line carried whole holds, and its size
 typedef struct
 {
     CliRun *run;
     unsigned long long pipe;
     const char *stream;
     int ended;
-    CliPieces pending;
+    char *pending;
+    unsigned long long pending_size;
 } CliCarrier;
 
 // one line of a stream printed: its `\r` and `\n` at the end left off, each byte that starts no letter read as U+FFFD,
 // written into a cell of its size, a letter read as U+FFFD three bytes for one
 static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned long long length)
 {
-    while ((length != 0ull) && ((bytes[length - 1u] == '\n') || (bytes[length - 1u] == '\r')))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(bytes, length, "\n\r");
     const unsigned long long room = (3ull * length) + 1ull;
     char *const text = g_cli_cells->temporary_buf_alloc(room, &g_cli_runs_cells);
     if (text == NULL)
@@ -97,25 +94,18 @@ static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned lo
     g_cli_cells->persistent_buf_release(text, &g_cli_runs_cells);
 }
 
-// the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered, else joined
-// in a cell of its size; and the pieces buffered given back
+// the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered, else from
+// the buffer, which holds both, a line ending at the most it holds at the latest
 static void cli_pending_emitted(CliCarrier *carrier, const char *bytes, unsigned long long size)
 {
-    if (carrier->pending.first == NULL)
+    if (carrier->pending_size == 0ull)
     {
         cli_line_emitted(carrier, bytes, size);
         return;
     }
-    const unsigned long long whole = carrier->pending.size + size;
-    char *const joined = g_cli_cells->temporary_buf_alloc(whole + 1ull, &g_cli_runs_cells);
-    if (joined != NULL)
-    {
-        cli_pieces_copied(&carrier->pending, joined);
-        memor.cpy(&(MemoriaCfg){.dst = joined + carrier->pending.size, .src = bytes, .bytes = (size_t)size});
-        cli_line_emitted(carrier, joined, whole);
-    }
-    g_cli_cells->persistent_buf_release(joined, &g_cli_runs_cells);
-    cli_pieces_given(&carrier->pending);
+    memor.cpy(&(MemoriaCfg){.dst = carrier->pending + carrier->pending_size, .src = bytes, .bytes = (size_t)size});
+    cli_line_emitted(carrier, carrier->pending, carrier->pending_size + size);
+    carrier->pending_size = 0ull;
 }
 
 static CliLock s_carried = CLI_LOCK_INIT;
@@ -136,19 +126,26 @@ static void cli_carried(CliCarrier *carrier)
         unsigned long long from = 0ull;
         for (unsigned long long at = 0ull; at < got; at += 1ull)
         {
-            const unsigned long long pending_size = carrier->pending.size + (at + 1ull - from);
+            const unsigned long long pending_size = carrier->pending_size + (at + 1ull - from);
             if ((piece[at] == '\n') || (pending_size == CLI_CARRIED_LINE))
             {
                 cli_pending_emitted(carrier, piece + from, at + 1ull - from);
                 from = at + 1ull;
             }
         }
-        if (!cli_pieces_added(&carrier->pending, piece + from, got - from))
+        if ((got > from) && (carrier->pending != NULL))
         {
-            cli_pieces_given(&carrier->pending);
+            memor.cpy(&(MemoriaCfg){
+                .dst = carrier->pending + carrier->pending_size, .src = piece + from, .bytes = (size_t)(got - from)});
+            carrier->pending_size += got - from;
+        }
+        else if (got > from)
+        {
+            // a stream whose cell the pool could not meet is printed as it comes
+            cli_line_emitted(carrier, piece + from, got - from);
         }
     }
-    if (carrier->pending.first != NULL)
+    if (carrier->pending_size != 0ull)
     {
         cli_pending_emitted(carrier, "", 0ull);
     }
@@ -166,9 +163,11 @@ static void cli_errors_carried(void *context)
 
 void cli_run_carry(CliRun *run, const CliSpawned *spawned)
 {
-    // the step's two carriers, retained as long as the step goes
-    CliCarrier out_carrier = {run, spawned->out, "stdout", 0, {NULL, NULL, 0ull, 0, &g_cli_runs_cells}};
-    CliCarrier err_carrier = {run, spawned->err, "stderr", 0, {NULL, NULL, 0ull, 0, &g_cli_runs_cells}};
+    // the step's two carriers, retained as long as the step goes, each with a cell of the most a line holds
+    CliCarrier out_carrier = {run, spawned->out, "stdout", 0, NULL, 0ull};
+    CliCarrier err_carrier = {run, spawned->err, "stderr", 0, NULL, 0ull};
+    out_carrier.pending = g_cli_cells->temporary_buf_alloc(CLI_CARRIED_LINE, &g_cli_runs_cells);
+    err_carrier.pending = g_cli_cells->temporary_buf_alloc(CLI_CARRIED_LINE, &g_cli_runs_cells);
     CliCarrier *const out = &out_carrier;
     CliCarrier *const err = &err_carrier;
     CliThread errors = {cli_errors_carried, err};
@@ -184,6 +183,8 @@ void cli_run_carry(CliRun *run, const CliSpawned *spawned)
         cli_wake_wait(&s_carried_wake, &s_carried);
     }
     cli_lock_give(&s_carried);
+    g_cli_cells->persistent_buf_release(out_carrier.pending, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(err_carrier.pending, &g_cli_runs_cells);
 }
 
 // a path put among the pages where it is in the tree, by its path there, once
@@ -268,15 +269,11 @@ unsigned int cli_run_pages(const char *root, const char *view_out, const CliLine
         const char *at = cli_lines_at(lines, index);
         while (at[0] != '\0')
         {
-            while ((at[0] == ' ') || ((at[0] >= '\t') && (at[0] <= '\r')))
-            {
-                at += 1;
-            }
+            at += cli_text_past_any(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}),
+                                    CLI_TEXT_WHITE);
             const char *end = at;
-            while ((end[0] != '\0') && !((end[0] == ' ') || ((end[0] >= '\t') && (end[0] <= '\r'))))
-            {
-                end += 1;
-            }
+            end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
+                                   CLI_TEXT_WHITE);
             // the word trimmed of the quotes, commas and colons about it
             const char *from = at;
             const char *to = end;

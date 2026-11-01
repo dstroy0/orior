@@ -224,10 +224,10 @@
     wheel: async (target, deltaY, deltaX = 0) => ask({ op: "wheel", ...(await pointOf(target)), deltaX, deltaY }),
     // Keys as the menus write them: Ctrl+Shift+P, F5, Escape, Alt+Enter.
     key: async (keys) => ask({ op: "key", keys }),
-    // Modifier keys held down until let go: Ctrl, Alt, Shift, or more of them joined, Ctrl+Shift.
+    // Modifier keys pressed down until let go: Ctrl, Alt, Shift, or more of them joined, Ctrl+Shift.
     hold: async (keys) => ask({ op: "hold", keys }),
     release: async (keys) => ask({ op: "release", keys }),
-    // A key held down for `count` presses, one every `every` milliseconds, as the system's repeat sends it.
+    // A key pressed down for `count` presses, one every `every` milliseconds, as the system's repeat sends it.
     repeat: async (keys, count, every = 33) => ask({ op: "repeat", keys, count, every }),
     // The page is told it has the system's focus while the harness runs it; off, it has the focus
     // the window truly has, which a window behind another lacks.
@@ -286,10 +286,10 @@
   // Every call the page makes goes through the watch bridge.js keeps, which this sets. A call a test
   // answers itself is answered by it; one that would leave the window, by quitting or moving it,
   // opening another, the system's picker, the browser or the desktop, the network, a report, an
-  // install, or a plugin of the system's other than its events, fails with HELD in its message, the
+  // install, or a plugin of the system's other than its events, fails with BLOCKED in its message, the
   // picker answering as the reader would who closed it; every other call is made. Each call a test
   // causes is kept in `calls.made`, and what a test answers is forgotten once it ends.
-  const HELD = "held by the test harness";
+  const BLOCKED = "blocked by the test harness";
   const REFUSED = new Set([
     "app_exit", "window_open", "window_act", "link_open", "home_reveal", "templates_reveal",
     "report_bug", "report_open", "report_error", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
@@ -311,7 +311,7 @@
       return (async () => calls.answers.get(name)(args))();
     }
     if (refused(name)) {
-      return name === "pick" ? Promise.resolve(null) : Promise.reject(new Error(`${name}: ${HELD}`));
+      return name === "pick" ? Promise.resolve(null) : Promise.reject(new Error(`${name}: ${BLOCKED}`));
     }
     return send(name, args);
   };
@@ -325,8 +325,8 @@
   harness.ui = ui;
   harness.calls = calls;
   harness.Failure = Failure;
-  // What a held call's error says, for a test that sets those errors aside.
-  harness.held = HELD;
+  // What a kept call's error says, for a test that sets those errors aside.
+  harness.blocked = BLOCKED;
 
   // The memory each test leaves, its garbage collected, the system's account of the app and the
   // cellblock's own, a row of memory.tsv beside the run's report: the test, the bytes in RAM and

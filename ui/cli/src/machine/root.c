@@ -58,10 +58,9 @@ static int cli_tree_above(const char *start, char *tree)
             return query_path_full(folder, tree, CLI_PATH_MAX_LEN);
         }
         char *slash = NULL;
-        for (char *at = folder; *at != '\0'; at += 1)
-        {
-            slash = ((*at == '/') || (*at == '\\')) ? at : slash;
-        }
+        const unsigned long long slash_past =
+            cli_text_back_any(folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), "/\\");
+        slash = (slash_past != 0ull) ? (folder + (slash_past - 1ull)) : slash;
         // a root, `C:\` or `/`, stands where no separator is left past its first
         if ((slash == NULL) || (slash == folder) || ((slash == (folder + 2)) && (folder[1] == ':')))
         {
@@ -94,10 +93,9 @@ int cli_tree_found(char *tree)
     if (cli_program_own(program, sizeof(program)))
     {
         char *slash = NULL;
-        for (char *at = program; *at != '\0'; at += 1)
-        {
-            slash = ((*at == '/') || (*at == '\\')) ? at : slash;
-        }
+        const unsigned long long slash_past =
+            cli_text_back_any(program, cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), "/\\");
+        slash = (slash_past != 0ull) ? (program + (slash_past - 1ull)) : slash;
         if (slash != NULL)
         {
             *slash = '\0';
@@ -134,16 +132,13 @@ int cli_mounted(const char *path, char *name, VerbaLinea *err_msg)
     }
     // the last part of the path, each separator in it made `_`
     const char *base = full;
-    for (const char *at = full; *at != '\0'; at += 1)
-    {
-        base = (((*at == '/') || (*at == '\\')) && (at[1] != '\0')) ? (at + 1) : base;
-    }
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL});
+    const unsigned long long kept =
+        ((whole != 0ull) && ((full[whole - 1ull] == '/') || (full[whole - 1ull] == '\\'))) ? (whole - 1ull) : whole;
+    base = full + cli_text_back_any(full, kept, "/\\");
     char stem[CLI_NAME_MAX_LEN];
     VerbaLinea stem_line = {stem, sizeof(stem), 0ull};
-    for (const char *at = base; *at != '\0'; at += 1)
-    {
-        mmgr_line_ch(&stem_line, ((*at == '/') || (*at == '\\')) ? '_' : *at);
-    }
+    cli_text_put_replaced(&stem_line, base, "/\\", "_");
     if ((mmgr_line_finish(&stem_line) == 0ull) || (stem[0] == '\0'))
     {
         memor.cpy(&(MemoriaCfg){.dst = stem,
@@ -322,10 +317,7 @@ void cli_relative(const char *root, const char *path, char *relative)
                 mmgr_line_ch(&line, '/');
                 rest += 1;
             }
-            for (; *rest != '\0'; rest += 1)
-            {
-                mmgr_line_ch(&line, (*rest == '\\') ? '/' : *rest);
-            }
+            rest += cli_text_put_swapped(&line, rest, '\\', '/');
             mmgr_line_finish(&line);
             return;
         }
@@ -335,10 +327,7 @@ void cli_relative(const char *root, const char *path, char *relative)
         rest = path + cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
         rest += ((*rest == '/') || (*rest == '\\')) ? 1 : 0;
     }
-    for (; *rest != '\0'; rest += 1)
-    {
-        mmgr_line_ch(&line, (*rest == '\\') ? '/' : *rest);
-    }
+    rest += cli_text_put_swapped(&line, rest, '\\', '/');
     mmgr_line_finish(&line);
 }
 
@@ -346,10 +335,7 @@ int cli_path_parent(const char *path, char *out)
 {
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
     const unsigned long long root = ((length >= 2ull) && (path[1] == ':')) ? 3ull : 1ull;
-    while ((length > root) && ((path[length - 1ull] == '/') || (path[length - 1ull] == '\\')))
-    {
-        length -= 1ull;
-    }
+    length = (root + cli_text_back_past(path + root, length - root, "/\\"));
     unsigned long long slash = length;
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {

@@ -105,7 +105,7 @@ export function onDown(event, fromGutter = false) {
       this.setSelections([{ anchor: anchorFrom, head: anchorTo, goal: past ? v : null }]);
     }
     index = this.s.primary;
-    // A press with Alt held that then moves selects a column from where it was pressed.
+    // A press with Alt pressed that then moves selects a column from where it was pressed.
     const alt = event.altKey && !event.shiftKey && unit === "char" && !fromGutter;
     const pressedAt = { row: this.rows().rowOf(p.line), v: Math.max(0, (event.clientX - this.space.getBoundingClientRect().left - PAD) / this.cw) };
     this.dragging = { unit, anchorFrom, anchorTo, index, alt: alt ? pressedAt : null };

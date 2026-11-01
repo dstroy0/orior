@@ -9,10 +9,9 @@
 #include "../../../cli/src/text/json_tree.h"
 #include "panel.h"
 
-// the milliseconds a rest takes before the word is asked about and the box lingers after the pointer leaves; the
-// box's most width and height in the page's pixels, 36rem by 18rem, and its padding down and across; the cells
-// either side of the word the pointer may stand on and keep the box; and the bytes the parts are joined in before
-// they grow
+// the milliseconds a rest takes before the word is asked about and the box lingers after the pointer leaves; the box's
+// most width and height in the page's pixels, 36rem by 18rem, and its padding down and across; the cells either side of
+// the word the pointer may stand on and keep the box; and the bytes the parts are joined in
 #define GUI_HOVER_RESTS 380ull
 #define GUI_HOVER_LINGER 300ull
 #define GUI_HOVER_WIDE 576

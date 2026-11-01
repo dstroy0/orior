@@ -5,13 +5,12 @@
 // files, lines and columns, each file's text the editor's where it holds one. A name the tree knows no definition of
 // has none: the server is never asked
 #include "../code/symbols.h"
-#include "../command_line/file_writing.h"
 #include "servers_internal.h"
 
 #include <stdlib.h>
 
-// the bytes the usages, their paths and their lines' texts are each begun in, doubling as they fill
-#define CLI_SERVERS_USAGES_FIRST 4096u
+// the bytes the usages, their paths and their lines' texts are each written in
+#define CLI_SERVERS_USAGES_ROOM (8ull << 20u)
 
 // One usage read: its path among the paths, its line, its span in UTF-16 units, and its line's text among the texts
 // and how many bytes
@@ -25,7 +24,7 @@ typedef struct
     unsigned long long length;
 } CliServersUsageRead;
 
-// The usages read: the tree's top, the usages, their paths and their lines' texts, each a growing line, and how many
+// The usages read: the tree's top, the usages, their paths and their lines' texts, each a line, and how many
 typedef struct
 {
     const char *tree;
@@ -40,7 +39,7 @@ static const CliServersUsagesRead *s_sorting;
 static CliLock s_sorting_lock = CLI_LOCK_INIT;
 
 // the text the editor holds of the tree's file at `path`, in a cell of its size: NULL where it holds none
-static char *usages_held(void *context, const char *path, unsigned long long *size)
+static char *usages_open_text(void *context, const char *path, unsigned long long *size)
 {
     const CliServersUsagesRead *const read = (const CliServersUsagesRead *)context;
     char full[CLI_PATH_MAX_LEN];
@@ -97,20 +96,18 @@ static int usages_read(const char *tree, const char *path, unsigned int line, un
     char own[CLI_PATH_MAX_LEN];
     VerbaLinea own_line = {own, sizeof(own), 0ull};
     cli_servers_tree_path(tree, path, &own_line);
-    *read = (CliServersUsagesRead){tree,
-                                   {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                                   {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                                   {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                                   0u};
-    if ((mmgr_line_finish(&own_line) == 0ull) ||
-        !cli_growing_line_made(&read->usage, CLI_SERVERS_USAGES_FIRST, &g_cli_servers_cells) ||
-        !cli_growing_line_made(&read->paths, CLI_SERVERS_USAGES_FIRST, &g_cli_servers_cells) ||
-        !cli_growing_line_made(&read->texts, CLI_SERVERS_USAGES_FIRST, &g_cli_servers_cells))
+    char *const usage_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_USAGES_ROOM, &g_cli_servers_cells);
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_USAGES_ROOM, &g_cli_servers_cells);
+    char *const texts_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_USAGES_ROOM, &g_cli_servers_cells);
+    *read = (CliServersUsagesRead){tree, mmgr_line_over(usage_cell, CLI_SERVERS_USAGES_ROOM),
+                                   mmgr_line_over(paths_cell, CLI_SERVERS_USAGES_ROOM),
+                                   mmgr_line_over(texts_cell, CLI_SERVERS_USAGES_ROOM), 0u};
+    if ((mmgr_line_finish(&own_line) == 0ull) || (usage_cell == NULL) || (paths_cell == NULL) || (texts_cell == NULL))
     {
         mmgr_line_put(err_msg, "the usages could not be read: the cells cannot meet them");
         return -1;
     }
-    const int found = cli_symbols_usages(own, line, col, across, usages_held, read, usages_put, read, err_msg);
+    const int found = cli_symbols_usages(own, line, col, across, usages_open_text, read, usages_put, read, err_msg);
     if ((found == 1) && (!mmgr_line_ok(&read->usage) || !mmgr_line_ok(&read->paths) || !mmgr_line_ok(&read->texts)))
     {
         mmgr_line_put(err_msg, "the usages could not be read: the cells cannot meet them");
@@ -211,7 +208,7 @@ int cli_servers_definition_written(const char *tree, const char *path, unsigned 
                                  {NULL, 0ull, 0ull, NULL, NULL, 0ull},
                                  0u};
     mmgr_line_ch(out, '[');
-    const int found = cli_symbols_definition(own, line, col, usages_held, &read, usages_defined_put, out, err_msg);
+    const int found = cli_symbols_definition(own, line, col, usages_open_text, &read, usages_defined_put, out, err_msg);
     mmgr_line_ch(out, ']');
     return found >= 0;
 }

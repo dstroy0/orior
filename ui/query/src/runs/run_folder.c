@@ -184,18 +184,14 @@ void query_named(const char *top, const char *path, char *name, size_t room)
         ((full_path[length] == '/') || (full_path[length] == '\\')))
     {
         VerbaLinea line = {name, room, 0ull};
-        for (const char *at = full_path + length + 1u; *at != '\0'; at += 1)
-        {
-            mmgr_line_ch(&line, (*at == '\\') ? '/' : *at);
-        }
+        (void)cli_text_put_swapped(&line, full_path + length + 1u, '\\', '/');
         mmgr_line_finish(&line);
         return;
     }
     const char *base = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        base = ((*at == '/') || (*at == '\\')) ? (at + 1) : base;
-    }
+    const unsigned long long base_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    base = (base_past != 0ull) ? (path + base_past) : base;
     memor.cpy(&(MemoriaCfg){
         .dst = name, .src = base, .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) + 1u});
 }
@@ -217,10 +213,9 @@ int query_opened(const char *qry_path, const char *crystal, char *named, size_t 
     }
     // the crystal read back into `restored/` beside it, as `<name>.qry`
     const char *base = qry_path;
-    for (const char *at = qry_path; *at != '\0'; at += 1)
-    {
-        base = ((*at == '/') || (*at == '\\')) ? (at + 1) : base;
-    }
+    const unsigned long long base_past =
+        cli_text_back_any(qry_path, cellul.len(&(CatenaFinitaCfg){.src = qry_path, .cap = CLI_CELLS_POOL}), "/\\");
+    base = (base_past != 0ull) ? (qry_path + base_past) : base;
     char restored[QUERY_PATH_MAX_LEN];
     VerbaLinea restored_line = {restored, sizeof(restored), 0ull};
     mmgr_line_put_n(&restored_line, qry_path, (unsigned long long)(base - qry_path));

@@ -30,8 +30,8 @@ typedef struct
 // `entries`, sorted by name, in a cell the size of the folder's count of them, the cell `entries` occupied given back
 // first
 void cli_catalog_entries(const char *folder, int folders, int (*filter)(const char *name), CliEntries *entries);
-// room for `most` in a list, what it contains retained: twice its room where that is more, so a list put one at a time
-// is taken again seldom; 1, or 0 where the cell is refused and the list is left as it was
+// a list's cell taken at the most a list holds as it is first made room in: 1 where `most` fit, or 0 where they do not
+// or the cell is refused
 int cli_catalog_names_room(CliEntries *names, unsigned int most);
 int cli_catalog_paths_room(CliPaths *paths, unsigned int most);
 // a list's cell given back, the list left empty

@@ -217,13 +217,10 @@ static void slice_check(void)
     VerbaLinea windows = {s_windows, sizeof(s_windows), 0ull};
     SliceGiven given = {server, 0u, &windows};
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_read(s_heard.path, &size);
+    const unsigned char *const mapped = cli_file_taken(s_heard.path, &size, &g_checks_cells);
     const int cut = (mapped != NULL) && cli_servers_slices_cut(root, s_heard.path, (const char *)mapped, size,
                                                                slice_window, &given, &err_msg);
-    if (mapped != NULL)
-    {
-        cli_file_let_go(mapped, size);
-    }
+    cli_file_given(mapped, &g_checks_cells);
     cli_check(cut && (cli_lsp_version(server, s_heard.path) == 3ull),
               "the file is given its server a window at a time, opened with the first and changed with each after");
     cli_check_text(s_windows, windows.at,

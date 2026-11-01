@@ -9,8 +9,7 @@
 #include "../text/text.h"
 #include <stdlib.h>
 
-// the bytes the coverage reported is begun to be written in, doubling as it fills
-#define CLI_COVER_EVENT_INIT_CAP (1u << 16u)
+// the bytes the coverage reported is written in
 
 const char g_cli_test_shim[] =
     "\n"
@@ -183,9 +182,10 @@ static int cover_string(CliCoverRead *read, VerbaLinea *out)
     char quoted[CLI_PATH_MAX_LEN + 2u];
     const unsigned long long start = read->at;
     read->at += 1ull;
-    while ((read->at < read->size) && (read->text[read->at] != '"'))
+    read->at = cli_text_to_any(read->text, read->at, read->size, "\"\\");
+    while ((read->at < read->size) && (read->text[read->at] == '\\'))
     {
-        read->at += (read->text[read->at] == '\\') ? 2ull : 1ull;
+        read->at = cli_text_to_any(read->text, read->at + 2ull, read->size, "\"\\");
     }
     read->at += 1ull;
     // the string read back from its JSON, through the tree's own reading of one string
@@ -301,19 +301,10 @@ static void cover_lines(CliCoverRead *read, unsigned int file, unsigned int coul
         const unsigned long long start = read->at;
         cover_skipped(read);
         unsigned long long value = 0ull;
-        unsigned long long end = read->at;
-        while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = read->text[end - 1ull]}) != NULL))
-        {
-            end -= 1ull;
-        }
-        int whole = (end > start);
-        for (unsigned long long at = start; whole && (at < end); at += 1ull)
-        {
-            const unsigned long long digit = (unsigned long long)(read->text[at] - '0');
-            whole = (read->text[at] >= '0') && (read->text[at] <= '9') && (value <= (~0ull - digit) / 10ull);
-            value = whole ? (value * 10ull) + digit : value;
-        }
+        const unsigned long long end = start + cli_text_back_past(read->text + start, read->at - start, " \t\r\n");
+        const int whole = (end > start) && ((end - start) <= 19ull) &&
+                          (cli_text_past_class(read->text, start, end, CLI_TEXT_DIGITS, "") == end);
+        value = whole ? cli_text_number(read->text, start, end, NULL) : 0ull;
         if (whole && (file < s_cover->files_most) && (s_cover->line_count < s_cover->lines_most))
         {
             s_cover->lines[s_cover->line_count] =
@@ -504,8 +495,13 @@ void cli_test_coverage_emitted(CliTestRun *run)
         }
         cli_test_file_let_go(text, size);
     }
-    VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if ((s_cover->files > 0u) && cli_growing_line_temporary(&out, CLI_COVER_EVENT_INIT_CAP, &g_cli_tests_cells))
+    // a name's byte is escaped to at most 6, a line's number takes at most 11 and its comma, and a file's words are few
+    const unsigned long long out_room = (s_cover->used * 6ull) + ((unsigned long long)s_cover->files * 64ull) +
+                                        ((unsigned long long)s_cover->line_count * 12ull) + 64ull;
+    char *const out_cell =
+        (s_cover->files > 0u) ? g_cli_cells->temporary_buf_alloc(out_room, &g_cli_tests_cells) : NULL;
+    VerbaLinea out = mmgr_line_over(out_cell, out_room);
+    if (out_cell != NULL)
     {
         qsort(s_cover->lines, s_cover->line_count, sizeof(s_cover->lines[0]), cover_line_order);
         for (unsigned int file = 0u; file < s_cover->files; file += 1u)

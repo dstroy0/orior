@@ -23,7 +23,7 @@ static void check_queue_emptied(void)
 {
     for (unsigned int at = 0u; at < s_queue.count; at += 1u)
     {
-        cli_lsp_unref(cli_servers_check_queued_at(&s_queue, at)->waiting.server);
+        cli_lsp_unref(cli_servers_check_queued_at(&s_queue, at)->server);
     }
     s_queue.head = 0u;
     s_queue.count = 0u;
@@ -63,13 +63,16 @@ static void check_checker(void *context)
         }
         const CliServersQueued one = *cli_servers_check_queued_at(&s_queue, 0u);
         memor.cpy(&(MemoriaCfg){.dst = s_path[checker], .src = s_queue.room + one.path, .bytes = one.size + 1u});
+        CliServersWaiting waiting = {one.server, ""};
+        memor.cpy(&(MemoriaCfg){
+            .dst = waiting.id, .src = s_queue.room + one.path + one.size + 1u, .bytes = one.whole - (one.size + 1u)});
         s_queue.head = (s_queue.head + 1u) % s_queue.waiting_most;
         s_queue.count -= 1u;
         s_queue.used = (s_queue.count == 0u) ? 0ull : s_queue.used;
         s_emit[checker] = s_queue.sink;
         cli_lock_give(&s_queue_lock);
-        cli_servers_check_one(checker, s_path[checker], &one.waiting, &s_emit[checker]);
-        cli_lsp_unref(one.waiting.server);
+        cli_servers_check_one(checker, s_path[checker], &waiting, &s_emit[checker]);
+        cli_lsp_unref(one.server);
         cli_lock_take(&s_queue_lock);
         s_queue.done += 1ull;
         const unsigned long long done = s_queue.done;
@@ -103,7 +106,7 @@ unsigned int cli_servers_check_tree(const char *root, const char *const *files, 
                                     const CliServersSink *sink)
 {
     cli_lock_take(&s_queue_lock);
-    if (!cli_servers_check_room_made(&s_queue))
+    if (!cli_servers_check_room_made(&s_queue, files, count))
     {
         cli_lock_give(&s_queue_lock);
         return 0u;
@@ -224,17 +227,24 @@ void cli_servers_check_let_go(void)
     cli_lock_give(&g_cli_servers_check_open_lock);
 }
 
-int cli_servers_check_tree_files(const char *root, void (*each)(void *context, const char *file), void *context)
+char *cli_servers_check_tree_files(const char *root, unsigned long long *size)
 {
     cli_lock_take(&s_queue_lock);
     const int on = s_queue.on && (s_queue.files != NULL) &&
                    (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = root, .cap = CLI_CELLS_POOL}));
-    for (unsigned int at = 0u; on && (at < s_queue.file_count); at += 1u)
+    // the queue's bytes hold every path it lists, each ended by a 0
+    char *const files = on ? g_cli_cells->temporary_buf_alloc(s_queue.files_used + 1ull, &g_cli_servers_cells) : NULL;
+    unsigned long long used = 0ull;
+    for (unsigned int at = 0u; (files != NULL) && (at < s_queue.file_count); at += 1u)
     {
-        each(context, s_queue.files + s_queue.file_at[at]);
+        const char *const file = s_queue.files + s_queue.file_at[at];
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1ull;
+        memor.cpy(&(MemoriaCfg){.dst = files + used, .src = file, .bytes = (size_t)length});
+        used += length;
     }
     cli_lock_give(&s_queue_lock);
-    return on;
+    *size = used;
+    return files;
 }
 
 int cli_servers_check_files_changed(const char *root, const char *const *files, unsigned int count,

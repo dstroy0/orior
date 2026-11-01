@@ -86,17 +86,13 @@ static void recv_edit(const CliServersSink *sink, const char *params, unsigned l
 {
     cli_servers_reading_locked(&s_reading);
     const unsigned int root = cli_servers_read(&s_reading, params, size);
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea edits_line;
-    cli_pieces_begun(&pieces, &edits_line, piece, sizeof(piece), &g_cli_servers_cells);
+    char *const edits = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
+    VerbaLinea edits_line = mmgr_line_over(edits, CLI_SERVERS_ANSWER);
     cli_servers_workspace_edit_of(&s_reading.json, cli_json_member(&s_reading.json, root, "edit"), sink->tree,
                                   &edits_line);
-    unsigned long long edits_size = 0ull;
-    char *const edits = cli_pieces_joined(&pieces, &edits_line, "the edits a server requests", &edits_size);
-    if ((edits != NULL) && (sink->emit != NULL))
+    if (mmgr_line_ok(&edits_line) && (sink->emit != NULL))
     {
-        sink->emit(sink->context, "lsp-edits", edits, edits_size);
+        sink->emit(sink->context, "lsp-edits", edits_line.out, edits_line.at);
     }
     g_cli_cells->persistent_buf_release(edits, &g_cli_servers_cells);
     cli_servers_reading_released(&s_reading);

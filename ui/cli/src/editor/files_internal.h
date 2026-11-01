@@ -43,6 +43,8 @@ typedef struct
 // `root` that `filter` admits picked, the view pinned: 1, or 0 where no view could be pinned or the cellblock cannot
 // meet their places, nothing pinned; the path of the one picked at `index`; and the view let go and the places given
 // back (files_cells.c)
+// a cell of the files' lists, from the temporary tier: a list lasts a call, a batch or a watch's round, and nothing
+// that short-lived stands in the persistent tier to leave a hole under a cell laid above it
 void *cli_files_cell_taken(unsigned long long bytes);
 void cli_files_cell_given(void *cell);
 int cli_files_made(CliFiles *files, unsigned long long count, unsigned long long bytes);

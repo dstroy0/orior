@@ -3,6 +3,7 @@
 // db_children.c: the schema a connection reads on its own link, a level at a time: the schemas or databases at the top,
 // a schema's tables, views and routines under it, and a table's columns, indexes, keys and triggers under it, each as
 // the catalogue of its database names them
+#include "../text/text.h"
 #include "db_internal.h"
 #include "sql.h"
 
@@ -36,14 +37,8 @@ void cli_db_quoted_name(const char *name, unsigned int dialect, VerbaLinea *out)
 {
     const char quote = (dialect == CLI_SQL_MYSQL) ? '`' : '"';
     mmgr_line_ch(out, quote);
-    for (const char *letter = name; *letter != '\0'; letter += 1)
-    {
-        mmgr_line_ch(out, *letter);
-        if (*letter == quote)
-        {
-            mmgr_line_ch(out, quote);
-        }
-    }
+    const char quoted[2] = {quote, '\0'};
+    cli_text_put_doubled(out, name, quoted);
     mmgr_line_ch(out, quote);
 }
 

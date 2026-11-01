@@ -25,7 +25,7 @@ import { CHOSEN, FILES, PAGE, chosen, connectionForFile, connectionOf, element, 
 import { copyText, menuOn, showMenu } from "./menu.js";
 import { say } from "./statusbar.js";
 
-export { heldRows } from "./database/grid.js";
+export { cachedRows } from "./database/grid.js";
 export { connectionForFile } from "./database/state.js";
 export { runSqlFile, runStatement } from "./database/statements.js";
 

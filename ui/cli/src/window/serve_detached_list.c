@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // serve_detached_list.c: the detached runs of the tree open listed, the oldest first, each with its job, and a run
 // retained a week let go
+#include "../command_line/cells.h"
 #include "../runs/runner.h"
+#include "../text/text.h"
 #include "serve_internal.h"
 
 #include <stdlib.h>
@@ -136,23 +138,14 @@ int cli_serve_runs_detached(const CliServeArgs *args, VerbaLinea *out, VerbaLine
         }
         cli_serve_detached_file(base, "output", path);
         unsigned long long lines_size = 0ull;
-        const unsigned char *const mapped = cli_file_read(path, &lines_size);
+        const unsigned char *const mapped = cli_file_taken(path, &lines_size, &g_cli_window_cells);
         unsigned long long end = lines_size;
-        while ((end > 0ull) && ((mapped[end - 1ull] == '\n') || (mapped[end - 1ull] == '\r')))
-        {
-            end -= 1ull;
-        }
+        end = cli_text_back_past((const char *)mapped, end, "\n\r");
         unsigned long long start = end;
-        while ((start > 0ull) && (mapped[start - 1ull] != '\n'))
-        {
-            start -= 1ull;
-        }
+        start = cli_text_back_any((const char *)mapped, start, "\n");
         const int ended = (mapped != NULL) && (end - start >= 6ull) &&
                           (memor.cmp(&(MemoriaCfg){.src = mapped + start, .other = "{\"end\"", .bytes = 6u}) == 0);
-        if (mapped != NULL)
-        {
-            cli_file_let_go(mapped, lines_size);
-        }
+        cli_file_given(mapped, &g_cli_window_cells);
         mmgr_line_put(out, written ? ",{\"run\":" : "{\"run\":");
         mmgr_line_decimal(out, s_list_room->list.run[at], 1u);
         mmgr_line_put(out, ",\"job\":");

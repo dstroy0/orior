@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // checkers_lines.c: findings written a line each, `path:line:col: message`, with a severity word and a code where the
 // checker writes them, as flake8, mypy and pylint write them
+#include "../text/text.h"
 #include "checkers_internal.h"
 
 // whether a byte is ASCII's whitespace, and a span with that whitespace at either end left off
@@ -35,11 +36,7 @@ static int cli_line_parts(const char *line, unsigned long long length, unsigned 
             continue;
         }
         unsigned long long digits = 0ull;
-        while (((at + 1ull + digits) < length) && (line[at + 1ull + digits] >= '0') &&
-               (line[at + 1ull + digits] <= '9'))
-        {
-            digits += 1ull;
-        }
+        digits = cli_text_past_class(line, at + 1ull, length, CLI_TEXT_DIGITS, "") - (at + 1ull);
         if ((digits == 0ull) || ((at + 1ull + digits) >= length) || (line[at + 1ull + digits] != ':'))
         {
             continue;
@@ -51,11 +48,7 @@ static int cli_line_parts(const char *line, unsigned long long length, unsigned 
         }
         const unsigned long long after = at + 2ull + digits;
         unsigned long long col_digits = 0ull;
-        while (((after + col_digits) < length) && (line[after + col_digits] >= '0') &&
-               (line[after + col_digits] <= '9'))
-        {
-            col_digits += 1ull;
-        }
+        col_digits = cli_text_past_class(line, after, length, CLI_TEXT_DIGITS, "") - after;
         unsigned long long col = 1ull;
         unsigned long long rest = after;
         if ((col_digits > 0ull) && ((after + col_digits) < length) && (line[after + col_digits] == ':'))
@@ -162,11 +155,10 @@ void cli_checkers_lines_read(const char *text, unsigned long long size)
 {
     for (unsigned long long at = 0ull; at < size;)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
-        length -= ((newline != NULL) && (length > 0ull) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
+        length -= bounds.stop - bounds.cut;
         const char *const line = text + at;
         at = end + 1ull;
         CliFinding finding = {0ull, 1ull, 0, 0ull, 0ull, 2u, NULL, 0ull, "", 0ull, "[]"};

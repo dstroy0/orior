@@ -44,8 +44,8 @@ export function loadBridge() {
 
 // Reads the index again once a protocol run ends.
 export function keepBridge(onRead) {
-  watch((held) => {
-    const now = new Set([...held.runs].filter(([, run]) => run.job.startsWith("protocol/")).map(([id]) => id));
+  watch((known) => {
+    const now = new Set([...known.runs].filter(([, run]) => run.job.startsWith("protocol/")).map(([id]) => id));
     const ended = [...state.lastRuns].some((id) => !now.has(id));
     state.lastRuns = now;
     if (ended) {
@@ -114,10 +114,10 @@ function verdictOf(pair) {
 function keyDetail(key, openAt) {
   const index = state.index;
   const klq = index.klq;
-  const held = klq?.keys[key];
-  const parts = [element("div", { className: "bridge-key" }, held ? jump(openAt, klq.path, held.line, key) : key)];
-  if (held?.pairs.length) {
-    for (const pair of held.pairs) {
+  const known = klq?.keys[key];
+  const parts = [element("div", { className: "bridge-key" }, known ? jump(openAt, klq.path, known.line, key) : key)];
+  if (known?.pairs.length) {
+    for (const pair of known.pairs) {
       const row = element("div", { className: "bridge-pair" });
       row.append(jump(openAt, klq.path, pair.line, `${pair.first} ~ ${pair.second}`), verdictOf(pair));
       for (const note of pair.notes) {
@@ -125,7 +125,7 @@ function keyDetail(key, openAt) {
       }
       parts.push(row);
     }
-  } else if (held) {
+  } else if (known) {
     parts.push(element("p", { className: "bridge-quiet", textContent: "no pairs" }));
   }
   const mapped = [];

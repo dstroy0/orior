@@ -8,12 +8,10 @@
 #include "envs_internal.h"
 
 // how many folders below the top a search for environments goes, the most folders it queues to look in, and the most
-// environments found; and the folders and the environments their rooms are begun with, each doubling as they are put
+// environments found; and the folders and the environments their rooms are taken with
 #define CLI_ENVS_DEPTH 5u
 #define CLI_ENVS_PENDING 4096u
 #define CLI_ENVS_MOST 1024u
-#define CLI_ENVS_PENDING_FIRST 16u
-#define CLI_ENVS_FOUND_FIRST 8u
 
 // A folder to look in, and how deep it is below the top
 typedef struct
@@ -31,7 +29,7 @@ typedef struct
 } CliFoundEnv;
 
 // The search: the folders to look in, the folder whose folders are being read and its depth, what it found, the order
-// it is written in, and the names an environment's folder requires, each list in a cell whose room doubles as it is put
+// it is written in, and the names an environment's folder requires
 typedef struct
 {
     CliEnvFolder *pending;
@@ -46,30 +44,6 @@ typedef struct
     CliRequired required;
 } CliEnvSearch;
 
-// room made for one folder more to look in: 1, or 0 where the search contains the most or its larger cell is refused
-static int cli_pending_room(CliEnvSearch *search)
-{
-    if (search->pending_count < search->pending_room)
-    {
-        return 1;
-    }
-    const unsigned int doubled = (search->pending_room == 0u) ? CLI_ENVS_PENDING_FIRST : (search->pending_room * 2u);
-    const unsigned int room = (doubled < CLI_ENVS_PENDING) ? doubled : CLI_ENVS_PENDING;
-    CliEnvFolder *const moved =
-        (search->pending_count < CLI_ENVS_PENDING)
-            ? cli_envs_moved(search->pending, (unsigned long long)search->pending_count * sizeof(CliEnvFolder),
-                             (unsigned long long)room * sizeof(CliEnvFolder),
-                             "the folders an environment is looked for in")
-            : NULL;
-    if (moved == NULL)
-    {
-        return 0;
-    }
-    search->pending = moved;
-    search->pending_room = room;
-    return 1;
-}
-
 static void cli_below_each(void *context, const char *name, int is_folder)
 {
     CliEnvSearch *const search = context;
@@ -78,7 +52,7 @@ static void cli_below_each(void *context, const char *name, int is_folder)
     {
         is_folder = !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_not[at], .cap = CLI_CELLS_POOL});
     }
-    if (is_folder && cli_pending_room(search))
+    if (is_folder && (search->pending_count < search->pending_room))
     {
         CliEnvFolder *const below = &search->pending[search->pending_count];
         cli_full(search->folder, name, below->path);
@@ -90,15 +64,11 @@ static void cli_below_each(void *context, const char *name, int is_folder)
 // an environment put among those found
 static void cli_env_put(CliEnvSearch *search, const char *kind, const char *place, const char *requires_from)
 {
-    if ((search->count == search->found_room) && (search->count < CLI_ENVS_MOST))
+    if (search->found_room == 0u)
     {
-        const unsigned int doubled = (search->found_room == 0u) ? CLI_ENVS_FOUND_FIRST : (search->found_room * 2u);
-        const unsigned int room = (doubled < CLI_ENVS_MOST) ? doubled : CLI_ENVS_MOST;
-        CliFoundEnv *const moved =
-            cli_envs_moved(search->found, (unsigned long long)search->count * sizeof(CliFoundEnv),
-                           (unsigned long long)room * sizeof(CliFoundEnv), "the environments found");
-        search->found = (moved != NULL) ? moved : search->found;
-        search->found_room = (moved != NULL) ? room : search->found_room;
+        search->found = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_ENVS_MOST * sizeof(CliFoundEnv),
+                                                         &g_cli_envs_cells);
+        search->found_room = (search->found != NULL) ? CLI_ENVS_MOST : 0u;
     }
     if (search->count < search->found_room)
     {
@@ -119,10 +89,8 @@ static void cli_env_put(CliEnvSearch *search, const char *kind, const char *plac
 static unsigned int cli_env_depth(const CliFoundEnv *one)
 {
     unsigned int depth = (one->place[0] != '\0') ? 1u : 0u;
-    for (const char *at = one->place; at[0] != '\0'; at += 1)
-    {
-        depth += (at[0] == '/') ? 1u : 0u;
-    }
+    depth += (unsigned int)cli_text_counted(
+        one->place, cellul.len(&(CatenaFinitaCfg){.src = one->place, .cap = CLI_CELLS_POOL}), '/');
     return depth;
 }
 
@@ -150,10 +118,13 @@ static int cli_has_file(const char *folder, const char *name)
 // the folders below `root` walked to CLI_ENVS_DEPTH, each environment found put
 static void cli_envs_searched(CliEnvSearch *search, const char *root)
 {
-    if (!cli_pending_room(search))
+    search->pending = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_ENVS_PENDING * sizeof(CliEnvFolder),
+                                                       &g_cli_envs_cells);
+    if (search->pending == NULL)
     {
         return;
     }
+    search->pending_room = CLI_ENVS_PENDING;
     memor.cpy(&(MemoriaCfg){.dst = search->pending[0].path,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
@@ -168,10 +139,7 @@ static void cli_envs_searched(CliEnvSearch *search, const char *root)
         const unsigned int depth = search->pending[search->pending_count].depth;
         char place[CLI_PATH_MAX_LEN];
         cli_relative(root, folder, place);
-        for (char *at = place; at[0] != '\0'; at += 1)
-        {
-            at[0] = (at[0] == '\\') ? '/' : at[0];
-        }
+        cli_text_swapped(place, cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}), '\\', '/');
         if (cli_has_file(folder, "pyvenv.cfg"))
         {
             char parent[CLI_PATH_MAX_LEN];
@@ -200,6 +168,7 @@ static void cli_envs_searched(CliEnvSearch *search, const char *root)
 void cli_envs_found(const char *root, VerbaLinea *out)
 {
     CliEnvSearch search = {NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, NULL, {NULL, 0u, 0u, NULL, 0u, 0u}};
+    cli_required_taken(&search.required);
     cli_envs_searched(&search, root);
     search.order = g_cli_cells->persistent_buf_alloc(((unsigned long long)search.count + 1ull) * sizeof(unsigned int),
                                                      &g_cli_envs_cells);

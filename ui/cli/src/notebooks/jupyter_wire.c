@@ -4,15 +4,14 @@
 // are made with, a header's time, a message's frames signed and sent whole in one write, and frames read back as the
 // page reads a message. The shell is half duplex, as a kernel serves it: one request is in flight on it at a time, and
 // one made while another is in flight is queued, signed and whole, and sent as the reply to the one before it comes
-#include "../command_line/file_writing.h"
 #include "../text/digest.h"
 #include "jupyter_internal.h"
 
 // the mark between a message's routing frames and its own, and the frames of its own: the signature, the header, the
-// parent's header, the metadata and the content; and the bytes the shell's queue is begun in, doubling as it fills
+// parent's header, the metadata and the content; and the bytes the shell's queue is written in
 #define CLI_KERNEL_MARK "<IDS|MSG>"
 #define CLI_KERNEL_PARTS 5u
-#define CLI_KERNEL_QUEUE_FIRST 4096u
+#define CLI_KERNEL_QUEUE_ROOM (16ull << 20u)
 
 static CliLock s_next_lock = CLI_LOCK_INIT;
 static unsigned long long s_next = 1ull;
@@ -141,10 +140,10 @@ static void jupyter_signed(const char *key, const CliZmtpFrame *parts, unsigned 
 static int jupyter_shell_queued(CliKernel *kernel, const char *id, const unsigned char *message,
                                 unsigned long long size)
 {
-    if ((kernel->shell_queue.out == NULL) &&
-        !cli_growing_line_made(&kernel->shell_queue, CLI_KERNEL_QUEUE_FIRST, &g_cli_notebook_cells))
+    if (kernel->shell_queue.out == NULL)
     {
-        return 0;
+        char *const queue_cell = g_cli_cells->persistent_buf_alloc(CLI_KERNEL_QUEUE_ROOM, &g_cli_notebook_cells);
+        kernel->shell_queue = mmgr_line_over(queue_cell, CLI_KERNEL_QUEUE_ROOM);
     }
     char named[CLI_KERNEL_ID];
     memor.set(&(MemoriaCfg){.dst = named, .val = 0, .bytes = sizeof(named)});
@@ -258,7 +257,7 @@ static int jupyter_header_member(CliKernelReader *reader, const CliZmtpFrame *he
     }
     unsigned long long length = 0ull;
     const char *const value = cli_json_string(&json, cli_json_member(&json, root, name), &length);
-    cli_json_quoted(out, (value != NULL) ? value : "", (value != NULL) ? length : 0ull);
+    cli_json_quoted(out, (value != NULL) ? value : "", length);
     if (copy != NULL)
     {
         const int fits = (value != NULL) && (length < room) &&

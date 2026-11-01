@@ -14,11 +14,11 @@
 // row of the page, drawn again only when something in it has changed, and a line that scrolls off
 // the top of the main screen takes its row with it into what is kept.
 //
-// The lines kept are held as a large file is. Each line that scrolls off goes to a store on disk, and
+// The lines kept are kept as a large file is. Each line that scrolls off goes to a store on disk, and
 // the page holds two runs of them: the tail, the two screens of lines just above the screen, which
 // grows at the speed of the output and lets its oldest go; and the head, the lines in sight and a
 // screen either side where the reader has scrolled back past the tail, read from the store as they
-// come into sight. Every line held in neither stands as its height in a gap, above the head or
+// come into sight. Every line kept in neither stands as its height in a gap, above the head or
 // between the head and the tail. A reader sitting still keeps their place while the output runs
 // on below, and the screen always sits under the last line kept however fast the view is scrolled.
 // With no store, the page holds the last KEPT in the tail itself.

@@ -28,7 +28,7 @@ test("lines selected become a function taking what they read and giving back wha
   await ui.waitFor(() => (view.doc.text().match(/\bdef /g) ?? []).length === 2, 5000, "a function made of the lines");
   const text = view.doc.text();
   assert.match(text, /\n    c = extracted\(a\)\n    return c\n/, "the call where the lines stood");
-  assert.match(text, /\ndef extracted\(a\):\n    b = a \* 2\n    c = b \+ 1\n    return c\n/, "the function after the one that held them");
+  assert.match(text, /\ndef extracted\(a\):\n    b = a \* 2\n    c = b \+ 1\n    return c\n/, "the function after the one that kept them");
 });
 
 test("the window is put back as the file found it", putBackAsFound);

@@ -94,8 +94,8 @@ class OneMotion(unittest.TestCase):
 
     def test_a_stall(self):
         smooth = moving(0, 100, 100, 300)
-        held = lambda at: smooth(180.0) if 180.0 <= at < 230.0 else smooth(at)  # noqa: E731
-        reading = motion_read.read(recording(clock(700), {"bar.top": held}))
+        stalled = lambda at: smooth(180.0) if 180.0 <= at < 230.0 else smooth(at)  # noqa: E731
+        reading = motion_read.read(recording(clock(700), {"bar.top": stalled}))
         self.assertEqual(len(reading.motions), 1)
         self.assertEqual(kinds(reading), ["stall"])
 

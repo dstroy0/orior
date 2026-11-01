@@ -23,7 +23,7 @@ import { say } from "../statusbar.js";
 import { cursorListeners, editing, editListeners, onCursorMoved, onEdit, onShown, pasteListeners, show, state } from "../edit.js";
 import { drawCrumbs, goToDefinition, problemsChanged } from "./crumbs.js";
 import { light } from "./defs.js";
-import { markChanges, mirror, openLineCommit } from "./held.js";
+import { markChanges, mirror, openLineCommit } from "./mirror.js";
 import { marginLine, vimKeys } from "./menus.js";
 import { keepPlace, splitFocused } from "./open.js";
 import { closePeek, hunkAt, showPeek } from "./peek.js";
@@ -235,7 +235,7 @@ export function startEditor() {
     textOf: async (path) => {
       const s = tabOf(path)?.session;
       if (s?.window?.paged) {
-        throw new Error(`${path} is held as pages: orior.editor.lines reads a part of it`);
+        throw new Error(`${path} is stored as pages: orior.editor.lines reads a part of it`);
       }
       return s?.doc.text() ?? (await invoke("file_read", { path })).text;
     },

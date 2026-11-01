@@ -10,8 +10,10 @@
 
 #include "../text/text.h"
 
-// the most files whose diagnostics are stored
+// the most files whose diagnostics are stored, and the most bytes a report writes for each byte of it stored: an empty
+// report and its comma are 3 bytes, and it writes every member of a diagnostic
 #define CLI_SERVERS_PUBLISHED_MAX (1u << 16u)
+#define CLI_SERVERS_EMIT_WIDER 64ull
 
 CliKeyed g_cli_servers_published = {"published diagnostics", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliLock g_cli_servers_published_lock = CLI_LOCK_INIT;
@@ -88,10 +90,7 @@ static int emit_has_line(const char *names, unsigned long long size, const char 
     while (at < size)
     {
         unsigned long long end = at;
-        while ((end < size) && (names[end] != '\n'))
-        {
-            end += 1ull;
-        }
+        end = cli_text_to_any(names, end, size, "\n");
         if ((end - at == length + also_length) &&
             (memor.cmp(&(MemoriaCfg){.src = names + at, .other = wanted, .bytes = (size_t)length}) == 0) &&
             ((also_length == 0ull) ||
@@ -116,10 +115,7 @@ int cli_servers_attribute_of(const char *message, unsigned long long length, con
     *name = message + sizeof(s_head) - 1u;
     const unsigned long long rest = length - (sizeof(s_head) - 1u);
     *name_size = 0ull;
-    while ((*name_size < rest) && ((*name)[*name_size] != '"'))
-    {
-        *name_size += 1ull;
-    }
+    *name_size = cli_text_to_any((*name), *name_size, rest, "\"");
     if ((*name_size == rest) || !cli_text_starts(*name + *name_size, rest - *name_size, s_middle))
     {
         return 0;
@@ -127,23 +123,17 @@ int cli_servers_attribute_of(const char *message, unsigned long long length, con
     *class_name = *name + *name_size + sizeof(s_middle) - 1u;
     const unsigned long long class_rest = rest - *name_size - (sizeof(s_middle) - 1u);
     *class_size = 0ull;
-    while ((*class_size < class_rest) && ((*class_name)[*class_size] != '"'))
-    {
-        *class_size += 1ull;
-    }
+    *class_size = cli_text_to_any((*class_name), *class_size, class_rest, "\"");
     if (*class_size == class_rest)
     {
         return 0;
     }
-    while ((*class_size > 0ull) && ((*class_name)[0] == '*'))
     {
-        *class_name += 1;
-        *class_size -= 1ull;
+        const unsigned long long lead = cli_text_past_any(*class_name, 0ull, *class_size, "*");
+        *class_name += lead;
+        *class_size -= lead;
     }
-    while ((*class_size > 0ull) && ((*class_name)[*class_size - 1ull] == '*'))
-    {
-        *class_size -= 1ull;
-    }
+    *class_size = cli_text_back_past((*class_name), *class_size, "*");
     return 1;
 }
 
@@ -232,34 +222,40 @@ static int emit_given_names(const char *key, const char *uri, const char **names
         return 0;
     }
     unsigned long long build_size = 0ull;
-    const unsigned char *const build = cli_file_read(path, &build_size);
+    const unsigned char *const build = cli_file_taken(path, &build_size, &g_cli_servers_cells);
     if (build == NULL)
     {
         return 0;
     }
-    char piece[1024];
-    CliPieces pieces;
-    VerbaLinea given;
-    cli_pieces_begun(&pieces, &given, piece, sizeof(piece), &g_cli_servers_cells);
+    // each name a part of the file's text, and a break after it
+    const unsigned long long room = (build_size * 2ull) + 1ull;
+    char *const joined = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+    VerbaLinea given = mmgr_line_over(joined, room);
     cli_build_given_names(path, (const char *)build, build_size, emit_name_put, &given);
-    cli_file_let_go(build, build_size);
-    unsigned long long given_size = 0ull;
-    char *const joined = cli_pieces_joined(&pieces, &given, "the names a build tool gives", &given_size);
-    (void)cli_keyed_put(&g_cli_servers_given, key, "", (joined != NULL) ? joined : "",
-                        (joined != NULL) ? given_size : 0ull);
+    cli_file_given(build, &g_cli_servers_cells);
+    const int whole = mmgr_line_ok(&given);
+    (void)cli_keyed_put(&g_cli_servers_given, key, "", whole ? given.out : "", whole ? given.at : 0ull);
     g_cli_cells->persistent_buf_release(joined, &g_cli_servers_cells);
     *names = cli_keyed_get(&g_cli_servers_given, key, &beside, size);
     return *names != NULL;
 }
 
-// the stored text of `key` in `keyed` read into the reading's tree under its lock: its root, CLI_JSON_NONE where none
-// is
-static unsigned int emit_stored_read(CliKeyed *keyed, CliLock *lock, const char *key)
+// the bytes of the text stored of `key`, whose hash is `hash`, in `keyed`, 0 where none is; under the keeper's lock
+static unsigned long long emit_stored_size(const CliKeyed *keyed, const char *key, unsigned int hash)
+{
+    const char *beside = NULL;
+    unsigned long long size = 0ull;
+    return (cli_keyed_get_hashed(keyed, key, hash, &beside, &size) != NULL) ? size : 0ull;
+}
+
+// the stored text of `key`, whose hash is `hash`, in `keyed` read into the reading's tree under its lock: its root,
+// CLI_JSON_NONE where none is
+static unsigned int emit_stored_read(CliKeyed *keyed, CliLock *lock, const char *key, unsigned int hash)
 {
     cli_lock_take(lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
-    const char *const text = cli_keyed_get(keyed, key, &beside, &size);
+    const char *const text = cli_keyed_get_hashed(keyed, key, hash, &beside, &size);
     const unsigned int root =
         ((text != NULL) && (size > 0ull)) ? cli_servers_read(&s_reading, text, size) : CLI_JSON_NONE;
     cli_lock_give(lock);
@@ -305,22 +301,33 @@ void cli_servers_emit_whole(const char *key, const char *uri, const CliServersSi
         return;
     }
     cli_servers_reading_locked(&s_reading);
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea out;
-    cli_pieces_begun(&pieces, &out, piece, sizeof(piece), &g_cli_servers_cells);
-    mmgr_line_put(&out, "{\"path\":");
+    // what is stored of the file, each report of it writing at most CLI_SERVERS_EMIT_WIDER times its own bytes, and the
+    // path escaped: at most what a file's findings hold. The key is hashed once for every lookup of it here
+    const unsigned int hash = cli_keyed_hash(key);
+    cli_lock_take(&g_cli_servers_checks_lock);
+    const unsigned long long checked =
+        emit_stored_size(&g_cli_servers_inspected, key, hash) + emit_stored_size(&g_cli_servers_checked, key, hash);
+    cli_lock_give(&g_cli_servers_checks_lock);
+    cli_lock_take(&g_cli_servers_published_lock);
+    const unsigned long long stored = checked + emit_stored_size(&g_cli_servers_published, key, hash);
+    cli_lock_give(&g_cli_servers_published_lock);
     char shown[CLI_PATH_MAX_LEN];
     VerbaLinea where = {shown, sizeof(shown), 0ull};
     cli_servers_tree_path(sink->tree, path, &where);
-    cli_json_quoted_lossy(&out, (const unsigned char *)shown, mmgr_line_ok(&where) ? where.at : 0ull);
+    const unsigned long long shown_size = mmgr_line_ok(&where) ? where.at : 0ull;
+    const unsigned long long wanted = (stored * CLI_SERVERS_EMIT_WIDER) + (shown_size * 6ull) + 64ull;
+    const unsigned long long room = (wanted < CLI_SERVERS_ANSWER) ? wanted : CLI_SERVERS_ANSWER;
+    char *const diag_json = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+    VerbaLinea out = mmgr_line_over(diag_json, room);
+    mmgr_line_put(&out, "{\"path\":");
+    cli_json_quoted_lossy(&out, (const unsigned char *)shown, shown_size);
     mmgr_line_put(&out, ",\"items\":[");
     int written = 0;
-    emit_items_written(emit_stored_read(&g_cli_servers_published, &g_cli_servers_published_lock, key), 1, key, uri,
+    emit_items_written(emit_stored_read(&g_cli_servers_published, &g_cli_servers_published_lock, key, hash), 1, key,
+                       uri, &written, &out);
+    emit_items_written(emit_stored_read(&g_cli_servers_inspected, &g_cli_servers_checks_lock, key, hash), 0, key, uri,
                        &written, &out);
-    emit_items_written(emit_stored_read(&g_cli_servers_inspected, &g_cli_servers_checks_lock, key), 0, key, uri,
-                       &written, &out);
-    const unsigned int by_checker = emit_stored_read(&g_cli_servers_checked, &g_cli_servers_checks_lock, key);
+    const unsigned int by_checker = emit_stored_read(&g_cli_servers_checked, &g_cli_servers_checks_lock, key, hash);
     const CliJson *const json = &s_reading.json;
     for (unsigned int id = cli_json_is(json, by_checker, CFG_JSON_OBJECT) ? json->node[by_checker].first
                                                                           : CLI_JSON_NONE;
@@ -329,11 +336,9 @@ void cli_servers_emit_whole(const char *key, const char *uri, const CliServersSi
         emit_items_written(id, 0, key, uri, &written, &out);
     }
     mmgr_line_put(&out, "]}");
-    unsigned long long diag_json_size = 0ull;
-    char *const diag_json = cli_pieces_joined(&pieces, &out, "a file's diagnostics", &diag_json_size);
-    if (diag_json != NULL)
+    if (mmgr_line_ok(&out))
     {
-        sink->emit(sink->context, "lsp-diagnostics", diag_json, diag_json_size);
+        sink->emit(sink->context, "lsp-diagnostics", out.out, out.at);
     }
     g_cli_cells->persistent_buf_release(diag_json, &g_cli_servers_cells);
     cli_servers_reading_released(&s_reading);
@@ -356,16 +361,14 @@ static void emit_reporting(void *context, const char *key, const char *beside, c
 
 void cli_servers_emit_reporting_attributes(const CliServersSink *sink)
 {
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_servers_cells);
     cli_lock_take(&g_cli_servers_published_lock);
+    const unsigned long long room = cli_keyed_listed_size(&g_cli_servers_published) + 1ull;
+    char *const reporting = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+    VerbaLinea line = mmgr_line_over(reporting, room);
     cli_keyed_each(&g_cli_servers_published, emit_reporting, &line);
     cli_lock_give(&g_cli_servers_published_lock);
-    unsigned long long size = 0ull;
-    char *const reporting = cli_pieces_joined(&pieces, &line, "the files whose server reports an attribute", &size);
-    for (unsigned long long at = 0ull; (reporting != NULL) && (at < size);)
+    const unsigned long long size = mmgr_line_ok(&line) ? line.at : 0ull;
+    for (unsigned long long at = 0ull; at < size;)
     {
         const char *const key = reporting + at;
         const char *const uri = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;

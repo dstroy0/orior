@@ -359,9 +359,9 @@ static void document_branch(void)
                   cellul.eq(&(CatenaFinitaCfg){.src = s_runs_of[350], .other = "[0,2]", .cap = CLI_CELLS_POOL}) &&
                   (s_seq == 1ull),
               "an edit taking the comment out colors the lines after it again, handed on with the change it follows");
-    cli_check(cli_document_held("branch", 100ull, 110ull), "a text read whole names the lines the page holds");
+    cli_check(cli_document_cached("branch", 100ull, 110ull), "a text read whole names the lines the page holds");
     memor.set(&(MemoriaCfg){.dst = s_runs_of, .val = 0, .bytes = sizeof(s_runs_of)});
-    cli_check(cli_document_held("branch", 100ull, 120ull) && (s_runs_of[99][0] == '\0') &&
+    cli_check(cli_document_cached("branch", 100ull, 120ull) && (s_runs_of[99][0] == '\0') &&
                   (s_runs_of[105][0] == '\0') && document_handed(115u, "[0,2]") && (s_runs_of[120][0] == '\0'),
               "only the lines the page comes to hold are handed on again, at once with the runs the walk kept");
     memor.set(&(MemoriaCfg){.dst = s_runs_of, .val = 0, .bytes = sizeof(s_runs_of)});
@@ -370,10 +370,9 @@ static void document_branch(void)
     VerbaLinea printed = {s_out, sizeof(s_out), 0ull};
     const int given = cli_document_runs_written("branch", 0ull, 2ull, 0, &printed);
     (void)mmgr_line_finish(&printed);
-    cli_check(given && cellul.eq(&(CatenaFinitaCfg){
-                           .src = s_out,
-                           .other = "[{\"from\":0,\"runs\":[[0,2],[0,2],[0,2]]}]",
-                           .cap = CLI_CELLS_POOL}),
+    cli_check(given &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = s_out, .other = "[{\"from\":0,\"runs\":[[0,2],[0,2],[0,2]]}]", .cap = CLI_CELLS_POOL}),
               "a print's lines colored and written whatever lines the page holds");
     cli_document_release("branch");
 }
@@ -392,10 +391,9 @@ static void document_columns(void)
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     const int read = cli_document_runs_written("columns", 0ull, 1ull, 1, &out);
     (void)mmgr_line_finish(&out);
-    cli_check(read && cellul.eq(&(CatenaFinitaCfg){
-                          .src = s_out,
-                          .other = "[{\"from\":0,\"runs\":[[0,2,3,0,4,2],[0,2]]}]",
-                          .cap = CLI_CELLS_POOL}),
+    cli_check(read &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = s_out, .other = "[{\"from\":0,\"runs\":[[0,2,3,0,4,2],[0,2]]}]", .cap = CLI_CELLS_POOL}),
               "the long line's runs handed as far as its first five letters, the short one's whole");
     cli_document_walked();
     cli_check((s_runs_of[0][0] == '\0') && (s_runs_of[1][0] == '\0'), "the walk colors neither line again");
@@ -423,10 +421,10 @@ static void document_columns(void)
     out.at = 0ull;
     const int read_long = cli_document_runs_written("long", 0ull, 1ull, 0, &out);
     (void)mmgr_line_finish(&out);
-    cli_check(read_long && cellul.eq(&(CatenaFinitaCfg){
-                               .src = s_out,
-                               .other = "[{\"from\":0,\"runs\":[[0,2,21000,0,21001,1],[0,1]]}]",
-                               .cap = CLI_CELLS_POOL}),
+    cli_check(read_long &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = s_out,
+                                               .other = "[{\"from\":0,\"runs\":[[0,2,21000,0,21001,1],[0,1]]}]",
+                                               .cap = CLI_CELLS_POOL}),
               "a line of more than 20000 letters colored to its end, the comment it opens there carried on");
     cli_document_release("long");
 }
@@ -613,8 +611,7 @@ static int document_run_takes(const char *runs, const char *grammar, unsigned in
         cli_check_parsed(runs, cellul.len(&(CatenaFinitaCfg){.src = runs, .cap = CLI_CELLS_POOL}), &root);
     unsigned long long place = CLI_JSON_NONE;
     for (unsigned int at = (root != CLI_JSON_NONE) ? json->node[root].first : CLI_JSON_NONE;
-         (at != CLI_JSON_NONE) && (json->node[at].next != CLI_JSON_NONE);
-         at = json->node[json->node[at].next].next)
+         (at != CLI_JSON_NONE) && (json->node[at].next != CLI_JSON_NONE); at = json->node[json->node[at].next].next)
     {
         place = (document_number(json, at) == col) ? document_number(json, json->node[at].next) : place;
     }
@@ -683,7 +680,7 @@ static void document_brackets(void)
     static const CliEdit s_opened[1] = {{{0u, 0u}, {0u, 0u}, "[", 1u}};
     const CliEdit *const changes[1] = {s_opened};
     const unsigned int counts[1] = {1u};
-    (void)cli_document_held("brackets", 2ull, 5ull);
+    (void)cli_document_cached("brackets", 2ull, 5ull);
     memor.set(&(MemoriaCfg){.dst = s_runs_of, .val = 0, .bytes = sizeof(s_runs_of)});
     (void)cli_document_edit("brackets", changes, counts, 1u, &shape, &err_msg);
     cli_document_walked();
@@ -778,15 +775,15 @@ static void document_paged(void)
     const int read = cli_document_runs_written("paged", 361ull, 370ull, 1, &out);
     (void)mmgr_line_finish(&out);
     static const char s_read_begins[] = "[{\"from\":361,\"runs\":[[0,2]";
-    cli_check(read && (memor.cmp(&(MemoriaCfg){.src = s_out, .other = s_read_begins,
-                                                .bytes = sizeof(s_read_begins) - 1ull}) == 0),
+    cli_check(read && (memor.cmp(&(MemoriaCfg){
+                           .src = s_out, .other = s_read_begins, .bytes = sizeof(s_read_begins) - 1ull}) == 0),
               "a read's lines colored and written with it, as the view's lines above it leave them");
     memor.set(&(MemoriaCfg){.dst = s_runs_of, .val = 0, .bytes = sizeof(s_runs_of)});
-    cli_check(cli_document_held("paged", 350ull, 371ull), "the page names the lines it read among those it mirrors");
+    cli_check(cli_document_cached("paged", 350ull, 371ull), "the page names the lines it read among those it mirrors");
     cli_document_walked();
     cli_check((s_runs_of[361][0] == '\0') && (s_runs_of[370][0] == '\0'),
               "the walk hands a read's lines on no second time: the page mirrors them since the read");
-    cli_check(cli_document_held("paged", 0ull, DOCUMENT_BRANCH_LINES), "the page comes to hold every line");
+    cli_check(cli_document_cached("paged", 0ull, DOCUMENT_BRANCH_LINES), "the page comes to hold every line");
     cli_document_walked();
     cli_check(document_handed(0u, "[0,1]") && document_handed(300u, "[0,1]") &&
                   document_handed(DOCUMENT_BRANCH_LINES - 1u, "[0,2]"),

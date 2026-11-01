@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // envs.c: the packages the files of a folder require, read from its `setup.cfg`, Pipfile and `requirements.txt`, by
 // name, each once
+#include "../command_line/cells.h"
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "envs_internal.h"
-
-void *cli_envs_moved(void *cell, unsigned long long used, unsigned long long room, const char *what)
-{
-    return cli_cell_regrown(cell, (size_t)used, room, &g_cli_envs_cells);
-}
 
 // A span of a text: where it starts and its bytes
 typedef struct
@@ -52,42 +48,16 @@ static int cli_is(CliSpan span, const char *text)
            cli_starts(span, text);
 }
 
-// room made in `required` for one name more of `length` bytes, the text's room doubled to fit it: 1, or 0 where a
-// larger cell is refused
-static int cli_required_room(CliRequired *required, unsigned long long length)
+void cli_required_taken(CliRequired *required)
 {
-    if (required->count == required->room)
+    const unsigned long long name_bytes = (unsigned long long)CLI_ENVS_NAMES * sizeof(CliRequiredName);
+    char *const cell = g_cli_cells->temporary_buf_alloc(name_bytes + CLI_ENVS_TEXT, &g_cli_envs_cells);
+    *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
+    if (cell != NULL)
     {
-        const unsigned int doubled = (required->room == 0u) ? CLI_ENVS_NAMES_FIRST : (required->room * 2u);
-        const unsigned int room = (doubled < CLI_ENVS_NAMES) ? doubled : CLI_ENVS_NAMES;
-        CliRequiredName *const moved =
-            cli_envs_moved(required->name, (unsigned long long)required->count * sizeof(CliRequiredName),
-                           (unsigned long long)room * sizeof(CliRequiredName), "the names a folder requires");
-        if (moved == NULL)
-        {
-            return 0;
-        }
-        required->name = moved;
-        required->room = room;
+        *required =
+            (CliRequired){(CliRequiredName *)(void *)cell, 0u, CLI_ENVS_NAMES, cell + name_bytes, 0u, CLI_ENVS_TEXT};
     }
-    unsigned long long text_room = required->text_room;
-    while ((required->used + length) > text_room)
-    {
-        text_room = (text_room == 0ull) ? CLI_ENVS_TEXT_FIRST : (text_room * 2ull);
-    }
-    text_room = (text_room < CLI_ENVS_TEXT) ? text_room : CLI_ENVS_TEXT;
-    if (text_room != required->text_room)
-    {
-        char *const moved = cli_envs_moved(required->text, required->used, text_room, "the names' text");
-        if (moved == NULL)
-        {
-            return 0;
-        }
-        required->text = moved;
-        // a text's room is CLI_ENVS_TEXT at the most, which an unsigned int represents
-        required->text_room = (unsigned int)text_room;
-    }
-    return 1;
 }
 
 // a name put among those required: the letters, numbers, `-`, `_` and `.` it starts with, where they are some and no
@@ -133,7 +103,7 @@ static void cli_added(CliRequired *required, CliSpan name)
             return;
         }
     }
-    if (!cli_required_room(required, length))
+    if ((required->count >= required->room) || ((required->used + length) > required->text_room))
     {
         return;
     }
@@ -150,7 +120,7 @@ static const unsigned char *cli_text_mapped(const char *folder, const char *name
 {
     char path[CLI_PATH_MAX_LEN];
     cli_full(folder, name, path);
-    return cli_file_read_utf8(path, size);
+    return cli_file_taken_utf8(path, size, &g_cli_envs_cells);
 }
 
 // the next line of `size` bytes from `*at`, `*at` moved past it: 1, or 0 where the text has ended
@@ -160,14 +130,10 @@ static int cli_next_line(const unsigned char *bytes, unsigned long long size, un
     {
         return 0;
     }
-    const unsigned char *const newline = memor.chr(&(MemoriaCfg){.src = bytes + *at, .val = '\n', .bytes = size - *at});
-    // a newline found lies in the bytes, at or past `*at`
-    const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
+    const CliTextLine bounds = cli_text_line_at((const char *)bytes, *at, size);
+    const unsigned long long end = bounds.stop;
     *line = (CliSpan){(const char *)bytes + *at, end - *at};
-    if ((newline != NULL) && (line->length > 0ull) && (line->at[line->length - 1ull] == '\r'))
-    {
-        line->length -= 1ull;
-    }
+    line->length -= bounds.stop - bounds.cut;
     *at = end + 1ull;
     return 1;
 }
@@ -246,14 +212,9 @@ static void cli_pipfile_read(CliRequired *required, const unsigned char *bytes, 
         {
             // the name before the equals sign, trimmed and with its quotes left off
             CliSpan name = cli_trimmed((CliSpan){trimmed.at, (unsigned long long)(equals - trimmed.at)});
-            while ((name.length > 0ull) && (name.at[0] == '"'))
-            {
-                name = (CliSpan){name.at + 1, name.length - 1ull};
-            }
-            while ((name.length > 0ull) && (name.at[name.length - 1ull] == '"'))
-            {
-                name.length -= 1ull;
-            }
+            const unsigned long long lead = cli_text_past_any(name.at, 0ull, name.length, "\"");
+            name = (CliSpan){name.at + lead, name.length - lead};
+            name.length = cli_text_back_past(name.at, name.length, "\"");
             cli_added(required, name);
         }
     }
@@ -298,7 +259,7 @@ void cli_required_in(const char *folder, CliRequired *required)
         {
             cli_requirements_read(required, bytes, size);
         }
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_envs_cells);
     }
 }
 
@@ -316,13 +277,13 @@ void cli_required_written(const CliRequired *required, VerbaLinea *out)
 void cli_required_given(CliRequired *required)
 {
     g_cli_cells->persistent_buf_release(required->name, &g_cli_envs_cells);
-    g_cli_cells->persistent_buf_release(required->text, &g_cli_envs_cells);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
 }
 
 void cli_envs_requires_in(const char *folder, VerbaLinea *out)
 {
-    CliRequired required = {NULL, 0u, 0u, NULL, 0u, 0u};
+    CliRequired required;
+    cli_required_taken(&required);
     cli_required_in(folder, &required);
     cli_required_written(&required, out);
     cli_required_given(&required);

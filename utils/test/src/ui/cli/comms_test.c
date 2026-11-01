@@ -270,7 +270,22 @@ static void comms_traffic(void)
         (void)comms_send(server, "files", "x", why);
     }
     cli_check((in_use_stored != 0ull) && (embed_atomic_usize_load(&g_cli_comms_cells.in_use) == in_use_stored),
-              "each message stored is a cell of its own, the oldest given back as another is stored");
+              "a channel's stored messages take the same bytes as more are sent");
+    const CliCommsTraffic *traffic = g_cli_comms.traffic;
+    while (!cellul.eq(&(CatenaFinitaCfg){.src = traffic->name, .other = "files", .cap = CLI_NAME_MAX_LEN}))
+    {
+        traffic += 1;
+    }
+    const char *const oldest = traffic->last[traffic->first].from;
+    (void)comms_send(server, "files", "y", why);
+    const CliCommsStoredMsg *newest = &traffic->last[(traffic->first + traffic->count - 1u) % CLI_COMMS_STORED_MAX];
+    cli_check((newest->from == oldest) && (newest->size == 1ull) && (newest->body[0] == 'y'),
+              "a message that fits the oldest's cell is written into that cell");
+    const char *const smaller = traffic->last[traffic->first].from;
+    (void)comms_send(server, "files", "a body longer than the cell of the message before it", why);
+    newest = &traffic->last[(traffic->first + traffic->count - 1u) % CLI_COMMS_STORED_MAX];
+    cli_check((newest->from != smaller) && (newest->size == 52ull),
+              "a message past the oldest's cell takes a larger one");
     char server_key[CLI_COMMS_KEY];
     char window_key[CLI_COMMS_KEY];
     static CommsReceived s_order;

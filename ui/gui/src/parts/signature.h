@@ -13,7 +13,7 @@
 
 // the milliseconds between the bracket or comma typed and the ask; the box's most width and height in the page's
 // pixels, 40rem by 12rem, its padding down and across and the gap between the label and the documentation; the most
-// parameters a label marks; the bytes the label and the documentation are stored in before they grow
+// parameters a label marks; the bytes the label and the documentation are stored in
 #define GUI_SIGNATURE_WAIT 120ull
 #define GUI_SIGNATURE_WIDE 640
 #define GUI_SIGNATURE_TALL 192

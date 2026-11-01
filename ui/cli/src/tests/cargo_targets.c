@@ -7,31 +7,9 @@
 #include "../text/text.h"
 #include <stdlib.h>
 
-// the most targets of a package and entries of a folder Cargo finds targets in, and those each list is begun with,
-// doubling as they are found
+// the most targets of a package and entries of a folder Cargo finds targets in, and those each list is taken with
 #define CLI_CARGO_TARGETS 1024u
 #define CLI_CARGO_ENTRIES 1024u
-#define CLI_CARGO_FIRST 16u
-
-// a list of items of `size` bytes, `count` of them stored in a cell of `*room`, given room for one more: where it is
-// full and below `most`, moved into a cell of twice its room, CLI_CARGO_FIRST where it has none, its items copied and
-// its cell given back. The list as it stands after, `count` below `*room` where there is room
-static void *found_grown(void *list, unsigned int count, unsigned int *room, unsigned long long size, unsigned int most)
-{
-    if ((count < *room) || (*room >= most))
-    {
-        return list;
-    }
-    const unsigned int doubled = (*room == 0u) ? CLI_CARGO_FIRST : (*room * 2u);
-    const unsigned int grown = (doubled < most) ? doubled : most;
-    void *const cell = cli_cell_regrown(list, count * size, grown * size, &g_cli_cargo_cells);
-    if (cell == NULL)
-    {
-        return list;
-    }
-    *room = grown;
-    return cell;
-}
 
 // a TOML value as text: a string's contents in either quotes, or the bare word before a comment, into `out`, which
 // sized for `room`
@@ -94,10 +72,10 @@ int cli_cargo_line(const char *text, unsigned long long size, unsigned long long
     {
         return 0;
     }
-    const char *const newline = memor.chr(&(MemoriaCfg){.src = text + *at, .val = '\n', .bytes = size - *at});
+    const CliTextLine bounds = cli_text_line_at(text, *at, size);
     unsigned long long start = *at;
-    unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
-    *at = (newline != NULL) ? end + 1ull : size;
+    unsigned long long end = bounds.stop;
+    *at = bounds.next;
     while ((start < end) &&
            (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = text[start]}) != NULL))
     {
@@ -157,8 +135,8 @@ void cli_cargo_joined(const char *a, const char *b, const char *between, char *o
     mmgr_line_finish(&line);
 }
 
-// The targets of one package and what Cargo finds on its own in a folder of it, each list a cell of its room grown as
-// they are found
+// The targets of one package and what Cargo finds on its own in a folder of it, each list a cell of its room at their
+// most
 typedef struct
 {
     CliCargoFirst *firsts;
@@ -184,8 +162,6 @@ void cli_cargo_firsts_given(void)
 // a target put with its first file
 static void found_first(unsigned int kind, const char *name, const char *path)
 {
-    s_targets.firsts =
-        found_grown(s_targets.firsts, s_targets.count, &s_targets.room, sizeof(CliCargoFirst), CLI_CARGO_TARGETS);
     if (s_targets.count < s_targets.room)
     {
         CliCargoFirst *const first = &s_targets.firsts[s_targets.count];
@@ -217,8 +193,6 @@ static int found_taken(unsigned int from, unsigned int to, const char *path)
 static void found_entry(void *context, const char *name, int is_folder)
 {
     (void)context;
-    s_targets.entries = found_grown(s_targets.entries, s_targets.entry_count, &s_targets.entry_room,
-                                    sizeof(CliCargoFirst), CLI_CARGO_ENTRIES);
     if (s_targets.entry_count == s_targets.entry_room)
     {
         return;
@@ -283,10 +257,7 @@ static void found_auto(const char *dir, unsigned int kind, unsigned int from, un
 // a path as Cargo reads one: forward slashes, with no `./` before it
 static void found_clean(char *path)
 {
-    for (char *letter = path; *letter != '\0'; letter += 1)
-    {
-        *letter = (*letter == '\\') ? '/' : *letter;
-    }
+    cli_text_swapped(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '\\', '/');
     size_t start = 0u;
     while ((path[start] == '.') && (path[start + 1u] == '/'))
     {
@@ -313,9 +284,24 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
 {
     cli_cargo_firsts_given();
     s_targets.folder = folder;
-    // the tables the manifest lists, a cell grown as they are read and given back as the targets are found
+    s_targets.firsts = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoFirst),
+                                                         &g_cli_cargo_cells);
+    s_targets.room = (s_targets.firsts != NULL) ? CLI_CARGO_TARGETS : 0u;
+    // the folder's entries and the tables the manifest lists, given back as the targets are found
+    const unsigned long long entry_bytes = (unsigned long long)CLI_CARGO_ENTRIES * sizeof(CliCargoFirst);
+    char *const work = g_cli_cells->temporary_buf_alloc(
+        entry_bytes + ((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoListed)), &g_cli_cargo_cells);
+    s_targets.entries = NULL;
+    s_targets.entry_room = 0u;
     CliCargoListed *tables = NULL;
     unsigned int listed_room = 0u;
+    if (work != NULL)
+    {
+        s_targets.entries = (CliCargoFirst *)(void *)work;
+        s_targets.entry_room = CLI_CARGO_ENTRIES;
+        tables = (CliCargoListed *)(void *)(work + entry_bytes);
+        listed_room = CLI_CARGO_TARGETS;
+    }
     char table[CLI_NAME_MAX_LEN] = "";
     int autobins = 1;
     int autotests = 1;
@@ -340,10 +326,6 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
             const int lists =
                 doubled && ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) ||
                             (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "test", .cap = CLI_CELLS_POOL})));
-            if (lists)
-            {
-                tables = found_grown(tables, listed, &listed_room, sizeof(CliCargoListed), CLI_CARGO_TARGETS);
-            }
             if (lists && (listed < listed_room))
             {
                 tables[listed] = (CliCargoListed){
@@ -448,8 +430,7 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
     {
         found_auto("tests", CLI_CARGO_TEST, listed_first, taken);
     }
-    g_cli_cells->persistent_buf_release(tables, &g_cli_cargo_cells);
-    g_cli_cells->persistent_buf_release(s_targets.entries, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(work, &g_cli_cargo_cells);
     s_targets.entries = NULL;
     s_targets.entry_count = 0u;
     s_targets.entry_room = 0u;

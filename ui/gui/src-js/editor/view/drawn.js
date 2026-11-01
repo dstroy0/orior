@@ -32,7 +32,7 @@ export async function drawOutward() {
       const rows = this.rows();
       const canAbove = drawn.from > 0;
       const canBelow = drawn.to < rows.size - 1;
-      // a file held as pages draws out no more than DRAWN_PAGED rows, and none while its view moves
+      // a file stored as pages draws out no more than DRAWN_PAGED rows, and none while its view moves
       const paged = Boolean(this.s.window?.paged);
       if ((!canAbove && !canBelow) || drawn.to - drawn.from + 1 >= (paged ? DRAWN_PAGED : DRAWN_MOST) || (paged && status.scroll.speed > 0)) {
         return;
@@ -239,8 +239,8 @@ export function rowHtml(line) {
   return html;
 }
 
-// The row `row` put into `node`, the one it is held in, in place: its runs as runsPut puts them, a wrapped line's row
-// in its part as wide as the row's cols, the spans a row held in its part or out of one taken in or out with it; true
+// The row `row` put into `node`, the one it is kept in, in place: its runs as runsPut puts them, a wrapped line's row
+// in its part as wide as the row's cols, the spans a row kept in its part or out of one taken in or out with it; true
 // where it was put, and false where its markup alone draws it: a wrapped line's row whose line holds a tab, a text in
 // the colors its codes set, marks shown, or a hint, a mark or a fold among its runs.
 export function rowPatched(node, row) {
@@ -257,8 +257,8 @@ export function rowPatched(node, row) {
   const text = s.doc.line(line);
   const start = rows.startOf(row);
   const end = rows.endOf(row);
-  const held = node.firstChild;
-  const segment = held?.nodeType === Node.ELEMENT_NODE && held.className === "ed-seg" && !held.nextSibling ? held : null;
+  const firstNode = node.firstChild;
+  const segment = firstNode?.nodeType === Node.ELEMENT_NODE && firstNode.className === "ed-seg" && !firstNode.nextSibling ? firstNode : null;
   if (start === 0 && end < 0) {
     if (segment) {
       node.replaceChildren(...segment.childNodes);

@@ -14,7 +14,7 @@ const { test, assert, ui } = window.__harness;
 const fresh = () => setKeySettings({ set: "orior", by: "character", own: {} });
 const commandOf = (name) => allCommands().find((one) => one.command === name).item;
 
-test("a command's keys are set in Preferences by pressing them, and the key held twice is shown", async () => {
+test("a command's keys are set in Preferences by pressing them, and the key pressed twice is shown", async () => {
   fresh();
   await invoke("file_write", { path: "keys.txt", text: "one\ntwo\nthree\n" });
   showView("edit");

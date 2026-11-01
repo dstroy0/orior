@@ -62,10 +62,7 @@ static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_MAX_L
     while (line[0] != '\0')
     {
         char *end = line;
-        while ((end[0] != '\0') && (end[0] != '\n'))
-        {
-            end += 1;
-        }
+        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "\n");
         char *const next = (end[0] != '\0') ? (end + 1) : end;
         end[0] = '\0';
         char *const hash = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '#'});
@@ -75,14 +72,8 @@ static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_MAX_L
         }
         char *from = line;
         char *to = line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
-        while ((from < to) && ((from[0] == ' ') || (from[0] == '\t') || (from[0] == '\r')))
-        {
-            from += 1;
-        }
-        while ((to > from) && ((to[-1] == ' ') || (to[-1] == '\t') || (to[-1] == '\r')))
-        {
-            to -= 1;
-        }
+        from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), " \t\r");
+        to = from + cli_text_back_past(from, (unsigned long long)(to - from), " \t\r");
         to[0] = '\0';
         line = next;
         if (from[0] == '\0')
@@ -102,10 +93,8 @@ static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_MAX_L
             continue;
         }
         from += 7;
-        while ((from[0] == ' ') || (from[0] == '\t'))
-        {
-            from += 1;
-        }
+        from +=
+            cli_text_past_any(from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), " \t");
         char folder[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = folder,
                                 .src = from,

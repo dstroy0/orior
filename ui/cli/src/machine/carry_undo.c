@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // carry_undo.c: the takings saved, read back and written, and a taking undone
+#include "../command_line/cells.h"
 #include "carry_internal.h"
 
 void cli_carry_taking_written(const CliTaking *taking, int pretty, VerbaLinea *out)
@@ -71,7 +72,7 @@ static int cli_taking_read(const char *file, CliTaking *taking)
 {
     CliJson *const json = &s_takings.room.json;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(file, &size);
+    const unsigned char *const bytes = cli_file_taken(file, &size, &g_cli_machine_cells);
     if (bytes == NULL)
     {
         return 0;
@@ -80,7 +81,7 @@ static int cli_taking_read(const char *file, CliTaking *taking)
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_taken(json, (const char *)bytes, size, 0u, 0ull, &unread, &g_cli_machine_cells);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_machine_cells);
     const char *const id = cli_json_string(json, cli_json_member(json, root, "id"), NULL);
     const char *const from = cli_json_string(json, cli_json_member(json, root, "from"), NULL);
     const unsigned int at = cli_json_member(json, root, "at");
@@ -230,12 +231,9 @@ int cli_carry_undo(const char *home, const char *id, VerbaLinea *out, VerbaLinea
         if (taking->stood[at])
         {
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = cli_file_read(saved, &size);
+            const unsigned char *const bytes = cli_file_taken(saved, &size, &g_cli_machine_cells);
             const int back = (bytes != NULL) && query_file_written(path, bytes, size);
-            if (bytes != NULL)
-            {
-                cli_file_let_go(bytes, size);
-            }
+            cli_file_given(bytes, &g_cli_machine_cells);
             if (!back)
             {
                 mmgr_line_put(err_msg, (bytes == NULL) ? saved : path);

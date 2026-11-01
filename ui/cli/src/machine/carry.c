@@ -74,7 +74,8 @@ static void carry_released(CliCarried *paths, CliCarryRoom *room, CliLock *lock)
 // `size` bytes of `text` in a cell of their own, a 0 after them: the cell, or NULL where none could be taken
 static char *cli_carried_cell(const char *text, unsigned long long size, const char *what)
 {
-    char *const cell = (size < CLI_CARRIED_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_machine_cells) : NULL;
+    char *const cell =
+        (size < CLI_CARRIED_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_machine_cells) : NULL;
     if (cell != NULL)
     {
         // a size below CLI_CARRIED_TEXT fits a size_t
@@ -82,6 +83,16 @@ static char *cli_carried_cell(const char *text, unsigned long long size, const c
         cell[size] = '\0';
     }
     return cell;
+}
+
+unsigned long long cli_carried_sent_room(const CliCarried *carried)
+{
+    unsigned long long room = 128ull;
+    for (unsigned int at = 0u; at < carried->count; at += 1u)
+    {
+        room += (carried->size[at] * 6ull) + (CLI_NAME_MAX_LEN * 6ull) + 16ull;
+    }
+    return room;
 }
 
 int cli_carried_put(CliCarried *carried, const char *place, const char *value, unsigned long long size)
@@ -152,11 +163,8 @@ static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsig
                                      unsigned int nodes_more, unsigned long long text_more)
 {
     char *const plain_text = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_machine_cells);
-    VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
-    if (plain_text != NULL)
-    {
-        cli_plain_json(text, size, &plain);
-    }
+    VerbaLinea plain = mmgr_line_over(plain_text, size + 1ull);
+    cli_plain_json(text, size, &plain);
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     unsigned int root = CLI_JSON_NONE;
@@ -329,7 +337,7 @@ int cli_carry_pack(const char *home, CliCarried *packed, VerbaLinea *err_msg)
             carry_released(&s_paths, &s_room, &s_lock);
             return 0;
         }
-        const unsigned char *const bytes = cli_file_read_utf8(path, &size);
+        const unsigned char *const bytes = cli_file_taken_utf8(path, &size, &g_cli_machine_cells);
         if (bytes == NULL)
         {
             continue;
@@ -348,23 +356,22 @@ int cli_carry_pack(const char *home, CliCarried *packed, VerbaLinea *err_msg)
                 }
                 member = next;
             }
-            VerbaLinea written;
-            if ((object != CLI_JSON_NONE) &&
-                cli_growing_line_temporary(&written, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
+            const unsigned long long written_room = cli_json_pretty_room(&s_room.json, 2u);
+            char *const written_cell =
+                (object != CLI_JSON_NONE) ? g_cli_cells->temporary_buf_alloc(written_room, &g_cli_machine_cells) : NULL;
+            VerbaLinea written = mmgr_line_over(written_cell, written_room);
+            cli_carry_settings_written(&s_room, object, &written);
+            if (mmgr_line_ok(&written))
             {
-                cli_carry_settings_written(&s_room, object, &written);
-                if (mmgr_line_ok(&written))
-                {
-                    cli_carried_put(packed, place, written.out, written.at);
-                }
-                g_cli_cells->persistent_buf_release(written.out, &g_cli_machine_cells);
+                cli_carried_put(packed, place, written.out, written.at);
             }
+            g_cli_cells->persistent_buf_release(written.out, &g_cli_machine_cells);
         }
         else
         {
             cli_carried_put(packed, place, (const char *)bytes, size);
         }
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_machine_cells);
     }
     carry_released(&s_paths, &s_room, &s_lock);
     return 1;
@@ -405,18 +412,19 @@ int cli_carry_read(const char *from, CliCarried *there, VerbaLinea *err_msg)
         for (unsigned int at = 0u; at < s_paths.count; at += 1u)
         {
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = cli_file_read_utf8(cli_carried_value(&s_paths, at), &size);
+            const unsigned char *const bytes =
+                cli_file_taken_utf8(cli_carried_value(&s_paths, at), &size, &g_cli_machine_cells);
             if (bytes != NULL)
             {
                 cli_carried_put(there, cli_carried_place(&s_paths, at), (const char *)bytes, size);
-                cli_file_let_go(bytes, size);
+                cli_file_given(bytes, &g_cli_machine_cells);
             }
         }
         carry_released(&s_paths, &s_room, &s_lock);
         return 1;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read_utf8(from, &size);
+    const unsigned char *const bytes = cli_file_taken_utf8(from, &size, &g_cli_machine_cells);
     if (bytes == NULL)
     {
         mmgr_line_put(err_msg, from);
@@ -428,7 +436,7 @@ int cli_carry_read(const char *from, CliCarried *there, VerbaLinea *err_msg)
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root =
         cli_json_taken(&s_room.json, (const char *)bytes, size, 0u, 0ull, &unread, &g_cli_machine_cells);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_machine_cells);
     const char *const mark = cli_json_string(&s_room.json, cli_json_member(&s_room.json, root, "orior"), NULL);
     const unsigned int files = cli_json_member(&s_room.json, root, "files");
     int read = (root != CLI_JSON_NONE) && (mark != NULL) &&

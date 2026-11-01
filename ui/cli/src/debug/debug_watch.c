@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_watch.c: a stop where the bytes of a name change, as the adapter takes data breakpoints: each set again whole
 // with each one added; and through lldb's own watchpoints where lldb-dap on Windows ends at reporting the stop of one
+#include "../text/text.h"
 #include "debug_internal.h"
 
 #if defined(_WIN32)
@@ -25,10 +26,7 @@ static int watch_number(const char *text, unsigned long long size, unsigned int 
         }
         end = (end + mark <= size) ? end : size;
         unsigned long long colon = start;
-        while ((colon < end) && (text[colon] != ':'))
-        {
-            colon += 1ull;
-        }
+        colon = cli_text_to_any(text, colon, end, ":");
         unsigned long long first = start;
         unsigned long long last = colon;
         while ((first < last) &&
@@ -130,8 +128,6 @@ static int watch_set(CliDebugSession *session, const char *data, VerbaLinea *err
 {
     CliDebugAnswer *const answer = cli_debug_answer_taken();
     cli_lock_take(&g_cli_debug.lock);
-    session->data = cli_debug_grown(session->data, session->data_count, &session->data_room, sizeof(*session->data),
-                                    CLI_DEBUG_DATA);
     const int room = (session->data_count < session->data_room);
     if (room)
     {
@@ -195,10 +191,7 @@ int cli_debug_watch_data(unsigned long long id, const char *name, int has_refere
     char description[CLI_ERR_MSG_MAX_LEN];
     const char *const named = cli_json_string(info, cli_json_member(info, answer->root, "dataId"), NULL);
     const char *const described = cli_json_string(info, cli_json_member(info, answer->root, "description"), NULL);
-    memor.cpy(&(MemoriaCfg){
-        .dst = data,
-        .src = (named != NULL) ? named : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (named != NULL) ? named : "", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(data, named, "");
     (void)cellul.copy(&(CatenaFinitaCfg){
         .dst = description, .src = (described != NULL) ? described : name, .cap = sizeof(description)});
     cli_debug_answer_given(answer);

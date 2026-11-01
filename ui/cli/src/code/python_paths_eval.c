@@ -52,11 +52,9 @@ static int cli_parts(char letter)
 
 void cli_py_parent(const char *path, VerbaLinea *out)
 {
-    const char *last = NULL;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        last = cli_parts(at[0]) ? at : last;
-    }
+    const unsigned long long last_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    const char *const last = (last_past != 0ull) ? (path + last_past - 1ull) : NULL;
     if (last == NULL)
     {
         return;

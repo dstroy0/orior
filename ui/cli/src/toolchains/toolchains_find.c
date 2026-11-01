@@ -3,6 +3,7 @@
 // toolchains_find.c: each tool found, as the search last found it where nothing it reads has changed, every tool
 // written as the window reads it, a tool's version queried, and its install line and page
 #include "../machine/report.h"
+#include "../text/text.h"
 #include "toolchains_internal.h"
 
 // how long a program may take to report its version before it is stopped, in milliseconds
@@ -46,18 +47,9 @@ static int cli_passed_over(const CliJson *json, unsigned int tool, const char *d
         while ((name != NULL) && (part[0] != '\0'))
         {
             const char *end = part;
-            while ((end[0] != '\0') && (end[0] != '/') && (end[0] != '\\'))
-            {
-                end += 1;
-            }
-            int same = (unsigned long long)(end - part) == length;
-            for (unsigned long long at = 0ull; same && (at < length); at += 1ull)
-            {
-                const char left = ((part[at] >= 'A') && (part[at] <= 'Z')) ? (char)(part[at] + 32) : part[at];
-                const char right = ((name[at] >= 'A') && (name[at] <= 'Z')) ? (char)(name[at] + 32) : name[at];
-                same = left == right;
-            }
-            if (same)
+            end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "/\\");
+            if (((unsigned long long)(end - part) == length) &&
+                cellul.starts(&(CatenaFinitaCfg){.src = part, .other = name, .cap = length, .ci = 1}))
             {
                 return 1;
             }
@@ -95,10 +87,7 @@ static void cli_set(CliFound *found, const char *state, const char *program)
                             .src = program,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}) + 1u});
     char *cut = found->folder + cellul.len(&(CatenaFinitaCfg){.src = found->folder, .cap = CLI_CELLS_POOL});
-    while ((cut > found->folder) && (cut[-1] != '/') && (cut[-1] != '\\'))
-    {
-        cut -= 1;
-    }
+    cut = found->folder + cli_text_back_any(found->folder, (unsigned long long)(cut - found->folder), "/\\");
     cut -= (cut > found->folder) ? 1 : 0;
     cut[0] = '\0';
 }
@@ -261,20 +250,11 @@ static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound
     while ((at[0] != '\0') && (numbered == NULL))
     {
         const char *end = at;
-        while ((end[0] != '\0') && (end[0] != '\n'))
-        {
-            end += 1;
-        }
+        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "\n");
         const char *from = at;
         const char *to = end;
-        while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-        {
-            from += 1;
-        }
-        while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-        {
-            to -= 1;
-        }
+        from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+        to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
         if ((to > from) && (first == NULL))
         {
             first = from;
@@ -478,10 +458,7 @@ int cli_toolchains_open_install(const char *id, VerbaLinea *out, VerbaLinea *err
         mmgr_line_put(err_msg, " has no install page for ");
         mmgr_line_put(err_msg, cli_toolchains_system());
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = url,
-        .src = (page != NULL) ? page : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (page != NULL) ? page : "", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(url, page, "");
     cli_toolchains_find_released(&json);
     if (page == NULL)
     {

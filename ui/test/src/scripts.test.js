@@ -5,7 +5,7 @@
 // orior's calls, one that stops answering named and stopped while the keys go on, Find the Slow
 // Plugin, plugins started once a frame is drawn and each on its own, a write the system refuses
 // told to the plugin after the reader is asked, and a part of a
-// file held as pages read where its whole text is refused.
+// file stored as pages read where its whole text is refused.
 
 import { allowPlugin, running, stopPlugin, syncPlugins } from "../../gui/src-js/scripts.js";
 import { invoke, watchCalls } from "../../gui/src-js/bridge.js";
@@ -97,7 +97,7 @@ test("a plugin that stops answering is named with how long and stopped, and the 
   editor.goTo(0, 3);
   editor.focus();
   await ui.type(" two");
-  assert.equal(editor.s.doc.line(0), "one two", "the keys are not held up");
+  assert.equal(editor.s.doc.line(0), "one two", "the keys are not kept up");
   await ui.click(document.querySelector(".status-plugin-stop"));
   await ui.waitFor(() => !running().has("stuck") && document.getElementById("status-plugin").hidden, 3000);
   assert.ok(running().has("draws"), "the others run on");
@@ -112,14 +112,14 @@ const PAGES = `orior.on("open", async ({ path }) => {
   try {
     await orior.editor.text(path);
   } catch (error) {
-    whole = String(error.message).includes("held as pages") ? "refused" : "failed";
+    whole = String(error.message).includes("stored as pages") ? "refused" : "failed";
   }
   await orior.tabs.label(path, lines.length + " " + lines[0].slice(0, 9) + " " + lines[1].slice(0, 9) + " whole " + whole);
 });
 
 `;
 
-test("a plugin reads a part of a file held as pages, and is refused the whole of it", async () => {
+test("a plugin reads a part of a file stored as pages, and is refused the whole of it", async () => {
   const bench = window.__harness.servers.ORIOR_TEST_BENCH;
   assert.ok(bench, "the harness made the file");
   await plugin("pages", "Pages", PAGES, { api: 4, reads: [`${bench}/huge.log`] });
@@ -139,7 +139,7 @@ test("plugins start once the frame being drawn is drawn, each on its own and non
   for (const id of ["first_quiet", "second_quiet"]) {
     stopPlugin(id);
   }
-  // Each plugin's code is held a while as it is read.
+  // Each plugin's code is kept a while as it is read.
   watchCalls((name, args, send) => (name === "plugin_code" ? new Promise((done) => setTimeout(() => done(calls.watcher(name, args, send)), 400)) : calls.watcher(name, args, send)));
   try {
     const began = performance.now();

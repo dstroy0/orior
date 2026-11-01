@@ -56,9 +56,9 @@ typedef struct
     GuiBar *bar;
     unsigned int bars;
     int stale;
-    int held;
-    unsigned long long held_top;
-    long long held_offset;
+    int anchored;
+    unsigned long long anchor_top;
+    long long anchor_offset;
     GuiMapPlace place;
     int dragging;
     int drag_y;

@@ -75,32 +75,27 @@ static void actions_ours(unsigned int array, CliTextPlace from, CliTextPlace to,
 
 // the params that request from the server of `uri` its actions on `from` to `to`, with its diagnostics that touch it,
 // each on the slice's lines where the server was given the file at `path` as a slice, `path` empty where the server
-// was given it whole, in a cell of their size, their size into `length`: the cell, or NULL where the cells cannot
-// meet them or the slice holds no line of the span
-static char *actions_params(unsigned int all, const char *path, const char *uri, CliTextPlace from, CliTextPlace to,
-                            unsigned long long *length)
+// was given it whole, written into `params`: 1, or 0 where the slice holds no line of the span
+static int actions_params(unsigned int all, const char *path, const char *uri, CliTextPlace from, CliTextPlace to,
+                          VerbaLinea *params)
 {
     unsigned int first = from.line;
     unsigned int last = to.line;
     if (!cli_servers_slice_in(path, from.line, &first) || !cli_servers_slice_in(path, to.line, &last))
     {
-        return NULL;
+        return 0;
     }
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
-    mmgr_line_put(&params, "{\"textDocument\":{\"uri\":");
-    cli_json_quoted(&params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(&params, "},\"range\":{\"start\":{\"line\":");
-    mmgr_line_decimal(&params, first, 1u);
-    mmgr_line_put(&params, ",\"character\":");
-    mmgr_line_decimal(&params, from.col, 1u);
-    mmgr_line_put(&params, "},\"end\":{\"line\":");
-    mmgr_line_decimal(&params, last, 1u);
-    mmgr_line_put(&params, ",\"character\":");
-    mmgr_line_decimal(&params, to.col, 1u);
-    mmgr_line_put(&params, "}},\"context\":{\"diagnostics\":[");
+    mmgr_line_put(params, "{\"textDocument\":{\"uri\":");
+    cli_json_quoted(params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(params, "},\"range\":{\"start\":{\"line\":");
+    mmgr_line_decimal(params, first, 1u);
+    mmgr_line_put(params, ",\"character\":");
+    mmgr_line_decimal(params, from.col, 1u);
+    mmgr_line_put(params, "},\"end\":{\"line\":");
+    mmgr_line_decimal(params, last, 1u);
+    mmgr_line_put(params, ",\"character\":");
+    mmgr_line_decimal(params, to.col, 1u);
+    mmgr_line_put(params, "}},\"context\":{\"diagnostics\":[");
 
     const CliJson *const json = &s_reading.json;
     int written = 0;
@@ -109,18 +104,19 @@ static char *actions_params(unsigned int all, const char *path, const char *uri,
     {
         // a diagnostic the slice holds neither line of is none the server gave
         const unsigned int range = cli_json_member(json, one, "range");
-        unsigned int held = 0u;
+        unsigned int slice_line = 0u;
         if (cli_servers_overlaps(from, to, json, range) &&
-            cli_servers_slice_in(path, cli_servers_place(json, cli_json_member(json, range, "start")).line, &held) &&
-            cli_servers_slice_in(path, cli_servers_place(json, cli_json_member(json, range, "end")).line, &held))
+            cli_servers_slice_in(path, cli_servers_place(json, cli_json_member(json, range, "start")).line,
+                                 &slice_line) &&
+            cli_servers_slice_in(path, cli_servers_place(json, cli_json_member(json, range, "end")).line, &slice_line))
         {
-            mmgr_line_put(&params, written ? "," : "");
-            (void)cli_servers_slice_ranged_in(path, json, one, &params);
+            mmgr_line_put(params, written ? "," : "");
+            (void)cli_servers_slice_ranged_in(path, json, one, params);
             written = 1;
         }
     }
-    mmgr_line_put(&params, "],\"triggerKind\":1}}");
-    return cli_pieces_joined(&pieces, &params, "the params a request for actions is sent with", length);
+    mmgr_line_put(params, "],\"triggerKind\":1}}");
+    return 1;
 }
 
 // the order an action goes in: those that can be carried out first, then the preferred, then the quick fixes
@@ -142,8 +138,9 @@ static void actions_offered(unsigned int all, const char *plugin, int *written, 
     const CliJson *const json = &s_reading.json;
     const unsigned int offered = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].count : 0u;
     unsigned int *const action =
-        (offered > 0u) ? g_cli_cells->temporary_buf_alloc((unsigned long long)offered * sizeof(unsigned int), &g_cli_servers_cells)
-                       : NULL;
+        (offered > 0u)
+            ? g_cli_cells->temporary_buf_alloc((unsigned long long)offered * sizeof(unsigned int), &g_cli_servers_cells)
+            : NULL;
     unsigned int count = 0u;
     for (unsigned int one = (action != NULL) ? json->node[all].first : CLI_JSON_NONE; one != CLI_JSON_NONE;
          one = json->node[one].next)
@@ -188,26 +185,28 @@ static int actions_request(CliLsp *server, const char *plugin, unsigned int all,
                            CliTextPlace from, CliTextPlace to, int *written, VerbaLinea *out, VerbaLinea *err_msg)
 {
     // a span the slice the server was given does not hold is one it offers nothing on
-    unsigned int held = 0u;
+    unsigned int slice_line = 0u;
     if ((plugin == NULL) &&
-        (!cli_servers_slice_in(path, from.line, &held) || !cli_servers_slice_in(path, to.line, &held)))
+        (!cli_servers_slice_in(path, from.line, &slice_line) || !cli_servers_slice_in(path, to.line, &slice_line)))
     {
         return 1;
     }
-    unsigned long long length = 0ull;
-    char *const params = actions_params(all, (plugin == NULL) ? path : "", uri, from, to, &length);
-    if (params == NULL)
+    // the diagnostics written with the span come in a server's answer, and so fit what an answer holds
+    char *const params_text = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
+    VerbaLinea params = mmgr_line_over(params_text, CLI_SERVERS_ANSWER);
+    const int whole =
+        actions_params(all, (plugin == NULL) ? path : "", uri, from, to, &params) && mmgr_line_ok(&params);
+    if (!whole)
     {
-        mmgr_line_put(err_msg, "the request for actions could not be written: the cells cannot meet it");
+        mmgr_line_put(err_msg, "the request for actions could not be written: its params do not fit");
     }
-    VerbaLinea result;
-    cli_servers_answer_begun(&s_reading, &result);
-    const int requested = (params != NULL) && cli_lsp_requested(server, "textDocument/codeAction", params, length,
-                                                                CLI_SERVERS_REQUEST_TIMEOUT_MS, &result, err_msg);
-    g_cli_cells->persistent_buf_release(params, &g_cli_servers_cells);
+    CliLspAnswer answer = {NULL, NULL, 0ull};
+    const int requested = whole && cli_lsp_requested(server, "textDocument/codeAction", params.out, params.at,
+                                                     CLI_SERVERS_REQUEST_TIMEOUT_MS, &answer, err_msg);
+    g_cli_cells->persistent_buf_release(params_text, &g_cli_servers_cells);
     if (requested)
     {
-        actions_offered(cli_servers_answer_read(&s_reading, &result), plugin, written, out);
+        actions_offered(cli_servers_answer_read(&s_reading, &answer), plugin, written, out);
     }
     return requested;
 }

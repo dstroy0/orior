@@ -7,8 +7,8 @@
 #include "serve_internal.h"
 
 #define CLI_SERVE_DEFERRED_MAX 32u
-// the bytes an deferred call's answer and its event are begun to be written in, doubling as they fill
-#define CLI_SERVE_DEFERRED_INIT_CAP 4096ull
+// the bytes an deferred call's answer and its event are written in
+#define CLI_SERVE_DEFERRED_ROOM (16ull << 20u)
 
 // A call running on its own: the thread, what answers it, the request's number, and the arguments as text
 typedef struct
@@ -26,8 +26,10 @@ static unsigned int s_running;
 // the event of a request's answer sent: `{"request", "answer"}`, or `{"request", "error"}` with why
 static void deferred_event_sent(unsigned long long request_id, int ok, const VerbaLinea *out, const VerbaLinea *err_msg)
 {
-    VerbaLinea event_json;
-    if (!cli_growing_line_temporary(&event_json, CLI_SERVE_DEFERRED_INIT_CAP, &g_cli_window_cells))
+    const unsigned long long event_json_room = out->at + (err_msg->at * 6ull) + 64ull;
+    char *const event_json_cell = g_cli_cells->temporary_buf_alloc(event_json_room, &g_cli_window_cells);
+    VerbaLinea event_json = mmgr_line_over(event_json_cell, event_json_room);
+    if (event_json.out == NULL)
     {
         return;
     }
@@ -64,8 +66,9 @@ static void deferred_run(void *context)
     CliServeDeferred *const deferred = context;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea out;
-    const int grown = cli_growing_line_temporary(&out, CLI_SERVE_DEFERRED_INIT_CAP, &g_cli_window_cells);
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_DEFERRED_ROOM, &g_cli_window_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, CLI_SERVE_DEFERRED_ROOM);
+    const int grown = out.out != NULL;
     if (!grown)
     {
         mmgr_line_put(&err_msg, "the answer could not be given a cell");
@@ -100,8 +103,10 @@ int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, Verba
         return 0;
     }
     // the arguments written again as text: the thread reads them once the room they came in is given back
-    VerbaLinea text;
-    if (!cli_growing_line_made(&text, CLI_SERVE_DEFERRED_INIT_CAP, &g_cli_window_cells))
+    const unsigned long long text_room = cli_json_written_room(args->json);
+    char *const text_cell = g_cli_cells->temporary_buf_alloc(text_room, &g_cli_window_cells);
+    VerbaLinea text = mmgr_line_over(text_cell, text_room);
+    if (text.out == NULL)
     {
         mmgr_line_put(err_msg, "the deferred call's arguments could not be given a cell");
         return 0;

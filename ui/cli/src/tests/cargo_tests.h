@@ -60,9 +60,9 @@ typedef struct CliCargoPieceStruct
     char text[];
 } CliCargoPiece;
 
-// The Rust tests of a tree and the texts they take, with 1 in `full` where one did not fit: the tests in a cell whose
-// room doubles as they are put, CLI_CARGO_FOUND at the most, and their texts in pieces that never move, the newest
-// first, CLI_CARGO_TEXT bytes at the most, each given back with cli_cargo_tests_given
+// The Rust tests of a tree and the texts they take, with 1 in `full` where one did not fit: the tests in a cell at
+// their most, CLI_CARGO_FOUND at the most, and their texts in pieces that never move, the newest first, CLI_CARGO_TEXT
+// bytes at the most, each given back with cli_cargo_tests_given
 typedef struct
 {
     CliCargoFound *found;

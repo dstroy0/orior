@@ -17,7 +17,7 @@
 // An iris is a plasma torus, a ring of plasma flowing round the pupil. Its pupil is dark and moves as
 // a lava lamp does: one round body, and smaller ones that draw out of it, part from it as pupils of
 // their own, and run back in, and it leans toward the mouse. A reader who asks the system for less
-// motion gets the eye held still and open, with one iris.
+// motion gets the eye kept still and open, with one iris.
 
 import { DIVIDE_EVERY, DIVIDE_FROM, HALF, SMALLEST, divide, float, frontOf, grow, irisAt } from "./eye/float.js";
 import { DIM, GLINT, LEAN, LOOK, drawIris, irisPicture, lavaOf } from "./eye/iris.js";
@@ -109,11 +109,11 @@ const ROLLS = [1.6, 2.8];
 const STARES = [0.8, 1.6];
 
 // The gaze that looks at the pointer at (x, y) in a canvas of this size: across and down from the
-// eye's middle in parts of its half width and half height, each held within -1 and 1.
+// eye's middle in parts of its half width and half height, each kept within -1 and 1.
 function gazeAt(x, y, width, height) {
   const { cx, cy, a, b } = placeOf(width, height);
-  const held = (part) => Math.max(-1, Math.min(1, part));
-  return [held((x - cx) / a), held((y - cy) / b)];
+  const clamped = (part) => Math.max(-1, Math.min(1, part));
+  return [clamped((x - cx) / a), clamped((y - cy) / b)];
 }
 
 // The plasma's canvas holds LIT of the screen's pixels and is stretched over the eye. Its light is

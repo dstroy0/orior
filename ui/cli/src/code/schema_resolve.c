@@ -59,10 +59,7 @@ static unsigned int resolve_pointer(const CliJson *json, unsigned int node, cons
     for (unsigned long long start = 1ull; (at != CLI_JSON_NONE) && (start <= size);)
     {
         unsigned long long end = start;
-        while ((end < size) && (pointer[end] != '/'))
-        {
-            end += 1u;
-        }
+        end = cli_text_to_any(pointer, end, size, "/");
         char token[1u << 12u];
         VerbaLinea line = {token, sizeof(token), 0ull};
         for (unsigned long long one = start; one < end; one += 1u)
@@ -180,19 +177,13 @@ static void resolve_join(const char *base, const char *target, unsigned long lon
     for (unsigned long long start = 0ull; start <= rest_size;)
     {
         unsigned long long end = start;
-        while ((end < rest_size) && (rest[end] != '/') && (url || (rest[end] != '\\')))
-        {
-            end += 1u;
-        }
+        end = cli_text_to_any(rest, start, rest_size, url ? "/" : "/\\");
         const unsigned long long part = end - start;
         if ((part == 2u) && (memor.cmp(&(MemoriaCfg){.src = rest + start, .other = "..", .bytes = 2u}) == 0))
         {
             if (!url || (parts + 1u > 3u))
             {
-                while ((line.at > 0u) && (out[line.at - 1u] != '/') && (out[line.at - 1u] != '\\'))
-                {
-                    line.at -= 1u;
-                }
+                line.at = cli_text_back_any(out, line.at, "/\\");
                 line.at -= (line.at > 0u) ? 1u : 0u;
                 parts -= (parts > 0u) ? 1u : 0u;
             }
@@ -285,19 +276,15 @@ int cli_schema_of(const char *path, const CliSchemaRead *read, char *key, int *n
         return 1;
     }
     const char *name = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? at + 1 : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         int same = (cellul.len(&(CatenaFinitaCfg){.src = s_known[at][0], .cap = CLI_CELLS_POOL}) ==
                     cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-        for (unsigned int one = 0u; same && (name[one] != '\0'); one += 1u)
-        {
-            const char lower = ((name[one] >= 'A') && (name[one] <= 'Z')) ? (char)(name[one] - 'A' + 'a') : name[one];
-            same = (lower == s_known[at][0][one]);
-        }
+        same =
+            same && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_known[at][0], .cap = CLI_CELLS_POOL, .ci = 1});
         if (same)
         {
             VerbaLinea line = {key, CLI_PATH_MAX_LEN, 0ull};

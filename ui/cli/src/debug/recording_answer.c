@@ -3,6 +3,7 @@
 // recording_answer.c: what the replay answers: the threads, the stack, a frame's names and their values, a name looked
 // up, the exception raised at a step, a move and the stop it ends at, and orior's own two, a name's history through
 // the run and a step gone to
+#include "../text/text.h"
 #include "recording_internal.h"
 
 // the most values of a frame's names reported at once
@@ -109,16 +110,10 @@ static int answer_evaluated(const CliJson *json, unsigned int arguments, VerbaLi
     const CliRecording *const recording = &g_cli_replay->recording;
     unsigned long long length = 0ull;
     const char *name = answer_text(json, arguments, "expression", &length);
-    while ((length > 0ull) && ((*name == ' ') || (*name == '\t') || (*name == '\n') || (*name == '\r')))
-    {
-        name += 1;
-        length -= 1ull;
-    }
-    while ((length > 0ull) && ((name[length - 1ull] == ' ') || (name[length - 1ull] == '\t') ||
-                               (name[length - 1ull] == '\n') || (name[length - 1ull] == '\r')))
-    {
-        length -= 1ull;
-    }
+    const unsigned long long lead = cli_text_past_any(name, 0ull, length, " \t\n\r");
+    name += lead;
+    length -= lead;
+    length = cli_text_back_past(name, length, " \t\n\r");
     const unsigned int serial = cli_replay_frame_of(json, cli_json_member(json, arguments, "frameId"));
     const unsigned int count = cli_recording_stack(g_cli_replay->at, s_standing, 512u);
     for (unsigned int frame = 0u; frame <= count; frame += 1u)

@@ -10,8 +10,8 @@
 // as soon as the pointer slows in the corner and staying while it stays there.
 // A part goes back LINGER after the pointer leaves it, and one edge's part comes only once another's
 // has gone, so no two slides run at once. The claim is made as the editor takes the keys and let go as
-// they leave it. An edge held, as the foot is while a stuck plugin's Stop stands on the status bar,
-// shows its part for as long as it is held, the pointer's leaving not taking it away.
+// they leave it. An edge kept, as the foot is while a stuck plugin's Stop stands on the status bar,
+// shows its part for as long as it is kept, the pointer's leaving not taking it away.
 
 import { showsOnWork, startBend } from "./bend.js";
 import { slatFrom, startSlats } from "./slat.js";
@@ -39,8 +39,8 @@ let unclaiming = 0;
 let nearing = 0;
 // The pointer's path over the last SPAN milliseconds, oldest first.
 const trail = [];
-// The edges held shown.
-const held = new Set();
+// The edges kept shown.
+const pinned = new Set();
 
 export const claimed = () => document.body.hasAttribute("data-claim");
 export const revealed = () => document.body.dataset.reveal ?? "";
@@ -108,10 +108,10 @@ function show(zone) {
 // The controls stand in the head, so the one comes as the other goes without waiting for it.
 const together = (one, other) => [one, other].every((zone) => zone === "top" || zone === "controls");
 
-// Shows `zone`'s part, or none, where none is an edge held's part while the claim stands; another
+// Shows `zone`'s part, or none, where none is an edge kept's part while the claim stands; another
 // edge's part shown goes first, over its slide, and `zone`'s comes once it has gone.
 function setReveal(given) {
-  const zone = given || (claimed() ? [...held][0] ?? "" : "");
+  const zone = given || (claimed() ? [...pinned][0] ?? "" : "");
   window.clearTimeout(switching);
   const shown = revealed();
   if (zone && shown && zone !== shown && !together(zone, shown)) {
@@ -178,7 +178,7 @@ function moved(event) {
     window.clearTimeout(leaving);
     leaving = window.setTimeout(function stay() {
       const parts = partsOf(revealed());
-      if (held.has(revealed()) || parts.some((part) => part && (part.matches(":hover") || part.contains(document.activeElement)))) {
+      if (pinned.has(revealed()) || parts.some((part) => part && (part.matches(":hover") || part.contains(document.activeElement)))) {
         leaving = window.setTimeout(stay, LINGER);
         return;
       }
@@ -201,24 +201,24 @@ export function setClaim(on) {
     zoneNow = "";
     setReveal("");
     document.body.removeAttribute("data-near");
-  } else if (held.size) {
+  } else if (pinned.size) {
     setReveal("");
   }
 }
 
 // Holds `zone`'s part shown while the claim stands, or with `on` false lets it go as any part goes.
 export function holdShown(zone, on) {
-  if (on === held.has(zone)) {
+  if (on === pinned.has(zone)) {
     return;
   }
   if (on) {
-    held.add(zone);
+    pinned.add(zone);
     if (claimed() && revealed() !== zone) {
       setReveal(zone);
     }
     return;
   }
-  held.delete(zone);
+  pinned.delete(zone);
   if (revealed() === zone && !partsOf(zone).some((part) => part && part.matches(":hover"))) {
     setReveal("");
   }

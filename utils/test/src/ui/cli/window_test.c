@@ -6,8 +6,36 @@
 // there are now; a terminal screen's scrollback kept on disk and read back; a page of the tree served to a window of
 // its own; and a terminal's shell given a line and its output sent to the page, then its end
 #include "../../../../../ui/cli/src/window/serve.h"
+#include "../../../../../ui/cli/src/window/serve_internal.h"
 #include "../../../../../ui/cli/src/window/window.h"
 #include "cli_check.h"
+
+// whether the argument tree of the call that last ran `window_args_read` stood in the temporary tier
+static int s_args_temporary;
+
+// a call's answer that reads where its argument tree stands: a cell from the tree's tier lies between two temporary
+// cells taken around it only where that tier is the temporary one
+static int window_args_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+{
+    (void)err_msg;
+    char *const below = g_cli_cells->temporary_buf_alloc(16u, &g_checks_cells);
+    s_args_temporary = (const char *)args->json->node > below;
+    g_cli_cells->persistent_buf_release(below, &g_checks_cells);
+    mmgr_line_put(out, "null");
+    return 1;
+}
+
+// a call's argument tree lasts the call and stands in the temporary tier
+static void window_args_checked(void)
+{
+    static const char s_args[] = "{\"key\":\"a call's own\"}";
+    char answer[16];
+    VerbaLinea out = {answer, sizeof(answer), 0ull};
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_serve_answered(window_args_read, s_args, sizeof(s_args) - 1u, &out, &err_msg) && s_args_temporary,
+              "a call's argument tree stands in the temporary tier");
+}
 
 // whether `place` stands at `x`, `y`, `width` by `height`, filling its monitor where `maximized`
 static int window_place_is(const CliWindowPlace *place, int x, int y, unsigned int width, unsigned int height,
@@ -134,9 +162,10 @@ static void window_scrollback_checked(void)
     mmgr_line_put(&args, id);
     mmgr_line_put(&args, ",\"from\":1000,\"count\":2}");
     (void)mmgr_line_finish(&args);
-    cli_check(window_called("scrollback_read", s_args, answer, sizeof(answer)) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = answer, .other = "[\"a b\",\"\xc3\xa9\"]", .cap = sizeof(answer)}),
-              "a newline in a line is read back as a space, and a letter of two bytes whole");
+    cli_check(
+        window_called("scrollback_read", s_args, answer, sizeof(answer)) &&
+            cellul.eq(&(CatenaFinitaCfg){.src = answer, .other = "[\"a b\",\"\xc3\xa9\"]", .cap = sizeof(answer)}),
+        "a newline in a line is read back as a space, and a letter of two bytes whole");
     args.at = 0ull;
     mmgr_line_put(&args, "{\"id\":");
     mmgr_line_put(&args, id);
@@ -194,12 +223,12 @@ static void window_view_checked(void)
     (void)mmgr_line_finish(&file_line);
     (void)query_file_written(file, "<p>page</p>", 11ull);
     char answer[512];
-    cli_check(window_called("view_window", "{\"path\":\"views/3/a view#1.html\"}", answer, sizeof(answer)) &&
-                  (cellul.find(&(CatenaFinitaCfg){.src = answer,
-                                                  .cap = sizeof(answer),
-                                                  .other = "views/3/a%20view%231.html\"",
-                                                  .other_cap = 64u}) != NULL),
-              "a page of the tree gets an address, its space and its mark escaped");
+    cli_check(
+        window_called("view_window", "{\"path\":\"views/3/a view#1.html\"}", answer, sizeof(answer)) &&
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = answer, .cap = sizeof(answer), .other = "views/3/a%20view%231.html\"", .other_cap = 64u}) !=
+             NULL),
+        "a page of the tree gets an address, its space and its mark escaped");
     CliViewServed served;
     static const char s_path[] = "/views/3/a%20view%231.html";
     cli_window_view_served(s_path, sizeof(s_path) - 1u, window_view_kept, &served);
@@ -261,10 +290,8 @@ static int window_terminal_said(const char *wanted, unsigned long long milliseco
     int found = 0;
     while (!found && (waited < milliseconds))
     {
-        found = cellul.find(&(CatenaFinitaCfg){.src = s_heard.said,
-                                               .cap = sizeof(s_heard.said),
-                                               .other = wanted,
-                                               .other_cap = 64u}) != NULL;
+        found = cellul.find(&(CatenaFinitaCfg){
+                    .src = s_heard.said, .cap = sizeof(s_heard.said), .other = wanted, .other_cap = 64u}) != NULL;
         if (!found)
         {
             (void)cli_wake_wait_for(&s_heard.wake, &s_heard.lock, 250ull);
@@ -331,6 +358,7 @@ int main(void)
     const int answered = cli_window_answer(room, &text, &size);
     cli_check(answered && (size != 0ull), "the window's first call is answered in cells of the pool");
     cli_window_given(room);
+    window_args_checked();
     window_place_checked();
     window_scrollback_checked();
     window_view_checked();

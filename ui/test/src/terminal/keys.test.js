@@ -7,7 +7,7 @@ import { keyText } from "../../../gui/src-js/terminal/keys.js";
 
 const { test, assert } = window.__harness;
 
-const key = (name, held = {}) => ({ key: name, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...held });
+const key = (name, modifiers = {}) => ({ key: name, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...modifiers });
 
 test("a letter sends itself, and with Alt it is led by Escape", () => {
   assert.equal(keyText(key("a"), false), "a");
@@ -24,7 +24,7 @@ test("Ctrl and a letter send its control code, and Ctrl and space, slash and que
   assert.equal(keyText(key("1", { ctrlKey: true }), false), null);
 });
 
-test("the arrows send the cursor's codes, the application's form where it asks, and with a key held the held form", () => {
+test("the arrows send the cursor's codes, the application's form where it asks, and with a key pressed the kept form", () => {
   assert.equal(keyText(key("ArrowUp"), false), "\x1b[A");
   assert.equal(keyText(key("ArrowUp"), true), "\x1bOA");
   assert.equal(keyText(key("ArrowLeft", { ctrlKey: true }), false), "\x1b[1;5D");

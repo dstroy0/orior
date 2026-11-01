@@ -32,8 +32,8 @@ void cli_pages_release(const char *key);
 
 // A view of a paged text as the page reports it, each frame it moves and once as it rests: the line at its top, the
 // rows it shows, the letters across it reaches, the lines the minimap stands beside from `map_from` to before `map_to`,
-// the lines the page holds from `held_from` to before `held_to`, cut after `held_cut` letters, 0 where whole, and the
-// letters a row holds where it wraps its lines, each line as many rows as those letters fill, 0 where it does not
+// the lines the page holds from `cached_from` to before `cached_to`, cut after `cached_cut` letters, 0 where whole, and
+// the letters a row holds where it wraps its lines, each line as many rows as those letters fill, 0 where it does not
 typedef struct
 {
     unsigned long long top;
@@ -41,9 +41,9 @@ typedef struct
     unsigned long long columns;
     unsigned long long map_from;
     unsigned long long map_to;
-    unsigned long long held_from;
-    unsigned long long held_to;
-    unsigned long long held_cut;
+    unsigned long long cached_from;
+    unsigned long long cached_to;
+    unsigned long long cached_cut;
     unsigned long long width;
 } CliPagesView;
 

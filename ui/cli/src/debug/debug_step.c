@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_step.c: a session's steps, the step from the tree's Python into its own C and back out, lldb's own commands
 // and orior's script in lldb, and a stop where the bytes of a name change
+#include "../text/text.h"
 #include "debug_internal.h"
 
 // the spaces a text is trimmed of
@@ -26,7 +27,7 @@ int cli_debug_lldb_command(CliDebugSession *session, const char *text, VerbaLine
     const char *const result =
         cli_json_string(&answer->json, cli_json_member(&answer->json, answer->root, "result"), &length);
     const char *const result_text = (result != NULL) ? result : "";
-    const unsigned long long size = (result != NULL) ? length : 0ull;
+    const unsigned long long size = length;
     unsigned long long start = 0ull;
     unsigned long long end = size;
     while ((start < size) &&
@@ -80,10 +81,7 @@ int cli_debug_lldb_script(CliDebugSession *session, VerbaLinea *err_msg)
     char command[CLI_PATH_MAX_LEN + 64u];
     VerbaLinea line = {command, sizeof(command), 0ull};
     mmgr_line_put(&line, "command script import \"");
-    for (const char *letter = script; *letter != '\0'; letter += 1)
-    {
-        mmgr_line_ch(&line, (*letter == '\\') ? '/' : *letter);
-    }
+    (void)cli_text_put_swapped(&line, script, '\\', '/');
     mmgr_line_ch(&line, '"');
     mmgr_line_finish(&line);
     char out_buf[CLI_ERR_MSG_MAX_LEN];
@@ -130,9 +128,11 @@ static int step_sent(CliDebugSession *session, const char *how, long long thread
     mmgr_line_ch(&args, '}');
     if (wait)
     {
-        char body[1024];
-        VerbaLinea answer = {body, sizeof(body), 0ull};
-        return cli_dap_requested(session->dap, how, args.out, args.at, CLI_DEBUG_REQUEST_TIMEOUT_MS, &answer, err_msg);
+        CliLspAnswer answer;
+        const int answered =
+            cli_dap_requested(session->dap, how, args.out, args.at, CLI_DEBUG_REQUEST_TIMEOUT_MS, &answer, err_msg);
+        g_cli_cells->persistent_buf_release(answer.message, &g_cli_debug_cells);
+        return answered;
     }
     unsigned long long seq = 0ull;
     if (!cli_dap_sent(session->dap, how, args.out, args.at, &seq, err_msg))
@@ -233,10 +233,7 @@ int cli_debug_step_across(const char *root, unsigned long long id, long long thr
     VerbaLinea line = {command, sizeof(command), 0ull};
     char slashed[CLI_PATH_MAX_LEN];
     VerbaLinea slashed_line = {slashed, sizeof(slashed), 0ull};
-    for (const char *letter = root; *letter != '\0'; letter += 1)
-    {
-        mmgr_line_ch(&slashed_line, (*letter == '\\') ? '/' : *letter);
-    }
+    (void)cli_text_put_swapped(&slashed_line, root, '\\', '/');
     mmgr_line_put(&line, "script print(orior_lldb.across(lldb.debugger.GetSelectedTarget(), ");
     cli_json_quoted_lossy(&line, (const unsigned char *)slashed_line.out, slashed_line.at);
     mmgr_line_put(&line, ", \"" CLI_DEBUG_ACROSS "\"))");

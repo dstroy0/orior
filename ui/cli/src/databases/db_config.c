@@ -3,12 +3,13 @@
 // db_config.c: the connections a tree names in databases.json at its top folder, read, stored in place of one of the
 // same name or renamed, and taken out with the password the keychain stored for them; each written as the window reads
 // it, with whether it is open
+#include "../command_line/cells.h"
+#include "../text/text.h"
 #include "db_internal.h"
 
-// the most connections a tree names that are read, and the bytes databases.json is begun to be written in, doubling
-// as it is
+// the most connections a tree names that are read, and the bytes databases.json is written in
 #define CLI_DB_CONNECTIONS 256u
-#define CLI_DB_CONFIG_FIRST 4096u
+#define CLI_DB_CONFIG_ROOM (1ull << 20u)
 
 // the connections read, a cell of their count and one more for one saved, guarded under the lock from the read to
 // config_released
@@ -57,10 +58,7 @@ static int config_text(const CliJson *json, unsigned int node, const char *name,
 {
     const unsigned int member = cli_json_member(json, node, name);
     const char *const text = cli_json_string(json, member, NULL);
-    memor.cpy(&(MemoriaCfg){
-        .dst = out,
-        .src = (text != NULL) ? text : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (text != NULL) ? text : "", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(out, text, "");
     return (member == CLI_JSON_NONE) || (text != NULL);
 }
 
@@ -111,7 +109,7 @@ static int config_read(const char *root, VerbaLinea *err_msg)
     char path[CLI_PATH_MAX_LEN];
     cli_full(root, "databases.json", path);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_db_cells);
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
@@ -119,7 +117,7 @@ static int config_read(const char *root, VerbaLinea *err_msg)
     const unsigned int root_node =
         (bytes != NULL) ? cli_json_taken(&json, (const char *)bytes, size, 0u, 0ull, &read_err_msg, &g_cli_db_cells)
                         : CLI_JSON_NONE;
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_db_cells);
     const unsigned int connections = cli_json_member(&json, root_node, "connections");
     unsigned int named = 0u;
     while ((root_node != CLI_JSON_NONE) && (named < CLI_DB_CONNECTIONS) &&
@@ -231,8 +229,8 @@ static int config_write(const char *root, unsigned int count, VerbaLinea *err_ms
 {
     char path[CLI_PATH_MAX_LEN];
     cli_full(root, "databases.json", path);
-    VerbaLinea out;
-    (void)cli_growing_line_temporary(&out, CLI_DB_CONFIG_FIRST, &g_cli_db_cells);
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_DB_CONFIG_ROOM, &g_cli_db_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, CLI_DB_CONFIG_ROOM);
     mmgr_line_put(&out, (count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
     for (unsigned int at = 0u; at < count; at += 1u)
     {

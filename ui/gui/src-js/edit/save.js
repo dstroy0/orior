@@ -15,7 +15,7 @@ import { say } from "../statusbar.js";
 import { state } from "../edit.js";
 import { problemsChanged, tidy } from "./crumbs.js";
 import { drawDefs } from "./defs.js";
-import { forgetHeads, markChanges } from "./held.js";
+import { forgetHeads, markChanges } from "./mirror.js";
 import { openFile, placeKey } from "./open.js";
 import { forgetBackup, markPlace } from "./places.js";
 import { actingPath, dirty, drawTabs, markSaved, tabOf } from "./tabs.js";
@@ -322,7 +322,7 @@ ${finding.lifted}` : finding.message,
 // Run, Verify Disassembly: the tab's C module saved where it has changes, then the command line's
 // loop over it run in the terminal, by the line the tree's side gives: the tree built with link-time
 // optimization, the module's functions read by the disassembler and by Ghidra, and the two readings
-// held the same. A file that is no C module is said to be none.
+// kept the same. A file that is no C module is said to be none.
 export async function verifyDisassemblyTab(tab) {
   const s = tab?.session;
   if (!s || s.window) {

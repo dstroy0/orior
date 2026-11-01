@@ -1,20 +1,23 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// symbols_table.c: the files the tree stores, in a table whose room doubles as files are stored, each found by its
-// path through a table of buckets twice its room, made again as it grows and as it is put together
+// symbols_table.c: the files the tree stores, in a table at its most, each found by its path through a table of buckets
+// twice its room, made again as the table is put together
 #include "../command_line/cells.h"
 #include "symbols_tree.h"
 
-// the files the table's room is begun with, doubling as files are stored, its paths' table twice as many buckets
-#define CLI_SYMBOL_FILES_FIRST 256u
+// the files the table's room is taken with, its paths' table twice as many buckets
 
 // an empty bucket of the table of paths, and one whose file was let go
 #define CLI_BUCKET_EMPTY 0u
 
 #define CLI_BUCKET_GONE 0xffffffffu
 
+// every file a table can name, and the one taken while the cell it replaces still stands
+_Static_assert(CLI_SYMBOL_FILES < CLI_CELLS_MOVABLE, "the movable cells cannot name every symbol file");
+
 CliSymbolFile *g_cli_symbol_files;
 unsigned int g_cli_symbol_file_count;
+static unsigned int s_cell_most;
 static unsigned int s_file_room;
 static unsigned int *s_buckets;
 static unsigned int s_bucket_room;
@@ -29,15 +32,44 @@ static unsigned long long cli_hash(const char *path)
     return value;
 }
 
-// a file stored's path, and its declarations
-const char *cli_symbol_file_path(const CliSymbolFile *branch)
+char *cli_symbol_scratch_taken(void)
 {
-    return branch->cell + branch->path;
+    return g_cli_cells->temporary_buf_alloc(s_cell_most, &g_cli_code_cells);
 }
 
-const CliSymbol *cli_symbol_file_symbols(const CliSymbolFile *branch)
+void cli_symbol_file_read(const CliSymbolFile *branch, char *scratch)
 {
-    return (const CliSymbol *)(const void *)branch->cell;
+    (void)g_cli_cells->movable_buf_read(&(CarcerMovableCfg){.cell = branch->cell, .dst = scratch, .bytes = branch->bytes});
+}
+
+void cli_symbol_scratch_given(char *scratch)
+{
+    g_cli_cells->persistent_buf_release(scratch, &g_cli_code_cells);
+}
+
+const char *cli_symbol_file_path(const CliSymbolFile *branch, const char *scratch)
+{
+    return scratch + branch->path;
+}
+
+const CliSymbol *cli_symbol_file_symbols(const char *scratch)
+{
+    return (const CliSymbol *)(const void *)scratch;
+}
+
+void cli_symbol_path_read(const CliSymbolFile *branch, char *path)
+{
+    const size_t measured = g_cli_cells->movable_buf_measure(&(CarcerMovableCfg){.cell = branch->cell, .offset = branch->path});
+    const size_t bytes = (measured < CLI_PATH_MAX_LEN) ? measured : (CLI_PATH_MAX_LEN - 1u);
+
+    (void)g_cli_cells->movable_buf_read(
+        &(CarcerMovableCfg){.cell = branch->cell, .offset = branch->path, .dst = path, .bytes = bytes});
+    path[bytes] = '\0';
+}
+
+void cli_symbol_cell_counted(unsigned int bytes)
+{
+    s_cell_most = (bytes > s_cell_most) ? bytes : s_cell_most;
 }
 
 unsigned int cli_symbols_file_of(const char *path)
@@ -47,12 +79,16 @@ unsigned int cli_symbols_file_of(const char *path)
         return CLI_SYMBOL_FILES;
     }
     unsigned long long bucket = cli_hash(path) % s_bucket_room;
+    // the path with its terminator, so that a stored path it only starts differs from it there
+    const size_t bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u;
     for (unsigned int tried = 0u; (tried < s_bucket_room) && (s_buckets[bucket] != CLI_BUCKET_EMPTY); tried += 1u)
     {
         const unsigned int place = s_buckets[bucket];
         if ((place != CLI_BUCKET_GONE) &&
-            (cellul.eq(&(CatenaFinitaCfg){
-                .src = cli_symbol_file_path(&g_cli_symbol_files[place - 1u]), .other = path, .cap = CLI_CELLS_POOL})))
+            (g_cli_cells->movable_buf_compare(&(CarcerMovableCfg){.cell = g_cli_symbol_files[place - 1u].cell,
+                                                                  .offset = g_cli_symbol_files[place - 1u].path,
+                                                                  .src = path,
+                                                                  .bytes = bytes}) == 0))
         {
             return place - 1u;
         }
@@ -79,45 +115,47 @@ static void cli_buckets_made(void)
     {
         if (g_cli_symbol_files[at].used)
         {
-            cli_symbols_bucket_put(cli_symbol_file_path(&g_cli_symbol_files[at]), at);
+            char path[CLI_PATH_MAX_LEN];
+            cli_symbol_path_read(&g_cli_symbol_files[at], path);
+            cli_symbols_bucket_put(path, at);
         }
     }
 }
 
-// the table of files' room doubled, and the paths' table with it, made again: 1, or 0 where it contains the most or a
-// cell is refused
-static int cli_files_grown(void)
+// the table of files and the paths' table taken at their most, each once: 1, or 0 where they stand taken or a cell is
+// refused
+static int cli_files_made(void)
 {
-    const unsigned int doubled = (s_file_room == 0u) ? CLI_SYMBOL_FILES_FIRST : (s_file_room * 2u);
-    const unsigned int room = (doubled < CLI_SYMBOL_FILES) ? doubled : CLI_SYMBOL_FILES;
-    // the files' table grows where it stands or is moved with its entries; the buckets are made again whole over a
-    // cell of the new room, and nothing of the old ones is carried
+    // the files' table and its buckets, one cell each, taken once at the most the tree holds
     CliSymbolFile *const files =
-        (s_file_room < CLI_SYMBOL_FILES)
-            ? cli_cell_regrown(g_cli_symbol_files, (size_t)g_cli_symbol_file_count * sizeof(CliSymbolFile),
-                               (unsigned long long)room * sizeof(CliSymbolFile), &g_cli_code_cells)
-            : NULL;
+        (s_file_room == 0u) ? g_cli_cells->persistent_buf_alloc(
+                                  (unsigned long long)CLI_SYMBOL_FILES * sizeof(CliSymbolFile), &g_cli_code_cells)
+                            : NULL;
     if (files == NULL)
     {
         return 0;
     }
-    g_cli_symbol_files = files;
     unsigned int *const buckets =
-        cli_cell_regrown(s_buckets, 0u, 2ull * room * sizeof(unsigned int), &g_cli_code_cells);
+        g_cli_cells->persistent_buf_alloc(2ull * CLI_SYMBOL_FILES * sizeof(unsigned int), &g_cli_code_cells);
     if (buckets == NULL)
     {
+        g_cli_cells->persistent_buf_release(files, &g_cli_code_cells);
         return 0;
     }
-    s_file_room = room;
+    cli_cells_movable_ready();
+    g_cli_symbol_files = files;
+    s_file_room = CLI_SYMBOL_FILES;
     s_buckets = buckets;
-    s_bucket_room = 2u * room;
+    s_bucket_room = 2u * CLI_SYMBOL_FILES;
     cli_buckets_made();
     return 1;
 }
 
 void cli_symbols_let_go(unsigned int file)
 {
-    unsigned long long bucket = cli_hash(cli_symbol_file_path(&g_cli_symbol_files[file])) % s_bucket_room;
+    char path[CLI_PATH_MAX_LEN];
+    cli_symbol_path_read(&g_cli_symbol_files[file], path);
+    unsigned long long bucket = cli_hash(path) % s_bucket_room;
     for (unsigned int tried = 0u; (tried < s_bucket_room) && (s_buckets[bucket] != CLI_BUCKET_EMPTY); tried += 1u)
     {
         if (s_buckets[bucket] == (file + 1u))
@@ -127,7 +165,7 @@ void cli_symbols_let_go(unsigned int file)
         }
         bucket = (bucket + 1u) % s_bucket_room;
     }
-    g_cli_cells->persistent_buf_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
+    (void)g_cli_cells->movable_buf_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
     g_cli_symbol_files[file].cell = NULL;
     g_cli_symbol_files[file].used = 0;
 }
@@ -136,7 +174,7 @@ void cli_symbols_tree_cleared(void)
 {
     for (unsigned int at = 0u; at < g_cli_symbol_file_count; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(g_cli_symbol_files[at].cell, &g_cli_code_cells);
+        (void)g_cli_cells->movable_buf_release(g_cli_symbol_files[at].cell, &g_cli_code_cells);
         g_cli_symbol_files[at].cell = NULL;
         g_cli_symbol_files[at].used = 0;
     }
@@ -171,7 +209,7 @@ int cli_symbols_room_made(void)
     {
         return 1;
     }
-    if (!cli_files_grown() && (s_file_room != 0u))
+    if (!cli_files_made() && (s_file_room != 0u))
     {
         cli_compacted();
     }

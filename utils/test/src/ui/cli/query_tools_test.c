@@ -51,7 +51,7 @@ static unsigned long long tools_interface_number(const char *name)
 static int tools_reaches(const char *pattern)
 {
     const char *const patterns[2] = {pattern, NULL};
-    query_paths_given(&s_found);
+    (void)query_paths_taken(&s_found, QUERY_SOURCES_MOST);
     const int reached = query_sources(s_root, patterns, &s_found) > 0u;
     query_paths_given(&s_found);
     return reached;
@@ -128,6 +128,7 @@ static void tools_objects(void)
 // the file definitions are what every program links; and paths given the compilers are forward slashed
 static void tools_file_defs(void)
 {
+    (void)query_paths_taken(&s_found, QUERY_SOURCES_MOST);
     const unsigned int count = query_sources(s_root, g_query_file_defs, &s_found);
     int kfile_lines = 0;
     int kdm = 0;
@@ -143,8 +144,8 @@ static void tools_file_defs(void)
               ((length >= 6ull) &&
                (cellul.eq(&(CatenaFinitaCfg){.src = found + length - 6u, .other = "/kdm.c", .cap = CLI_CELLS_POOL})));
     }
-    cli_check(kfile_lines && kdm && (count > 10u) && (s_found.room <= (2u * count) + QUERY_PATHS_FIRST),
-              "the file definitions are what every program links, listed in a room that grew to them");
+    cli_check(kfile_lines && kdm && (count > 10u) && (s_found.room == QUERY_SOURCES_MOST),
+              "the file definitions are what every program links, listed in a room at their most");
     query_paths_given(&s_found);
     char source[QUERY_PATH_MAX_LEN];
     char objects[QUERY_PATH_MAX_LEN];

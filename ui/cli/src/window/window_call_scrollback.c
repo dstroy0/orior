@@ -215,16 +215,16 @@ static int scrollback_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     cli_lock_take(&s_lock);
     const CliScrollback *const scrollback = scrollback_of(id, err_msg);
     int read = scrollback != NULL;
-    const unsigned long long held = read ? scrollback->count : 0ull;
-    const unsigned long long first = (from < held) ? from : held;
-    const unsigned long long last = ((count < held - first) ? first + count : held);
+    const unsigned long long stored = read ? scrollback->count : 0ull;
+    const unsigned long long first = (from < stored) ? from : stored;
+    const unsigned long long last = ((count < stored - first) ? first + count : stored);
     mmgr_line_ch(out, '[');
     for (unsigned long long batch = first; read && (batch < last);)
     {
         // the starts of the batch's lines and of the line after, the end of the lines where none is after
         const unsigned long long lines =
             ((last - batch) < (CLI_SCROLLBACK_STARTS - 1u)) ? (last - batch) : (CLI_SCROLLBACK_STARTS - 1u);
-        const unsigned long long known = (batch + lines < held) ? lines + 1ull : lines;
+        const unsigned long long known = (batch + lines < stored) ? lines + 1ull : lines;
         read = cli_temporary_file_read(&scrollback->starts, batch * sizeof(s_starts[0]), s_starts,
                                        known * sizeof(s_starts[0]));
         s_starts[lines] = (known > lines) ? s_starts[lines] : scrollback->end;

@@ -7,11 +7,9 @@
 #include "trust_internal.h"
 
 // the nodes and the bytes of their texts the answers stored take past those read, the list, its two lists, the folder
-// answered and the names of the lists among them; and the bytes the answers are begun to be written in, doubling as
-// they fill
+// answered and the names of the lists among them; and the bytes the answers are written in
 #define CLI_TRUST_NODES_MORE 4u
 #define CLI_TRUST_TEXT_MORE 64u
-#define CLI_TRUST_WRITTEN_FIRST 4096u
 
 // the file of answers read and written under its lock
 static CliLock s_trust_lock = CLI_LOCK_INIT;
@@ -47,17 +45,11 @@ static void cli_key(const char *folder, char *key)
     }
     cli_lock_give(&s_letters_lock);
 #else
-    for (const char *at = folder; at[0] != '\0'; at += 1)
-    {
-        mmgr_line_ch(&line, (at[0] == '\\') ? '/' : at[0]);
-    }
+    (void)cli_text_put_swapped(&line, folder, '\\', '/');
 #endif
     mmgr_line_finish(&line);
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
-    while ((length > 0ull) && (key[length - 1ull] == '/'))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(key, length, "/");
     key[length] = '\0';
 }
 
@@ -173,8 +165,9 @@ int cli_trust_set_in(const char *path, const char *folder, int trusted, VerbaLin
         mmgr_line_put(err_msg, ": it could not be made");
         done = 0;
     }
-    VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_temporary(&out, CLI_TRUST_WRITTEN_FIRST, &g_cli_machine_cells);
+    const unsigned long long out_room = cli_json_pretty_room(&json, 2u);
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_cli_machine_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, out_room);
     cli_json_write(&json, trust_obj, &out, 2u, 0);
     if (done && (!mmgr_line_ok(&out) || !query_file_written(path, out.out, out.at)))
     {

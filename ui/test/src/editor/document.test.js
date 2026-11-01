@@ -56,8 +56,8 @@ function textOfBytes(bytes) {
 // the document holding it; and from the key the harness pressed to the document and to the frame after.
 const rows = ["bus\tlines\tbytes\town_ms\tto_document_ms\tto_frame_ms"];
 
-async function rowKept(bus, lines, bytes, own, held, drawn) {
-  rows.push([bus, lines, bytes, own.toFixed(1), held.toFixed(1), drawn.toFixed(1)].join("\t"));
+async function rowKept(bus, lines, bytes, own, mirrored, drawn) {
+  rows.push([bus, lines, bytes, own.toFixed(1), mirrored.toFixed(1), drawn.toFixed(1)].join("\t"));
   const home = window.__harness.servers?.ORIOR_TEST_HOME;
   if (home) {
     await invoke("file_write_any", { path: `${String(home).replace(/\\/g, "/")}/../paste.tsv`, text: `${rows.join("\n")}\n` }).catch(() => {});
@@ -113,7 +113,7 @@ async function closed(path) {
     // the tab may stand past the strip's edge among the tabs the pastes opened
     closer().scrollIntoView({ block: "nearest", inline: "nearest" });
     await ui.waitFor(() => closer()?.checkVisibility(), 3000);
-    // pressed by its selector: the tab is drawn anew as the undo leaves the text clean, and a node held across
+    // pressed by its selector: the tab is drawn anew as the undo leaves the text clean, and a node kept across
     // that redraw stands detached
     await ui.click(mark);
   }
@@ -132,7 +132,7 @@ async function pasted(bus, text, named) {
   view.goTo(AT, 0);
   let at = 0;
   let began = 0;
-  let held = 0;
+  let mirrored = 0;
   let drawn = 0;
   // The editor's paste itself, from the text in hand to the document: the clipboard read before it
   // is the bus's own cost.
@@ -142,8 +142,8 @@ async function pasted(bus, text, named) {
     pasteText.call(view, text);
   };
   const unwatch = doc.watch(() => {
-    if (doc.count === expected && !held) {
-      held = performance.now();
+    if (doc.count === expected && !mirrored) {
+      mirrored = performance.now();
       requestAnimationFrame(() => {
         drawn = performance.now();
       });
@@ -169,7 +169,7 @@ async function pasted(bus, text, named) {
   if (bus === "internal") {
     await closed(`${name}.source.txt`);
   }
-  return { own: held - began, held: held - at, drawn: drawn - at };
+  return { own: mirrored - began, mirrored: mirrored - at, drawn: drawn - at };
 }
 
 test("a paste of ten lines to ten thousand lands at its line on each bus, size by size, each timed", async () => {
@@ -177,9 +177,9 @@ test("a paste of ten lines to ten thousand lands at its line on each bus, size b
   for (const count of LINES) {
     const text = textOfLines(count);
     for (const bus of BUSES) {
-      const { own, held, drawn } = await pasted(bus, text, `paste_${bus}_${count}_lines`);
-      await rowKept(bus, count, text.length, own, held, drawn);
-      said.push(`${bus} ${count}: ${own.toFixed(1)} / ${held.toFixed(1)} / ${drawn.toFixed(1)} ms`);
+      const { own, mirrored, drawn } = await pasted(bus, text, `paste_${bus}_${count}_lines`);
+      await rowKept(bus, count, text.length, own, mirrored, drawn);
+      said.push(`${bus} ${count}: ${own.toFixed(1)} / ${mirrored.toFixed(1)} / ${drawn.toFixed(1)} ms`);
     }
   }
   assert.ok(said.length === LINES.length * BUSES.length, `own / to the document / to the frame: ${said.join("; ")}`);
@@ -190,9 +190,9 @@ for (const [megabytes, buses] of MEGABYTES) {
     const text = textOfBytes(megabytes << 20);
     const said = [];
     for (const bus of buses) {
-      const { own, held, drawn } = await pasted(bus, text, `paste_${bus}_${megabytes}_mb`);
-      await rowKept(bus, text.split("\n").length - 1, text.length, own, held, drawn);
-      said.push(`${bus}: ${own.toFixed(1)} / ${held.toFixed(1)} / ${drawn.toFixed(1)} ms`);
+      const { own, mirrored, drawn } = await pasted(bus, text, `paste_${bus}_${megabytes}_mb`);
+      await rowKept(bus, text.split("\n").length - 1, text.length, own, mirrored, drawn);
+      said.push(`${bus}: ${own.toFixed(1)} / ${mirrored.toFixed(1)} / ${drawn.toFixed(1)} ms`);
     }
     assert.ok(said.length === buses.length, `own / to the document / to the frame: ${said.join("; ")}`);
   }, { timeout: 240000, tries: 1 });

@@ -28,7 +28,7 @@ const YIELD = 250;
 // The fewest frames an animation lasts to be seen.
 const SEEN = 2;
 
-const state = { hidden: document.hidden, waiting: new Set(), lost: 0, stoppedAt: null, acted: 0, heldUntil: 0, lastFrame: 0, frame: 1000 / 60 };
+const state = { hidden: document.hidden, waiting: new Set(), lost: 0, stoppedAt: null, acted: 0, pausedUntil: 0, lastFrame: 0, frame: 1000 / 60 };
 
 for (const kind of ["keydown", "pointerdown", "pointermove", "wheel", "scroll"]) {
   document.addEventListener(kind, () => (state.acted = performance.now()), { capture: true, passive: true });
@@ -36,7 +36,7 @@ for (const kind of ["keydown", "pointerdown", "pointermove", "wheel", "scroll"])
 
 // Takes the next `ms` of frames from the lowest work, for motion the page drives itself.
 export function preempt(ms) {
-  state.heldUntil = Math.max(state.heldUntil, performance.now() + ms);
+  state.pausedUntil = Math.max(state.pausedUntil, performance.now() + ms);
 }
 
 // Whether the frame at `now` is free for the lowest work: asked once a frame by that work's loop.
@@ -47,7 +47,7 @@ export function idle(now) {
   if (gap > 0 && gap < 100) {
     state.frame = Math.min(gap, state.frame * 1.01);
   }
-  if (now - state.acted < YIELD || now < state.heldUntil || gap > state.frame * 2.5) {
+  if (now - state.acted < YIELD || now < state.pausedUntil || gap > state.frame * 2.5) {
     return false;
   }
   return !document.getAnimations().some((one) => one.playState === "running" && one.effect?.getComputedTiming?.().iterations !== Infinity);
@@ -181,7 +181,7 @@ function judgeTransitions(event) {
 export const clock = (now = performance.now()) => (state.stoppedAt ?? now) - state.lost;
 
 // Runs `start` once, as soon as motion may have come back: the page shown again, or less motion asked for or
-// no longer asked for. A start that finds motion still held waits again.
+// no longer asked for. A start that finds motion still kept waits again.
 export function whenMoving(start) {
   state.waiting.add(start);
 }

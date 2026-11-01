@@ -205,12 +205,10 @@ static void python_tail_message(CliTestWorker *worker, const char *seen, unsigne
         while (at < text_sizes[which])
         {
             const char *const text = texts[which];
-            const char *const newline =
-                memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = text_sizes[which] - at});
-            unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : text_sizes[which];
+            const CliTextLine bounds = cli_text_line_at(text, at, text_sizes[which]);
+            const unsigned long long end = bounds.cut;
             const unsigned long long start = at;
-            at = (newline != NULL) ? end + 1ull : text_sizes[which];
-            end -= ((newline != NULL) && (end > start) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
+            at = bounds.next;
             unsigned long long letter = start;
             while ((letter < end) && (cellul.chr(&(CatenaFinitaCfg){
                                           .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = text[letter]}) != NULL))
@@ -249,12 +247,11 @@ static void python_worker(void *context)
         unsigned long long at = 0ull;
         while (at < errors_size)
         {
-            const char *const newline =
-                memor.chr(&(MemoriaCfg){.src = errors + at, .val = '\n', .bytes = errors_size - at});
-            unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - errors) : errors_size;
+            const CliTextLine bounds = cli_text_line_at(errors, at, errors_size);
+            unsigned long long end = bounds.stop;
             const unsigned long long start = at;
-            at = (newline != NULL) ? end + 1ull : errors_size;
-            end -= ((newline != NULL) && (end > start) && (errors[end - 1ull] == '\r')) ? 1ull : 0ull;
+            at = bounds.next;
+            end -= bounds.stop - bounds.cut;
             char id[CLI_PATH_MAX_LEN * 2u];
             const char *outcome = NULL;
             if (cli_test_unittest_line(errors + start, end - start, id, sizeof(id), &outcome))

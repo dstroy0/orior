@@ -12,7 +12,7 @@
 // pressed on it, and Left or Escape closes them again. An item that cannot act now is drawn but
 // cannot be chosen. Up and Down step through the items, Home and End go to the ends, a letter goes to
 // the next item it begins, Enter or Space chooses, and Escape or Tab closes. A choice closes every open menu and hands the keys back to what
-// held them before the first opened, then acts. A command for the editor or the terminal finds it as
+// kept them before the first opened, then acts. A command for the editor or the terminal finds it as
 // it was. A menu too long for the window scrolls.
 
 import { invoke } from "./bridge.js";

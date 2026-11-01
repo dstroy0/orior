@@ -191,7 +191,7 @@ int cli_spawn_fed_as(unsigned int priority, CliSpawned *spawned, const char *con
 // a terminal's columns or rows as the system counts them, two at the fewest
 static unsigned short cli_terminal_extent(unsigned int count)
 {
-    // a count held between 2 and the most a short counts is what an unsigned short stores
+    // a count kept between 2 and the most a short counts is what an unsigned short stores
     return (unsigned short)((count < 2u) ? 2u : ((count > 0x7fffu) ? 0x7fffu : count));
 }
 

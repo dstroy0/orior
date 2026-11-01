@@ -5,14 +5,13 @@
 // the run ends, and the run ended where the client lets the adapter go. One replay is open at a time: an adapter begun
 // lets go of the replay before it and ends the run that replay was recording
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
+#include "../text/text.h"
 #include "recording_internal.h"
 
-// the bytes of a command's name and of why a request failed, and of each piece an answer's body and its reply are
-// written in
+// the bytes of a command's name and of why a request failed, and the most bytes of an answer's body
 #define CLI_RECORDING_COMMAND 256u
 #define CLI_RECORDING_ERR_MSG_MAX_LEN 4096u
-#define CLI_RECORDING_PIECE 4096u
+#define CLI_RECORDING_BODY (8ull << 20u)
 
 // the request served, read into a tree taken to its size and given back as it is answered; and the replies sent
 static CliJson s_json;
@@ -31,34 +30,28 @@ static void request_raw(VerbaLinea *out, unsigned int node)
     }
 }
 
-// a piece of what is written put on the line that is `context`
-static void request_put(void *context, const char *bytes, unsigned long long size)
-{
-    mmgr_line_put_n((VerbaLinea *)context, bytes, size);
-}
-
-// the reply to request `message` sent, written through pieces into a cell of its size: the body its pieces contain
-// where it succeeded, why it failed where it did not; the body's pieces given back
-static void request_answered(CliDap *dap, unsigned int message, const char *command, int success, CliPieces *body,
-                             VerbaLinea *body_line, const VerbaLinea *err_msg)
+// the reply to request `message` sent, written into a cell of the most it holds: the body the line `body` holds where
+// it succeeded, why it failed where it did not
+static void request_answered(CliDap *dap, unsigned int message, const char *command, int success,
+                             const VerbaLinea *body, const VerbaLinea *err_msg)
 {
     s_seq += 1ull;
-    char piece[CLI_RECORDING_PIECE];
-    CliPieces pieces;
-    VerbaLinea reply;
-    cli_pieces_begun(&pieces, &reply, piece, sizeof(piece), &g_cli_debug_cells);
+    const int body_whole = mmgr_line_ok(body);
+    const unsigned long long command_size = cellul.len(&(CatenaFinitaCfg){.src = command, .cap = CLI_CELLS_POOL});
+    // the members around the body, the body or null, and the command and the reason with every byte escaped
+    const unsigned long long room = (body_whole ? body->at : 4ull) + ((command_size + err_msg->at) * 6ull) + 512ull;
+    char *const sent = g_cli_cells->temporary_buf_alloc(room, &g_cli_debug_cells);
+    VerbaLinea reply = mmgr_line_over(sent, room);
     mmgr_line_put(&reply, "{\"seq\":");
     mmgr_line_decimal(&reply, s_seq, 1u);
     mmgr_line_put(&reply, ",\"type\":\"response\",\"request_seq\":");
     request_raw(&reply, cli_json_member(&s_json, message, "seq"));
     mmgr_line_put(&reply, ",\"command\":");
-    cli_json_quoted_lossy(&reply, (const unsigned char *)command,
-                          cellul.len(&(CatenaFinitaCfg){.src = command, .cap = CLI_CELLS_POOL}));
+    cli_json_quoted_lossy(&reply, (const unsigned char *)command, command_size);
     mmgr_line_put(&reply, success ? ",\"success\":true,\"body\":" : ",\"success\":false,\"message\":");
-    const int body_whole = cli_pieces_ended(body, body_line);
     if (success && body_whole)
     {
-        cli_pieces_each(body, request_put, &reply);
+        (void)mmgr_line_put_n(&reply, body->out, body->at);
     }
     else if (success)
     {
@@ -68,13 +61,10 @@ static void request_answered(CliDap *dap, unsigned int message, const char *comm
     {
         cli_json_quoted_lossy(&reply, (const unsigned char *)err_msg->out, err_msg->at);
     }
-    cli_pieces_given(body);
     mmgr_line_ch(&reply, '}');
-    unsigned long long size = 0ull;
-    char *const sent = cli_pieces_joined(&pieces, &reply, "a recording's reply", &size);
-    if (sent != NULL)
+    if (mmgr_line_ok(&reply))
     {
-        (void)cli_dap_send(dap, sent, size);
+        (void)cli_dap_send(dap, reply.out, reply.at);
     }
     g_cli_cells->persistent_buf_release(sent, &g_cli_debug_cells);
 }
@@ -206,16 +196,11 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
     }
     char command[CLI_RECORDING_COMMAND];
     const char *const named = cli_json_string(&s_json, cli_json_member(&s_json, message, "command"), NULL);
-    memor.cpy(&(MemoriaCfg){
-        .dst = command,
-        .src = (named != NULL) ? named : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (named != NULL) ? named : "", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(command, named, "");
     const unsigned int arguments = cli_json_member(&s_json, message, "arguments");
-    // the answer's body buffered in pieces as it is written, given back as the reply is sent
-    char body_piece[CLI_RECORDING_PIECE];
-    CliPieces body_pieces;
-    VerbaLinea body;
-    cli_pieces_begun(&body_pieces, &body, body_piece, sizeof(body_piece), &g_cli_debug_cells);
+    // the answer's body in a cell of the most it holds, given back once the reply is sent
+    char *const body_text = g_cli_cells->temporary_buf_alloc(CLI_RECORDING_BODY, &g_cli_debug_cells);
+    VerbaLinea body = mmgr_line_over(body_text, CLI_RECORDING_BODY);
     int success = 1;
     if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "initialize", .cap = CLI_CELLS_POOL}))
     {
@@ -228,18 +213,11 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
     {
         const char *const program = cli_json_string(&s_json, cli_json_member(&s_json, arguments, "program"), NULL);
         const char *const python = cli_json_string(&s_json, cli_json_member(&s_json, arguments, "python"), NULL);
-        memor.cpy(&(MemoriaCfg){
-            .dst = g_cli_replay->program,
-            .src = (program != NULL) ? program : "",
-            .bytes =
-                cellul.len(&(CatenaFinitaCfg){.src = (program != NULL) ? program : "", .cap = CLI_CELLS_POOL}) + 1u});
-        memor.cpy(&(MemoriaCfg){
-            .dst = g_cli_replay->python,
-            .src = (python != NULL) ? python : "",
-            .bytes =
-                cellul.len(&(CatenaFinitaCfg){.src = (python != NULL) ? python : "", .cap = CLI_CELLS_POOL}) + 1u});
+        cli_text_copied_or(g_cli_replay->program, program, "");
+        cli_text_copied_or(g_cli_replay->python, python, "");
         mmgr_line_put(&body, "null");
-        request_answered(dap, message, command, 1, &body_pieces, &body, &err_msg);
+        request_answered(dap, message, command, 1, &body, &err_msg);
+        g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
         const char initialized[] = "{\"type\":\"event\",\"event\":\"initialized\"}";
         (void)cli_dap_send(dap, initialized, sizeof(initialized) - 1u);
         return 1;
@@ -257,7 +235,8 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
     {
         success = cli_recording_run(dap, &err_msg);
         mmgr_line_put(&body, "null");
-        request_answered(dap, message, command, success, &body_pieces, &body, &err_msg);
+        request_answered(dap, message, command, success, &body, &err_msg);
+        g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
         if (!success)
         {
             const char terminated[] = "{\"type\":\"event\",\"event\":\"terminated\",\"body\":{}}";
@@ -270,13 +249,15 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
     {
         cli_recording_run_killed();
         mmgr_line_put(&body, "null");
-        request_answered(dap, message, command, 1, &body_pieces, &body, &err_msg);
+        request_answered(dap, message, command, 1, &body, &err_msg);
+        g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
         return !cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_CELLS_POOL});
     }
     else
     {
         success = cli_replay_answer(dap, command, &s_json, arguments, &body, &err_msg);
     }
-    request_answered(dap, message, command, success, &body_pieces, &body, &err_msg);
+    request_answered(dap, message, command, success, &body, &err_msg);
+    g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
     return 1;
 }

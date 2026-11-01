@@ -129,7 +129,7 @@ function closeTerm(term) {
 
 
 // Opens the panel or closes it. An open panel takes the keys where `focus` is set, and closing it
-// hands them back to whatever held them before it opened.
+// hands them back to whatever kept them before it opened.
 function toggle(open = parts.panel.hidden, focus = true) {
   const was = !parts.panel.hidden;
   parts.panel.hidden = !open;

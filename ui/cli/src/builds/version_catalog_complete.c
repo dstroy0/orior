@@ -3,6 +3,7 @@
 // version_catalog_complete.c: what completes the word before the cursor in a version catalog: a section's name after
 // `[`; in a string, the versions' aliases after `version.ref =` or `ref =`, and in a bundle the libraries'; and a
 // table's keys after its `{` or a `,`, by the section the cursor's line stands under
+#include "../text/text.h"
 #include "version_catalog_internal.h"
 
 // the sections a catalog contains, and the keys of a library's, a plugin's and a version's tables
@@ -36,10 +37,7 @@ static const char *complete_section(const char *text, unsigned long long line_st
     {
         const unsigned long long line_end = (end > 0u) ? end - 1u : 0u;
         unsigned long long start = line_end;
-        while ((start > 0u) && (text[start - 1u] != '\n'))
-        {
-            start -= 1u;
-        }
+        start = cli_text_back_any(text, start, "\n");
         if ((start < line_end) && (text[start] == '['))
         {
             const char *const close = memor.chr(
@@ -92,10 +90,7 @@ static void complete_names(const char *text, unsigned long long size, const char
 void cli_versions_complete(const char *text, unsigned long long size, unsigned long long at, CliCompletions *items)
 {
     unsigned long long line_start = at;
-    while ((line_start > 0u) && (text[line_start - 1u] != '\n'))
-    {
-        line_start -= 1u;
-    }
+    line_start = cli_text_back_any(text, line_start, "\n");
     const char *const before = text + line_start;
     const unsigned long long before_size = at - line_start;
     unsigned long long section_size = 0ull;
@@ -122,18 +117,12 @@ void cli_versions_complete(const char *text, unsigned long long size, unsigned l
     if ((quotes % 2u) == 1u)
     {
         unsigned long long opened = token - line_start;
-        while ((opened > 0u) && ((before[opened - 1u] == '"') || (before[opened - 1u] == '\'')))
-        {
-            opened -= 1u;
-        }
+        opened = cli_text_back_past(before, opened, "\"'");
         opened = cli_text_trimmed_end(before, opened);
         if ((opened > 0u) && (before[opened - 1u] == '='))
         {
             unsigned long long named = opened;
-            while ((named > 0u) && (before[named - 1u] == '='))
-            {
-                named -= 1u;
-            }
+            named = cli_text_back_past(before, named, "=");
             named = cli_text_trimmed_end(before, named);
             if (cli_text_ends(before, named, "ref"))
             {

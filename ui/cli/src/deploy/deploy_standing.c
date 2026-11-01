@@ -4,7 +4,6 @@
 // since they were sent, each shown with its differences where both copies are text, and the files there the tree no
 // longer has; and the record of the hashes last sent to a place written after a send
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -121,29 +120,25 @@ void cli_deploy_difference(const char *old, unsigned long long old_size, const c
     g_cli_cells->persistent_buf_release(counted, &g_cli_deploy_cells);
 }
 
-// the copy of `path` the place at `index` has read as text into a cell of its size, that size into `size`, where it
-// is text of 64 KB at most: the cell, or NULL where it is not
+// the copy of `path` the place at `index` has read as text into a cell of the most that is compared and one byte past
+// it, its size into `size`, where it is text of 64 KB at most: the cell, or NULL where it is not
 static char *standing_theirs(unsigned int index, const char *path, unsigned long long *size)
 {
     const CliDeployPlace *const place = &g_cli_deploy.place[index];
-    char piece[CLI_DEPLOY_PIECE];
-    CliPieces pieces;
-    VerbaLinea text;
-    cli_pieces_begun(&pieces, &text, piece, sizeof(piece), &g_cli_deploy_cells);
+    const unsigned long long room = CLI_DEPLOY_COMPARED + 2ull;
+    char *const theirs = g_cli_cells->temporary_buf_alloc(room, &g_cli_deploy_cells);
+    VerbaLinea text = mmgr_line_over(theirs, room);
     int read = 0;
     if (place->here)
     {
         unsigned long long mapped = 0ull;
-        const unsigned char *const bytes = cli_file_read(path, &mapped);
+        const unsigned char *const bytes = cli_file_taken(path, &mapped, &g_cli_deploy_cells);
         read = (bytes != NULL) && (mapped <= CLI_DEPLOY_COMPARED);
         if (read)
         {
             cli_lossy(&text, bytes, mapped);
         }
-        if (bytes != NULL)
-        {
-            cli_file_let_go(bytes, mapped);
-        }
+        cli_file_given(bytes, &g_cli_deploy_cells);
     }
     else
     {
@@ -156,8 +151,8 @@ static char *standing_theirs(unsigned int index, const char *path, unsigned long
         VerbaLinea none = {why, sizeof(why), 0ull};
         read = cli_deploy_remote_run(place, line, NULL, 0ull, &text, &none);
     }
-    char *const theirs = cli_pieces_joined(&pieces, &text, "a copy at a place", size);
-    if (!read || (theirs == NULL) || (*size > CLI_DEPLOY_COMPARED) ||
+    *size = text.at;
+    if (!read || !mmgr_line_ok(&text) || (*size > CLI_DEPLOY_COMPARED) ||
         (memor.chr(&(MemoriaCfg){.src = theirs, .bytes = (size_t)*size, .val = 0u}) != NULL))
     {
         g_cli_cells->persistent_buf_release(theirs, &g_cli_deploy_cells);
@@ -200,15 +195,12 @@ static void standing_changed(unsigned int index, const char *folder, const char 
         cli_deploy_full(sent, &full_line);
         mmgr_line_finish(&full_line);
         unsigned long long size = 0ull;
-        const unsigned char *const mine = cli_file_read(full, &size);
+        const unsigned char *const mine = cli_file_taken(full, &size, &g_cli_deploy_cells);
         if ((mine != NULL) && cli_utf8_whole((const char *)mine, size))
         {
             cli_deploy_difference(theirs, theirs_size, (const char *)mine, size);
         }
-        if (mine != NULL)
-        {
-            cli_file_let_go(mine, size);
-        }
+        cli_file_given(mine, &g_cli_deploy_cells);
         break;
     }
     g_cli_cells->persistent_buf_release(theirs, &g_cli_deploy_cells);
@@ -319,13 +311,12 @@ void cli_deploy_recorded(unsigned int index, int replace)
         return;
     }
     (void)query_folder_made(folder);
-    char piece[CLI_DEPLOY_PIECE];
-    CliPieces pieces;
-    VerbaLinea record;
-    cli_pieces_begun(&pieces, &record, piece, sizeof(piece), &g_cli_deploy_cells);
-    mmgr_line_ch(&record, '{');
     const CliDeployPair *const preserved = replace ? NULL : run->changed_list[index];
     const unsigned int preserved_count = replace ? 0u : run->changed[index];
+    // the record holds a path and a hash for each file, as a place's hashes do
+    char *const record_text = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_HASHES, &g_cli_deploy_cells);
+    VerbaLinea record = mmgr_line_over(record_text, CLI_DEPLOY_HASHES);
+    mmgr_line_ch(&record, '{');
     unsigned int sent = 0u;
     unsigned int other = 0u;
     int first = 1;
@@ -342,11 +333,9 @@ void cli_deploy_recorded(unsigned int index, int replace)
         other += (order >= 0) ? 1u : 0u;
     }
     mmgr_line_put(&record, first ? "}" : "\n}");
-    unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(&pieces, &record, "a deployment's record", &size);
-    if (joined != NULL)
+    if (mmgr_line_ok(&record))
     {
-        (void)cli_file_appended(path, joined, size, 1);
+        (void)cli_file_appended(path, record.out, record.at, 1);
     }
-    g_cli_cells->persistent_buf_release(joined, &g_cli_deploy_cells);
+    g_cli_cells->persistent_buf_release(record_text, &g_cli_deploy_cells);
 }

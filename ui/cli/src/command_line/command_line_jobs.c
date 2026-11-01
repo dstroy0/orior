@@ -254,8 +254,9 @@ typedef struct
 
 static CliLineRun s_run;
 
-// the bytes what a run sends the window is begun to be written in, doubling as it fills
-#define CLI_JOBS_STATE_INIT_CAP 1024u
+// the bytes what a run sends the window is written in
+#define CLI_JOBS_STATE_MORE 256ull
+#define CLI_JOBS_STATE_ROOM (1ull << 20u)
 
 void cli_window_channel_begun(void)
 {
@@ -277,7 +278,7 @@ void cli_window_channel_sent(const char *body, unsigned long long size)
     }
 }
 
-// `state`, a growing line, sent to the window where it fits, and given back
+// `state`, a line, sent to the window where it fits, and given back
 static void jobs_state_sent(VerbaLinea *state)
 {
     if (mmgr_line_ok(state))
@@ -306,13 +307,17 @@ static void jobs_run_event(void *context, const CliRunEvent *event)
     {
         return;
     }
-    VerbaLinea state = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&state, CLI_JOBS_STATE_INIT_CAP, &g_cli_command_line_cells);
+    // a line's byte is written as at most 6, and the words about it are few
+    const unsigned long long text_length =
+        (event->kind == CLI_RUN_EVENT_LINE) ? cellul.len(&(CatenaFinitaCfg){.src = event->text, .cap = CLI_CELLS_POOL})
+                                            : 0ull;
+    const unsigned long long state_room = (text_length * 6ull) + CLI_JOBS_STATE_MORE;
+    char *const state_cell = g_cli_cells->temporary_buf_alloc(state_room, &g_cli_command_line_cells);
+    VerbaLinea state = mmgr_line_over(state_cell, state_room);
     if (event->kind == CLI_RUN_EVENT_LINE)
     {
         mmgr_line_put(&state, "{\"line\":");
-        cli_json_quoted_lossy(&state, (const unsigned char *)event->text,
-                              cellul.len(&(CatenaFinitaCfg){.src = event->text, .cap = CLI_CELLS_POOL}));
+        cli_json_quoted_lossy(&state, (const unsigned char *)event->text, text_length);
         mmgr_line_put(&state, ",\"stream\":");
         cli_json_quoted(&state, event->stream,
                         cellul.len(&(CatenaFinitaCfg){.src = event->stream, .cap = CLI_CELLS_POOL}));
@@ -376,8 +381,8 @@ int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, c
     cli_window_channel_begun();
     s_run.ended = 0;
     s_run.has_code = 0;
-    VerbaLinea state = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&state, CLI_JOBS_STATE_INIT_CAP, &g_cli_command_line_cells);
+    char *const state_cell = g_cli_cells->temporary_buf_alloc(CLI_JOBS_STATE_ROOM, &g_cli_command_line_cells);
+    VerbaLinea state = mmgr_line_over(state_cell, CLI_JOBS_STATE_ROOM);
     mmgr_line_put(&state, "{\"state\":\"started\",\"job\":");
     const char *const id = cli_catalog_at(catalog, catalog->job[job].id);
     const char *const title = cli_catalog_at(catalog, catalog->job[job].title);

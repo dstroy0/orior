@@ -130,9 +130,9 @@ void cli_settings_chain_written(const CliChain *chain, VerbaLinea *out);
 int cli_settings_chain_read(const char *text, unsigned long long length, CliChain *chain, VerbaLinea *err_msg);
 void cli_settings_chain_given(CliChain *chain);
 // the settings in force from the reader's chain and the tree's, for the tree at `root`, into `layers`, which contain
-// nothing before, their texts in a cell grown as they are stored; the layers' texts given back, the layers left
-// containing none; the layers written as the window reads them after `out`; and the text of `key` the layers set over
-// the reader's own, or under it, NULL where they set none (settings_layers.c)
+// nothing before, their texts in a cell at their most; the layers' texts given back, the layers left containing none;
+// the layers written as the window reads them after `out`; and the text of `key` the layers set over the reader's own,
+// or under it, NULL where they set none (settings_layers.c)
 void cli_settings_layers(const CliChain *reader, const CliChain *tree, const char *root, CliLayers *layers);
 void cli_settings_layers_given(CliLayers *layers);
 void cli_settings_layers_written(const CliLayers *layers, VerbaLinea *out);

@@ -4,7 +4,7 @@
 #
 # Sweeps every command and option of orior_cli, as `orior_cli help` lists them, on a window of the
 # sweep's own (isolated.py) with monitor.js in its page, so a command that acts in the window acts in
-# that one and a call that would leave it is held. Each command is run bare, with each of its words
+# that one and a call that would leave it is blocked. Each command is run bare, with each of its words
 # filled and each option given, and with each choice its words offer on its own; a word to fill is
 # given a value of the sweep's tree. The help's own forms, the completions for each shell, and the
 # job lists and a job shown on the top's own tree, which only read, are run besides.
@@ -57,7 +57,7 @@ FILLED = {
 VALUE = "sweep"
 
 # The forms not run, by the word that marks them, and why
-HELD = {
+BLOCKED = {
     "open-remote": "it reaches another machine",
     "profile-remote": "it reaches another machine",
     "attach-address": "it reaches another machine",
@@ -220,9 +220,9 @@ class CliSweeper:
     def ran(self, words):
         """One form run: its record."""
         record = {"words": words}
-        held = next((why for word, why in HELD.items() if word in words), None)
-        if held:
-            record["held"] = held
+        blocked = next((why for word, why in BLOCKED.items() if word in words), None)
+        if blocked:
+            record["blocked"] = blocked
             return record
         began = time.time()
         try:
@@ -253,7 +253,7 @@ class CliSweeper:
                 record = self.ran(words)
                 record["tree"] = self.tree_kept()
                 self.records.append(record)
-                state = record.get("held") or ("did not end" if record.get("late") else f"exit {record['code']}")
+                state = record.get("blocked") or ("did not end" if record.get("late") else f"exit {record['code']}")
                 print(f"{index:4d}/{len(every)} {' '.join(words)[:70]:70s} {state}", flush=True)
                 if self.window.process.poll() is not None:
                     print("the window closed: the sweep stops")
@@ -269,9 +269,9 @@ class CliSweeper:
         crashed = [one for one in self.records if isinstance(one.get("code"), int) and (one["code"] < 0 or one["code"] >= 0xC0000000)]
         late = [one for one in self.records if one.get("late")]
         failed = [one for one in self.records if isinstance(one.get("code"), int) and 0 < one["code"] < 0xC0000000]
-        held = [one for one in self.records if one.get("held")]
+        blocked = [one for one in self.records if one.get("blocked")]
         lines = [f"# The command line's sweep, {self.stamp}", ""]
-        lines += [f"{len(self.records)} forms: {len(crashed)} crashed, {len(late)} did not end in {self.options.wait:.0f} s, {len(failed)} ended with an error, {len(held)} not run.", ""]
+        lines += [f"{len(self.records)} forms: {len(crashed)} crashed, {len(late)} did not end in {self.options.wait:.0f} s, {len(failed)} ended with an error, {len(blocked)} not run.", ""]
 
         def said(one):
             return (one.get("err") or one.get("out") or "").strip().splitlines()[-1:] or [""]
@@ -280,7 +280,7 @@ class CliSweeper:
             ("Crashed", crashed, lambda one: f"exit {one['code']:#x}: {said(one)[0][:300]}"),
             ("Did not end", late, lambda one: said(one)[0][:300]),
             ("Ended with an error", failed, lambda one: f"exit {one['code']}: {said(one)[0][:300]}"),
-            ("Not run", held, lambda one: one["held"]),
+            ("Not run", blocked, lambda one: one["blocked"]),
         ):
             lines += [f"## {title}", ""] + [f"- `orior_cli {' '.join(one['words'])}`: {detail(one)}" for one in records] + [""]
         (self.out / "cli_sweep.md").write_text("\n".join(lines), encoding="utf-8")

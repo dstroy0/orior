@@ -5,7 +5,7 @@
 // menu does: its kind changed, moved, its outputs cleared, deleted.
 
 import { blurCell, cellFile, cellOf, drawNotebook, element, focusCell, state } from "../notebook.js";
-import { letMirrorGo } from "../edit/held.js";
+import { letMirrorGo } from "../edit/mirror.js";
 import { mirrorNewCell } from "./mirror.js";
 import { drawMarks, drawOutputs } from "./draw.js";
 import { debugCell, runCell } from "./kernel.js";

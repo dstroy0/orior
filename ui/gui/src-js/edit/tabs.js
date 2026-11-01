@@ -12,7 +12,7 @@ import { tabLabelOf, tell } from "../scripts.js";
 import { say } from "../statusbar.js";
 import { openWindow } from "../windows.js";
 import { element, show, state } from "../edit.js";
-import { letMirrorGo } from "./held.js";
+import { letMirrorGo } from "./mirror.js";
 import { act } from "./menus.js";
 import { drawSplitTabs, leaveSplit, openFile } from "./open.js";
 import { forgetBackup, keepBackups, keepSession, readKept, treeKey } from "./places.js";
@@ -50,7 +50,7 @@ export function markSaved(tab, text) {
 
 // A tab has changes not saved while its text differs from what was saved. The document's state
 // says so at once where it is the saved one; where it is not, as after a letter typed and taken
-// out again, its lines are held against the saved ones, once for each state, a line not edited
+// out again, its lines are kept against the saved ones, once for each state, a line not edited
 // since the save matching on its reference alone. A file still being read has no saved lines, and
 // any edit to it is a change.
 export function dirty(tab) {
@@ -364,7 +364,7 @@ export function closeTab(tab) {
   tell("close", { path: tab.file });
   // The tab's branch let go, through the session's mirror of it or, as a text shown in its colors has none, by the tab's
   // key alone.
-  const mirrored = Boolean(tab.session?.doc?.held);
+  const mirrored = Boolean(tab.session?.doc?.mirrored);
   letMirrorGo(tab.session);
   if (tab.key && !mirrored) {
     invoke("document_release", { key: tab.key }).catch(() => {});

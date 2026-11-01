@@ -9,7 +9,7 @@ import { invoke } from "../../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../../gui/src-js/edit.js";
 import { showView } from "../../../gui/src-js/views.js";
 import { iconRemoved, sideOf } from "../../../gui/src-js/docks.js";
-import { noticesHeld, noticesSaid } from "../../../gui/src-js/statusbar.js";
+import { noticesWaiting, noticesSaid } from "../../../gui/src-js/statusbar.js";
 import { paneOpen } from "../../../gui/src-js/explorer.js";
 import { breakpointsOf, canStepBack, debugging, isPaused, pausedLineOf } from "../../../gui/src-js/debug.js";
 import { asFound, closeSheets, endSessions, made, press, putBackAsFound, sheetShown, told, VARS } from "../../menus.js";
@@ -32,7 +32,7 @@ test("the debugger's menus, from the command line: breakpoints edited, an except
   try {
     await press("debug");
     await ui.waitFor(() => isPaused() && pausedLineOf(VARS) === 2, 30000, "stopped where count is 3").catch((error) => {
-      throw new Error(`${error.message}; the breakpoints ${JSON.stringify([...(breakpointsOf(VARS) ?? [])])}; the sessions started: ${JSON.stringify(made("debug_start").map((one) => one.args.start))}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesHeld()].slice(-3).map((one) => one.text))}; the debugger said: ${document.getElementById("debug-said").textContent}; ${document.getElementById("debug-out").textContent.slice(-400)}`);
+      throw new Error(`${error.message}; the breakpoints ${JSON.stringify([...(breakpointsOf(VARS) ?? [])])}; the sessions started: ${JSON.stringify(made("debug_start").map((one) => one.args.start))}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesWaiting()].slice(-3).map((one) => one.text))}; the debugger said: ${document.getElementById("debug-said").textContent}; ${document.getElementById("debug-out").textContent.slice(-400)}`);
     });
     await press("debug-exception", "uncaught", "off");
     assert.deepEqual(made("debug_exceptions").at(-1)?.args.on, [], "no exception stops it");

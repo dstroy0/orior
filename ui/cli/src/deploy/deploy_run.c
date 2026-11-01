@@ -5,7 +5,6 @@
 // only once every place has it; a place that fails leaves each on the release it had
 #include "../code/git.h"
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -229,10 +228,11 @@ static int run_failed(const char *release, VerbaLinea *err_msg)
 {
     const CliDeployRun *const run = &g_cli_deploy;
     unsigned int failed = 0u;
-    char piece[CLI_DEPLOY_PIECE];
-    CliPieces pieces;
-    VerbaLinea print_buf;
-    cli_pieces_begun(&pieces, &print_buf, piece, sizeof(piece), &g_cli_deploy_cells);
+    // the words before the places, and each place's name and its reason
+    const unsigned long long room =
+        ((unsigned long long)run->places * (CLI_ERR_MSG_MAX_LEN + (2ull * CLI_PATH_MAX_LEN) + 8ull)) + 128ull;
+    char *const print_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_deploy_cells);
+    VerbaLinea print_buf = mmgr_line_over(print_text, room);
     mmgr_line_put(&print_buf, "no machine was turned to the new release, and each runs the release it had: ");
     for (unsigned int index = 0u; index < run->places; index += 1u)
     {
@@ -262,14 +262,11 @@ static int run_failed(const char *release, VerbaLinea *err_msg)
             failed += 1u;
         }
     }
-    unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(&pieces, &print_buf, "a deployment's failure", &size);
-    if (joined != NULL)
+    if (mmgr_line_ok(&print_buf))
     {
-        const VerbaLinea whole = {joined, size, size};
-        cli_deploy_print(&whole);
+        cli_deploy_print(&print_buf);
     }
-    g_cli_cells->persistent_buf_release(joined, &g_cli_deploy_cells);
+    g_cli_cells->persistent_buf_release(print_text, &g_cli_deploy_cells);
     mmgr_line_decimal(err_msg, failed, 1u);
     mmgr_line_put(err_msg, " of ");
     mmgr_line_decimal(err_msg, run->places, 1u);

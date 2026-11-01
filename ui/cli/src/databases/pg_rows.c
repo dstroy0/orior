@@ -4,6 +4,7 @@
 // rest left to wait in the server; what the server reported and noted read back; and a statement stopped by a cancel
 // request on a connection of its own
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "pg_internal.h"
 
 // a big-endian number of `width` bytes at `at`
@@ -235,10 +236,7 @@ int cli_pg_rows(CliPg *pg, unsigned long long count, CliDbRowFn each_row, void *
         else if (kind == 'd')
         {
             unsigned long long size = pg->size;
-            while ((size > 0u) && (pg->message[size - 1u] == '\n'))
-            {
-                size -= 1u;
-            }
+            size = cli_text_back_past(pg->message, size, "\n");
             pg->row[0] = (CliDbValue){(const char *)pg->message, size, 0};
             read += 1ull;
             if (!each_row(context, pg->row, 1u))

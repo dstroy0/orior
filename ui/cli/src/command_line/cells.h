@@ -7,8 +7,8 @@
 #ifndef CELLS_H
 #define CELLS_H
 
-#include "file_writing.h"
 #include "locus_carcerum/locus_carcerum.h"
+#include "verba_scribo/verba_linea.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -18,6 +18,9 @@ extern "C"
 // the pool every program makes as it starts: the most bytes its two ends occupy at once, as the cellblock's own peaks
 // give them, taken up to the next 32 MiB
 #define CLI_CELLS_POOL ((256ull << 20u) + (32ull << 20u))
+
+// the most movable cells the pool names at once
+#define CLI_CELLS_MOVABLE (131072u + 1u)
 
     // The shared cellblock's custodia, where what outlives a command lives. A cell is taken with
     // persistent_buf_alloc(bytes, owner) and given back with persistent_buf_release(cell, owner), owner the
@@ -30,16 +33,9 @@ extern "C"
 #include "cells_owners.h"
 #undef CLI_CELL_OWNER
 
-    // a cell of `size` bytes for `owner` from the tier `cell` lies in, the persistent one where `cell` is NULL
-    void *cli_cell_beside(const void *cell, size_t size, CellOwner *owner);
-
     // the owner `cell` counts to, read off the cell in the cellblock it was taken from: the owner a holder names that
-    // grows or gives back a cell another module took for it, NULL where `cell` is NULL or no cell is taken
+    // gives back a cell another module took for it, NULL where `cell` is NULL or no cell is taken
     CellOwner *cli_cell_owner(const void *cell);
-    // `cell`, holding `used` bytes, made `size` bytes: grown where it stands, else a cell of `size` taken from where
-    // `cell` was taken, the shared cellblock for NULL, the used bytes copied into it and `cell` given back; the cell
-    // after, or NULL with `cell` as it was where no cell can be taken
-    void *cli_cell_regrown(void *cell, size_t used, size_t size, CellOwner *owner);
 
     // the pool made over a block of `bytes` taken from the system, in the place of the one before, which is given back
     // whole: 1, or 0 where a cell is still allocated or the system gives no block; every program makes one before its
@@ -47,6 +43,9 @@ extern "C"
     int cli_cells_made(unsigned long long bytes);
     // whether the pool stands as the system handed it out, no cell taken and every byte zero: a check's question
     int cli_cells_zero(void);
+    // MMgr's movable option assigned to the pool, once, and given the thread its mover runs on. A module that stores
+    // movable cells calls this before its first take
+    void cli_cells_movable_ready(void);
     // the pool's bytes and the cellblock's two peaks, read off its state, each 0 where the build tracks none
     void cli_cells_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary);
 

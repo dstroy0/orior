@@ -226,7 +226,7 @@ export const HISTORY_SECONDS = 120;
 const ROUND_LINE = /round: (\d+) question\(s\), airlock ([\d.]+) s \(pop ([\d.]+) s, cross ([\d.]+) s\), carrier ([\d.]+) s/;
 
 export function telemetryStart() {
-  return { answered: [], rounds: [], questions: 0, airlock: null, cross: null, carrier: null, held: 0, refused: 0, faulted: 0, panics: 0, firstAt: null, lastAt: null, cells: new Map() };
+  return { answered: [], rounds: [], questions: 0, airlock: null, cross: null, carrier: null, blocked: 0, refused: 0, faulted: 0, panics: 0, firstAt: null, lastAt: null, cells: new Map() };
 }
 
 // A cellblock's report, `cells/<name>` holding `<pool's bytes> <persistent peak> <temporary peak>`: each module reports
@@ -273,7 +273,7 @@ export function telemetryLine(telemetry, text) {
     telemetry.carrier = Number(round[5]);
   }
   if (/\bblocked (from|with|by)\b/.test(text)) {
-    telemetry.held += 1;
+    telemetry.blocked += 1;
   }
   if (/\brefused\b/.test(text)) {
     telemetry.refused += 1;
@@ -304,7 +304,7 @@ export function telemetryRead(telemetry, { nowMs, plan = null, reading, ended = 
     airlock: telemetry.airlock,
     cross: telemetry.cross,
     carrier: telemetry.carrier,
-    held: telemetry.held,
+    blocked: telemetry.blocked,
     refused: telemetry.refused,
     faulted: telemetry.faulted,
     panics: telemetry.panics,

@@ -38,7 +38,7 @@ static int sign_greeting(CliMysql *mysql, const char *host, unsigned int port, u
     const unsigned char *const nul =
         memor.chr(&(MemoriaCfg){.src = hello + 1u, .val = 0, .bytes = (size_t)(size - 1u)});
     unsigned long long at = (nul != NULL) ? (unsigned long long)(nul - hello) : size;
-    if ((nul == NULL) || (at + 1u + 4u + 9u + 2u + 5u + 1u + 10u > size))
+    if (at + 1u + 4u + 9u + 2u + 5u + 1u + 10u > size)
     {
         cli_db_failure_set(failure, "the server's greeting is cut short");
         return 0;

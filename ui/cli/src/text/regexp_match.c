@@ -9,35 +9,26 @@
 
 #include "../command_line/cells.h"
 
-// room for one more end in the run's ends, moved to a cell of twice the room where they fill theirs: 1, or 0 where they
-// contain the most or the cellblock cannot meet the cell
+// room for one more end in the run's ends, moved once into a cell at their most where they fill the match's own stack:
+// 1, or 0 where they contain the most or the cellblock cannot meet the cell
 static int match_end_room(CliRegexpRun *run)
 {
     if (run->ends_top < run->ends_room)
     {
         return 1;
     }
-    if (run->ends_room >= CLI_REGEXP_ENDS_MOST)
+    // the caller's storage full, the stack goes once into a cell of the most it stands at
+    unsigned int *const cell =
+        run->ends_reserved
+            ? NULL
+            : g_cli_cells->temporary_buf_alloc(CLI_REGEXP_ENDS_MOST * sizeof(unsigned int), &g_cli_text_cells);
+    if (cell == NULL)
     {
         return 0;
     }
-    const unsigned long long room = run->ends_room * 2ull;
-    // a stack in a cell of its own grows where it stands; one in the caller's storage is copied into a first cell
-    unsigned int *const grown = run->ends_reserved
-                                    ? cli_cell_regrown(run->ends, (size_t)(run->ends_top * sizeof(unsigned int)),
-                                                       room * sizeof(unsigned int), &g_cli_text_cells)
-                                    : g_cli_cells->persistent_buf_alloc(room * sizeof(unsigned int), &g_cli_text_cells);
-    if (grown == NULL)
-    {
-        return 0;
-    }
-    if (!run->ends_reserved)
-    {
-        memor.cpy(
-            &(MemoriaCfg){.dst = grown, .src = run->ends, .bytes = (size_t)(run->ends_top * sizeof(unsigned int))});
-    }
-    run->ends = grown;
-    run->ends_room = room;
+    memor.cpy(&(MemoriaCfg){.dst = cell, .src = run->ends, .bytes = (size_t)(run->ends_top * sizeof(unsigned int))});
+    run->ends = cell;
+    run->ends_room = CLI_REGEXP_ENDS_MOST;
     run->ends_reserved = 1;
     return 1;
 }

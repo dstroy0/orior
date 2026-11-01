@@ -59,10 +59,10 @@ typedef struct
 // A kernel: whether its place is taken and how many reference it; its spec; the words, settings, PATH and interrupt
 // event's number its process is started with; its process, whether it has ended and its code; its sockets and the locks
 // a write to each is made under; the id of the request in flight on the shell, "" for none, and the requests queued
-// behind it, each its id, its size and its message whole, a growing line read from `shell_queue_from`, under the
-// shell's lock; its key, session and connection file; the requests waiting on replies, its readers still reading, under
-// its lock and woken by its wake; the port debugpy listens at, under a lock of its own; its interrupt event on Windows;
-// who receives it; its readers and their rooms
+// behind it, each its id, its size and its message whole, a line read from `shell_queue_from`, under the shell's lock;
+// its key, session and connection file; the requests waiting on replies, its readers still reading, under its lock and
+// woken by its wake; the port debugpy listens at, under a lock of its own; its interrupt event on Windows; who receives
+// it; its readers and their rooms
 struct CliKernel
 {
     int taken;

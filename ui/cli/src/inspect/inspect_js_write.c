@@ -4,6 +4,7 @@
 // it returns where it returns a value, and what it throws; and the class around a line with its methods sorted by
 // name
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "inspect_js.h"
 
 // the most parameters and thrown names a JSDoc comment names, and the most members a class sorted contains
@@ -48,9 +49,7 @@ static void write_indent(const char *src, unsigned long long size, unsigned int 
     unsigned long long at = 0ull;
     for (unsigned int index = 0u; (index < line) && (at < size); index += 1u)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (size_t)(size - at)});
-        at = (newline != NULL) ? ((unsigned long long)(newline - src) + 1u) : size;
+        at = cli_text_line_at(src, at, size).next;
     }
     *start = at;
     while (at < size)
@@ -116,10 +115,7 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
         unsigned long long line_end = 0ull;
         write_indent(src, size, to_line, &line_start, &line_end);
         unsigned long long end = line_start;
-        while ((end < size) && (src[end] != '\n'))
-        {
-            end += 1u;
-        }
+        end = cli_text_to_any(src, end, size, "\n");
         while ((end > line_start) && (cellul.chr(&(CatenaFinitaCfg){
                                           .src = " \t\r\v\f", .cap = CLI_CELLS_POOL, .byte = src[end - 1u]}) != NULL))
         {

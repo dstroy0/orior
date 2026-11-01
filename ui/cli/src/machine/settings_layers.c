@@ -37,7 +37,6 @@ static char s_value[CLI_LAYER_VALUE];
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // the bytes the layers' texts are first taken with
-#define CLI_LAYERS_TEXT_FIRST 256ull
 
 void cli_settings_layers_given(CliLayers *layers)
 {
@@ -54,20 +53,14 @@ unsigned int cli_settings_text_stored(CliLayers *layers, const char *text, unsig
     {
         return 0u;
     }
-    if (most > layers->room)
+    if (layers->room == 0ull)
     {
-        // twice the room, or CLI_LAYERS_TEXT_FIRST where it contains none, and texts stored one at a time take the cell
-        // again seldom, up to the most the texts contain
-        const unsigned long long doubled = (layers->room == 0ull) ? CLI_LAYERS_TEXT_FIRST : (2ull * layers->room);
-        const unsigned long long wanted = (most > doubled) ? most : doubled;
-        const unsigned long long room = (wanted < CLI_SETTINGS_TEXT) ? wanted : CLI_SETTINGS_TEXT;
-        char *const grown = cli_cell_regrown(layers->text, (size_t)layers->used, room, &g_cli_settings_cells);
-        if (grown == NULL)
+        layers->text = g_cli_cells->persistent_buf_alloc(CLI_SETTINGS_TEXT, &g_cli_settings_cells);
+        if (layers->text == NULL)
         {
             return 0u;
         }
-        layers->text = grown;
-        layers->room = room;
+        layers->room = CLI_SETTINGS_TEXT;
     }
     // a place is below CLI_SETTINGS_TEXT, which an unsigned int stores
     const unsigned int at = (unsigned int)layers->used;

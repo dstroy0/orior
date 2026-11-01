@@ -4,10 +4,11 @@
 // edits that set one going by the POM's path in the tree, and the line that updates a build's snapshot dependencies
 #include "../builds/builds.h"
 #include "../builds/maven.h"
+#include "../command_line/cells.h"
 #include "serve_internal.h"
 
-// the bytes a setting's edits are begun with, the line growing past them
-#define CLI_SERVE_SET_FIRST 4096ull
+// the bytes a setting's edits are taken with
+#define CLI_SERVE_SET_ROOM (1ull << 20u)
 
 // A POM's text as the calls read it: the argument `text` where the editor has it, else the file mapped, NULL where
 // it is not there, let go with tool_pom_let_go
@@ -20,10 +21,7 @@ typedef struct
 
 static void tool_pom_let_go(const CliServePom *read)
 {
-    if (read->mapped != NULL)
-    {
-        cli_file_let_go(read->mapped, read->size);
-    }
+    cli_file_given(read->mapped, &g_cli_window_cells);
 }
 
 // the POM of the argument `path` of the tree, `pom.xml` at its top where none is given, into `pom`, and its text into
@@ -52,7 +50,7 @@ static int tool_pom_of(const CliServeArgs *args, char *root, char *pom, CliServe
         *read = (CliServePom){text, size, NULL};
         return 1;
     }
-    const unsigned char *const mapped = cli_file_read(pom, &size);
+    const unsigned char *const mapped = cli_file_taken(pom, &size, &g_cli_window_cells);
     // the file's bytes are read as its text; a POM not there is read as empty
     *read = (mapped != NULL) ? (CliServePom){(const char *)mapped, size, mapped} : (CliServePom){"", 0ull, NULL};
     return 1;
@@ -89,8 +87,9 @@ static int maven_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     }
     static char s_head[CLI_PATH_MAX_LEN * 2u];
     cli_lock_take(&s_lock);
-    VerbaLinea set;
-    const int begun = cli_growing_line_made(&set, CLI_SERVE_SET_FIRST, &g_cli_window_cells);
+    char *const set_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_SET_ROOM, &g_cli_window_cells);
+    VerbaLinea set = mmgr_line_over(set_cell, CLI_SERVE_SET_ROOM);
+    const int begun = set.out != NULL;
     const int done = begun && tool_pom_of(args, root, pom, &read, err_msg) &&
                      cli_maven_set(pom, read.text, read.size, key, value, &set, err_msg);
     if (done)

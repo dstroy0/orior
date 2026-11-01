@@ -6,10 +6,10 @@
 #include "net.h"
 #include "report_internal.h"
 
-// the most reports a run files on its own, and the bytes a struck field of a report is begun in before it grows
+// the most reports a run files on its own, and the bytes a struck field of a report is written in
 #define CLI_REPORT_AUTO 5u
 
-#define CLI_REPORT_FIELD_FIRST (4ull << 10u)
+#define CLI_REPORT_FIELD_ROOM (4ull << 20u)
 
 // the fingerprints of the errors this run filed, under the lock
 static char s_filed[CLI_REPORT_AUTO][17];
@@ -38,14 +38,8 @@ static int cli_gh(const char *const *args, unsigned int count, const char *input
     {
         const char *from = ran->out;
         const char *to = ran->out + ran->out_size;
-        while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-        {
-            from += 1;
-        }
-        while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-        {
-            to -= 1;
-        }
+        from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+        to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
         VerbaLinea line = {out, room, 0ull};
         mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
         mmgr_line_finish(&line);
@@ -91,11 +85,13 @@ int cli_report_open_url(const char *url, VerbaLinea *err_msg)
 // the lock a report is struck and filed under, one at a time
 static CliLock s_report_lock = CLI_LOCK_INIT;
 
-// a field of a report struck into `into`, a growing line begun here and given back with
+// a field of a report struck into `into`, a line begun here and given back with
 // g_cli_cells->persistent_buf_release(into->out, &g_cli_machine_cells): the field, "" where its cells are refused
 static const char *cli_struck(const char *text, const char *root, VerbaLinea *into)
 {
-    if (!cli_growing_line_made(into, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    char *const cell = g_cli_cells->temporary_buf_alloc(CLI_REPORT_FIELD_ROOM, &g_cli_machine_cells);
+    *into = mmgr_line_over(cell, CLI_REPORT_FIELD_ROOM);
+    if (cell == NULL)
     {
         return "";
     }
@@ -130,8 +126,10 @@ static int cli_file_by_gh(const CliReport *report, const char *root, const char 
         filed->kind = CLI_FILED_KNOWN;
         return 1;
     }
-    VerbaLinea body;
-    if (!cli_growing_line_temporary(&body, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    const unsigned long long body_room = 5ull * CLI_REPORT_FIELD_ROOM;
+    char *const body_cell = g_cli_cells->temporary_buf_alloc(body_room, &g_cli_machine_cells);
+    VerbaLinea body = mmgr_line_over(body_cell, body_room);
+    if (body.out == NULL)
     {
         return 0;
     }
@@ -181,8 +179,9 @@ static void cli_file_as(const CliReport *given, const char *root, int open, CliF
                               cli_struck(given->what, root, &field[1]), cli_struck(given->steps, root, &field[2]),
                               cli_struck(given->logs, root, &field[3])};
     char print[17];
-    VerbaLinea joined;
-    if (cli_growing_line_temporary(&joined, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    char *const joined_cell = g_cli_cells->temporary_buf_alloc(2ull * CLI_REPORT_FIELD_ROOM, &g_cli_machine_cells);
+    VerbaLinea joined = mmgr_line_over(joined_cell, 2ull * CLI_REPORT_FIELD_ROOM);
+    if (joined_cell != NULL)
     {
         mmgr_line_put(&joined, report.title);
         mmgr_line_ch(&joined, '\n');
@@ -225,18 +224,16 @@ int cli_report_error(const char *category, const char *message, const char *deta
     static char s_scrubbed[CLI_NAME_MAX_LEN * 2u];
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    VerbaLinea report_line;
-    if (cli_growing_line_temporary(&report_line, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    char *const report_cell = g_cli_cells->temporary_buf_alloc(2ull * CLI_REPORT_FIELD_ROOM, &g_cli_machine_cells);
+    VerbaLinea report_line = mmgr_line_over(report_cell, 2ull * CLI_REPORT_FIELD_ROOM);
+    mmgr_line_put(&report_line, message);
+    mmgr_line_ch(&report_line, '\n');
+    mmgr_line_put(&report_line, detail);
+    if (mmgr_line_finish(&report_line) != 0ull)
     {
-        mmgr_line_put(&report_line, message);
-        mmgr_line_ch(&report_line, '\n');
-        mmgr_line_put(&report_line, detail);
-        if (mmgr_line_finish(&report_line) != 0ull)
-        {
-            cli_report_saved(report_line.out, root);
-        }
-        g_cli_cells->persistent_buf_release(report_line.out, &g_cli_machine_cells);
+        cli_report_saved(report_line.out, root);
     }
+    g_cli_cells->persistent_buf_release(report_line.out, &g_cli_machine_cells);
     if (!cli_report_auto() || cli_net_is_disabled())
     {
         cli_lock_give(&s_lock);
@@ -245,19 +242,10 @@ int cli_report_error(const char *category, const char *message, const char *deta
     // the message's first line, trimmed, and the title its category and that line, a hundred letters at most
     const char *first = message;
     const char *end = message;
-    while ((end[0] != '\0') && (end[0] != '\n'))
-    {
-        end += 1;
-    }
+    end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "\n");
     end -= ((end > first) && (end[-1] == '\r')) ? 1 : 0;
-    while ((first < end) && ((first[0] == ' ') || ((first[0] >= '\t') && (first[0] <= '\r'))))
-    {
-        first += 1;
-    }
-    while ((end > first) && ((end[-1] == ' ') || ((end[-1] >= '\t') && (end[-1] <= '\r'))))
-    {
-        end -= 1;
-    }
+    first += cli_text_past_any(first, 0ull, (unsigned long long)(end - first), CLI_TEXT_WHITE);
+    end = first + cli_text_back_past(first, (unsigned long long)(end - first), CLI_TEXT_WHITE);
     char full[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea titled = {full, sizeof(full), 0ull};
     mmgr_line_put(&titled, category);
@@ -311,9 +299,10 @@ int cli_report_error(const char *category, const char *message, const char *deta
         cli_lock_give(&s_lock);
         return 0;
     }
-    VerbaLinea what;
+    char *const what_cell = g_cli_cells->temporary_buf_alloc(CLI_REPORT_FIELD_ROOM, &g_cli_machine_cells);
+    VerbaLinea what = mmgr_line_over(what_cell, CLI_REPORT_FIELD_ROOM);
     const char *err_text = "";
-    if (cli_growing_line_temporary(&what, CLI_REPORT_FIELD_FIRST, &g_cli_machine_cells))
+    if (what_cell != NULL)
     {
         mmgr_line_put(&what, "orior_cli reported this error on its own.\n\n");
         mmgr_line_put(&what, message);

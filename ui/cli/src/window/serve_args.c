@@ -3,6 +3,7 @@
 // serve_args.c: a call's arguments, each found by its own name or by the page's, as the page writes names of more than
 // one word, `with_errors` as `withErrors`; one of the wrong kind refused as serde refuses it, its name before why
 #include "../command_line/cells.h"
+#include "../text/text.h"
 #include "serve_internal.h"
 
 void *cli_serve_cell(unsigned long long size, const char *what, VerbaLinea *err_msg)
@@ -53,17 +54,19 @@ void cli_serve_files_given(CliServeFiles *listed)
 static void args_camel(const char *key, char *out, unsigned long long room)
 {
     VerbaLinea line = {out, room, 0ull};
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
     int upper = 0;
-    for (const char *at = key; *at != '\0'; at += 1)
+    for (unsigned long long at = 0ull; at < size;)
     {
-        if (*at == '_')
+        const unsigned long long stop = cli_text_to_any(key, at, size, "_");
+        if (stop > at)
         {
-            upper = 1;
-            continue;
+            const char first = key[at];
+            mmgr_line_ch(&line, (upper && (first >= 'a') && (first <= 'z')) ? (char)(first - 'a' + 'A') : first);
+            mmgr_line_put_n(&line, key + at + 1ull, stop - at - 1ull);
         }
-        const char one = (upper && (*at >= 'a') && (*at <= 'z')) ? (char)(*at - 'a' + 'A') : *at;
-        mmgr_line_ch(&line, one);
-        upper = 0;
+        upper = 1;
+        at = stop + 1ull;
     }
     (void)mmgr_line_finish(&line);
 }

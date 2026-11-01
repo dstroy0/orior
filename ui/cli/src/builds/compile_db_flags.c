@@ -9,22 +9,30 @@
 // whole, and its `-include` and `/FI` words the files the compiler includes before its first line; a file no entry
 // names takes those of the entry nearest it in the tree
 #include "../command_line/cells.h"
-#include "../command_line/file_writing.h"
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
 // the most files, distinct defines, folders, defines of the files and folders together, defines given, and include
-// folders and files read; and the bytes the texts, and the nodes and bytes the database's tree, are begun with,
-// doubling as they fill
+// folders and files read; and the bytes the texts, and the nodes and bytes the database's tree, are taken with
 #define CLI_FLAGS_FILES 65536u
 #define CLI_FLAGS_DISTINCT 65536u
 #define CLI_FLAGS_FOLDERS 65536u
 #define CLI_FLAGS_IDS (1u << 22u)
 #define CLI_FLAGS_GIVEN (1u << 20u)
 #define CLI_FLAGS_INCLUDES (1u << 20u)
-#define CLI_FLAGS_TEXT_FIRST 4096u
-#define CLI_FLAGS_NODES_FIRST 1024u
-#define CLI_FLAGS_JSON_FIRST 65536ull
+#define CLI_FLAGS_TEXT_MORE (64ull << 10u)
+// the bytes of a compilation database a flag takes at the least, and the entries over those a list takes
+#define CLI_FLAGS_ENTRY_BYTES 32ull
+#define CLI_FLAGS_ENTRIES_MORE 256ull
+
+// the entries a list of the database read takes at the most, by the database's bytes
+static unsigned long long s_flags_entries;
+
+static unsigned int flags_most(unsigned int most)
+{
+    // below `most`, which an unsigned int stores
+    return (s_flags_entries < most) ? (unsigned int)s_flags_entries : most;
+}
 
 // what a word awaits the word after it to be: nothing, a define, or an include folder or file of a kind
 #define CLI_FLAGS_AWAITS_NONE 0u
@@ -64,8 +72,8 @@ typedef struct
 } CliIncludeWord;
 
 // What a read keeps, under the lock: the tree and the database file it read with that file's time, the texts, the
-// distinct defines, those given, the files read with their include runs, and the include folders and files, each
-// list in a cell whose room doubles as it fills
+// distinct defines, those given, the files read with their include runs, and the include folders and files, all in one
+// cell
 typedef struct
 {
     char root[CLI_PATH_MAX_LEN];
@@ -113,7 +121,7 @@ static const char *cli_flags_text(unsigned int at)
 }
 
 // `length` bytes of `text` put after the kept texts with a zero after them: their place, or CLI_JSON_NONE where the
-// line could not grow
+// line is full
 static unsigned int cli_flags_text_put(const char *text, unsigned long long length)
 {
     // the texts read from one database are far under 4 GiB
@@ -140,15 +148,13 @@ static unsigned int cli_flags_word(const char *name, unsigned long long name_len
             return at;
         }
     }
-    CliDefineWord *const words = cli_compile_room(s_kept.word, s_kept.words, &s_kept.word_room, sizeof(CliDefineWord),
-                                                  CLI_FLAGS_DISTINCT, "the distinct defines");
-    const unsigned int named = (words != NULL) ? cli_flags_text_put(name, name_length) : CLI_JSON_NONE;
+    const unsigned int named =
+        (s_kept.words < s_kept.word_room) ? cli_flags_text_put(name, name_length) : CLI_JSON_NONE;
     const unsigned int valued = (named != CLI_JSON_NONE) ? cli_flags_text_put(value, value_length) : CLI_JSON_NONE;
     if (valued == CLI_JSON_NONE)
     {
         return CLI_JSON_NONE;
     }
-    s_kept.word = words;
     s_kept.word[s_kept.words] = (CliDefineWord){named, valued};
     s_kept.words += 1u;
     return s_kept.words - 1u;
@@ -168,14 +174,11 @@ static void cli_flags_id_put(CliFlagsReading *reading, unsigned int first, unsig
             return;
         }
     }
-    unsigned int *const ids = cli_compile_room(reading->id, reading->ids, &reading->id_room, sizeof(unsigned int),
-                                               CLI_FLAGS_IDS, "the defines of the files and folders");
-    if (ids == NULL)
+    if (reading->ids >= reading->id_room)
     {
         reading->refused = 1;
         return;
     }
-    reading->id = ids;
     reading->id[reading->ids] = id;
     reading->ids += 1u;
 }
@@ -185,10 +188,7 @@ static void cli_flags_id_put(CliFlagsReading *reading, unsigned int first, unsig
 static void cli_flags_define(CliFlagsReading *reading, const char *define, unsigned long long length)
 {
     unsigned long long name_length = 0ull;
-    while ((name_length < length) && (define[name_length] != '='))
-    {
-        name_length += 1ull;
-    }
+    name_length = cli_text_to_any(define, name_length, length, "=");
     const int valued = name_length < length;
     const unsigned int id = (name_length != 0ull)
                                 ? cli_flags_word(define, name_length, valued ? (define + name_length + 1u) : "1",
@@ -221,15 +221,9 @@ static void cli_flags_include(CliFlagsReading *reading, const char *named, unsig
     {
         cli_full(reading->directory, given, whole);
     }
-    for (unsigned long long at = 0ull; whole[at] != '\0'; at += 1ull)
-    {
-        whole[at] = (whole[at] == '\\') ? '/' : whole[at];
-    }
-    CliIncludeWord *const includes =
-        cli_compile_room(s_kept.include, s_kept.includes, &s_kept.include_room, sizeof(CliIncludeWord),
-                         CLI_FLAGS_INCLUDES, "the include folders and files");
+    cli_text_swapped(whole, cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}), '\\', '/');
     const unsigned int put =
-        (includes != NULL)
+        (s_kept.includes < s_kept.include_room)
             ? cli_flags_text_put(whole, cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}))
             : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
@@ -237,7 +231,6 @@ static void cli_flags_include(CliFlagsReading *reading, const char *named, unsig
         reading->refused = 1;
         return;
     }
-    s_kept.include = includes;
     s_kept.include[s_kept.includes] = (CliIncludeWord){put, kind};
     s_kept.includes += 1u;
 }
@@ -334,10 +327,7 @@ static int cli_flags_file_of(const CliJson *json, unsigned int entry, const char
     char top[CLI_PATH_MAX_LEN];
     const unsigned long long top_length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
     memor.cpy(&(MemoriaCfg){.dst = top, .src = root, .bytes = (size_t)top_length + 1u});
-    for (unsigned long long at = 0ull; joined[at] != '\0'; at += 1ull)
-    {
-        joined[at] = (joined[at] == '\\') ? '/' : joined[at];
-    }
+    cli_text_swapped(joined, cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}), '\\', '/');
     for (unsigned long long at = 0ull; at < top_length; at += 1ull)
     {
         top[at] = (top[at] == '\\') ? '/' : top[at];
@@ -377,28 +367,26 @@ static unsigned int cli_flags_folder_met(CliFlagsReading *reading, const char *p
             cli_text_same(kept, path, length))
         {
             CliDefineNode *const folder = &reading->folder[at];
-            unsigned int held = 0u;
+            unsigned int kept = 0u;
             for (unsigned int each = 0u; each < folder->count; each += 1u)
             {
                 const unsigned int id = reading->id[folder->first + each];
                 if (cli_flags_holds(reading, file, id))
                 {
-                    reading->id[folder->first + held] = id;
-                    held += 1u;
+                    reading->id[folder->first + kept] = id;
+                    kept += 1u;
                 }
             }
-            folder->count = held;
+            folder->count = kept;
             return at;
         }
     }
-    CliDefineNode *const folders = cli_compile_room(reading->folder, reading->folders, &reading->folder_room,
-                                                    sizeof(CliDefineNode), CLI_FLAGS_FOLDERS, "the folders read");
-    const unsigned int named = (folders != NULL) ? cli_flags_text_put(path, length) : CLI_JSON_NONE;
+    const unsigned int named =
+        (reading->folders < reading->folder_room) ? cli_flags_text_put(path, length) : CLI_JSON_NONE;
     if (named == CLI_JSON_NONE)
     {
         return CLI_JSON_NONE;
     }
-    reading->folder = folders;
     const unsigned int first = reading->ids;
     for (unsigned int each = 0u; each < file->count; each += 1u)
     {
@@ -418,10 +406,7 @@ static unsigned int cli_flags_parent(const CliFlagsReading *reading, const char 
         return CLI_JSON_NONE;
     }
     unsigned long long cut = length;
-    while ((cut > 0ull) && (path[cut - 1u] != '/'))
-    {
-        cut -= 1ull;
-    }
+    cut = cli_text_back_any(path, cut, "/");
     const unsigned long long parent = (cut > 0ull) ? (cut - 1ull) : 0ull;
     for (unsigned int at = 0u; at < reading->folders; at += 1u)
     {
@@ -446,15 +431,11 @@ static void cli_flags_given_put(CliFlagsReading *reading, const CliDefineNode *n
         {
             continue;
         }
-        CliDefineNodeGiven *const given =
-            cli_compile_room(s_kept.given, s_kept.givens, &s_kept.given_room, sizeof(CliDefineNodeGiven),
-                             CLI_FLAGS_GIVEN, "the defines given");
-        if (given == NULL)
+        if (s_kept.givens >= s_kept.given_room)
         {
             reading->refused = 1;
             return;
         }
-        s_kept.given = given;
         s_kept.given[s_kept.givens] = (CliDefineNodeGiven){node->path, id};
         s_kept.givens += 1u;
     }
@@ -479,15 +460,12 @@ static void cli_flags_entries(CliFlagsReading *reading, const CliJson *json, uns
             seen = cellul.eq(
                 &(CatenaFinitaCfg){.src = cli_flags_text(s_kept.file[at].path), .other = path, .cap = CLI_CELLS_POOL});
         }
-        CliDefineNode *const files = seen ? NULL
-                                          : cli_compile_room(s_kept.file, s_kept.files, &s_kept.file_room,
-                                                             sizeof(CliDefineNode), CLI_FLAGS_FILES, "the files read");
-        const unsigned int named = (files != NULL) ? cli_flags_text_put(path, length) : CLI_JSON_NONE;
+        const unsigned int named =
+            (!seen && (s_kept.files < s_kept.file_room)) ? cli_flags_text_put(path, length) : CLI_JSON_NONE;
         if (named == CLI_JSON_NONE)
         {
             continue;
         }
-        s_kept.file = files;
         s_kept.file[s_kept.files] = (CliDefineNode){named, reading->ids, 0u, s_kept.includes, 0u};
         reading->awaiting = CLI_FLAGS_AWAITS_NONE;
         reading->directory = cli_json_string(json, cli_json_member(json, entry, "directory"), NULL);
@@ -535,10 +513,7 @@ static void cli_flags_lifted(CliFlagsReading *reading)
         int done = 0;
         while (!done)
         {
-            while ((cut > 0ull) && (path[cut - 1u] != '/'))
-            {
-                cut -= 1ull;
-            }
+            cut = cli_text_back_any(path, cut, "/");
             const unsigned long long length = (cut > 0ull) ? (cut - 1ull) : 0ull;
             reading->refused |= cli_flags_folder_met(reading, path, length, &file) == CLI_JSON_NONE;
             done = (cut == 0ull) || reading->refused;
@@ -558,11 +533,7 @@ static void cli_flags_lifted(CliFlagsReading *reading)
 // the kept flags let go, their cells given back, under the lock
 static void cli_flags_let_go(void)
 {
-    g_cli_cells->persistent_buf_release(s_kept.text.out, &g_cli_compile_cells);
     g_cli_cells->persistent_buf_release(s_kept.word, &g_cli_compile_cells);
-    g_cli_cells->persistent_buf_release(s_kept.given, &g_cli_compile_cells);
-    g_cli_cells->persistent_buf_release(s_kept.file, &g_cli_compile_cells);
-    g_cli_cells->persistent_buf_release(s_kept.include, &g_cli_compile_cells);
     s_kept.text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     s_kept.word = NULL;
     s_kept.words = 0u;
@@ -611,26 +582,61 @@ static void cli_flags_read(const char *root)
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     s_kept.database = stamped;
-    if (!there || !cli_growing_line_made(&s_kept.text, CLI_FLAGS_TEXT_FIRST, &g_cli_compile_cells))
+    unsigned long long database_size = 0ull;
+    if (!there || !cli_file_size(stamped.path, &database_size))
     {
         return;
     }
+    // the flags' texts stand among the database's own bytes
+    s_flags_entries = (database_size / CLI_FLAGS_ENTRY_BYTES) + CLI_FLAGS_ENTRIES_MORE;
+    const unsigned long long text_room = database_size + CLI_FLAGS_TEXT_MORE;
+    const unsigned int word_room = flags_most(CLI_FLAGS_DISTINCT);
+    const unsigned int given_room = flags_most(CLI_FLAGS_GIVEN);
+    const unsigned int file_room = flags_most(CLI_FLAGS_FILES);
+    const unsigned int include_room = flags_most(CLI_FLAGS_INCLUDES);
+    const unsigned long long word_bytes = (unsigned long long)word_room * sizeof(CliDefineWord);
+    const unsigned long long given_bytes = (unsigned long long)given_room * sizeof(CliDefineNodeGiven);
+    const unsigned long long file_bytes = (unsigned long long)file_room * sizeof(CliDefineNode);
+    const unsigned long long include_bytes = (unsigned long long)include_room * sizeof(CliIncludeWord);
+    char *const kept = g_cli_cells->persistent_buf_alloc(
+        word_bytes + given_bytes + file_bytes + include_bytes + text_room, &g_cli_compile_cells);
+    if (kept == NULL)
+    {
+        return;
+    }
+    s_kept.word = (CliDefineWord *)(void *)kept;
+    s_kept.word_room = word_room;
+    s_kept.given = (CliDefineNodeGiven *)(void *)(kept + word_bytes);
+    s_kept.given_room = given_room;
+    s_kept.file = (CliDefineNode *)(void *)(kept + word_bytes + given_bytes);
+    s_kept.file_room = file_room;
+    s_kept.include = (CliIncludeWord *)(void *)(kept + word_bytes + given_bytes + file_bytes);
+    s_kept.include_room = include_room;
+    s_kept.text = (VerbaLinea){kept + word_bytes + given_bytes + file_bytes + include_bytes, text_room, 0ull};
     CliJson json;
-    if (!cli_json_growing(&json, CLI_FLAGS_NODES_FIRST, CLI_FLAGS_JSON_FIRST, "the compilation database's flags",
-                          &g_cli_compile_cells))
-    {
-        return;
-    }
-    const unsigned int entries = cli_compile_json_read(&json, stamped.path);
+    char unread_text[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {unread_text, sizeof(unread_text), 0ull};
+    const unsigned int entries = cli_json_file_taken(&json, stamped.path, 0u, 0ull, &unread, &g_cli_compile_cells);
+    const unsigned int folder_room = flags_most(CLI_FLAGS_FOLDERS);
+    const unsigned int id_room = flags_most(CLI_FLAGS_IDS);
+    const unsigned long long folder_bytes = (unsigned long long)folder_room * sizeof(CliDefineNode);
+    char *const work = g_cli_cells->temporary_buf_alloc(
+        folder_bytes + ((unsigned long long)id_room * sizeof(unsigned int)), &g_cli_compile_cells);
     CliFlagsReading reading = {root, NULL, 0u, 0u, NULL, 0u, 0u, NULL, CLI_FLAGS_AWAITS_NONE, 0u, 0};
+    if (work != NULL)
+    {
+        reading.folder = (CliDefineNode *)(void *)work;
+        reading.folder_room = folder_room;
+        reading.id = (unsigned int *)(void *)(work + folder_bytes);
+        reading.id_room = id_room;
+    }
     if (cli_json_is(&json, entries, CFG_JSON_ARRAY))
     {
         cli_flags_entries(&reading, &json, entries);
         cli_flags_lifted(&reading);
     }
     cli_json_given(&json);
-    g_cli_cells->persistent_buf_release(reading.folder, &g_cli_compile_cells);
-    g_cli_cells->persistent_buf_release(reading.id, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(work, &g_cli_compile_cells);
 }
 
 // the define of the `-D` word's `name`, `NAME` or `NAME(PARAMS)`, and `value`, given to `node`, handed to `each`: a
@@ -643,26 +649,19 @@ static void cli_flags_define_handed(const char *name, const char *value, const c
     char params[CLI_NAME_MAX_LEN];
     CliDefineGiven define = {named, 0, {NULL}, 0u, 0, value, node};
     unsigned long long at = 0ull;
-    while ((name[at] != '\0') && (name[at] != '(') && ((at + 1u) < sizeof(named)))
-    {
-        named[at] = name[at];
-        at += 1ull;
-    }
+    at = cli_text_to_any(name, 0ull, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), "(");
+    at = (at < sizeof(named)) ? at : (sizeof(named) - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = named, .src = name, .bytes = (size_t)at});
     named[at] = '\0';
     define.called = name[at] == '(';
     unsigned long long put = 0ull;
     const char *from = define.called ? (name + at + 1u) : "";
     while ((*from != '\0') && (*from != ')') && (define.params < CLI_DEFINE_PARAMS))
     {
-        while ((*from == ' ') || (*from == '\t'))
-        {
-            from += 1;
-        }
+        from +=
+            cli_text_past_any(from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), " \t");
         const char *to = from;
-        while ((*to != '\0') && (*to != ',') && (*to != ')') && (*to != ' ') && (*to != '\t'))
-        {
-            to += 1;
-        }
+        to += cli_text_to_any(to, 0ull, cellul.len(&(CatenaFinitaCfg){.src = to, .cap = CLI_CELLS_POOL}), ",) \t");
         // a parameter's name lies between its separators, its end at or past its start
         const unsigned long long length = (unsigned long long)(to - from);
         const int rest = (length == 3ull) && cli_text_same(from, "...", 3ull);
@@ -675,10 +674,7 @@ static void cli_flags_define_handed(const char *name, const char *value, const c
             put += length + 1u;
         }
         define.rest |= rest;
-        while ((*to == ' ') || (*to == '\t'))
-        {
-            to += 1;
-        }
+        to += cli_text_past_any(to, 0ull, cellul.len(&(CatenaFinitaCfg){.src = to, .cap = CLI_CELLS_POOL}), " \t");
         from = (*to == ',') ? (to + 1) : to;
     }
     each(context, &define);
@@ -705,10 +701,7 @@ void cli_compile_db_defines_of(const char *root, const char *path, CliDefineEach
         }
         done = cut >= length;
         cut += (cut == 0ull) ? 0ull : 1ull;
-        while ((cut < length) && (path[cut] != '/'))
-        {
-            cut += 1ull;
-        }
+        cut = cli_text_to_any(path, cut, length, "/");
     }
     cli_lock_give(&s_kept_lock);
 }
@@ -738,10 +731,8 @@ void cli_compile_db_includes_all(const char *root, CliIncludeEach each, void *co
 static unsigned long long cli_flags_shared(const char *one, const char *other)
 {
     unsigned long long shared = 0ull;
-    for (unsigned long long at = 0ull; (one[at] != '\0') && (one[at] == other[at]); at += 1ull)
-    {
-        shared = (one[at] == '/') ? (at + 1ull) : shared;
-    }
+    shared =
+        cli_text_back_any(one, cellul.diff(&(CatenaFinitaCfg){.src = one, .other = other, .cap = CLI_CELLS_POOL}), "/");
     return shared;
 }
 

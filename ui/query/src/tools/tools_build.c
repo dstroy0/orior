@@ -13,10 +13,9 @@
 
 #define QUERY_COMPILE_WORDS (8u + 4u + QUERY_INCLUDES_MOST + 8u)
 
-// the most of what a compiler or the linker printed retained to explain why a build failed, and the bytes it is begun
-// to be stored in, doubling as it is
+// the most of what a compiler or the linker printed retained to explain why a build failed, and the bytes it is taken
+// to be stored in
 #define QUERY_BUILD_OUTPUT_MAX_LEN 65536u
-#define QUERY_BUILD_OUTPUT_INIT_CAP 4096u
 
 // One compile: the compiler, its words, the program first and NULL after the last, and the source they compile
 typedef struct
@@ -27,11 +26,12 @@ typedef struct
 
 static char s_includes[QUERY_INCLUDES_MOST][QUERY_PATH_MAX_LEN + 2u];
 
-// the output of `process` read to its end, QUERY_BUILD_OUTPUT_MAX_LEN bytes of it at the most, into `output`, a growing
-// line, its trailing blank lines left off and closed, and the process waited on: its exit code
+// the output of `process` read to its end, QUERY_BUILD_OUTPUT_MAX_LEN bytes of it at the most, into `output`, a line,
+// its trailing blank lines left off and closed, and the process waited on: its exit code
 static long long query_build_read(QueryProcess *process, VerbaLinea *output)
 {
-    (void)cli_growing_line_made(output, QUERY_BUILD_OUTPUT_INIT_CAP, &g_query_cells);
+    char *const cell = g_cli_cells->temporary_buf_alloc(QUERY_BUILD_OUTPUT_MAX_LEN + 1ull, &g_query_cells);
+    *output = mmgr_line_over(cell, QUERY_BUILD_OUTPUT_MAX_LEN + 1ull);
     for (;;)
     {
         char piece[4096];
@@ -45,10 +45,9 @@ static long long query_build_read(QueryProcess *process, VerbaLinea *output)
         mmgr_line_put_n(output, piece, (got < room) ? got : room);
     }
     // what the compiler printed, its trailing blank lines left off
-    while (mmgr_line_ok(output) && (output->at != 0ull) &&
-           ((output->out[output->at - 1u] == '\n') || (output->out[output->at - 1u] == '\r')))
+    if (mmgr_line_ok(output))
     {
-        output->at -= 1ull;
+        output->at = cli_text_back_past(output->out, output->at, "\n\r");
     }
     (void)mmgr_line_finish(output);
     return query_process_wait(process);
@@ -233,7 +232,7 @@ static int query_tool_compiled(const char *root, const QueryPrograms *programs, 
         newest = (seconds > newest) ? seconds : newest;
     }
     // the objects' room taken for every source before one is named, as each compile reserves its object's place
-    if (!query_paths_reserved(&g_query_objects, c + cxx + tools))
+    if (!query_paths_taken(&g_query_objects, c + cxx + tools))
     {
         mmgr_line_put(err_msg, "the objects of ");
         mmgr_line_put(err_msg, name);

@@ -4,8 +4,10 @@
 // address it loads from in the window's `view` scheme, which Windows reaches as an http host and the other platforms by
 // the scheme's own name; and each file a page window asks for served from under the tree and nothing outside it, read
 // where it lies, or over the link where the tree is on another machine
+#include "../command_line/cells.h"
 #include "../comms/link.h"
 #include "../text/base64.h"
+#include "../text/text.h"
 #include "window_internal.h"
 
 // where the `view` scheme's addresses begin
@@ -15,8 +17,8 @@
 #define CLI_VIEW_BASE "view://localhost/"
 #endif
 
-// the bytes a file's bytes as base64 are read over the link in, begun at and doubling as they fill
-#define CLI_VIEW_LINKED_FIRST (64ull << 10u)
+// the bytes a file's bytes as base64 are read over the link in, begun at and
+#define CLI_VIEW_LINKED_ROOM (64ull << 20u)
 
 // the media type of a page's text, of an error's, and of anything a file's name does not say
 #define CLI_VIEW_TEXT "text/plain; charset=utf-8"
@@ -53,10 +55,9 @@ static const CliViewType s_types[] = {
 static const char *view_media_type(const char *path)
 {
     const char *ending = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        ending = (*at == '.') ? (at + 1) : ending;
-    }
+    const unsigned long long ending_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), ".");
+    ending = (ending_past != 0ull) ? (path + ending_past) : path;
     for (unsigned int at = 0u; (ending != path) && (at < sizeof(s_types) / sizeof(s_types[0])); at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = ending, .other = s_types[at].ending, .cap = CLI_CELLS_POOL}))
@@ -150,8 +151,10 @@ static void view_linked_served(const char *path, const char *media_type, CliWind
     mmgr_line_put(&args, "{\"path\":");
     cli_window_quoted(&args, path);
     mmgr_line_ch(&args, '}');
-    VerbaLinea read;
-    if (!mmgr_line_ok(&args) || !cli_growing_line_temporary(&read, CLI_VIEW_LINKED_FIRST, &g_cli_window_cells))
+    char *const read_cell =
+        mmgr_line_ok(&args) ? g_cli_cells->temporary_buf_alloc(CLI_VIEW_LINKED_ROOM, &g_cli_window_cells) : NULL;
+    VerbaLinea read = mmgr_line_over(read_cell, CLI_VIEW_LINKED_ROOM);
+    if (read_cell == NULL)
     {
         mmgr_line_put(&err_msg, "the file's cells could not be taken");
         view_refused(served, context, 404u, &err_msg);
@@ -186,15 +189,8 @@ void cli_window_view_served(const char *path, unsigned long long size, CliWindow
 {
     char decoded[CLI_PATH_MAX_LEN];
     VerbaLinea named = {decoded, sizeof(decoded), 0ull};
-    for (unsigned long long at = ((size > 0ull) && (path[0] == '/')) ? 1ull : 0ull; at < size; at += 1ull)
-    {
-        const int escaped = (path[at] == '%') && (at + 2ull < size) && (view_hex_of(path[at + 1ull]) < 16u) &&
-                            (view_hex_of(path[at + 2ull]) < 16u);
-        // two hexadecimal digits make a byte, below 256
-        mmgr_line_ch(&named,
-                     escaped ? (char)((view_hex_of(path[at + 1ull]) << 4u) | view_hex_of(path[at + 2ull])) : path[at]);
-        at += escaped ? 2ull : 0ull;
-    }
+    const unsigned long long lead = ((size > 0ull) && (path[0] == '/')) ? 1ull : 0ull;
+    cli_text_put_unescaped(&named, path + lead, size - lead);
     char why[CLI_PATH_MAX_LEN + 64u];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (mmgr_line_finish(&named) == 0ull)
@@ -223,7 +219,8 @@ void cli_window_view_served(const char *path, unsigned long long size, CliWindow
         return;
     }
     unsigned long long file_size = 0ull;
-    const unsigned char *const mapped = query_is_file(full) ? cli_file_read(full, &file_size) : NULL;
+    const unsigned char *const mapped =
+        query_is_file(full) ? cli_file_taken(full, &file_size, &g_cli_window_cells) : NULL;
     if ((mapped == NULL) && (!query_is_file(full) || !cli_file_size(full, &file_size) || (file_size > 0ull)))
     {
         mmgr_line_put(&err_msg, decoded);
@@ -232,10 +229,7 @@ void cli_window_view_served(const char *path, unsigned long long size, CliWindow
         return;
     }
     served(context, 200u, media_type, (mapped != NULL) ? mapped : (const unsigned char *)"", file_size);
-    if (mapped != NULL)
-    {
-        cli_file_let_go(mapped, file_size);
-    }
+    cli_file_given(mapped, &g_cli_window_cells);
 }
 
 const CliServeCall g_cli_window_view_calls[] = {

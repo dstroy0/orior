@@ -164,10 +164,10 @@ void cli_document_walked(void);
 // how many walkers walk the texts' colors out on threads of their own now (document_branch.c)
 unsigned int cli_document_walkers(void);
 // the lines from `first` to `last` of the text under `key` as UTF-8, each but the last followed by "\n", in a cell
-// taken for `owner`, given back with persistent_buf_release, their bytes into `size`, and the state the first is entered in
-// written into `state`, `room` bytes, root where it is not colored yet, empty where it does not fit: NULL where no text
-// is stored under `key` or the cells cannot meet the lines; and the same lines written into `out` as a JSON string: 1,
-// or 0 where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
+// taken for `owner`, given back with persistent_buf_release, their bytes into `size`, and the state the first is
+// entered in written into `state`, `room` bytes, root where it is not colored yet, empty where it does not fit: NULL
+// where no text is stored under `key` or the cells cannot meet the lines; and the same lines written into `out` as a
+// JSON string: 1, or 0 where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
 char *cli_document_lines_taken(const char *key, unsigned long long first, unsigned long long last,
                                unsigned long long *size, char *state, unsigned long long room, CellOwner *owner);
 // the lines of the text under `key` read for it, from `*low` to before `*high`: a paged text's those the page holds,
@@ -183,7 +183,7 @@ char *cli_document_text_taken(const char *key, unsigned long long *size, CellOwn
 // not mirror before handed on with the runs the walk kept for them, and colored again where they keep none, and lines
 // outside them colored with no runs handed on: 1, or 0 where no text is stored under `key`. A text stored hands every
 // line's runs on until the page names the lines it mirrors (document_branch.c)
-int cli_document_held(const char *key, unsigned long long from, unsigned long long to);
+int cli_document_cached(const char *key, unsigned long long from, unsigned long long to);
 // the lines from `first` to `last` of the text under `key`, each with the runs the walk kept for it, colored where it
 // keeps none, entered in the state the line above it ends in, written into `out` as a JSON array of `{"from", "runs"}`
 // whatever lines the page mirrors. Where

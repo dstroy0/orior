@@ -18,7 +18,7 @@ const EDGE = "orior.strip.edge";
 // How long the strip stays after the pointer leaves it, in milliseconds.
 const LINGER = 500;
 
-// How far the pointer moves with an item held before the item is being dragged.
+// How far the pointer moves with an item pressed before the item is being dragged.
 const DRAG = 6;
 
 // Each item: its name, its label, and the line it moves along, the bar's or the editor's.
@@ -34,7 +34,7 @@ const ITEMS = [
   ["wait", "What the Window Waits On", "bar"],
   ["focus", "Focus", "bar"],
   ["plugin", "A Plugin Not Answering", "bar"],
-  ["trust", "The Tree's Code Held Back", "bar"],
+  ["trust", "The Tree's Code Kept Back", "bar"],
   ["editor", "The Editor's Line", "bar"],
   ["vim", "Vim Mode", "editor"],
   ["cursor", "Line and Column", "editor"],
@@ -157,8 +157,8 @@ function barMenu(event) {
 // that item's middle.
 function startDragging(bar) {
   bar.addEventListener("pointerdown", (event) => {
-    const held = event.target.closest?.("[data-item]");
-    if (event.button !== 0 || !held || !bar.contains(held)) {
+    const item = event.target.closest?.("[data-item]");
+    if (event.button !== 0 || !item || !bar.contains(item)) {
       return;
     }
     const from = event.clientX;
@@ -166,7 +166,7 @@ function startDragging(bar) {
     const move = (moved) => {
       if (!dragging && Math.abs(moved.clientX - from) > DRAG) {
         dragging = true;
-        held.classList.add("dragged");
+        item.classList.add("dragged");
       }
     };
     const up = (released) => {
@@ -174,12 +174,12 @@ function startDragging(bar) {
       if (!dragging) {
         return;
       }
-      held.classList.remove("dragged");
+      item.classList.remove("dragged");
       // The press that ends a drag is no press on the item.
       window.addEventListener("click", (click) => click.stopPropagation(), { capture: true, once: true });
-      const name = held.dataset.item;
+      const name = item.dataset.item;
       const line = ordered(lineOf(name));
-      const over = [...document.elementsFromPoint(released.clientX, released.clientY)].map((node) => node.closest?.("[data-item]")).find((node) => node && node !== held && lineOf(node.dataset.item) === lineOf(name) && line.includes(node.dataset.item));
+      const over = [...document.elementsFromPoint(released.clientX, released.clientY)].map((node) => node.closest?.("[data-item]")).find((node) => node && node !== item && lineOf(node.dataset.item) === lineOf(name) && line.includes(node.dataset.item));
       if (!over) {
         return;
       }

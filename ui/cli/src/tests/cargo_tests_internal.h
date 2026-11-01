@@ -13,8 +13,6 @@
 // is more, containing the `*room` of `cell`, `cell` given back and `*room` raised: the cell, or NULL where it is
 // refused and `cell` is retained (cargo_scan.c)
 extern CellOwner g_cli_cargo_cells;
-void *cli_cargo_grown(void *cell, unsigned long long *room, unsigned long long most, unsigned long long width,
-                      const char *what);
 
 // what a token of Rust's text is: a word, `::`, or a sign
 #define CLI_RUST_WORD 0u
@@ -45,7 +43,7 @@ typedef struct
 
 // What the search reads into: one file's tokens, in a cell of their count; what the files followed contain, stored in
 // turn as each file is followed and let go once it and the files it names are; and the bytes their names take, each in
-// a cell grown as it fills
+// a cell at their most
 typedef struct
 {
     CliRustToken *tokens;

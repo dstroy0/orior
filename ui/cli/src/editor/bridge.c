@@ -52,10 +52,7 @@ static int cli_next_line(const char **at, const char *end, unsigned int *number,
     {
         const char *from = *at;
         const char *stop = from;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         *at = (stop < end) ? (stop + 1) : stop;
         const unsigned int line = *number;
         *number += 1u;
@@ -516,15 +513,15 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         mmgr_line_put(&file, folder);
         mmgr_line_ch(&file, '/');
         mmgr_line_put(&file, one->name);
-        one->bytes =
-            (cli_bridge_named(one->name) && (mmgr_line_finish(&file) != 0ull)) ? cli_file_read(path, &one->size) : NULL;
-        unsigned long long lines = 1ull;
-        for (unsigned long long letter = 0ull; (one->bytes != NULL) && (letter < one->size); letter += 1ull)
+        one->bytes = (cli_bridge_named(one->name) && (mmgr_line_finish(&file) != 0ull))
+                         ? cli_file_taken(path, &one->size, &g_cli_editor_cells)
+                         : NULL;
+        if (one->bytes != NULL)
         {
-            lines += (one->bytes[letter] == '\n') ? 1ull : 0ull;
+            const unsigned long long lines = 1ull + cli_text_counted((const char *)one->bytes, one->size, '\n');
+            nodes += (CLI_BRIDGE_LINE_NODES * lines) + CLI_BRIDGE_FILE_NODES;
+            text += (2ull * one->size) + (CLI_BRIDGE_LINE_TEXT * lines) + CLI_PATH_MAX_LEN;
         }
-        nodes += (one->bytes != NULL) ? ((CLI_BRIDGE_LINE_NODES * lines) + CLI_BRIDGE_FILE_NODES) : 0ull;
-        text += (one->bytes != NULL) ? ((2ull * one->size) + (CLI_BRIDGE_LINE_TEXT * lines) + CLI_PATH_MAX_LEN) : 0ull;
     }
     // a tree's node count is an unsigned int's, and a bridge past it reads as full
     const int swap = (nodes < CLI_JSON_NONE) &&
@@ -564,7 +561,7 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         {
             cli_json_append(json, rulesets, cli_bridge_ruleset(json, relative, text_of, one->size));
         }
-        cli_file_let_go(one->bytes, one->size);
+        cli_file_given(one->bytes, &g_cli_editor_cells);
     }
     g_cli_cells->persistent_buf_release(files.file, &g_cli_editor_cells);
     cli_json_set(json, bridge, "maps", maps);

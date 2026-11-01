@@ -12,10 +12,10 @@
 // the count of a file's edits where one is no edit or their cell is refused
 #define CLI_SERVE_EDITS_REFUSED 0xFFFFFFFFu
 
-// the bytes a text written over is begun in past the text it is written over, and the bytes the shapes found, the
-// files a search edits and one file's edits are begun in, each before it grows
+// the bytes a text written over is written in past the text it is written over, and the bytes the shapes found, the
+// files a search edits and one file's edits are written in, each
 #define CLI_SERVE_WRITTEN_MORE (4ull << 10u)
-#define CLI_SERVE_FOUND_FIRST (64ull << 10u)
+#define CLI_SERVE_FOUND_ROOM (8ull << 20u)
 
 // the edits of a file as the page gives them, `[{"from", "to", "text"}]`, read into `edit_of`, a cell of their count
 // taken here and given back with g_cli_cells->persistent_buf_release(..., owner) either way: their count, or
@@ -71,11 +71,13 @@ static int edits_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
         const char *const path = cli_json_string(json, cli_json_member(json, file, "path"), NULL);
         const char *const first = (path != NULL) ? path : "";
         int outside = (first[0] == '/') || (first[0] == '\\') || ((first[0] != '\0') && (first[1] == ':'));
-        for (const char *part = first; !outside && (*part != '\0'); part += 1)
+        for (const char *part = cellul.find(
+                 &(CatenaFinitaCfg){.src = first, .cap = CLI_CELLS_POOL, .other = "..", .other_cap = CLI_CELLS_POOL});
+             !outside && (part != NULL);
+             part = cellul.find(&(CatenaFinitaCfg){
+                 .src = part + 1, .cap = CLI_CELLS_POOL, .other = "..", .other_cap = CLI_CELLS_POOL}))
         {
-            outside = (part == first || part[-1] == '/') &&
-                      (cellul.starts(&(CatenaFinitaCfg){.src = part, .other = "..", .cap = CLI_CELLS_POOL})) &&
-                      ((part[2] == '/') || (part[2] == '\0'));
+            outside = ((part == first) || (part[-1] == '/')) && ((part[2] == '/') || (part[2] == '\0'));
         }
         if ((path == NULL) || outside)
         {
@@ -87,12 +89,14 @@ static int edits_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
         char full[CLI_PATH_MAX_LEN];
         cli_full(root, path, full);
         unsigned long long size = 0ull;
-        const unsigned char *const mapped = cli_file_read(full, &size);
+        const unsigned char *const mapped = cli_file_taken(full, &size, &g_cli_serve_shape_cells);
         const char *const was = (const char *)mapped;
         CliTextEdit *edit = NULL;
         const unsigned int count = lsp_edits_of(json, cli_json_member(json, file, "edits"), &edit, err_msg);
-        VerbaLinea text;
-        const int begun = cli_growing_line_temporary(&text, size + CLI_SERVE_WRITTEN_MORE, &g_cli_serve_shape_cells);
+        const unsigned long long text_room = size + CLI_SERVE_WRITTEN_MORE;
+        char *const text_cell = g_cli_cells->temporary_buf_alloc(text_room, &g_cli_serve_shape_cells);
+        VerbaLinea text = mmgr_line_over(text_cell, text_room);
+        const int begun = text.out != NULL;
         const int read = (mapped != NULL) && cli_utf8_whole(was, size);
         if (!read)
         {
@@ -106,7 +110,7 @@ static int edits_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
             done = 0;
         }
         // the file is let go before it is written over, as the write puts a new file in its place
-        cli_file_let_go(mapped, size);
+        cli_file_given(mapped, &g_cli_serve_shape_cells);
         if (done && !query_file_written(full, text.out, text.at))
         {
             done = 0;
@@ -162,14 +166,16 @@ static int shape_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     }
     const char *const template_text = cli_serve_string_or(args, "template", NULL);
     const char *const one = cli_serve_string_or(args, "path", NULL);
-    VerbaLinea found = {NULL, 0ull, 0ull};
-    VerbaLinea files = {NULL, 0ull, 0ull};
-    VerbaLinea edits = {NULL, 0ull, 0ull};
-    const int begun = cli_growing_line_temporary(&found, CLI_SERVE_FOUND_FIRST, &g_cli_serve_shape_cells) &&
-                      cli_growing_line_temporary(&files, CLI_SERVE_FOUND_FIRST, &g_cli_serve_shape_cells) &&
-                      cli_growing_line_temporary(&edits, CLI_SERVE_FOUND_FIRST, &g_cli_serve_shape_cells);
-    CliLanguages *const languages =
-        (begun && (one == NULL)) ? g_cli_cells->temporary_buf_alloc(sizeof(*languages), &g_cli_serve_shape_cells) : NULL;
+    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_FOUND_ROOM, &g_cli_serve_shape_cells);
+    char *const files_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_FOUND_ROOM, &g_cli_serve_shape_cells);
+    char *const edits_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_FOUND_ROOM, &g_cli_serve_shape_cells);
+    VerbaLinea found = mmgr_line_over(found_cell, CLI_SERVE_FOUND_ROOM);
+    VerbaLinea files = mmgr_line_over(files_cell, CLI_SERVE_FOUND_ROOM);
+    VerbaLinea edits = mmgr_line_over(edits_cell, CLI_SERVE_FOUND_ROOM);
+    const int begun = (found_cell != NULL) && (files_cell != NULL) && (edits_cell != NULL);
+    CliLanguages *const languages = (begun && (one == NULL))
+                                        ? g_cli_cells->temporary_buf_alloc(sizeof(*languages), &g_cli_serve_shape_cells)
+                                        : NULL;
     if (!begun || ((one == NULL) && (languages == NULL)))
     {
         g_cli_cells->persistent_buf_release(edits.out, &g_cli_serve_shape_cells);
@@ -210,7 +216,8 @@ static int shape_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         // the text as the editor has it, a cell of its size, else the file as the disk stores it, mapped
         unsigned long long size = 0ull;
         char *const editor_text = cli_servers_text_taken(full, &size);
-        const unsigned char *const mapped = (editor_text == NULL) ? cli_file_read(full, &size) : NULL;
+        const unsigned char *const mapped =
+            (editor_text == NULL) ? cli_file_taken(full, &size, &g_cli_serve_shape_cells) : NULL;
         const char *const text = (editor_text != NULL) ? editor_text : (const char *)mapped;
         if ((text != NULL) && ((editor_text != NULL) || cli_utf8_whole(text, size)))
         {
@@ -227,7 +234,7 @@ static int shape_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
                 mmgr_line_put(&files, "]}");
             }
         }
-        cli_file_let_go(mapped, size);
+        cli_file_given(mapped, &g_cli_serve_shape_cells);
         g_cli_cells->persistent_buf_release(editor_text, &g_cli_serve_shape_cells);
     }
     mmgr_line_ch(&found, ']');

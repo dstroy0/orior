@@ -31,15 +31,25 @@ static void query_word_quoted(VerbaLinea *line, const char *word)
     }
     mmgr_line_ch(line, '"');
     unsigned int slashes = 0u;
-    for (const char *walk = word; *walk != '\0'; walk += 1)
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; at < whole;)
     {
-        const unsigned int doubled = (*walk == '"') ? (slashes + 1u) : 0u;
-        for (unsigned int added = 0u; added < doubled; added += 1u)
+        const unsigned long long stop = cli_text_to_any(word, at, whole, "\\\"");
+        mmgr_line_put_n(line, word + at, (size_t)(stop - at));
+        const unsigned long long run_end = cli_text_past_any(word, stop, whole, "\\");
+        mmgr_line_put_n(line, word + stop, (size_t)(run_end - stop));
+        // a slash's count is below the path's bytes, which an unsigned int stores
+        slashes = (run_end == whole) ? (unsigned int)(run_end - stop) : 0u;
+        at = run_end;
+        if ((run_end < whole) && (word[run_end] == '"'))
         {
-            mmgr_line_ch(line, '\\');
+            for (unsigned long long added = stop; added <= run_end; added += 1ull)
+            {
+                mmgr_line_ch(line, '\\');
+            }
+            mmgr_line_ch(line, '"');
+            at = run_end + 1ull;
         }
-        slashes = (*walk == '\\') ? (slashes + 1u) : 0u;
-        mmgr_line_ch(line, *walk);
     }
     for (unsigned int added = 0u; added < slashes; added += 1u)
     {

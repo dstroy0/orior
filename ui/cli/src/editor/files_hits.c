@@ -5,6 +5,7 @@
 #include "../text/json_tree.h"
 #include "../text/regexp.h"
 #include "../text/sift.h"
+#include "../text/text.h"
 #include "files_internal.h"
 
 unsigned long long cli_hit_cut(const unsigned char *text, unsigned long long size)
@@ -65,14 +66,8 @@ static void cli_hit_at(void *context, unsigned long long at)
         return;
     }
     unsigned long long start = at;
-    while ((start > 0ull) && (bytes[start - 1ull] != '\n'))
-    {
-        start -= 1ull;
-    }
-    const unsigned char *const newline =
-        memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = hitting->size - at});
-    // a pointer found in the bytes is at or past their start
-    const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : hitting->size;
+    start = cli_text_back_any((const char *)bytes, start, "\n");
+    const unsigned long long end = cli_text_line_at((const char *)bytes, at, hitting->size).stop;
     // the letters before the query on its line, and the last of them
     unsigned long long before = 0ull;
     unsigned int last = 0u;
@@ -190,15 +185,10 @@ void cli_files_hits_in(const unsigned char *bytes, unsigned long long size, cons
     unsigned int found = 0u;
     while ((start < size) && (found < CLI_HITS_MOST))
     {
-        const unsigned char *const newline =
-            memor.chr(&(MemoriaCfg){.src = bytes + start, .val = '\n', .bytes = size - start});
-        // a pointer found in the bytes is at or past their start
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
+        const CliTextLine bounds = cli_text_line_at((const char *)bytes, start, size);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - start;
-        if ((newline != NULL) && (length > 0ull) && (bytes[end - 1ull] == '\r'))
-        {
-            length -= 1ull;
-        }
+        length -= bounds.stop - bounds.cut;
         index += 1ull;
         unsigned long long col = 0ull;
         if (cli_line_match(bytes + start, length, sought, &col))

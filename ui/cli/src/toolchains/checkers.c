@@ -4,6 +4,7 @@
 #include "../command_line/cells.h"
 #include "../machine/trust.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "checkers_internal.h"
 #include "toolchains.h"
 
@@ -76,38 +77,21 @@ static unsigned int cli_checker_of(unsigned int manifest, const char *id)
 // whether a text is `lower`, ASCII's case aside
 static int cli_same_lower(const char *text, const char *lower)
 {
-    for (; (text[0] != '\0') && (lower[0] != '\0'); text += 1, lower += 1)
-    {
-        const char letter = ((text[0] >= 'A') && (text[0] <= 'Z')) ? (char)(text[0] + 32) : text[0];
-        if (letter != lower[0])
-        {
-            return 0;
-        }
-    }
-    return (text[0] == '\0') && (lower[0] == '\0');
+    return cellul.eq(&(CatenaFinitaCfg){.src = text, .other = lower, .cap = CLI_CELLS_POOL, .ci = 1});
 }
 
 int cli_checkers_named(const char *name, char *id)
 {
     char wanted[CLI_NAME_MAX_LEN];
     const char *from = name;
-    while ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r')))
-    {
-        from += 1;
-    }
+    from += cli_text_past_any(from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}),
+                              CLI_TEXT_WHITE);
     memor.cpy(&(MemoriaCfg){
         .dst = wanted, .src = from, .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL});
-    while ((length > 0ull) &&
-           ((wanted[length - 1ull] == ' ') || ((wanted[length - 1ull] >= '\t') && (wanted[length - 1ull] <= '\r'))))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(wanted, length, CLI_TEXT_WHITE);
     wanted[length] = '\0';
-    for (char *at = wanted; at[0] != '\0'; at += 1)
-    {
-        at[0] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-    }
+    cli_text_lowered(wanted, cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL}));
     if (!checkers_locked())
     {
         return 0;
@@ -237,19 +221,10 @@ static int cli_blank_text(const char *text, unsigned long long size)
 static void cli_last_line(const char *text, unsigned long long size, VerbaLinea *err_msg)
 {
     unsigned long long end = size;
-    while ((end > 0ull) && ((text[end - 1ull] == ' ') || ((text[end - 1ull] >= '\t') && (text[end - 1ull] <= '\r'))))
-    {
-        end -= 1ull;
-    }
+    end = cli_text_back_past(text, end, CLI_TEXT_WHITE);
     unsigned long long start = end;
-    while ((start > 0ull) && (text[start - 1ull] != '\n'))
-    {
-        start -= 1ull;
-    }
-    while ((start < end) && ((text[start] == ' ') || ((text[start] >= '\t') && (text[start] <= '\r'))))
-    {
-        start += 1ull;
-    }
+    start = cli_text_back_any(text, start, "\n");
+    start = cli_text_past_any(text, start, end, CLI_TEXT_WHITE);
     cli_lossy(err_msg, (const unsigned char *)text + start, end - start);
 }
 
@@ -293,17 +268,13 @@ static int cli_checked(unsigned int tool, const char *args_key, const char *file
             continue;
         }
         const unsigned long long start = filled.at;
-        for (const char *letter = word; letter[0] != '\0';)
+        if (file != NULL)
         {
-            const int named =
-                (file != NULL) &&
-                (cellul.starts(&(CatenaFinitaCfg){.src = letter, .other = "{file}", .cap = CLI_CELLS_POOL}));
-            mmgr_line_put(&filled, named ? file : "");
-            if (!named)
-            {
-                mmgr_line_ch(&filled, letter[0]);
-            }
-            letter += named ? 6 : 1;
+            cli_text_put_filled(&filled, word, "{file}", file);
+        }
+        else
+        {
+            mmgr_line_put(&filled, word);
         }
         mmgr_line_ch(&filled, '\0');
         words[count] = s_room->words + start;
@@ -382,15 +353,13 @@ int cli_checkers_check_file(const char *id, const char *root, const char *path, 
     const unsigned int spec = cli_json_member(&s_room->json, tool, "checker");
     const int stdin_read = cli_json_is(&s_room->json, cli_json_member(&s_room->json, spec, "stdin"), CFG_JSON_TRUE);
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = (stdin_read && (text == NULL)) ? cli_file_read(path, &size) : NULL;
+    const unsigned char *const mapped =
+        (stdin_read && (text == NULL)) ? cli_file_taken(path, &size, &g_cli_toolchains_cells) : NULL;
     const char *const input =
         stdin_read ? ((text != NULL) ? text : ((mapped != NULL) ? (const char *)mapped : "")) : NULL;
     const unsigned long long input_length = (text != NULL) ? length : size;
     const int checked = cli_checked(tool, "args", path, root, input, input_length, err_msg);
-    if (mapped != NULL)
-    {
-        cli_file_let_go(mapped, size);
-    }
+    cli_file_given(mapped, &g_cli_toolchains_cells);
     if (checked)
     {
         cli_checkers_file(&s_room->findings, path, 1);

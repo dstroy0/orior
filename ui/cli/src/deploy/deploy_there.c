@@ -4,7 +4,7 @@
 // own folder has them
 #include "../command_line/cells.h"
 #include "../text/digest.h"
-#include "../text/pieces.h"
+#include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -201,7 +201,7 @@ static void there_walk(void *context, const char *name, int is_folder)
         return;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(full, &size);
+    const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_deploy_cells);
     if (bytes == NULL)
     {
         return;
@@ -209,7 +209,7 @@ static void there_walk(void *context, const char *name, int is_folder)
     char digest[65];
     VerbaLinea digest_line = {digest, sizeof(digest), 0ull};
     cli_sha256_text(bytes, size, &digest_line);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_deploy_cells);
     there_pair_put(cli_deploy_text_stored(&s_pool, path, path_line.at), cli_deploy_text_stored(&s_pool, digest, 64u));
 }
 
@@ -233,20 +233,18 @@ int cli_deploy_hashes(unsigned int index, const char *folder, VerbaLinea *err_ms
         cli_link_quote(folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), &command);
         mmgr_line_put(&command, " 2>/dev/null || exit 0; find . -type f -exec sha256sum {} + 2>/dev/null; true");
         mmgr_line_finish(&command);
-        char piece[CLI_DEPLOY_PIECE];
-        CliPieces pieces;
-        VerbaLinea listing;
-        cli_pieces_begun(&pieces, &listing, piece, sizeof(piece), &g_cli_deploy_cells);
+        s_listing = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_HASHES, &g_cli_deploy_cells);
+        VerbaLinea listing = mmgr_line_over(s_listing, CLI_DEPLOY_HASHES);
         const int ran = cli_deploy_remote_run(place, line, NULL, 0ull, &listing, err_msg);
-        unsigned long long size = 0ull;
-        s_listing = cli_pieces_joined(&pieces, &listing, "a place's hashes", &size);
         if (!ran)
         {
             return 0;
         }
-        s_walk_full = (s_listing == NULL);
+        s_walk_full = !mmgr_line_ok(&listing);
+        const unsigned long long size = s_walk_full ? 0ull : listing.at;
         static const char s_split[] = "  ";
-        for (char *at = s_listing; (at != NULL) && (*at != '\0');)
+        // a line is ended by a 0 from its first write, and a line with none holds nothing to walk
+        for (char *at = (size > 0ull) ? s_listing : NULL; (at != NULL) && (*at != '\0');)
         {
             char *const newline = (char *)memor.chr(
                 &(MemoriaCfg){.src = at, .bytes = (size_t)(size - (unsigned long long)(at - s_listing)), .val = '\n'});
@@ -264,10 +262,8 @@ int cli_deploy_hashes(unsigned int index, const char *folder, VerbaLinea *err_ms
                     path += 2;
                 }
                 const char *hash = at;
-                while (*hash == '\\')
-                {
-                    hash += 1;
-                }
+                hash += cli_text_past_any(hash, 0ull,
+                                          cellul.len(&(CatenaFinitaCfg){.src = hash, .cap = CLI_CELLS_POOL}), "\\");
                 there_pair_put(path, hash);
             }
             at = more ? (end + 1) : end;

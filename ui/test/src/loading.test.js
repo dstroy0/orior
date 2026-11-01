@@ -28,11 +28,11 @@ test("a folder opened once the window has started shows no loading pane: the nam
   assert.ok(!shown && pane().hidden, "the loading pane never shown");
 });
 
-test("the pane is glass over the window's lattice, the modes under it not drawn, the eye held back, and stays at least its shortest time", async () => {
+test("the pane is glass over the window's lattice, the modes under it not drawn, the eye kept back, and stays at least its shortest time", async () => {
   showLoading();
   assert.equal(pane().hidden, false);
   assert.equal(pane().dataset.leaving, "false");
-  assert.ok(!document.querySelector("#loading canvas.eye"), "the eye held back");
+  assert.ok(!document.querySelector("#loading canvas.eye"), "the eye kept back");
   assert.ok(!pane().querySelector("canvas"), "no lattice of its own");
   assert.equal(getComputedStyle(pane()).backgroundColor, "rgba(0, 0, 0, 0)", "its ground clear");
   assert.ok(ui.shown("canvas.lattice-window"), "the window's lattice shows through it");

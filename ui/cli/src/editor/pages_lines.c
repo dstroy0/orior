@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pages_lines.c: the lines a reading of a paged text gives, in one cell sized to the lines requested and the bytes
-// read, moved into a cell of twice the room as either fills
+// read
 #include "../command_line/cells.h"
 #include "pages_internal.h"
 
@@ -33,7 +33,8 @@ int cli_page_lines_reserved(CliPageLines *lines, unsigned long long lines_first,
 {
     const unsigned long long lines_most = (lines_first < 1ull) ? 1ull : lines_bounded(lines_first, CLI_PAGE_READ_LINES);
     const unsigned long long text_most = (text_first < 1ull) ? 1ull : lines_bounded(text_first, CLI_PAGE_READ_TEXT);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(lines_heads(lines_most) + text_most, &g_cli_editor_cells);
+    unsigned char *const cell =
+        g_cli_cells->persistent_buf_alloc(lines_heads(lines_most) + text_most, &g_cli_editor_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the lines a reading gives could not be taken");
@@ -53,48 +54,10 @@ void cli_page_lines_emptied(CliPageLines *lines)
 
 int cli_page_lines_room(CliPageLines *lines, unsigned long long lines_more, unsigned long long text_more)
 {
-    const unsigned long long lines_wanted = lines->count + lines_more;
-    const unsigned long long text_wanted = lines->used + text_more;
-    if ((lines_wanted <= lines->lines_most) && (text_wanted <= lines->text_most))
-    {
-        return 1;
-    }
-    if ((lines_wanted > CLI_PAGE_READ_LINES) || (text_wanted > CLI_PAGE_READ_TEXT))
-    {
-        lines->full = 1;
-        return 0;
-    }
-    const unsigned long long lines_twice = 2ull * lines->lines_most;
-    const unsigned long long text_twice = 2ull * lines->text_most;
-    const unsigned long long lines_most =
-        lines_bounded((lines_twice > lines_wanted) ? lines_twice : lines_wanted, CLI_PAGE_READ_LINES);
-    const unsigned long long text_most =
-        lines_bounded((text_twice > text_wanted) ? text_twice : text_wanted, CLI_PAGE_READ_TEXT);
-    // the cell grown where it stands while the starts and lengths keep their places ahead of the text, and the text
-    // alone gains room; a cell with more lines ahead is laid anew in a larger one
-    unsigned char *const grown =
-        (lines_most == lines->lines_most)
-            ? g_cli_cells->buf_grow(lines->cell, lines_heads(lines_most) + text_most, &g_cli_editor_cells)
-            : NULL;
-    if (grown != NULL)
-    {
-        lines_laid(lines, grown, lines_most, text_most);
-        return 1;
-    }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(lines_heads(lines_most) + text_most, &g_cli_editor_cells);
-    if (cell == NULL)
-    {
-        lines->full = 1;
-        return 0;
-    }
-    CliPageLines moved;
-    lines_laid(&moved, cell, lines_most, text_most);
-    memor.cpy(&(MemoriaCfg){.dst = moved.start, .src = lines->start, .bytes = lines->count * sizeof(*moved.start)});
-    memor.cpy(&(MemoriaCfg){.dst = moved.length, .src = lines->length, .bytes = lines->count * sizeof(*moved.length)});
-    memor.cpy(&(MemoriaCfg){.dst = moved.text, .src = lines->text, .bytes = lines->used});
-    g_cli_cells->persistent_buf_release(lines->cell, &g_cli_editor_cells);
-    lines_laid(lines, cell, lines_most, text_most);
-    return 1;
+    const int fits =
+        ((lines->count + lines_more) <= lines->lines_most) && ((lines->used + text_more) <= lines->text_most);
+    lines->full = lines->full || !fits;
+    return fits;
 }
 
 void cli_page_lines_put(CliPageLines *lines, const char *bytes, unsigned long long size)

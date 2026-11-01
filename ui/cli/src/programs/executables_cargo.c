@@ -21,10 +21,7 @@ void cli_toml_value(const char *value, unsigned long long length, char *out, uns
         return;
     }
     unsigned long long end = 0ull;
-    while ((end < length) && (value[end] != '#'))
-    {
-        end += 1ull;
-    }
+    end = cli_text_to_any(value, end, length, "#");
     length = end;
     cli_scan_trim(&value, &length);
     cli_scan_copied(value, length, out, room);
@@ -94,10 +91,7 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
     while (line[0] != '\0')
     {
         const char *stop = line;
-        while ((stop[0] != '\0') && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
         const char *const next = (stop[0] != '\0') ? (stop + 1) : stop;
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
@@ -108,10 +102,7 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
         {
             const char *inner = from + (doubled ? 2 : 1);
             unsigned long long size = 0ull;
-            while ((inner + size) < (from + length) && (inner[size] != ']'))
-            {
-                size += 1ull;
-            }
+            size = cli_text_to_any(inner, 0ull, (unsigned long long)((from + length) - inner), "]");
             cli_scan_trim(&inner, &size);
             cli_scan_copied(inner, size, table, sizeof(table));
             if (doubled && (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) &&
@@ -124,10 +115,7 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
             continue;
         }
         const char *equals = from;
-        while ((equals < (from + length)) && (equals[0] != '='))
-        {
-            equals += 1;
-        }
+        equals += cli_text_to_any(equals, 0ull, (unsigned long long)((from + length) - equals), "=");
         if (equals == (from + length))
         {
             continue;
@@ -199,10 +187,7 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
         }
         mmgr_line_finish(&line_made);
         // the path as Cargo reads it: `/` between its parts and no `./` before it
-        for (char *slash = path; slash[0] != '\0'; slash += 1)
-        {
-            slash[0] = (slash[0] == '\\') ? '/' : slash[0];
-        }
+        cli_text_swapped(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '\\', '/');
         const char *trimmed = path;
         while (cellul.starts(&(CatenaFinitaCfg){.src = trimmed, .other = "./", .cap = CLI_CELLS_POOL}))
         {

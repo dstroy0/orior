@@ -59,8 +59,8 @@ function turnText(node) {
   if ((node.parentElement ?? null)?.closest(KEPT)) {
     return;
   }
-  const held = state.texts.get(node);
-  const english = held && node.nodeValue === held.shown ? held.english : node.nodeValue;
+  const original = state.texts.get(node);
+  const english = original && node.nodeValue === original.shown ? original.english : node.nodeValue;
   const trimmed = english.trim();
   const given = trimmed ? state.words?.[trimmed] : undefined;
   const shown = given === undefined ? english : english.replace(trimmed, given);
@@ -74,21 +74,21 @@ function turnAttributes(element) {
   if (element.closest(KEPT_WHOLE)) {
     return;
   }
-  const held = state.attributes.get(element) ?? {};
+  const original = state.attributes.get(element) ?? {};
   for (const name of ATTRIBUTES) {
     if (!element.hasAttribute(name)) {
       continue;
     }
     const now = element.getAttribute(name);
-    const english = held[name] && now === held[name].shown ? held[name].english : now;
+    const english = original[name] && now === original[name].shown ? original[name].english : now;
     const given = state.words?.[english.trim()];
     const shown = given === undefined ? english : given;
-    held[name] = { english, shown };
+    original[name] = { english, shown };
     if (now !== shown) {
       element.setAttribute(name, shown);
     }
   }
-  state.attributes.set(element, held);
+  state.attributes.set(element, original);
 }
 
 // Whether `element` shows one text split by an underline of its access key, as a menu's title does.
@@ -100,15 +100,15 @@ function turnUnderlined(element) {
   if (element.closest(KEPT)) {
     return;
   }
-  const held = state.units.get(element);
+  const original = state.units.get(element);
   const now = element.textContent;
-  const english = held && now === held.shown ? held.english : now;
-  const letter = held && now === held.shown ? held.letter : (element.querySelector(":scope > u")?.textContent ?? "");
+  const english = original && now === original.shown ? original.english : now;
+  const letter = original && now === original.shown ? original.letter : (element.querySelector(":scope > u")?.textContent ?? "");
   const trimmed = english.trim();
   const given = trimmed ? state.words?.[trimmed] : undefined;
   const shown = given === undefined ? english : english.replace(trimmed, given);
   state.units.set(element, { english, shown, letter });
-  if (held && now === shown) {
+  if (original && now === shown) {
     return;
   }
   const at = given === undefined ? english.indexOf(letter) : shown.toLowerCase().indexOf(letter.toLowerCase());

@@ -7,7 +7,7 @@ import { BRACKETS_KEY, COLUMN_KEY, COMMENTS_KEY, CONTINUATION_KEY, DECLARES, DOC
 // Sizes the scrolling space to every row and the widest line.
 export function size() {
   const rows = this.rows();
-  // A file held as pages is scrolled as the whole file: the lines above the window and below it
+  // A file stored as pages is scrolled as the whole file: the lines above the window and below it
   // stand as padding, and the scroll and the scrollbar stay where they are as the window slides.
   // The space stands for the file's lines from the window's anchor, twice PAGED_PAD of them at the
   // most: the window moving within it moves no line on the screen, and the anchor moves only where
@@ -161,7 +161,7 @@ export function xOf(p) {
 
 // The node the line `line` is drawn in, where its row is on screen.
 export function rowNode(line) {
-  return this.textLayer.held.get(this.rows().rowOf(line))?.node ?? null;
+  return this.textLayer.drawn.get(this.rows().rowOf(line))?.node ?? null;
 }
 
 // The text node, and the place in it, that holds the col `col` of the line drawn in `node`, the

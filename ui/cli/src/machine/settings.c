@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // settings.c: a settings file's own keys, the settings a tree's file does not set, `${name}` read, and a chain of
 // files each taking the next, read and written as the window reads it
+#include "../command_line/cells.h"
 #include "../deploy/devcontainer.h"
 #include "../text/text.h"
 #include "settings_internal.h"
@@ -97,20 +98,14 @@ void cli_settings_expand(const char *text, unsigned long long length,
     while (at < length)
     {
         unsigned long long open = at;
-        while (((open + 1ull) < length) && !((text[open] == '$') && (text[open + 1ull] == '{')))
-        {
-            open += 1ull;
-        }
+        open = cli_text_to_pair(text, at, length, '$', '{');
         if ((open + 1ull) >= length)
         {
             break;
         }
         mmgr_line_put_n(out, text + at, open - at);
         unsigned long long close = open + 2ull;
-        while ((close < length) && (text[close] != '}'))
-        {
-            close += 1ull;
-        }
+        close = cli_text_to_any(text, close, length, "}");
         if (close >= length)
         {
             mmgr_line_put_n(out, text + open, length - open);
@@ -146,10 +141,7 @@ static void cli_tidy(const char *path, char *out)
     for (const char *at = path + root; at[0] != '\0';)
     {
         const char *stop = at;
-        while ((stop[0] != '\0') && (stop[0] != '/') && (stop[0] != '\\'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "/\\");
         const unsigned long long length = (unsigned long long)(stop - at);
         const int here = (length == 1ull) && (at[0] == '.');
         const int up = (length == 2ull) && (at[0] == '.') && (at[1] == '.');
@@ -225,9 +217,13 @@ static void cli_shown(const char *path, const char *root, char *out)
     const char *from = under ? (path + length) : path;
     from += (under && ((from[0] == '/') || (from[0] == '\\'))) ? 1 : 0;
     VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
-    for (; from[0] != '\0'; from += 1)
+    if (under)
     {
-        mmgr_line_ch(&line, (under && (from[0] == '\\')) ? '/' : from[0]);
+        (void)cli_text_put_swapped(&line, from, '\\', '/');
+    }
+    else
+    {
+        mmgr_line_put(&line, from);
     }
     mmgr_line_finish(&line);
 }
@@ -342,13 +338,10 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
                                 .src = full,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_read(next, &size);
+        const unsigned char *const bytes = cli_file_taken(next, &size, &g_cli_settings_cells);
         if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
         {
-            if (bytes != NULL)
-            {
-                cli_file_let_go(bytes, size);
-            }
+            cli_file_given(bytes, &g_cli_settings_cells);
             if (!first || query_is_file(next))
             {
                 cli_problem(chain, named, query_is_file(next) ? ": it could not be read" : ": it is not there");
@@ -358,21 +351,17 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
         first = 0;
         // a file's text with its comments taken out is no longer than the file
         char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_settings_cells);
-        VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
-        if (plain_text != NULL)
-        {
-            // the file's bytes are its text
-            cli_plain_json((const char *)bytes, size, &plain);
-        }
-        cli_file_let_go(bytes, size);
+        VerbaLinea plain = mmgr_line_over(plain_text, size + 1ull);
+        // the file's bytes are its text
+        cli_plain_json((const char *)bytes, size, &plain);
+        cli_file_given(bytes, &g_cli_settings_cells);
         char why[CLI_PATH_MAX_LEN];
         VerbaLinea reason = {why, sizeof(why), 0ull};
         CliJson own;
         cli_json_begun(&own, NULL, 0u, NULL, 0ull);
         const unsigned int values =
-            ((plain_text != NULL) && mmgr_line_ok(&plain))
-                ? cli_json_taken(&own, plain_text, plain.at, 0u, 0ull, &reason, &g_cli_settings_cells)
-                : CLI_JSON_NONE;
+            mmgr_line_ok(&plain) ? cli_json_taken(&own, plain_text, plain.at, 0u, 0ull, &reason, &g_cli_settings_cells)
+                                 : CLI_JSON_NONE;
         if ((values == CLI_JSON_NONE) || !cli_json_is(&own, values, CFG_JSON_OBJECT))
         {
             mmgr_line_finish(&reason);

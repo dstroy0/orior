@@ -6,6 +6,7 @@
 // tree's check is on, a file the editor closes is checked as the disk stores it before its server lets it go. A file
 // the check open is the editor's once it opens, and a file its server has open already receives the diagnostics it last
 // gave. A server whose spec slices is given the tree's slice for the view in place of each text (servers_slice.c)
+#include "../command_line/cells.h"
 #include "servers_internal.h"
 
 // the most files the editor has open
@@ -156,7 +157,7 @@ int cli_servers_close(const char *path, VerbaLinea *err_msg)
     cli_lock_give(&g_cli_servers_texts_lock);
     cli_lock_take(&s_disk_lock);
     unsigned long long read = 0ull;
-    const unsigned char *const mapped = cli_file_read(path, &read);
+    const unsigned char *const mapped = cli_file_taken(path, &read, &g_cli_servers_cells);
     const char *const disk = (const char *)mapped;
     const int whole = (mapped != NULL) && cli_utf8_whole(disk, read);
     cli_servers_inspect_again(path, whole ? disk : NULL, whole ? read : 0ull);
@@ -166,10 +167,7 @@ int cli_servers_close(const char *path, VerbaLinea *err_msg)
     {
         cli_servers_check_own(root, path, disk, read, &s_sink);
     }
-    if (mapped != NULL)
-    {
-        cli_file_let_go(mapped, read);
-    }
+    cli_file_given(mapped, &g_cli_servers_cells);
     cli_lock_give(&s_disk_lock);
     cli_servers_plugins_closed(path);
     // a file the editor closes is the check's to give its server, in slices of the disk's text where it slices; a

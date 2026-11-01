@@ -18,10 +18,12 @@ int main(void)
     gui_frame_laid(&frame, 1440u, 920u, 1.0f);
     cli_check(same(frame.bar, 0, 0, 1440, 41), "the bar runs across the top, forty-one pixels tall");
     cli_check(same(frame.status, 0, 920 - 27, 1440, 27), "the status bar runs across the foot, twenty-seven tall");
-    cli_check(same(frame.strip, 0, 41, 44, 920 - 41 - 27), "the strip runs down the left between them, forty-four wide");
+    cli_check(same(frame.strip, 0, 41, 44, 920 - 41 - 27),
+              "the strip runs down the left between them, forty-four wide");
     cli_check(same(frame.gap, 1440 - 12, 41, 12, 920 - 41 - 27), "the frame's gap runs down the right, twelve wide");
     cli_check(same(frame.work, 44, 41, 1440 - 44 - 12, 920 - 41 - 27), "the work fills what the four leave");
-    cli_check(same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31), "the tabs row stands at the work's head inside its padding");
+    cli_check(same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
+              "the tabs row stands at the work's head inside its padding");
     cli_check(same(frame.editor, 44 + 1, 41 + 2 + 31, 1440 - 44 - 12 - 3 - 84, 920 - 41 - 27 - 3 - 31),
               "the editor fills the work under the tabs row, less the map's column");
     cli_check(same(frame.map, 1440 - 12 - 2 - 84, 41 + 2 + 31, 84, 920 - 41 - 27 - 3 - 31),
@@ -31,13 +33,16 @@ int main(void)
                   (frame.controls.height == 41),
               "the controls end five pixels from the bar's right end, the bar's height tall");
     cli_check(frame.radius == 7u, "the work's corners are rounded by seven");
-    cli_check(same(frame.inside, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 920 - 41 - 27 - 3), "the work's inside is the work less its padding");
+    cli_check(same(frame.inside, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 920 - 41 - 27 - 3),
+              "the work's inside is the work less its padding");
     cli_check(gui_rect_empty(frame.side) && (frame.side.x == 44 + 1), "no side stands in the work until one is shown");
 
     gui_frame_sided(&frame, 1);
-    cli_check(same(frame.side, 44 + 1, 41 + 2, 304, 920 - 41 - 27 - 3), "the side shown stands at the inside's left, three hundred and four wide");
+    cli_check(same(frame.side, 44 + 1, 41 + 2, 304, 920 - 41 - 27 - 3),
+              "the side shown stands at the inside's left, three hundred and four wide");
     cli_check(same(frame.tabs, 44 + 1 + 304, 41 + 2, 1440 - 44 - 12 - 3 - 304, 31), "the tabs row moves past the side");
-    cli_check((frame.editor.x == 44 + 1 + 304) && (frame.editor.width == 1440 - 44 - 12 - 3 - 304 - 84) && (frame.editor.y == 41 + 2 + 31),
+    cli_check((frame.editor.x == 44 + 1 + 304) && (frame.editor.width == 1440 - 44 - 12 - 3 - 304 - 84) &&
+                  (frame.editor.y == 41 + 2 + 31),
               "the editor moves past the side");
     cli_check((frame.map.x == 1440 - 12 - 2 - 84) && (frame.map.width == 84), "the map's column stays at the right");
     gui_frame_sided(&frame, 0);
@@ -61,7 +66,8 @@ int main(void)
     gui_frame_laid(&frame, 1440u, 920u, 1.0f);
     GuiClaimNumbers numbers = frame.claim;
     cli_check(gui_frame_holes(&frame, NULL) == 0u, "no claim makes no holes in the work");
-    cli_check(same(frame.bar_slat, 0, 0, 1440, 41) && same(frame.strip_slat, 0, 41, 44, 920 - 41 - 27) && same(frame.status_slat, 0, 920 - 27, 1440, 27),
+    cli_check(same(frame.bar_slat, 0, 0, 1440, 41) && same(frame.strip_slat, 0, 41, 44, 920 - 41 - 27) &&
+                  same(frame.status_slat, 0, 920 - 27, 1440, 27),
               "outside the claim each slat is its part whole");
     cli_check((frame.bar_edges.top == 0) && (frame.bar_edges.bottom == 41 * GUI_WHOLE) && (frame.bar_edges.left == 0) &&
                   (frame.bar_edges.right == 1440 * GUI_WHOLE) && (frame.status_edges.top == (920 - 27) * GUI_WHOLE) &&
@@ -69,19 +75,22 @@ int main(void)
               "at rest each pane's edges are its rectangle's in the frame's words");
     numbers.claim = GUI_WHOLE;
     gui_frame_claimed(&frame, &numbers);
-    cli_check(same(frame.work, 12, 12, 1440 - 24, 920 - 24), "the claim held, the work is the window less the gap on every side");
+    cli_check(same(frame.work, 12, 12, 1440 - 24, 920 - 24),
+              "the claim standing, the work is the window less the gap on every side");
     cli_check(frame.bar.y + frame.bar.height == 0, "the bar stands off the window's top");
     cli_check(frame.strip.x + frame.strip.width == 0, "the strip stands off the window's left");
     cli_check(frame.status.y == 920, "the status bar stands off the window's foot");
     cli_check((frame.tabs.height == 0) && (frame.map.width == 0), "the tabs row and the map are away");
     cli_check(frame.controls.y + frame.controls.height == 0, "the controls stand off with the bar");
     cli_check(frame.pane_radius == 7u, "the panes are rounded as the work is");
-    cli_check(gui_frame_holes(&frame, (GuiRect[4]){{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}) == 0u, "the parts away make no holes");
+    cli_check(gui_frame_holes(&frame, (GuiRect[4]){{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}) == 0u,
+              "the parts away make no holes");
     numbers.claim = GUI_WHOLE / 2;
     gui_frame_claimed(&frame, &numbers);
     cli_check((frame.work.x == 28) && (frame.work.y == 26) && (frame.bar.y == -21) && (frame.status.y == 920 - 27 + 14),
               "halfway through the claim's slide every edge stands halfway");
-    cli_check((frame.bar_edges.top == -(41 * GUI_WHOLE) / 2) && (frame.bar_edges.bottom == frame.bar_edges.top + (41 * GUI_WHOLE)),
+    cli_check((frame.bar_edges.top == -(41 * GUI_WHOLE) / 2) &&
+                  (frame.bar_edges.bottom == frame.bar_edges.top + (41 * GUI_WHOLE)),
               "the bar's edges carry the half pixel its rectangle rounds away");
     // the head revealed: the bar comes in as a pane the gap down from the top, past the wordmark's corner; the work
     // stays until the room is taken, then moves down under the bar
@@ -91,33 +100,41 @@ int main(void)
     numbers.grown_top = GUI_WHOLE / 2;
     numbers.pulled_top = 700;
     gui_frame_claimed(&frame, &numbers);
-    cli_check(same(frame.bar, 44 + 24, 12, 1440 - 44 - 24 - 12, 41), "the bar revealed stands the gap down and in, past the wordmark's corner");
+    cli_check(same(frame.bar, 44 + 24, 12, 1440 - 44 - 24 - 12, 41),
+              "the bar revealed stands the gap down and in, past the wordmark's corner");
     cli_check(frame.work.y == 12, "the work stands where it stood until the bar is given its room");
-    cli_check((frame.bar_slat.x == 700 - 344) && (frame.bar_slat.x + frame.bar_slat.width == 700 + 364) && (frame.bar_slat.y == 12),
+    cli_check((frame.bar_slat.x == 700 - 344) && (frame.bar_slat.x + frame.bar_slat.width == 700 + 364) &&
+                  (frame.bar_slat.y == 12),
               "the bar's slat is grown half way from the point pulled, from the work's edge to the bar's end");
-    cli_check(same(frame.controls_pane, frame.controls.x - 8, 12, frame.controls.width + 8, 41) && (frame.controls_pane_share == 0),
+    cli_check(same(frame.controls_pane, frame.controls.x - 8, 12, frame.controls.width + 8, 41) &&
+                  (frame.controls_pane_share == 0),
               "the controls stand in the bar, their own pane unseen");
     GuiRect holes[4];
-    cli_check((gui_frame_holes(&frame, holes) == 1u) && (holes[0].y == 12) && (holes[0].x == 356 - 12) && (holes[0].y + holes[0].height == 12 + 41 + 12),
+    cli_check((gui_frame_holes(&frame, holes) == 1u) && (holes[0].y == 12) && (holes[0].x == 356 - 12) &&
+                  (holes[0].y + holes[0].height == 12 + 41 + 12),
               "the bar's slat makes one hole in the work's head, the gap about it");
     numbers.room_top = GUI_WHOLE;
     numbers.grown_top = GUI_WHOLE;
     gui_frame_claimed(&frame, &numbers);
-    cli_check((frame.work.y == 12 + 41 + 12) && (frame.tabs.height == 31), "the room taken, the work stands under the bar and the tabs row is back");
+    cli_check((frame.work.y == 12 + 41 + 12) && (frame.tabs.height == 31),
+              "the room taken, the work stands under the bar and the tabs row is back");
     cli_check(same(frame.bar_slat, 12, 12, 1440 - 24, 41), "the bar's slat grown whole spans from the work's edge");
     // the controls alone: their tab comes down the gap from the top with the bar away
     numbers.reveal_top = 0;
     numbers.room_top = 0;
     gui_frame_claimed(&frame, &numbers);
-    cli_check((frame.controls.y == 12) && (frame.bar.y == -41) && (frame.controls_pane_share == GUI_WHOLE), "the controls' tab stands the gap down while the bar is away");
-    cli_check((gui_frame_holes(&frame, holes) == 1u) && (holes[0].x + holes[0].width == 1440 - 12) && (holes[0].y == 12),
+    cli_check((frame.controls.y == 12) && (frame.bar.y == -41) && (frame.controls_pane_share == GUI_WHOLE),
+              "the controls' tab stands the gap down while the bar is away");
+    cli_check((gui_frame_holes(&frame, holes) == 1u) && (holes[0].x + holes[0].width == 1440 - 12) &&
+                  (holes[0].y == 12),
               "the controls' tab makes a hole at the work's head, snapped to its right edge");
     // the left revealed: the strip comes in under the wordmark's corner
     numbers.reveal_down = 0;
     numbers.reveal_left = GUI_WHOLE;
     numbers.room_left = GUI_WHOLE;
     gui_frame_claimed(&frame, &numbers);
-    cli_check((frame.strip.x == 12) && (frame.strip.y == 12 + 41 + 12) && (frame.strip.y + frame.strip.height == 920 - 12),
+    cli_check((frame.strip.x == 12) && (frame.strip.y == 12 + 41 + 12) &&
+                  (frame.strip.y + frame.strip.height == 920 - 12),
               "the strip revealed stands the gap in, under the wordmark's corner, to the work's foot");
     cli_check(frame.work.x == 12 + 44 + 12, "the left's room taken, the work stands past the strip");
     // the foot revealed
@@ -129,7 +146,8 @@ int main(void)
               "the status bar revealed stands the gap up and in, the work staying until its room is taken");
     numbers.room_bottom = GUI_WHOLE;
     gui_frame_claimed(&frame, &numbers);
-    cli_check(frame.work.y + frame.work.height == 920 - 27 - 24, "the foot's room taken, the work ends above the status bar");
+    cli_check(frame.work.y + frame.work.height == 920 - 27 - 24,
+              "the foot's room taken, the work ends above the status bar");
     // the right revealed brings the map back
     numbers.reveal_right = GUI_WHOLE;
     gui_frame_claimed(&frame, &numbers);

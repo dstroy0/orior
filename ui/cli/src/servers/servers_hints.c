@@ -204,14 +204,13 @@ int cli_servers_hints(const char *path, unsigned int from, unsigned int to, Verb
         return 1;
     }
     cli_servers_reading_locked(&s_reading);
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea hints_line;
-    cli_pieces_begun(&pieces, &hints_line, piece, sizeof(piece), &g_cli_servers_cells);
-    const int has = cli_lsp_text(server, path, &hints_line);
-    unsigned long long joined_size = 0ull;
-    char *const text = cli_pieces_joined(&pieces, &hints_line, "the text a server has", &joined_size);
-    const unsigned long long size = (has && (text != NULL)) ? joined_size : 0ull;
+    // the text the server has, in a cell of its size and the 0 after it
+    unsigned long long text_size = 0ull;
+    const int sized = cli_lsp_text_size(server, path, &text_size);
+    char *const text = sized ? g_cli_cells->temporary_buf_alloc(text_size + 1ull, &g_cli_servers_cells) : NULL;
+    VerbaLinea hints_line = mmgr_line_over(text, text_size + 1ull);
+    const int has = (text != NULL) && cli_lsp_text(server, path, &hints_line) && mmgr_line_ok(&hints_line);
+    const unsigned long long size = has ? hints_line.at : 0ull;
     unsigned long long lines = 1ull;
     unsigned long long last = 0ull;
     for (unsigned long long at = 0ull; at < size; at += 1ull)
@@ -225,8 +224,8 @@ int cli_servers_hints(const char *path, unsigned int from, unsigned int to, Verb
     // the range ends at the start of the line after `to`, or at the end of the text where `to` is its last line
     char uri[CLI_PATH_MAX_LEN];
     cli_servers_uri_of(path, uri);
-    VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
+    char params_text[CLI_SERVERS_PARAMS];
+    VerbaLinea params = {params_text, sizeof(params_text), 0ull};
     hints_params_begun(uri, &params);
     mmgr_line_put(&params, ",\"range\":{\"start\":{\"line\":");
     mmgr_line_decimal(&params, from, 1u);
@@ -237,15 +236,14 @@ int cli_servers_hints(const char *path, unsigned int from, unsigned int to, Verb
     mmgr_line_decimal(&params, inside ? 0ull : cli_text_units((size > 0ull) ? text + last : "", size - last), 1u);
     mmgr_line_put(&params, "}}}");
     g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
-    VerbaLinea result;
-    cli_servers_answer_begun(&s_reading, &result);
-    const int requested = cli_servers_request(server, "textDocument/inlayHint", &pieces, &params,
-                                              CLI_SERVERS_REQUEST_TIMEOUT_MS, &result, err_msg);
+    CliLspAnswer answer;
+    const int requested = cli_servers_request(server, "textDocument/inlayHint", &params, CLI_SERVERS_REQUEST_TIMEOUT_MS,
+                                              &answer, err_msg);
     cli_lsp_unref(server);
     if (requested)
     {
         const CliJson *const json = &s_reading.json;
-        const unsigned int all = cli_servers_answer_read(&s_reading, &result);
+        const unsigned int all = cli_servers_answer_read(&s_reading, &answer);
         mmgr_line_ch(out, '[');
         int written = 0;
         for (unsigned int one = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].first : CLI_JSON_NONE;

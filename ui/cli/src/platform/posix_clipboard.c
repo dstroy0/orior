@@ -12,6 +12,7 @@
 #define _DARWIN_C_SOURCE
 #endif
 #include "../command_line/cli_internal.h"
+#include "../text/text.h"
 
 #if !defined(_WIN32)
 #include <errno.h>
@@ -75,10 +76,7 @@ static unsigned int clipboard_uris_read(const char *list, unsigned long long siz
     for (unsigned long long at = 0ull; at < size;)
     {
         unsigned long long end = at;
-        while ((end < size) && (list[end] != '\n') && (list[end] != '\r'))
-        {
-            end += 1ull;
-        }
+        end = cli_text_to_any(list, end, size, "\n\r");
         const unsigned long long scheme = sizeof(CLI_CLIPBOARD_FILE_SCHEME) - 1u;
         int file = (end - at > scheme);
         for (unsigned long long letter = 0ull; file && (letter < scheme); letter += 1ull)
@@ -88,10 +86,7 @@ static unsigned int clipboard_uris_read(const char *list, unsigned long long siz
         if (file)
         {
             unsigned long long from = at + scheme;
-            while ((from < end) && (list[from] != '/'))
-            {
-                from += 1ull;
-            }
+            from = cli_text_to_any(list, from, end, "/");
             char path[CLI_PATH_MAX_LEN];
             VerbaLinea decoded = {path, sizeof(path), 0ull};
             for (unsigned long long letter = from; letter < end; letter += 1ull)
@@ -166,8 +161,10 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
     // a cut is known to the window alone on macOS, whose pasteboard says no cut of files
     (void)cut;
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_files_put_script, NULL};
-    VerbaLinea input;
-    if (!cli_growing_line_temporary(&input, 4096u, &g_cli_platform_cells))
+    const unsigned long long input_room = 4096u;
+    char *const input_cell = g_cli_cells->temporary_buf_alloc(input_room, &g_cli_platform_cells);
+    VerbaLinea input = mmgr_line_over(input_cell, input_room);
+    if (input.out == NULL)
     {
         return 0;
     }
@@ -188,12 +185,14 @@ typedef struct
     void *context;
 } CliClipboardEach;
 
-unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *path), void *context, int *cut)
+unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *path), void *context, int *cut)
 {
     *cut = -1;
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_files_held_script, NULL};
-    VerbaLinea paths;
-    if (!cli_growing_line_temporary(&paths, 4096u, &g_cli_platform_cells))
+    const unsigned long long paths_room = 4096u;
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(paths_room, &g_cli_platform_cells);
+    VerbaLinea paths = mmgr_line_over(paths_cell, paths_room);
+    if (paths.out == NULL)
     {
         return 0u;
     }
@@ -203,10 +202,7 @@ unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *pa
         for (unsigned long long at = 0ull; at < paths.at;)
         {
             unsigned long long end = at;
-            while ((end < paths.at) && (paths.out[end] != '\n'))
-            {
-                end += 1ull;
-            }
+            end = cli_text_to_any(paths.out, end, paths.at, "\n");
             if (end > at)
             {
                 char path[CLI_PATH_MAX_LEN];
@@ -430,11 +426,10 @@ static int x11_display(char *host, size_t room, unsigned int *number)
     }
     size_t colon = 0u;
     int found = 0;
-    for (size_t at = 0u; display[at] != '\0'; at += 1u)
-    {
-        found = found || (display[at] == ':');
-        colon = (display[at] == ':') ? at : colon;
-    }
+    const unsigned long long past =
+        cli_text_back_any(display, cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_CELLS_POOL}), ":");
+    found = past != 0ull;
+    colon = found ? (size_t)(past - 1ull) : 0u;
     if (!found)
     {
         return 0;
@@ -443,10 +438,9 @@ static int x11_display(char *host, size_t room, unsigned int *number)
     mmgr_line_put_n(&named, display, colon);
     (void)mmgr_line_finish(&named);
     *number = 0u;
-    for (size_t at = colon + 1u; (display[at] >= '0') && (display[at] <= '9'); at += 1u)
-    {
-        *number = (*number * 10u) + (unsigned int)(display[at] - '0');
-    }
+    // a display's number is no more than an unsigned int stores
+    *number = (unsigned int)cli_text_number(
+        display, colon + 1u, cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_CELLS_POOL}), NULL);
     return 1;
 }
 
@@ -920,7 +914,7 @@ static void owner_notified(const unsigned char *request, unsigned int property)
 }
 
 // a program's request for the clipboard answered: the targets it holds, or its content as the target asked, put on the
-// requestor's property whole or, past one request's room, begun in pieces as INCR sends them; under the lock
+// requestor's property whole or, past one request's room, written in pieces as INCR sends them; under the lock
 static void owner_requested(const unsigned char *request)
 {
     const CliX11 *const x11 = &s_owner.x11;
@@ -1127,15 +1121,15 @@ int cli_clipboard_text_written(const char *text, unsigned long long size)
 
 int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cut)
 {
-    VerbaLinea uris;
-    VerbaLinea copied;
-    VerbaLinea text;
-    if (!cli_growing_line_temporary(&uris, 4096u, &g_cli_platform_cells) ||
-        !cli_growing_line_temporary(&copied, 4096u, &g_cli_platform_cells) ||
-        !cli_growing_line_temporary(&text, 4096u, &g_cli_platform_cells))
-    {
-        return 0;
-    }
+    // a path's byte is written as at most 3 in a URI, and each path adds its scheme and a line's end
+    const unsigned long long uri_room = (unsigned long long)count * ((3ull * CLI_PATH_MAX_LEN) + 16ull);
+    const unsigned long long text_room = (unsigned long long)count * (CLI_PATH_MAX_LEN + 1ull);
+    char *const uris_cell = g_cli_cells->temporary_buf_alloc(uri_room + 1ull, &g_cli_platform_cells);
+    char *const copied_cell = g_cli_cells->temporary_buf_alloc(uri_room + 8ull, &g_cli_platform_cells);
+    char *const text_cell = g_cli_cells->temporary_buf_alloc(text_room + 1ull, &g_cli_platform_cells);
+    VerbaLinea uris = mmgr_line_over(uris_cell, uri_room + 1ull);
+    VerbaLinea copied = mmgr_line_over(copied_cell, uri_room + 8ull);
+    VerbaLinea text = mmgr_line_over(text_cell, text_room + 1ull);
     mmgr_line_put(&copied, cut ? "cut" : "copy");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -1165,15 +1159,12 @@ static unsigned int clipboard_copied_read(const char *list, unsigned long long s
                                           void (*each)(void *context, const char *path), void *context, int *cut)
 {
     unsigned long long first = 0ull;
-    while ((first < size) && (list[first] != '\n'))
-    {
-        first += 1ull;
-    }
+    first = cli_text_to_any(list, first, size, "\n");
     *cut = (first == 3ull) && (list[0] == 'c') && (list[1] == 'u') && (list[2] == 't');
     return (first < size) ? clipboard_uris_read(list + first + 1ull, size - first - 1ull, each, context) : 0u;
 }
 
-unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *path), void *context, int *cut)
+unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *path), void *context, int *cut)
 {
     *cut = -1;
     unsigned int count = 0u;
@@ -1190,8 +1181,10 @@ unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *pa
     {
         return count;
     }
-    VerbaLinea list;
-    if (!cli_growing_line_temporary(&list, 4096u, &g_cli_platform_cells))
+    const unsigned long long list_room = 4096u;
+    char *const list_cell = g_cli_cells->temporary_buf_alloc(list_room, &g_cli_platform_cells);
+    VerbaLinea list = mmgr_line_over(list_cell, list_room);
+    if (list.out == NULL)
     {
         return 0u;
     }

@@ -131,14 +131,11 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
             step_across_cleared(session);
         }
     }
-    // a stop rewritten is the body with two members written again, in a cell of the body's size and some over, grown
-    // where it is longer
-    VerbaLinea rewritten_body = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    // a stop rewritten is the body with two members written again, in a cell of the body's size and some over
     const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL});
-    if (stopped)
-    {
-        (void)cli_growing_line_temporary(&rewritten_body, size + CLI_DEBUG_EVENT_MORE_TEXT, &g_cli_debug_cells);
-    }
+    const unsigned long long rewritten_room = stopped ? (size + CLI_DEBUG_EVENT_MORE_TEXT) : 0ull;
+    char *const rewritten_cell = stopped ? g_cli_cells->temporary_buf_alloc(rewritten_room, &g_cli_debug_cells) : NULL;
+    VerbaLinea rewritten_body = mmgr_line_over(rewritten_cell, rewritten_room);
     const int rewritten = stopped && data_stop_rewritten(session, body, size, &rewritten_body);
     session->sink.emit(session->sink.context, session->info.id, event, rewritten ? rewritten_body.out : body,
                        rewritten ? rewritten_body.at : size);

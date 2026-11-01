@@ -4,23 +4,23 @@
 // kept in places.json in orior's home as the window closes, each tree under its folder as written, and put back as the
 // tree opens, fitted to the monitors there are now. A place on no monitor there is goes onto the first, in its middle,
 // and a place larger than its monitor is cut to it
+#include "../text/text.h"
 #include "window_internal.h"
 
 // how much of a window's top edge must stand on a monitor for its place there to hold, in pixels: enough to take it by
 // its title and move it
-#define CLI_PLACE_HELD 64ll
+#define CLI_PLACE_STRIP 64ll
 
 // the nodes a place put takes over those places.json holds: the tree's member and its five numbers; and the bytes of
 // their texts, the tree's folder and the numbers
 #define CLI_PLACE_NODES_MORE 8u
 #define CLI_PLACE_TEXT_MORE (CLI_PATH_MAX_LEN + 128ull)
 
-// the bytes places.json is written in, begun at and doubling as it fills
-#define CLI_PLACE_WRITTEN_FIRST 4096ull
+// the bytes places.json is written in, begun at and
 
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the part of `place`'s top strip, CLI_PLACE_HELD high, that stands on `area`, in pixels
+// the part of `place`'s top strip, CLI_PLACE_STRIP high, that stands on `area`, in pixels
 static long long place_standing(const CliWindowPlace *place, const CliWindowArea *area)
 {
     const long long left = (place->x > area->x) ? place->x : area->x;
@@ -28,7 +28,7 @@ static long long place_standing(const CliWindowPlace *place, const CliWindowArea
     const long long area_right = (long long)area->x + area->width;
     const long long right = (place_right < area_right) ? place_right : area_right;
     const long long top = (place->y > area->y) ? place->y : area->y;
-    const long long place_bottom = (long long)place->y + CLI_PLACE_HELD;
+    const long long place_bottom = (long long)place->y + CLI_PLACE_STRIP;
     const long long area_bottom = (long long)area->y + area->height;
     const long long bottom = (place_bottom < area_bottom) ? place_bottom : area_bottom;
     const long long wide = (right > left) ? right - left : 0ll;
@@ -64,8 +64,8 @@ static int place_fitted(CliWindowPlace *place, const CliWindowArea *areas, unsig
             stands = standing;
         }
     }
-    const long long width_held = (place->width < CLI_PLACE_HELD) ? (long long)place->width : CLI_PLACE_HELD;
-    const int holds = stands >= CLI_PLACE_HELD * width_held;
+    const long long width_strip = (place->width < CLI_PLACE_STRIP) ? (long long)place->width : CLI_PLACE_STRIP;
+    const int holds = stands >= CLI_PLACE_STRIP * width_strip;
     const CliWindowArea *const area = holds ? &areas[most] : &areas[0];
     const unsigned int width = (place->width < area->width) ? place->width : area->width;
     const unsigned int height = (place->height < area->height) ? place->height : area->height;
@@ -94,10 +94,7 @@ static int place_paths(char *key, char *path, VerbaLinea *err_msg)
     {
         return 0;
     }
-    for (char *at = key; *at != '\0'; at += 1)
-    {
-        *at = (*at == '\\') ? '/' : *at;
-    }
+    cli_text_swapped(key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}), '\\', '/');
     cli_full(home, "places.json", path);
     return 1;
 }
@@ -172,8 +169,10 @@ static int place_written(const char *key, const char *path, const CliWindowPlace
     place_number_set(&json, kept, "height", place->height);
     cli_json_set(&json, kept, "maximized", cli_json_made(&json, place->maximized ? CFG_JSON_TRUE : CFG_JSON_FALSE));
     cli_json_set(&json, places, key, kept);
-    VerbaLinea out;
-    int written = !json.full && cli_growing_line_temporary(&out, CLI_PLACE_WRITTEN_FIRST, &g_cli_window_cells);
+    const unsigned long long out_room = cli_json_pretty_room(&json, 2u);
+    char *const out_cell = json.full ? NULL : g_cli_cells->temporary_buf_alloc(out_room, &g_cli_window_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, out_room);
+    int written = out_cell != NULL;
     if (written)
     {
         cli_json_sorted(&json, places);

@@ -106,21 +106,21 @@ let symbolsBar = null;
 // bar of how far along it is and the time it has left, and what of the tree is not read yet: its
 // symbols, while they are read, with their bar, their share, their time left and Stop, which ends the
 // reading and keeps what it read.
-function drawPulse(held) {
+function drawPulse(pulse) {
   const parts = [];
-  if (held.runs.size) {
-    const runs = Object.assign(document.createElement("button"), { type: "button", textContent: `${held.runs.size} running` });
+  if (pulse.runs.size) {
+    const runs = Object.assign(document.createElement("button"), { type: "button", textContent: `${pulse.runs.size} running` });
     runs.addEventListener("click", () => showView("run"));
     parts.push(runs);
   }
   for (const path of readBars.keys()) {
-    if (!held.reads.has(path)) {
+    if (!pulse.reads.has(path)) {
       readBars.delete(path);
       readBegan.delete(path);
     }
   }
   const now = performance.now();
-  for (const [path, { read, size }] of held.reads) {
+  for (const [path, { read, size }] of pulse.reads) {
     const name = path.split("/").pop();
     const bar = readBars.get(path) ?? progressBar();
     readBars.set(path, bar);
@@ -131,7 +131,7 @@ function drawPulse(held) {
     reading.append(`${name} `, bar, ` ${Math.floor((100 * read) / Math.max(1, size))}%${left ? `, ${left}` : ""}`);
     parts.push(reading);
   }
-  const { files, symbols, done = 0, of = 0, began = now } = held.unread;
+  const { files, symbols, done = 0, of = 0, began = now } = pulse.unread;
   const unread = [files && "files", symbols && "symbols"].filter(Boolean);
   if (symbols && of > 0) {
     symbolsBar ??= progressBar();

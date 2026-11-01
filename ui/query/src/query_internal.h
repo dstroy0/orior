@@ -9,7 +9,6 @@
 #include "../../../src/cu/includes/file_defs/qry/qry_read.h"
 #include "../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
 #include "../../cli/src/command_line/cells.h"
-#include "../../cli/src/command_line/file_writing.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "query.h"
@@ -34,11 +33,8 @@ extern CellOwner g_query_cells;
 // how many runs of a folder are retained where QRY_RETAINED is not set
 #define QUERY_RETAIN_MAX 64u
 
-// the paths a list's room is begun with before it doubles
-#define QUERY_PATHS_FIRST 64u
-
-// A list of paths, each in a row of QUERY_PATH_MAX_LEN, in a cell whose room doubles as they are put, given back with
-// query_paths_given
+// A list of paths, each in a row of QUERY_PATH_MAX_LEN, in a cell of `room` taken at its most with query_paths_taken
+// and given back with query_paths_given
 typedef struct
 {
     char (*path)[QUERY_PATH_MAX_LEN];
@@ -46,11 +42,9 @@ typedef struct
     unsigned int room;
 } QueryPaths;
 
-// room made for one path more in `paths`, `most` at the most: 1, or 0 where it is at the most or its cell is refused;
-// room made for `count` paths in all in one cell: 1, or 0 where its cell is refused; and the paths' cell given back,
-// the list left empty (tools/tools.c)
-int query_paths_room(QueryPaths *paths, unsigned int most);
-int query_paths_reserved(QueryPaths *paths, unsigned int count);
+// the cell of `count` paths taken in place of what the list contained: 1, or 0 where it is refused and the list has no
+// room; and the paths' cell given back, the list left empty (tools/tools.c)
+int query_paths_taken(QueryPaths *paths, unsigned int count);
 void query_paths_given(QueryPaths *paths);
 
 // The writer of one run: its program, its .qry, the top of the tree every current file is named under, the PATH every

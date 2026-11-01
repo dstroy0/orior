@@ -125,7 +125,7 @@ static void catalog_tree(void)
     static CellOwner s_grown_cells = MMGR_CELL_OWNER("catalog_test_grown");
     (void)mmgr_owner_register(&s_grown_cells);
     CliCatalog grown;
-    cli_catalog_growing(&grown, &s_grown_cells, 2048u);
+    cli_catalog_taken(&grown, &s_grown_cells, 2048u);
     cli_catalog_read(root, &grown);
     const int same = !grown.full && (grown.jobs == s_catalog.jobs) && (grown.params == s_catalog.params) &&
                      (grown.steps == s_catalog.steps) && (grown.args == s_catalog.args) &&
@@ -145,7 +145,8 @@ static void catalog_tree(void)
                                               .cap = CLI_CELLS_POOL});
     }
     cli_check(track, "the driver's parts are read from its usage");
-    cli_check((embed_atomic_usize_load(&g_cli_catalog_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_catalog_cells.hw) != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_catalog_cells.in_use) == 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_catalog_cells.hw) != 0ull),
               "the catalog's cells are each given back as the tree is read");
 }
 

@@ -32,10 +32,7 @@ int cli_git_head(const char *root, char *commit, long long *when, int *clean)
     const char *to = gave->out + gave->out_size;
     cli_git_trimmed(&from, &to);
     const char *space = from;
-    while ((space < to) && (space[0] != ' '))
-    {
-        space += 1;
-    }
+    space += cli_text_to_any(space, 0ull, (unsigned long long)(to - space), " ");
     found = found && (space < to) && (space[1] >= '0') && (space[1] <= '9');
     long long seconds = 0ll;
     for (const char *digit = space + 1; found && (digit < to); digit += 1)
@@ -105,16 +102,9 @@ void cli_git_name(const char *root, char *name)
         remote[0] = '\0';
     }
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = remote, .cap = CLI_CELLS_POOL});
-    while ((length > 0ull) && (remote[length - 1ull] == '/'))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(remote, length, "/");
     unsigned long long start = length;
-    while ((start > 0ull) && (remote[start - 1ull] != '/') && (remote[start - 1ull] != ':') &&
-           (remote[start - 1ull] != '\\'))
-    {
-        start -= 1ull;
-    }
+    start = cli_text_back_any(remote, start, "/:\\");
     if (((length - start) >= 4ull) &&
         (memor.cmp(&(MemoriaCfg){.src = remote + length - 4ull, .other = ".git", .bytes = 4u}) == 0))
     {
@@ -129,15 +119,9 @@ void cli_git_name(const char *root, char *name)
     }
     // the folder's own name, the last part of its path
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
-    while ((end > 0ull) && ((root[end - 1ull] == '/') || (root[end - 1ull] == '\\')))
-    {
-        end -= 1ull;
-    }
+    end = cli_text_back_past(root, end, "/\\");
     unsigned long long first = end;
-    while ((first > 0ull) && (root[first - 1ull] != '/') && (root[first - 1ull] != '\\'))
-    {
-        first -= 1ull;
-    }
+    first = cli_text_back_any(root, first, "/\\");
     const int is_drive = ((end - first) == 2ull) && (root[first + 1ull] == ':');
     VerbaLinea line = {name, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put_n(&line, root + first, is_drive ? 0ull : (end - first));
@@ -253,10 +237,7 @@ static void cli_changed_at(const char *folder, const char *repo, const char *con
             unsigned long long size = mmgr_line_finish(&line);
             // a repository under this one shows in its changes as a folder of new files
             unsigned long long trimmed = size;
-            while ((trimmed > 0ull) && (path[trimmed - 1ull] == '/'))
-            {
-                trimmed -= 1ull;
-            }
+            trimmed = cli_text_back_past(path, trimmed, "/");
             const char *const owner = cli_git_owner(repos, count, path, trimmed);
             if ((size != 0ull) && (owner != NULL) &&
                 (cellul.eq(&(CatenaFinitaCfg){.src = owner, .other = repo, .cap = CLI_CELLS_POOL})))

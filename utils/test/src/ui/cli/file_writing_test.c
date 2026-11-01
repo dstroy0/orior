@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // file_writing_test.c: the command line's files written whole and sealed: a .gsm written in pieces contains its bytes
 // and has its seal beside it, whose root is the root of those bytes sealed again; a file of a kind ksg does not seal
-// has none; a .gsm written again contains its new bytes, and its seal the new root; and a growing line contains what it
-// is given in one run of bytes
+// has none; and a .gsm written again contains its new bytes, and its seal the new root
 #include "../../../../../ui/cli/src/command_line/cli_internal.h"
 #include "cli_check.h"
 
@@ -52,36 +51,6 @@ static int writing_sealed(const char *path, const char *text)
                 &(MemoriaCfg){.src = s_read + size - KSG_SIGNUM_BYTES, .other = root, .bytes = KSG_SIGNUM_BYTES}) == 0);
 }
 
-// a growing line begun small contains all that is written in one run of bytes, takes back what it rewinds past, makes
-// room for a read of its own, and a fixed line makes none past what it contains
-static void writing_line_grown(void)
-{
-    VerbaLinea line;
-    cli_check(cli_growing_line_made(&line, 16ull, &g_checks_cells) && (line.capacity == 16ull),
-              "a growing line is begun in a cell of the bytes requested");
-    for (unsigned int at = 0u; at < 100u; at += 1u)
-    {
-        mmgr_line_put(&line, "0123456789");
-    }
-    int whole = mmgr_line_ok(&line) && (line.at == 1000ull) && (line.capacity >= 1001ull);
-    for (unsigned int at = 0u; whole && (at < 1000u); at += 1u)
-    {
-        whole = (line.out[at] == (char)('0' + (at % 10u)));
-    }
-    cli_check(whole, "a thousand bytes written to it are stored in one run, in order");
-    line.at = 5ull;
-    mmgr_line_put(&line, "x");
-    cli_check(mmgr_line_ok(&line) && (line.at == 6ull) && (line.out[5] == 'x'),
-              "a rewind writes over what it contained");
-    cli_check(cli_growing_line_room(&line, 5000ull) && ((line.capacity - line.at) > 5000ull) && (line.out[5] == 'x'),
-              "room is made for five thousand bytes more, what it contained retained");
-    g_cli_cells->persistent_buf_release(line.out, &g_checks_cells);
-    char fixed[8];
-    VerbaLinea fixed_line = {fixed, sizeof(fixed), 0ull};
-    cli_check(cli_growing_line_room(&fixed_line, 7ull) && !cli_growing_line_room(&fixed_line, 8ull),
-              "a fixed line has room for what fits before its terminator and no more");
-}
-
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
@@ -111,6 +80,5 @@ int main(void)
                   !ksg_kind_sealed("x.kpk") && !ksg_kind_sealed("x.c") && !ksg_kind_sealed("a.krs/b") &&
                   !ksg_kind_sealed("x.k") && !ksg_kind_sealed("x.KRS"),
               "the kinds sealed are .g, .gsm and the k-files, not a seal's own files or an approver's keys");
-    writing_line_grown();
     return cli_checked();
 }

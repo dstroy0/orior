@@ -56,11 +56,8 @@ fn main() {
     for folder in ["ui/cli", "ui/query", "src/cu/includes/file_defs/qry", "src/cu/includes/formats/cfg_json", "src/cu/includes/parsers", "src/cu/includes/mmgr", "ui/plugins"] {
         println!("cargo:rerun-if-changed={}", top.join(folder).display());
     }
-    // a release build takes the C side as bitcode, into a folder of its own, which the linker the tree's .cargo/config.toml
-    // names for the target optimizes whole at the link
-    let release = std::env::var("PROFILE").is_ok_and(|profile| profile == "release");
+    // the C side is bitcode, which the linker the tree's .cargo/config.toml names for the target optimizes whole at the link
     let status = Command::new(bash())
-        .env("LTO", if release { "1" } else { "0" })
         .arg(top.join("ui/cli/build.sh"))
         .arg("library")
         .arg(&target)
@@ -74,9 +71,6 @@ fn main() {
     println!("cargo:rerun-if-env-changed=ORIOR_SANITIZE");
     let sanitizer = std::env::var("ORIOR_SANITIZE").unwrap_or_default();
     let mut built = target.clone();
-    if release {
-        built.push_str("-lto");
-    }
     if !sanitizer.is_empty() {
         built.push('-');
         built.push_str(&sanitizer);

@@ -127,8 +127,8 @@ void cli_qry_queue(unsigned int channel_named, const char *path, const char *nam
         cli_lock_give(&s_lock);
         return;
     }
-    channel->ring =
-        (channel->ring != NULL) ? channel->ring : g_cli_cells->persistent_buf_alloc(CLI_QUEUE_BYTES, &g_cli_queue_cells);
+    channel->ring = (channel->ring != NULL) ? channel->ring
+                                            : g_cli_cells->persistent_buf_alloc(CLI_QUEUE_BYTES, &g_cli_queue_cells);
     if (channel->ring == NULL)
     {
         s_failed += 1ull;

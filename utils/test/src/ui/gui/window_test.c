@@ -63,14 +63,17 @@ static int near(GuiColor one, GuiColor other)
 // thinner tint over it with the grain
 static GuiColor glass_at(const GuiWindow *window, int x, int y)
 {
-    const unsigned int grain = gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
+    const unsigned int grain =
+        gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
     return over(over(ground_at(window, x, y), window->palette->glass), GUI_RGBA(0xffu, 0xffu, 0xffu, grain));
 }
 
 static GuiColor pane_at(const GuiWindow *window, int x, int y)
 {
-    const unsigned int grain = gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
-    return over(over(ground_at(window, x, y), gui_glass_pane_tint(window->palette->glass)), GUI_RGBA(0xffu, 0xffu, 0xffu, grain));
+    const unsigned int grain =
+        gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
+    return over(over(ground_at(window, x, y), gui_glass_pane_tint(window->palette->glass)),
+                GUI_RGBA(0xffu, 0xffu, 0xffu, grain));
 }
 
 // whether any pixel of `rect` is other than the pane over the ground
@@ -122,15 +125,18 @@ int main(void)
         return cli_checked();
     }
     cli_check(gui_window_sized(&window, 800u, 500u, 1.0f), "the window sized lays its parts out and makes its raster");
-    cli_check((window.raster->width == gui_raster_pitch(800u)) && (window.raster->height == 500u) && (window.raster->pages != NULL),
+    cli_check((window.raster->width == gui_raster_pitch(800u)) && (window.raster->height == 500u) &&
+                  (window.raster->pages != NULL),
               "the raster is the window's size at the framebuffers' pitch, in the system's pages");
     gui_window_drawn(&window);
     const GuiPalette *const palette = window.palette;
     const GuiColor ground = palette->ground;
     cli_check((window.ground.raster.width == gui_raster_pitch(800u)) && (window.ground.frames == 1u) &&
-                  (window.ground.raster.pixels[(2u * gui_raster_pitch(800u)) + 2u] != ground) && (window.ground.raster.pixels[(499u * gui_raster_pitch(800u)) + 0u] == ground),
+                  (window.ground.raster.pixels[(2u * gui_raster_pitch(800u)) + 2u] != ground) &&
+                  (window.ground.raster.pixels[(499u * gui_raster_pitch(800u)) + 0u] == ground),
               "the ground is the lattice, a dot at the first point's origin over the ground color");
-    cli_check(near(at(&window, 400, 20), pane_at(&window, 400, 20)) && (at(&window, 400, 20) != ground_at(&window, 400, 20)),
+    cli_check(near(at(&window, 400, 20), pane_at(&window, 400, 20)) &&
+                  (at(&window, 400, 20) != ground_at(&window, 400, 20)),
               "the bar is a pane over the ground, the thinner tint grained");
     cli_check(near(at(&window, 20, 250), pane_at(&window, 20, 250)), "the strip is a pane as the bar is");
     cli_check(near(at(&window, 400, 490), pane_at(&window, 400, 490)), "the status bar is a pane as the bar is");
@@ -140,21 +146,23 @@ int main(void)
     cli_check(painted_on_pane(&window, (GuiRect){800 - 5 - 106, 10, 34, 20}), "the minimize control is drawn");
     cli_check(near(at(&window, 44, 41), glass_at(&window, 44, 41)) && (at(&window, 44, 41) != palette->surface),
               "the work's top left corner is rounded off to the sheet");
-    cli_check((at(&window, 200, 41) == palette->signal) && (at(&window, 200, 42) == palette->signal), "the work's head is the signal line, two pixels deep");
+    cli_check((at(&window, 200, 41) == palette->signal) && (at(&window, 200, 42) == palette->signal),
+              "the work's head is the signal line, two pixels deep");
     cli_check(at(&window, 44 + 1 + 10, 41 + 1) != palette->surface, "the lines stand outside the tabs row");
     cli_check(at(&window, 44 + 1 + 10, 41 + 2 + 10) == palette->surface, "the tabs row is the surface color");
     {
         const GuiRaster *const drawn = window.raster;
         gui_window_flipped(&window);
-        cli_check((window.shown == drawn) && (window.raster != drawn) && (window.raster->pixels != NULL) && (window.raster->width == gui_raster_pitch(800u)),
+        cli_check((window.shown == drawn) && (window.raster != drawn) && (window.raster->pixels != NULL) &&
+                      (window.raster->width == gui_raster_pitch(800u)),
                   "the frame presented is the raster shown and the other, the window's size, is drawn into next");
         gui_window_flipped(&window);
         cli_check(window.raster == drawn, "flipped again the first is drawn into again");
         window.shown = NULL;
     }
     const int dot = dot_column(&window, 300, 300);
-    cli_check((at(&window, dot, 300) == over(ground_at(&window, dot, 300), palette->editor_ground)) && (at(&window, dot, 300) != ground) &&
-                  (at(&window, dot, 300) != ground_at(&window, dot, 300)),
+    cli_check((at(&window, dot, 300) == over(ground_at(&window, dot, 300), palette->editor_ground)) &&
+                  (at(&window, dot, 300) != ground) && (at(&window, dot, 300) != ground_at(&window, dot, 300)),
               "the editor shows its ground at its opacity over the lattice, a dot dimmed through it");
 
     cli_check(gui_window_hit(&window, 400, 20) == GUI_HIT_CAPTION, "the bar's empty part is the caption");
@@ -168,11 +176,12 @@ int main(void)
     cli_check(gui_window_hit(&window, 300, 300) == GUI_HIT_CLIENT, "the work is the client");
     cli_check(gui_window_hit(&window, 400, 490) == GUI_HIT_CLIENT, "the status bar is the client");
 
-    cli_check(gui_window_text_put(&window, "one\ntwo\r\nthree", 14ull), "a text put whole is held as lines");
+    cli_check(gui_window_text_put(&window, "one\ntwo\r\nthree", 14ull), "a text put whole is stored as lines");
     cli_check((window.editor.lines == 3ull) && (window.editor.count == 3u), "the text has three lines");
     gui_window_drawn(&window);
-    cli_check(painted(&window, (GuiRect){window.frame.editor.x + 40, window.frame.editor.y, 100, 20}, palette->editor_ground),
-              "the first line is drawn in the editor");
+    cli_check(
+        painted(&window, (GuiRect){window.frame.editor.x + 40, window.frame.editor.y, 100, 20}, palette->editor_ground),
+        "the first line is drawn in the editor");
     // the caret breathes: at full ink through the first rest from the frame that began it, the window due at the
     // rest's end; sliding down through the next 300 ms, a frame owed at every tick; dim through the second rest; and
     // full again as the next breath begins
@@ -183,9 +192,11 @@ int main(void)
     window.caret_since_ms = cli_clock_milliseconds();
     const float cell = gui_glyphs_cell(&window.glyphs, GUI_CODE_SIZE);
     GuiRect first_cell;
-    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 0ull, 0ull, &first_cell), "the first cell is among the rows drawn");
+    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 0ull, 0ull, &first_cell),
+              "the first cell is among the rows drawn");
     gui_window_drawn(&window);
-    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is at full ink as the breath begins");
+    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret,
+              "the caret is at full ink as the breath begins");
     cli_check(gui_window_due(&window) <= rest, "the window is due at the first rest's end");
     window.caret_since_ms = cli_clock_milliseconds() - rest - (GUI_CARET_SLIDE / 2ull);
     gui_window_ticked(&window);
@@ -193,28 +204,33 @@ int main(void)
     cli_check(gui_window_due(&window) == 1ull, "the window is due at once through the slide");
     gui_window_drawn(&window);
     const GuiColor sliding = at(&window, first_cell.x, first_cell.y + 5);
-    cli_check((sliding != palette->caret) && (sliding != palette->editor_ground), "the caret is between full and dim through the slide");
+    cli_check((sliding != palette->caret) && (sliding != palette->editor_ground),
+              "the caret is between full and dim through the slide");
     window.caret_since_ms = cli_clock_milliseconds() - rest - GUI_CARET_SLIDE - 10ull;
     gui_window_drawn(&window);
     const GuiColor dim = at(&window, first_cell.x, first_cell.y + 5);
     cli_check((dim != palette->caret) && (dim != sliding), "the caret is dimmer through the second rest");
-    cli_check((gui_window_due(&window) > 1ull) && (gui_window_due(&window) <= rest), "the window is due at the second rest's end");
+    cli_check((gui_window_due(&window) > 1ull) && (gui_window_due(&window) <= rest),
+              "the window is due at the second rest's end");
     window.caret_since_ms = cli_clock_milliseconds() - GUI_CARET_BREATH;
     gui_window_drawn(&window);
-    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is at full ink again as the next breath begins");
+    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret,
+              "the caret is at full ink again as the next breath begins");
     // a tick that changes the caret's ink alone owes the caret drawn again by itself: its rows alone are to be
     // shown again, and the pixels beside it stand
     const GuiColor beside = at(&window, first_cell.x + 20, first_cell.y + 5);
     // the ground kept still, which keeps its loop from owing a frame of its own at the tick
-    gui_ground_held(&window.ground, 1, cli_clock_milliseconds());
+    gui_ground_paused(&window.ground, 1, cli_clock_milliseconds());
     window.caret_since_ms = cli_clock_milliseconds() - rest - (GUI_CARET_SLIDE / 2ull);
     gui_window_ticked(&window);
-    cli_check(window.owed && window.caret_alone, "a tick through the slide with nothing else owed owes the caret alone");
+    cli_check(window.owed && window.caret_alone,
+              "a tick through the slide with nothing else owed owes the caret alone");
     const GuiRect redrawn = gui_window_caret_drawn(&window);
-    cli_check(!gui_rect_empty(redrawn) && (redrawn.y == first_cell.y) && (redrawn.height == first_cell.height) && !window.owed &&
-                  !window.caret_alone,
+    cli_check(!gui_rect_empty(redrawn) && (redrawn.y == first_cell.y) && (redrawn.height == first_cell.height) &&
+                  !window.owed && !window.caret_alone,
               "the caret drawn again answers its rows and pays the frame owed");
-    cli_check((at(&window, first_cell.x, first_cell.y + 5) != palette->caret) && (at(&window, first_cell.x + 20, first_cell.y + 5) == beside),
+    cli_check((at(&window, first_cell.x, first_cell.y + 5) != palette->caret) &&
+                  (at(&window, first_cell.x + 20, first_cell.y + 5) == beside),
               "the caret stands dimmer and the pixels beside it as they were");
     window.owed = 1;
     window.caret_since_ms = cli_clock_milliseconds() - rest - GUI_CARET_SLIDE - 10ull;
@@ -234,7 +250,8 @@ int main(void)
     {
         inked += (GUI_ALPHA_OF(icon.pixels[at_pixel]) != 0u) ? 1u : 0u;
     }
-    cli_check((inked > 50u) && (GUI_ALPHA_OF(icon.pixels[0]) == 0u) && ((icon.pixels[(16u * 32u) + 16u] & 0x00ffffffu) == (palette->text & 0x00ffffffu)),
+    cli_check((inked > 50u) && (GUI_ALPHA_OF(icon.pixels[0]) == 0u) &&
+                  ((icon.pixels[(16u * 32u) + 16u] & 0x00ffffffu) == (palette->text & 0x00ffffffu)),
               "the icon's pixels are the text's color with the eye's cover as their alpha");
     gui_raster_given(&icon);
 

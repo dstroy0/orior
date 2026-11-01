@@ -3,6 +3,7 @@
 // json_number.c: a 64-bit float written as serde_json writes it: the fewest digits that read back as the float, a tie
 // between two of as few going to the nearer, and the point placed where its writer places it
 #include "json_tree.h"
+#include "text.h"
 #include <stdlib.h>
 
 // the 32-bit words of the largest whole number a float's exact digits are read from, its mantissa times five to 1074;
@@ -148,10 +149,7 @@ static unsigned int cli_rounded(const char *digits, unsigned int count, unsigned
         }
         if (up)
         {
-            while ((cut_len > 0u) && (cut[cut_len - 1u] == '9'))
-            {
-                cut_len -= 1u;
-            }
+            cut_len = (unsigned int)cli_text_back_past(cut, cut_len, "9");
             if (cut_len == 0u)
             {
                 cut[0] = '1';
@@ -164,10 +162,7 @@ static unsigned int cli_rounded(const char *digits, unsigned int count, unsigned
             }
         }
     }
-    while ((cut_len > 1u) && (cut[cut_len - 1u] == '0'))
-    {
-        cut_len -= 1u;
-    }
+    cut_len = (unsigned int)(1u + cli_text_back_past(cut + 1u, cut_len - 1u, "0"));
     return cut_len;
 }
 

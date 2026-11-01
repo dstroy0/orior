@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // validate_run.c: one check of the copy: the words that run the prover on it, the limits' settings just before the
 // file, and the check run within the tool's patience, its errors after its output
+#include "../text/text.h"
 #include "validate_internal.h"
 
 // `text` with every `{file}` in it written as `file`, put after the words
@@ -9,17 +10,7 @@ static void validate_filled(CliWords *words, const char *text, const char *file)
 {
     char filled[CLI_PATH_TEXT];
     VerbaLinea line = {filled, sizeof(filled), 0ull};
-    for (const char *at = text; *at != '\0';)
-    {
-        if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = "{file}", .cap = CLI_CELLS_POOL}))
-        {
-            mmgr_line_put(&line, file);
-            at += 6;
-            continue;
-        }
-        mmgr_line_ch(&line, *at);
-        at += 1;
-    }
+    cli_text_put_filled(&line, text, "{file}", file);
     mmgr_line_finish(&line);
     cli_words_put(words, filled);
 }
@@ -95,14 +86,7 @@ int cli_validate_command_for(const char *program, const char *file, const char *
         mmgr_line_finish(&value_line);
         char setting[CLI_PATH_MAX_LEN];
         VerbaLinea line = {setting, sizeof(setting), 0ull};
-        for (const char *letter = tool->barriers[keys[key]].lift; *letter != '\0';)
-        {
-            const int marked =
-                (cellul.starts(&(CatenaFinitaCfg){.src = letter, .other = "{value}", .cap = CLI_CELLS_POOL}));
-            mmgr_line_put(&line, marked ? value : "");
-            mmgr_line_put_n(&line, letter, marked ? 0ull : 1ull);
-            letter += marked ? 7 : 1;
-        }
+        cli_text_put_filled(&line, tool->barriers[keys[key]].lift, "{value}", value);
         mmgr_line_finish(&line);
         cli_words_put(words, setting);
     }

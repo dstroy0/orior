@@ -4,6 +4,7 @@
 // reading, each a gap apart, and the crumbs from its left, the folders in the bar's text, the file in its bright text
 // and the marks between them in the path's
 #include "statusbar.h"
+#include "../../../cli/src/text/text.h"
 
 // the crumbs' mark between a folder and what it holds
 static const char s_crumb_mark[] = "\xe2\x80\xba";
@@ -38,10 +39,10 @@ void gui_status_cursor_text(const GuiStatus *status, char *text, unsigned long l
 void gui_status_selection_text(const GuiStatus *status, char *text, unsigned long long size)
 {
     VerbaLinea line = {text, size, 0ull};
-    const unsigned long long lines = (status->anchor_line > status->line) ? status->anchor_line - status->line
-                                                                           : status->line - status->anchor_line;
-    const unsigned long long letters = (status->anchor_col > status->col) ? status->anchor_col - status->col
-                                                                           : status->col - status->anchor_col;
+    const unsigned long long lines =
+        (status->anchor_line > status->line) ? status->anchor_line - status->line : status->line - status->anchor_line;
+    const unsigned long long letters =
+        (status->anchor_col > status->col) ? status->anchor_col - status->col : status->col - status->anchor_col;
     if (lines != 0ull)
     {
         mmgr_line_decimal(&line, lines + 1ull, 1u);
@@ -106,29 +107,37 @@ void gui_statusbar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons, 
     {
         const int lock = gui_scaled(GUI_STATUS_LOCK, scale);
         right -= (float)(gui_scaled(GUI_FRAME_GAP + GUI_STATUS_LOCK_END, scale) + lock);
-        const GuiMask *const mask = gui_icon(icons, "unlock", (unsigned int)lock, GUI_ICON_STROKE * (float)lock / GUI_ICON_UNITS);
+        const GuiMask *const mask =
+            gui_icon(icons, "unlock", (unsigned int)lock, GUI_ICON_STROKE * (float)lock / GUI_ICON_UNITS);
         if (mask != NULL)
         {
             gui_raster_masked(raster, mask, (int)right, bar.y + ((bar.height - lock) / 2), palette->status_text, bar);
         }
         right -= (float)gap;
         gui_status_indent_text(status, text, sizeof(text));
-        right = statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) - (float)gap;
-        right = statusbar_item_drawn(raster, glyphs, size, right, baseline, "UTF-8", palette->status_text, bar) - (float)gap;
-        right = statusbar_item_drawn(raster, glyphs, size, right, baseline, status->crlf ? "CRLF" : "LF", palette->status_text, bar) - (float)gap;
+        right =
+            statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) - (float)gap;
+        right = statusbar_item_drawn(raster, glyphs, size, right, baseline, "UTF-8", palette->status_text, bar) -
+                (float)gap;
+        right = statusbar_item_drawn(raster, glyphs, size, right, baseline, status->crlf ? "CRLF" : "LF",
+                                     palette->status_text, bar) -
+                (float)gap;
         gui_status_selection_text(status, text, sizeof(text));
         if (text[0] != '\0')
         {
-            right = statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) - (float)gap;
+            right = statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) -
+                    (float)gap;
         }
         gui_status_cursor_text(status, text, sizeof(text));
-        right = statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) - (float)gap;
+        right =
+            statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) - (float)gap;
     }
     if (status->memory != 0ull)
     {
         gui_status_memory_text(status->memory, text, sizeof(text));
         const float least = (float)GUI_STATUS_MEMORY_ZEROS * gui_text_width(glyphs, GUI_FACE_HEAD, size, "0", 1ull);
-        const float wide = gui_text_width(glyphs, GUI_FACE_HEAD, size, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_STATUS_TEXT}));
+        const float wide = gui_text_width(glyphs, GUI_FACE_HEAD, size, text,
+                                          cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_STATUS_TEXT}));
         (void)statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar);
         right -= ((wide > least) ? wide : least) + (float)gap;
     }
@@ -146,18 +155,19 @@ void gui_statusbar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons, 
     while (*at != '\0')
     {
         unsigned long long length = 0ull;
-        while ((at[length] != '\0') && (at[length] != '/') && (at[length] != '\\'))
-        {
-            length += 1ull;
-        }
+        length = cli_text_to_any(
+            at, length, length + cellul.len(&(CatenaFinitaCfg){.src = at + length, .cap = CLI_CELLS_POOL}), "/\\");
         const int last = at[length] == '\0';
-        x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, x, baseline, at, length, last ? palette->bar_bright : palette->status_text, room);
+        x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, x, baseline, at, length,
+                           last ? palette->bar_bright : palette->status_text, room);
         if (last)
         {
             break;
         }
         x += crumb_gap;
-        x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, x, baseline, s_crumb_mark, sizeof(s_crumb_mark) - 1u, palette->bar_path, room) + crumb_gap;
+        x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, x, baseline, s_crumb_mark, sizeof(s_crumb_mark) - 1u,
+                           palette->bar_path, room) +
+            crumb_gap;
         at += length + 1ull;
     }
 }

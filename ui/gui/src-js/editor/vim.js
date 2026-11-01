@@ -3,7 +3,7 @@
 
 // Vim's keys for the editor, where Preferences sets them on. The editor asks this of each key first,
 // and what this does not take goes to the editor's own keys, which in insert mode is every key but
-// Escape, and in the other modes every key held with Ctrl that Vim gives nothing to.
+// Escape, and in the other modes every key pressed with Ctrl that Vim gives nothing to.
 //
 // Normal mode takes a count before a command, and "x before it names register x; the register `"`
 // takes every yank and delete, and `0` the last yank. The motions: h j k l and the arrows, w b e and

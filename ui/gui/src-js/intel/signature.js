@@ -4,7 +4,7 @@
 // Parameter Info: the signature of the call the cursor is in, the parameter it is at in bold.
 
 import { asked, invoke } from "../bridge.js";
-import { along, sendChanges } from "../edit/held.js";
+import { along, sendChanges } from "../edit/mirror.js";
 import { escapeHtml } from "../editor/view.js";
 import { markup } from "../editor/widgets.js";
 import { flush } from "../servers.js";
@@ -42,12 +42,12 @@ export function signatureOpen() {
 // no branch.
 function treeSignature(found) {
   const { s, head } = found;
-  const held = s.doc.held;
-  if (!held?.ready) {
+  const mirrored = s.doc.mirrored;
+  if (!mirrored?.ready) {
     return Promise.resolve(null);
   }
   sendChanges(s.doc);
-  return along(held, () => invoke("branch_signature", { key: held.key, path: found.tab.file, line: head.line, col: head.col })).catch(() => null);
+  return along(mirrored, () => invoke("branch_signature", { key: mirrored.key, path: found.tab.file, line: head.line, col: head.col })).catch(() => null);
 }
 
 // The tree's answer as the box shows it: the first declaration's label with the active parameter marked and each

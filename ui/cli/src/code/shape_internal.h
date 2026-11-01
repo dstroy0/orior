@@ -70,9 +70,9 @@ int cli_shape_tokens(CliSymbolsLanguages *languages, const char *language, const
                      CliShapeTokens *tokens, CliShapeHoles *holes);
 
 // The match of a pattern against the code: the code and its tokens; the pattern and its tokens, each part a word to
-// match as written or the placeholder at `hole_of`, CLI_SHAPE_HOLES for none; the steps taken; the placeholders
-// bound so far, each its name and the tokens it took; and the stack of ends tried, `ends_top` of them in a cell of
-// `ends_room`, grown as ends are put and given back with cli_shape_ends_given
+// match as written or the placeholder at `hole_of`, CLI_SHAPE_HOLES for none; the steps taken; the placeholders bound
+// so far, each its name and the tokens it took; and the stack of ends tried, `ends_top` of them in a cell of
+// `ends_room`, given back with cli_shape_ends_given
 typedef struct
 {
     const char *src;

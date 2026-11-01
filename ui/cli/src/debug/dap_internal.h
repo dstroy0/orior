@@ -19,15 +19,14 @@
 #define CLI_DAP_WITHIN 2u
 
 // A request waiting on its answer: its sequence number, whether it came, the error it came with, empty where none did,
-// and its body, in a cell of its size given back as the request takes it
+// and the message it came in with its body, handed over as the request takes it and given back where it never does
 typedef struct
 {
     int waiting;
     unsigned long long seq;
     int answered;
     char error[1024];
-    char *body;
-    unsigned long long body_size;
+    CliLspAnswer answer;
 } CliDapWaiter;
 
 // An adapter: whether its place is taken and how many reference it; what it is, and whether ending the session ends the

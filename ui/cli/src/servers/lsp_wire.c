@@ -4,6 +4,7 @@
 // read back by its length, the members of its top object found, and a file's path and its URI each read as the other
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "lsp.h"
 
 // the most bytes of a text escaped at once as it is written, and the room they take escaped
@@ -190,7 +191,7 @@ static int wire_body_whole(const char *body, unsigned long long length)
     return cli_utf8_whole(body, length) && cli_json_compacted(body, length, &checked);
 }
 
-char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
+char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size, CellOwner *owner)
 {
     for (;;)
     {
@@ -200,10 +201,10 @@ char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
             return NULL;
         }
         // one byte past the body, and an empty body is a cell too; a body the cells cannot meet is passed over whole
-        char *const body = g_cli_cells->persistent_buf_alloc(length + 1ull, &g_cli_servers_cells);
+        char *const body = g_cli_cells->temporary_buf_alloc(length + 1ull, owner);
         if (!wire_bytes(reader, body, length))
         {
-            g_cli_cells->persistent_buf_release(body, &g_cli_servers_cells);
+            g_cli_cells->persistent_buf_release(body, owner);
             return NULL;
         }
         if ((body != NULL) && wire_body_whole(body, length))
@@ -212,7 +213,7 @@ char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
             *size = length;
             return body;
         }
-        g_cli_cells->persistent_buf_release(body, &g_cli_servers_cells);
+        g_cli_cells->persistent_buf_release(body, owner);
     }
 }
 
@@ -337,19 +338,22 @@ void cli_lsp_uri_of(const char *path, char *uri, unsigned long long room)
     static const char s_hex[17] = "0123456789ABCDEF";
     VerbaLinea out = {uri, room, 0ull};
     mmgr_line_put(&out, ((path[0] == '/') || (path[0] == '\\')) ? "file://" : "file:///");
-    for (const char *at = path; *at != '\0'; at += 1)
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; at < whole;)
     {
-        const unsigned char byte = (unsigned char)((*at == '\\') ? '/' : *at);
-        if (((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) || ((byte >= '0') && (byte <= '9')) ||
-            (cellul.chr(&(CatenaFinitaCfg){.src = "-._~/:", .cap = CLI_CELLS_POOL, .byte = byte}) != NULL &&
-             (byte != 0u)))
+        const unsigned long long stop =
+            cli_text_past_class(path, at, whole, CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, "-._~/:\\");
+        const size_t from = out.at;
+        const size_t taken = mmgr_line_put_n(&out, path + at, (size_t)(stop - at));
+        cli_text_swapped(out.out + from, taken, '\\', '/');
+        if (stop < whole)
         {
-            mmgr_line_ch(&out, (char)byte);
-            continue;
+            const unsigned char byte = (unsigned char)path[stop];
+            mmgr_line_ch(&out, '%');
+            mmgr_line_ch(&out, s_hex[byte >> 4u]);
+            mmgr_line_ch(&out, s_hex[byte & 0x0fu]);
         }
-        mmgr_line_ch(&out, '%');
-        mmgr_line_ch(&out, s_hex[byte >> 4u]);
-        mmgr_line_ch(&out, s_hex[byte & 0x0fu]);
+        at = stop + 1ull;
     }
     mmgr_line_finish(&out);
 }
@@ -408,13 +412,11 @@ void cli_lsp_key_of(const char *uri, unsigned long long length, char *key)
         mmgr_line_put_n(&out, uri, length);
         mmgr_line_finish(&out);
     }
-    for (char *letter = key; *letter != '\0'; letter += 1)
-    {
-        *letter = (*letter == '\\') ? '/' : *letter;
+    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
+    cli_text_swapped(key, key_size, '\\', '/');
 #if defined(_WIN32)
-        *letter = ((*letter >= 'A') && (*letter <= 'Z')) ? (char)(*letter - 'A' + 'a') : *letter;
+    cli_text_lowered(key, key_size);
 #endif
-    }
 }
 
 int cli_lsp_string(const char *text, unsigned long long length, char *out, unsigned long long room)

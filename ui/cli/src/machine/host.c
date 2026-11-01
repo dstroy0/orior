@@ -29,17 +29,7 @@ int cli_sandboxed(void)
 static void cli_shell_word(VerbaLinea *line, const char *text)
 {
     mmgr_line_ch(line, '\'');
-    for (const char *at = text; *at != '\0'; at += 1)
-    {
-        if (*at == '\'')
-        {
-            mmgr_line_put(line, "'\\''");
-        }
-        else
-        {
-            mmgr_line_ch(line, *at);
-        }
-    }
+    cli_text_put_replaced(line, text, "'", "'\\''");
     mmgr_line_ch(line, '\'');
 }
 

@@ -15,15 +15,18 @@
 #include "../text/base64.h"
 #include "serve_internal.h"
 
-// the bytes a file's text read is begun in before it grows
-#define CLI_SERVE_TEXT_FIRST (64ull << 10u)
+// the bytes a file's text read is written in
+#define CLI_SERVE_TEXT_ROOM (64ull << 20u)
+#define CLI_SERVE_TEXT_MORE 64ull
 
 CliLock g_cli_serve_write_lock = CLI_LOCK_INIT;
 
-// a growing line begun for a file's text: 1, or 0 with why given where the cells cannot meet it
-static int text_line_begun(VerbaLinea *text, VerbaLinea *err_msg)
+// a line begun for a file's text in a cell of `room` bytes: 1, or 0 with why given where the cells cannot meet it
+static int text_line_begun(VerbaLinea *text, unsigned long long room, VerbaLinea *err_msg)
 {
-    const int begun = cli_growing_line_made(text, CLI_SERVE_TEXT_FIRST, &g_cli_serve_files_cells);
+    char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_serve_files_cells);
+    *text = mmgr_line_over(cell, room);
+    const int begun = cell != NULL;
     if (!begun)
     {
         mmgr_line_put(err_msg, "a file's text could not be taken: the cells cannot meet it");
@@ -140,7 +143,7 @@ static int file_slice(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         return 0;
     }
     VerbaLinea slice;
-    if (!text_line_begun(&slice, err_msg))
+    if (!text_line_begun(&slice, (end - start) + CLI_SERVE_TEXT_MORE, err_msg))
     {
         return 0;
     }
@@ -188,7 +191,7 @@ static int file_bytes(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_read(full, &size);
+    const unsigned char *const mapped = cli_file_taken(full, &size, &g_cli_serve_files_cells);
     if ((mapped == NULL) && (!cli_file_size(full, &size) || (size > 0ull)))
     {
         mmgr_line_put(err_msg, full);
@@ -198,10 +201,7 @@ static int file_bytes(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     mmgr_line_ch(out, '"');
     cli_base64(out, (mapped != NULL) ? mapped : (const unsigned char *)"", size);
     mmgr_line_ch(out, '"');
-    if (mapped != NULL)
-    {
-        cli_file_let_go(mapped, size);
-    }
+    cli_file_given(mapped, &g_cli_serve_files_cells);
     return 1;
 }
 
@@ -237,8 +237,9 @@ int cli_serve_file_write(const char *path, const char *text, unsigned long long 
     // the text the file contained is copied out before it is written over, as the write puts a new file in its place
     cli_lock_take(&g_cli_serve_write_lock);
     unsigned long long old_size = 0ull;
-    char *const was =
-        cli_file_size(full, &old_size) ? g_cli_cells->temporary_buf_alloc(old_size + 1ull, &g_cli_serve_files_cells) : NULL;
+    char *const was = cli_file_size(full, &old_size)
+                          ? g_cli_cells->temporary_buf_alloc(old_size + 1ull, &g_cli_serve_files_cells)
+                          : NULL;
     const unsigned long long before =
         (was != NULL) ? qry_member_file_read(full, (unsigned char *)was, old_size + 1ull) : QRY_MEMBER_UNREAD;
     const int had = (before != QRY_MEMBER_UNREAD) && cli_utf8_whole(was, before);
@@ -367,7 +368,7 @@ static int history_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         return 0;
     }
     VerbaLinea text;
-    if (!text_line_begun(&text, err_msg))
+    if (!text_line_begun(&text, CLI_SERVE_TEXT_ROOM, err_msg))
     {
         return 0;
     }

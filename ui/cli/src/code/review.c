@@ -39,8 +39,6 @@ static void review_released(void)
     }
     g_cli_cells->persistent_buf_release(s_room, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(g_cli_review.compared, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(g_cli_review.texts, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(g_cli_review.text, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(g_cli_review.call, &g_cli_code_cells);
     s_room = NULL;
     g_cli_review.compared = NULL;
@@ -50,7 +48,6 @@ static void review_released(void)
     g_cli_review.text_room = 0ull;
     g_cli_review.call = NULL;
     g_cli_review.calls = 0u;
-    g_cli_review.call_room = 0u;
     cli_lock_give(&s_lock);
 }
 
@@ -65,17 +62,19 @@ static int review_locked(void)
         s_room->repositories.text.bytes = NULL;
         s_room->touched.text.bytes = NULL;
     }
-    // the texts' rooms are taken as their first texts are put
-    g_cli_review.text = NULL;
-    g_cli_review.texts = NULL;
-    g_cli_review.text_room = 0ull;
-    g_cli_review.texts_room = 0ull;
+    const unsigned long long text_bytes = (unsigned long long)CLI_REVIEW_TEXT + CLI_REVIEW_TEXTS_MAX;
+    g_cli_review.call = g_cli_cells->persistent_buf_alloc(
+        ((unsigned long long)CLI_REVIEW_CALLS * sizeof(unsigned int)) + text_bytes, &g_cli_code_cells);
     g_cli_review.compared = g_cli_cells->persistent_buf_alloc(cli_review_compared_bytes(), &g_cli_code_cells);
-    if ((s_room == NULL) || (g_cli_review.compared == NULL))
+    if ((s_room == NULL) || (g_cli_review.compared == NULL) || (g_cli_review.call == NULL))
     {
         review_released();
         return 0;
     }
+    g_cli_review.text = (char *)(void *)(g_cli_review.call + CLI_REVIEW_CALLS);
+    g_cli_review.texts = g_cli_review.text + CLI_REVIEW_TEXT;
+    g_cli_review.text_room = CLI_REVIEW_TEXT;
+    g_cli_review.texts_room = CLI_REVIEW_TEXTS_MAX;
     return 1;
 }
 
@@ -187,7 +186,7 @@ static void cli_tree_read(const char *root)
         char full[CLI_PATH_MAX_LEN];
         cli_full(root, path, full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_read(full, &size);
+        const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_code_cells);
         int text = bytes != NULL;
         for (unsigned long long at = 0ull; text && (at < size);)
         {
@@ -202,10 +201,7 @@ static void cli_tree_read(const char *root)
             file->now_size = size;
             file->has_now = (file->now != 0u) || (size == 0ull);
         }
-        if (bytes != NULL)
-        {
-            cli_file_let_go(bytes, size);
-        }
+        cli_file_given(bytes, &g_cli_code_cells);
     }
 }
 

@@ -90,7 +90,7 @@ test("the lattice drawn waits for the loop's next change seen, asking for no fra
   }
 });
 
-test("the lattice held still by less motion asks for no frame at all", async () => {
+test("the lattice kept still by less motion asks for no frame at all", async () => {
   setReduceMotion(true);
   try {
     await new Promise((next) => requestAnimationFrame(() => requestAnimationFrame(next)));

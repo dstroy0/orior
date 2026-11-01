@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The keys in sight: Ctrl or Alt held alone shows each button's keys over it.
+// The keys in sight: Ctrl or Alt pressed alone shows each button's keys over it.
 
 import { HOLD, hintsShown, keysOf } from "../../gui/src-js/keyhints.js";
 

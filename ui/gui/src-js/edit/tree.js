@@ -27,8 +27,8 @@ const repoPaths = () => (state.repos ?? []).map((repo) => repo.path);
 
 // The repository that holds a path of the tree: the deepest whose folder holds it.
 export function repoOf(path) {
-  const held = repoPaths().filter((repo) => repo === "" || path === repo || path.startsWith(`${repo}/`));
-  return held.length ? held.reduce((deepest, repo) => (repo.length > deepest.length ? repo : deepest)) : null;
+  const found = repoPaths().filter((repo) => repo === "" || path === repo || path.startsWith(`${repo}/`));
+  return found.length ? found.reduce((deepest, repo) => (repo.length > deepest.length ? repo : deepest)) : null;
 }
 
 // The repository open, the one the Git menu, the branch on the status bar and the Commit window's
@@ -84,8 +84,8 @@ export async function loadChanges() {
     let at = path.lastIndexOf("/");
     while (at > 0) {
       const folder = path.slice(0, at);
-      const held = state.rolled.get(folder);
-      if (!held || ROLL_ORDER.indexOf(mark) < ROLL_ORDER.indexOf(held)) {
+      const found = state.rolled.get(folder);
+      if (!found || ROLL_ORDER.indexOf(mark) < ROLL_ORDER.indexOf(found)) {
         state.rolled.set(folder, mark);
       }
       at = folder.lastIndexOf("/");

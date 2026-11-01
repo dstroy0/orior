@@ -107,7 +107,7 @@ export function moved() {
 }
 
 // Input first. A key or a press marks the status block's input active, and until it has rested
-// INPUT_REST every piece of work off the rows on screen is held here, one of each kind, and done
+// INPUT_REST every piece of work off the rows on screen is kept here, one of each kind, and done
 // once input stops.
 //
 // The caret holds still while input is active. A caret that blinks starts its blink again each
@@ -121,16 +121,16 @@ export function inputting() {
   this.inputWait = window.setTimeout(() => {
     write("input", { active: false });
     delete this.host.dataset.typing;
-    const held = this.held;
-    this.held = new Map();
-    held.forEach((run) => run());
+    const deferred = this.deferred;
+    this.deferred = new Map();
+    deferred.forEach((run) => run());
     this.paint();
   }, INPUT_REST);
 }
 
 export function later(kind, run) {
   if (status.input.active) {
-    this.held.set(kind, run);
+    this.deferred.set(kind, run);
   } else {
     run();
   }

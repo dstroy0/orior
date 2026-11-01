@@ -30,12 +30,13 @@ typedef struct
 } CliServersInspectJob;
 
 // The findings of the tree as they are written: the line they go on, each file's path ended by a 0 then its findings
-// as an array ended by a 0, whether a file is begun and whether it has a finding yet
+// as an array ended by a 0, whether a file is begun and whether it has a finding yet, and how many files are begun
 typedef struct
 {
     VerbaLinea *found;
     int file_begun;
     int has_finding;
+    unsigned long long files;
 } CliServersInspectFound;
 
 // how many trees were let go, under its own lock; and the root the tree was read from and when, under the tree's
@@ -95,6 +96,7 @@ static void inspect_found(void *context, const char *path, const char *finding, 
         mmgr_line_ch(found->found, '[');
         found->file_begun = 1;
         found->has_finding = 0;
+        found->files += 1ull;
         return;
     }
     if (!found->file_begun)
@@ -192,16 +194,19 @@ static void inspect_changed(VerbaLinea *changed, const char *key, const char *ur
     mmgr_line_put_n(changed, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1ull);
 }
 
-// each file's findings of `size` bytes of `found` stored, by its key with its URI, and each file whose findings changed
-// passed on
-static void inspect_passed_on(const char *root, const char *found, unsigned long long size, const CliServersSink *sink)
+// each file's findings of `size` bytes of `found`, `found_files` files, stored, by its key with its URI, and each file
+// whose findings changed passed on
+static void inspect_passed_on(const char *root, const char *found, unsigned long long size,
+                              unsigned long long found_files, const CliServersSink *sink)
 {
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea changed;
-    cli_pieces_begun(&pieces, &changed, piece, sizeof(piece), &g_cli_servers_cells);
     cli_keyed_clear(&s_seen);
     cli_lock_take(&g_cli_servers_checks_lock);
+    // a file found changes by its key and its URI, each at most a path's; one stored and no longer found by what it
+    // stored
+    const unsigned long long room =
+        (found_files * CLI_PATH_MAX_LEN * 2ull) + cli_keyed_listed_size(&g_cli_servers_inspected) + 1ull;
+    char *const files = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+    VerbaLinea changed = mmgr_line_over(files, room);
     for (unsigned long long at = 0ull; at < size;)
     {
         const char *const path = found + at;
@@ -240,9 +245,8 @@ static void inspect_passed_on(const char *root, const char *found, unsigned long
         }
     }
     cli_lock_give(&g_cli_servers_checks_lock);
-    unsigned long long changed_size = 0ull;
-    char *const files = cli_pieces_joined(&pieces, &changed, "the files whose findings changed", &changed_size);
-    for (unsigned long long at = 0ull; (files != NULL) && (at < changed_size);)
+    const unsigned long long changed_size = mmgr_line_ok(&changed) ? changed.at : 0ull;
+    for (unsigned long long at = 0ull; at < changed_size;)
     {
         const char *const key = files + at;
         const char *const uri = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;
@@ -274,15 +278,12 @@ static int inspect_tree_read(const char *root, unsigned long long born)
         char path[CLI_PATH_MAX_LEN];
         cli_full(root, one, path);
         unsigned long long size = 0ull;
-        const unsigned char *const mapped = cli_file_read(path, &size);
+        const unsigned char *const mapped = cli_file_taken(path, &size, &g_cli_servers_cells);
         if ((mapped != NULL) && cli_utf8_whole((const char *)mapped, size))
         {
             (void)cli_inspect_tree_set(one, language, (const char *)mapped, size);
         }
-        if (mapped != NULL)
-        {
-            cli_file_let_go(mapped, size);
-        }
+        cli_file_given(mapped, &g_cli_servers_cells);
     }
     cli_files_let(files);
     if (inspect_generation() != born)
@@ -321,23 +322,19 @@ static void inspect_job(const void *job, unsigned long long size)
     {
         cli_inspect_tree_remove(read->file);
     }
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_servers_cells);
-    CliServersInspectFound found = {&line, 0, 0};
+    char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FINDINGS, &g_cli_servers_cells);
+    VerbaLinea line = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
+    CliServersInspectFound found = {&line, 0, 0, 0ull};
     cli_inspect_tree_findings(inspect_found, &found);
     inspect_file_closed(&found);
-    unsigned long long found_size = 0ull;
-    char *const findings = cli_pieces_joined(&pieces, &line, "the tree's findings", &found_size);
     cli_keyed_clear(&s_supplied_new);
     cli_inspect_tree_supplied(inspect_supplied, (void *)read->root);
     cli_lock_take(&g_cli_servers_checks_lock);
     const int moved = inspect_supplied_put();
     cli_lock_give(&g_cli_servers_checks_lock);
-    if (findings != NULL)
+    if (mmgr_line_ok(&line))
     {
-        inspect_passed_on(read->root, findings, found_size, &read->sink);
+        inspect_passed_on(read->root, line.out, line.at, found.files, &read->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
     // what a family sets decides whether a server's reports of an attribute pass on
@@ -380,10 +377,7 @@ void cli_servers_inspect(const char *root, const char *path, const char *text, u
     memor.set(&(MemoriaCfg){.dst = read, .val = 0, .bytes = sizeof(*read)});
     memor.cpy(&(MemoriaCfg){.dst = read->root, .src = root, .bytes = top + 1u});
     VerbaLinea file = {read->file, CLI_PATH_MAX_LEN, 0ull};
-    for (const char *at = path + top + 1u; *at != '\0'; at += 1)
-    {
-        mmgr_line_ch(&file, (*at == '\\') ? '/' : *at);
-    }
+    (void)cli_text_put_swapped(&file, path + top + 1u, '\\', '/');
     (void)mmgr_line_finish(&file);
     read->sink = *sink;
     read->has_text = has_text;

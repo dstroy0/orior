@@ -203,13 +203,14 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLi
         return NULL;
     }
     tls->sealed = g_cli_cells->persistent_buf_alloc(CLI_SEALED_BYTES, &g_cli_tls_cells);
-    tls->sealed_room = (tls->sealed != NULL) ? CLI_SEALED_BYTES : 0ul;
     if (tls->sealed == NULL)
     {
+        tls->sealed_room = 0ul;
         mmgr_line_put(err_msg, "TLS: the handshake could not be stored");
         cli_tls_closed(tls);
         return NULL;
     }
+    tls->sealed_room = CLI_SEALED_BYTES;
     if (!cli_handshake(tls, host, err_msg))
     {
         cli_tls_closed(tls);

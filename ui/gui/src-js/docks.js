@@ -18,7 +18,7 @@ import { openWindow, tell, windowId } from "./windows.js";
 const KEY = "orior.docks";
 
 // Each tool window: its node, the place it stands in and the content in the middle of it, the side
-// it docks at first, the custom property its width is held in where it has one, its sizes at first,
+// it docks at first, the custom property its width is kept in where it has one, its sizes at first,
 // and its label.
 const TOOLS = {
   explorer: { node: "explorer", place: "mode-edit", middle: ".desk", side: "left", width: "--side", sizes: { left: 304, right: 304, bottom: 260 }, label: "Explorer" },
@@ -59,7 +59,7 @@ const ICON_LABELS = { explorer: "Explorer", search: "Search", structure: "Struct
 const LEAST = 120;
 const MOST = 0.75;
 
-// How far the pointer moves with an icon held before the icon is being dragged.
+// How far the pointer moves with an icon pressed before the icon is being dragged.
 const DRAG = 8;
 
 const state = { kept: { tools: {}, removed: [] }, hooks: null, drag: null };

@@ -3,8 +3,10 @@
 // requests_history.c: each request's last answers stored in orior's own folder, under requests/, a folder for the file
 // named by the SHA-256 of its path and a file for the request named by the SHA-256 of its key, the last answer first,
 // ten of them, each body cut to 1 MiB; and the answers stored read back
+#include "../command_line/cells.h"
 #include "../text/digest.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "requests_internal.h"
 
 // the most one answer stored takes, written, and the bytes the answers are buffered in before each piece is added to
@@ -53,10 +55,7 @@ static int history_folder(const char *root, const char *path, char *folder, Verb
     if (known)
     {
 #if defined(_WIN32)
-        for (char *at = file; *at != '\0'; at += 1)
-        {
-            *at = (*at == '/') ? '\\' : *at;
-        }
+        cli_text_swapped(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '/', '\\');
 #endif
         mmgr_line_put(&line, home);
         mmgr_line_put(&line, "/requests/");
@@ -97,7 +96,7 @@ static int history_white(unsigned char byte)
 static int history_read(const char *file, const unsigned char **bytes, unsigned long long *size,
                         unsigned long long *first)
 {
-    *bytes = cli_file_read(file, size);
+    *bytes = cli_file_taken(file, size, &g_cli_requests_cells);
     VerbaLinea none = {NULL, 0ull, 0ull};
     unsigned long long at = 0ull;
     while ((*bytes != NULL) && (at < *size) && history_white((*bytes)[at]))
@@ -107,7 +106,7 @@ static int history_read(const char *file, const unsigned char **bytes, unsigned 
     if ((*bytes != NULL) &&
         ((at == *size) || ((*bytes)[at] != '[') || !cli_json_compacted((const char *)*bytes, *size, &none)))
     {
-        cli_file_let_go(*bytes, *size);
+        cli_file_given(*bytes, &g_cli_requests_cells);
         *bytes = NULL;
     }
     *first = at + 1u;
@@ -176,7 +175,7 @@ int cli_requests_history_save(const char *root, const char *path, const char *ke
     }
     if (before)
     {
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_requests_cells);
     }
     mmgr_line_ch(&piece, ']');
     done = done && mmgr_line_flush(&piece) && cli_moved(writing, file);
@@ -216,7 +215,7 @@ int cli_requests_answers(const char *root, const char *path, const char *text, u
     if (history_read(file, &bytes, &byte_count, &first))
     {
         (void)cli_json_compacted((const char *)bytes, byte_count, out);
-        cli_file_let_go(bytes, byte_count);
+        cli_file_given(bytes, &g_cli_requests_cells);
     }
     else
     {

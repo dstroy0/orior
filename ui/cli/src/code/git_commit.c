@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_commit.c: chosen files committed, whole or in part, a commit to each repository that contains some; a file a
 // merge left in conflict marked resolved; and a file put back as the last commit left it
+#include "../text/text.h"
 #include "git_internal.h"
 
 // the most files a commit is chosen, and the most bytes of its message
@@ -9,8 +10,8 @@
 
 #define CLI_GIT_MESSAGE (1u << 16u)
 
-// the bytes the line of what git reports of a commit is begun with, doubling as it reports more
-#define CLI_GIT_OUTPUT_INIT_CAP 4096u
+// the bytes the line of what git reports of a commit is taken with
+#define CLI_GIT_OUTPUT_ROOM (1ull << 20u)
 
 // What a commit is made of, guarded by the lock in one cell sized to the files chosen and the message: the files of one
 // repository in part and whole, the words git is run with, the chosen paths, each chosen path's
@@ -131,8 +132,9 @@ static int cli_commit_in(const char *folder, const char *const *paths, unsigned 
             return 0;
         }
     }
-    VerbaLinea ran;
-    if (!cli_growing_line_temporary(&ran, CLI_GIT_OUTPUT_INIT_CAP, &g_cli_git_cells))
+    char *const ran_cell = g_cli_cells->temporary_buf_alloc(CLI_GIT_OUTPUT_ROOM, &g_cli_git_cells);
+    VerbaLinea ran = mmgr_line_over(ran_cell, CLI_GIT_OUTPUT_ROOM);
+    if (ran.out == NULL)
     {
         mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
@@ -195,8 +197,9 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
     mmgr_line_put(&joined, absolute ? "" : "/");
     mmgr_line_put(&joined, named);
     mmgr_line_finish(&joined);
-    VerbaLinea ran;
-    if (!cli_growing_line_temporary(&ran, CLI_GIT_OUTPUT_INIT_CAP, &g_cli_git_cells))
+    char *const ran_cell = g_cli_cells->temporary_buf_alloc(CLI_GIT_OUTPUT_ROOM, &g_cli_git_cells);
+    VerbaLinea ran = mmgr_line_over(ran_cell, CLI_GIT_OUTPUT_ROOM);
+    if (ran.out == NULL)
     {
         mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
@@ -230,11 +233,9 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
         mmgr_line_finish(&listing);
         // the mode the index gives the file, its first word, else a plain file's
         unsigned long long mode_length = 0ull;
-        while ((listed[mode_length] != '\0') && (listed[mode_length] != ' ') && (listed[mode_length] != '\t') &&
-               (listed[mode_length] != '\n'))
-        {
-            mode_length += 1ull;
-        }
+        mode_length = cli_text_to_any(
+            listed, mode_length,
+            mode_length + cellul.len(&(CatenaFinitaCfg){.src = listed + mode_length, .cap = CLI_CELLS_POOL}), " \t\n");
         char info[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
         VerbaLinea cacheinfo = {info, sizeof(info), 0ull};
         if (mode_length != 0ull)

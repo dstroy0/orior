@@ -14,7 +14,7 @@ const DOT = 16;
 const RADIUS_AT = 8;
 const SHADE_AT = 12;
 
-// The WebGL context of `canvas`, held in `slot`, asked for once, or null where the page has no WebGL. A canvas that
+// The WebGL context of `canvas`, kept in `slot`, asked for once, or null where the page has no WebGL. A canvas that
 // has drawn through WebGL keeps to it, and one that has not keeps to its 2D canvas.
 const asked = new WeakMap();
 export function contextOf(slot, canvas) {
@@ -23,7 +23,7 @@ export function contextOf(slot, canvas) {
   }
   const gl = asked.get(canvas);
   if (gl && contexts.get(slot)?.gl !== gl) {
-    contexts.set(slot, { gl, objects: [null], held: new Map() });
+    contexts.set(slot, { gl, objects: [null], sizes: new Map() });
   }
   return gl;
 }
@@ -62,14 +62,14 @@ export function glCalls(memory) {
     gl_uniform: (slot, program, name, length) => kept(slot, on(slot).gl.getUniformLocation(object(slot, program), text(name, length))),
     // the dots written over the buffer's own where it holds as many bytes, else into a buffer made anew for them
     gl_points: (slot, buffer, dots, bytes) => {
-      const { gl, held } = on(slot);
+      const { gl, sizes } = on(slot);
       const view = new Uint8Array(memory(), dots, bytes);
       gl.bindBuffer(gl.ARRAY_BUFFER, object(slot, buffer));
-      if (held.get(buffer) === bytes) {
+      if (sizes.get(buffer) === bytes) {
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, view);
       } else {
         gl.bufferData(gl.ARRAY_BUFFER, view, gl.DYNAMIC_DRAW);
-        held.set(buffer, bytes);
+        sizes.set(buffer, bytes);
       }
     },
     gl_begin: (slot, program, buffer) => {

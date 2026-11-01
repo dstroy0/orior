@@ -5,12 +5,14 @@
 // properties is given them after its coordinates, a step deeper than its root. The compiler plugin's version is
 // written over its own. Maven's own settings are written to the user's `settings.xml`, made where there is none. An
 // element added under another goes on a line of its own, at the depth of the other's first child
+#include "../command_line/cells.h"
 #include "../text/edits.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "maven.h"
 #include "maven_internal.h"
 
-// the bytes the user's settings written are begun with beyond what they contained, the line growing past them
+// the bytes the user's settings written are taken with beyond what they contained
 #define CLI_MAVEN_SET_MORE 4096ull
 
 static CliLock s_set_lock = CLI_LOCK_INIT;
@@ -21,15 +23,10 @@ static char s_edit[1u << 14u];
 static void set_indent_at(const char *text, unsigned long long at, VerbaLinea *out)
 {
     unsigned long long start = at;
-    while ((start > 0u) && (text[start - 1u] != '\n'))
-    {
-        start -= 1u;
-    }
-    while ((text[start] == ' ') || (text[start] == '\t'))
-    {
-        mmgr_line_ch(out, text[start]);
-        start += 1u;
-    }
+    start = cli_text_back_any(text, start, "\n");
+    const unsigned long long stop = cli_text_past_any(
+        text, start, start + cellul.len(&(CatenaFinitaCfg){.src = text + start, .cap = CLI_CELLS_POOL}), " \t");
+    mmgr_line_put_n(out, text + start, (size_t)(stop - start));
 }
 
 // the indent one step deeper takes in the text, the indent of the first child of its root, two spaces where it has
@@ -63,10 +60,7 @@ static CliTextEdit set_element(const CliXml *xml, unsigned int holder, const cha
     }
     const unsigned long long end = xml->element[holder].inner_to;
     unsigned long long line_start = end;
-    while ((line_start > 0u) && (xml->text[line_start - 1u] != '\n'))
-    {
-        line_start -= 1u;
-    }
+    line_start = cli_text_back_any(xml->text, line_start, "\n");
     const int blank = (cli_text_lead(xml->text + line_start, end - line_start) == end - line_start);
     const unsigned long long place = blank ? line_start : end;
     VerbaLinea edit = {s_edit, sizeof(s_edit), 0ull};
@@ -203,12 +197,13 @@ static int set_user(const char *name, const char *value, VerbaLinea *out, VerbaL
         return 0;
     }
     unsigned long long mapped_size = 0ull;
-    const unsigned char *const mapped = cli_file_read(path, &mapped_size);
+    const unsigned char *const mapped = cli_file_taken(path, &mapped_size, &g_cli_build_cells);
     // the file's bytes are read as its text; a file not there is read as empty
     const char *const text = (mapped != NULL) ? (const char *)mapped : "";
-    const unsigned long long size = (mapped != NULL) ? mapped_size : 0ull;
-    VerbaLinea written;
-    (void)cli_growing_line_temporary(&written, size + CLI_MAVEN_SET_MORE, &g_cli_build_cells);
+    const unsigned long long size = mapped_size;
+    const unsigned long long written_room = size + CLI_MAVEN_SET_MORE;
+    char *const written_cell = g_cli_cells->temporary_buf_alloc(written_room, &g_cli_build_cells);
+    VerbaLinea written = mmgr_line_over(written_cell, written_room);
     unsigned int *starts = NULL;
     int settings = 1;
     if (cli_text_lead(text, size) == size)
@@ -240,10 +235,7 @@ static int set_user(const char *name, const char *value, VerbaLinea *out, VerbaL
                      query_file_written(path, written.out, written.at);
     g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
     g_cli_cells->persistent_buf_release(written.out, &g_cli_build_cells);
-    if (mapped != NULL)
-    {
-        cli_file_let_go(mapped, mapped_size);
-    }
+    cli_file_given(mapped, &g_cli_build_cells);
     if (done)
     {
         mmgr_line_put(out, "[]");

@@ -4,16 +4,14 @@
 #include "../text/text.h"
 #include "git_internal.h"
 
-// the folders a search for the tree's repositories does not go into, those a build or a package manager fills; how
-// many folders deep under the tree it goes; the most folders it queues to look in; and the folders and repositories
-// its lists are begun with, doubling as they fill
+// the folders a search for the tree's repositories does not go into, those a build or a package manager fills; how many
+// folders deep under the tree it goes; the most folders it queues to look in; and the folders and repositories its
+// lists are taken with
 static const char *const s_not_searched[6] = {"node_modules", "target", "build", "dist", "__pycache__", "venv"};
 
 #define CLI_GIT_DEPTH 4u
 
 #define CLI_GIT_PENDING 4096u
-
-#define CLI_GIT_SEARCH_FIRST 16u
 
 // A folder a search for repositories still looks in, and how deep under the tree it is
 typedef struct
@@ -35,27 +33,6 @@ typedef struct
     const char *folder;
     unsigned int at_depth;
 } CliSearch;
-
-// a list of `*room` items of `size` bytes, `count` of them stored, given room for one more: where it is full and below
-// `most`, the list moved into a cell of twice its room, CLI_GIT_SEARCH_FIRST where it has none, its items copied and
-// its cell given back. The list as it stands after, `count` below `*room` where there is room
-static void *cli_search_grown(void *list, unsigned int count, unsigned int *room, unsigned long long size,
-                              unsigned int most)
-{
-    if ((count < *room) || (*room >= most))
-    {
-        return list;
-    }
-    const unsigned int doubled = (*room == 0u) ? CLI_GIT_SEARCH_FIRST : (*room * 2u);
-    const unsigned int grown = (doubled < most) ? doubled : most;
-    void *const cell = cli_cell_regrown(list, count * size, grown * size, &g_cli_git_cells);
-    if (cell == NULL)
-    {
-        return list;
-    }
-    *room = grown;
-    return cell;
-}
 
 static void cli_search_each(void *context, const char *name, int is_folder)
 {
@@ -92,8 +69,6 @@ static void cli_search_each(void *context, const char *name, int is_folder)
     const int is_repository = query_is_file(git) || query_is_folder(git);
     if (is_repository)
     {
-        search->nested = cli_search_grown(search->nested, search->nested_count, &search->nested_room,
-                                          sizeof(*search->nested), CLI_GIT_REPOSITORIES);
     }
     if (is_repository && (search->nested_count < search->nested_room))
     {
@@ -101,11 +76,6 @@ static void cli_search_each(void *context, const char *name, int is_folder)
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
         search->nested_count += 1u;
-    }
-    if ((search->at_depth + 1u) < CLI_GIT_DEPTH)
-    {
-        search->pending = cli_search_grown(search->pending, search->pending_count, &search->pending_room,
-                                           sizeof(*search->pending), CLI_GIT_PENDING);
     }
     if (((search->at_depth + 1u) < CLI_GIT_DEPTH) && (search->pending_count < search->pending_room))
     {
@@ -155,9 +125,15 @@ void cli_git_repositories(const char *root, CliRepositories *found)
     }
     CliSearch search_copy = {0};
     CliSearch *const search = &search_copy;
-    search->pending = cli_search_grown(NULL, 0u, &search->pending_room, sizeof(*search->pending), CLI_GIT_PENDING);
-    if (search->pending_room != 0u)
+    const unsigned long long pending_bytes = (unsigned long long)CLI_GIT_PENDING * sizeof(*search->pending);
+    char *const cell = g_cli_cells->temporary_buf_alloc(
+        pending_bytes + ((unsigned long long)CLI_GIT_REPOSITORIES * sizeof(*search->nested)), &g_cli_git_cells);
+    if (cell != NULL)
     {
+        search->pending = (CliSearchFolder *)(void *)cell;
+        search->pending_room = CLI_GIT_PENDING;
+        search->nested = (void *)(cell + pending_bytes);
+        search->nested_room = CLI_GIT_REPOSITORIES;
         memor.cpy(&(MemoriaCfg){.dst = search->pending[0].path,
                                 .src = root,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
@@ -205,6 +181,5 @@ void cli_git_repositories(const char *root, CliRepositories *found)
         cli_relative(root, search->nested[at], relative);
         cli_repository_put(found, relative, search->nested[at]);
     }
-    g_cli_cells->persistent_buf_release(search->pending, &g_cli_git_cells);
-    g_cli_cells->persistent_buf_release(search->nested, &g_cli_git_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_git_cells);
 }

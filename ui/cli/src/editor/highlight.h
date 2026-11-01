@@ -11,10 +11,10 @@
 // each group of the match a token of its own; or `{ include: "@state" }`, the rules of another state. A token is a
 // name, or `{ cases: { "@<name>": token, "<word>": token, "@default": token } }`, which picks by the matched text, and
 // `@brackets` is a bracket's, named by the grammar's `bracketToken`, `delimiter.bracket` where it gives none, with
-// `.open` for the first letter of one of its `brackets` and `.close` for the second. A next of `@<state>` enters a state, `@pop` leaves the one entered last, `@pop@<state>`
-// leaves it and enters `<state>` in its place, and `@popall` returns to root. A grammar whose `perLine` is set starts
-// every line in root; any other carries its states from the end of one line to the start of the next, written as
-// their names joined by `/`.
+// `.open` for the first letter of one of its `brackets` and `.close` for the second. A next of `@<state>` enters a
+// state, `@pop` leaves the one entered last, `@pop@<state>` leaves it and enters `<state>` in its place, and `@popall`
+// returns to root. A grammar whose `perLine` is set starts every line in root; any other carries its states from the
+// end of one line to the start of the next, written as their names joined by `/`.
 //
 // A rule that matches nothing at a line's end and names a token puts a mark there, a token of no letters. A grammar's
 // `indent`, `{ states: { <state>: <token>, ... }, tab, skip, begins: [<state>, ...] }`, runs the states it names by
@@ -60,7 +60,7 @@ typedef void (*CliLeavesEach)(void *context, const CliLeaves *leaves);
 // `count` lines colored with the grammar stored under `key`, the first starting in `state` and each after in the state
 // the one before it ends in, the last ending the text where `ends` is 1, each line's leaves handed to `each`, and the
 // state the last ends in written into `ended`: 1, or 0 with why given. The lines are colored and `each` runs with no
-// lock held, on the calling thread, as many colorings at once as threads call for them
+// lock taken, on the calling thread, as many colorings at once as threads call for them
 int cli_highlight_leaves(const char *key, const char *state, const char *const *lines, unsigned int count, int ends,
                          CliLeavesEach each, void *context, VerbaLinea *ended, VerbaLinea *err_msg);
 // every name a token of the grammar stored under `key` can take, the empty name first, written into `out` as a JSON

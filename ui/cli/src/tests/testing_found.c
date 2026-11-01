@@ -115,11 +115,7 @@ static unsigned int found_indent(const char *text, unsigned long long size, unsi
     const unsigned long long start = s_room->line_start[line];
     const unsigned long long end = (line + 1u < lines) ? s_room->line_start[line + 1u] - 1u : size;
     unsigned long long at = start;
-    while ((at < end) &&
-           ((text[at] == ' ') || (text[at] == '\t') || (text[at] == '\r') || (text[at] == '\f') || (text[at] == '\v')))
-    {
-        at += 1u;
-    }
+    at = cli_text_past_any(text, at, end, " \t\r\f\v");
     *blank = (at == end);
     return (unsigned int)(at - start);
 }
@@ -131,9 +127,7 @@ static void found_bodies(const char *text, unsigned long long size)
     for (unsigned long long at = 0ull; (at < size) && (lines < s_room->lines); lines += 1u)
     {
         s_room->line_start[lines] = (unsigned int)at;
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = (size_t)(size - at)});
-        at = (newline != NULL) ? (unsigned long long)(newline - text) + 1u : size;
+        at = cli_text_line_at(text, at, size).next;
     }
     for (unsigned int at = 0u; at < s_room->facts.classes; at += 1u)
     {
@@ -358,10 +352,7 @@ static int found_searched(const char *file, const CliTestRules *rules)
         const char *const place = cli_test_rule_value(rules, &rules->paths, at);
         size_t place_size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL});
         inside = (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = place, .cap = CLI_CELLS_POOL}));
-        while ((place_size > 0u) && (place[place_size - 1u] == '/'))
-        {
-            place_size -= 1u;
-        }
+        place_size = (size_t)cli_text_back_past(place, place_size, "/");
         inside = inside || ((length > place_size) &&
                             (memor.cmp(&(MemoriaCfg){.src = file, .other = place, .bytes = place_size}) == 0) &&
                             (file[place_size] == '/'));

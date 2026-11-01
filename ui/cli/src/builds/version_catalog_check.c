@@ -41,7 +41,6 @@ int cli_versions_names_of(const char *name, CliVersionsNames *names)
     names->room = (unsigned int)((bytes < CLI_VERSIONS_NAMES_TEXT) ? bytes : CLI_VERSIONS_NAMES_TEXT) + 1u;
     names->at =
         g_cli_cells->persistent_buf_alloc(2ull * (names->most + 1ull) * sizeof(unsigned int), &g_cli_versions_cells);
-    names->size = (names->at != NULL) ? names->at + names->most + 1u : NULL;
     names->text = g_cli_cells->persistent_buf_alloc(names->room, &g_cli_versions_cells);
     if ((names->at == NULL) || (names->text == NULL))
     {
@@ -54,6 +53,7 @@ int cli_versions_names_of(const char *name, CliVersionsNames *names)
         names->room = 0u;
         return 0;
     }
+    names->size = names->at + names->most + 1u;
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];

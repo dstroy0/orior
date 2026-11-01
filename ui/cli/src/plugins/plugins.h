@@ -41,17 +41,15 @@
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 
-// the keys of extensions, names and paths the languages' room is begun with before it doubles, and the most plugins
-// the reader installs
-#define CLI_LANGUAGE_PAIRS_FIRST 64u
-
+// the most keys of extensions, names and paths the languages contain, and the most plugins the reader installs
+#define CLI_LANGUAGE_PAIRS 4096u
 #define CLI_USER_PLUGINS 1024u
 
 // the cells the plugins are read in (plugins.c)
 extern CellOwner g_cli_plugins_cells;
 
-// the bytes a plugin's text and its sample are begun to be written in, as a plugin is written, doubling as they are
-#define CLI_PLUGIN_TEXT_FIRST 4096u
+// the bytes a plugin's text and its sample are written in, as a plugin is written
+#define CLI_PLUGIN_TEXT_ROOM (1ull << 20u)
 
 // A plugin that comes with orior: its id, the text of its plugin.json, `size` bytes, and the code it runs as a script
 // plugin, `code_size` bytes, NULL for one that runs none
@@ -88,7 +86,7 @@ typedef struct
 
 // The language each extension, whole name and pattern of paths opens as: `/<name>` for a whole name, `?<pattern>` for
 // a pattern, and the extension itself; each key with its language id, a later plugin's standing in for an earlier's,
-// in a cell whose room doubles as they are put, given back with cli_plugins_languages_given
+// in a cell of `room`, given back with cli_plugins_languages_given
 typedef struct
 {
     CliLanguagePair *pair;

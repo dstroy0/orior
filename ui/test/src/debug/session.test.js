@@ -10,7 +10,7 @@ import { invoke, listen } from "../../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../../gui/src-js/edit.js";
 import { showView } from "../../../gui/src-js/views.js";
 import { paletteOpen } from "../../../gui/src-js/palette.js";
-import { noticesHeld, noticesSaid } from "../../../gui/src-js/statusbar.js";
+import { noticesWaiting, noticesSaid } from "../../../gui/src-js/statusbar.js";
 import { pausedLineOf } from "../../../gui/src-js/debug.js";
 import { chosenJob, chosenLive, loadRun, showJob } from "../../../gui/src-js/run.js";
 import { testsOf } from "../../../gui/src-js/tests.js";
@@ -36,7 +36,7 @@ test("Run, Start and Stop run the job chosen, and the command line lists, shows 
   await ui.waitFor(() => chosenLive(), 10000, "the job running");
   await press("stop");
   await ui.waitFor(() => !chosenLive(), 10000, "the job stopped").catch((error) => {
-    throw new Error(`${error.message}; asked to stop: ${JSON.stringify(made("job_stop").map((one) => one.args))}; started: ${JSON.stringify(made("job_start").map((one) => one.args.job))}; ended: ${JSON.stringify(ends)}; the console: ${document.getElementById("lines")?.textContent.slice(0, 400)}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesHeld()].slice(-3).map((one) => one.text))}`);
+    throw new Error(`${error.message}; asked to stop: ${JSON.stringify(made("job_stop").map((one) => one.args))}; started: ${JSON.stringify(made("job_start").map((one) => one.args.job))}; ended: ${JSON.stringify(ends)}; the console: ${document.getElementById("lines")?.textContent.slice(0, 400)}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesWaiting()].slice(-3).map((one) => one.text))}`);
   });
 }, { timeout: 60000 });
 
@@ -78,7 +78,7 @@ test("Run, Find Tests lists the tree's tests, Run Tests runs them, Run Failed Te
   }
   await press("run-tests");
   await ui.waitFor(() => testsOf("test_menus.py")?.get(0) === "passed" && testsOf("test_menus.py")?.get(4) === "failed", 60000, "each test's result").catch((error) => {
-    throw new Error(`${error.message}; the results: ${JSON.stringify([...(testsOf("test_menus.py") ?? [])])}; run: ${JSON.stringify(made("tests_run").map((one) => one.args))}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesHeld()].slice(-3).map((one) => one.text))}`);
+    throw new Error(`${error.message}; the results: ${JSON.stringify([...(testsOf("test_menus.py") ?? [])])}; run: ${JSON.stringify(made("tests_run").map((one) => one.args))}; the window said: ${JSON.stringify([...noticesSaid(), ...noticesWaiting()].slice(-3).map((one) => one.text))}`);
   });
   const asked = made("tests_run").length;
   await press("run-failed-tests");

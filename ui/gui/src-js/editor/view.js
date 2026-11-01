@@ -144,7 +144,7 @@ export const SHOWN = 10000;
 // of characters lays out what can be seen, and not the rest. The step is in characters.
 export const REACH_STEP = 64;
 // The rows a view draws are those in sight first, then out from them a slice of DRAW_SLICE rows at a
-// time, as a large file is read, to DRAWN_MOST rows at the most, and DRAWN_PAGED for a file held as
+// time, as a large file is read, to DRAWN_MOST rows at the most, and DRAWN_PAGED for a file kept as
 // pages, whose window moves under the view and whose rows are drawn again as it does.
 export const DRAW_SLICE = 32;
 export const DRAWN_MOST = 1200;
@@ -179,7 +179,7 @@ export const lineHeight = () => LINE;
 
 export const coloringReach =(shown, speed, screenMs) => Math.max(shown * AHEAD, Math.ceil((speed / LINE) * screenMs * 2));
 
-// How long input rests before the work it held runs.
+// How long input rests before the work it kept runs.
 export const INPUT_REST = 300;
 
 export const startOf = (sel) => least(sel.anchor, sel.head);
@@ -209,8 +209,8 @@ export function keysName(keys) {
   const named = (press) => {
     const parts = press.split("+");
     const key = parts.pop() || "+";
-    const held = [parts.includes("Ctrl") && "Mod", parts.includes("Alt") && "Alt", parts.includes("Shift") && "Shift"].filter(Boolean);
-    return [...held, key].join("+");
+    const modifiers = [parts.includes("Ctrl") && "Mod", parts.includes("Alt") && "Alt", parts.includes("Shift") && "Shift"].filter(Boolean);
+    return [...modifiers, key].join("+");
   };
   return keys.split(" ").map(named).join(" ");
 }
@@ -334,9 +334,9 @@ export class Editor {
     this.glide = null;
     this.flick = null;
     this.stickyKey = "";
-    // The lines held along the top, and the top row and text they were read for.
-    this.stickyHeld = [];
-    this.stickyHeldFor = "";
+    // The lines kept along the top, and the top row and text they were read for.
+    this.stickyRows = [];
+    this.stickyRowsFor = "";
     host.append(this.gutter, this.scroller, this.sheet, canvas, this.sticky);
     (statusHost ?? host).append(this.status);
     this.minimap = new Minimap(this, canvas);
@@ -381,7 +381,7 @@ export class Editor {
     this.widestAt = -1;
     this.widestCache = 0;
     this.chord = null;
-    this.held = new Map();
+    this.deferred = new Map();
     this.clip = null;
     this.composing = false;
     this.measure();

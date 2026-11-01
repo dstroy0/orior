@@ -29,10 +29,10 @@ class Written(unittest.TestCase):
 
     def test_each_finding_pictured_and_each_motion_listed(self):
         smooth = moving(0, 100, 100, 300)
-        held = lambda at: smooth(180.0) if 180.0 <= at < 230.0 else smooth(at)  # noqa: E731
+        stalled = lambda at: smooth(180.0) if 180.0 <= at < 230.0 else smooth(at)  # noqa: E731
         inward = moving(0, 100, 100, 300)
         outward = moving(100, 0, 1000, 500)
-        tracks = {"bar.top": held, "strip.left": lambda at: inward(at) if at < 1000 else outward(at), "minimap.left": moving(0, 40, 160, 300)}
+        tracks = {"bar.top": stalled, "strip.left": lambda at: inward(at) if at < 1000 else outward(at), "minimap.left": moving(0, 40, 160, 300)}
         taken = recording(clock(1800), tracks, [(90, "left in"), (990, "left out")])
         reading = motion_read.read(taken)
         path = motion_report.written(reading, taken, FOLDER)

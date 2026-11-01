@@ -100,7 +100,8 @@ static void cli_symbols_grammar_noted(void *context, const CliPlugin *plugin)
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken_temporary(&json, plugin->text, plugin->size, &err_msg, &g_cli_code_cells);
+    const unsigned int root =
+        cli_json_taken_temporary(&json, plugin->text, plugin->size, 0u, 0ull, &err_msg, &g_cli_code_cells);
     const char *const kind =
         (root != CLI_JSON_NONE) ? cli_json_string(&json, cli_json_member(&json, root, "kind"), NULL) : NULL;
     const int language =
@@ -226,7 +227,8 @@ static int cli_symbols_leaves_at(CliSymbolsLanguages *read, unsigned int place, 
     }
     // the text's lines in a cell of their own, each ended by a NUL in place of its line's end, its carriage return
     // before it dropped
-    char *const lines = (grammar->stored == 1) ? g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_code_cells) : NULL;
+    char *const lines =
+        (grammar->stored == 1) ? g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_code_cells) : NULL;
     if (lines == NULL)
     {
         return 0;
@@ -262,10 +264,7 @@ static int cli_symbols_leaves_at(CliSymbolsLanguages *read, unsigned int place, 
         {
             batch[count] = lines + at;
             count += 1u;
-            while ((at < size) && (text[at] != '\n'))
-            {
-                at += 1ull;
-            }
+            at = cli_text_to_any(text, at, size, "\n");
             at += 1ull;
         }
         char ended_text[CLI_SYMBOLS_STATE];

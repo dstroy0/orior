@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_write.c: files and folders made in the tree, and a file's text written beside it and moved over it, so a failed
 // write leaves the file as it was
+#include "../text/text.h"
 #include "archive.h"
 #include "files.h"
 
@@ -96,10 +97,7 @@ int cli_files_saving_beside(const char *path, const char *file, char *beside, Ve
         return 0;
     }
     const char *name = path + cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_CELLS_POOL});
-    while ((name[0] == '/') || (name[0] == '\\'))
-    {
-        name += 1;
-    }
+    name += cli_text_past_any(name, 0ull, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), "/\\");
     if (name[0] == '\0')
     {
         mmgr_line_put(err_msg, file);

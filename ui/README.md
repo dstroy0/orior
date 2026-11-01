@@ -221,7 +221,7 @@ File, Plugins reads a catalog of plugins others publish, at an address the reade
 on this machine, and installs a plugin the search finds from its package, a JSON file of its files by
 name, where its hash and its version are those the catalog gives. A script plugin's plugin.json
 says what it reads and writes, as patterns of the tree's files, and the hosts it reaches; it runs
-only once the reader lets it, Install letting it as the catalog showed, and each call is held to
+only once the reader lets it, Install letting it as the catalog showed, and each call is kept to
 what it asked for. A plugin is updated only by Update, and an update that asks for more waits for
 Let It Run.
 

@@ -4,7 +4,7 @@
 // waiting on it and what it sends unprompted to its receiver, what it writes to its errors retained, requests and
 // notifications sent, and the server ended
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
+#include "../text/text.h"
 #include "lsp_internal.h"
 
 CliLock g_cli_lsps_lock = CLI_LOCK_INIT;
@@ -37,10 +37,12 @@ static int lsp_id(const char *text, unsigned long long length, unsigned long lon
     return length > 0ull;
 }
 
-// an answer handed to the request of `id` that waits on it: its result, or its error
-static void lsp_answered(CliLsp *lsp, unsigned long long id, const char *result, unsigned long long length,
-                         const char *error)
+// an answer handed to the request of `id` that waits on it: `message` with its result in it, or its error: 1 where the
+// message went to the request, which gives it back
+static int lsp_answered(CliLsp *lsp, unsigned long long id, char *message, const char *result,
+                        unsigned long long length, const char *error)
 {
+    int handed = 0;
     cli_lock_take(&lsp->lock);
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
     {
@@ -56,7 +58,8 @@ static void lsp_answered(CliLsp *lsp, unsigned long long id, const char *result,
             }
             else
             {
-                mmgr_line_put_n(waiter->result, result, length);
+                *waiter->answer = (CliLspAnswer){message, result, length};
+                handed = 1;
             }
             waiter->answered = 1;
             waiter->waiting = 0;
@@ -65,6 +68,7 @@ static void lsp_answered(CliLsp *lsp, unsigned long long id, const char *result,
         }
     }
     cli_lock_give(&lsp->lock);
+    return handed;
 }
 
 // what the server sends unprompted received, and a request of its answered with what its receiver writes
@@ -79,52 +83,49 @@ static void lsp_server_message(CliLsp *lsp, const char *body, unsigned long long
     unsigned long long params = 0ull;
     unsigned long long params_size = 0ull;
     const int has_params = cli_lsp_member(body, size, "params", &params, &params_size);
-    // the answer written through pieces into a cell of its size
-    char piece[4096];
-    CliPieces pieces;
-    VerbaLinea answer;
-    cli_pieces_begun(&pieces, &answer, piece, sizeof(piece), &g_cli_servers_cells);
     unsigned long long id = 0ull;
     unsigned long long id_size = 0ull;
     const int has_id = cli_lsp_member(body, size, "id", &id, &id_size);
+    // a request's answer in a cell of the most it holds; what the server sends unprompted is answered with nothing
+    char *const answer_text = has_id ? g_cli_cells->temporary_buf_alloc(CLI_LSP_ANSWERED, &g_cli_servers_cells) : NULL;
+    VerbaLinea answer = mmgr_line_over(answer_text, CLI_LSP_ANSWERED);
     t_request_id = has_id ? (body + id) : NULL;
     t_request_id_size = has_id ? id_size : 0ull;
     t_later = 0;
     lsp->recv(lsp->context, name, has_params ? body + params : "null", has_params ? params_size : 4ull, &answer);
     t_request_id = NULL;
-    unsigned long long answer_size = 0ull;
-    char *const written = cli_pieces_joined(&pieces, &answer, "an answer to a server", &answer_size);
     if (has_id && !t_later)
     {
-        const int answered = (written != NULL) && (answer_size > 0ull);
+        const int answered = mmgr_line_ok(&answer) && (answer.at > 0ull);
         const CliLspPart parts[5] = {CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"id\":"),
                                      {body + id, id_size, 0},
                                      CLI_LSP_RAW(",\"result\":"),
-                                     {answered ? written : "null", answered ? answer_size : 4ull, 0},
+                                     {answered ? answer.out : "null", answered ? answer.at : 4ull, 0},
                                      CLI_LSP_RAW("}")};
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea unsent = {why, sizeof(why), 0ull};
         (void)cli_lsp_send_parts(&lsp->input, &lsp->input_lock, parts, 5u, &unsent);
     }
-    g_cli_cells->persistent_buf_release(written, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(answer_text, &g_cli_servers_cells);
 }
 
-// a message the server sent, `size` bytes of `body`: what it sends unprompted received, an answer handed to its request
-static void lsp_message(CliLsp *lsp, const char *body, unsigned long long size)
+// a message the server sent, `size` bytes of `body`, ended by a 0: what it sends unprompted received, an answer handed
+// to its request: 1 where `body` went with the answer
+static int lsp_message(CliLsp *lsp, char *body, unsigned long long size)
 {
     unsigned long long method = 0ull;
     unsigned long long method_size = 0ull;
     if (cli_lsp_member(body, size, "method", &method, &method_size) && (body[method] == '"'))
     {
         lsp_server_message(lsp, body, size, method, method_size);
-        return;
+        return 0;
     }
     unsigned long long id_at = 0ull;
     unsigned long long id_size = 0ull;
     unsigned long long id = 0ull;
     if (!cli_lsp_member(body, size, "id", &id_at, &id_size) || !lsp_id(body + id_at, id_size, &id))
     {
-        return;
+        return 0;
     }
     unsigned long long at = 0ull;
     unsigned long long length = 0ull;
@@ -141,11 +142,15 @@ static void lsp_message(CliLsp *lsp, const char *body, unsigned long long size)
                 .src = "the server refused",
                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the server refused", .cap = CLI_CELLS_POOL}) + 1u});
         }
-        lsp_answered(lsp, id, NULL, 0ull, error);
-        return;
+        return lsp_answered(lsp, id, NULL, NULL, 0ull, error);
     }
     const int has_result = cli_lsp_member(body, size, "result", &at, &length);
-    lsp_answered(lsp, id, has_result ? body + at : "null", has_result ? length : 4ull, NULL);
+    if (has_result)
+    {
+        // the result ended by a 0 where it stands: the byte after it is the message's own, read no more
+        body[at + length] = '\0';
+    }
+    return lsp_answered(lsp, id, body, has_result ? body + at : "null", has_result ? length : 4ull, NULL);
 }
 
 // what the server writes read until it ends: each message handed on, and every request still waiting notified the
@@ -155,11 +160,13 @@ static void lsp_read(void *context)
     CliLsp *const lsp = (CliLsp *)context;
     unsigned long long size = 0ull;
     char *body = NULL;
-    // each message read into a cell of its length, given back once it is handed on
-    while ((body = cli_lsp_message_taken(&lsp->reader, &size)) != NULL)
+    // each message read into a cell of its length, given back here unless it went with an answer
+    while ((body = cli_lsp_message_taken(&lsp->reader, &size, &g_cli_servers_cells)) != NULL)
     {
-        lsp_message(lsp, body, size);
-        g_cli_cells->persistent_buf_release(body, &g_cli_servers_cells);
+        if (!lsp_message(lsp, body, size))
+        {
+            g_cli_cells->persistent_buf_release(body, &g_cli_servers_cells);
+        }
     }
     cli_lock_take(&lsp->lock);
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
@@ -296,8 +303,9 @@ int cli_lsp_notified(CliLsp *lsp, const char *method, const char *params, unsign
 }
 
 int cli_lsp_requested(CliLsp *lsp, const char *method, const char *params, unsigned long long length,
-                      unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg)
+                      unsigned long long wait, CliLspAnswer *answer, VerbaLinea *err_msg)
 {
+    *answer = (CliLspAnswer){NULL, NULL, 0ull};
     cli_lock_take(&lsp->lock);
     const unsigned long long id = lsp->next;
     lsp->next += 1ull;
@@ -308,7 +316,7 @@ int cli_lsp_requested(CliLsp *lsp, const char *method, const char *params, unsig
     }
     if (waiter != NULL)
     {
-        *waiter = (CliLspWaiter){1, id, result, 0, ""};
+        *waiter = (CliLspWaiter){1, id, answer, 0, ""};
     }
     cli_lock_give(&lsp->lock);
     if (waiter == NULL)
@@ -423,10 +431,7 @@ void cli_lsp_complaint(CliLsp *lsp, VerbaLinea *out)
         end -= 1ull;
     }
     unsigned long long start = end;
-    while ((start > 0ull) && (lsp->complaint[start - 1ull] != '\n'))
-    {
-        start -= 1ull;
-    }
+    start = cli_text_back_any(lsp->complaint, start, "\n");
     mmgr_line_put_n(out, lsp->complaint + start, end - start);
     cli_lock_give(&lsp->lock);
 }
@@ -445,11 +450,11 @@ void cli_lsp_ended(CliLsp *lsp)
 
 void cli_lsp_stopped(CliLsp *lsp)
 {
-    char answer[256];
-    VerbaLinea result = {answer, sizeof(answer), 0ull};
+    CliLspAnswer answer;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ull};
-    (void)cli_lsp_requested(lsp, "shutdown", "null", 4ull, 2000ull, &result, &err_buf);
+    (void)cli_lsp_requested(lsp, "shutdown", "null", 4ull, 2000ull, &answer, &err_buf);
+    g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
     (void)cli_lsp_notified(lsp, "exit", "null", 4ull, &err_buf);
     query_paused(100u);
     cli_lsp_ended(lsp);

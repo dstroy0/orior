@@ -74,34 +74,6 @@ int cli_file_read_at(const char *path, unsigned long long from, unsigned char *b
     return 1;
 }
 
-int cli_file_read_whole(const char *path, unsigned char *(*room)(void *context, unsigned long long size), void *context,
-                        unsigned long long *got)
-{
-    *got = 0ull;
-    const int file = open(path, O_RDONLY);
-    if (file < 0)
-    {
-        return 0;
-    }
-    struct stat found;
-    if (fstat(file, &found) != 0)
-    {
-        close(file);
-        return 0;
-    }
-    // a file's size is not negative
-    const unsigned long long size = (unsigned long long)found.st_size;
-    unsigned char *const bytes = room(context, size);
-    if (bytes == NULL)
-    {
-        close(file);
-        return 0;
-    }
-    file_read_from(file, 0ull, bytes, size, got);
-    close(file);
-    return 1;
-}
-
 int cli_file_stamp(const char *path, unsigned long long *size, unsigned long long *changed)
 {
     struct stat found;

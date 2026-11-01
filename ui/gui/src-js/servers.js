@@ -9,7 +9,7 @@
 // server serves it, and hears the inspections' findings.
 
 import { asked, invoke, listen } from "./bridge.js";
-import { along, sendChanges } from "./edit/held.js";
+import { along, sendChanges } from "./edit/mirror.js";
 import { wordAt } from "./editor/document.js";
 import { after } from "./paged.js";
 
@@ -164,14 +164,14 @@ async function parseNow(tab, from, to) {
 // parse of a served or an inspected tab, once it is told the text.
 export async function spansOf(tab, from, to) {
   const s = tab?.session;
-  const held = s?.doc.held;
-  if (!s || s.window || !held) {
+  const mirrored = s?.doc.mirrored;
+  if (!s || s.window || !mirrored) {
     return [];
   }
   await flush(tab);
   sendChanges(s.doc);
   const place = (at) => ({ line: s.base + at.line, col: at.col });
-  const found = await along(held, () => asked("parse_spans", { path: tab.file, key: held.key, from: place(from), to: place(to) })).catch(() => []);
+  const found = await along(mirrored, () => asked("parse_spans", { path: tab.file, key: mirrored.key, from: place(from), to: place(to) })).catch(() => []);
   return (found ?? []).map(([start, end]) => [{ line: start.line - s.base, col: start.col }, { line: end.line - s.base, col: end.col }]);
 }
 
@@ -181,14 +181,14 @@ export async function spansOf(tab, from, to) {
 // stands there.
 export async function pairOf(tab, head) {
   const s = tab?.session;
-  const held = s?.doc.held ?? s?.window?.paged;
-  if (!held || (s.doc.held && !held.ready)) {
+  const mirrored = s?.doc.mirrored ?? s?.window?.paged;
+  if (!mirrored || (s.doc.mirrored && !mirrored.ready)) {
     return null;
   }
   sendChanges(s.doc);
-  const ask = () => invoke("branch_pair", { key: held.key, path: tab.file, line: s.base + head.line, col: head.col });
+  const ask = () => invoke("branch_pair", { key: mirrored.key, path: tab.file, line: s.base + head.line, col: head.col });
   // a paged file's pair is a read of it, waiting for the edits sent before it and holding back none of its reports
-  return (s.doc.held ? along(held, ask) : after(held, ask)).catch(() => null);
+  return (s.doc.mirrored ? along(mirrored, ask) : after(mirrored, ask)).catch(() => null);
 }
 
 // The checkers the reader names, as checkers.rs in the command line's crate runs them, kept by

@@ -10,6 +10,7 @@
 #include "../programs/binary.h"
 #include "../programs/executables.h"
 #include "../programs/sea.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "../window/serve.h"
 #include "command_line_internal.h"
@@ -118,10 +119,8 @@ static int programs_libraries(const char *const *words, unsigned int count)
 #endif
     // the PATH's folders in a cell of the most it names, one for each mark between them and one more
     unsigned int most = 1u;
-    for (const char *at = reading->path; at[0] != '\0'; at += 1)
-    {
-        most += (at[0] == between) ? 1u : 0u;
-    }
+    most += (unsigned int)cli_text_counted(
+        reading->path, cellul.len(&(CatenaFinitaCfg){.src = reading->path, .cap = CLI_CELLS_POOL}), between);
     char (*const folder)[CLI_PATH_MAX_LEN] =
         g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, &g_cli_command_line_cells);
     unsigned int folders = 0u;

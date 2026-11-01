@@ -12,10 +12,10 @@
 #include <stdlib.h>
 
 // the most letters of a string a pattern is matched against, the most bytes of a pattern, and the bytes a value is
-// begun to be written in before it is cut short, doubling as it is written
+// written in before it is cut short
 #define CLI_SCHEMA_MATCHED (1u << 20u)
 #define CLI_SCHEMA_PATTERN (1u << 14u)
-#define CLI_SCHEMA_SHOWN_FIRST 256u
+#define CLI_SCHEMA_SHOWN_ROOM (1ull << 20u)
 
 const char *cli_schema_text(const CliSchemaRead *read, unsigned int at)
 {
@@ -273,8 +273,8 @@ static void values_cut(const char *text, unsigned long long size, VerbaLinea *ou
 
 void cli_schema_shown(const CliJson *json, unsigned int value, VerbaLinea *out)
 {
-    VerbaLinea written;
-    (void)cli_growing_line_temporary(&written, CLI_SCHEMA_SHOWN_FIRST, &g_cli_schema_cells);
+    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_SCHEMA_SHOWN_ROOM, &g_cli_schema_cells);
+    VerbaLinea written = mmgr_line_over(written_cell, CLI_SCHEMA_SHOWN_ROOM);
     cli_json_write(json, value, &written, 0u, 1);
     values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
     g_cli_cells->persistent_buf_release(written.out, &g_cli_schema_cells);
@@ -350,8 +350,8 @@ static void values_written(const CliSchemaRead *read, unsigned int node, VerbaLi
 
 void cli_schema_shown_value(const CliSchemaRead *read, unsigned int node, VerbaLinea *out)
 {
-    VerbaLinea written;
-    (void)cli_growing_line_temporary(&written, CLI_SCHEMA_SHOWN_FIRST, &g_cli_schema_cells);
+    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_SCHEMA_SHOWN_ROOM, &g_cli_schema_cells);
+    VerbaLinea written = mmgr_line_over(written_cell, CLI_SCHEMA_SHOWN_ROOM);
     values_written(read, node, &written);
     values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
     g_cli_cells->persistent_buf_release(written.out, &g_cli_schema_cells);

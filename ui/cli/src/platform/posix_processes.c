@@ -9,6 +9,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "../text/json_tree.h"
+#include "../text/text.h"
 
 #if !defined(_WIN32)
 #include <fcntl.h>
@@ -63,11 +64,9 @@ static void processes_entry(void *context, const char *entry, int is_folder)
     unsigned long long pid = 0ull;
     int number =
         is_folder && (entry[0] != '\0') && (cellul.len(&(CatenaFinitaCfg){.src = entry, .cap = CLI_CELLS_POOL}) <= 10u);
-    for (const char *digit = entry; number && (*digit != '\0'); digit += 1)
-    {
-        number = (*digit >= '0') && (*digit <= '9');
-        pid = (pid * 10ull) + (unsigned long long)(*digit - '0');
-    }
+    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = entry, .cap = CLI_CELLS_POOL});
+    number = number && (cli_text_past_class(entry, 0ull, digits, CLI_TEXT_DIGITS, "") == digits);
+    pid = number ? cli_text_number(entry, 0ull, digits, NULL) : 0ull;
     if (!number || (pid > 0xffffffffull))
     {
         return;
@@ -136,9 +135,7 @@ void cli_processes_each(void (*each)(void *context, unsigned int pid, const char
     cli_lock_take(&s_lock);
     for (unsigned long long start = 0ull; start < ran->out_size;)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = ran->out + start, .val = '\n', .bytes = ran->out_size - start});
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - ran->out) : ran->out_size;
+        const unsigned long long end = cli_text_line_at(ran->out, start, ran->out_size).stop;
         // the line's words apart by spaces: its number, its name, then the words of its line joined by one space
         unsigned long long pid = 0ull;
         unsigned int index = 0u;
@@ -218,16 +215,9 @@ static unsigned long long processes_kilobytes(const char *text, const char *fiel
         return 0ull;
     }
     at += cellul.len(&(CatenaFinitaCfg){.src = field, .cap = CLI_CELLS_POOL});
-    while ((*at == ' ') || (*at == '\t'))
-    {
-        at += 1;
-    }
+    at += cli_text_past_any(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), " \t");
     unsigned long long kilobytes = 0ull;
-    while ((*at >= '0') && (*at <= '9'))
-    {
-        kilobytes = (kilobytes * 10ull) + (unsigned long long)(*at - '0');
-        at += 1;
-    }
+    kilobytes = cli_text_number(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), NULL);
     return kilobytes * 1024ull;
 }
 

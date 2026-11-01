@@ -141,8 +141,8 @@ typedef struct
 } CliJob;
 
 // A catalog: its jobs, params, steps, arguments, lists of texts and texts in the storage handed it, each with how many
-// it contains and how many it may; 1 in `full` where one did not fit; the count its cells are taken under where its
-// storage grows, NULL where it was handed; and the most jobs it takes
+// it contains and how many it may; 1 in `full` where one did not fit; and the count its cell is taken under, NULL where
+// its storage was handed
 typedef struct
 {
     CliJob *job;
@@ -165,7 +165,6 @@ typedef struct
     unsigned int text_most;
     int full;
     CellOwner *cells;
-    unsigned int jobs_cap;
 } CliCatalog;
 
 // The values a job is run with, by param: each key, and its values, `count` of the list from `first`, all texts in the
@@ -188,9 +187,9 @@ typedef struct
     unsigned int used;
 } CliValues;
 
-// a catalog made empty whose storage is taken in cells counted to `cells`, each list doubled as it is put, `jobs_most`
-// jobs at the most; and its cells given back, the catalog left empty and containing nothing
-void cli_catalog_growing(CliCatalog *catalog, CellOwner *cells, unsigned int jobs_most);
+// a catalog made empty whose lists and texts are taken at their most in one cell counted to `cells`, `jobs_most` jobs
+// at the most; and its cell given back, the catalog left empty and containing nothing
+void cli_catalog_taken(CliCatalog *catalog, CellOwner *cells, unsigned int jobs_most);
 void cli_catalog_given(CliCatalog *catalog);
 // a catalog made empty over the storage handed it
 void cli_catalog_begun(CliCatalog *catalog, CliJob *jobs, unsigned int jobs_most, CliParam *params,

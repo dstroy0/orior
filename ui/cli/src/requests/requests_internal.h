@@ -74,8 +74,8 @@ typedef struct
     int full;
 } CliRequestsParsed;
 
-// The values a request's variables are filled from, a name to one value, and the pool of their texts, a cell whose
-// room doubles as they are put, to CLI_REQUESTS_TEXT at the most, given back with cli_requests_values_given
+// The values a request's variables are filled from, a name to one value, and the pool of their texts, a cell at their
+// most, to CLI_REQUESTS_TEXT at the most, given back with cli_requests_values_given
 typedef struct
 {
     CliRequestsText name[CLI_REQUESTS_VALUES];
@@ -154,14 +154,13 @@ typedef struct
     char target[CLI_REQUESTS_ADDRESS + 1u];
 } CliRequestsAddress;
 
-// the bytes a request's body and an answer's body as read are begun in, each a growing line that doubles as it fills,
-// the answer's to CLI_REQUESTS_BODY at the most
-#define CLI_REQUESTS_BODY_FIRST (1u << 12u)
+// the bytes a request's body and an answer's body as read are written in, each a line at their most, the answer's to
+// CLI_REQUESTS_BODY at the most
+#define CLI_REQUESTS_HEAD_ROOM (1ull << 20u)
 
-// The room a request is sent in: the request as it was made ready and its body, a growing line, the request as it
-// goes on each hop and its address taken apart, its answer, the answer's body as read, a growing line, and as
-// undone, a cell of `unpacked_room` taken as it is undone, and the bytes read from the connection not yet taken,
-// from `start` to `end`
+// The room a request is sent in: the request as it was made ready and its body, a line, the request as it goes on each
+// hop and its address taken apart, its answer, the answer's body as read, a line, and as undone, a cell of
+// `unpacked_room` taken as it is undone, and the bytes read from the connection not yet taken, from `start` to `end`
 typedef struct
 {
     CliRequestsSent sent;
@@ -223,8 +222,8 @@ void cli_requests_iso(unsigned long long seconds, VerbaLinea *out);
 void cli_requests_curl_written(const CliRequestsSent *sent, VerbaLinea *out);
 
 // the request at line `line` of the file at `path`, whose text is `size` bytes of `text`, made ready with the variables
-// of the file and of environment `env` into `sent`, its body read into `body`, a growing line the sent request's body
-// then points into, and its key into `key` where it is not NULL: 1, or 0 with why given (requests_ready.c)
+// of the file and of environment `env` into `sent`, its body read into `body`, a line the sent request's body then
+// points into, and its key into `key` where it is not NULL: 1, or 0 with why given (requests_ready.c)
 int cli_requests_ready(const char *root, const char *path, const char *text, unsigned long long size,
                        unsigned long long line, const char *env, CliRequestsSent *sent, VerbaLinea *body,
                        VerbaLinea *key, VerbaLinea *err_msg);

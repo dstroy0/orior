@@ -113,16 +113,16 @@ export async function showToolchains(sheet) {
     const shown = read.tools.filter((tool) => !word || [tool.id, tool.name, tool.for, tool.group, ...tool.programs].some((text) => text.toLowerCase().includes(word)));
     const rows = [];
     for (const group of read.groups ?? []) {
-      const held = shown.filter((tool) => tool.group === group);
+      const tools = shown.filter((tool) => tool.group === group);
       const empty = !read.tools.some((tool) => tool.group === group);
-      if (!held.length && !(empty && (!word || group.toLowerCase().includes(word)))) {
+      if (!tools.length && !(empty && (!word || group.toLowerCase().includes(word)))) {
         continue;
       }
       const heading = element("h3", { textContent: group });
       if (empty) {
         heading.append(button("Remove Group", () => act(() => invoke("toolchain_remove_group", { name: group }), () => `Took out ${group}.`), { className: "prefs-button tools-group-remove" }));
       }
-      rows.push(heading, ...held.map(row));
+      rows.push(heading, ...tools.map(row));
       if (empty) {
         rows.push(element("p", { className: "prefs-said", textContent: "No toolchain in it yet." }));
       }

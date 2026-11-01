@@ -79,7 +79,7 @@ test("a large file's window grows above and below, and lets lines go, every plac
   assert.deepEqual(session.selections[0].head, at(1, 1));
   session.shrink(2, false);
   assert.deepEqual(session.doc.lines, ["c"]);
-  assert.deepEqual(session.selections[0].head, at(0, 1), "a place let go held at the window's last line");
+  assert.deepEqual(session.selections[0].head, at(0, 1), "a place let go kept at the window's last line");
   session.replaceWindow(["x", "y"], 100, 1);
   assert.deepEqual([session.doc.lines, session.base, session.top], [["x", "y"], 100, 1]);
   assert.deepEqual(session.selections[0].head, at(0, 0));

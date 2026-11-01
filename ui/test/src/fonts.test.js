@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The fonts the reader sets: each kept over the stylesheet's own, the code's size held between its least and most and
+// The fonts the reader sets: each kept over the stylesheet's own, the code's size kept between its least and most and
 // its line height following it, and a value that could break out of its rule left out.
 
 import { applyFonts, fontRule, fonts, FONTS, onFonts, setFont } from "../../gui/src-js/fonts.js";

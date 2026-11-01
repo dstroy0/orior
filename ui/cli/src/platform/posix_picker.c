@@ -9,6 +9,7 @@
 #define _DARWIN_C_SOURCE
 #endif
 #include "../command_line/cli_internal.h"
+#include "../text/text.h"
 
 #if !defined(_WIN32)
 #include <errno.h>
@@ -33,10 +34,7 @@ int cli_file_picked(unsigned int kind, char *path, size_t room)
     // a reader who cancels ends osascript with an error
     int chosen = cli_ran(words, NULL, NULL, 0u, ran, &err_msg) && (ran->code == 0ll) && (ran->out_size > 0ull);
     unsigned long long end = chosen ? ran->out_size : 0ull;
-    while ((end > 0ull) && ((ran->out[end - 1ull] == '\n') || (ran->out[end - 1ull] == '\r')))
-    {
-        end -= 1ull;
-    }
+    end = cli_text_back_past(ran->out, end, "\n\r");
     // a folder's path is given with a `/` after it, which a path of the window's does not have
     end -= ((end > 1ull) && (ran->out[end - 1ull] == '/')) ? 1ull : 0ull;
     VerbaLinea chose = {path, room, 0ull};
@@ -196,9 +194,9 @@ static void dbus_field(CliDbusWritten *message, unsigned char code, char type, c
     }
 }
 
-// a call's head begun in `message`, over `room` bytes of `bytes`: its serial, the object, interface and member it calls
-// at `destination`, and its body's signature, empty for none; the place its body's length is written at once known
-// into `body_length_at`
+// a call's head written in `message`, over `room` bytes of `bytes`: its serial, the object, interface and member it
+// calls at `destination`, and its body's signature, empty for none; the place its body's length is written at once
+// known into `body_length_at`
 static void dbus_call_begun(CliDbusWritten *message, unsigned char *bytes, unsigned long long room, unsigned int serial,
                             const char *destination, const char *object, const char *interface, const char *member,
                             const char *signature, unsigned long long *body_length_at)
@@ -447,9 +445,11 @@ static int dbus_connected(void)
             &(CatenaFinitaCfg){.src = address, .cap = sizeof(address), .other = "abstract=", .other_cap = 16u});
         const char *const from = (at_path != NULL) ? at_path + 5 : ((at_abstract != NULL) ? at_abstract + 9 : NULL);
         abstract = (at_path == NULL) && (at_abstract != NULL);
-        for (const char *at = from; (at != NULL) && (*at != '\0') && (*at != ',') && (*at != ';'); at += 1)
+        if (from != NULL)
         {
-            mmgr_line_ch(&named, *at);
+            mmgr_line_put_n(&named, from,
+                            (size_t)cli_text_to_any(
+                                from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), ",;"));
         }
     }
     if (named.at == 0ull)
@@ -523,25 +523,9 @@ static int dbus_uri_path(const char *uri, char *path, size_t room)
     }
     const char *at = cellul.chr(&(CatenaFinitaCfg){.src = uri + 7, .cap = CLI_PATH_MAX_LEN, .byte = '/'});
     VerbaLinea decoded = {path, room, 0ull};
-    for (; (at != NULL) && (*at != '\0'); at += 1)
+    if (at != NULL)
     {
-        unsigned int high = 16u;
-        unsigned int low = 16u;
-        if (at[0] == '%')
-        {
-            high = ((at[1] >= '0') && (at[1] <= '9'))   ? (unsigned int)(at[1] - '0')
-                   : ((at[1] >= 'A') && (at[1] <= 'F')) ? (unsigned int)(at[1] - 'A') + 10u
-                   : ((at[1] >= 'a') && (at[1] <= 'f')) ? (unsigned int)(at[1] - 'a') + 10u
-                                                        : 16u;
-            low = ((at[2] >= '0') && (at[2] <= '9'))   ? (unsigned int)(at[2] - '0')
-                  : ((at[2] >= 'A') && (at[2] <= 'F')) ? (unsigned int)(at[2] - 'A') + 10u
-                  : ((at[2] >= 'a') && (at[2] <= 'f')) ? (unsigned int)(at[2] - 'a') + 10u
-                                                       : 16u;
-        }
-        const int escaped = (high < 16u) && (low < 16u);
-        // two hexadecimal digits make a byte, below 256
-        mmgr_line_ch(&decoded, escaped ? (char)((high << 4u) | low) : at[0]);
-        at += escaped ? 2 : 0;
+        cli_text_put_unescaped(&decoded, at, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}));
     }
     return mmgr_line_finish(&decoded) != 0ull;
 }

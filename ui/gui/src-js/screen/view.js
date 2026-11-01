@@ -197,7 +197,7 @@ export function inView() {
   return Math.max(this.rowCount, tall ? Math.ceil(this.view.clientHeight / tall) : 0);
 }
 
-// Gives each line of the store not held its row's height, above the head and between the head
+// Gives each line of the store not kept its row's height, above the head and between the head
 // and the tail. The view then scrolls over every line kept, and the screen stays under the last
 // of it.
 export function sizeGaps() {
@@ -237,8 +237,8 @@ export async function fill() {
     return;
   }
   const margin = Math.floor(screenful / 2);
-  const held = this.headFrom <= Math.max(this.floor, first - margin) && this.headTo >= Math.min(this.tailFrom, last + margin);
-  if (held && this.head.childElementCount <= HEAD_SCREENS * screenful) {
+  const inHead = this.headFrom <= Math.max(this.floor, first - margin) && this.headTo >= Math.min(this.tailFrom, last + margin);
+  if (inHead && this.head.childElementCount <= HEAD_SCREENS * screenful) {
     return;
   }
   let from = clamp(first - screenful);
@@ -266,7 +266,7 @@ export async function fill() {
   requestAnimationFrame(() => this.fill());
 }
 
-// Makes the head the lines of the store from `from` up to `to`, reading only those not held.
+// Makes the head the lines of the store from `from` up to `to`, reading only those not kept.
 export async function hold(from, to) {
   if (from >= this.headTo || to <= this.headFrom) {
     const lines = await this.readBack(from, to - from);

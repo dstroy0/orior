@@ -166,14 +166,10 @@ static int cli_types_same(const char *one, const char *other)
     unsigned int right = 0u;
     for (;;)
     {
-        while (one[left] == ' ')
-        {
-            left += 1u;
-        }
-        while (other[right] == ' ')
-        {
-            right += 1u;
-        }
+        left = (unsigned int)cli_text_past_any(
+            one, left, left + cellul.len(&(CatenaFinitaCfg){.src = one + left, .cap = CLI_CELLS_POOL}), " ");
+        right = (unsigned int)cli_text_past_any(
+            other, right, right + cellul.len(&(CatenaFinitaCfg){.src = other + right, .cap = CLI_CELLS_POOL}), " ");
         if (one[left] != other[right])
         {
             return 0;
@@ -271,7 +267,7 @@ static void cli_head_param(const CliLeafRead *read, unsigned int first, unsigned
 }
 
 // the head's label from its first line's first letter to the end of the bracket at `close`, each line break and the
-// white space after it one space, and each parameter's span and its name's, held as their bytes, made the label's in
+// white space after it one space, and each parameter's span and its name's, stored as their bytes, made the label's in
 // UTF-16 units
 static void cli_head_label(const CliLeafRead *read, unsigned int close, CliSymbolHead *head)
 {
@@ -282,10 +278,7 @@ static void cli_head_label(const CliLeafRead *read, unsigned int close, CliSymbo
     const char *const text = read->text;
     const unsigned long long to = read->leaf[close].to;
     unsigned long long byte = 0ull;
-    while ((byte < to) && ((text[byte] == ' ') || (text[byte] == '\t')))
-    {
-        byte += 1ull;
-    }
+    byte = cli_text_past_any(text, byte, to, " \t");
     unsigned int at = 0u;
     unsigned int units = 0u;
     while ((byte < to) && ((at + 5u) < CLI_SYMBOLS_LABEL))
@@ -300,11 +293,7 @@ static void cli_head_label(const CliLeafRead *read, unsigned int close, CliSymbo
         if ((text[byte] == '\r') || (text[byte] == '\n'))
         {
             const unsigned long long broken = byte;
-            while ((byte < to) &&
-                   ((text[byte] == ' ') || (text[byte] == '\t') || (text[byte] == '\r') || (text[byte] == '\n')))
-            {
-                byte += 1ull;
-            }
+            byte = cli_text_past_any(text, byte, to, " \t\r\n");
             // a span that ends within the white space ends before its one space
             for (unsigned int param = 0u; param < head->params; param += 1u)
             {
@@ -404,7 +393,7 @@ int cli_symbols_head_read(CliSymbolsLanguages *languages, const char *root, cons
     char full[CLI_PATH_MAX_LEN];
     cli_full(root, head->path, full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(full, &size);
+    const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_code_cells);
     if (bytes == NULL)
     {
         return 0;
@@ -414,16 +403,13 @@ int cli_symbols_head_read(CliSymbolsLanguages *languages, const char *root, cons
     unsigned int counted = 0u;
     while ((counted < head->line) && (start < size))
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + start, .val = '\n', .bytes = size - start});
-        // a newline found lies in the text, at or past `start`
-        start = (newline != NULL) ? ((unsigned long long)(newline - text) + 1ull) : size;
+        start = cli_text_line_at(text, start, size).next;
         counted += 1u;
     }
     unsigned long long end = start;
     for (unsigned int lines = 0u; (end < size) && (lines < CLI_SYMBOLS_HEAD_LINES); lines += 1u)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + end, .val = '\n', .bytes = size - end});
-        end = (newline != NULL) ? ((unsigned long long)(newline - text) + 1ull) : size;
+        end = cli_text_line_at(text, end, size).next;
     }
     CliLeafRead read;
     const int kept = (counted == head->line) &&
@@ -433,6 +419,6 @@ int cli_symbols_head_read(CliSymbolsLanguages *languages, const char *root, cons
     {
         cli_symbols_leaves_given(&read);
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_code_cells);
     return found;
 }

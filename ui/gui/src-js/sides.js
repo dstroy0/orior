@@ -7,7 +7,7 @@
 // of the window for a moment brings it back, where one passing over the edge brings nothing; one
 // brought back that the pointer never comes onto goes again a moment later. A pane that holds the pointer, that is being typed in, or that a menu is open over,
 // or a left pane with the pointer on the tool strip beside it,
-// stays until all have left it, as every pane does while the window's frame is held, and is looked
+// stays until all have left it, as every pane does while the window's frame is kept, and is looked
 // at again every REST while it stays. A pane is being typed in from a key pressed in it until the
 // next press of the pointer anywhere: what a click leaves the keys on does not keep it. A pane that
 // collapses holding the keys hands them to the editor beside it. A pane shown for the reader to look
@@ -71,18 +71,18 @@ function setShown(pane, shown) {
   }
   if (!shown && !node.classList.contains("collapsed") && !reduced.matches) {
     const box = node.getBoundingClientRect();
-    node.style.setProperty("--held", `${node.classList.contains("toward-bottom") ? box.height : box.width}px`);
+    node.style.setProperty("--reserved", `${node.classList.contains("toward-bottom") ? box.height : box.width}px`);
     // a pane still arriving stands where it collapses to; the slide away starts from the pane shown, so the arrival
     // is over as it begins
     node.classList.remove("arriving");
     node.classList.add("sliding");
     pane.slide = window.setTimeout(() => {
       node.classList.remove("sliding");
-      node.style.removeProperty("--held");
+      node.style.removeProperty("--reserved");
     }, SLIDE);
   } else if (shown) {
     node.classList.remove("sliding");
-    node.style.removeProperty("--held");
+    node.style.removeProperty("--reserved");
     // The frame the editor gives its room back in redraws the whole window; the inside starts to
     // slide in once that frame is drawn, and none of the slide's frames go to it.
     if (node.classList.contains("collapsed") && !reduced.matches) {
@@ -106,7 +106,7 @@ function tryCollapse(pane) {
     return;
   }
   const typing = pane.keyed && node.contains(document.activeElement);
-  if (pane.held) {
+  if (pane.keptOpen) {
     return;
   }
   // The tool strip beside a left pane is a part of it: the pointer on the strip keeps it.
@@ -115,9 +115,9 @@ function tryCollapse(pane) {
     collapseLater(pane);
     return;
   }
-  const held = node.contains(document.activeElement);
+  const focused = node.contains(document.activeElement);
   setShown(pane, false);
-  if (held) {
+  if (focused) {
     node.closest(".mode")?.querySelector(".ed-input")?.focus();
   }
 }
@@ -184,13 +184,13 @@ window.addEventListener(
 );
 
 // Holds the pane at `node` shown, as a window that shows it alone does, or lets it go again.
-export function holdPane(node, held) {
+export function holdPane(node, keptOpen) {
   const pane = panes.find((one) => one.node === node);
   if (!pane) {
     return;
   }
-  pane.held = held;
-  if (held) {
+  pane.keptOpen = keptOpen;
+  if (keptOpen) {
     setShown(pane, true);
   } else {
     collapseLater(pane);

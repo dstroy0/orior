@@ -80,28 +80,34 @@ int cli_link_address_parse(const char *text, CliLinkAddress *address, VerbaLinea
     address_trimmed(text, &start, &size);
     const char *const trimmed = text + start;
     const char *const first = memor.chr(&(MemoriaCfg){.src = trimmed, .val = ':', .bytes = (size_t)size});
-    const unsigned long long first_size = (first != NULL) ? (unsigned long long)(first - trimmed) : 0ull;
-    const int docker = (first != NULL) && (first_size == 6u) &&
-                       (memor.cmp(&(MemoriaCfg){.src = trimmed, .other = "docker", .bytes = 6u}) == 0);
-    const int wsl = (first != NULL) && (first_size == 3u) &&
-                    (memor.cmp(&(MemoriaCfg){.src = trimmed, .other = "wsl", .bytes = 3u}) == 0);
-    const char *const rest = (first != NULL) ? (first + 1) : NULL;
-    const unsigned long long rest_size = (first != NULL) ? (size - first_size - 1u) : 0ull;
-    const char *const second =
-        (docker || wsl) ? memor.chr(&(MemoriaCfg){.src = rest, .val = ':', .bytes = (size_t)rest_size}) : NULL;
-    int read = (first != NULL) && (!(docker || wsl) || (second != NULL));
-    if (read && (docker || wsl))
+    int read = first != NULL;
+    if (read)
     {
-        address->way = docker ? CLI_LINK_DOCKER : CLI_LINK_WSL;
-        const unsigned long long name_size = (unsigned long long)(second - rest);
-        read = address_field_set(address->name, rest, name_size) &&
-               address_field_set(address->folder, second + 1, rest_size - name_size - 1u);
-    }
-    else if (read)
-    {
-        address->way = CLI_LINK_SSH;
-        read = address_field_set(address->name, trimmed, first_size) &&
-               address_field_set(address->folder, rest, rest_size);
+        const unsigned long long first_size = (unsigned long long)(first - trimmed);
+        const int docker =
+            (first_size == 6u) && (memor.cmp(&(MemoriaCfg){.src = trimmed, .other = "docker", .bytes = 6u}) == 0);
+        const int wsl =
+            (first_size == 3u) && (memor.cmp(&(MemoriaCfg){.src = trimmed, .other = "wsl", .bytes = 3u}) == 0);
+        const char *const rest = first + 1;
+        const unsigned long long rest_size = size - first_size - 1u;
+        if (docker || wsl)
+        {
+            const char *const second = memor.chr(&(MemoriaCfg){.src = rest, .val = ':', .bytes = (size_t)rest_size});
+            read = second != NULL;
+            if (read)
+            {
+                address->way = docker ? CLI_LINK_DOCKER : CLI_LINK_WSL;
+                const unsigned long long name_size = (unsigned long long)(second - rest);
+                read = address_field_set(address->name, rest, name_size) &&
+                       address_field_set(address->folder, second + 1, rest_size - name_size - 1u);
+            }
+        }
+        else
+        {
+            address->way = CLI_LINK_SSH;
+            read = address_field_set(address->name, trimmed, first_size) &&
+                   address_field_set(address->folder, rest, rest_size);
+        }
     }
     if (!read)
     {

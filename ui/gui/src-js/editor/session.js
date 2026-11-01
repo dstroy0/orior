@@ -5,7 +5,7 @@
 // folded, where it is scrolled to, and a snippet being filled in. A tab keeps its session, and
 // coming back to a tab finds everything as it was left.
 //
-// A large file is held as a window of its lines that grows outward, above and below, as the rest
+// A large file is stored as a window of its lines that grows outward, above and below, as the rest
 // is read. `base` is the number in the file of the window's first line, and `window` the bytes
 // read so far, { start, end, size }, or null once the file is whole.
 
@@ -317,7 +317,7 @@ export class Session {
   }
 
   // Lines read from the file above the window or below it. Neither is an edit: the history and the
-  // dirty mark stay as they are, and every place held moves down by the lines written above it.
+  // dirty mark stay as they are, and every place kept moves down by the lines written above it.
   grow(text, above) {
     const doc = this.doc;
     const parts = text.split(/\r?\n/);
@@ -374,7 +374,7 @@ export class Session {
   }
 
   // Lets go of `count` lines of a paged file's window, above it or below it. Neither is an edit; the
-  // history goes with them where any step of it reaches one, and every place held in the window
+  // history goes with them where any step of it reaches one, and every place kept in the window
   // moves up by the lines let go above it.
   shrink(count, above) {
     const doc = this.doc;
@@ -411,7 +411,7 @@ export class Session {
   }
 
   // Puts the window of a paged file at `base`, holding `lines`, its line `top` at the top of the
-  // view, in place of the one it held: the history, the folds and the colors worked out go with the
+  // view, in place of the one it kept: the history, the folds and the colors worked out go with the
   // lines let go, and `colors`, those read with the lines, are put before they are drawn. Where `top`
   // is null the view stays on the line it stands on, as a window put where the view went.
   replaceWindow(lines, base, top = 0, colors = null) {

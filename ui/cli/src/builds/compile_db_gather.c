@@ -22,13 +22,13 @@ static void gather_cells_given(void)
 
 static int gather_cells_taken(void)
 {
-    const int entries = cli_json_growing_temporary(&g_cli_gather.json, CLI_GATHER_NODES_FIRST, CLI_GATHER_TEXT_FIRST,
-                                         "the compile entries gathered", &g_cli_build_cells);
-    g_cli_gather.flags_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    const int flags = cli_growing_line_temporary(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_FIRST, &g_cli_build_cells);
-    const int fragment = cli_growing_line_temporary(&g_cli_gather.fragment_text, CLI_GATHER_FLAGS_FIRST, &g_cli_build_cells);
-    const int taken = entries && flags && fragment;
+    const int entries = cli_json_reserved_temporary(&g_cli_gather.json, CLI_GATHER_NODES_ROOM, CLI_GATHER_TEXT_ROOM,
+                                                    "the compile entries gathered", &g_cli_build_cells);
+    char *const flags_cell = g_cli_cells->temporary_buf_alloc(CLI_GATHER_FLAGS_ROOM, &g_cli_build_cells);
+    char *const fragment_cell = g_cli_cells->temporary_buf_alloc(CLI_GATHER_FLAGS_ROOM, &g_cli_build_cells);
+    g_cli_gather.flags_text = mmgr_line_over(flags_cell, CLI_GATHER_FLAGS_ROOM);
+    g_cli_gather.fragment_text = mmgr_line_over(fragment_cell, CLI_GATHER_FLAGS_ROOM);
+    const int taken = entries && (flags_cell != NULL) && (fragment_cell != NULL);
     if (!taken)
     {
         gather_cells_given();
@@ -41,10 +41,7 @@ static void cli_of_entries(const char *folder, unsigned int entries, CliDatabase
 {
     CliJson *const json = &g_cli_gather.json;
     database->has_folder = folder != NULL;
-    memor.cpy(&(MemoriaCfg){
-        .dst = database->folder,
-        .src = (folder != NULL) ? folder : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (folder != NULL) ? folder : "", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(database->folder, folder, "");
     database->compilers = 0u;
     database->msvc = 0;
     for (unsigned int at = 0u; cli_json_item(json, entries, at) != CLI_JSON_NONE; at += 1u)
@@ -59,11 +56,7 @@ static void cli_of_entries(const char *folder, unsigned int entries, CliDatabase
         if (cli_json_is(json, arguments, CFG_JSON_ARRAY))
         {
             found = first != NULL;
-            memor.cpy(&(MemoriaCfg){
-                .dst = compiler,
-                .src = (first != NULL) ? first : "",
-                .bytes =
-                    cellul.len(&(CatenaFinitaCfg){.src = (first != NULL) ? first : "", .cap = CLI_CELLS_POOL}) + 1u});
+            cli_text_copied_or(compiler, first, "");
         }
         else if (command != NULL)
         {
@@ -73,10 +66,7 @@ static void cli_of_entries(const char *folder, unsigned int entries, CliDatabase
         {
             continue;
         }
-        for (char *letter = compiler; letter[0] != '\0'; letter += 1)
-        {
-            letter[0] = (letter[0] == '\\') ? '/' : letter[0];
-        }
+        cli_text_swapped(compiler, cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_CELLS_POOL}), '\\', '/');
         // the compilers stored in order, each once
         unsigned int place = 0u;
         while ((place < database->compilers) && (cli_text_order(database->compiler[place], compiler) < 0))
@@ -132,11 +122,13 @@ static void cli_project_put(const char *project, unsigned long long time, unsign
     }
 }
 
-// the entries written, in a growing line given back after, where they differ from the file there
+// the entries written, in a line given back after, where they differ from the file there
 static void cli_written(const char *path, unsigned int entries)
 {
-    VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if (!cli_growing_line_made(&out, CLI_GATHER_WRITTEN_FIRST, &g_cli_build_cells))
+    const unsigned long long out_room = cli_json_pretty_room(&g_cli_gather.json, 2u);
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_cli_build_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, out_room);
+    if (out.out == NULL)
     {
         return;
     }
@@ -144,13 +136,10 @@ static void cli_written(const char *path, unsigned int entries)
     if (mmgr_line_ok(&out))
     {
         unsigned long long size = 0ull;
-        const unsigned char *const there = cli_file_read(path, &size);
+        const unsigned char *const there = cli_file_taken(path, &size, &g_cli_build_cells);
         const int same = (there != NULL) && (size == out.at) &&
                          (memor.cmp(&(MemoriaCfg){.src = there, .other = out.out, .bytes = size}) == 0);
-        if (there != NULL)
-        {
-            cli_file_let_go(there, size);
-        }
+        cli_file_given(there, &g_cli_build_cells);
         char folder[CLI_PATH_MAX_LEN];
         if (!same && cli_path_parent(path, folder))
         {
@@ -198,10 +187,9 @@ static void gather_reserved(const char *root, const CliInputs *inputs, CliDataba
     {
         const CliStamped *const file = &inputs->file[index];
         const char *name = file->path;
-        for (const char *at = file->path; at[0] != '\0'; at += 1)
-        {
-            name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-        }
+        const unsigned long long name_past = cli_text_back_any(
+            file->path, cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}), "/\\");
+        name = (name_past != 0ull) ? (file->path + name_past) : name;
         char project[CLI_PATH_MAX_LEN] = "";
         unsigned int entries = CLI_JSON_NONE;
         if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "compile_commands.json", .cap = CLI_CELLS_POOL}))

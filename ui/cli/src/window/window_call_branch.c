@@ -9,18 +9,17 @@
 // the branch's own lines; the colors of a branch's lines as a print of them asks; and a notebook's cells, each a branch
 // stored and colored, and a cell the reader adds
 #include "../code/symbols.h"
-#include "../command_line/file_writing.h"
 #include "../editor/document.h"
 #include "../editor/pages.h"
 #include "../plugins/plugins.h"
 #include "window_internal.h"
 
 // the most lines above a call's line its signature is read from, the most lines above and below a place its bracket
-// pair is read across, the room the tree's call is begun in, a state's longest text, and the first lines of a branch
+// pair is read across, the room the tree's call is written in, a state's longest text, and the first lines of a branch
 // stored for itself, a cell's, colored as it is stored
 #define CLI_BRANCH_SIGNATURE_LINES 4000ull
 #define CLI_BRANCH_PAIR_LINES 3000ull
-#define CLI_BRANCH_CALL_FIRST 4096u
+#define CLI_BRANCH_CALL_ROOM (4ull << 20u)
 #define CLI_BRANCH_STATE 1024u
 #define CLI_BRANCH_FIRST_LINES 120ull
 
@@ -73,7 +72,7 @@ static int branch_stored(const char *key, const char *text, unsigned long long s
                          unsigned long long last)
 {
     CliShape shape;
-    return cli_document_store(key, text, size, &shape) && cli_document_held(key, first, last + 1ull);
+    return cli_document_store(key, text, size, &shape) && cli_document_cached(key, first, last + 1ull);
 }
 
 // the branch under `key` colored in the language `id` and its lines from `first` to `last` colored, written into `out`
@@ -228,7 +227,7 @@ static int branch_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     const unsigned long long to = cli_serve_whole_or(args, "to", none);
     if ((from != none) && (to != none))
     {
-        (void)cli_document_held(key, from, to);
+        (void)cli_document_cached(key, from, to);
     }
     (void)cli_document_viewed(key, first, last, NULL);
     mmgr_line_put(out, "null");
@@ -290,8 +289,9 @@ int cli_window_branch_signature(const char *key, const char *path, unsigned long
     unsigned long long top = 0ull;
     unsigned long long bottom = 0ull;
     branch_lines_about(key, line, CLI_BRANCH_SIGNATURE_LINES - 1ull, 0ull, &top, &bottom);
-    VerbaLinea call;
-    if (!cli_growing_line_temporary(&call, CLI_BRANCH_CALL_FIRST, &g_cli_window_cells))
+    char *const call_cell = g_cli_cells->temporary_buf_alloc(CLI_BRANCH_CALL_ROOM, &g_cli_window_cells);
+    VerbaLinea call = mmgr_line_over(call_cell, CLI_BRANCH_CALL_ROOM);
+    if (call.out == NULL)
     {
         mmgr_line_put(err_msg, "the signature's call could not be given a cell");
         return 0;
@@ -431,8 +431,8 @@ static int branch_cells(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         mmgr_line_put(out, (at != 0u) ? "," : "");
         if (keyed && (markdown_cell || code_cell))
         {
-            branch_text_answered(cell_key, (source != NULL) ? source : "", (source != NULL) ? length : 0ull,
-                                 markdown_cell ? markdown : code, out);
+            branch_text_answered(cell_key, (source != NULL) ? source : "", length, markdown_cell ? markdown : code,
+                                 out);
         }
         else
         {
@@ -479,10 +479,14 @@ static int branch_runs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
 }
 
 const CliServeCall g_cli_window_branch_calls[] = {
-    {"branch_open", branch_open},           {"branch_at", branch_at},
-    {"branch_view", branch_view},           {"branch_language", branch_language},
-    {"branch_signature", branch_signature}, {"branch_pair", branch_pair},
-    {"branch_runs", branch_runs},           {"branch_cells", branch_cells},
+    {"branch_open", branch_open},
+    {"branch_at", branch_at},
+    {"branch_view", branch_view},
+    {"branch_language", branch_language},
+    {"branch_signature", branch_signature},
+    {"branch_pair", branch_pair},
+    {"branch_runs", branch_runs},
+    {"branch_cells", branch_cells},
     {"branch_new", branch_new},
 };
 const unsigned int g_cli_window_branch_count = sizeof(g_cli_window_branch_calls) / sizeof(g_cli_window_branch_calls[0]);

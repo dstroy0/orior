@@ -4,6 +4,7 @@
 // packages its Python has not installed
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "envs.h"
 
 // The room a resolving works in: the toolchain found, the PATH it runs with, and what Pipenv or Nix answered, a cell
@@ -69,10 +70,7 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
     }
     const char *const shown = cli_json_string(&json, cli_json_member(&json, tool, "name"), NULL);
     char name[CLI_NAME_MAX_LEN];
-    memor.cpy(&(MemoriaCfg){
-        .dst = name,
-        .src = (shown != NULL) ? shown : id,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (shown != NULL) ? shown : id, .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(name, shown, id);
     unsigned int folders = 0u;
     char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders, &g_cli_toolchains_cells);
     cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])path, folders, &s_room->found);
@@ -106,21 +104,11 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
     {
         // the last line of what it printed, trimmed, or that it failed
         unsigned long long end = ran->err_size;
-        while ((end > 0ull) &&
-               ((ran->err[end - 1ull] == ' ') || ((ran->err[end - 1ull] >= '\t') && (ran->err[end - 1ull] <= '\r'))))
-        {
-            end -= 1ull;
-        }
+        end = cli_text_back_past(ran->err, end, CLI_TEXT_WHITE);
         unsigned long long start = end;
-        while ((start > 0ull) && (ran->err[start - 1ull] != '\n'))
-        {
-            start -= 1ull;
-        }
+        start = cli_text_back_any(ran->err, start, "\n");
         unsigned long long first = 0ull;
-        while ((first < end) && ((ran->err[first] == ' ') || ((ran->err[first] >= '\t') && (ran->err[first] <= '\r'))))
-        {
-            first += 1ull;
-        }
+        first = cli_text_past_any(ran->err, first, end, CLI_TEXT_WHITE);
         start = (start > first) ? start : first;
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, ": ");
@@ -137,19 +125,18 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
     }
     g_cli_cells->persistent_buf_release(s_room->output, &g_cli_toolchains_cells);
     s_room->output = g_cli_cells->persistent_buf_alloc(ran->out_size + 1ull, &g_cli_toolchains_cells);
-    s_room->output_size = (s_room->output != NULL) ? ran->out_size : 0ull;
-    if (s_room->output != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = s_room->output, .src = ran->out, .bytes = ran->out_size});
-        s_room->output[ran->out_size] = '\0';
-    }
-    cli_ran_given(ran);
     if (s_room->output == NULL)
     {
+        s_room->output_size = 0ull;
+        cli_ran_given(ran);
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, ": its answer could not be stored");
         return 0;
     }
+    s_room->output_size = ran->out_size;
+    memor.cpy(&(MemoriaCfg){.dst = s_room->output, .src = ran->out, .bytes = ran->out_size});
+    s_room->output[ran->out_size] = '\0';
+    cli_ran_given(ran);
     return 1;
 }
 
@@ -258,16 +245,8 @@ int cli_envs_resolve(const char *root, const char *kind, const char *place, CliT
             // the folder Pipenv gave, trimmed
             unsigned long long start = 0ull;
             unsigned long long end = s_room->output_size;
-            while ((start < end) && ((s_room->output[start] == ' ') ||
-                                     ((s_room->output[start] >= '\t') && (s_room->output[start] <= '\r'))))
-            {
-                start += 1ull;
-            }
-            while ((end > start) && ((s_room->output[end - 1ull] == ' ') ||
-                                     ((s_room->output[end - 1ull] >= '\t') && (s_room->output[end - 1ull] <= '\r'))))
-            {
-                end -= 1ull;
-            }
+            start = cli_text_past_any(s_room->output, start, end, CLI_TEXT_WHITE);
+            end = (start + cli_text_back_past(s_room->output + start, end - start, CLI_TEXT_WHITE));
             s_room->output[end] = '\0';
             made = cli_venv_at(s_room->output + start, environment, err_msg);
         }

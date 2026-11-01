@@ -24,11 +24,7 @@ static int cli_compact_value(CliCompact *read, VerbaLinea *out);
 // the whitespace JSON allows passed over
 static void cli_compact_white(CliCompact *read)
 {
-    while ((read->at < read->size) && ((read->text[read->at] == ' ') || (read->text[read->at] == '\t') ||
-                                       (read->text[read->at] == '\n') || (read->text[read->at] == '\r')))
-    {
-        read->at += 1ull;
-    }
+    read->at = cli_text_past_any(read->text, read->at, read->size, " \t\n\r");
 }
 
 // four hex digits from `at`: their value, or more than 0xFFFF where they are not four hex digits
@@ -165,10 +161,7 @@ static int cli_compact_string(CliCompact *read, VerbaLinea *out)
 static unsigned long long cli_compact_digits(const CliCompact *read, unsigned long long at)
 {
     unsigned long long count = 0ull;
-    while ((at + count < read->size) && (read->text[at + count] >= '0') && (read->text[at + count] <= '9'))
-    {
-        count += 1ull;
-    }
+    count = cli_text_past_class(read->text, at, read->size, CLI_TEXT_DIGITS, "") - at;
     return count;
 }
 

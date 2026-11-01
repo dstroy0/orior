@@ -52,8 +52,8 @@ typedef struct
     int commonjs;
 } CliExecutable;
 
-// The programs found, `count` of them in a cell of `room` grown as they are put, and their places in the order of
-// their scripts and then their names, a cell of their count; both given back with cli_executables_given
+// The programs found, `count` of them in a cell of `room` at their most, and their places in the order of their scripts
+// and then their names, a cell of their count; both given back with cli_executables_given
 typedef struct
 {
     CliExecutable *item;
@@ -62,11 +62,9 @@ typedef struct
     unsigned int *order;
 } CliExecutables;
 
-// room made among the programs found for one more, below CLI_EXECUTABLES_MOST: the list moved into a cell of twice
-// its room: 1, or 0 where there is none; the programs' places put in the order of their scripts and then their names,
-// the programs left where they are, none where the cellblock cannot meet them; and the programs' cells given back, the
-// list containing none (executables_found.c)
-int cli_executables_room(CliExecutables *found);
+// the programs' places put in the order of their scripts and then their names, the programs left where they are, none
+// where the cellblock cannot meet them; and the programs' cells given back, the list containing none
+// (executables_found.c)
 void cli_executables_ordered(CliExecutables *found);
 void cli_executables_given(CliExecutables *found);
 
@@ -124,17 +122,12 @@ void cli_zig_exes(const char *text, CliNames *names);
 int cli_spec_made(const char *text, char *exe, char *path);
 void cli_npm_bins(const char *text, CliNames *names, int *module);
 
-// the most build scripts read, the most folders still to look in, and the paths of each a walk's room is begun with
-// before it doubles
+// the most build scripts read, and the most folders still to look in
 #define CLI_EXECUTABLES_SCRIPTS 4096u
-
 #define CLI_EXECUTABLES_PENDING 4096u
 
-#define CLI_EXECUTABLES_WALK_FIRST 16u
-
-// A walk of the tree's folders: those still to look in and their depths, the folder looked in, and what is found,
-// the folders and what is found each in a cell whose room doubles as they are put, given back with
-// cli_executables_walk_given
+// A walk of the tree's folders: those still to look in and their depths, the folder looked in, and what is found, all
+// in one cell taken with cli_executables_walk_taken and given back with cli_executables_walk_given
 typedef struct
 {
     char (*pending)[CLI_PATH_MAX_LEN];
@@ -152,14 +145,16 @@ typedef struct
 // `name` joined to `folder` into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it does not fit; whether a folder
 // is one a walk passes; the folders a walk has pending looked through in turn from `top`, each entry handed to
 // `each`, a folder whose entries set `main` put after those found; a folder put after those pending at `depth`, and a
-// path put after those found, each up to its most: 1, or 0 where it is past the most or its room is refused; a walk's
-// cells given back; and every program the tree's build scripts make, by script and then by name (executables_read.c)
+// path put after those found, each up to its most: 1, or 0 where it is past the most; a walk's cell taken, its rooms
+// none where it is refused; a walk's cell given back; and every program the tree's build scripts make, by script and
+// then by name (executables_read.c)
 int cli_executables_joined(const char *folder, const char *name, char *out);
 int cli_executables_passed(const char *name);
 void cli_executables_walked(CliWalk *walk, const char *top,
                             void (*each)(void *context, const char *name, int is_folder));
 int cli_executables_pending_put(CliWalk *walk, const char *path, unsigned int depth);
 int cli_executables_found_put(CliWalk *walk, const char *path);
+void cli_executables_walk_taken(CliWalk *walk);
 void cli_executables_walk_given(CliWalk *walk);
 void cli_executables_read(const char *root, CliExecutables *found);
 
@@ -179,7 +174,7 @@ void cli_build_folder(const char *root, const char *script, const char *tool, ch
 void cli_go_host(const char **system, const char **processor);
 const char *cli_first(const CliValues *values, const char *key, const char *fallback);
 
-// the job that builds `exe` begun in the catalog, titled `title`, with what it declares of itself: 1, or 0 where the
+// the job that builds `exe` written in the catalog, titled `title`, with what it declares of itself: 1, or 0 where the
 // catalog is full; and its steps put on it, each with SOURCE_DATE_EPOCH set, then the program it made run as the job's
 // `then` requests (executables_steps.c)
 int cli_executables_job_begun(const char *root, const CliExecutable *exe, const char *title, CliCatalog *catalog);

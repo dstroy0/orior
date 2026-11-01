@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_commit_output.c: what git reported of a commit read for its line, and the lines of the commits made before one
 // that failed joined with why it failed
+#include "../text/text.h"
 #include "git_internal.h"
 
 void cli_git_commit_line(const char *output, unsigned long long length, VerbaLinea *out)
@@ -13,10 +14,7 @@ void cli_git_commit_line(const char *output, unsigned long long length, VerbaLin
     while (line < end)
     {
         const char *stop = line;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const unsigned long long size =
             (unsigned long long)(stop - line) - (((stop > line) && (stop[-1] == '\r')) ? 1ull : 0ull);
         if (first == NULL)
@@ -40,8 +38,10 @@ void cli_git_commit_line(const char *output, unsigned long long length, VerbaLin
 void cli_git_failed_after(const VerbaLinea *out, unsigned long long from, const char *error, unsigned long long length,
                           VerbaLinea *err_msg)
 {
-    VerbaLinea joined;
-    if (!cli_growing_line_made(&joined, (out->at - from) + length + 2ull, &g_cli_code_cells))
+    const unsigned long long joined_room = (out->at - from) + length + 2ull;
+    char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_room, &g_cli_code_cells);
+    VerbaLinea joined = mmgr_line_over(joined_cell, joined_room);
+    if (joined.out == NULL)
     {
         mmgr_line_put_n(err_msg, error, length);
         return;

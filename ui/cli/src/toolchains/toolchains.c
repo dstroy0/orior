@@ -41,15 +41,16 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
         VerbaLinea line = {path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
                            CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), 0ull};
         mmgr_line_put(&line, "/user_toolchains.json");
-        added_text = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(path, &added_size) : NULL;
+        added_text =
+            (mmgr_line_finish(&line) != 0ull) ? cli_file_taken(path, &added_size, &g_cli_toolchains_cells) : NULL;
     }
     // the tree one cell sized to both texts' tokens and bytes and the array stored, the tokens one cell for the larger
     const unsigned int bundled_tokens = cli_json_tokens_counted(bundled_text, g_cli_toolchains_json_size) + 1u;
     const unsigned int added_tokens =
         (added_text != NULL) ? (cli_json_tokens_counted((const char *)added_text, added_size) + 1u) : 0u;
     const unsigned int tokens_most = (bundled_tokens > added_tokens) ? bundled_tokens : added_tokens;
-    CfgJsonToken *const tokens =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_toolchains_cells);
+    CfgJsonToken *const tokens = g_cli_cells->temporary_buf_alloc(
+        (unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_toolchains_cells);
     const int reserved =
         (tokens != NULL) && cli_json_reserved(json, bundled_tokens + added_tokens + 1u + nodes_more,
                                               g_cli_toolchains_json_size + added_size + 1ull + text_more,
@@ -65,10 +66,7 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
             ? cli_json_read(json, (const char *)added_text, added_size, tokens, tokens_most, &err_msg)
             : CLI_JSON_NONE;
     g_cli_cells->persistent_buf_release(tokens, &g_cli_toolchains_cells);
-    if (added_text != NULL)
-    {
-        cli_file_let_go(added_text, added_size);
-    }
+    cli_file_given(added_text, &g_cli_toolchains_cells);
     if (!cli_json_is(json, tools, CFG_JSON_ARRAY))
     {
         return CLI_JSON_NONE;
@@ -183,10 +181,7 @@ static int cli_expand(const char *text, char *out)
     for (;;)
     {
         const char *mark = rest;
-        while ((mark[0] != '\0') && (mark[0] != '%') && (mark[0] != '$'))
-        {
-            mark += 1;
-        }
+        mark += cli_text_to_any(mark, 0ull, cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL}), "%$");
         mmgr_line_put_n(&line, rest, (unsigned long long)(mark - rest));
         if (mark[0] == '\0')
         {
@@ -196,10 +191,7 @@ static int cli_expand(const char *text, char *out)
         const char *end = after;
         if (mark[0] == '%')
         {
-            while ((end[0] != '\0') && (end[0] != '%'))
-            {
-                end += 1;
-            }
+            end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "%");
             if (end[0] == '\0')
             {
                 return 0;
@@ -207,11 +199,8 @@ static int cli_expand(const char *text, char *out)
         }
         else
         {
-            while (((end[0] >= 'a') && (end[0] <= 'z')) || ((end[0] >= 'A') && (end[0] <= 'Z')) ||
-                   ((end[0] >= '0') && (end[0] <= '9')) || (end[0] == '_'))
-            {
-                end += 1;
-            }
+            end += cli_text_past_class(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
+                                       CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, "_");
         }
         char name[CLI_NAME_MAX_LEN];
         VerbaLinea named = {name, sizeof(name), 0ull};
@@ -236,14 +225,8 @@ int cli_toolchains_matches(const char *pattern, const char *name)
     memor.cpy(&(MemoriaCfg){
         .dst = right, .src = name, .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
 #if defined(_WIN32)
-    for (char *at = left; at[0] != '\0'; at += 1)
-    {
-        at[0] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-    }
-    for (char *at = right; at[0] != '\0'; at += 1)
-    {
-        at[0] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-    }
+    cli_text_lowered(left, cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_CELLS_POOL}));
+    cli_text_lowered(right, cellul.len(&(CatenaFinitaCfg){.src = right, .cap = CLI_CELLS_POOL}));
 #endif
     if (cellul.chr(&(CatenaFinitaCfg){.src = left, .cap = CLI_CELLS_POOL, .byte = '*'}) == NULL)
     {
@@ -308,25 +291,19 @@ int cli_toolchains_natural(const char *a, const char *b)
         const int b_digit = (b[0] >= '0') && (b[0] <= '9');
         const char *a_end = a;
         const char *b_end = b;
-        while ((a_end[0] != '\0') && (((a_end[0] >= '0') && (a_end[0] <= '9')) == a_digit))
-        {
-            a_end += 1;
-        }
-        while ((b_end[0] != '\0') && (((b_end[0] >= '0') && (b_end[0] <= '9')) == b_digit))
-        {
-            b_end += 1;
-        }
+        a_end += a_digit ? cli_text_past_class(a, 0ull, cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}),
+                                               CLI_TEXT_DIGITS, "")
+                         : cli_text_to_any(a, 0ull, cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}),
+                                           "0123456789");
+        b_end += b_digit ? cli_text_past_class(b, 0ull, cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}),
+                                               CLI_TEXT_DIGITS, "")
+                         : cli_text_to_any(b, 0ull, cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}),
+                                           "0123456789");
         int order = 0;
         if (a_digit && b_digit)
         {
-            while ((a < a_end) && (a[0] == '0'))
-            {
-                a += 1;
-            }
-            while ((b < b_end) && (b[0] == '0'))
-            {
-                b += 1;
-            }
+            a += cli_text_past_any(a, 0ull, (unsigned long long)(a_end - a), "0");
+            b += cli_text_past_any(b, 0ull, (unsigned long long)(b_end - b), "0");
             const long long a_size = a_end - a;
             const long long b_size = b_end - b;
             order = (a_size != b_size)
@@ -402,10 +379,7 @@ unsigned int cli_toolchains_folders_of(const char *pattern, char (*folders)[CLI_
     while (part[0] != '\0')
     {
         const char *end = part;
-        while ((end[0] != '\0') && (end[0] != '/') && (end[0] != '\\'))
-        {
-            end += 1;
-        }
+        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "/\\");
         char piece[CLI_NAME_MAX_LEN];
         VerbaLinea line = {piece, sizeof(piece), 0ull};
         mmgr_line_put_n(&line, part, (unsigned long long)(end - part));
@@ -465,10 +439,7 @@ void cli_toolchains_key_of(const char *dir, char *key)
     memor.cpy(&(MemoriaCfg){
         .dst = key, .src = dir, .bytes = cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_CELLS_POOL}) + 1u});
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
-    while ((length != 0ull) && ((key[length - 1u] == '\\') || (key[length - 1u] == '/')))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(key, length, "\\/");
     key[length] = '\0';
 #if defined(_WIN32)
     unsigned int letters[CLI_PATH_MAX_LEN];

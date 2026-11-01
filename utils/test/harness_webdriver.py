@@ -116,8 +116,8 @@ def files_under(folder, ending):
 
 def written_if_changed(path, data):
     try:
-        with open(path, "rb") as held:
-            if held.read() == data:
+        with open(path, "rb") as handle:
+            if handle.read() == data:
                 return False
     except OSError:
         pass

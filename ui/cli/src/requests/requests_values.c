@@ -4,13 +4,14 @@
 // within the tree; the values of an environment they give, the private file's over the shared file's and `$shared`
 // under the environment's own; whether an environment checks the peer's certificate; and the reader's private file
 // made
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
 #include "../text/text.h"
 
-// the bytes a values' pool is begun with before it doubles, and a value written as JSON is begun in before it grows
-#define CLI_REQUESTS_POOL_FIRST (1u << 10u)
+// the bytes a values' pool is taken with, and a value written as JSON is written in
+#define CLI_REQUESTS_OBJECT_ROOM (1ull << 20u)
 
 // the environment file read, a tree in a cell sized to it, and the names of the environments, under the lock and
 // given back before it is
@@ -63,13 +64,10 @@ int cli_requests_nearest(const char *root, const char *path, const char *name, c
 static unsigned int values_read(const char *file, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(file, &size);
+    const unsigned char *const bytes = cli_file_taken(file, &size, &g_cli_requests_cells);
     if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
     {
-        if (bytes != NULL)
-        {
-            cli_file_let_go(bytes, size);
-        }
+        cli_file_given(bytes, &g_cli_requests_cells);
         mmgr_line_put(err_msg, file);
         mmgr_line_put(err_msg, ": it could not be read");
         return CLI_JSON_NONE;
@@ -79,7 +77,7 @@ static unsigned int values_read(const char *file, VerbaLinea *err_msg)
     cli_json_given(&s_json);
     const unsigned int object =
         cli_json_taken(&s_json, (const char *)bytes, size, 0u, 0ull, &read_err_msg, &g_cli_requests_cells);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_requests_cells);
     if (object == CLI_JSON_NONE)
     {
         mmgr_line_put(err_msg, file);
@@ -108,28 +106,14 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
         at += 1u;
     }
     const unsigned long long needed = value_size + 1u + ((at == values->count) ? (name_size + 1u) : 0u);
-    if ((values->used + needed > CLI_REQUESTS_TEXT) || (at == CLI_REQUESTS_VALUES))
+    if (values->text == NULL)
+    {
+        values->text = g_cli_cells->persistent_buf_alloc(CLI_REQUESTS_TEXT, &g_cli_requests_cells);
+        values->room = (values->text != NULL) ? CLI_REQUESTS_TEXT : 0ull;
+    }
+    if ((values->used + needed > values->room) || (at == CLI_REQUESTS_VALUES))
     {
         return 0;
-    }
-    if (values->used + needed > values->room)
-    {
-        // the pool's room doubled until the value fits, CLI_REQUESTS_TEXT at the most
-        unsigned long long room = (values->room == 0ull) ? CLI_REQUESTS_POOL_FIRST : values->room;
-        while (room < values->used + needed)
-        {
-            room *= 2ull;
-        }
-        room = (room < CLI_REQUESTS_TEXT) ? room : CLI_REQUESTS_TEXT;
-        char *const pool = g_cli_cells->persistent_buf_alloc(room, &g_cli_requests_cells);
-        if (pool == NULL)
-        {
-            return 0;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = pool, .src = values->text, .bytes = (size_t)values->used});
-        g_cli_cells->persistent_buf_release(values->text, &g_cli_requests_cells);
-        values->text = pool;
-        values->room = room;
     }
     if (at == values->count)
     {
@@ -260,8 +244,9 @@ static int values_member_put(CliRequestsValues *values, unsigned int member)
         return cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
                                       text, length);
     }
-    VerbaLinea written;
-    if (!cli_growing_line_temporary(&written, CLI_REQUESTS_POOL_FIRST, &g_cli_requests_cells))
+    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_OBJECT_ROOM, &g_cli_requests_cells);
+    VerbaLinea written = mmgr_line_over(written_cell, CLI_REQUESTS_OBJECT_ROOM);
+    if (written.out == NULL)
     {
         return 0;
     }
@@ -339,18 +324,17 @@ int cli_requests_verifies(const char *root, const char *path, const char *env)
 static int values_ignored(const char *ignore, int *joined)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(ignore, &size);
+    const unsigned char *const bytes = cli_file_taken(ignore, &size, &g_cli_requests_cells);
     const char *const listed = (const char *)bytes;
     const unsigned long long length = (bytes != NULL) ? size : 0ull;
     *joined = (length == 0ull) || (listed[length - 1u] == '\n');
     int named = 0;
     for (unsigned long long at = 0ull; !named && (at < length);)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = listed + at, .val = '\n', .bytes = (size_t)(length - at)});
-        unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - listed) : length;
+        const CliTextLine bounds = cli_text_line_at(listed, at, length);
+        unsigned long long end = bounds.stop;
         unsigned long long start = at;
-        at = (newline != NULL) ? end + 1u : length;
+        at = bounds.next;
         cli_requests_trimmed(listed, &start, &end);
         static const char *const names[3] = {CLI_REQUESTS_PRIVATE, "/" CLI_REQUESTS_PRIVATE, "*.private.env.json"};
         for (unsigned int name = 0u; name < 3u; name += 1u)
@@ -361,10 +345,7 @@ static int values_ignored(const char *ignore, int *joined)
                                .src = listed + start, .other = names[name], .bytes = (size_t)(end - start)}) == 0));
         }
     }
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, size);
-    }
+    cli_file_given(bytes, &g_cli_requests_cells);
     return named;
 }
 
@@ -372,8 +353,9 @@ static int values_ignored(const char *ignore, int *joined)
 // where none is, as serde_json's pretty writer lays the object out: 1, or 0 where it could not be written
 static int values_private_written(const char *file)
 {
-    VerbaLinea object;
-    if (!cli_growing_line_temporary(&object, CLI_REQUESTS_POOL_FIRST, &g_cli_requests_cells))
+    char *const object_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_OBJECT_ROOM, &g_cli_requests_cells);
+    VerbaLinea object = mmgr_line_over(object_cell, CLI_REQUESTS_OBJECT_ROOM);
+    if (object.out == NULL)
     {
         return 0;
     }

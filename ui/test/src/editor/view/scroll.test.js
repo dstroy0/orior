@@ -141,7 +141,7 @@ test("under a steady wheel every frame moves the text an even step", async () =>
   assert.ok(spread < 0.3, `the steps spread by ${spread.toFixed(2)} of their middle, ${middle} px`);
 });
 
-// Fingers held on a trackpad: small steps in pixels, one each frame or so, which the view follows
+// Fingers kept on a trackpad: small steps in pixels, one each frame or so, which the view follows
 // as they come. The frames drawn at the display's own rate, and the text moved as far as the steps.
 async function trackpadOver(view, ms) {
   const box = view.scroller.getBoundingClientRect();
@@ -160,17 +160,17 @@ async function trackpadOver(view, ms) {
   return { rate: gaps.length / ((times.at(-1) - times[0]) / 1000), longest: Math.max(...gaps), moved: view.scrollY() - before, sent };
 }
 
-test("fingers held on a trackpad move the text at the display's own rate", async () => {
+test("fingers kept on a trackpad move the text at the display's own rate", async () => {
   await openFile("rate.py");
   await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
   const view = editing().editor;
   view.goTo(0, 0);
   const rest = await framesOver(1000);
   const display = (rest.length - 1) / ((rest.at(-1) - rest[0]) / 1000);
-  const held = await trackpadOver(view, 3000);
-  assert.ok(held.moved >= held.sent * 0.9, `the text moved ${held.moved} px of the ${held.sent} the fingers sent`);
-  assert.ok(held.rate >= display * 0.8, `${held.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
-  assert.ok(held.longest < 100, `the longest wait between two frames, ${held.longest.toFixed(1)} ms`);
+  const run = await trackpadOver(view, 3000);
+  assert.ok(run.moved >= run.sent * 0.9, `the text moved ${run.moved} px of the ${run.sent} the fingers sent`);
+  assert.ok(run.rate >= display * 0.8, `${run.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
+  assert.ok(run.longest < 100, `the longest wait between two frames, ${run.longest.toFixed(1)} ms`);
 });
 
 // A file of long lines of words, for word wrap.
@@ -247,7 +247,7 @@ test("word wrap shows a long line as rows that end after a space, each moved thr
   }
 });
 
-test("fingers held on a trackpad move wrapped text at the display's own rate", async () => {
+test("fingers kept on a trackpad move wrapped text at the display's own rate", async () => {
   const view = await wrappedFile("wrapped_long.txt", 20000);
   const kept = view.wrapped();
   try {
@@ -255,10 +255,10 @@ test("fingers held on a trackpad move wrapped text at the display's own rate", a
     view.goTo(0, 0);
     const rest = await framesOver(1000);
     const display = (rest.length - 1) / ((rest.at(-1) - rest[0]) / 1000);
-    const held = await trackpadOver(view, 3000);
-    assert.ok(held.moved >= held.sent * 0.9, `the text moved ${held.moved} px of the ${held.sent} the fingers sent`);
-    assert.ok(held.rate >= display * 0.8, `${held.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
-    assert.ok(held.longest < 100, `the longest wait between two frames, ${held.longest.toFixed(1)} ms`);
+    const run = await trackpadOver(view, 3000);
+    assert.ok(run.moved >= run.sent * 0.9, `the text moved ${run.moved} px of the ${run.sent} the fingers sent`);
+    assert.ok(run.rate >= display * 0.8, `${run.rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
+    assert.ok(run.longest < 100, `the longest wait between two frames, ${run.longest.toFixed(1)} ms`);
   } finally {
     view.setWrap(kept);
   }

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Files the tree's side opens paged, too large to read whole, held as pages (ui/cli/src/editor/pages.c). The tree's
+// Files the tree's side opens paged, too large to read whole, stored as pages (ui/cli/src/editor/pages.c). The tree's
 // side holds the file and the lines written over it, and an index of its lines, and colors it as it colors every
-// branch; the page holds a window of the lines about the view, as a file still being read is held: the view scrolls the
+// branch; the page holds a window of the lines about the view, as a file still being read is kept: the view scrolls the
 // whole file, and the lines outside the window stand as padding. Each read answers the lines with their colors, and the
 // page puts the colors before it draws the lines, so no line is drawn uncolored.
 //
@@ -33,7 +33,7 @@ const CALM = 100;
 const FLYING = 2;
 
 // The lines a view moves before, once it rests, the web view is asked to give back the memory the drawing on the way
-// held, and the milliseconds its memory target is held low for it.
+// kept, and the milliseconds its memory target is kept low for it.
 const MOVED_GIVEN = 1000;
 const LOW_FOR = 1000;
 
@@ -148,8 +148,8 @@ export function follow(s, view) {
 }
 
 // The view of `view` on the paged session `s` told as resting; and where it moved MOVED_GIVEN lines since the web view
-// last gave its memory back, the web view's memory target held low LOW_FOR milliseconds, so it gives back what the
-// drawing on the way held.
+// last gave its memory back, the web view's memory target kept low LOW_FOR milliseconds, so it gives back what the
+// drawing on the way kept.
 function restAgain(s, view) {
   const paged = s.window.paged;
   paged.resting = true;
@@ -188,7 +188,7 @@ function report(s, view) {
   const top = topOf(s, view);
   const rows = Math.ceil(view.viewSize().height / view.lineHeight) + 1;
   const [mapFrom, mapTo] = view.minimap?.fileSpan?.() ?? [top, top + rows];
-  const told = { key: paged.key, top, rows, columns: columnsOf(s), map_from: Math.max(0, mapFrom), map_to: Math.max(0, mapTo), held_from: s.base, held_to: s.base + s.doc.count, held_cut: s.window.cut, width: view.wrapOn ? view.wrapColumns() : 0 };
+  const told = { key: paged.key, top, rows, columns: columnsOf(s), map_from: Math.max(0, mapFrom), map_to: Math.max(0, mapTo), cached_from: s.base, cached_to: s.base + s.doc.count, cached_cut: s.window.cut, width: view.wrapOn ? view.wrapColumns() : 0 };
   paged.told = top;
   const sent = ++paged.sent;
   const stood = standing(paged);

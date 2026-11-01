@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // executables_steps.c: the job that builds a program the tree's scripts make: what it declares of itself and its steps,
 // each run with the build's own tool
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "executables_internal.h"
 
@@ -292,10 +293,7 @@ static void cli_go_steps(const char *root, const CliExecutable *exe, const char 
     {
         cli_lit(catalog, "-C");
         cli_lit(catalog, folder);
-        for (const char *at = root; at[0] != '\0'; at += 1)
-        {
-            mmgr_line_ch(&line, (at[0] == '\\') ? '/' : at[0]);
-        }
+        (void)cli_text_put_swapped(&line, root, '\\', '/');
         mmgr_line_ch(&line, '/');
     }
     mmgr_line_put(&line, s_out);

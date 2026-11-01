@@ -56,12 +56,6 @@ static void own_name_put(void *context, const char *name, unsigned long long siz
     mmgr_line_ch(names, '\n');
 }
 
-// a piece of what is written put on the line that is `context`
-static void own_put(void *context, const char *bytes, unsigned long long size)
-{
-    mmgr_line_put_n((VerbaLinea *)context, bytes, size);
-}
-
 // one file checked as its text stands, its findings stored and passed on where its run is still the last
 static void own_job(const void *job, unsigned long long size)
 {
@@ -71,21 +65,17 @@ static void own_job(const void *job, unsigned long long size)
     {
         return;
     }
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea found;
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_servers_cells);
+    char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
+    VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_ANSWER);
     mmgr_line_put(&found, "[[");
     cli_json_quoted_lossy(&found, (const unsigned char *)own->path,
                           cellul.len(&(CatenaFinitaCfg){.src = own->path, .cap = CLI_CELLS_POOL}));
     mmgr_line_ch(&found, ',');
     own_check(own->root, own->path, text, own->size, &found);
     mmgr_line_put(&found, "]]");
-    unsigned long long found_size = 0ull;
-    char *const findings = cli_pieces_joined(&pieces, &found, "what orior's own check of a file finds", &found_size);
-    if ((findings != NULL) && cli_servers_run_last(own->key, CLI_SERVERS_OWN, own->run))
+    if (mmgr_line_ok(&found) && cli_servers_run_last(own->key, CLI_SERVERS_OWN, own->run))
     {
-        cli_servers_findings_stored(CLI_SERVERS_OWN, findings, found_size, 1, &own->sink);
+        cli_servers_findings_stored(CLI_SERVERS_OWN, found.out, found.at, 1, &own->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
@@ -99,16 +89,14 @@ void cli_servers_check_own(const char *root, const char *path, const char *text,
     }
     char key[CLI_PATH_MAX_LEN];
     cli_servers_key_of(path, key);
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea names;
-    cli_pieces_begun(&pieces, &names, piece, sizeof(piece), &g_cli_servers_cells);
+    // each name a part of the file's text, and a break after it
+    const unsigned long long room = (size * 2ull) + 1ull;
+    char *const given = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+    VerbaLinea names = mmgr_line_over(given, room);
     cli_build_given_names(path, text, size, own_name_put, &names);
-    unsigned long long names_size = 0ull;
-    char *const given = cli_pieces_joined(&pieces, &names, "the names a build tool gives", &names_size);
+    const int whole = mmgr_line_ok(&names);
     cli_lock_take(&g_cli_servers_checks_lock);
-    (void)cli_keyed_put(&g_cli_servers_given, key, "", (given != NULL) ? given : "",
-                        (given != NULL) ? names_size : 0ull);
+    (void)cli_keyed_put(&g_cli_servers_given, key, "", whole ? names.out : "", whole ? names.at : 0ull);
     cli_lock_give(&g_cli_servers_checks_lock);
     g_cli_cells->persistent_buf_release(given, &g_cli_servers_cells);
     char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersOwnJob) + size, &g_cli_servers_cells);
@@ -154,30 +142,24 @@ static int own_had(const char *key)
     return (inner < length) && (stored[at + inner] != ']');
 }
 
-// the findings of the file at `path` of the tree `root`, read where it lies on the disk, put after those `found`
-// contains, `*written` stating whether any are: none where it is not read whole, or where it has none and had none
-// before
-static void own_tree_file(const char *root, const char *path, int *written, VerbaLinea *found)
+// the findings of the file at `path` of the tree `root`, read where it lies on the disk and written on `items`, the
+// one line every file of the tree's job uses, put after those `found` contains, `*written` stating whether any are:
+// none where it is not read whole, or where it has none and had none before
+static void own_tree_file(const char *root, const char *path, int *written, VerbaLinea *items, VerbaLinea *found)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_read(path, &size);
+    const unsigned char *const mapped = cli_file_taken(path, &size, &g_cli_servers_cells);
     if ((mapped == NULL) || !cli_utf8_whole((const char *)mapped, size))
     {
-        if (mapped != NULL)
-        {
-            cli_file_let_go(mapped, size);
-        }
+        cli_file_given(mapped, &g_cli_servers_cells);
         return;
     }
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea items;
-    cli_pieces_begun(&pieces, &items, piece, sizeof(piece), &g_cli_servers_cells);
-    own_check(root, path, (const char *)mapped, size, &items);
-    cli_file_let_go(mapped, size);
-    const int whole = cli_pieces_ended(&pieces, &items);
-    const int empty = (pieces.size == 2ull) && (pieces.first != NULL) &&
-                      (memor.cmp(&(MemoriaCfg){.src = pieces.first->bytes, .other = "[]", .bytes = 2u}) == 0);
+    items->at = 0ull;
+    own_check(root, path, (const char *)mapped, size, items);
+    cli_file_given(mapped, &g_cli_servers_cells);
+    const int whole = mmgr_line_ok(items);
+    const int empty =
+        whole && (items->at == 2ull) && (memor.cmp(&(MemoriaCfg){.src = items->out, .other = "[]", .bytes = 2u}) == 0);
     char key[CLI_PATH_MAX_LEN];
     cli_servers_key_of(path, key);
     cli_lock_take(&g_cli_servers_checks_lock);
@@ -189,21 +171,20 @@ static void own_tree_file(const char *root, const char *path, int *written, Verb
         cli_json_quoted_lossy(found, (const unsigned char *)path,
                               cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
         mmgr_line_ch(found, ',');
-        cli_pieces_each(&pieces, own_put, found);
+        (void)mmgr_line_put_n(found, items->out, items->at);
         mmgr_line_ch(found, ']');
         *written = 1;
     }
-    cli_pieces_given(&pieces);
 }
 
 // each file of the tree orior_cli reads itself checked as the disk stores it, its findings stored and passed on
 static void own_tree_job(const void *job, unsigned long long size)
 {
     const CliServersOwnTreeJob *const tree = job;
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea found;
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_servers_cells);
+    char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FINDINGS, &g_cli_servers_cells);
+    VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
+    char *const item_text = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
+    VerbaLinea items = mmgr_line_over(item_text, CLI_SERVERS_ANSWER);
     mmgr_line_ch(&found, '[');
     int written = 0;
     unsigned long long at = sizeof(*tree);
@@ -211,14 +192,13 @@ static void own_tree_job(const void *job, unsigned long long size)
     {
         const char *const path = (const char *)job + at;
         at += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u;
-        own_tree_file(tree->root, path, &written, &found);
+        own_tree_file(tree->root, path, &written, &items, &found);
     }
+    g_cli_cells->persistent_buf_release(item_text, &g_cli_servers_cells);
     mmgr_line_ch(&found, ']');
-    unsigned long long found_size = 0ull;
-    char *const findings = cli_pieces_joined(&pieces, &found, "what orior's own check of the tree finds", &found_size);
-    if (findings != NULL)
+    if (mmgr_line_ok(&found))
     {
-        cli_servers_findings_stored(CLI_SERVERS_OWN, findings, found_size, 0, &tree->sink);
+        cli_servers_findings_stored(CLI_SERVERS_OWN, found.out, found.at, 0, &tree->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }

@@ -24,8 +24,8 @@ extern CellOwner g_cli_git_cells;
 // the most bytes of the texts of one list git gives
 #define CLI_GIT_TEXT (1u << 22u)
 
-// The texts of a list, in a cell of `room` grown as they are stored: each one ended by a 0 at its place, the place 0
-// containing the empty text, and 1 in `full` where one did not fit and was left empty
+// The texts of a list, in a cell of `room` at their most: each one ended by a 0 at its place, the place 0 containing
+// the empty text, and 1 in `full` where one did not fit and was left empty
 typedef struct
 {
     char *bytes;

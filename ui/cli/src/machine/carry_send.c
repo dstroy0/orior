@@ -27,9 +27,11 @@ static void cli_sent(VerbaLinea *out, unsigned int count, const char *how, const
 // what travels written as one file at `to`: 1, or 0 with why given
 static int cli_file_sent(const char *to, VerbaLinea *err_msg)
 {
-    // the file written in a cell that grows with what travels
-    VerbaLinea file;
-    if (!cli_growing_line_temporary(&file, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
+    // the file written in a cell sized to what travels
+    const unsigned long long file_room = cli_carried_sent_room(&s_send.packed);
+    char *const file_cell = g_cli_cells->temporary_buf_alloc(file_room, &g_cli_machine_cells);
+    VerbaLinea file = mmgr_line_over(file_cell, file_room);
+    if (file.out == NULL)
     {
         mmgr_line_put(err_msg, to);
         mmgr_line_put(err_msg, ": no cell could be taken to write it in");

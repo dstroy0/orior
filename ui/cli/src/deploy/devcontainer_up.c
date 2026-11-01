@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // devcontainer_up.c: the words of each docker command a plan needs, docker run with them, and the tree's dev container
 // brought up
+#include "../text/text.h"
 #include "devcontainer.h"
 
 // the lock acquired while docker's words and output are stored
@@ -255,15 +256,8 @@ static int cli_docker_read(const CliWords *words, char *out)
         return 0;
     }
     unsigned long long from = 0ull;
-    while ((from < out_len) && ((out[from] == ' ') || ((out[from] >= '\t') && (out[from] <= '\r'))))
-    {
-        from += 1ull;
-    }
-    while ((out_len > from) &&
-           ((out[out_len - 1u] == ' ') || ((out[out_len - 1u] >= '\t') && (out[out_len - 1u] <= '\r'))))
-    {
-        out_len -= 1ull;
-    }
+    from = cli_text_past_any(out, from, out_len, CLI_TEXT_WHITE);
+    out_len = (from + cli_text_back_past(out + from, out_len - from, CLI_TEXT_WHITE));
     // moved down to the start, each byte from above where it goes
     for (unsigned long long at = from; at < out_len; at += 1ull)
     {
@@ -337,11 +331,10 @@ static int cli_compose_up(const CliPlan *plan, QuerySink sink, char *address, Ve
     // the first line of what docker wrote, its end left off
     char container[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
-    while ((s_output[length] != '\0') && (s_output[length] != '\n') && (length + 1ull < sizeof(container)))
-    {
-        container[length] = s_output[length];
-        length += 1ull;
-    }
+    length =
+        cli_text_to_any(s_output, 0ull, cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_CELLS_POOL}), "\n");
+    length = (length < sizeof(container)) ? length : (sizeof(container) - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = container, .src = s_output, .bytes = (size_t)length});
     length -= ((length != 0ull) && (container[length - 1u] == '\r')) ? 1ull : 0ull;
     container[length] = '\0';
     const int run = made ? cli_commands_run(plan, container, plan->on_start, plan->on_starts, sink, err_msg)

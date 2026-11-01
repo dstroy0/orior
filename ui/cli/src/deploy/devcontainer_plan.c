@@ -3,6 +3,7 @@
 // devcontainer_plan.c: a description's JSON read, its strings, members and lists, its variables read in, and the
 // plan's texts it is stored in
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "devcontainer_internal.h"
@@ -24,23 +25,20 @@ int cli_plan_description_read(const char *file, VerbaLinea *err_msg)
 {
     s_full = 0;
     unsigned long long size = 0ull;
-    const unsigned char *const raw = cli_file_read(file, &size);
+    const unsigned char *const raw = cli_file_taken(file, &size, &g_cli_devcontainer_cells);
     if ((raw == NULL) || (size > CLI_DESCRIPTION_BYTES))
     {
-        cli_file_let_go(raw, size);
+        cli_file_given(raw, &g_cli_devcontainer_cells);
         mmgr_line_put(err_msg, file);
         mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
     // plain JSON is the description with its comments and trailing commas left out, never longer
     s_plain = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_devcontainer_cells);
-    VerbaLinea plain = {s_plain, (s_plain != NULL) ? (size + 1ull) : 0ull, 0ull};
-    if (s_plain != NULL)
-    {
-        // the description's bytes read as the text they are
-        cli_plain_json((const char *)raw, size, &plain);
-    }
-    cli_file_let_go(raw, size);
+    VerbaLinea plain = mmgr_line_over(s_plain, size + 1ull);
+    // the description's bytes read as the text they are
+    cli_plain_json((const char *)raw, size, &plain);
+    cli_file_given(raw, &g_cli_devcontainer_cells);
     const unsigned int counted = mmgr_line_ok(&plain) ? cli_json_tokens_counted(s_plain, plain.at) : 0u;
     const unsigned int tokens =
         (counted < CLI_DESCRIPTION_TOKENS) ? ((counted != 0u) ? counted : 1u) : CLI_DESCRIPTION_TOKENS;
@@ -210,10 +208,7 @@ void cli_plan_listed(CliPlan *plan, CliPlanList *list, const char *text)
 static const char *cli_last_part(const char *path)
 {
     const char *last = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    while ((last > path) && (last[-1] != '/') && (last[-1] != '\\'))
-    {
-        last -= 1;
-    }
+    last = path + cli_text_back_any(path, (unsigned long long)(last - path), "/\\");
     return last;
 }
 

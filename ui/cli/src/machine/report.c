@@ -4,16 +4,17 @@
 // settings retained as they are; what identifies the reporter struck from a report; an error's fingerprint; and the
 // run's recent errors
 #include "report.h"
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 
 // the most recent errors retained for a report that requests them, and the most bytes of each; the nodes and the bytes
 // of texts a tree of the settings reserves over for the answer, beyond its copy of the settings; and the bytes the
-// settings written and a text struck are begun with, each growing past them
+// settings written and a text struck are taken with
 #define CLI_REPORT_RETAIN_MAX 20u
 #define CLI_REPORT_ERROR (1u << 16u)
 #define CLI_REPORT_ANSWER_NODES 4u
 #define CLI_REPORT_ANSWER_TEXT 64ull
-#define CLI_REPORT_WRITTEN_FIRST 4096ull
 #define CLI_REPORT_STRUCK_MORE 64ull
 
 // the run's recent errors, a ring of cells each of its error's size, the oldest at `first`, under the lock
@@ -60,7 +61,8 @@ static unsigned int cli_settings(CliJson *json, int copied)
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_settings_path(path) ? cli_file_read(path, &size) : NULL;
+    const unsigned char *const bytes =
+        cli_settings_path(path) ? cli_file_taken(path, &size, &g_cli_machine_cells) : NULL;
     // the file's bytes are read as its text
     const char *const text = (const char *)bytes;
     const unsigned int tokens = (copied && (bytes != NULL)) ? cli_json_tokens_counted(text, size) : 0u;
@@ -70,10 +72,7 @@ static unsigned int cli_settings(CliJson *json, int copied)
         (bytes != NULL) ? cli_json_taken(json, text, size, copied ? (tokens + CLI_REPORT_ANSWER_NODES) : 0u,
                                          copied ? (size + CLI_REPORT_ANSWER_TEXT) : 0ull, &reason, &g_cli_machine_cells)
                         : CLI_JSON_NONE;
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, size);
-    }
+    cli_file_given(bytes, &g_cli_machine_cells);
     const unsigned int root = cli_json_is(json, read, CFG_JSON_OBJECT) ? read : CLI_JSON_NONE;
     if (copied && (root == CLI_JSON_NONE))
     {
@@ -128,10 +127,8 @@ void cli_report_prompt_once(void)
         return;
     }
     const char *from = answer;
-    while ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r')))
-    {
-        from += 1;
-    }
+    from += cli_text_past_any(from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}),
+                              CLI_TEXT_WHITE);
     const int on = !((from[0] == 'n') || (from[0] == 'N'));
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
@@ -172,8 +169,10 @@ int cli_report_set_auto(int on, VerbaLinea *err_msg)
             cli_json_set(&json, made, key, cli_json_copy(&json, member));
         }
     }
-    VerbaLinea out;
-    const int begun = cli_growing_line_temporary(&out, CLI_REPORT_WRITTEN_FIRST, &g_cli_machine_cells);
+    const unsigned long long out_room = cli_json_pretty_room(&json, 2u);
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_cli_machine_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, out_room);
+    const int begun = out.out != NULL;
     cli_json_write(&json, made, &out, 2u, 0);
     const int written = begun && !json.full && mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
     g_cli_cells->persistent_buf_release(out.out, &g_cli_machine_cells);
@@ -197,29 +196,30 @@ static char cli_lower(char letter)
 static void cli_replaced(const char *text, const char *found, const char *put, VerbaLinea *out)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL});
-    for (const char *at = text; at[0] != '\0';)
+    const char *at = text;
+    const char *const end = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    while (at < end)
     {
-        unsigned long long matched = 0ull;
-        while ((matched < length) && (at[matched] != '\0') && (cli_lower(at[matched]) == cli_lower(found[matched])))
+        const char *const hit = (length != 0ull) ? cellul.find(&(CatenaFinitaCfg){.src = at,
+                                                                                  .cap = (size_t)(end - at) + 1u,
+                                                                                  .other = found,
+                                                                                  .other_cap = (size_t)length + 1u,
+                                                                                  .ci = 1})
+                                                 : NULL;
+        const char *const stop = (hit != NULL) ? hit : end;
+        mmgr_line_put_n(out, at, (size_t)(stop - at));
+        if (hit == NULL)
         {
-            matched += 1ull;
+            break;
         }
-        if ((length != 0ull) && (matched == length))
-        {
-            mmgr_line_put(out, put);
-            at += length;
-        }
-        else
-        {
-            mmgr_line_ch(out, at[0]);
-            at += 1;
-        }
+        mmgr_line_put(out, put);
+        at = hit + length;
     }
     mmgr_line_finish(out);
 }
 
 // `found`, three letters or more, struck from the text `*struck` contains as `put`, as it is, with its slashes leaning
-// forward, and with them leaning back, each pass into a cell of its own grown to the text and the one before given
+// forward, and with them leaning back, each pass into a cell of its own sized to the text and the one before given
 // back; where a cell is refused the text is let go whole, and nothing it contained goes out unstruck
 static void cli_strike(char **struck, const char *found, const char *put)
 {
@@ -233,24 +233,26 @@ static void cli_strike(char **struck, const char *found, const char *put)
         memor.cpy(&(MemoriaCfg){.dst = forms[form],
                                 .src = found,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL}) + 1u});
-        for (char *at = forms[form]; (form != 0u) && (at[0] != '\0'); at += 1)
+        if (form != 0u)
         {
-            at[0] = ((form == 1u) && (at[0] == '\\')) ? '/' : ((form == 2u) && (at[0] == '/')) ? '\\' : at[0];
+            cli_text_swapped(forms[form], cellul.len(&(CatenaFinitaCfg){.src = forms[form], .cap = CLI_CELLS_POOL}),
+                             (form == 1u) ? '\\' : '/', (form == 1u) ? '/' : '\\');
         }
         const char *const text = (*struck != NULL) ? *struck : "";
-        VerbaLinea out;
-        const int begun = cli_growing_line_made(
-            &out, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + CLI_REPORT_STRUCK_MORE,
-            &g_cli_machine_cells);
-        if (begun)
-        {
-            cli_replaced(text, forms[form], put, &out);
-        }
+        // every place the form stands puts `put` in its stead, a form of at least 3 bytes standing at most once in
+        // each 3 of the text
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+        const unsigned long long room =
+            length + ((length / 3ull) * cellul.len(&(CatenaFinitaCfg){.src = put, .cap = CLI_CELLS_POOL})) +
+            CLI_REPORT_STRUCK_MORE;
+        char *const out_cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_machine_cells);
+        VerbaLinea out = mmgr_line_over(out_cell, room);
+        cli_replaced(text, forms[form], put, &out);
         g_cli_cells->persistent_buf_release(*struck, &g_cli_machine_cells);
-        *struck = (begun && mmgr_line_ok(&out)) ? out.out : NULL;
-        if (begun && (*struck == NULL))
+        *struck = mmgr_line_ok(&out) ? out_cell : NULL;
+        if (*struck == NULL)
         {
-            g_cli_cells->persistent_buf_release(out.out, &g_cli_machine_cells);
+            g_cli_cells->persistent_buf_release(out_cell, &g_cli_machine_cells);
         }
     }
 }
@@ -327,12 +329,12 @@ void cli_report_fingerprint(const char *category, const char *text, char *out)
 
 void cli_report_saved(const char *text, const char *root)
 {
-    VerbaLinea line;
-    if (!cli_growing_line_made(&line, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull,
-                               &g_cli_machine_cells))
+    char *const line_cell = g_cli_cells->persistent_buf_alloc(CLI_REPORT_ERROR, &g_cli_machine_cells);
+    if (line_cell == NULL)
     {
         return;
     }
+    VerbaLinea line = {line_cell, CLI_REPORT_ERROR, 0ull};
     cli_report_scrub(text, root, &line);
     // an error stored is its first CLI_REPORT_ERROR bytes at the most
     line.at = (line.at < CLI_REPORT_ERROR) ? line.at : (CLI_REPORT_ERROR - 1u);
@@ -368,10 +370,7 @@ const char *cli_report_panic_category(const char *trace)
     for (const char *line = trace; line[0] != '\0';)
     {
         const char *stop = line;
-        while ((stop[0] != '\0') && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
         char category_buf[CLI_PATH_MAX_LEN];
         VerbaLinea category_line = {category_buf, sizeof(category_buf), 0ull};
         mmgr_line_put_n(&category_line, line, (unsigned long long)(stop - line));

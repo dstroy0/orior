@@ -19,8 +19,20 @@
 #define CLI_LSP_WAITERS 64u
 #define CLI_LSP_COMPLAINT 4096u
 
+// the most bytes of orior's answer to a request of the server's
+#define CLI_LSP_ANSWERED (1ull << 20u)
+
 // A running language server
 typedef struct CliLsp CliLsp;
+
+// A request's answer: the message it came in, in a cell of the message's length the request gives back to the owner the
+// message was read for; and the part of it that answers, ended by a 0, and that part's size
+typedef struct
+{
+    char *message;
+    const char *text;
+    unsigned long long size;
+} CliLspAnswer;
 
 // what the server sends unprompted: the method and `size` bytes of its params as JSON, the answer to a request written
 // into `answer` as JSON, `null` where nothing is written; and what is not sent for a notification
@@ -61,16 +73,16 @@ typedef struct
 // pieces, each text written as a JSON string's letters as it goes, so that a file's whole text is never copied: each 1,
 // or 0 with why given; one message read from `reader` into `body`, sized for `room`, its size into `size`: 1, or 0
 // where the reader's source ended, the message gave no length or the body is no JSON, a body larger than the room read
-// and let go and the next one read; one message read into a cell of its length with a 0 after, its size into `size`:
-// the cell, given back by the caller, or NULL where the source ended, a body the cells cannot meet or that is no JSON
-// read and let go and the next one read; and the member `name` of a message's top object, as its start and length in
-// the body: 1, or 0 where it has none (lsp_wire.c)
+// and let go and the next one read; one message read into a cell of its length with a 0 after, counted to `owner`, its
+// size into `size`: the cell, given back by the caller, or NULL where the source ended, a body the cells cannot meet or
+// that is no JSON read and let go and the next one read; and the member `name` of a message's top object, as its start
+// and length in the body: 1, or 0 where it has none (lsp_wire.c)
 int cli_lsp_send(const CliLspWriter *writer, CliLock *lock, const char *body, unsigned long long size,
                  VerbaLinea *err_msg);
 int cli_lsp_send_parts(const CliLspWriter *writer, CliLock *lock, const CliLspPart *parts, unsigned int count,
                        VerbaLinea *err_msg);
 int cli_lsp_read_message(CliLspReader *reader, char *body, unsigned long long room, unsigned long long *size);
-char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size);
+char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size, CellOwner *owner);
 int cli_lsp_member(const char *body, unsigned long long size, const char *name, unsigned long long *start,
                    unsigned long long *length);
 // a JSON string of `length` bytes read as its letters into `out`, sized for `room`: 1, or 0 where it is no string
@@ -105,10 +117,11 @@ int cli_lsp_alive(CliLsp *lsp);
 void cli_lsp_complaint(CliLsp *lsp, VerbaLinea *out);
 void cli_lsp_stopped(CliLsp *lsp);
 
-// a request of `method` with `length` bytes of JSON params, its answer waited for up to `wait` milliseconds and written
-// into `result`; and a notification sent. Each 1, or 0 with why given (lsp.c)
+// a request of `method` with `length` bytes of JSON params, its answer waited for up to `wait` milliseconds and handed
+// over in `answer`, whose message the caller gives back to g_cli_servers_cells, NULL where the request failed; and a
+// notification sent. Each 1, or 0 with why given (lsp.c)
 int cli_lsp_requested(CliLsp *lsp, const char *method, const char *params, unsigned long long length,
-                      unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg);
+                      unsigned long long wait, CliLspAnswer *answer, VerbaLinea *err_msg);
 int cli_lsp_notified(CliLsp *lsp, const char *method, const char *params, unsigned long long length,
                      VerbaLinea *err_msg);
 // the request the server sent that its receiver is processing now left unanswered, to be answered later, its id's JSON
@@ -123,8 +136,10 @@ void cli_lsp_at(const char *path, unsigned int line, unsigned int col, const cha
 // the file at `path` opened in the server as `language_id` with `length` bytes of `text`; given its new whole text;
 // given the text it was last given again, as a new version, the server then reading again what the file includes or
 // imports; and closed. Each 1, or 0 with why given. The version of `path` the server was last given, 0 where it has
-// none open; whether the server has `path` open; the text it was last given of a file it has open into `out`: 1, or 0
-// where it has none; and each file it has open, with the text it was last given, handed to `each` (lsp_files.c)
+// none open; whether the server has `path` open; the size of the text it was last given of a file it has open into
+// `size` and that text into `out`: each 1, or 0 where it has none; the URIs of the files it has open, each ended by a
+// 0, in a cell of their size counted to `owner`, their size into `size`, NULL where it has none; and each file it has
+// open, with the text it was last given, handed to `each` (lsp_files.c)
 int cli_lsp_opened(CliLsp *lsp, const char *path, const char *language_id, const char *text, unsigned long long length,
                    VerbaLinea *err_msg);
 int cli_lsp_changed(CliLsp *lsp, const char *path, const char *text, unsigned long long length, VerbaLinea *err_msg);
@@ -132,7 +147,9 @@ int cli_lsp_read_again(CliLsp *lsp, const char *path, VerbaLinea *err_msg);
 int cli_lsp_closed(CliLsp *lsp, const char *path, VerbaLinea *err_msg);
 unsigned long long cli_lsp_version(CliLsp *lsp, const char *path);
 int cli_lsp_has(CliLsp *lsp, const char *path);
+int cli_lsp_text_size(CliLsp *lsp, const char *path, unsigned long long *size);
 int cli_lsp_text(CliLsp *lsp, const char *path, VerbaLinea *out);
+char *cli_lsp_open_uris_taken(CliLsp *lsp, unsigned long long *size, CellOwner *owner);
 void cli_lsp_open_each(CliLsp *lsp,
                        void (*each)(void *context, const char *path, const char *text, unsigned long long length),
                        void *context);

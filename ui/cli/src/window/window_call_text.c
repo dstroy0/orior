@@ -9,8 +9,8 @@
 #include "../editor/document.h"
 #include "window_internal.h"
 
-// the bytes the tree's answer is begun in before it grows
-#define CLI_WINDOW_TEXT_ANSWER (64ull << 10u)
+// the bytes the tree's answer is written in
+#define CLI_WINDOW_TEXT_ANSWER (8ull << 20u)
 
 // a text's shape written as the page reads it
 static void text_shape_written(const CliShape *shape, VerbaLinea *out)
@@ -32,8 +32,9 @@ unsigned int cli_window_tree_called(CliJson *json, const char *name, const char 
     cli_window_quoted(&line, path);
     mmgr_line_put(&line, more);
     mmgr_line_ch(&line, '}');
-    VerbaLinea answer;
-    if (!cli_growing_line_temporary(&answer, CLI_WINDOW_TEXT_ANSWER, &g_cli_window_text_cells))
+    char *const answer_cell = g_cli_cells->temporary_buf_alloc(CLI_WINDOW_TEXT_ANSWER, &g_cli_window_text_cells);
+    VerbaLinea answer = mmgr_line_over(answer_cell, CLI_WINDOW_TEXT_ANSWER);
+    if (answer.out == NULL)
     {
         mmgr_line_put(err_msg, "the tree's answer on a text could not be taken");
         return CLI_JSON_NONE;
@@ -138,7 +139,7 @@ static int text_document_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLi
                 edit_of[used].from = text_place(args->json, edit, "from");
                 edit_of[used].to = text_place(args->json, edit, "to");
                 edit_of[used].text = (text != NULL) ? text : "";
-                edit_of[used].length = (text != NULL) ? length : 0ull;
+                edit_of[used].length = length;
                 used += 1u;
                 edits_of[count] += 1u;
             }
@@ -251,13 +252,13 @@ static int text_file_read_any(const CliServeArgs *args, VerbaLinea *out, VerbaLi
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_read(path, &size);
+    const unsigned char *const mapped = cli_file_taken(path, &size, &g_cli_window_text_cells);
     const int read = (mapped != NULL) && cli_utf8_whole((const char *)mapped, size);
     if (read)
     {
         cli_json_quoted(out, (const char *)mapped, size);
     }
-    cli_file_let_go(mapped, size);
+    cli_file_given(mapped, &g_cli_window_text_cells);
     if (!read)
     {
         mmgr_line_put(err_msg, path);
@@ -307,16 +308,13 @@ static int text_workspace_read(const CliServeArgs *args, VerbaLinea *out, VerbaL
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_read(path, &size);
+    const unsigned char *const mapped = cli_file_taken(path, &size, &g_cli_window_text_cells);
     // a text made plain is never longer than the text, as it only leaves comments and commas out
     char *const plain_buf =
         (mapped != NULL) ? g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_window_text_cells) : NULL;
-    VerbaLinea plain = {plain_buf, (plain_buf != NULL) ? (size + 1ull) : 0ull, 0ull};
-    if (plain_buf != NULL)
-    {
-        cli_plain_json((const char *)mapped, size, &plain);
-    }
-    cli_file_let_go(mapped, size);
+    VerbaLinea plain = mmgr_line_over(plain_buf, size + 1ull);
+    cli_plain_json((const char *)mapped, size, &plain);
+    cli_file_given(mapped, &g_cli_window_text_cells);
     if (plain_buf == NULL)
     {
         mmgr_line_put(err_msg, path);

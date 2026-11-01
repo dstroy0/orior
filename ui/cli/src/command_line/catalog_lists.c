@@ -57,43 +57,29 @@ void cli_catalog_entries(const char *folder, int folders, int (*filter)(const ch
     query_folder_each(folder, cli_entry_each, &walk);
 }
 
-// a cell of `most` texts of `width` bytes, or of twice `*room` where that is more, containing the `*room` texts of
-// `cell`, `cell` given back and `*room` raised: the cell, or NULL where it is refused and `cell` is retained
-static void *cli_catalog_grown(void *cell, unsigned int *room, unsigned int most, unsigned long long width,
-                               const char *what)
-{
-    const unsigned int doubled = 2u * *room;
-    const unsigned int taken = (most > doubled) ? most : doubled;
-    void *const grown = cli_cell_regrown(cell, (size_t)((unsigned long long)*room * width),
-                                         (unsigned long long)taken * width, &g_cli_catalog_cells);
-    if (grown == NULL)
-    {
-        return NULL;
-    }
-    *room = taken;
-    return grown;
-}
+// the most names or paths one list contains, its cell taken at them as the list is first made room in
+#define CLI_CATALOG_ENTRIES_MOST 16384u
 
 int cli_catalog_names_room(CliEntries *names, unsigned int most)
 {
-    if (most <= names->room)
+    if ((names->name == NULL) && (most <= CLI_CATALOG_ENTRIES_MOST))
     {
-        return 1;
+        names->name = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_CATALOG_ENTRIES_MOST * CLI_NAME_MAX_LEN,
+                                                       &g_cli_catalog_cells);
+        names->room = (names->name != NULL) ? CLI_CATALOG_ENTRIES_MOST : 0u;
     }
-    void *const grown = cli_catalog_grown(names->name, &names->room, most, CLI_NAME_MAX_LEN, "a list of names");
-    names->name = (grown != NULL) ? grown : names->name;
-    return grown != NULL;
+    return most <= names->room;
 }
 
 int cli_catalog_paths_room(CliPaths *paths, unsigned int most)
 {
-    if (most <= paths->room)
+    if ((paths->path == NULL) && (most <= CLI_CATALOG_ENTRIES_MOST))
     {
-        return 1;
+        paths->path = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_CATALOG_ENTRIES_MOST * CLI_PATH_MAX_LEN,
+                                                       &g_cli_catalog_cells);
+        paths->room = (paths->path != NULL) ? CLI_CATALOG_ENTRIES_MOST : 0u;
     }
-    void *const grown = cli_catalog_grown(paths->path, &paths->room, most, CLI_PATH_MAX_LEN, "a list of paths");
-    paths->path = (grown != NULL) ? grown : paths->path;
-    return grown != NULL;
+    return most <= paths->room;
 }
 
 void cli_catalog_entries_given(CliEntries *entries)

@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_lines.c: the commit that last changed each line of a file as the editor has it, read from git blame's porcelain
+#include "../text/text.h"
 #include "git_internal.h"
 
 // the places of the commits found, by their id, twice as many as the commits a history contains
@@ -65,10 +66,7 @@ static void cli_history_of(const char *out, unsigned long long size, const CliUn
     while (line < end)
     {
         const char *stop = line;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const char *const next = stop + 1;
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
         const unsigned long long length = (unsigned long long)(stop - line);
@@ -78,10 +76,8 @@ static void cli_history_of(const char *out, unsigned long long size, const CliUn
             if (at < found->commits)
             {
                 const char *const id = cli_git_text_of(&found->text, found->commit[at].id);
-                for (const char *digit = id; !nonzero && (digit[0] != '\0'); digit += 1)
-                {
-                    nonzero = digit[0] != '0';
-                }
+                nonzero = id[cli_text_past_any(
+                              id, 0ull, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), "0")] != '\0';
             }
             if (found->lines < CLI_GIT_LINES)
             {
@@ -93,10 +89,7 @@ static void cli_history_of(const char *out, unsigned long long size, const CliUn
             continue;
         }
         const char *space = line;
-        while ((space < stop) && (space[0] != ' '))
-        {
-            space += 1;
-        }
+        space += cli_text_to_any(space, 0ull, (unsigned long long)(stop - space), " ");
         const char *const key = line;
         const unsigned long long key_length = (unsigned long long)(space - line);
         const char *const value = (space < stop) ? (space + 1) : stop;
@@ -155,10 +148,7 @@ static void cli_history_of(const char *out, unsigned long long size, const CliUn
         else if ((key_length == 8ull) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "previous", .bytes = 8u}) == 0))
         {
             const char *gap = value;
-            while ((gap < stop) && (gap[0] != ' '))
-            {
-                gap += 1;
-            }
+            gap += cli_text_to_any(gap, 0ull, (unsigned long long)(stop - gap), " ");
             commit->parent = cli_git_text_put(&found->text, value, (unsigned long long)(gap - value));
             commit->has_parent = 1;
             const char *const path = (gap < stop) ? (gap + 1) : stop;

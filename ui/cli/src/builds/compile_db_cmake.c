@@ -3,6 +3,7 @@
 // compile_db_cmake.c: a CMake build's entries read from its file API reply: one for each source of each target in
 // the configuration the build's folder is named for, as the build's own compiler is given it, C and C++ alone. Each
 // reply file stays mapped and walked by key in one pass, the entries made straight into the gathered tree
+#include "../text/text.h"
 #include "compile_db_internal.h"
 
 // the reply file a member `jsonFile` of the object at `node` of `reply` names, in the reply folder `folder`, opened
@@ -64,22 +65,19 @@ static unsigned int cli_slashed_made(const char *text)
     char slashed[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = slashed, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = slashed; at[0] != '\0'; at += 1)
-    {
-        at[0] = (at[0] == '\\') ? '/' : at[0];
-    }
+    cli_text_swapped(slashed, cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}), '\\', '/');
     return cli_json_string_made(&g_cli_gather.json, slashed,
                                 cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}));
 }
 
-// a fragment of a compile command at `at` of the target's reply decoded into the fragment line, which grows to its
-// bytes as written, and its words put after the flags
+// a fragment of a compile command at `at` of the target's reply decoded into the fragment line, at the bytes it is
+// sized for, and its words put after the flags
 static void cli_fragment_flags(const CliReply *target, unsigned long long at)
 {
     VerbaLinea *const text = &g_cli_gather.fragment_text;
     const unsigned long long span = cli_reply_string_span(target, at);
     text->at = 0ull;
-    if (!cli_growing_line_room(text, span + 1ull) || !cli_reply_string(target, at, text->out, span + 1ull))
+    if ((text->capacity <= (span + 1ull)) || !cli_reply_string(target, at, text->out, span + 1ull))
     {
         return;
     }
@@ -264,10 +262,9 @@ static unsigned long long cli_configuration_of(const CliReply *model, unsigned l
                                                const char *build)
 {
     const char *named = build;
-    for (const char *at = build; at[0] != '\0'; at += 1)
-    {
-        named = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : named;
-    }
+    const unsigned long long named_past =
+        cli_text_back_any(build, cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), "/\\");
+    named = (named_past != 0ull) ? (build + named_past) : named;
     const unsigned long long first = cli_reply_first(model, configurations);
     for (unsigned long long at = first; at != CLI_REPLY_NONE; at = cli_reply_next(model, at))
     {
@@ -275,10 +272,7 @@ static unsigned long long cli_configuration_of(const CliReply *model, unsigned l
         int same = cli_reply_string(model, cli_reply_member(model, at, "name"), name, sizeof(name)) &&
                    (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) ==
                     cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
-        for (unsigned long long letter = 0ull; same && (name[letter] != '\0'); letter += 1ull)
-        {
-            same = (name[letter] | 0x20) == (named[letter] | 0x20);
-        }
+        same = same && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = named, .cap = CLI_CELLS_POOL, .ci = 1});
         if (same)
         {
             return at;

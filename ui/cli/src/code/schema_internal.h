@@ -66,10 +66,9 @@ typedef struct
 
 // A JSON file as read: its text, its values and members, what prevented it from reading, its root, CLI_SCHEMA_NONE
 // where none was read, the texts of all, and 1 in `full` where a part of it did not fit. The values, the members and
-// the texts are cells of `nodes_most`, `members_most` and `pool_most` places that double as the file is read, to
-// CLI_SCHEMA_NODES, CLI_SCHEMA_MEMBERS and CLI_SCHEMA_POOL at the most; the values' room is grown once more before
-// the file is checked, by a value for each member and CLI_SCHEMA_CHECK_NODES, for the keys a check makes values of, and
-// stays fixed while the file is checked
+// the texts stand in one cell, `nodes_most`, `members_most` and `pool_most` places sized from the text, to
+// CLI_SCHEMA_NODES, CLI_SCHEMA_MEMBERS and CLI_SCHEMA_POOL at the most; the values' room holds a value for each member
+// and CLI_SCHEMA_CHECK_NODES past those read, for the keys a check makes values of
 typedef struct
 {
     const char *text;
@@ -89,18 +88,10 @@ typedef struct
     int full;
 } CliSchemaRead;
 
-// the places a read's lists are begun with, and the values over the read's own a check may make
-#define CLI_SCHEMA_FIRST 1024u
+// the places a read's lists are taken with, and the values over the read's own a check may make
 #define CLI_SCHEMA_CHECK_NODES 1024u
 
-// a list of `each`-byte places at `cells`, `*most` of them, grown to fit `needed`, twice its room at a time from
-// CLI_SCHEMA_FIRST and no more than `hard`, the places it contained copied: the list, moved or not, or NULL with it
-// left as it was where it cannot be; a read's lists grown to fit `nodes` values, `members` members and `pool` bytes of
-// text, 1 where all do and 0 where one does not; and a read's lists given back (schema.c)
-void *cli_schema_grown(void *cells, unsigned int *most, unsigned long long needed, size_t each, unsigned int hard,
-                       const char *what);
-int cli_schema_read_room(CliSchemaRead *read, unsigned long long nodes, unsigned long long members,
-                         unsigned long long pool);
+// a read's cell given back (schema.c)
 void cli_schema_read_given(CliSchemaRead *read);
 
 // `size` bytes of a JSON file read into `read`, comments passed over (schema_read.c); a text of the pool; and the type
@@ -112,16 +103,16 @@ const char *cli_schema_kind(const CliSchemaNode *node);
 // the meta-schemas orior_cli bundles, each its URL with no scheme and no `#` and its text (schema_bundled.c)
 extern const char *const g_cli_schema_bundled[5][2];
 
-// the most documents a check reaches, those it could not find, the values and bytes their tree is begun with, doubling
-// as they fill, and the deepest a value is checked
+// the most documents a check reaches, those it could not find, the values and bytes their tree is taken with, and the
+// deepest a value is checked
 #define CLI_SCHEMA_DOCUMENTS 32u
 #define CLI_SCHEMA_MISSING 64u
-#define CLI_SCHEMA_STORE_NODES_FIRST 4096u
-#define CLI_SCHEMA_STORE_TEXT_FIRST (1u << 16u)
+#define CLI_SCHEMA_STORE_NODES_ROOM (1u << 18u)
+#define CLI_SCHEMA_STORE_TEXT_ROOM (16ull << 20u)
 #define CLI_SCHEMA_DEEPEST 64u
 
-// The schemas a check reaches, each by its URL or its path, read into one tree that grows in a cell of its own, and
-// those it could not find
+// The schemas a check reaches, each by its URL or its path, read into one tree in a cell of its own, and those it could
+// not find
 typedef struct
 {
     CliJson json;

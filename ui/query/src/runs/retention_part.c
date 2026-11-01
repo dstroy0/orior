@@ -35,35 +35,27 @@ int query_on_the_part(const char *apps, const char *root)
 {
     char top[QUERY_PATH_MAX_LEN];
     VerbaLinea line = {top, sizeof(top), 0ull};
-    for (const char *at = root; *at != '\0'; at += 1)
-    {
-        const char letter = (*at == '\\') ? '/' : *at;
-        mmgr_line_ch(&line, ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter);
-    }
+    (void)cli_text_put_swapped(&line, root, '\\', '/');
+    cli_text_lowered(top, line.at);
     if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
-    for (const char *walk = apps; *walk != '\0'; walk += 1)
+    // the lines as the root is written, in a cell of their size: where it is refused the answer is that a program
+    // is there, which keeps a run from being taken for one the part has let go
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = apps, .cap = CLI_CELLS_POOL});
+    char *const plain = g_cli_cells->temporary_buf_alloc(size + 1u, &g_query_cells);
+    if (plain == NULL)
     {
-        size_t matched = 0u;
-        while ((matched < length) && (walk[matched] != '\0') && (walk[matched] != '\n'))
-        {
-            char letter = (walk[matched] == '\\') ? '/' : walk[matched];
-            letter = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter;
-            if (letter != top[matched])
-            {
-                break;
-            }
-            matched += 1u;
-        }
-        if (matched == length)
-        {
-            return 1;
-        }
+        return 1;
     }
-    return 0;
+    memor.cpy(&(MemoriaCfg){.dst = plain, .src = apps, .bytes = size + 1u});
+    cli_text_swapped(plain, size, '\\', '/');
+    cli_text_lowered(plain, size);
+    const int there =
+        cellul.find(&(CatenaFinitaCfg){.src = plain, .cap = size + 1u, .other = top, .other_cap = sizeof(top)}) != NULL;
+    g_cli_cells->persistent_buf_release(plain, &g_query_cells);
+    return there;
 }
 
 long long query_part_used_most(const char *given)
@@ -235,10 +227,7 @@ void query_crystals(QueryContext *context, const QueryWriter *own, const char *f
             query_removed(paths[at]);
             // the crystal's own line, its end trimmed, and the seconds it took
             size_t len = cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_CELLS_POOL});
-            while ((len != 0u) && ((s_output[len - 1u] == '\n') || (s_output[len - 1u] == '\r')))
-            {
-                len -= 1u;
-            }
+            len = (size_t)cli_text_back_past(s_output, len, "\n\r");
             mmgr_line_put_most(&line, s_output, len);
             mmgr_line_put(&line, ", in ");
             mmgr_line_decimal(&line, (query_now() - began) * 1000ull, 0u);

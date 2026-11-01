@@ -28,9 +28,11 @@ CliRequestsRoom *cli_requests_room_taken(void)
     {
         room->unpacked = NULL;
         room->unpacked_room = 0ull;
-        const int made = cli_growing_line_made(&room->body, CLI_REQUESTS_BODY_FIRST, &g_cli_requests_cells) &&
-                         cli_growing_line_made(&room->raw, CLI_REQUESTS_BODY_FIRST, &g_cli_requests_cells);
-        if (!made)
+        char *const body_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_BODY + 1ull, &g_cli_requests_cells);
+        char *const raw_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_BODY + 1ull, &g_cli_requests_cells);
+        room->body = mmgr_line_over(body_cell, CLI_REQUESTS_BODY + 1ull);
+        room->raw = mmgr_line_over(raw_cell, CLI_REQUESTS_BODY + 1ull);
+        if ((body_cell == NULL) || (raw_cell == NULL))
         {
             g_cli_cells->persistent_buf_release(room->raw.out, &g_cli_requests_cells);
             g_cli_cells->persistent_buf_release(room->body.out, &g_cli_requests_cells);

@@ -180,13 +180,16 @@ static void run_failure_emitted(void *context, const char *name, unsigned long l
             continue;
         }
         char file[CLI_PATH_MAX_LEN];
+        const char *reported = test->file;
+        long long reported_line = (long long)test->line;
         if (path != NULL)
         {
             run_tree_path(worker, path, file);
+            reported = file;
+            // a line of a panic counts from 1, and is reported from 0
+            reported_line = (line > 0ll) ? line - 1ll : 0ll;
         }
-        // a line of a panic counts from 1, and is reported from 0
-        cli_test_result_emitted(worker, test->id, "failed", message, message_size, (path != NULL) ? file : test->file,
-                                (path != NULL) ? ((line > 0ll) ? line - 1ll : 0ll) : (long long)test->line, 0.0);
+        cli_test_result_emitted(worker, test->id, "failed", message, message_size, reported, reported_line, 0.0);
         return;
     }
 }

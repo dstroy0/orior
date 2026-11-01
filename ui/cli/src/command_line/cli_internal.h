@@ -67,32 +67,22 @@ void cli_logon_named(char *logon, size_t room);
 int cli_file_size(const char *path, unsigned long long *size);
 // the size of the file at `path` and the milliseconds since 1970 it last changed at: 1, or 0 where it is not there
 int cli_file_stamp(const char *path, unsigned long long *size, unsigned long long *changed);
-// the whole file at `path` read in one opening: its size measured on the open file and handed to `room`, which gives
-// back where the bytes go, or NULL to refuse; the bytes read into it, their count into `got`: 1, or 0 where the file
-// could not be opened, measured or given room
-int cli_file_read_whole(const char *path, unsigned char *(*room)(void *context, unsigned long long size), void *context,
-                        unsigned long long *got);
 // `count` bytes of the file at `path` from its byte `from` read into `bytes`, their count into `got`, fewer where the
 // file ends first: 1, or 0 where the file could not be opened or read
 int cli_file_read_at(const char *path, unsigned long long from, unsigned char *bytes, unsigned long long count,
                      unsigned long long *got);
-// The bytes of a file in a cell of the cellblock, where every read of them stays: the file at `path` read whole, its
-// size into `*size`, or `count` bytes of it from `from`, their count into `*size`, fewer where the file ends first; a
-// word past the bytes is readable and zero, as the walks that load whole words over a text's last bytes take it.
-// NULL where the file could not be read or the cells cannot meet it; a file of no bytes is bytes of none. And the
-// bytes let go (machine/file_cell.c)
-const unsigned char *cli_file_read(const char *path, unsigned long long *size);
-// the file at `path` mapped as cli_file_read maps it where its bytes read as UTF-8 whole: its bytes, or NULL, the
-// cell given back, where a byte starts no letter (file_cell.c)
-const unsigned char *cli_file_read_utf8(const char *path, unsigned long long *size);
-const unsigned char *cli_file_piece_read(const char *path, unsigned long long from, unsigned long long count,
-                                         unsigned long long *size);
-// the piece `bytes`, `*size` bytes of the file at `path` from `from`, grown to `count` bytes of it: the cell grown where
-// it stands with the bytes past those read put after them, else the piece read anew into a cell of the count and the
-// first given back; `*size` the bytes it holds; NULL with the first given back where the file cannot be read
-const unsigned char *cli_file_piece_grown(const char *path, const unsigned char *bytes, unsigned long long from,
-                                          unsigned long long count, unsigned long long *size);
-void cli_file_let_go(const unsigned char *bytes, unsigned long long size);
+// the bytes past a file's stored in its cell, zero: a word a walk loads over a text's last bytes, and the terminator
+#define CLI_FILE_SLACK 64ull
+// The bytes of a file in one temporary cell of their size and the slack, counted to `owner`: the file at `path` read
+// whole, its size into `*size`; the same where its bytes read as UTF-8 whole; or `count` bytes of it from `from`, their
+// count into `*size`, fewer where the file ends first. NULL where the file could not be read or the cells cannot meet
+// it; a file of no bytes is bytes of none. And a cell of a file's bytes given back to `owner`, NULL being none
+// (machine/file_cell.c)
+unsigned char *cli_file_taken(const char *path, unsigned long long *size, CellOwner *owner);
+unsigned char *cli_file_taken_utf8(const char *path, unsigned long long *size, CellOwner *owner);
+unsigned char *cli_file_piece_taken(const char *path, unsigned long long from, unsigned long long count,
+                                    unsigned long long *size, CellOwner *owner);
+void cli_file_given(const unsigned char *bytes, CellOwner *owner);
 // the bytes of every file under `root`, the folders of version control and of cargo's build passed over: the request a
 // tree's pool is made for (machine/file_cell.c)
 unsigned long long cli_tree_bytes(const char *root);
@@ -304,9 +294,9 @@ typedef KsgWriting CliFileWriting;
 _Static_assert(CLI_PATH_MAX_LEN <= KSG_PATH_MAX_LEN, "a path of the command line's fits a sealed writer's");
 
 // the file `path` begun beside its place, with its seal where it is sealed: 1, or 0 where it could not be made; `size`
-// bytes at `bytes` written after what the file begun contains, the shape of a line's write-through: 1, or 0 where they were
-// not; and the file begun on the disk and put in place of `path` where `whole` is 1, or taken away where it is 0: 1, or
-// 0 where it was not put in place (file_writing.c)
+// bytes at `bytes` written after what the file begun contains, the shape of a line's write-through: 1, or 0 where they
+// were not; and the file begun on the disk and put in place of `path` where `whole` is 1, or taken away where it is 0:
+// 1, or 0 where it was not put in place (file_writing.c)
 int cli_file_begun(CliFileWriting *file, const char *path);
 int cli_file_put(void *context, const char *bytes, size_t size);
 int cli_file_ended(CliFileWriting *file, int whole);
@@ -363,7 +353,7 @@ int cli_file_picked(unsigned int kind, char *path, size_t room);
 int cli_clipboard_text_read(VerbaLinea *text);
 int cli_clipboard_text_written(const char *text, unsigned long long size);
 int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cut);
-unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *path), void *context, int *cut);
+unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *path), void *context, int *cut);
 void cli_clipboard_emptied(void);
 // a piece of a started process's output or errors read, 0 at its end; the process waited on, its exit code, or -1
 // where a signal ended it; its job ended; its job and pipes let go; and the process group `leader` leads ended,
@@ -427,9 +417,11 @@ typedef void (*CliChangeFn)(void *context, const char *path, unsigned int kind);
 int cli_watch_system_start(const char *root, CliChangeFn emit, void *context);
 void cli_watch_system_stop(void);
 int cli_thread_started(CliThread *thread);
-// the calling thread put at `priority`, one of CLI_PRIORITY_WORK and the rest (platform/windows_threads.c,
-// platform/posix_threads.c)
+// the calling thread put at `priority`, one of CLI_PRIORITY_WORK and the rest; its id, which no other live thread has;
+// and the processor given up to any thread waiting for it (platform/windows_threads.c, platform/posix_threads.c)
 void cli_priority_own(unsigned int priority);
+size_t cli_thread_id(void);
+void cli_thread_yield(void);
 // the processors the machine has, one at the fewest
 unsigned int cli_processors(void);
 

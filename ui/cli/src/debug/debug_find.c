@@ -157,9 +157,9 @@ static void find_tail(const char *text, unsigned long long size, unsigned int mo
     unsigned int count = 0u;
     for (unsigned long long start = 0ull; start < size;)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + start, .val = '\n', .bytes = size - start});
-        const unsigned long long next = (newline != NULL) ? (unsigned long long)(newline - text) + 1ull : size;
-        unsigned long long end = (newline != NULL) ? next - 1ull : size;
+        const CliTextLine bounds = cli_text_line_at(text, start, size);
+        const unsigned long long next = bounds.next;
+        unsigned long long end = bounds.stop;
         end = ((end > start) && (text[end - 1ull] == '\r')) ? end - 1ull : end;
         int blank = 1;
         for (unsigned long long at = start; blank && (at < end); at += 1ull)
@@ -243,19 +243,14 @@ int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *e
 static void find_name_parts(const char *path, char *out, char *stem)
 {
     const char *name = path;
-    for (const char *letter = path; *letter != '\0'; letter += 1)
-    {
-        name = ((*letter == '/') || (*letter == '\\')) ? letter + 1 : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     const int has = (dot != NULL) && (dot != name);
     VerbaLinea extension = {out, CLI_NAME_MAX_LEN, 0ull};
-    for (const char *letter = has ? dot + 1 : ""; *letter != '\0'; letter += 1)
-    {
-        const char one = *letter;
-        mmgr_line_ch(&extension, ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one);
-    }
+    cli_text_put_lowered(&extension, has ? (dot + 1) : "");
     mmgr_line_finish(&extension);
     VerbaLinea stem_line = {stem, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put_n(&stem_line, name,

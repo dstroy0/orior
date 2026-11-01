@@ -3,12 +3,11 @@
 // window.c: the window apart from the system. A file opens through branch_open, a text read whole and a file too large
 // to read whole alike, and is shown through the CLI's editor view, which answers each input with the frame drawn; the
 // walk's colors come as branch-colors events. The minimap's lines are asked of editor_view_map for the span the map
-// stands for, after a frame moves the span or a key, text or the walk's colors make the lines held stale, one ask in
+// stands for, after a frame moves the span or a key, text or the walk's colors make the lines stored stale, one ask in
 // flight at a time. What the tree keeps, its tabs and the one shown and the explorer's group, is read from orior's
 // folder as the root comes, under the keys the page keeps them by, and written back as they change
 #include "window.h"
 
-#include "../../cli/src/command_line/file_writing.h"
 #include "../../cli/src/editor/view.h"
 #include "../../cli/src/text/text.h"
 #include "answer.h"
@@ -18,11 +17,11 @@
 #include <math.h>
 
 // the head of the key a file opened is stored under; the keys orior's folder keeps a tree's session and the explorer's
-// group under, the tree's root after the session's; and the bytes the session is written in before it grows
+// group under, the tree's root after the session's; and the bytes the session is written in
 #define GUI_OPEN_KEY_HEAD "window:"
 #define GUI_KEPT_SESSION "orior.session."
 #define GUI_KEPT_GROUP "orior.panes.group"
-#define GUI_KEPT_FIRST 4096u
+#define GUI_KEPT_MORE 256ull
 
 int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, VerbaLinea *err_msg)
 {
@@ -87,9 +86,12 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
     return 1;
 }
 
+static void window_session_written(GuiWindow *window, int ended);
+
 void gui_window_ended(GuiWindow *window)
 {
     gui_link_ended(&window->link);
+    window_session_written(window, 1);
     for (unsigned int at = 0u; at < window->tabs; at += 1u)
     {
         g_cli_cells->persistent_buf_release(window->tab[at].names, &g_gui_cells);
@@ -571,8 +573,10 @@ static void window_names_kept(GuiWindow *window, unsigned int at, const CliJson 
     g_cli_cells->persistent_buf_release(tab->names, &g_gui_cells);
     tab->names = NULL;
     tab->names_size = 0ull;
-    VerbaLinea line;
-    if (!cli_growing_line_made(&line, GUI_KEPT_FIRST, &g_gui_cells))
+    const unsigned long long line_room = cli_json_written_room(json);
+    char *const line_cell = g_cli_cells->persistent_buf_alloc(line_room, &g_gui_cells);
+    VerbaLinea line = mmgr_line_over(line_cell, line_room);
+    if (line.out == NULL)
     {
         return;
     }
@@ -597,7 +601,8 @@ static void window_names_given(GuiWindow *window, unsigned int at)
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     CliJson json;
-    const unsigned int names = cli_json_taken(&json, tab->names, tab->names_size, 0u, 0ull, &err_msg, &g_gui_cells);
+    const unsigned int names =
+        cli_json_taken_temporary(&json, tab->names, tab->names_size, 0u, 0ull, &err_msg, &g_gui_cells);
     if (names != CLI_JSON_NONE)
     {
         (void)gui_editor_named(&window->editor, &json, names);
@@ -608,24 +613,19 @@ static void window_names_given(GuiWindow *window, unsigned int at)
 // the tree's session and the explorer's group written to orior's folder under the keys the page keeps them by, once
 // the tree's kept tabs are back: the tabs' paths in order, the one shown, and the strip's side tool shown; a window
 // with no tabs and no session known writes nothing, which keeps a session the folder holds from being written over
-// by a read that failed to bring it
-static void window_kept(GuiWindow *window)
+// by a read that failed to bring it. The write goes through the link while the window runs and straight to the CLI as
+// it ends, when the link has let go of what it had not run
+static void window_session_written(GuiWindow *window, int ended)
 {
     if (!window->restored || (window->root[0] == '\0') || (!window->session_known && (window->tabs == 0u)))
     {
         return;
     }
-    VerbaLinea session;
-    VerbaLinea args;
-    if (!cli_growing_line_temporary(&session, GUI_KEPT_FIRST, &g_gui_cells))
-    {
-        return;
-    }
-    if (!cli_growing_line_temporary(&args, GUI_KEPT_FIRST, &g_gui_cells))
-    {
-        g_cli_cells->persistent_buf_release(session.out, &g_gui_cells);
-        return;
-    }
+    // each tab's path twice and the one shown once, each byte escaped to at most 6
+    const unsigned long long session_room =
+        (((2ull * window->tabs) + 1ull) * ((CLI_PATH_MAX_LEN * 6ull) + 8ull)) + GUI_KEPT_MORE;
+    char *const session_cell = g_cli_cells->temporary_buf_alloc(session_room, &g_gui_cells);
+    VerbaLinea session = mmgr_line_over(session_cell, session_room);
     // the session as the page keeps it: the tabs, the same as the main side's, the one shown, no split and no groups
     mmgr_line_put(&session, "{\"tabs\":[");
     for (unsigned int at = 0u; at < window->tabs; at += 1u)
@@ -656,6 +656,10 @@ static void window_kept(GuiWindow *window)
     VerbaLinea keyed = {key, sizeof(key), 0ull};
     mmgr_line_put(&keyed, GUI_KEPT_SESSION);
     mmgr_line_put(&keyed, window->root);
+    // the session quoted again, its bytes escaped to at most 6, and the key and the tool's name beside it
+    const unsigned long long args_room = (session.at * 6ull) + (sizeof(key) * 6ull) + GUI_KEPT_MORE;
+    char *const args_cell = g_cli_cells->temporary_buf_alloc(args_room, &g_gui_cells);
+    VerbaLinea args = mmgr_line_over(args_cell, args_room);
     mmgr_line_put(&args, "{\"changes\":{");
     cli_json_quoted(&args, key, mmgr_line_finish(&keyed) != 0ull ? keyed.at : 0ull);
     mmgr_line_ch(&args, ':');
@@ -670,10 +674,23 @@ static void window_kept(GuiWindow *window)
     mmgr_line_put(&args, "}}");
     if (mmgr_line_ok(&args) && mmgr_line_ok(&session))
     {
-        (void)window_called(window, 1, "state_write", &args);
+        if (ended)
+        {
+            cli_window_given(cli_window_called(1, "state_write", args.out, args.at));
+        }
+        else
+        {
+            (void)window_called(window, 1, "state_write", &args);
+        }
     }
     g_cli_cells->persistent_buf_release(session.out, &g_gui_cells);
     g_cli_cells->persistent_buf_release(args.out, &g_gui_cells);
+}
+
+// the session kept through the link, as each change to it is made
+static void window_kept(GuiWindow *window)
+{
+    window_session_written(window, 0);
 }
 
 // the work's inside laid again as the strip's tool shown has a side or not, the view told the editor's size, the top
@@ -693,31 +710,28 @@ static void window_sided(GuiWindow *window)
 
 int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height, float scale)
 {
-    // every take the size needs is made first, with nothing of the window changed: a region a quarter larger each way
-    // where the one it has has no room for the framebuffers and the ground, and the base's tile tables where it has
-    // none yet; none of them from the shared cells at any size after the first, and where one is refused the window
-    // keeps the size it has, whole
-    GuiFramebuffer made = {0};
-    const int grown = !gui_framebuffer_fits(&window->framebuffer, width, height);
-    if (grown && !gui_framebuffer_made(&made, width + (width / 4u), height + (height / 4u)))
+    // every take the size needs is made first, with nothing of the window changed: the rasters at the first size with room
+    // for the largest monitor, and the base's tile tables where it has none yet; none of them from the shared cells at any
+    // size after the first. A window past the rasters' room, or a take refused, keeps the size it has, whole
+    if (window->framebuffer.pages == NULL)
+    {
+        unsigned int most_width = 0u;
+        unsigned int most_height = 0u;
+        gui_system_display_most(&most_width, &most_height);
+        if (!gui_framebuffer_made(&window->framebuffer, width, height, most_width, most_height))
+        {
+            return 0;
+        }
+    }
+    if (!gui_framebuffer_fits(&window->framebuffer, width, height))
     {
         return 0;
     }
     if ((window->base.tile_red_blue == NULL) && !gui_base_made(&window->base, gui_raster_pitch(width), height))
     {
-        gui_framebuffer_given(&made);
         return 0;
     }
-    // then the size taken in one step: the region swapped in where one was made and the one it replaces given back
-    // after, the rasters, the base's map and the ground at the size in the region, and the frame laid for it
-    if (grown)
-    {
-        GuiFramebuffer held = {0};
-        memor.cpy(&(MemoriaCfg){.dst = &held, .src = &window->framebuffer, .bytes = sizeof(held)});
-        memor.cpy(&(MemoriaCfg){.dst = &window->framebuffer, .src = &made, .bytes = sizeof(made)});
-        window->raster = &window->framebuffer.raster[0];
-        gui_framebuffer_given(&held);
-    }
+    // then the size taken in one step: the rasters, the base's map and the ground at the size, and the frame laid for it
     (void)gui_framebuffer_fitted(&window->framebuffer, width, height);
     window->shown = NULL;
     gui_base_sized(&window->base, gui_raster_pitch(width), height);
@@ -745,7 +759,7 @@ int gui_window_icon(GuiWindow *window, GuiRaster *icon, unsigned int size)
 
 void gui_window_shown(GuiWindow *window, int shown)
 {
-    gui_ground_held(&window->ground, !shown, cli_clock_milliseconds());
+    gui_ground_paused(&window->ground, !shown, cli_clock_milliseconds());
     window->owed = shown || window->owed;
 }
 
@@ -877,8 +891,7 @@ static int window_caret_covered(const GuiWindow *window, GuiRect caret)
 void gui_window_flipped(GuiWindow *window)
 {
     window->shown = window->raster;
-    window->raster = (window->raster == &window->framebuffer.raster[0]) ? &window->framebuffer.raster[1]
-                                                                        : &window->framebuffer.raster[0];
+    window->raster = gui_framebuffer_flipped(&window->framebuffer);
 }
 
 GuiRect gui_window_caret_drawn(GuiWindow *window)
@@ -1086,7 +1099,8 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
         char file_text[CLI_PATH_MAX_LEN + 32u];
         VerbaLinea file_args = {file_text, sizeof(file_text), 0ull};
         mmgr_line_put(&file_args, "{\"path\":");
-        cli_json_quoted(&file_args, tab->path, cellul.len(&(CatenaFinitaCfg){.src = tab->path, .cap = sizeof(tab->path)}));
+        cli_json_quoted(&file_args, tab->path,
+                        cellul.len(&(CatenaFinitaCfg){.src = tab->path, .cap = sizeof(tab->path)}));
         mmgr_line_ch(&file_args, '}');
         (void)window_called(window, 0, "editor_server_close", &file_args);
     }
@@ -1316,7 +1330,7 @@ static void window_restored(GuiWindow *window, const CliJson *json, unsigned int
                 const char *const path = cli_json_string(&kept, cli_json_item(&kept, tabs, at), &path_length);
                 char copied[CLI_PATH_MAX_LEN];
                 VerbaLinea line = {copied, sizeof(copied), 0ull};
-                mmgr_line_put_n(&line, (path != NULL) ? path : "", (path != NULL) ? path_length : 0ull);
+                mmgr_line_put_n(&line, (path != NULL) ? path : "", path_length);
                 if ((path != NULL) && (mmgr_line_finish(&line) != 0ull))
                 {
                     gui_window_file_opened(window, copied);
@@ -1326,7 +1340,7 @@ static void window_restored(GuiWindow *window, const CliJson *json, unsigned int
             const char *const active = cli_json_string(&kept, cli_json_member(&kept, object, "active"), &active_length);
             char shown[CLI_PATH_MAX_LEN];
             VerbaLinea line = {shown, sizeof(shown), 0ull};
-            mmgr_line_put_n(&line, (active != NULL) ? active : "", (active != NULL) ? active_length : 0ull);
+            mmgr_line_put_n(&line, (active != NULL) ? active : "", active_length);
             if ((active != NULL) && (mmgr_line_finish(&line) != 0ull))
             {
                 gui_window_file_opened(window, shown);
@@ -1450,7 +1464,8 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     // what the handling keeps is taken where it is kept, and the lane released at the mark once the tree is given
     // back
     CliJson json;
-    const unsigned int root = ok ? cli_json_taken_temporary(&json, text, size, &err_msg, &g_gui_cells) : CLI_JSON_NONE;
+    const unsigned int root =
+        ok ? cli_json_taken_temporary(&json, text, size, 0u, 0ull, &err_msg, &g_gui_cells) : CLI_JSON_NONE;
     window->owed = 1;
     if ((ticket != 0ull) && (ticket == window->asked_launch))
     {
@@ -2038,9 +2053,8 @@ static int window_pointed(GuiWindow *window, unsigned int pointer, int x, int y,
 void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
 {
     const unsigned int hit = gui_window_hit(window, x, y);
-    window->pressed = ((hit == GUI_HIT_MINIMIZE) || (hit == GUI_HIT_MAXIMIZE) || (hit == GUI_HIT_CLOSE))
-                          ? hit
-                          : GUI_HIT_CLIENT;
+    window->pressed =
+        ((hit == GUI_HIT_MINIMIZE) || (hit == GUI_HIT_MAXIMIZE) || (hit == GUI_HIT_CLOSE)) ? hit : GUI_HIT_CLIENT;
     if (hit != GUI_HIT_CLIENT)
     {
         return;

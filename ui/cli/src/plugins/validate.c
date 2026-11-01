@@ -410,7 +410,7 @@ int cli_validated(const char *id, const char *path, VerbaLinea *report, VerbaLin
     else
     {
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_read(path, &size);
+        const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_plugins_cells);
         if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
         {
             mmgr_line_put(err_msg, path);
@@ -420,10 +420,7 @@ int cli_validated(const char *id, const char *path, VerbaLinea *report, VerbaLin
         {
             validated = validate_text(path, (const char *)bytes, size, report, err_msg);
         }
-        if (bytes != NULL)
-        {
-            cli_file_let_go(bytes, size);
-        }
+        cli_file_given(bytes, &g_cli_plugins_cells);
     }
     cli_validate_released();
     return validated;

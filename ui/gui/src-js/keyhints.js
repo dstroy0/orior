@@ -7,7 +7,7 @@
 // going to the back takes them away. Many people never learn a button's keys unless the keys are shown
 // where they already look.
 
-// How long Ctrl or Alt is held alone before the keys show, in milliseconds: a chord pressed at the
+// How long Ctrl or Alt is pressed alone before the keys show, in milliseconds: a chord pressed at the
 // pace of typing shows none.
 export const HOLD = 500;
 

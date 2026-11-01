@@ -28,17 +28,17 @@ test("each cell of a notebook opened is a branch colored in its kind's language,
 test("a cell the reader adds is a branch of no text, and what is written in it follows it there", async () => {
   const book = await openedNotebook("mirror_added", [code("a = 1")]);
   addBar(book, null).querySelector("button").click();
-  await ui.waitFor(() => book.cells.length === 2 && book.cells[1].session.doc.held, 3000, "the cell added and mirrored");
+  await ui.waitFor(() => book.cells.length === 2 && book.cells[1].session.doc.mirrored, 3000, "the cell added and mirrored");
   const session = book.cells[1].session;
   session.doc.change([{ from: { line: 0, col: 0 }, to: { line: 0, col: 0 }, text: "y = 2" }], "test", session.selections);
-  await ui.waitFor(async () => (await shapeOf(session.doc.held.key))?.units === 5, 5000, "the written text on the window's side");
+  await ui.waitFor(async () => (await shapeOf(session.doc.mirrored.key))?.units === 5, 5000, "the written text on the window's side");
 });
 
 test("a cell deleted lets its branch go", async () => {
   const book = await openedNotebook("mirror_deleted", [code("a = 1"), code("b = 2")]);
   const last = book.cells[1];
-  await ui.waitFor(() => last.session.doc.held, 10000, "the cell mirrored");
-  const key = last.session.doc.held.key;
+  await ui.waitFor(() => last.session.doc.mirrored, 10000, "the cell mirrored");
+  const key = last.session.doc.mirrored.key;
   last.node.querySelector(".nb-cell-menu").click();
   await ui.waitFor(() => [...document.querySelectorAll("body > .menu .menu-item")].some((button) => button.item?.label === "Delete"), 3000);
   [...document.querySelectorAll("body > .menu .menu-item")].find((button) => button.item?.label === "Delete").click();

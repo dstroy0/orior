@@ -1,34 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_found.c: the programs found, a list grown in a cell as they are put, put in order, and given back
+// executables_found.c: the programs found put in order, and their cells given back
 #include "../text/text.h"
 #include "executables_internal.h"
-
-// the programs the list is begun with, doubling as they are found
-#define CLI_EXECUTABLES_FIRST 16u
-
-int cli_executables_room(CliExecutables *found)
-{
-    if (found->count < found->room)
-    {
-        return 1;
-    }
-    if (found->room >= CLI_EXECUTABLES_MOST)
-    {
-        return 0;
-    }
-    const unsigned int doubled = (found->room == 0u) ? CLI_EXECUTABLES_FIRST : (found->room * 2u);
-    const unsigned int room = (doubled < CLI_EXECUTABLES_MOST) ? doubled : CLI_EXECUTABLES_MOST;
-    CliExecutable *const grown =
-        cli_cell_regrown(found->item, found->count * sizeof(*grown), room * sizeof(*grown), &g_cli_executables_cells);
-    if (grown == NULL)
-    {
-        return 0;
-    }
-    found->item = grown;
-    found->room = room;
-    return 1;
-}
 
 void cli_executables_ordered(CliExecutables *found)
 {

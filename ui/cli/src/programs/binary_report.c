@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // binary_report.c: what a report on a program reports, line by line, and the libraries it finds through a PATH copied
 // beside the program
+#include "../text/text.h"
 #include "binary.h"
 
 // one line of a report reported
@@ -12,9 +13,12 @@ static void cli_report_line_print(QuerySink sink, const char *first, const char 
     VerbaLinea made = {line, sizeof(line), 0ull};
     mmgr_line_put(&made, first);
     mmgr_line_put(&made, name);
-    mmgr_line_put(&made, (by != NULL) ? ", which " : "");
-    mmgr_line_put(&made, (by != NULL) ? by : "");
-    mmgr_line_put(&made, (by != NULL) ? " loads, " : "");
+    if (by != NULL)
+    {
+        mmgr_line_put(&made, ", which ");
+        mmgr_line_put(&made, by);
+        mmgr_line_put(&made, " loads, ");
+    }
     mmgr_line_put(&made, middle);
     mmgr_line_put(&made, at);
     mmgr_line_put(&made, last);
@@ -111,10 +115,7 @@ int cli_binary_copy_beside(const char *path, const CliBinaryReport *report,
     memor.cpy(&(MemoriaCfg){
         .dst = folder, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     char *cut = folder + cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
-    while ((cut > folder) && (cut[-1] != '/') && (cut[-1] != '\\'))
-    {
-        cut -= 1;
-    }
+    cut = folder + cli_text_back_any(folder, (unsigned long long)(cut - folder), "/\\");
     if (cut == folder)
     {
         mmgr_line_put(err_msg, "the program has no folder");

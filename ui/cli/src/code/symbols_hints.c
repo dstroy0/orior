@@ -25,22 +25,22 @@ typedef struct
 
 // the text of the tree's file at `path`, the one the hints are read from where it is that file, in a cell the caller
 // gives back: NULL where it is another
-static char *hints_held(void *context, const char *path, unsigned long long *size)
+static char *hints_open_text(void *context, const char *path, unsigned long long *size)
 {
     const CliHints *const hints = (const CliHints *)context;
     if (!cellul.eq(&(CatenaFinitaCfg){.src = path, .other = hints->path, .cap = CLI_CELLS_POOL}))
     {
         return NULL;
     }
-    char *const held = g_cli_cells->persistent_buf_alloc(hints->size + 1ull, &g_cli_code_cells);
-    if (held != NULL)
+    char *const open_text = g_cli_cells->persistent_buf_alloc(hints->size + 1ull, &g_cli_code_cells);
+    if (open_text != NULL)
     {
         // a text the editor holds fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = held, .src = hints->text, .bytes = (size_t)hints->size});
-        held[hints->size] = '\0';
+        memor.cpy(&(MemoriaCfg){.dst = open_text, .src = hints->text, .bytes = (size_t)hints->size});
+        open_text[hints->size] = '\0';
         *size = hints->size;
     }
-    return held;
+    return open_text;
 }
 
 // the definition of the call found, its file and line kept
@@ -62,10 +62,7 @@ static void hints_defined(void *context, const char *path, unsigned int line, un
 static unsigned int hints_col(const CliLeafRead *read, unsigned int leaf)
 {
     unsigned long long start = read->leaf[leaf].from;
-    while ((start > 0ull) && (read->text[start - 1ull] != '\n'))
-    {
-        start -= 1ull;
-    }
+    start = cli_text_back_any(read->text, start, "\n");
     // a line's units are below 2^32
     return (unsigned int)cli_text_units(read->text + start, read->leaf[leaf].from - start);
 }
@@ -145,7 +142,7 @@ int cli_symbols_hints(const char *path, const char *text, unsigned long long siz
             continue;
         }
         hints.found = 0;
-        done = cli_symbols_definition(path, read.leaf[leaf].line, hints_col(&read, leaf), hints_held, &hints,
+        done = cli_symbols_definition(path, read.leaf[leaf].line, hints_col(&read, leaf), hints_open_text, &hints,
                                       hints_defined, &hints, err_msg) >= 0;
         unsigned long long length = 0ull;
         const char *const name = cli_leaf_text(&read, leaf, &length);

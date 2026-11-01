@@ -6,6 +6,7 @@
 // each entry's median over every sweep recorded, and qry_host.h written for the writer and files_host.js for the window
 // from the fastest, once QUERY_SWEEP_LEAST sweeps report
 #include "../../../../src/cu/includes/file_defs/qry/writer/qry_writer_internal.h"
+#include "../../../cli/src/text/text.h"
 #include "retention_internal.h"
 
 // the sweeps' run folder, the files written from them, the rounds an entry is timed, the sweeps the files are written
@@ -278,27 +279,27 @@ int query_sweep_run(QueryContext *context, const char *const *words, unsigned in
     sweep_path(context, "build/qry_sweep/scratch.bin", s_scratch);
     s_bytes = g_cli_cells->persistent_buf_alloc(QUERY_SWEEP_READ_BYTES, &g_query_cells);
     static unsigned long long s_rates[QUERY_SWEEP_ENTRIES][QUERY_SWEEP_ROUNDS];
-    for (unsigned long long at = 0ull; (s_bytes != NULL) && (at < QUERY_SWEEP_READ_BYTES); at += 1ull)
+    const int timed = s_bytes != NULL;
+    if (timed)
     {
-        // the low byte of a scattered count
-        s_bytes[at] = (unsigned char)((at * 2654435761ull) >> 13u);
-    }
-    // the first entry done once before any timing is recorded, to warm the pages and the caches
-    (void)((s_bytes != NULL) && (sweep_timed(&s_entries[0]) != 0ull));
-    for (unsigned int round = 0u; (s_bytes != NULL) && (round < QUERY_SWEEP_ROUNDS); round += 1u)
-    {
-        for (unsigned int step = 0u; step < QUERY_SWEEP_ENTRIES; step += 1u)
+        for (unsigned long long at = 0ull; at < QUERY_SWEEP_READ_BYTES; at += 1ull)
         {
-            const unsigned int entry = (round + step) % QUERY_SWEEP_ENTRIES;
-            s_rates[entry][round] = sweep_timed(&s_entries[entry]);
+            // the low byte of a scattered count
+            s_bytes[at] = (unsigned char)((at * 2654435761ull) >> 13u);
         }
-    }
-    if (s_bytes != NULL)
-    {
+        // the first entry done once before any timing is recorded, to warm the pages and the caches
+        (void)sweep_timed(&s_entries[0]);
+        for (unsigned int round = 0u; round < QUERY_SWEEP_ROUNDS; round += 1u)
+        {
+            for (unsigned int step = 0u; step < QUERY_SWEEP_ENTRIES; step += 1u)
+            {
+                const unsigned int entry = (round + step) % QUERY_SWEEP_ENTRIES;
+                s_rates[entry][round] = sweep_timed(&s_entries[entry]);
+            }
+        }
         (void)qry_member_append("sweep", s_rates, sizeof(s_rates), QRY_CRITICAL);
     }
     g_cli_cells->persistent_buf_release(s_bytes, &g_query_cells);
-    const int timed = (s_bytes != NULL);
     s_bytes = NULL;
     const QueryWriter own = s_run.writer;
     if (!query_context_ended(context, &s_run, err_msg))
@@ -318,10 +319,9 @@ void query_swept_again(QueryContext *context)
     char text[32];
     unsigned long long hours = 0ull;
     const int given = query_environment_read("QRY_SWEEP_HOURS", text, sizeof(text));
-    for (const char *digit = given ? text : ""; (*digit >= '0') && (*digit <= '9'); digit += 1)
-    {
-        hours = (hours * 10ull) + (unsigned long long)(*digit - '0');
-    }
+    hours = given
+                ? cli_text_number(text, 0ull, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), NULL)
+                : 0ull;
     hours = (hours != 0ull) ? hours : 12ull;
     char folder[QUERY_PATH_MAX_LEN];
     sweep_path(context, QUERY_SWEEPS, folder);

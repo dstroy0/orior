@@ -130,11 +130,11 @@ void lattice_given(uint32_t slot)
     {
         return;
     }
-    LatticeSlot *const held = &s_lattice_slots[slot];
-    g_cli_cells->persistent_buf_release(held->offsets, &g_gui_lattice_cells);
-    g_cli_cells->persistent_buf_release(held->dots, &g_gui_lattice_cells);
-    g_cli_cells->persistent_buf_release(held->placed, &g_gui_lattice_cells);
-    *held = (LatticeSlot){0};
+    LatticeSlot *const lattice = &s_lattice_slots[slot];
+    g_cli_cells->persistent_buf_release(lattice->offsets, &g_gui_lattice_cells);
+    g_cli_cells->persistent_buf_release(lattice->dots, &g_gui_lattice_cells);
+    g_cli_cells->persistent_buf_release(lattice->placed, &g_gui_lattice_cells);
+    *lattice = (LatticeSlot){0};
 }
 #endif
 
@@ -195,24 +195,24 @@ LATTICE_EXPORT(lattice_lay) uint32_t lattice_lay(uint32_t slot, double width, do
     const uint32_t columns = (uint32_t)lattice_at_least_one(__builtin_floor((width - step / 2.0) / step) + 1.0);
     const uint32_t rows = (uint32_t)lattice_at_least_one(__builtin_floor((height - step / 2.0) / step) + 1.0);
     const uint32_t count = rows * columns;
-    LatticeSlot *const held = &s_lattice_slots[slot];
-    if (count > held->capacity)
+    LatticeSlot *const lattice = &s_lattice_slots[slot];
+    if (count > lattice->capacity)
     {
         const uint32_t room = count + count / 4u;
-        int8_t *const offsets = lattice_taken(held->offsets, (uintptr_t)room * 2u);
+        int8_t *const offsets = lattice_taken(lattice->offsets, (uintptr_t)room * 2u);
         if (offsets == 0)
         {
             return 0u;
         }
-        held->offsets = offsets;
-        held->capacity = room;
-        held->dots_room = 0u;
-        held->placed_room = 0u;
+        lattice->offsets = offsets;
+        lattice->capacity = room;
+        lattice->dots_room = 0u;
+        lattice->placed_room = 0u;
     }
-    held->columns = columns;
-    held->rows = rows;
-    held->half = step / 2.0;
-    held->step = step;
+    lattice->columns = columns;
+    lattice->rows = rows;
+    lattice->half = step / 2.0;
+    lattice->step = step;
     for (uint32_t row = 0u; row < rows; row += 1u)
     {
         for (uint32_t column = 0u; column < columns; column += 1u)
@@ -221,11 +221,11 @@ LATTICE_EXPORT(lattice_lay) uint32_t lattice_lay(uint32_t slot, double width, do
             const double turn = lattice_draw(&state) * LATTICE_PI * 2.0;
             const double reach = lattice_draw(&state);
             const uint32_t point = row * columns + column;
-            held->offsets[point * 2u] = lattice_offset(lattice_cos(turn) * reach);
-            held->offsets[point * 2u + 1u] = lattice_offset(lattice_sin(turn) * reach);
+            lattice->offsets[point * 2u] = lattice_offset(lattice_cos(turn) * reach);
+            lattice->offsets[point * 2u + 1u] = lattice_offset(lattice_sin(turn) * reach);
         }
     }
-    held->count = count;
+    lattice->count = count;
     return count;
 }
 
@@ -359,37 +359,38 @@ static double lattice_loose(const LatticePlane *plane, double u, double v)
 // places every point of `slot`'s lattice, `width` by `height`, with the loop at `seconds`: moved by its share of the
 // reach and grouped by the nearest of `levels` pens, in the order the points stand within each level; none where the
 // memory cannot hold the places
-LATTICE_EXPORT(lattice_place) void lattice_place(uint32_t slot, double width, double height, double seconds, uint32_t levels)
+LATTICE_EXPORT(lattice_place)
+void lattice_place(uint32_t slot, double width, double height, double seconds, uint32_t levels)
 {
     if (slot >= LATTICE_SLOTS || levels < 2u || levels > LATTICE_LEVELS_MOST)
     {
         return;
     }
-    LatticeSlot *const held = &s_lattice_slots[slot];
+    LatticeSlot *const lattice = &s_lattice_slots[slot];
     for (uint32_t level = 0u; level < levels; level += 1u)
     {
-        held->counts[level] = 0u;
+        lattice->counts[level] = 0u;
     }
-    if (held->placed_room < held->capacity)
+    if (lattice->placed_room < lattice->capacity)
     {
-        double *const placed = lattice_taken(held->placed, (uintptr_t)held->capacity * 2u * sizeof(double));
+        double *const placed = lattice_taken(lattice->placed, (uintptr_t)lattice->capacity * 2u * sizeof(double));
         if (placed == 0)
         {
             return;
         }
-        held->placed = placed;
-        held->placed_room = held->capacity;
+        lattice->placed = placed;
+        lattice->placed_room = lattice->capacity;
     }
     const LatticePlane plane = lattice_plane(lattice_stage(seconds));
-    for (uint32_t row = 0u; row < held->rows; row += 1u)
+    for (uint32_t row = 0u; row < lattice->rows; row += 1u)
     {
-        for (uint32_t column = 0u; column < held->columns; column += 1u)
+        for (uint32_t column = 0u; column < lattice->columns; column += 1u)
         {
-            const double x = held->half + column * held->step;
-            const double y = held->half + row * held->step;
+            const double x = lattice->half + column * lattice->step;
+            const double y = lattice->half + row * lattice->step;
             const double loose = lattice_loose(&plane, x / width, y / height);
             // the level is a whole count from 0 to levels less one
-            held->counts[(uint32_t)__builtin_floor(loose * (levels - 1u) + 0.5)] += 1u;
+            lattice->counts[(uint32_t)__builtin_floor(loose * (levels - 1u) + 0.5)] += 1u;
         }
     }
     uint32_t starts[LATTICE_LEVELS_MOST];
@@ -397,39 +398,40 @@ LATTICE_EXPORT(lattice_place) void lattice_place(uint32_t slot, double width, do
     for (uint32_t level = 0u; level < levels; level += 1u)
     {
         starts[level] = start;
-        start += held->counts[level];
+        start += lattice->counts[level];
     }
     const double reach = LATTICE_REACH / LATTICE_OFFSET_MOST;
     uint32_t point = 0u;
-    for (uint32_t row = 0u; row < held->rows; row += 1u)
+    for (uint32_t row = 0u; row < lattice->rows; row += 1u)
     {
-        for (uint32_t column = 0u; column < held->columns; column += 1u)
+        for (uint32_t column = 0u; column < lattice->columns; column += 1u)
         {
-            const double x = held->half + column * held->step;
-            const double y = held->half + row * held->step;
+            const double x = lattice->half + column * lattice->step;
+            const double y = lattice->half + row * lattice->step;
             const double loose = lattice_loose(&plane, x / width, y / height);
             const double shift = loose * loose * reach;
             const uint32_t level = (uint32_t)__builtin_floor(loose * (levels - 1u) + 0.5);
-            double *const placed = &held->placed[starts[level] * 2u];
-            placed[0] = x + held->offsets[point * 2u] * shift;
-            placed[1] = y + held->offsets[point * 2u + 1u] * shift;
+            double *const placed = &lattice->placed[starts[level] * 2u];
+            placed[0] = x + lattice->offsets[point * 2u] * shift;
+            placed[1] = y + lattice->offsets[point * 2u + 1u] * shift;
             starts[level] += 1u;
             point += 1u;
         }
     }
 }
 
-uint32_t lattice_dots_moved(LatticeSlot *held, double width, double height, double seconds, const LatticeShades *shades)
+uint32_t lattice_dots_moved(LatticeSlot *lattice, double width, double height, double seconds,
+                            const LatticeShades *shades)
 {
-    if (held->dots_room < held->capacity)
+    if (lattice->dots_room < lattice->capacity)
     {
-        LatticeDot *const dots = lattice_taken(held->dots, (uintptr_t)held->capacity * sizeof(LatticeDot));
+        LatticeDot *const dots = lattice_taken(lattice->dots, (uintptr_t)lattice->capacity * sizeof(LatticeDot));
         if (dots == 0)
         {
             return 0u;
         }
-        held->dots = dots;
-        held->dots_room = held->capacity;
+        lattice->dots = dots;
+        lattice->dots_room = lattice->capacity;
     }
     const LatticePlane plane = lattice_plane(lattice_stage(seconds));
     // the plane's slopes a pixel across and down, read once in the floats each point is moved in, and a byte of offset
@@ -441,20 +443,20 @@ uint32_t lattice_dots_moved(LatticeSlot *held, double width, double height, doub
     const float reach = (float)(LATTICE_REACH / LATTICE_OFFSET_MOST);
     const float steps = (float)(LATTICE_SHADES - 1u);
     uint32_t point = 0u;
-    for (uint32_t row = 0u; row < held->rows; row += 1u)
+    for (uint32_t row = 0u; row < lattice->rows; row += 1u)
     {
-        const float y = (float)(held->half + row * held->step);
-        for (uint32_t column = 0u; column < held->columns; column += 1u)
+        const float y = (float)(lattice->half + row * lattice->step);
+        for (uint32_t column = 0u; column < lattice->columns; column += 1u)
         {
-            const float x = (float)(held->half + column * held->step);
+            const float x = (float)(lattice->half + column * lattice->step);
             const float plain = across * x + down * y + start;
             const float loose = plain < least ? least : (plain > 1.0f ? 1.0f : plain);
             const float shift = loose * loose * reach;
             // the shade is a whole step from 0 to LATTICE_SHADES less one
             const uint32_t shade = (uint32_t)(loose * steps + 0.5f);
-            LatticeDot *const dot = &held->dots[point];
-            dot->across = x + held->offsets[point * 2u] * shift;
-            dot->down = y + held->offsets[point * 2u + 1u] * shift;
+            LatticeDot *const dot = &lattice->dots[point];
+            dot->across = x + lattice->offsets[point * 2u] * shift;
+            dot->down = y + lattice->offsets[point * 2u + 1u] * shift;
             dot->radius = shades->radius[shade];
             dot->color = shades->color[shade];
             point += 1u;

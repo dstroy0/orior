@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // plugins_draft.c: the plugin a few answers request: made from nothing, or from a plugin to start from with what the
 // answers name changed
+#include "../text/text.h"
 #include "plugins.h"
 
 // the most bytes of a pattern made; and the nodes and bytes of texts a draft makes besides the copies of its answers
@@ -20,15 +21,9 @@ static unsigned long long cli_answer(const CliJson *json, unsigned int spec, con
     unsigned long long length = 0ull;
     const char *const text = cli_json_string(json, cli_json_member(json, spec, name), &length);
     const char *from = (text != NULL) ? text : "";
-    const char *to = from + ((text != NULL) ? length : 0ull);
-    while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-    {
-        from += 1;
-    }
-    while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-    {
-        to -= 1;
-    }
+    const char *to = from + (length);
+    from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
     VerbaLinea line = {out, room, 0ull};
     mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
     return mmgr_line_finish(&line);
@@ -44,15 +39,9 @@ static unsigned int cli_words(CliJson *json, unsigned int list)
         unsigned long long length = 0ull;
         const char *const text = cli_json_string(json, item, &length);
         const char *from = (text != NULL) ? text : "";
-        const char *to = from + ((text != NULL) ? length : 0ull);
-        while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-        {
-            from += 1;
-        }
-        while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-        {
-            to -= 1;
-        }
+        const char *to = from + (length);
+        from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+        to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
         const unsigned long long size = (unsigned long long)(to - from);
         int seen = size == 0ull;
         for (unsigned int word_node = json->node[words].first; !seen && (word_node != CLI_JSON_NONE);
@@ -73,14 +62,7 @@ static unsigned int cli_words(CliJson *json, unsigned int list)
 // `text` as a pattern that matches only `text`, put after the line
 static void cli_escaped(VerbaLinea *line, const char *text)
 {
-    for (const char *at = text; at[0] != '\0'; at += 1)
-    {
-        if (cellul.chr(&(CatenaFinitaCfg){.src = "\\^$.|?*+()[]{}/", .cap = CLI_CELLS_POOL, .byte = at[0]}) != NULL)
-        {
-            mmgr_line_ch(line, '\\');
-        }
-        mmgr_line_ch(line, at[0]);
-    }
+    cli_text_put_marked(line, text, "\\^$.|?*+()[]{}/", '\\');
 }
 
 // a string node of the line's text, the line let go
@@ -340,19 +322,10 @@ unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, VerbaLinea *err
         unsigned long long size = 0ull;
         const char *const text = cli_json_string(json, item, &size);
         const char *at = (text != NULL) ? text : "";
-        const char *end = at + ((text != NULL) ? size : 0ull);
-        while ((at < end) && ((at[0] == ' ') || ((at[0] >= '\t') && (at[0] <= '\r'))))
-        {
-            at += 1;
-        }
-        while ((end > at) && ((end[-1] == ' ') || ((end[-1] >= '\t') && (end[-1] <= '\r'))))
-        {
-            end -= 1;
-        }
-        while ((at < end) && (at[0] == '.'))
-        {
-            at += 1;
-        }
+        const char *end = at + (size);
+        at += cli_text_past_any(at, 0ull, (unsigned long long)(end - at), CLI_TEXT_WHITE);
+        end = at + cli_text_back_past(at, (unsigned long long)(end - at), CLI_TEXT_WHITE);
+        at += cli_text_past_any(at, 0ull, (unsigned long long)(end - at), ".");
         char lower[CLI_NAME_MAX_LEN];
         VerbaLinea line = {lower, sizeof(lower), 0ull};
         for (const char *letter = at; letter < end; letter += 1)

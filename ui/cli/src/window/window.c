@@ -14,20 +14,18 @@
 #include "window_internal.h"
 
 // A room a call is answered in: whether it is taken, whether its call was answered, and its answer and why it failed,
-// two cells the room takes at its first call and writes over on each one after, the answer's grown where an answer
-// outgrows it, why it failed a text of this file's own where no cell could be taken for it; and the
+// two cells the room takes at its first call and writes over on each one after, why it failed a text of this file's own
+// where no cell could be taken for it; and the
 typedef struct
 {
     int taken;
     int ok;
     char *answer;
-    size_t answer_room;
     unsigned long long answer_size;
     char *err_cell;
     const char *err_msg;
     unsigned long long err_msg_size;
 } CliWindowRoom;
-
 
 // why a call failed where its cells could not be taken, which is no cell
 static char s_refused[] = "the call's cells could not be taken";
@@ -265,12 +263,9 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
 {
     const unsigned int at = window_room_taken();
     CliWindowRoom *const room = &s_room[at];
-    VerbaLinea out;
     if (room->answer == NULL)
     {
-        (void)cli_growing_line_made(&out, CLI_WINDOW_ANSWER_FIRST, &g_cli_window_cells);
-        room->answer = out.out;
-        room->answer_room = out.capacity;
+        room->answer = g_cli_cells->persistent_buf_alloc(CLI_WINDOW_ANSWER_ROOM, &g_cli_window_cells);
     }
     if (room->err_cell == NULL)
     {
@@ -283,7 +278,7 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
         room->err_msg_size = sizeof(s_refused) - 1u;
         return at;
     }
-    cli_growing_line_over(&out, room->answer, room->answer_room);
+    VerbaLinea out = {room->answer, CLI_WINDOW_ANSWER_ROOM, 0ull};
     room->err_msg = room->err_cell;
     VerbaLinea err_line = {room->err_cell, CLI_WINDOW_ERR_MSG_MAX_LEN, 0ull};
     // a name of the window's is answered here on whichever lane the window called it on; a name not the window's
@@ -313,8 +308,6 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
     {
         mmgr_line_put(&out, "null");
     }
-    room->answer = out.out;
-    room->answer_room = out.capacity;
     room->answer_size = out.at;
     room->err_msg_size = mmgr_line_ok(&err_line) ? err_line.at : 0ull;
     return at;

@@ -7,19 +7,20 @@
 #include "../text/text.h"
 #include "command_line_internal.h"
 
-// the bytes a search's hits are begun in before they grow, and a hit's line before it grows
-#define CLI_SEARCH_HITS_FIRST (64ull << 10u)
-#define CLI_SEARCH_LINE_FIRST (1ull << 10u)
+// the bytes a search's hits are written in, and a hit's line
+#define CLI_SEARCH_HITS_ROOM (32ull << 20u)
+#define CLI_SEARCH_LINE_MORE 64ull
 
 // one hit of the tree `hits` written to the output as path:line:column: line
 static void search_hit_written(const CliJson *hits, unsigned int hit)
 {
-    VerbaLinea line;
-    if (!cli_growing_line_temporary(&line, CLI_SEARCH_LINE_FIRST, &g_cli_command_line_cells))
-    {
-        return;
-    }
-    const char *const path = cli_json_string(hits, cli_json_member(hits, hit, "path"), NULL);
+    unsigned long long path_length = 0ull;
+    const char *const path = cli_json_string(hits, cli_json_member(hits, hit, "path"), &path_length);
+    unsigned long long length = 0ull;
+    const char *const text = cli_json_string(hits, cli_json_member(hits, hit, "text"), &length);
+    const unsigned long long line_room = path_length + length + CLI_SEARCH_LINE_MORE;
+    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_command_line_cells);
+    VerbaLinea line = mmgr_line_over(line_cell, line_room);
     mmgr_line_put(&line, (path != NULL) ? path : "");
     static const char *const s_numbers[2] = {"line", "col"};
     for (unsigned int number = 0u; number < 2u; number += 1u)
@@ -32,12 +33,11 @@ static void search_hit_written(const CliJson *hits, unsigned int hit)
         }
     }
     mmgr_line_put(&line, ": ");
-    unsigned long long length = 0ull;
-    const char *const text = cli_json_string(hits, cli_json_member(hits, hit, "text"), &length);
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    cli_text_trimmed((text != NULL) ? text : "", (text != NULL) ? length : 0ull, &from, &to);
-    mmgr_line_put_n(&line, (text != NULL) ? text + from : "", to - from);
+    const char *const found = (text != NULL) ? text : "";
+    cli_text_trimmed(found, length, &from, &to);
+    mmgr_line_put_n(&line, found + from, to - from);
     cli_out_line(line.out, mmgr_line_ok(&line) ? line.at : 0ull);
     g_cli_cells->persistent_buf_release(line.out, &g_cli_command_line_cells);
 }
@@ -74,8 +74,9 @@ int cli_console_search(const char *named, const char *const *words, unsigned int
         return CLI_NO_CODE;
     }
     static CliPatterns s_none;
-    VerbaLinea found;
-    if (!cli_growing_line_temporary(&found, CLI_SEARCH_HITS_FIRST, &g_cli_command_line_cells))
+    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SEARCH_HITS_ROOM, &g_cli_command_line_cells);
+    VerbaLinea found = mmgr_line_over(found_cell, CLI_SEARCH_HITS_ROOM);
+    if (found.out == NULL)
     {
         cli_err("the hits of a search could not be given a cell");
         return CLI_WRONG;

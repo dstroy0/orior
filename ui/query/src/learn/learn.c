@@ -178,16 +178,8 @@ void query_verdicts_print(QueryContext *context, const QueryRun *run)
         // the verdict: its lower-case letters, spaces, commas and colons, its end trimmed
         unsigned long long taken = 0ull;
         const unsigned long long room = length - (unsigned long long)(found - line);
-        while ((taken < room) && (taken < 127ull) &&
-               (((found[taken] >= 'a') && (found[taken] <= 'z')) || (found[taken] == ' ') || (found[taken] == ',') ||
-                (found[taken] == ':')))
-        {
-            taken += 1ull;
-        }
-        while ((taken != 0ull) && (found[taken - 1u] == ' '))
-        {
-            taken -= 1ull;
-        }
+        taken = cli_text_past_class(found, 0ull, (room < 127ull) ? room : 127ull, CLI_TEXT_LOWER, " ,:");
+        taken = cli_text_back_past(found, taken, " ");
         char verdict[128];
         memor.cpy(&(MemoriaCfg){.dst = verdict, .src = found, .bytes = (size_t)taken});
         verdict[taken] = '\0';

@@ -38,7 +38,7 @@ export const widthOf = (text, size) => [...indentOf(text)].reduce((sum, char) =>
 function paramsOf(list, part = nameOfPart.default) {
   const names = [];
   let depth = 0;
-  let held = "";
+  let pending = "";
   for (const char of `${list},`) {
     if ("([{<".includes(char)) {
       depth += 1;
@@ -46,13 +46,13 @@ function paramsOf(list, part = nameOfPart.default) {
       depth -= 1;
     }
     if (char === "," && depth === 0) {
-      const name = part(held);
+      const name = part(pending);
       if (/^[A-Za-z_$][\w$]*$/.test(name) && name !== "void") {
         names.push(name);
       }
-      held = "";
+      pending = "";
     } else {
-      held += char;
+      pending += char;
     }
   }
   return names;

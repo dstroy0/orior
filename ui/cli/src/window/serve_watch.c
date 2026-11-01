@@ -69,7 +69,8 @@ static void watch_taker(void *context)
         s_waiting_files = 0u;
         memor.cpy(&(MemoriaCfg){.dst = root, .src = s_tree, .bytes = sizeof(root)});
         cli_lock_give(&s_lock);
-        const char **const paths = g_cli_cells->temporary_buf_alloc((files + 1ull) * sizeof(const char *), &g_cli_window_cells);
+        const char **const paths =
+            g_cli_cells->temporary_buf_alloc((files + 1ull) * sizeof(const char *), &g_cli_window_cells);
         unsigned int count = 0u;
         for (const CliWatched *batch = taken; (paths != NULL) && (batch != NULL); batch = batch->next)
         {
@@ -118,7 +119,7 @@ static void watch_took(void *context, const char *batch, unsigned long long size
     CliJson json;
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    const unsigned int root = cli_json_taken(&json, batch, size, 0u, 0ull, &err_msg, &g_cli_window_cells);
+    const unsigned int root = cli_json_taken_temporary(&json, batch, size, 0u, 0ull, &err_msg, &g_cli_window_cells);
     const unsigned int lost = cli_json_member(&json, root, "lost");
     if (rooted && cli_json_is(&json, lost, CFG_JSON_TRUE))
     {

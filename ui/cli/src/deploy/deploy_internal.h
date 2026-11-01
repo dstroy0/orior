@@ -9,9 +9,13 @@
 #include "../text/json_tree.h"
 #include "deploy.h"
 
-// the bytes of each page of a pool, a text longer taking a page of its own, and of each piece a text is written in
+// the bytes of each page of a pool, a text longer taking a page of its own
 #define CLI_DEPLOY_PAGE (64u << 10u)
-#define CLI_DEPLOY_PIECE 4096u
+
+// the most bytes of a shell line a deployment runs and of the listing of a machine's releases, and of the hashes of the
+// files a place has
+#define CLI_DEPLOY_LINE (1ull << 20u)
+#define CLI_DEPLOY_HASHES (32ull << 20u)
 
 // A deployment: its name, the folder whose files go, the patterns of the files that stay, the places, how many
 // releases each place retains, and whether its files go into each place's folder itself

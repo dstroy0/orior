@@ -8,6 +8,7 @@
 #include "../comms/tls.h"
 #include "../machine/net.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "requests_internal.h"
 
 // how long a connection may take to open, and an answer to come, in milliseconds
@@ -73,10 +74,8 @@ static int http_line(HttpConnection *connection, unsigned long long *line, unsig
     unsigned long long looked = room->start;
     for (;;)
     {
-        while ((looked + 1u < room->end) && ((room->reading[looked] != '\r') || (room->reading[looked + 1u] != '\n')))
-        {
-            looked += 1u;
-        }
+        const unsigned long long ended = cli_text_to_pair((const char *)room->reading, looked, room->end, '\r', '\n');
+        looked = (ended < room->end) ? ended : ((room->end > (looked + 1u)) ? (room->end - 1u) : looked);
         if (looked + 1u < room->end)
         {
             *line = room->start;
@@ -98,8 +97,8 @@ static int http_line(HttpConnection *connection, unsigned long long *line, unsig
     }
 }
 
-// `put` bytes of the body from the reading put after the `*size` in `raw`, a growing line, and `*size` raised: 1, or
-// 0 with why given where the line could not grow
+// `put` bytes of the body from the reading put after the `*size` in `raw`, and `*size` raised: 1, or 0 with why given
+// where the line is full
 static int http_put(CliRequestsRoom *room, unsigned long long put, unsigned long long *size, VerbaLinea *err_msg)
 {
     mmgr_line_put_n(&room->raw, (const char *)room->reading + room->start, put);
@@ -112,18 +111,12 @@ static int http_put(CliRequestsRoom *room, unsigned long long put, unsigned long
     return 1;
 }
 
-// `length` bytes of the body read, those that fit in CLI_REQUESTS_BODY put after the `*size` in `raw`, its room made
-// for them all at once, `*cut` set where any did not: 1, or 0 with why given
+// `length` bytes of the body read, those that fit in CLI_REQUESTS_BODY put after the `*size` in `raw`, `*cut` set where
+// any did not: 1, or 0 with why given
 static int http_exactly(HttpConnection *connection, unsigned long long length, unsigned long long *size, int *cut,
                         VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = connection->room;
-    const unsigned long long fits_all = CLI_REQUESTS_BODY - *size;
-    if (!cli_growing_line_room(&room->raw, (length < fits_all) ? length : fits_all))
-    {
-        mmgr_line_put(err_msg, "the answer's body could not be stored");
-        return 0;
-    }
     unsigned long long left = length;
     while (left > 0u)
     {
@@ -285,8 +278,9 @@ static int http_head(HttpConnection *connection, unsigned long long step, VerbaL
 static int http_written(HttpConnection *connection, const char *host, VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = connection->room;
-    VerbaLinea head = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if (!cli_growing_line_temporary(&head, CLI_REQUESTS_BODY_FIRST, &g_cli_requests_cells))
+    char *const head_cell = g_cli_cells->temporary_buf_alloc(CLI_REQUESTS_HEAD_ROOM, &g_cli_requests_cells);
+    VerbaLinea head = mmgr_line_over(head_cell, CLI_REQUESTS_HEAD_ROOM);
+    if (head.out == NULL)
     {
         mmgr_line_put(err_msg, "the request's head could not be stored");
         return 0;
@@ -346,7 +340,7 @@ static int http_body(HttpConnection *connection, unsigned long long *size, Verba
         read = http_to_end(connection, size, &cut, err_msg);
     }
     answer->cut = cut;
-    // the body's cell is the cell it ended in: a growing line moves as it fills
+    // the body's cell is the cell it ended in: a line moves as it fills
     answer->body = (const unsigned char *)connection->room->raw.out;
     answer->size = *size;
     return read;

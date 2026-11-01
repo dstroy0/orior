@@ -3,6 +3,7 @@
 // inspect_py_parse.c: the parse of a Python file for the editor: each column's class, a name's by what it is; the
 // regions that fold; and the spans Expand Selection steps through, its strings, its brackets, its lines and its
 // blocks, a decorated function or class with its decorators
+#include "../text/text.h"
 #include "inspect_py.h"
 
 // the most open brackets a line contains, and the most functions open around a line
@@ -159,10 +160,7 @@ static void parse_string(const char *src, const CliInspectTok *tok, CliParsed *p
     const char *const whole = src + tok->start;
     const unsigned int length = tok->end - tok->start;
     unsigned int open = 0u;
-    while ((open < length) && (whole[open] != '"') && (whole[open] != '\''))
-    {
-        open += 1u;
-    }
+    open = (unsigned int)cli_text_to_any(whole, open, length, "\"'");
     open = (open == length) ? 0u : open;
     const int triple = (length - open >= 3u) &&
                        ((memor.cmp(&(MemoriaCfg){.src = whole + open, .other = "\"\"\"", .bytes = 3u}) == 0) ||

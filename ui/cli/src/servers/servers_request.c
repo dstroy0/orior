@@ -10,6 +10,7 @@
 #include "../builds/builds.h"
 #include "../code/schema.h"
 #include "../code/symbols.h"
+#include "../command_line/cells.h"
 #include "servers_internal.h"
 
 #include "../text/text.h"
@@ -50,11 +51,10 @@ static unsigned int request_read(CliLsp *server, CliServersReading *reading, con
                                  unsigned int line, unsigned int col, const char *added, unsigned long long wait,
                                  int *requested, VerbaLinea *err_msg)
 {
-    VerbaLinea result;
-    cli_servers_answer_begun(reading, &result);
-    *requested = cli_servers_request_at(server, method, path, line, col, added, wait, &result, err_msg);
+    CliLspAnswer answer;
+    *requested = cli_servers_request_at(server, method, path, line, col, added, wait, &answer, err_msg);
     cli_lsp_unref(server);
-    return *requested ? cli_servers_answer_read(reading, &result) : CLI_JSON_NONE;
+    return *requested ? cli_servers_answer_read(reading, &answer) : CLI_JSON_NONE;
 }
 
 int cli_servers_hover(const char *path, unsigned int line, unsigned int col, VerbaLinea *out, VerbaLinea *err_msg)
@@ -71,16 +71,14 @@ int cli_servers_hover(const char *path, unsigned int line, unsigned int col, Ver
                                            CLI_SERVERS_REQUEST_TIMEOUT_MS, &requested, err_msg);
     if (requested)
     {
-        char piece[CLI_SERVERS_PIECE];
-        CliPieces pieces;
-        VerbaLinea markdown;
-        cli_pieces_begun(&pieces, &markdown, piece, sizeof(piece), &g_cli_servers_cells);
+        const unsigned long long room = cli_json_written_room(&s_quick.json);
+        char *const shown = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+        VerbaLinea markdown = mmgr_line_over(shown, room);
         cli_servers_markdown_of(&s_quick.json, cli_json_member(&s_quick.json, root, "contents"), &markdown);
-        unsigned long long size = 0ull;
-        char *const shown = cli_pieces_joined(&pieces, &markdown, "a hover's text", &size);
+        const unsigned long long size = mmgr_line_ok(&markdown) ? markdown.at : 0ull;
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
-        cli_text_trimmed((shown != NULL) ? shown : "", (shown != NULL) ? size : 0ull, &from, &to);
+        cli_text_trimmed((size > 0ull) ? shown : "", size, &from, &to);
         if (to > from)
         {
             cli_json_quoted(out, shown, size);
@@ -343,18 +341,12 @@ static void request_line_written(const char *file, unsigned long long size, unsi
 {
     while ((*at < line) && (*start < size))
     {
-        while ((*start < size) && (file[*start] != '\n'))
-        {
-            *start += 1ull;
-        }
+        *start = cli_text_to_any(file, *start, size, "\n");
         *start += (*start < size) ? 1ull : 0ull;
         *at += 1u;
     }
     unsigned long long end = *start;
-    while ((end < size) && (file[end] != '\n'))
-    {
-        end += 1ull;
-    }
+    end = cli_text_to_any(file, end, size, "\n");
     const unsigned long long cut = ((end > *start) && (file[end - 1ull] == '\r')) ? end - 1ull : end;
     const int there = (*at == line) && (*start < size);
     cli_json_quoted(out, (size > 0ull) ? file + *start : "", there ? cut - *start : 0ull);
@@ -405,11 +397,8 @@ int cli_servers_references(const char *tree, const char *path, unsigned int line
             }
             if (!same_file)
             {
-                if (mapped != NULL)
-                {
-                    cli_file_let_go(mapped, mapped_size);
-                }
-                mapped = cli_file_read(file, &mapped_size);
+                cli_file_given(mapped, &g_cli_servers_cells);
+                mapped = cli_file_taken(file, &mapped_size, &g_cli_servers_cells);
                 size = ((mapped != NULL) && cli_utf8_whole((const char *)mapped, mapped_size)) ? mapped_size : 0ull;
                 at_line = 0u;
                 start = 0ull;
@@ -428,10 +417,7 @@ int cli_servers_references(const char *tree, const char *path, unsigned int line
             mmgr_line_ch(out, '}');
         }
         mmgr_line_ch(out, ']');
-        if (mapped != NULL)
-        {
-            cli_file_let_go(mapped, mapped_size);
-        }
+        cli_file_given(mapped, &g_cli_servers_cells);
         request_usages_given();
     }
     cli_servers_reading_released(&s_search);
@@ -526,17 +512,13 @@ int cli_servers_rename(const char *tree, const char *path, unsigned int line, un
         return 0;
     }
     cli_servers_reading_locked(&s_search);
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea added;
-    cli_pieces_begun(&pieces, &added, piece, sizeof(piece), &g_cli_servers_cells);
+    char named[CLI_SERVERS_PARAMS];
+    VerbaLinea added = {named, sizeof(named), 0ull};
     mmgr_line_put(&added, "\"newName\":");
     cli_json_quoted(&added, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    unsigned long long added_size = 0ull;
-    char *const named = cli_pieces_joined(&pieces, &added, "a rename's new name", &added_size);
     int requested = 0;
     unsigned int root = CLI_JSON_NONE;
-    if (named != NULL)
+    if (mmgr_line_ok(&added))
     {
         root = request_read(server, &s_search, "textDocument/rename", path, line, col, named, CLI_SERVERS_SEARCHING,
                             &requested, err_msg);
@@ -544,9 +526,8 @@ int cli_servers_rename(const char *tree, const char *path, unsigned int line, un
     else
     {
         cli_lsp_unref(server);
-        mmgr_line_put(err_msg, "the rename could not be written: the cells cannot meet it");
+        mmgr_line_put(err_msg, "the rename could not be written: its new name does not fit");
     }
-    g_cli_cells->persistent_buf_release(named, &g_cli_servers_cells);
     if (requested && cli_json_is(&s_search.json, root, CFG_JSON_NULL))
     {
         mmgr_line_put(err_msg, "the server found nothing to rename");

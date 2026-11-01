@@ -96,7 +96,7 @@ static void cli_each_locked(void (*each)(void *context, const CliPlugin *plugin)
             continue;
         }
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_read(file, &size);
+        const unsigned char *const bytes = cli_file_taken(file, &size, &g_cli_plugins_cells);
         if (bytes == NULL)
         {
             continue;
@@ -104,7 +104,7 @@ static void cli_each_locked(void (*each)(void *context, const CliPlugin *plugin)
         // a plugin's bytes are its JSON's text
         const CliPlugin plugin = {user.name[at], "user", folder, (const char *)bytes, size};
         each(context, &plugin);
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_plugins_cells);
     }
     g_cli_cells->persistent_buf_release(user.name, &g_cli_plugins_cells);
 }
@@ -136,20 +136,9 @@ static void cli_mapped(CliLanguages *languages, const char *key, unsigned long l
             return;
         }
     }
-    if (languages->count == languages->room)
+    if (languages->count >= languages->room)
     {
-        // the pairs' room doubled, the first CLI_LANGUAGE_PAIRS_FIRST of them
-        const unsigned int room = (languages->room == 0u) ? CLI_LANGUAGE_PAIRS_FIRST : (languages->room * 2u);
-        CliLanguagePair *const pair =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(*pair), &g_cli_plugins_cells);
-        if (pair == NULL)
-        {
-            return;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = pair, .src = languages->pair, .bytes = languages->count * sizeof(*pair)});
-        g_cli_cells->persistent_buf_release(languages->pair, &g_cli_plugins_cells);
-        languages->pair = pair;
-        languages->room = room;
+        return;
     }
     memor.cpy(&(MemoriaCfg){.dst = languages->pair[languages->count].key,
                             .src = name_buf,
@@ -226,7 +215,8 @@ static void cli_language_each(void *context, const CliPlugin *plugin)
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken_temporary(&json, plugin->text, plugin->size, &err_msg, &g_cli_plugins_cells);
+    const unsigned int root =
+        cli_json_taken_temporary(&json, plugin->text, plugin->size, 0u, 0ull, &err_msg, &g_cli_plugins_cells);
     const char *const kind =
         (root != CLI_JSON_NONE) ? cli_json_string(&json, cli_json_member(&json, root, "kind"), NULL) : NULL;
     if ((root == CLI_JSON_NONE) ||
@@ -297,7 +287,10 @@ static void cli_language_each(void *context, const CliPlugin *plugin)
 
 void cli_plugins_languages(CliLanguages *languages)
 {
-    *languages = (CliLanguages){NULL, 0u, 0u};
+    // the table lasts a call or a batch of them, so it stands in the temporary tier
+    CliLanguagePair *const pair =
+        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(*pair), &g_cli_plugins_cells);
+    *languages = (CliLanguages){pair, 0u, (pair != NULL) ? CLI_LANGUAGE_PAIRS : 0u};
     cli_plugins_each(cli_language_each, languages);
 }
 
@@ -310,10 +303,7 @@ void cli_plugins_languages_given(CliLanguages *languages)
 int cli_plugins_language_for(const CliLanguages *languages, const char *path, char *id)
 {
     const char *name = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    while ((name > path) && (name[-1] != '/') && (name[-1] != '\\'))
-    {
-        name -= 1;
-    }
+    name = path + cli_text_back_any(path, (unsigned long long)(name - path), "/\\");
     char key[CLI_NAME_MAX_LEN];
     cli_lowered("/", name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), key);
     for (unsigned int at = 0u; at < languages->count; at += 1u)
@@ -485,14 +475,8 @@ void cli_plugins_slug(const char *name, char *id)
 {
     const char *from = name;
     const char *to = name + cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-    {
-        from += 1;
-    }
-    while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-    {
-        to -= 1;
-    }
+    from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
     unsigned long long length = 0ull;
     for (const char *at = from; (at < to) && ((length + 1ull) < CLI_NAME_MAX_LEN); at += 1)
     {
@@ -511,9 +495,6 @@ void cli_plugins_slug(const char *name, char *id)
         }
         // a byte past ASCII that starts or carries a letter is no letter or digit here, and one run of them one dash
     }
-    while ((length != 0ull) && (id[length - 1u] == '-'))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(id, length, "-");
     id[length] = '\0';
 }

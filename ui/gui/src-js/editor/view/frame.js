@@ -65,15 +65,15 @@ export function painted() {
   const height = this.viewSize().height;
   // The rows past each edge of the screen, more of them the way the view heads the faster it
   // goes. The page's own scroll never shows a row before a frame draws it.
-  // A file held as pages whose view reaches past the lines its window holds keeps its last frame where it was drawn
+  // A file stored as pages whose view reaches past the lines its window holds keeps its last frame where it was drawn
   // until the window comes to the view, so no row stands blank and no part of the view is torn from the rest; the
   // minimap goes on with the view.
-  if (this.heldFrame === s && this.pastWindow(scrolledTop)) {
+  if (this.pastWindowFrame === s && this.pastWindow(scrolledTop)) {
     this.minimap.paint(scrolledTop);
     this.mapTop = scrolledTop;
     return;
   }
-  this.heldFrame = s;
+  this.pastWindowFrame = s;
   // A paged file's window holds the view and a margin about it, so it draws fewer rows ahead than a text read whole;
   // and none past its edges where its view has moved farther than its height since the frame before, as a drag of the
   // scrollbar moves it, the rows about a view that leaps never shown.

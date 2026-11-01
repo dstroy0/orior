@@ -206,9 +206,12 @@ static void archive_read_is(const char *dir, const char *path, const char *wante
 {
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea out = {s_read, sizeof(s_read), 0ull};
-    cli_check(cli_archive_read(dir, path, &out, &err_msg), what);
-    cli_check_text(s_read, out.at, wanted, what);
+    unsigned long long size = 0ull;
+    char *const read = cli_archive_taken(dir, path, &size, &g_cli_editor_cells, &err_msg);
+    cli_check(read != NULL, what);
+    cli_check_text((read != NULL) ? read : "", size, wanted, what);
+    cli_check((read == NULL) || (read[size] == '\0'), "and a 0 follows what is read");
+    g_cli_cells->persistent_buf_release(read, &g_cli_editor_cells);
 }
 
 // `text` saved as the file `path` of the tree `dir`: 1, or 0 with why into `why`
@@ -500,8 +503,8 @@ static void archive_split(void)
     cli_check(!cli_archive_split(dir, "lib", file, inner), "nor a folder");
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea out = {s_read, sizeof(s_read), 0ull};
-    cli_check(!cli_archive_read(dir, "lib/a.zip/missing", &out, &err_msg),
+    unsigned long long size = 0ull;
+    cli_check(cli_archive_taken(dir, "lib/a.zip/missing", &size, &g_cli_editor_cells, &err_msg) == NULL,
               "a file an archive does not contain does not read");
 }
 

@@ -3,6 +3,7 @@
 // sea.c: the modules a script requires from outside Node, the fuse Node reads to know a blob was added, a Windows
 // program's signature, and the note a Linux program's blob goes in
 #include "sea.h"
+#include "../text/text.h"
 
 // the fuse Node reads to know a blob was added, as Node's documentation gives it, and the name the blob is added under
 static const char s_fuse[] = "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0";
@@ -76,10 +77,8 @@ unsigned int cli_sea_outside(const char *text, char (*found)[CLI_NAME_MAX_LEN], 
         {
             rest = at + cellul.len(&(CatenaFinitaCfg){.src = s_marks[mark], .cap = CLI_CELLS_POOL});
             const char *trimmed = rest;
-            while ((trimmed[0] == ' ') || ((trimmed[0] >= '\t') && (trimmed[0] <= '\r')))
-            {
-                trimmed += 1;
-            }
+            trimmed += cli_text_past_any(
+                trimmed, 0ull, cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), CLI_TEXT_WHITE);
             const char quote = trimmed[0];
             if ((quote != '"') && (quote != '\'') && (quote != '`'))
             {
@@ -87,10 +86,9 @@ unsigned int cli_sea_outside(const char *text, char (*found)[CLI_NAME_MAX_LEN], 
             }
             const char *const name = trimmed + 1;
             const char *end = name;
-            while ((end[0] != '\0') && (end[0] != quote))
-            {
-                end += 1;
-            }
+            const char closing[2] = {quote, '\0'};
+            end +=
+                cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), closing);
             const unsigned long long length = (unsigned long long)(end - name);
             int bare = (length >= 5ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "node:", .bytes = 5u}) == 0);
             for (unsigned int at_builtin = 0u; !bare && (at_builtin < 51u); at_builtin += 1u)

@@ -80,8 +80,8 @@ int cli_servers_run_last(const char *key, const char *id, unsigned long long run
     return last == run;
 }
 
-// one file checked by one checker, its findings written through pieces into a cell of their size and stored where its
-// run is still the last
+// one file checked by one checker, its findings written into a cell of the most a file's findings hold and stored where
+// its run is still the last
 static void checkers_file_job(const void *job, unsigned long long size)
 {
     const CliServersCheckerJob *const one = job;
@@ -89,24 +89,20 @@ static void checkers_file_job(const void *job, unsigned long long size)
     {
         return;
     }
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea found;
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_servers_cells);
+    char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
+    VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_ANSWER);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
     const char *const text = one->has_text ? (const char *)job + sizeof(*one) : NULL;
     const int checked = cli_checkers_check_file(one->id, one->root, one->path, text, one->size, &found, &err_msg);
-    unsigned long long found_size = 0ull;
-    char *const findings = cli_pieces_joined(&pieces, &found, "a checker's findings", &found_size);
-    if (checked && (findings != NULL) && cli_servers_run_last(one->key, one->id, one->run))
+    if (checked && mmgr_line_ok(&found) && cli_servers_run_last(one->key, one->id, one->run))
     {
-        cli_servers_findings_stored(one->id, findings, found_size, 0, &one->sink);
+        cli_servers_findings_stored(one->id, found.out, found.at, 0, &one->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
-// the tree checked whole by one checker, its findings written through pieces into a cell of their size and stored
+// the tree checked whole by one checker, its findings written into a cell of the most a tree's findings hold and stored
 static void checkers_tree_job(const void *job, unsigned long long size)
 {
     const CliServersCheckerJob *const one = job;
@@ -114,18 +110,14 @@ static void checkers_tree_job(const void *job, unsigned long long size)
     {
         return;
     }
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea found;
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_servers_cells);
+    char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FINDINGS, &g_cli_servers_cells);
+    VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
     const int checked = cli_checkers_check_tree(one->id, one->root, &found, &err_msg);
-    unsigned long long found_size = 0ull;
-    char *const findings = cli_pieces_joined(&pieces, &found, "a checker's findings", &found_size);
-    if (checked && (findings != NULL))
+    if (checked && mmgr_line_ok(&found))
     {
-        cli_servers_findings_stored(one->id, findings, found_size, 0, &one->sink);
+        cli_servers_findings_stored(one->id, found.out, found.at, 0, &one->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }

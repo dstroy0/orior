@@ -35,14 +35,14 @@ function past(list, heading, count) {
 }
 
 function mark(list) {
-  const held = lists.get(list);
-  held.frame = 0;
-  held.ahead.moved(Math.floor(list.scrollTop / ROW));
-  held.ahead.read(frameMs());
-  const rows = past(list, held.ahead.heading, held.ahead.reach());
-  held.marked.forEach((row) => !rows.includes(row) && row.classList.remove("ahead"));
+  const entry = lists.get(list);
+  entry.frame = 0;
+  entry.ahead.moved(Math.floor(list.scrollTop / ROW));
+  entry.ahead.read(frameMs());
+  const rows = past(list, entry.ahead.heading, entry.ahead.reach());
+  entry.marked.forEach((row) => !rows.includes(row) && row.classList.remove("ahead"));
   rows.forEach((row) => row.classList.add("ahead"));
-  held.marked = rows;
+  entry.marked = rows;
 }
 
 // Draws the rows `list` scrolls toward ahead of it, from now on.
@@ -54,8 +54,8 @@ export function drawAhead(list) {
   list.addEventListener(
     "scroll",
     () => {
-      const held = lists.get(list);
-      held.frame ||= requestAnimationFrame(() => mark(list));
+      const entry = lists.get(list);
+      entry.frame ||= requestAnimationFrame(() => mark(list));
     },
     { passive: true },
   );

@@ -7,6 +7,7 @@
 #include "regexp.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "config/mmgr_vector.h"
 #include "memoria_operor/memoria_operor.h"
 
 unsigned int cli_text_letter(const char *text, unsigned long long size, unsigned long long at,
@@ -77,11 +78,540 @@ int cli_text_alphanumeric(unsigned int letter)
     return cli_regexp_property(CLI_REGEXP_LETTER, letter) || cli_regexp_property(CLI_REGEXP_NUMBER, letter);
 }
 
+// the most bytes of a set a walk tests for
+#define CLI_TEXT_SET_MOST 16u
+
+// A set's bytes each filled across a word, and across a lane where the build has one
+typedef struct
+{
+    unsigned int count;
+    embed_word word[CLI_TEXT_SET_MOST];
+#if MMGR_VECTOR_BYTES != 0u
+    MmgrVector lane[CLI_TEXT_SET_MOST];
+#endif
+} CliTextSet;
+
+static void text_set_filled(CliTextSet *filled, const char *set)
+{
+    const size_t count = cellul.len(&(CatenaFinitaCfg){.src = set, .cap = CLI_TEXT_SET_MOST});
+    // a set is at most CLI_TEXT_SET_MOST bytes, which an unsigned int stores
+    filled->count = (unsigned int)count;
+    for (unsigned int at = 0u; at < filled->count; at += 1u)
+    {
+        // Explicit cast reads the byte as unsigned before it is repeated into every lane
+        const uint8_t byte = (uint8_t)set[at];
+        filled->word[at] = MMGR_SWAR_ONES * (embed_word)byte;
+#if MMGR_VECTOR_BYTES != 0u
+        filled->lane[at] = mmgr_vector_fill(byte);
+#endif
+    }
+}
+
+// the lanes of a word that the set holds
+static embed_word text_word_in(embed_word loaded, const CliTextSet *filled)
+{
+    embed_word hit = 0u;
+    for (unsigned int at = 0u; at < filled->count; at += 1u)
+    {
+        hit |= lane.has_zero(&(ScrutLaneCfg){.word = loaded ^ filled->word[at]});
+    }
+    return hit;
+}
+
+// the first place from `at` below `size` whose byte the set holds where `in`, or does not hold where not, else `size`,
+// the widest lane first, then a word at a time, and the last bytes loaded into a word of their own
+static unsigned long long text_walked(const char *text, unsigned long long at, unsigned long long size, const char *set,
+                                      int in)
+{
+    if (at >= size)
+    {
+        return at;
+    }
+    // Explicit cast reads the text's bytes as unsigned
+    const uint8_t *const bytes = (const uint8_t *)text;
+    CliTextSet filled;
+    text_set_filled(&filled, set);
+    unsigned long long place = at;
+#if MMGR_VECTOR_BYTES != 0u
+    while ((size - place) >= MMGR_VECTOR_BYTES)
+    {
+        const MmgrVector loaded = mmgr_vector_load(bytes + place);
+        MmgrVectorMask in_lanes = 0u;
+        for (unsigned int one = 0u; one < filled.count; one += 1u)
+        {
+            in_lanes |= mmgr_vector_equal_lanes(loaded, filled.lane[one]);
+        }
+        const MmgrVectorMask hit = in ? in_lanes : (MmgrVectorMask)(EMBED_LANE_MASK_ALL & ~in_lanes);
+        if (hit != 0u)
+        {
+            return place + mmgr_vector_mask_first(hit);
+        }
+        place += MMGR_VECTOR_BYTES;
+    }
+#endif
+    const embed_word every = mask.lanes_below(&(ScrutMaskCfg){.bytes = MMGR_SWAR_BYTES});
+    while ((size - place) >= MMGR_SWAR_BYTES)
+    {
+        const embed_word found = text_word_in(word.load(&(ScrutWordCfg){.at = bytes + place}), &filled);
+        const embed_word hit = in ? found : (every & ~found);
+        if (hit != 0u)
+        {
+            return place + lane.first(&(ScrutLaneCfg){.mask = hit});
+        }
+        place += MMGR_SWAR_BYTES;
+    }
+    if (place < size)
+    {
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = bytes + place, .bytes = (size_t)(size - place)});
+        const embed_word found = text_word_in(loaded, &filled);
+        const embed_word hit =
+            (in ? found : (every & ~found)) & mask.lanes_below(&(ScrutMaskCfg){.bytes = (size_t)(size - place)});
+        if (hit != 0u)
+        {
+            return place + lane.first(&(ScrutLaneCfg){.mask = hit});
+        }
+    }
+    return size;
+}
+
+// the place past the last byte before `at` whose byte the set holds where `in`, or does not hold where not, else 0, a
+// word at a time from the end, the first bytes loaded into a word of their own
+static unsigned long long text_walked_back(const char *text, unsigned long long at, const char *set, int in)
+{
+    // Explicit cast reads the text's bytes as unsigned
+    const uint8_t *const bytes = (const uint8_t *)text;
+    CliTextSet filled;
+    text_set_filled(&filled, set);
+    const embed_word every = mask.lanes_below(&(ScrutMaskCfg){.bytes = MMGR_SWAR_BYTES});
+    unsigned long long place = at;
+    while (place >= MMGR_SWAR_BYTES)
+    {
+        const embed_word found =
+            text_word_in(word.load(&(ScrutWordCfg){.at = bytes + (place - MMGR_SWAR_BYTES)}), &filled);
+        const embed_word hit = in ? found : (every & ~found);
+        if (hit != 0u)
+        {
+            return (place - MMGR_SWAR_BYTES) + lane.last(&(ScrutLaneCfg){.mask = hit}) + 1ull;
+        }
+        place -= MMGR_SWAR_BYTES;
+    }
+    if (place != 0ull)
+    {
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = bytes, .bytes = (size_t)place});
+        const embed_word found = text_word_in(loaded, &filled);
+        const embed_word hit =
+            (in ? found : (every & ~found)) & mask.lanes_below(&(ScrutMaskCfg){.bytes = (size_t)place});
+        if (hit != 0u)
+        {
+            return lane.last(&(ScrutLaneCfg){.mask = hit}) + 1ull;
+        }
+    }
+    return 0ull;
+}
+
+unsigned long long cli_text_to_any(const char *text, unsigned long long at, unsigned long long size, const char *set)
+{
+    return text_walked(text, at, size, set, 1);
+}
+
+unsigned long long cli_text_past_any(const char *text, unsigned long long at, unsigned long long size, const char *set)
+{
+    return text_walked(text, at, size, set, 0);
+}
+
+unsigned long long cli_text_back_any(const char *text, unsigned long long at, const char *set)
+{
+    return text_walked_back(text, at, set, 1);
+}
+
+unsigned long long cli_text_back_past(const char *text, unsigned long long at, const char *set)
+{
+    return text_walked_back(text, at, set, 0);
+}
+
+// the lanes of a word that hold a byte of `classes` or of the set
+static embed_word text_word_of_class(embed_word loaded, unsigned int classes, const CliTextSet *filled)
+{
+    embed_word hit = text_word_in(loaded, filled);
+    if ((classes & CLI_TEXT_LETTERS) != 0u)
+    {
+        hit |= lane.alpha(&(ScrutLaneCfg){.word = loaded});
+    }
+    if ((classes & CLI_TEXT_DIGITS) != 0u)
+    {
+        hit |= lane.ge(&(ScrutLaneCfg){.word = loaded, .byte = '0'}) &
+               lane.le(&(ScrutLaneCfg){.word = loaded, .byte = '9'});
+    }
+    if ((classes & CLI_TEXT_PAST_ASCII) != 0u)
+    {
+        hit |= loaded & MMGR_VERBUM_SCRUTOR_HIGH;
+    }
+    if ((classes & CLI_TEXT_UPPER) != 0u)
+    {
+        hit |= lane.ge(&(ScrutLaneCfg){.word = loaded, .byte = 'A'}) &
+               lane.le(&(ScrutLaneCfg){.word = loaded, .byte = 'Z'});
+    }
+    if ((classes & CLI_TEXT_LOWER) != 0u)
+    {
+        hit |= lane.ge(&(ScrutLaneCfg){.word = loaded, .byte = 'a'}) &
+               lane.le(&(ScrutLaneCfg){.word = loaded, .byte = 'z'});
+    }
+    return hit;
+}
+
+unsigned long long cli_text_past_class(const char *text, unsigned long long at, unsigned long long size,
+                                       unsigned int classes, const char *set)
+{
+    CliTextSet filled;
+    text_set_filled(&filled, set);
+    const embed_word every = mask.lanes_below(&(ScrutMaskCfg){.bytes = MMGR_SWAR_BYTES});
+    unsigned long long place = at;
+    while (place < size)
+    {
+        const size_t bytes = ((size - place) < MMGR_SWAR_BYTES) ? (size_t)(size - place) : MMGR_SWAR_BYTES;
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = text + place, .bytes = bytes});
+        const embed_word hit =
+            every & ~text_word_of_class(loaded, classes, &filled) & mask.lanes_below(&(ScrutMaskCfg){.bytes = bytes});
+        if (hit != 0u)
+        {
+            return place + lane.first(&(ScrutLaneCfg){.mask = hit});
+        }
+        place += bytes;
+    }
+    return (at < size) ? size : at;
+}
+
+unsigned long long cli_text_back_past_class(const char *text, unsigned long long at, unsigned int classes,
+                                            const char *set)
+{
+    CliTextSet filled;
+    text_set_filled(&filled, set);
+    const embed_word every = mask.lanes_below(&(ScrutMaskCfg){.bytes = MMGR_SWAR_BYTES});
+    unsigned long long place = at;
+    while (place != 0ull)
+    {
+        const size_t bytes = (place < MMGR_SWAR_BYTES) ? (size_t)place : MMGR_SWAR_BYTES;
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = text + (place - bytes), .bytes = bytes});
+        const embed_word hit =
+            every & ~text_word_of_class(loaded, classes, &filled) & mask.lanes_below(&(ScrutMaskCfg){.bytes = bytes});
+        if (hit != 0u)
+        {
+            return (place - bytes) + lane.last(&(ScrutLaneCfg){.mask = hit}) + 1ull;
+        }
+        place -= bytes;
+    }
+    return 0ull;
+}
+
+unsigned long long cli_text_to_pair(const char *text, unsigned long long at, unsigned long long size, char first,
+                                    char second)
+{
+    const char set[2] = {first, '\0'};
+    unsigned long long place = cli_text_to_any(text, at, size, set);
+    while (((place + 1ull) < size) && (text[place + 1ull] != second))
+    {
+        place = cli_text_to_any(text, place + 1ull, size, set);
+    }
+    return ((place + 1ull) < size) ? place : size;
+}
+
+unsigned long long cli_text_number(const char *text, unsigned long long at, unsigned long long size,
+                                   unsigned long long *end)
+{
+    const unsigned long long stop = cli_text_past_class(text, at, size, CLI_TEXT_DIGITS, "");
+    if (end != NULL)
+    {
+        *end = stop;
+    }
+    const unsigned long long digits = stop - at;
+    if (digits > 19ull)
+    {
+        return ~0ull;
+    }
+    char read[20];
+    memor.cpy(&(MemoriaCfg){.dst = read, .src = text + at, .bytes = (size_t)digits});
+    read[digits] = '\0';
+    return cellul.to_ulong(&(TransfiguroCfg){.src = read});
+}
+
+void cli_text_swapped(char *text, unsigned long long size, char from, char to)
+{
+    // Explicit casts read the bytes as unsigned before they are repeated into every lane
+    const embed_word wanted = MMGR_SWAR_ONES * (embed_word)(uint8_t)from;
+    const embed_word flip = MMGR_SWAR_ONES * (embed_word)((uint8_t)from ^ (uint8_t)to);
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const size_t bytes = ((size - at) < MMGR_SWAR_BYTES) ? (size_t)(size - at) : MMGR_SWAR_BYTES;
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = text + at, .bytes = bytes});
+        const embed_word hit =
+            lane.has_zero(&(ScrutLaneCfg){.word = loaded ^ wanted}) & mask.lanes_below(&(ScrutMaskCfg){.bytes = bytes});
+        if (hit != 0u)
+        {
+            loaded ^= mask.spread(&(ScrutMaskCfg){.mask = hit}) & flip;
+            memor.cpy(&(MemoriaCfg){.dst = text + at, .src = &loaded, .bytes = bytes});
+        }
+        at += bytes;
+    }
+}
+
+void cli_text_lowered(char *text, unsigned long long size)
+{
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const size_t bytes = ((size - at) < MMGR_SWAR_BYTES) ? (size_t)(size - at) : MMGR_SWAR_BYTES;
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = text + at, .bytes = bytes});
+        const embed_word folded = word.fold_lower(&(ScrutWordCfg){.word = loaded});
+        memor.cpy(&(MemoriaCfg){.dst = text + at, .src = &folded, .bytes = bytes});
+        at += bytes;
+    }
+}
+
+void cli_text_raised(char *text, unsigned long long size)
+{
+    const embed_word flip = MMGR_SWAR_ONES * (embed_word)0x20u;
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const size_t bytes = ((size - at) < MMGR_SWAR_BYTES) ? (size_t)(size - at) : MMGR_SWAR_BYTES;
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = text + at, .bytes = bytes});
+        const embed_word hit = lane.ge(&(ScrutLaneCfg){.word = loaded, .byte = 'a'}) &
+                               lane.le(&(ScrutLaneCfg){.word = loaded, .byte = 'z'});
+        loaded ^= mask.spread(&(ScrutMaskCfg){.mask = hit}) & flip;
+        memor.cpy(&(MemoriaCfg){.dst = text + at, .src = &loaded, .bytes = bytes});
+        at += bytes;
+    }
+}
+
+unsigned long long cli_text_lowered_into(char *out, unsigned long long room, const char *text)
+{
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = (whole < room) ? whole : (room - 1ull);
+    memor.cpy(&(MemoriaCfg){.dst = out, .src = text, .bytes = (size_t)length});
+    out[length] = '\0';
+    cli_text_lowered(out, length);
+    return length;
+}
+
+CliTextLine cli_text_line_at(const char *text, unsigned long long at, unsigned long long size)
+{
+    const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
+    if (newline == NULL)
+    {
+        return (CliTextLine){size, size, size};
+    }
+    // a newline found lies in the text, at or past `at`
+    const unsigned long long stop = (unsigned long long)(newline - text);
+    return (CliTextLine){stop, ((stop > at) && (text[stop - 1ull] == '\r')) ? stop - 1ull : stop, stop + 1ull};
+}
+
+void cli_text_copied_or(char *out, const char *text, const char *otherwise)
+{
+    const char *const from = (text != NULL) ? text : otherwise;
+    memor.cpy(&(MemoriaCfg){
+        .dst = out, .src = from, .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
+}
+
+void cli_text_kept(char *text, unsigned long long size, unsigned int classes, const char *set, char other)
+{
+    for (unsigned long long at = cli_text_past_class(text, 0ull, size, classes, set); at < size;
+         at = cli_text_past_class(text, at + 1ull, size, classes, set))
+    {
+        text[at] = other;
+    }
+}
+
+unsigned long long cli_text_counted(const char *text, unsigned long long size, char byte)
+{
+    // Explicit cast reads the byte as unsigned before it is repeated into every lane
+    const embed_word wanted = MMGR_SWAR_ONES * (embed_word)(uint8_t)byte;
+    unsigned long long count = 0ull;
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const size_t bytes = ((size - at) < MMGR_SWAR_BYTES) ? (size_t)(size - at) : MMGR_SWAR_BYTES;
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = text + at, .bytes = bytes});
+        const embed_word hit =
+            lane.has_zero(&(ScrutLaneCfg){.word = loaded ^ wanted}) & mask.lanes_below(&(ScrutMaskCfg){.bytes = bytes});
+        count += lane.count(&(ScrutLaneCfg){.mask = hit});
+        at += bytes;
+    }
+    return count;
+}
+
+int cli_text_ascii(const char *text, unsigned long long size)
+{
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const size_t bytes = ((size - at) < MMGR_SWAR_BYTES) ? (size_t)(size - at) : MMGR_SWAR_BYTES;
+        embed_word loaded = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = text + at, .bytes = bytes});
+        if ((loaded & MMGR_VERBUM_SCRUTOR_HIGH) != 0u)
+        {
+            return 0;
+        }
+        at += bytes;
+    }
+    return 1;
+}
+
+unsigned long long cli_text_put_swapped(VerbaLinea *out, const char *text, char from, char to)
+{
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    const size_t start = out->at;
+    const size_t taken = mmgr_line_put_n(out, text, (size_t)size);
+    if ((out->out != NULL) && (taken != 0u))
+    {
+        cli_text_swapped(out->out + start, taken, from, to);
+    }
+    return size;
+}
+
+void cli_text_put_marked(VerbaLinea *out, const char *text, const char *set, char mark)
+{
+    cli_text_put_marked_n(out, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), set, mark);
+}
+
+void cli_text_put_marked_n(VerbaLinea *out, const char *text, unsigned long long size, const char *set, char mark)
+{
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const unsigned long long stop = cli_text_to_any(text, at, size, set);
+        mmgr_line_put_n(out, text + at, (size_t)(stop - at));
+        if (stop < size)
+        {
+            mmgr_line_ch(out, mark);
+            mmgr_line_ch(out, text[stop]);
+        }
+        at = stop + 1ull;
+    }
+}
+
+void cli_text_put_doubled(VerbaLinea *out, const char *text, const char *set)
+{
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const unsigned long long stop = cli_text_to_any(text, at, size, set);
+        mmgr_line_put_n(out, text + at, (size_t)(stop - at));
+        if (stop < size)
+        {
+            mmgr_line_ch(out, text[stop]);
+            mmgr_line_ch(out, text[stop]);
+        }
+        at = stop + 1ull;
+    }
+}
+
+void cli_text_put_lowered(VerbaLinea *out, const char *text)
+{
+    const size_t start = out->at;
+    const size_t taken = mmgr_line_put_n(out, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    if ((out->out != NULL) && (taken != 0u))
+    {
+        cli_text_lowered(out->out + start, taken);
+    }
+}
+
+void cli_text_put_kept(VerbaLinea *out, const char *text, unsigned int classes, const char *set, char other)
+{
+    const size_t start = out->at;
+    const size_t taken = mmgr_line_put_n(out, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    if ((out->out != NULL) && (taken != 0u))
+    {
+        cli_text_kept(out->out + start, taken, classes, set, other);
+    }
+}
+
+// the value of a hexadecimal digit, 16 where the byte is none
+static unsigned int text_hex_of(char byte)
+{
+    return ((byte >= '0') && (byte <= '9'))   ? (unsigned int)(byte - '0')
+           : ((byte >= 'a') && (byte <= 'f')) ? ((unsigned int)(byte - 'a') + 10u)
+           : ((byte >= 'A') && (byte <= 'F')) ? ((unsigned int)(byte - 'A') + 10u)
+                                              : 16u;
+}
+
+void cli_text_put_unescaped(VerbaLinea *out, const char *text, unsigned long long size)
+{
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const unsigned long long stop = cli_text_to_any(text, at, size, "%");
+        mmgr_line_put_n(out, text + at, (size_t)(stop - at));
+        at = stop;
+        if (stop < size)
+        {
+            const unsigned int high = ((stop + 1ull) < size) ? text_hex_of(text[stop + 1ull]) : 16u;
+            const unsigned int low = ((stop + 2ull) < size) ? text_hex_of(text[stop + 2ull]) : 16u;
+            const int escaped = (high < 16u) && (low < 16u);
+            // two hexadecimal digits make a byte, below 256
+            mmgr_line_ch(out, escaped ? (char)((high << 4u) | low) : '%');
+            at += escaped ? 3ull : 1ull;
+        }
+    }
+}
+
+void cli_text_put_replaced(VerbaLinea *out, const char *text, const char *set, const char *with)
+{
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    unsigned long long at = 0ull;
+    while (at < size)
+    {
+        const unsigned long long stop = cli_text_to_any(text, at, size, set);
+        mmgr_line_put_n(out, text + at, (size_t)(stop - at));
+        if (stop < size)
+        {
+            mmgr_line_put(out, with);
+        }
+        at = stop + 1ull;
+    }
+}
+
+void cli_text_put_filled(VerbaLinea *out, const char *text, const char *name, const char *value)
+{
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    const size_t name_size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const char *at = text;
+    const char *const end = text + size;
+    while (at < end)
+    {
+        const char *const found = cellul.find(
+            &(CatenaFinitaCfg){.src = at, .cap = (size_t)(end - at) + 1u, .other = name, .other_cap = name_size + 1u});
+        const char *const stop = (found != NULL) ? found : end;
+        // a name found lies in the text, at or past `at`
+        mmgr_line_put_n(out, at, (size_t)(stop - at));
+        if (found == NULL)
+        {
+            return;
+        }
+        mmgr_line_put(out, value);
+        at = found + name_size;
+    }
+}
+
 unsigned long long cli_text_lead(const char *text, unsigned long long size)
 {
     unsigned long long at = 0ull;
     while (at < size)
     {
+        at = cli_text_past_any(text, at, size, CLI_TEXT_WHITE);
+        if (at >= size)
+        {
+            break;
+        }
         unsigned long long length = 0ull;
         if (!cli_text_white(cli_text_letter(text, size, at, &length)))
         {
@@ -97,6 +627,11 @@ unsigned long long cli_text_trimmed_end(const char *text, unsigned long long siz
     unsigned long long end = size;
     while (end > 0u)
     {
+        end = cli_text_back_past(text, end, CLI_TEXT_WHITE);
+        if (end == 0ull)
+        {
+            break;
+        }
         unsigned long long length = 0ull;
         if (!cli_text_white(cli_text_letter_before(text, end, &length)))
         {

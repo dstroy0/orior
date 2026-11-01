@@ -5,6 +5,7 @@
 // name is passed over
 #include "../editor/files_internal.h"
 #include "../text/regexp.h"
+#include "../text/text.h"
 #include "python_paths_internal.h"
 
 unsigned int cli_py_text_put(const char *text, unsigned long long length)

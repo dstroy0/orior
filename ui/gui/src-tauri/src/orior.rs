@@ -104,7 +104,7 @@ pub fn panicked(info: &std::panic::PanicHookInfo<'_>) {
     unsafe { cli_window_panicked(message.as_ptr() as *const c_char, message_size as c_ulonglong, detail.as_ptr() as *const c_char, detail_size as c_ulonglong) };
 }
 
-/// The page's first script, as orior's side writes it, handed to `taken` while it is held and given back after.
+/// The page's first script, as orior's side writes it, handed to `taken` while it is kept and given back after.
 pub fn kept_script<T>(taken: impl FnOnce(&str) -> T) -> T {
     let mut size: c_ulonglong = 0;
     // SAFETY: `size` is one number to write; the script is `size` bytes, valid until it is given back below.

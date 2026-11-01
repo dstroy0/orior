@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // validate_messages.c: the prover's messages as `lean --json` writes them, the barrier a message shows stopped the
 // check, the axioms a theorem rests on, and the copy of a file that is checked
+#include "../text/text.h"
 #include "validate_internal.h"
 
 // the most bytes of the lines of a check's output that are no message, recorded as one error
@@ -17,13 +18,10 @@ static int messages_line(const char *text, unsigned long long size, unsigned lon
         return 0;
     }
     *start = *at;
-    const char *const found = memor.chr(&(MemoriaCfg){.src = text + *at, .val = '\n', .bytes = size - *at});
-    unsigned long long end = (found != NULL) ? (unsigned long long)(found - text) : size;
-    *at = (found != NULL) ? end + 1ull : size;
-    if ((found != NULL) && (end > *start) && (text[end - 1ull] == '\r'))
-    {
-        end -= 1ull;
-    }
+    const CliTextLine bounds = cli_text_line_at(text, *at, size);
+    unsigned long long end = bounds.stop;
+    *at = bounds.next;
+    end -= bounds.stop - bounds.cut;
     *length = end - *start;
     return 1;
 }
@@ -151,8 +149,8 @@ void cli_validate_messages_of(const char *output, unsigned long long size, CliPr
         unsigned long long kind_size = 0ull;
         const char *const text = cli_json_string(&json, cli_json_member(&json, value, "data"), &text_size);
         const char *const kind = cli_json_string(&json, cli_json_member(&json, value, "kind"), &kind_size);
-        messages_append(messages, &message, (text != NULL) ? text : "", (text != NULL) ? text_size : 0ull,
-                        (kind != NULL) ? kind : "", (kind != NULL) ? kind_size : 0ull);
+        messages_append(messages, &message, (text != NULL) ? text : "", text_size, (kind != NULL) ? kind : "",
+                        kind_size);
     }
     if (loose.at > 0ull)
     {
@@ -224,15 +222,10 @@ int cli_validate_axioms_of(const char *text, unsigned long long size, unsigned l
     unsigned long long start = at + sizeof(s_mark) - 1ull;
     unsigned long long length = size - start;
     messages_trimmed(text, &start, &length);
-    while ((length > 0ull) && (text[start] == '['))
-    {
-        start += 1ull;
-        length -= 1ull;
-    }
-    while ((length > 0ull) && (text[start + length - 1ull] == ']'))
-    {
-        length -= 1ull;
-    }
+    const unsigned long long lead = cli_text_past_any(text, start, start + length, "[") - start;
+    start += lead;
+    length -= lead;
+    length = cli_text_back_past(text + start, length, "]");
     *list = start;
     *list_size = length;
     return 1;
@@ -274,14 +267,10 @@ static void copy_line(const char *line, unsigned long long length, unsigned long
         unsigned long long digits = 0ull;
         unsigned long long own = 0ull;
         int fits = 1;
-        while ((digits_at + digits < work_line.at) && (line_buf[digits_at + digits] >= '0') &&
-               (line_buf[digits_at + digits] <= '9'))
-        {
-            const unsigned long long digit = (unsigned long long)(line_buf[digits_at + digits] - '0');
-            fits = fits && (own <= (~0ull - digit) / 10ull);
-            own = fits ? (own * 10ull) + digit : own;
-            digits += 1ull;
-        }
+        unsigned long long end = digits_at;
+        own = cli_text_number(line_buf, digits_at, work_line.at, &end);
+        digits = end - digits_at;
+        fits = digits <= 19ull;
         if ((digits == 0ull) || !fits || (own == 0ull) || (own >= values[option]))
         {
             continue;
@@ -333,17 +322,7 @@ unsigned long long cli_validate_copy_of(const char *text, unsigned long long siz
     for (unsigned int theorem = 0u; tool->audited && (theorem < g_cli_validate->theorem_count); theorem += 1u)
     {
         const char *const name = g_cli_validate->names + g_cli_validate->theorems[theorem];
-        for (const char *letter = tool->print; *letter != '\0';)
-        {
-            if (cellul.starts(&(CatenaFinitaCfg){.src = letter, .other = "{name}", .cap = CLI_CELLS_POOL}))
-            {
-                mmgr_line_put(&out, name);
-                letter += 6;
-                continue;
-            }
-            mmgr_line_ch(&out, *letter);
-            letter += 1;
-        }
+        cli_text_put_filled(&out, tool->print, "{name}", name);
         mmgr_line_ch(&out, '\n');
     }
     return mmgr_line_ok(&out) ? out.at : CLI_VALIDATE_COPY + 1ull;

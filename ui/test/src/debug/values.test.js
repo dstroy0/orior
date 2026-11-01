@@ -9,7 +9,7 @@ import { invoke } from "../../../gui/src-js/bridge.js";
 import { closeMenu } from "../../../gui/src-js/menu.js";
 import { editing, openFile } from "../../../gui/src-js/edit.js";
 import { showView } from "../../../gui/src-js/views.js";
-import { noticesHeld, noticesSaid } from "../../../gui/src-js/statusbar.js";
+import { noticesWaiting, noticesSaid } from "../../../gui/src-js/statusbar.js";
 import { breakpointsOf, pausedLineOf } from "../../../gui/src-js/debug.js";
 import { closeSheets, endSessions, given, made, press, putBackAsFound, sheetShown, told } from "../../menus.js";
 
@@ -54,9 +54,9 @@ test("Run, Show Bytecode reads a Python line's bytecode, and Memory, Watch Memor
     closeSheets();
     // A debugger stops where memory changes as the machine's own watchpoints let it: the window says
     // the watch set, or the debugger's refusal.
-    const said = noticesSaid().length + noticesHeld().length;
+    const said = noticesSaid().length + noticesWaiting().length;
     await press("watch-memory", "count");
-    await ui.waitFor(() => (made("debug_watch_data").some((one) => one.args.name === "count") || told(/cannot stop where memory changes/)) && noticesSaid().length + noticesHeld().length > said, 10000, "the watch asked of the debugger and its answer said");
+    await ui.waitFor(() => (made("debug_watch_data").some((one) => one.args.name === "count") || told(/cannot stop where memory changes/)) && noticesSaid().length + noticesWaiting().length > said, 10000, "the watch asked of the debugger and its answer said");
     await press("machine-code");
     await ui.waitFor(() => document.querySelector("body > .menu"), 5000, "the frame's menu of its instructions");
     closeMenu(false);

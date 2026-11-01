@@ -18,18 +18,17 @@
 
 #define CLI_SYMBOL_TEXT (1u << 24u)
 
-// the bytes and the declarations a file's names' room is begun with, each doubling as they are read
-#define CLI_SYMBOL_READ_FIRST 4096u
-#define CLI_SYMBOLS_READ_FIRST 64u
+// the bytes and the declarations a file's names' room is taken with
 
 // the most kinds of declaration of one file whose texts are read once and shared by its declarations
 #define CLI_SYMBOLS_KINDS 16u
 
 // The storage a reading goes through, a cell taken as it starts and given back as it ends, sized to the paths of the
 // files it reads, one after another, at its end: one file's declarations as read, before they are stored, their names
-// and kinds and the declarations each in a cell whose room doubles as they are read, and the place of each kind read
-// among those texts; the languages it reads its files in, a cell of their own; and the folders and files mounted
-// beside the tree as it started, each its name and its whole path, how many
+// and kinds and the declarations each in a cell at their most, and the place of each kind read among those texts; the
+// one cell each file is read into, of the most a file read holds and the slack; the languages it reads its files in, a
+// cell of their own; and the folders and files mounted beside the tree as it started, each its name and its whole path,
+// how many
 typedef struct
 {
     char *read_text;
@@ -39,46 +38,12 @@ typedef struct
     unsigned int kind[CLI_SYMBOLS_KINDS];
     unsigned int kinds;
     unsigned char *file_bytes;
-    unsigned long long file_room;
     CliSymbolsLanguages *languages;
     char mount_name[CLI_MOUNTS_MOST][CLI_NAME_MAX_LEN];
     char mount_path[CLI_MOUNTS_MOST][CLI_PATH_MAX_LEN];
     unsigned int mounts;
     char listed[];
 } CliSymbolsReading;
-
-// the bytes past a file read in the reading's cell, zero, and a walk's word past the text reads inside the cell
-#define CLI_SYMBOLS_FILE_SLACK 64ull
-
-// room for a file of `size` bytes in the reading's one file cell: the cell as it is where it fits them and the slack,
-// else one taken anew of twice the cell's bytes or the file's and the slack, the cell before given back; NULL, and the
-// file is passed over, where it is larger than the tree reads or no cell is given
-static unsigned char *cli_file_roomed(void *context, unsigned long long size)
-{
-    CliSymbolsReading *const reading = context;
-    if (size > CLI_SYMBOLS_LARGEST)
-    {
-        return NULL;
-    }
-    if ((size + CLI_SYMBOLS_FILE_SLACK) > reading->file_room)
-    {
-        g_cli_cells->persistent_buf_release(reading->file_bytes, &g_cli_code_cells);
-        unsigned long long room = (reading->file_room * 2ull > size + CLI_SYMBOLS_FILE_SLACK)
-                                      ? (reading->file_room * 2ull)
-                                      : (size + CLI_SYMBOLS_FILE_SLACK);
-        room = (room < CLI_SYMBOL_READ_FIRST) ? CLI_SYMBOL_READ_FIRST : room;
-        reading->file_bytes = g_cli_cells->persistent_buf_alloc(room, &g_cli_code_cells);
-        reading->file_room = (reading->file_bytes != NULL) ? room : 0ull;
-    }
-    return reading->file_bytes;
-}
-
-// `cell`, `used` bytes of it occupied, moved into a cell of `room` bytes: the larger, or NULL with `cell` retained
-// where it is refused
-static void *cli_read_moved(void *cell, unsigned long long used, unsigned long long room, const char *what)
-{
-    return cli_cell_regrown(cell, (size_t)used, room, &g_cli_code_cells);
-}
 
 static CliSymbolsReading *s_listing;
 
@@ -129,34 +94,17 @@ static void cli_read_each(void *context, const char *name, unsigned long long le
     {
         return;
     }
-    if (s_read_count == reading->symbol_room)
+    if (reading->symbol_room == 0u)
     {
-        const unsigned int room = (reading->symbol_room == 0u) ? CLI_SYMBOLS_READ_FIRST : (reading->symbol_room * 2u);
-        CliSymbol *const symbols =
-            cli_read_moved(reading->read_symbols, (unsigned long long)s_read_count * sizeof(CliSymbol),
-                           (unsigned long long)room * sizeof(CliSymbol), "a file's declarations as read");
-        if (symbols == NULL)
-        {
-            return;
-        }
-        reading->read_symbols = symbols;
-        reading->symbol_room = room;
+        reading->read_symbols = g_cli_cells->temporary_buf_alloc(
+            (unsigned long long)(CLI_SYMBOLS_LARGEST / 4u) * sizeof(CliSymbol), &g_cli_code_cells);
+        reading->read_text = g_cli_cells->temporary_buf_alloc(CLI_SYMBOLS_LARGEST, &g_cli_code_cells);
+        reading->symbol_room = CLI_SYMBOLS_LARGEST / 4u;
+        reading->text_room = CLI_SYMBOLS_LARGEST;
     }
-    unsigned long long room = (reading->text_room == 0u) ? CLI_SYMBOL_READ_FIRST : reading->text_room;
-    while (room < (s_read_used + length + kind_length))
+    if ((reading->read_symbols == NULL) || (reading->read_text == NULL))
     {
-        room *= 2ull;
-    }
-    if (room != reading->text_room)
-    {
-        char *const text = cli_read_moved(reading->read_text, s_read_used, room, "a file's names as read");
-        if (text == NULL)
-        {
-            return;
-        }
-        reading->read_text = text;
-        // a room no more than twice a file's largest size, which an unsigned int counts
-        reading->text_room = (unsigned int)room;
+        return;
     }
     memor.cpy(&(MemoriaCfg){.dst = reading->read_text + s_read_used, .src = name, .bytes = length});
     if (kind_at == CLI_SYMBOLS_KIND_NEW)
@@ -184,7 +132,8 @@ static int cli_symbol_file_put(const CliSymbolsReading *reading, const char *pat
         return 0;
     }
     const unsigned long long symbols_size = s_read_count * sizeof(CliSymbol);
-    char *const cell = g_cli_cells->persistent_buf_alloc(symbols_size + path_length + s_read_used, &g_cli_code_cells);
+    const unsigned long long bytes = symbols_size + path_length + s_read_used;
+    const CarcerMovableSlot *const cell = g_cli_cells->movable_buf_alloc(bytes, &g_cli_code_cells);
     if (cell == NULL)
     {
         return 0;
@@ -193,35 +142,35 @@ static int cli_symbol_file_put(const CliSymbolsReading *reading, const char *pat
     {
         file = g_cli_symbol_file_count;
         g_cli_symbol_file_count += 1u;
-        memor.cpy(&(MemoriaCfg){.dst = cell + symbols_size, .src = path, .bytes = path_length});
-        g_cli_symbol_files[file].cell = cell;
-        // a file's declarations, path and names are below what an unsigned int counts
-        g_cli_symbol_files[file].path = (unsigned int)symbols_size;
         cli_symbols_bucket_put(path, file);
     }
     else
     {
-        memor.cpy(&(MemoriaCfg){.dst = cell + symbols_size, .src = path, .bytes = path_length});
-        g_cli_cells->persistent_buf_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
-        g_cli_symbol_files[file].cell = cell;
-        g_cli_symbol_files[file].path = (unsigned int)symbols_size;
+        (void)g_cli_cells->movable_buf_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
     }
     CliSymbolFile *const branch = &g_cli_symbol_files[file];
+    branch->cell = cell;
+    // a file's declarations, path and names are below what an unsigned int counts
+    branch->bytes = (unsigned int)bytes;
+    branch->path = (unsigned int)symbols_size;
     branch->used = 1;
     branch->written = written;
     branch->count = s_read_count;
     branch->seen = 1;
+    cli_symbol_cell_counted(branch->bytes);
     // the names and kinds read, after the path, each declaration's places among them moved with them
-    CliSymbol *const symbols = (CliSymbol *)(void *)cell;
     const unsigned int texts = (unsigned int)(symbols_size + path_length);
-    memor.cpy(&(MemoriaCfg){.dst = cell + texts, .src = reading->read_text, .bytes = s_read_used});
     for (unsigned int at = 0u; at < s_read_count; at += 1u)
     {
-        CliSymbol symbol = reading->read_symbols[at];
-        symbol.name += texts;
-        symbol.kind += texts;
-        symbols[at] = symbol;
+        reading->read_symbols[at].name += texts;
+        reading->read_symbols[at].kind += texts;
     }
+    (void)g_cli_cells->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .src = reading->read_symbols, .bytes = symbols_size});
+    (void)g_cli_cells->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = symbols_size, .src = path, .bytes = path_length});
+    (void)g_cli_cells->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = texts, .src = reading->read_text, .bytes = s_read_used});
     return 1;
 }
 
@@ -257,18 +206,17 @@ static int cli_reading_one(CliSymbolsReading *reading, const char *root, const c
         return 1;
     }
     cli_lock_give(&g_cli_symbols_lock);
-    // the file read into the reading's one cell, reused from file to file, and a reading takes a cell a growth and not
-    // one a file
+    // the file read into the reading's one cell, used from file to file, which fits the most a file read holds
     unsigned long long mapped_size = 0ull;
     const int mapped =
-        cli_file_read_whole(full, cli_file_roomed, reading, &mapped_size) && (reading->file_bytes != NULL);
+        (reading->file_bytes != NULL) && cli_file_read_at(full, 0ull, reading->file_bytes, size, &mapped_size);
     const unsigned long long read = mapped ? mapped_size : QRY_MEMBER_UNREAD;
     s_read_count = 0u;
     s_read_used = 0u;
     reading->kinds = 0u;
     if (read != QRY_MEMBER_UNREAD)
     {
-        memor.set(&(MemoriaCfg){.dst = reading->file_bytes + read, .val = 0, .bytes = CLI_SYMBOLS_FILE_SLACK});
+        memor.set(&(MemoriaCfg){.dst = reading->file_bytes + read, .val = 0, .bytes = CLI_FILE_SLACK});
         // the file's bytes are read as its text
         cli_symbols_declared_in(reading->languages, path, (const char *)reading->file_bytes, read, cli_read_each,
                                 reading);
@@ -493,15 +441,15 @@ void cli_symbols_refresh(const char *root, const char *const *paths, unsigned in
     {
         (void)cellul.copy(
             &(CatenaFinitaCfg){.dst = s_listing->mount_name[at], .src = mount_names[at], .cap = CLI_NAME_MAX_LEN});
-        (void)cellul.copy(&(CatenaFinitaCfg){.dst = s_listing->mount_path[at], .src = mount_paths[at], .cap = CLI_PATH_MAX_LEN});
+        (void)cellul.copy(
+            &(CatenaFinitaCfg){.dst = s_listing->mount_path[at], .src = mount_paths[at], .cap = CLI_PATH_MAX_LEN});
     }
     s_listing->read_text = NULL;
     s_listing->text_room = 0u;
     s_listing->read_symbols = NULL;
     s_listing->symbol_room = 0u;
     s_listing->kinds = 0u;
-    s_listing->file_bytes = NULL;
-    s_listing->file_room = 0ull;
+    s_listing->file_bytes = g_cli_cells->persistent_buf_alloc(CLI_SYMBOLS_LARGEST + CLI_FILE_SLACK, &g_cli_code_cells);
     unsigned long long offset = 0ull;
     s_listed_count = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)

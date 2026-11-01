@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // python_paths_search.c: the tree's Python scripts that touch `sys.path` read, and the folders they name in the tree
 // counted, the most used first, the reading cached for thirty seconds
+#include "../command_line/cells.h"
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -155,7 +156,7 @@ static void cli_script_read(const char *root, const char *top, const char *file)
     {
         return;
     }
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_python_cells);
     if (bytes == NULL)
     {
         return;
@@ -177,7 +178,7 @@ static void cli_script_read(const char *root, const char *top, const char *file)
         cli_py_reading_given();
         cli_seen_counted();
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_python_cells);
 }
 
 unsigned int cli_python_paths(const char *root, unsigned int most, void (*each)(void *context, const char *path),

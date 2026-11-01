@@ -5,7 +5,7 @@
 // and how long each of its reads takes; the tracker keeps the way the view heads and how fast, and
 // gives the stretch to read and hold: the rows in view, as many more the way it heads as its speed
 // carries it over a read, twice over, and a few the other way. What lies behind the motion is let go
-// first, and what lies ahead is held longest.
+// first, and what lies ahead is kept longest.
 //
 // Motion says where the view goes next: the view a moment later lies the way it has been heading.
 
@@ -17,7 +17,7 @@ const NEW = 0.4;
 
 export class Ahead {
   constructor(least = 10) {
-    // The fewest rows held each way.
+    // The fewest rows kept each way.
     this.least = least;
     this.at = 0;
     this.when = 0;
@@ -64,14 +64,14 @@ export class Ahead {
     return this.heading >= 0 ? [Math.max(0, first - this.least), last + reach] : [Math.max(0, first - reach), last + this.least];
   }
 
-  // Of the rows `held`, those to let go to keep at most `keep` of them, for a view showing `first`
+  // Of the rows `kept`, those to let go to keep at most `keep` of them, for a view showing `first`
   // to `last`: those outside the span, the ones behind the motion first, each side farthest first.
-  letGo(held, first, last, keep, now = performance.now()) {
+  letGo(kept, first, last, keep, now = performance.now()) {
     const [from, to] = this.span(first, last, now);
-    const outside = held.filter((row) => row < from || row >= to);
+    const outside = kept.filter((row) => row < from || row >= to);
     const behind = (row) => (this.heading >= 0 ? row < from : row >= to);
     const away = (row) => (row < from ? from - row : row - to);
     outside.sort((a, b) => Number(behind(b)) - Number(behind(a)) || away(b) - away(a));
-    return outside.slice(0, Math.max(0, held.length - keep));
+    return outside.slice(0, Math.max(0, kept.length - keep));
   }
 }

@@ -13,9 +13,9 @@
 #include "command_line_internal.h"
 #include "commands.h"
 
-// the bytes what a command run at the terminal writes and the help are begun to be written in, doubling as they fill
-#define CLI_RUN_OUT_FIRST 4096u
-#define CLI_RUN_HELP_FIRST 16384u
+// the bytes what a command run at the terminal writes and the help are written in
+#define CLI_RUN_OUT_ROOM (64ull << 20u)
+#define CLI_RUN_HELP_ROOM (1ull << 20u)
 
 static char s_msg_buf[1u << 14u];
 static const char *s_words[CLI_LAUNCH_ARGS];
@@ -139,8 +139,8 @@ static void run_window(CliOutcome *outcome, const char *named, const char *remot
             run_exit(outcome, CLI_WRONG);
             return;
         }
-        VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-        (void)cli_growing_line_temporary(&out, CLI_RUN_OUT_FIRST, &g_cli_command_line_cells);
+        char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_OUT_ROOM, &g_cli_command_line_cells);
+        VerbaLinea out = mmgr_line_over(out_cell, CLI_RUN_OUT_ROOM);
         err_msg.at = 0ull;
         const int ran = cli_at_terminal_run(s_found, command, args, count, &out, &err_msg);
         if (!ran)
@@ -169,8 +169,8 @@ static void run_window(CliOutcome *outcome, const char *named, const char *remot
 // the help written to the output, its spaces at the end not
 static void run_help(void)
 {
-    VerbaLinea help = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_temporary(&help, CLI_RUN_HELP_FIRST, &g_cli_command_line_cells);
+    char *const help_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_HELP_ROOM, &g_cli_command_line_cells);
+    VerbaLinea help = mmgr_line_over(help_cell, CLI_RUN_HELP_ROOM);
     cli_help(&help);
     const unsigned long long size = mmgr_line_ok(&help) ? help.at : 0ull;
     cli_out_line(help.out, (help.out != NULL) ? cli_text_trimmed_end(help.out, size) : 0ull);

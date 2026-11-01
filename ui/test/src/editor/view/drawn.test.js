@@ -3,7 +3,7 @@
 
 // What the editor draws in its gutter: the mark of a line added, changed, or with lines taken out above or below it,
 // and Line History's date on the first line of each run a commit left; and in its text, a row written again into the
-// node it is held in, and each bracket orior's side names with its depth in the color of that depth.
+// node it is kept in, and each bracket orior's side names with its depth in the color of that depth.
 
 import { classOf } from "../../../../gui/src-js/editor/grammar.js";
 import { given, putBackAsFound } from "../../../menus.js";
@@ -46,22 +46,22 @@ test("a commit's date stands on the first line of the run it left, and a line no
   }
 });
 
-test("a row written again is put into the node it is held in, its spans given the classes and the text its markup draws, those it held kept", async () => {
+test("a row written again is put into the node it is kept in, its spans given the classes and the text its markup draws, those it kept kept", async () => {
   const view = await given("total = 1\ncount = 'two' + 3\n");
   await ui.waitFor(() => view.s.highlight.runsOf(1).some(([, cls]) => cls), 5000, "the given file's colors");
   const node = document.createElement("div");
   node.innerHTML = view.rowHtml(0);
-  const held = [...node.children];
+  const keptSpans = [...node.children];
   assert.ok(view.rowPatched(node, view.rows().rowOf(1)), "a row of colored text is put in place");
   const drawn = document.createElement("div");
   drawn.innerHTML = view.rowHtml(1);
   const spans = (host) => [...host.children].map((span) => [span.className, span.textContent]);
   assert.equal(node.textContent, drawn.textContent);
   assert.deepEqual(spans(node), spans(drawn));
-  assert.ok(held.length > 0 && held.every((span, at) => node.children[at] === span || at >= node.children.length), "the spans the node held kept");
+  assert.ok(keptSpans.length > 0 && keptSpans.every((span, at) => node.children[at] === span || at >= node.children.length), "the spans the node had stay");
 });
 
-test("a row put into a node that held a hint and a fold's mark keeps neither's width nor its fold in the spans it gives the row", async () => {
+test("a row put into a node that kept a hint and a fold's mark keeps neither's width nor its fold in the spans it gives the row", async () => {
   const view = await given("total = 1\ncount = 'two' + 3\n");
   await ui.waitFor(() => view.s.highlight.runsOf(1).some(([, cls]) => cls), 5000, "the given file's colors");
   const node = document.createElement("div");
@@ -72,7 +72,7 @@ test("a row put into a node that held a hint and a fold's mark keeps neither's w
   assert.equal(node.innerHTML, drawn.innerHTML);
 });
 
-test("a wrapped line's row written again is put into the node it is held in, its part's width and spans as its markup draws them, the spans it held kept", async () => {
+test("a wrapped line's row written again is put into the node it is kept in, its part's width and spans as its markup draws them, the spans it kept kept", async () => {
   const view = await given(`${"total = 'two' + 12345; ".repeat(40)}\ncount = 3\n`);
   await ui.waitFor(() => view.s.highlight.runsOf(0).some(([, cls]) => cls), 5000, "the given file's colors");
   const was = view.wrapOn;
@@ -83,16 +83,16 @@ test("a wrapped line's row written again is put into the node it is held in, its
     assert.ok(rows.lastRowOf(0) >= first + 2, "the long line wraps");
     const node = document.createElement("div");
     node.innerHTML = view.rowCell(first + 1);
-    const held = [...node.querySelectorAll("span")];
+    const keptSpans = [...node.querySelectorAll("span")];
     assert.ok(view.rowPatched(node, first + 2), "a wrapped line's row is put in place");
     const drawn = document.createElement("div");
     drawn.innerHTML = view.rowCell(first + 2);
     const shape = (host) => [host.textContent, ...[...host.querySelectorAll("*")].map((one) => [one.tagName, one.className, one.style.width, one.children.length ? "" : one.textContent])];
     assert.deepEqual(shape(node), shape(drawn));
-    assert.ok(held.some((span) => node.contains(span)), "the spans the node held kept");
+    assert.ok(keptSpans.some((span) => node.contains(span)), "the spans the node had stay");
     const whole = document.createElement("div");
     whole.innerHTML = view.rowCell(first);
-    assert.ok(view.rowPatched(whole, rows.rowOf(1)), "a row of a line that does not wrap put into a node a wrapped row held");
+    assert.ok(view.rowPatched(whole, rows.rowOf(1)), "a row of a line that does not wrap put into a node a wrapped row kept");
     drawn.innerHTML = view.rowCell(rows.rowOf(1));
     assert.deepEqual(shape(whole), shape(drawn));
   } finally {

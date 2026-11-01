@@ -4,6 +4,7 @@
 // over; a string's escapes read; each fault reported with its span and the reading carried on past it, so one file
 // gives all its faults at once; values nested deeper than 512 not read. Values, members and texts past what the read
 // fits are not stored, and it is marked full
+#include "../text/text.h"
 #include "schema_internal.h"
 
 #include <stdlib.h>
@@ -28,7 +29,7 @@ static int read_peek(const CliSchemaReader *reader)
 // `size` bytes stored in the pool: where they start, CLI_SCHEMA_POOL where they do not fit
 static unsigned int read_stored(CliSchemaRead *read, const char *bytes, unsigned long long size)
 {
-    if (!cli_schema_read_room(read, 0ull, 0ull, read->used + size + 1u))
+    if ((read->used + size + 1ull) > read->pool_most)
     {
         read->full = 1;
         return CLI_SCHEMA_POOL;
@@ -65,12 +66,7 @@ static void read_blank(CliSchemaReader *reader)
     const unsigned long long size = reader->read->size;
     for (;;)
     {
-        while ((reader->at < size) &&
-               ((text[reader->at] == ' ') || (text[reader->at] == '\t') || (text[reader->at] == '\n') ||
-                (text[reader->at] == '\r') || (text[reader->at] == '\f')))
-        {
-            reader->at += 1u;
-        }
+        reader->at = cli_text_past_any(text, reader->at, size, " \t\n\r\f");
         unsigned long long end = 0ull;
         if (cli_text_starts(text + reader->at, size - reader->at, "//"))
         {
@@ -171,7 +167,7 @@ static unsigned int read_value(CliSchemaReader *reader);
 static unsigned int read_node(CliSchemaReader *reader, unsigned char kind, unsigned long long from)
 {
     CliSchemaRead *const read = reader->read;
-    if (!cli_schema_read_room(read, read->nodes + 1ull, 0ull, 0ull))
+    if (read->nodes >= read->nodes_most)
     {
         read->full = 1;
         return CLI_SCHEMA_NONE;
@@ -253,7 +249,7 @@ static unsigned int read_members(CliSchemaReader *reader, unsigned int *first)
                 break;
             }
         }
-        if (cli_schema_read_room(read, 0ull, read->members + 1ull, 0ull))
+        if (read->members < read->members_most)
         {
             const unsigned int at = read->members;
             read->member[at] = (CliSchemaMember){key_at, (unsigned int)key_size, from, to, value, CLI_SCHEMA_NONE};
@@ -364,11 +360,7 @@ static unsigned int read_items(CliSchemaReader *reader, unsigned int *first)
 static unsigned int read_word(CliSchemaReader *reader, unsigned long long from)
 {
     const char *const text = reader->read->text;
-    while ((reader->at < reader->read->size) && (((text[reader->at] >= 'a') && (text[reader->at] <= 'z')) ||
-                                                 ((text[reader->at] >= 'A') && (text[reader->at] <= 'Z'))))
-    {
-        reader->at += 1u;
-    }
+    reader->at = cli_text_past_class(text, reader->at, reader->read->size, CLI_TEXT_LETTERS, "");
     const unsigned long long size = reader->at - from;
     const int is_true =
         (size == 4u) && (memor.cmp(&(MemoriaCfg){.src = text + from, .other = "true", .bytes = 4u}) == 0);
@@ -392,12 +384,7 @@ static unsigned int read_word(CliSchemaReader *reader, unsigned long long from)
 static unsigned int read_number(CliSchemaReader *reader, unsigned long long from)
 {
     const char *const text = reader->read->text;
-    while ((reader->at < reader->read->size) &&
-           (((text[reader->at] >= '0') && (text[reader->at] <= '9')) ||
-            (cellul.chr(&(CatenaFinitaCfg){.src = "+-.eE", .cap = CLI_CELLS_POOL, .byte = text[reader->at]}) != NULL)))
-    {
-        reader->at += 1u;
-    }
+    reader->at = cli_text_past_class(text, reader->at, reader->read->size, CLI_TEXT_DIGITS, "+-.eE");
     char raw[512];
     const unsigned long long size = reader->at - from;
     double value = 0.0;
@@ -479,8 +466,39 @@ static unsigned int read_value(CliSchemaReader *reader)
     return CLI_SCHEMA_NONE;
 }
 
+// the most bytes of the error messages a read writes
+#define CLI_SCHEMA_READ_MORE (64ull << 10u)
+
 void cli_schema_read(const char *text, unsigned long long size, CliSchemaRead *read)
 {
+    cli_schema_read_given(read);
+    // a value takes two bytes of the text at the least with its comma, a member five, a text no more than its own bytes
+    // and its end; the values a check makes stand past those the read makes, one for each value and member
+    const unsigned long long values = (size / 2ull) + 2ull;
+    const unsigned long long keyed = (size / 5ull) + 2ull;
+    const unsigned long long nodes = values + keyed + CLI_SCHEMA_CHECK_NODES;
+    const unsigned long long pool = (2ull * size) + CLI_SCHEMA_READ_MORE;
+    read->nodes_most = (nodes < CLI_SCHEMA_NODES) ? (unsigned int)nodes : CLI_SCHEMA_NODES;
+    read->members_most = (keyed < CLI_SCHEMA_MEMBERS) ? (unsigned int)keyed : CLI_SCHEMA_MEMBERS;
+    read->pool_most = (pool < CLI_SCHEMA_POOL) ? (unsigned int)pool : CLI_SCHEMA_POOL;
+    const unsigned long long node_bytes = (unsigned long long)read->nodes_most * sizeof(CliSchemaNode);
+    const unsigned long long member_bytes = (unsigned long long)read->members_most * sizeof(CliSchemaMember);
+    char *const cell =
+        g_cli_cells->temporary_buf_alloc(node_bytes + member_bytes + read->pool_most, &g_cli_schema_cells);
+    read->node = (CliSchemaNode *)(void *)cell;
+    read->member = NULL;
+    read->pool = NULL;
+    if (cell != NULL)
+    {
+        read->member = (CliSchemaMember *)(void *)(cell + node_bytes);
+        read->pool = cell + node_bytes + member_bytes;
+    }
+    else
+    {
+        read->nodes_most = 0u;
+        read->members_most = 0u;
+        read->pool_most = 0u;
+    }
     read->text = text;
     read->size = size;
     read->nodes = 0u;

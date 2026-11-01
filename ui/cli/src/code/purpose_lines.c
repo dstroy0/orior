@@ -50,14 +50,7 @@ int cli_purpose_licensed(const char *text, unsigned long long length)
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_words[word], .cap = CLI_CELLS_POOL});
         for (unsigned long long at = 0ull; (at + size) <= length; at += 1ull)
         {
-            unsigned long long same = 0ull;
-            while ((same < size) &&
-                   ((((text[at + same] >= 'A') && (text[at + same] <= 'Z')) ? (text[at + same] + 32)
-                                                                            : text[at + same]) == s_words[word][same]))
-            {
-                same += 1ull;
-            }
-            if (same == size)
+            if (cellul.starts(&(CatenaFinitaCfg){.src = text + at, .other = s_words[word], .cap = size, .ci = 1}))
             {
                 return 1;
             }
@@ -76,11 +69,8 @@ void cli_purpose_uncommented(const CliSpan *lines, unsigned int count, const cha
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
             rest = (CliSpan){rest.at + size, rest.length - size};
         }
-        while ((rest.length > 0ull) &&
-               ((rest.at[0] == '!') || (rest.at[0] == '/') || (rest.at[0] == '*') || (rest.at[0] == '#')))
-        {
-            rest = (CliSpan){rest.at + 1, rest.length - 1ull};
-        }
+        const unsigned long long marks = cli_text_past_any(rest.at, 0ull, rest.length, "!/*#");
+        rest = (CliSpan){rest.at + marks, rest.length - marks};
         rest = cli_purpose_trimmed(rest);
         if (at != 0u)
         {

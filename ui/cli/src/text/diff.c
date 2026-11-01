@@ -13,9 +13,9 @@
 #define CLI_MOST_EDITS 3000ll
 #define CLI_DIFF_LINES (1u << 20u)
 
-// The diff's room, laid out in a cell sized to the two texts' lines, taken with the diff's lock and given back with
-// it: the hashes of each side's lines, the furthest reach on each diagonal, the steps found, and the lines marked and
-// the hunks; and each round's reaches, the trace, in a cell of its own grown as the rounds go
+// The diff's room, laid out in a cell sized to the two texts' lines, taken with the diff's lock and given back with it:
+// the hashes of each side's lines, the furthest reach on each diagonal, the steps found, and the lines marked and the
+// hunks; and each round's reaches, the trace, in a cell of its own at their most
 typedef struct
 {
     unsigned char *cell;
@@ -38,9 +38,6 @@ typedef struct
     unsigned int *put;
     unsigned int puts;
 } CliDiff;
-
-// the rounds the trace first allocates, doubled as the rounds go past them
-#define CLI_DIFF_TRACE_FIRST 64ll
 
 static CliDiff s_room;
 static CliDiff *s_diff = &s_room;
@@ -93,31 +90,11 @@ static void diff_released(void)
     cli_lock_give(&s_lock);
 }
 
-// the trace given room for round `round`, doubled in a new cell where it has none: 1, or 0 where the cells cannot
-// meet it
+// whether the trace, taken at the rounds the texts can take, has room for round `round`
 static int diff_trace_room(long long round)
 {
-    if (round < s_diff->trace_rounds)
-    {
-        return 1;
-    }
-    long long rounds = (s_diff->trace_rounds > 0) ? s_diff->trace_rounds : CLI_DIFF_TRACE_FIRST;
-    while (rounds <= round)
-    {
-        rounds *= 2;
-    }
-    rounds = (rounds < (CLI_MOST_EDITS + 1)) ? rounds : (CLI_MOST_EDITS + 1);
-    // a round is at most CLI_MOST_EDITS, and the rounds squared fit an unsigned long long
-    long long *const grown =
-        cli_cell_regrown(s_diff->trace, (unsigned long long)(round * round) * sizeof(long long),
-                         (unsigned long long)(rounds * rounds) * sizeof(long long), &g_cli_text_cells);
-    if (grown == NULL)
-    {
-        return 0;
-    }
-    s_diff->trace = grown;
-    s_diff->trace_rounds = rounds;
-    return 1;
+    (void)round;
+    return s_diff->trace != NULL;
 }
 
 // a line's hash: its units four at a time, each word multiplied and turned in, then its length
@@ -199,6 +176,10 @@ static int cli_shortest(const CliRuns *runs)
     }
     const long long most = ((n + m) < CLI_MOST_EDITS) ? (n + m) : CLI_MOST_EDITS;
     const long long middle = most + 1;
+    // every round's frontier, the rounds no more than `most`, in one cell of their squares' bound
+    const unsigned long long trace_bytes = (unsigned long long)((most + 1) * (most + 1)) * sizeof(long long);
+    s_diff->trace = g_cli_cells->temporary_buf_alloc(trace_bytes, &g_cli_text_cells);
+    s_diff->trace_rounds = (s_diff->trace != NULL) ? (most + 1) : 0;
     memor.set(
         &(MemoriaCfg){.dst = s_diff->v, .val = 0, .bytes = (unsigned long long)((2 * most) + 3) * sizeof(long long)});
     long long found = -1;

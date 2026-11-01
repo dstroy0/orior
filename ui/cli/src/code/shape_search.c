@@ -7,10 +7,10 @@
 // CLI_SHAPE_TOKENS and the pattern's past CLI_SHAPE_PATTERN are not read. One search runs at a time
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "shape_internal.h"
 
-// the bytes a match's template is begun to be written in, doubling as it is
-#define CLI_SHAPE_WITH_FIRST 256u
+// the bytes a match's template is written in
 
 // A search's room, a cell taken with the search's lock and given back with it: the code's tokens and the pattern's
 // parts, each part's hole, the holes and the matcher, the tokens' and the holes' lists after it in the same cell, as
@@ -224,16 +224,19 @@ void cli_shape_search(CliSymbolsLanguages *languages, const char *language, cons
         CliShapeFound found = {{0u, 0u}, {0u, 0u}, NULL, 0ull, NULL, 0ull, 0};
         found.from = search_walked(src, size, &walk, s_room->code.start[at]);
         found.line = src + walk.line_start;
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = found.line, .val = '\n', .bytes = (size_t)(size - walk.line_start)});
-        const unsigned long long line_size =
-            (newline != NULL) ? (unsigned long long)(newline - found.line) : size - walk.line_start;
+        const unsigned long long line_size = cli_text_line_at(found.line, 0ull, size - walk.line_start).stop;
         found.line_size = cli_text_trimmed_end(found.line, line_size);
         found.to = search_walked(src, size, &walk, s_room->code.end[end - 1u]);
         VerbaLinea with = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
         if (template_text != NULL)
         {
-            (void)cli_growing_line_made(&with, CLI_SHAPE_WITH_FIRST, &g_cli_shape_cells);
+            // the template's bytes, and for each placeholder, 3 bytes of it at the least, what the match spans at most
+            const unsigned long long template_length =
+                cellul.len(&(CatenaFinitaCfg){.src = template_text, .cap = CLI_CELLS_POOL});
+            const unsigned long long span = (unsigned long long)(s_room->code.end[end - 1u] - s_room->code.start[at]);
+            const unsigned long long with_room = template_length + (((template_length / 3ull) + 1ull) * span) + 1ull;
+            char *const with_cell = g_cli_cells->temporary_buf_alloc(with_room, &g_cli_shape_cells);
+            with = mmgr_line_over(with_cell, with_room);
             search_filled(template_text, &with);
             found.has_with = mmgr_line_ok(&with);
             found.with = with.out;

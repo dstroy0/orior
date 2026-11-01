@@ -4,6 +4,7 @@
 // artifacts it made, for a debugger to start it
 #include "../programs/executables.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "cargo_report.h"
 #include "cargo_tests.h"
@@ -24,16 +25,17 @@ static int binary_is(const CliCargoTarget *target, const CliJson *json, unsigned
     for (unsigned int index = 0u; cli_json_item(json, kinds, index) != CLI_JSON_NONE; index += 1u)
     {
         const char *const kind = cli_json_string(json, cli_json_item(json, kinds, index), NULL);
-        const size_t length = (kind != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}) : 0u;
+        if (kind == NULL)
+        {
+            continue;
+        }
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL});
         is_lib = is_lib ||
                  ((length >= 3u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = kind + length - 3u, .other = "lib", .cap = CLI_CELLS_POOL}))) ||
-                 ((kind != NULL) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "proc-macro", .cap = CLI_CELLS_POOL})));
-        is_bin = is_bin || ((kind != NULL) &&
-                            (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "bin", .cap = CLI_CELLS_POOL})));
-        is_test = is_test || ((kind != NULL) &&
-                              (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "test", .cap = CLI_CELLS_POOL})));
+                 (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "proc-macro", .cap = CLI_CELLS_POOL}));
+        is_bin = is_bin || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "bin", .cap = CLI_CELLS_POOL}));
+        is_test = is_test || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "test", .cap = CLI_CELLS_POOL}));
     }
     return (target->kind == CLI_CARGO_LIB) ? is_lib
            : (target->kind == CLI_CARGO_BIN)
@@ -80,10 +82,10 @@ static int binary_read(const CliCargoFound *one, const char *out, unsigned long 
     unsigned long long at = 0ull;
     while (at < size)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = out + at, .val = '\n', .bytes = size - at});
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - out) : size;
+        const CliTextLine bounds = cli_text_line_at(out, at, size);
+        const unsigned long long end = bounds.stop;
         const unsigned long long start = at;
-        at = (newline != NULL) ? end + 1ull : size;
+        at = bounds.next;
         if (binary_line(one, out + start, end - start, program))
         {
             return 1;

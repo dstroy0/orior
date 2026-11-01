@@ -7,6 +7,7 @@
 // going on under its own first word. A run's tags are joined from their lines into a room sized to the comment's bytes
 // it left out of the run
 #include "../command_line/cells.h"
+#include "../text/text.h"
 #include "fill_internal.h"
 
 // the bytes a tag line's head, its hanging lead and the comment's lead each occupy
@@ -166,15 +167,15 @@ static unsigned int comment_body(const char *text, unsigned long long size, cons
     cli_text_trimmed(text + first->start, first->end - first->start, &from, &to);
     const char *open = text + first->start + from;
     unsigned long long open_size = to - from;
-    while ((open_size > 0u) && (open[0] == '/'))
     {
-        open += 1;
-        open_size -= 1u;
+        const unsigned long long lead = cli_text_past_any(open, 0ull, open_size, "/");
+        open += lead;
+        open_size -= lead;
     }
-    while ((open_size > 0u) && (open[0] == '*'))
     {
-        open += 1;
-        open_size -= 1u;
+        const unsigned long long lead = cli_text_past_any(open, 0ull, open_size, "*");
+        open += lead;
+        open_size -= lead;
     }
     cli_text_trimmed(open, open_size, &from, &to);
     unsigned int count = comment_body_put(0u, open + from, to - from, to > from);
@@ -183,10 +184,10 @@ static unsigned int comment_body(const char *text, unsigned long long size, cons
     {
         unsigned long long length = 0ull;
         const char *body = comment_trimmed_start(text, &line, &length);
-        while ((length > 0u) && (body[0] == '*'))
         {
-            body += 1;
-            length -= 1u;
+            const unsigned long long lead = cli_text_past_any(body, 0ull, length, "*");
+            body += lead;
+            length -= lead;
         }
         cli_text_trimmed(body, length, &from, &to);
         count = comment_body_put(count, body + from, to - from, 1);
@@ -194,18 +195,12 @@ static unsigned int comment_body(const char *text, unsigned long long size, cons
     cli_text_trimmed(text + last->start, last->end - last->start, &from, &to);
     const char *close = text + last->start + from;
     unsigned long long close_size = to - from;
-    while ((close_size > 0u) && (close[close_size - 1u] == '/'))
+    close_size = cli_text_back_past(close, close_size, "/");
+    close_size = cli_text_back_past(close, close_size, "*");
     {
-        close_size -= 1u;
-    }
-    while ((close_size > 0u) && (close[close_size - 1u] == '*'))
-    {
-        close_size -= 1u;
-    }
-    while ((close_size > 0u) && (close[0] == '*'))
-    {
-        close += 1;
-        close_size -= 1u;
+        const unsigned long long lead = cli_text_past_any(close, 0ull, close_size, "*");
+        close += lead;
+        close_size -= lead;
     }
     cli_text_trimmed(close, close_size, &from, &to);
     return comment_body_put(count, close + from, to - from, to > from);
@@ -245,10 +240,10 @@ static void comment_tag_of(const char *line, unsigned long long size, unsigned l
     (void)cli_text_word(line, size, &walk, &word, tag_size);
     *kind = line;
     *kind_size = *tag_size;
-    while ((*kind_size > 0u) && ((*kind)[0] == '@'))
     {
-        *kind += 1;
-        *kind_size -= 1u;
+        const unsigned long long lead = cli_text_past_any(*kind, 0ull, *kind_size, "@");
+        *kind += lead;
+        *kind_size -= lead;
     }
 }
 
@@ -307,10 +302,10 @@ static void comment_split_tag(const char *line, unsigned long long size, CliFill
             break;
         }
     }
-    while ((rest_size > 0u) && (rest[0] == '-'))
     {
-        rest += 1;
-        rest_size -= 1u;
+        const unsigned long long lead = cli_text_past_any(rest, 0ull, rest_size, "-");
+        rest += lead;
+        rest_size -= lead;
     }
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;

@@ -28,7 +28,7 @@ static int findings_file_of(unsigned int pair, char *uri, char *key)
 
 // the findings `items` of the checker `id` stored for the file of `key` and `uri`: 1 where they changed; under the
 // checks' lock. The file's entry is read into a tree with room over for the findings copied in, their key and an
-// object made where none was stored, and written through pieces into a cell of its size
+// object made where none was stored, and written into a cell of the most the tree writes to
 static int findings_put(const char *key, const char *uri, const char *id, unsigned int items)
 {
     const char *beside = NULL;
@@ -59,16 +59,13 @@ static int findings_put(const char *key, const char *uri, const char *id, unsign
     }
     cli_json_set(&json, entry, id, cli_json_copy_from(&json, &s_found.json, items));
     cli_json_sorted(&json, entry);
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea written;
-    cli_pieces_begun(&pieces, &written, piece, sizeof(piece), &g_cli_servers_cells);
+    const unsigned long long room = cli_json_written_room(&json);
+    char *const entry_written = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+    VerbaLinea written = mmgr_line_over(entry_written, room);
     cli_json_write(&json, entry, &written, 0u, 1);
-    unsigned long long written_size = 0ull;
-    char *const entry_written = cli_pieces_joined(&pieces, &written, "a file's findings written", &written_size);
-    if (!json.full && (entry_written != NULL))
+    if (!json.full && mmgr_line_ok(&written))
     {
-        (void)cli_keyed_put(&g_cli_servers_checked, key, uri, entry_written, written_size);
+        (void)cli_keyed_put(&g_cli_servers_checked, key, uri, written.out, written.at);
     }
     g_cli_cells->persistent_buf_release(entry_written, &g_cli_servers_cells);
     cli_json_given(&json);
@@ -84,7 +81,9 @@ void cli_servers_findings_stored(const char *id, const char *found, unsigned lon
     // the files whose findings changed, in a cell of one place for each file the findings name
     const unsigned int files = cli_json_is(json, root, CFG_JSON_ARRAY) ? json->node[root].count : 0u;
     unsigned int *const changed_files =
-        (files > 0u) ? g_cli_cells->temporary_buf_alloc((unsigned long long)files * sizeof(unsigned int), &g_cli_servers_cells) : NULL;
+        (files > 0u)
+            ? g_cli_cells->temporary_buf_alloc((unsigned long long)files * sizeof(unsigned int), &g_cli_servers_cells)
+            : NULL;
     unsigned int changed = 0u;
     char uri[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];

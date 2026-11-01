@@ -8,8 +8,6 @@
 #ifndef QUERY_H
 #define QUERY_H
 
-#include "../../cli/src/command_line/file_writing.h"
-
 #include <stddef.h>
 
 #ifdef __cplusplus

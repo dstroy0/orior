@@ -4,15 +4,15 @@
 // tree fills read from that table, `{name}` in the tables' paths the name of the folder the plugin stands for, and each
 // rule whose pattern is a word list given the list's words as its pattern; and the folders a plugin stands for
 #include "../command_line/cells.h"
-#include "../command_line/file_writing.h"
 #include "../editor/defs.h"
 #include "../text/regexp.h"
+#include "../text/text.h"
 #include "plugins.h"
 
-// the bytes a grammar and a pattern are begun to be written in, doubling as they are, the most groups a list's pattern
-// has and one, and the most letters of a cell matched
-#define CLI_TABLES_FIRST 4096u
-#define CLI_TABLES_PATTERN_FIRST 256u
+// the bytes a grammar and a pattern are written in, the most groups a list's pattern has and one, and the most letters
+// of a cell matched
+#define CLI_TABLES_ROOM (4ull << 20u)
+#define CLI_TABLES_PATTERN_ROOM (1ull << 20u)
 #define CLI_TABLES_GROUPS 8u
 #define CLI_TABLES_LETTERS 1024u
 
@@ -93,7 +93,7 @@ static int cli_tables_path(const CliJson *json, unsigned int table, const char *
     VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, tree);
     mmgr_line_ch(&line, '/');
-    cli_tables_named(&line, (text != NULL) ? text : "", (text != NULL) ? length : 0ull, name);
+    cli_tables_named(&line, (text != NULL) ? text : "", length, name);
     return (text != NULL) && (mmgr_line_finish(&line) != 0ull);
 }
 
@@ -343,19 +343,7 @@ static unsigned int cli_tables_words_pattern(const CliJson *json, unsigned int g
                 continue;
             }
             mmgr_line_put(source, (taken != 0u) ? "|" : "");
-            for (unsigned long long at = 0ull; at < length; at += 1ull)
-            {
-                const char *const special = "\\^$.|?*+()[]{}";
-                for (const char *one = special; *one != '\0'; one += 1)
-                {
-                    if (*one == word[at])
-                    {
-                        mmgr_line_ch(source, '\\');
-                        break;
-                    }
-                }
-                mmgr_line_ch(source, word[at]);
-            }
+            cli_text_put_marked_n(source, word, length, "\\^$.|?*+()[]{}", '\\');
             taken += 1u;
         }
     }
@@ -380,8 +368,9 @@ static int cli_tables_rule_written(const CliJson *json, unsigned int grammar, un
     }
     const char *const before = cli_json_string(json, cli_json_member(json, pattern, "before"), NULL);
     const char *const after = cli_json_string(json, cli_json_member(json, pattern, "after"), NULL);
-    VerbaLinea source;
-    if (!cli_growing_line_temporary(&source, CLI_TABLES_PATTERN_FIRST, &g_cli_plugins_cells))
+    char *const source_cell = g_cli_cells->temporary_buf_alloc(CLI_TABLES_PATTERN_ROOM, &g_cli_plugins_cells);
+    VerbaLinea source = mmgr_line_over(source_cell, CLI_TABLES_PATTERN_ROOM);
+    if (source.out == NULL)
     {
         *failed = 1;
         return 0;
@@ -452,8 +441,9 @@ static int cli_tables_rules_written(const CliJson *json, unsigned int grammar, V
 int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const char *tree, const char *name,
                               VerbaLinea *out, VerbaLinea *err_msg)
 {
-    VerbaLinea lists;
-    if (!cli_growing_line_temporary(&lists, CLI_TABLES_FIRST, &g_cli_plugins_cells))
+    char *const lists_cell = g_cli_cells->temporary_buf_alloc(CLI_TABLES_ROOM, &g_cli_plugins_cells);
+    VerbaLinea lists = mmgr_line_over(lists_cell, CLI_TABLES_ROOM);
+    if (lists.out == NULL)
     {
         mmgr_line_put(err_msg, "a grammar could not be given a cell to be made whole in");
         return 0;
@@ -462,7 +452,8 @@ int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const c
     CliJson filled;
     cli_json_begun(&filled, NULL, 0u, NULL, 0ull);
     const unsigned int filled_grammar =
-        whole ? cli_json_taken_temporary(&filled, lists.out, lists.at, err_msg, &g_cli_plugins_cells) : CLI_JSON_NONE;
+        whole ? cli_json_taken_temporary(&filled, lists.out, lists.at, 0u, 0ull, err_msg, &g_cli_plugins_cells)
+              : CLI_JSON_NONE;
     whole = (filled_grammar != CLI_JSON_NONE) && cli_tables_rules_written(&filled, filled_grammar, out, err_msg);
     cli_json_given(&filled);
     g_cli_cells->persistent_buf_release(lists.out, &g_cli_plugins_cells);

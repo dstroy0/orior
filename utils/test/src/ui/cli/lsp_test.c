@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lsp_test.c: the language servers' check: a path and its URI name each other, a server that ends is known to have
 // ended with what it had open and why, a request the server sends is answered later while it is received on meanwhile,
-// and a message is read by its length
+// a request's answer is its message handed over, and a message is read by its length into a cell of the owner named
+#include "../../../../../ui/cli/src/command_line/cells.h"
 #include "../../../../../ui/cli/src/servers/lsp.h"
 #include "../../../../../ui/cli/src/servers/lsp_internal.h"
 #include "../../../../../ui/cli/src/tests/test_runs.h"
@@ -45,6 +46,11 @@ static const char s_stand_in[] =
     "    elif method is None and message.get(\"id\") == 7:\n"
     "        sys.stderr.write(\"answered \" + json.dumps(message.get(\"result\")) + \"\\n\")\n"
     "        sys.stderr.flush()\n"
+    "    elif method == \"orior/echo\":\n"
+    "        send({\"jsonrpc\": \"2.0\", \"id\": message[\"id\"], \"result\": message[\"params\"]})\n"
+    "    elif method == \"orior/refuse\":\n"
+    "        send({\"jsonrpc\": \"2.0\", \"id\": message[\"id\"], \"error\": {\"code\": 1, \"message\": "
+    "\"refused\"}})\n"
     "    elif method == \"orior/end\":\n"
     "        sys.stderr.write(\"ending as requested\\n\")\n"
     "        sys.stderr.flush()\n"
@@ -181,7 +187,8 @@ static void lsp_request_later(void *context, const char *method, const char *par
         later->deferred = cli_lsp_answer_later(later->id, sizeof(later->id));
     }
     (void)embed_atomic_usize_fetch_add(
-        &later->meanwhile, (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "orior/meanwhile", .cap = CLI_CELLS_POOL})) ? 1u : 0u);
+        &later->meanwhile,
+        (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "orior/meanwhile", .cap = CLI_CELLS_POOL})) ? 1u : 0u);
 }
 
 // a request the server sends is recorded, the server received on meanwhile, and answered later
@@ -230,6 +237,51 @@ static void lsp_answered_later(void)
     cli_lsp_unref(server);
 }
 
+// a request's answer is the message it came in handed over, its result ended by a 0 where it stands, and given back by
+// the caller; a request refused hands nothing over
+static void lsp_answer_handed(void)
+{
+    char python[CLI_PATH_MAX_LEN];
+    if (!cli_test_python(python))
+    {
+        cli_check(1, "the machine has no Python, and no server runs");
+        return;
+    }
+    char dir[CLI_PATH_MAX_LEN];
+    char script[CLI_PATH_MAX_LEN];
+    char why[1024];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check_folder("lsp_handed", dir);
+    cli_full(dir, "stand_in.py", script);
+    (void)query_file_written(script, s_stand_in, sizeof(s_stand_in) - 1u);
+    const char *const args[1] = {script};
+    CliLsp *const server = cli_lsp_started(python, args, 1u, dir, "null", 4ull, NULL, 0u, lsp_request, NULL, &err_msg);
+    if (server == NULL)
+    {
+        cli_check(0, "the server starts");
+        return;
+    }
+    const unsigned long long before = embed_atomic_usize_load(&g_cli_servers_cells.in_use);
+    CliLspAnswer answer;
+    cli_check(cli_lsp_requested(server, "orior/echo", "[1,2]", 5ull, 5000ull, &answer, &err_msg),
+              "a request is answered");
+    cli_check((answer.message != NULL) && (answer.text > answer.message),
+              "the result stands in the message handed over");
+    cli_check_text(answer.text, answer.size, "[1, 2]", "and is the server's result");
+    cli_check(answer.text[answer.size] == '\0', "ended by a 0");
+    cli_check(embed_atomic_usize_load(&g_cli_servers_cells.in_use) > before,
+              "the message's cell stays taken for the caller");
+    g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
+    cli_check(embed_atomic_usize_load(&g_cli_servers_cells.in_use) == before, "until the caller gives it back");
+    cli_check(!cli_lsp_requested(server, "orior/refuse", "null", 4ull, 5000ull, &answer, &err_msg),
+              "a request the server refuses is 0");
+    cli_check(answer.message == NULL, "with nothing handed over");
+    cli_check_text(why, err_msg.at, "refused", "and the server's reason given");
+    cli_check(embed_atomic_usize_load(&g_cli_servers_cells.in_use) == before, "and the refusal's message given back");
+    cli_lsp_stopped(server);
+    cli_lsp_unref(server);
+}
+
 // A text a reader reads from, a piece at a time
 typedef struct
 {
@@ -270,6 +322,27 @@ static void lsp_framed(void)
     cli_check(!cli_lsp_read_message(&s_reader, body, sizeof(body), &size), "and none past the end");
 }
 
+// a message read into a cell counts to the owner it was read for, and to no other
+static void lsp_message_owned(void)
+{
+    static const char s_framed[] = "Content-Length: 2\r\n\r\n{}";
+    static LspSource s_source = {s_framed, sizeof(s_framed) - 1u, 0ull};
+    static CliLspReader s_reader;
+    s_reader.read = lsp_read;
+    s_reader.source = &s_source;
+    const unsigned long long debug_before = embed_atomic_usize_load(&g_cli_debug_cells.in_use);
+    const unsigned long long servers_before = embed_atomic_usize_load(&g_cli_servers_cells.in_use);
+    unsigned long long size = 0ull;
+    char *const message = cli_lsp_message_taken(&s_reader, &size, &g_cli_debug_cells);
+    cli_check(message != NULL, "a message is read into a cell");
+    cli_check_text((message != NULL) ? message : "", size, "{}", "whole");
+    cli_check((message != NULL) && (message[size] == '\0'), "with a 0 after it");
+    cli_check(embed_atomic_usize_load(&g_cli_debug_cells.in_use) > debug_before, "the cell counts to the owner named");
+    cli_check(embed_atomic_usize_load(&g_cli_servers_cells.in_use) == servers_before, "and to no other");
+    g_cli_cells->persistent_buf_release(message, &g_cli_debug_cells);
+    cli_check(embed_atomic_usize_load(&g_cli_debug_cells.in_use) == debug_before, "and is given back under that owner");
+}
+
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
@@ -277,6 +350,8 @@ int main(void)
     lsp_uri();
     lsp_ended();
     lsp_answered_later();
+    lsp_answer_handed();
     lsp_framed();
+    lsp_message_owned();
     return cli_checked();
 }

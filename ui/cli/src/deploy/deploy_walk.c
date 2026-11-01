@@ -4,6 +4,7 @@
 // and each file and folder its patterns leave out with the pattern that leaves it out, each list sorted by path
 #include "../command_line/cells.h"
 #include "../text/digest.h"
+#include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 
@@ -126,10 +127,8 @@ static void walk_from(const char *from)
     for (const char *part = from; *part != '\0';)
     {
         size_t length = 0u;
-        while ((part[length] != '\0') && (part[length] != '/') && (part[length] != '\\'))
-        {
-            length += 1u;
-        }
+        length = (size_t)cli_text_to_any(
+            part, length, length + cellul.len(&(CatenaFinitaCfg){.src = part + length, .cap = CLI_CELLS_POOL}), "/\\");
         if ((length > 0u) && !((length == 1u) && (part[0] == '.')))
         {
             mmgr_line_put(&line, (line.at > 0u) ? "/" : "");
@@ -243,13 +242,14 @@ int cli_deploy_gather(VerbaLinea *err_msg)
         VerbaLinea line = {full, sizeof(full), 0ull};
         cli_deploy_full(at, &line);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(full, &size) : NULL;
+        const unsigned char *const bytes =
+            (mmgr_line_finish(&line) != 0ull) ? cli_file_taken(full, &size, &g_cli_deploy_cells) : NULL;
         if (bytes != NULL)
         {
             VerbaLinea hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ull};
             cli_sha256_text(bytes, size, &hash);
             mmgr_line_finish(&hash);
-            cli_file_let_go(bytes, size);
+            cli_file_given(bytes, &g_cli_deploy_cells);
         }
     }
     return 1;

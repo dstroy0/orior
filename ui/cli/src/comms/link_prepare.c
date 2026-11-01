@@ -3,6 +3,7 @@
 // link_prepare.c: orior's server put on another machine where it is not there: the machine queried what it is, the
 // server for it found or built here, sent under a name of its size and the time it was written, and the line that
 // starts it on the tree given
+#include "../command_line/cells.h"
 #include "../runs/runner.h"
 #include "../text/json_tree.h"
 #include "link.h"
@@ -28,17 +29,11 @@ int cli_link_is_windows(const char *system)
 // the word of `system` at `*at` past the spaces before it, its start and length; `*at` past it
 static void prepare_word(const char *system, unsigned long long *at, const char **word, unsigned long long *size)
 {
-    while ((system[*at] != '\0') &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n\v\f", .cap = CLI_CELLS_POOL, .byte = system[*at]}) != NULL))
-    {
-        *at += 1u;
-    }
+    *at += cli_text_past_any(
+        system + *at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = system + *at, .cap = CLI_CELLS_POOL}), CLI_TEXT_WHITE);
     *word = system + *at;
-    while ((system[*at] != '\0') &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n\v\f", .cap = CLI_CELLS_POOL, .byte = system[*at]}) == NULL))
-    {
-        *at += 1u;
-    }
+    *at += cli_text_to_any(system + *at, 0ull,
+                           cellul.len(&(CatenaFinitaCfg){.src = system + *at, .cap = CLI_CELLS_POOL}), CLI_TEXT_WHITE);
     *size = (unsigned long long)(system + *at - *word);
 }
 
@@ -87,10 +82,7 @@ static void prepare_build_err_written(const CliRan *ran, VerbaLinea *err_msg)
 {
     unsigned long long start = ran->err_size;
     unsigned int lines = 0u;
-    while ((start > 0u) && (ran->err[start - 1u] == '\n'))
-    {
-        start -= 1u;
-    }
+    start = cli_text_back_past(ran->err, start, "\n");
     const unsigned long long end = start;
     while (start > 0u)
     {
@@ -212,10 +204,7 @@ static int prepare_probe(const CliLinkAddress *address, char *system, char *home
     for (unsigned int field = 0u; field < 2u; field += 1u)
     {
         unsigned long long end = at;
-        while ((end < probe_line.at) && (probe[end] != '\n'))
-        {
-            end += 1u;
-        }
+        end = cli_text_to_any(probe, end, probe_line.at, "\n");
         unsigned long long start = at;
         unsigned long long stop = end;
         while ((start < stop) && (cellul.chr(&(CatenaFinitaCfg){
@@ -284,7 +273,7 @@ int cli_link_prepare(const CliLinkAddress *address, CliLinkStated stated, void *
         mmgr_line_finish(&msg);
         stated(context, "preparing", msg_buf);
         unsigned long long bytes_size = 0ull;
-        const unsigned char *const bytes = cli_file_read(local, &bytes_size);
+        const unsigned char *const bytes = cli_file_taken(local, &bytes_size, &g_cli_comms_cells);
         if (bytes == NULL)
         {
             mmgr_line_put(err_msg, local);
@@ -309,7 +298,7 @@ int cli_link_prepare(const CliLinkAddress *address, CliLinkStated stated, void *
         cli_link_quote(program, cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), &send);
         mmgr_line_finish(&send);
         const int sent = cli_link_remote_run(address, line, (const char *)bytes, bytes_size, &nothing, err_msg);
-        cli_file_let_go(bytes, bytes_size);
+        cli_file_given(bytes, &g_cli_comms_cells);
         if (!sent)
         {
             return 0;

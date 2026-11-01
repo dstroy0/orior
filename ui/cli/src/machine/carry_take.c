@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // carry_take.c: what is carried here compared with orior's own folder, taken in as the reader chooses with each file it
 // writes over saved, and a taking undone
+#include "../command_line/cells.h"
 #include "../text/text.h"
 #include "carry_internal.h"
 
@@ -62,8 +63,11 @@ static void cli_keys_of(unsigned int mine, unsigned int theirs)
 // a setting's value written as JSON in a string, or null where it is not set
 static void cli_value_written(VerbaLinea *out, unsigned int value)
 {
-    VerbaLinea line;
-    if ((value == CLI_JSON_NONE) || !cli_growing_line_temporary(&line, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
+    const unsigned long long line_room = cli_json_written_room(&s_take.room.json);
+    char *const line_cell =
+        (value != CLI_JSON_NONE) ? g_cli_cells->temporary_buf_alloc(line_room, &g_cli_machine_cells) : NULL;
+    VerbaLinea line = mmgr_line_over(line_cell, line_room);
+    if (line_cell == NULL)
     {
         mmgr_line_put(out, "null");
         return;
@@ -117,8 +121,9 @@ static int cli_settings_differ(const CliCarried *there, unsigned int mine_at, un
 void cli_carry_differences(const char *home, const CliCarried *there, VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
-    VerbaLinea settings;
-    if (!cli_growing_line_temporary(&settings, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
+    char *const settings_cell = g_cli_cells->temporary_buf_alloc(CLI_CARRY_WRITTEN_ROOM, &g_cli_machine_cells);
+    VerbaLinea settings = mmgr_line_over(settings_cell, CLI_CARRY_WRITTEN_ROOM);
+    if (settings.out == NULL)
     {
         mmgr_line_put(out, "[]");
         cli_lock_give(&s_lock);
@@ -243,8 +248,9 @@ static int cli_settings_taken(const char *before, unsigned long long before_size
 static int cli_place_taken(const char *home, const char *backup_dir, const char *place, const CliCarried *there,
                            const char *const *keys, unsigned int key_count, VerbaLinea *err_msg)
 {
-    VerbaLinea settings;
-    if (!cli_growing_line_made(&settings, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
+    char *const settings_cell = g_cli_cells->temporary_buf_alloc(CLI_CARRY_WRITTEN_ROOM, &g_cli_machine_cells);
+    VerbaLinea settings = mmgr_line_over(settings_cell, CLI_CARRY_WRITTEN_ROOM);
+    if (settings.out == NULL)
     {
         mmgr_line_put(err_msg, "the settings written could not be given a cell");
         return 0;
@@ -252,7 +258,7 @@ static int cli_place_taken(const char *home, const char *backup_dir, const char 
     char path[CLI_PATH_MAX_LEN];
     cli_full(home, place, path);
     unsigned long long before_size = 0ull;
-    const unsigned char *const before = cli_file_read_utf8(path, &before_size);
+    const unsigned char *const before = cli_file_taken_utf8(path, &before_size, &g_cli_machine_cells);
     const char *text = NULL;
     unsigned long long size = 0ull;
     int taken = 1;
@@ -283,11 +289,11 @@ static int cli_place_taken(const char *home, const char *backup_dir, const char 
     // view of one that was is a fault elsewhere; what the writing needs of it is in the settings written and the saved
     // copy already
     const unsigned int stood = (before != NULL) ? 1u : 0u;
-    if (before != NULL)
+    cli_file_given(before, &g_cli_machine_cells);
+    if (taken && (text != NULL))
     {
-        cli_file_let_go(before, before_size);
+        taken = cli_written_to(path, text, size, err_msg);
     }
-    taken = taken && ((text == NULL) || cli_written_to(path, text, size, err_msg));
     if (taken && (text != NULL) && (s_take.taking.files < CLI_TAKING_FILES))
     {
         (void)cellul.copy(
@@ -303,8 +309,9 @@ int cli_carry_take(const char *home, const char *from, const CliCarried *there, 
                    unsigned int count, const char *const *keys, unsigned int key_count, VerbaLinea *out,
                    VerbaLinea *err_msg)
 {
-    VerbaLinea written;
-    if (!cli_growing_line_temporary(&written, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
+    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_CARRY_WRITTEN_ROOM, &g_cli_machine_cells);
+    VerbaLinea written = mmgr_line_over(written_cell, CLI_CARRY_WRITTEN_ROOM);
+    if (written.out == NULL)
     {
         mmgr_line_put(err_msg, "a taking written could not be given a cell");
         return 0;

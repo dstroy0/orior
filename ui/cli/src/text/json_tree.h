@@ -28,8 +28,8 @@ typedef struct
     unsigned int count;
 } CliJsonNode;
 
-// A tree: its nodes and its texts in the storage handed it, and 1 in `full` where a node or a text did not fit; a
-// tree that grows stores both in one cell of its own, taken as `what`, and moves into a larger one as they fill
+// A tree: its nodes and its texts in the storage handed it, and 1 in `full` where a node or a text did not fit; a tree
+// taken stores both in one cell of its own
 typedef struct
 {
     CliJsonNode *node;
@@ -39,7 +39,6 @@ typedef struct
     unsigned long long used;
     unsigned long long text_most;
     int full;
-    int grows;
     const char *what;
 } CliJson;
 
@@ -55,31 +54,24 @@ unsigned int cli_json_read(CliJson *json, const char *text, unsigned long long s
 unsigned int cli_json_tokens_counted(const char *text, unsigned long long size);
 // a tree made empty in a cell of its own sized for `nodes_most` nodes and `text_most` bytes of texts: 1, or 0 with the
 // cell refused and reported and the tree containing nothing. Every take below counts the tree's cell to `owner`, and
-// the tree grows and is given back for the owner its cell counts to
+// the tree is given back for the owner its cell counts to
 int cli_json_reserved(CliJson *json, unsigned int nodes_most, unsigned long long text_most, const char *what,
                       CellOwner *owner);
-// a tree made empty in a cell of its own that grows: `nodes_first` nodes and `text_first` bytes to begin with, and a
-// cell of twice the room taken, what it contains retained, as a node or a text does not fit: 1, or 0 with the cell
-// refused; room on the tree for `nodes` nodes and `text` bytes more, a tree that grows moved into a larger cell where
-// they do not fit: 1, or 0 with the tree full; and a tree emptied, its room retained. Every node is an index and every
-// text a place, and a tree moves whole: a pointer into a growing tree's texts is valid only until the next node or text
-// is made
-int cli_json_growing(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what,
-                     CellOwner *owner);
+// the same tree with its cell from the temporary tier, for a tree the call that makes it gives back; room on the tree
+// for `nodes` nodes and `text` bytes more: 1, or 0 with the tree full; and a tree emptied, its room retained
+int cli_json_reserved_temporary(CliJson *json, unsigned int nodes_most, unsigned long long text_most, const char *what,
+                                CellOwner *owner);
 int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text);
 void cli_json_emptied(CliJson *json);
 // `size` bytes of `text` read into a tree in a cell of its own, sized to the tokens they contain and to their bytes,
 // with `nodes_more` nodes and `text_more` bytes over for what is made after: its root, or CLI_JSON_NONE with why given;
 // and the tree's cell given back, the tree left containing nothing, where it contains one or none
-// a growing tree whose cell the call that makes it gives back, each larger one from the temporary tier
-int cli_json_growing_temporary(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what,
-                               CellOwner *owner);
 unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long size, unsigned int nodes_more,
                             unsigned long long text_more, VerbaLinea *err_msg, CellOwner *owner);
 void cli_json_given(CliJson *json);
-// the same read with the tree's cell on the lane the thread is on, for a tree given back before the lane is rewound
-unsigned int cli_json_taken_temporary(CliJson *json, const char *text, unsigned long long size, VerbaLinea *err_msg,
-                                  CellOwner *owner);
+// the same read with the tree's cell from the temporary tier, for a tree the call that reads it gives back
+unsigned int cli_json_taken_temporary(CliJson *json, const char *text, unsigned long long size, unsigned int nodes_more,
+                                      unsigned long long text_more, VerbaLinea *err_msg, CellOwner *owner);
 // the nodes a node and all under it take, and the bytes of their texts and keys, added to `nodes` and `text`, the room
 // a copy of it takes in another tree
 void cli_json_extent(const CliJson *json, unsigned int node, unsigned int *nodes, unsigned long long *text);
@@ -115,6 +107,11 @@ int cli_json_same(const CliJson *json, unsigned int one, const CliJson *other_js
 // the node written as JSON into `out`: on one line, or as serde_json's pretty writer lays it out with `indent` spaces
 // to a level where `indent` is not 0; every object's keys in order where `sorted` is 1 (json_tree_write.c)
 void cli_json_write(const CliJson *json, unsigned int node, VerbaLinea *out, unsigned int indent, int sorted);
+// the most bytes any node of the tree writes to on one line, its 0 after them counted: a line of this room holds what
+// cli_json_write writes of it with no indent, and what is written from its strings as they are
+unsigned long long cli_json_written_room(const CliJson *json);
+// the same with `indent` spaces to a level, for a tree no deeper than CLI_JSON_PRETTY_DEPTH
+unsigned long long cli_json_pretty_room(const CliJson *json, unsigned int indent);
 // `length` bytes of `text` written as a JSON string, quotes about them, as serde_json escapes it
 void cli_json_quoted(VerbaLinea *out, const char *text, unsigned long long length);
 // `length` bytes written as a JSON string as cli_json_quoted writes them, each byte that starts no whole UTF-8 letter

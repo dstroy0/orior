@@ -13,16 +13,18 @@
 void cli_run_file_quoted(VerbaLinea *out, const char *path)
 {
     mmgr_line_ch(out, '\'');
-    for (const char *at = path; at[0] != '\0'; at += 1)
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; at < whole;)
     {
-        if (at[0] == '\'')
+        const unsigned long long stop = cli_text_to_any(path, at, whole, "'");
+        const size_t from = out->at;
+        const size_t taken = mmgr_line_put_n(out, path + at, (size_t)(stop - at));
+        cli_text_swapped(out->out + from, taken, '\\', '/');
+        if (stop < whole)
         {
             mmgr_line_put(out, "'\\''");
         }
-        else
-        {
-            mmgr_line_ch(out, (at[0] == '\\') ? '/' : at[0]);
-        }
+        at = stop + 1ull;
     }
     mmgr_line_ch(out, '\'');
 }
@@ -32,10 +34,9 @@ void cli_run_file_quoted(VerbaLinea *out, const char *path)
 static const char *cli_name_split(const char *path, const char **name, unsigned long long *stem)
 {
     const char *start = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        start = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : start;
-    }
+    const unsigned long long start_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    start = (start_past != 0ull) ? (path + start_past) : start;
     *name = start;
     const char *const dot =
         cli_text_last(start, cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL}), '.');
@@ -63,10 +64,7 @@ static unsigned int cli_ways(const CliJson *json, unsigned int manifest, const c
     VerbaLinea with = {keys[0], sizeof(keys[0]), 0ull};
     mmgr_line_put(&with, language);
     mmgr_line_ch(&with, '.');
-    for (const char *at = (extension != NULL) ? extension : ""; at[0] != '\0'; at += 1)
-    {
-        mmgr_line_ch(&with, ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0]);
-    }
+    cli_text_put_lowered(&with, (extension != NULL) ? extension : "");
     mmgr_line_finish(&with);
     memor.cpy(&(MemoriaCfg){.dst = keys[1],
                             .src = language,
@@ -121,10 +119,7 @@ static int cli_filled(const CliFilling *filling, const char *name, unsigned long
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_CELLS_POOL}))
     {
-        for (const char *at = filling->path; at[0] != '\0'; at += 1)
-        {
-            mmgr_line_ch(line, (at[0] == '\\') ? '/' : at[0]);
-        }
+        (void)cli_text_put_swapped(line, filling->path, '\\', '/');
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "dir", .cap = CLI_CELLS_POOL}))
     {

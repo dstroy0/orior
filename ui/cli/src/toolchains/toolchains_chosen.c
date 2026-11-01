@@ -3,6 +3,7 @@
 // toolchains_chosen.c: the folders the reader gave orior, by tool, stored in toolchains.json in orior's own folder; and
 // what each tool's search found, cached in toolchains_found.json there, so a tool is searched for again only where what
 // the search reads has changed
+#include "../text/text.h"
 #include "toolchains_internal.h"
 
 // A tool's search cached: its id, how it was found, as CliFound's `state` records, and its program, empty where it is
@@ -36,7 +37,7 @@ static CliLock s_found_lock = CLI_LOCK_INIT;
 static const char *const s_found_states[4] = {"chosen", "path", "found", "missing"};
 
 // the places the cache begins with
-#define CLI_FOUND_FIRST 64u
+#define CLI_FOUND_MOST 1024u
 
 // The folders the reader gave, by tool, read into a tree sized to them with room for one folder more, which
 // cli_json_given gives back: the object of them
@@ -79,6 +80,12 @@ void cli_toolchains_chosen_each(void (*each)(void *context, const char *id, cons
     unsigned int count = 0u;
     cli_lock_take(&g_cli_toolchains_lock);
     const unsigned int chosen = cli_chosen_read(&json, path);
+    // a read the cells refused has no tree, and tells nothing
+    if (chosen == CLI_JSON_NONE)
+    {
+        cli_chosen_released(&json);
+        return;
+    }
     cli_json_sorted(&json, chosen);
     for (unsigned int item = json.node[chosen].first; (item != CLI_JSON_NONE) && (count < 256u);
          item = json.node[item].next)
@@ -230,8 +237,8 @@ static unsigned int found_place(const char *id)
     return place;
 }
 
-// tool `id` cached as found `state`, with `program`, in its place or after the others, the cache grown to fit it: 1, or
-// 0 where the id is too long or the cellblock cannot meet the cache. Under the cache's lock
+// tool `id` cached as found `state`, with `program`, in its place or after the others, the cache taken at its most as
+// the first is put: 1, or 0 where the id is too long or the cellblock cannot meet the cache. Under the cache's lock
 static int found_put(const char *id, const char *state, const char *program)
 {
     const unsigned long long id_length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_MAX_LEN});
@@ -241,17 +248,15 @@ static int found_put(const char *id, const char *state, const char *program)
     {
         return 0;
     }
-    if (place == s_found.most)
+    if (s_found.most == 0u)
     {
-        const unsigned int most = (s_found.most == 0u) ? CLI_FOUND_FIRST : (s_found.most * 2u);
-        CliToolFound *const grown = cli_cell_regrown(s_found.tool, s_found.count * sizeof(*grown),
-                                                     (unsigned long long)most * sizeof(*grown), &g_cli_toolchains_found_cells);
-        if (grown == NULL)
-        {
-            return 0;
-        }
-        s_found.tool = grown;
-        s_found.most = most;
+        s_found.tool = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_FOUND_MOST * sizeof(*s_found.tool),
+                                                         &g_cli_toolchains_found_cells);
+        s_found.most = (s_found.tool != NULL) ? CLI_FOUND_MOST : 0u;
+    }
+    if (place >= s_found.most)
+    {
+        return 0;
     }
     CliToolFound *const tool = &s_found.tool[place];
     memor.cpy(&(MemoriaCfg){.dst = tool->id, .src = id, .bytes = (size_t)id_length + 1u});
@@ -380,10 +385,9 @@ int cli_toolchains_found_cached(const char *id, const char (*path)[CLI_PATH_MAX_
         memor.cpy(&(MemoriaCfg){.dst = found->program, .src = tool->program, .bytes = CLI_PATH_MAX_LEN});
         memor.cpy(&(MemoriaCfg){.dst = found->folder, .src = tool->program, .bytes = CLI_PATH_MAX_LEN});
         char *cut = found->folder;
-        for (char *at = found->folder; *at != '\0'; at += 1)
-        {
-            cut = ((*at == '/') || (*at == '\\')) ? at : cut;
-        }
+        const unsigned long long cut_past = cli_text_back_any(
+            found->folder, cellul.len(&(CatenaFinitaCfg){.src = found->folder, .cap = CLI_CELLS_POOL}), "/\\");
+        cut = (cut_past != 0ull) ? (found->folder + (cut_past - 1ull)) : cut;
         *cut = '\0';
     }
     cli_lock_give(&s_found_lock);

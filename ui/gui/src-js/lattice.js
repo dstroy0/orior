@@ -116,11 +116,11 @@ export const drawnFrames = () => laid?.frames ?? 0;
 
 const still = () => motionReduced();
 
-// The lattice's own time: the motion clock less every stretch the lattice was held still, while the page
+// The lattice's own time: the motion clock less every stretch the lattice was kept still, while the page
 // was hidden or less motion was asked for, so the loop takes up where it stood rather than jumping to catch
 // up. `since` is when the stretch now holding it began, null where none is.
-const held = { lost: 0, since: null };
-const latticeSeconds = (now = performance.now()) => (clock(now) - held.lost) / 1000;
+const pause = { lost: 0, since: null };
+const latticeSeconds = (now = performance.now()) => (clock(now) - pause.lost) / 1000;
 
 // The frame asked for, and the timer that asks for one at the moment the next change shows, with that
 // moment on the page's clock: none of either while the lattice waits on nothing.
@@ -151,13 +151,13 @@ function tick(now) {
     return;
   }
   if (paused() || still()) {
-    held.since ??= now;
+    pause.since ??= now;
     whenMoving(wake);
     return;
   }
-  if (held.since !== null) {
-    held.lost += now - held.since;
-    held.since = null;
+  if (pause.since !== null) {
+    pause.lost += now - pause.since;
+    pause.since = null;
   }
   const placing = idle(now) && now - last >= FRAME;
   const seconds = latticeSeconds(now);

@@ -5,14 +5,13 @@
 // tables, and stored again only where the whole grammar changed. A language `<id>:<name>` is the plugin `<id>`'s for
 // the folder `<name>`
 #include "../command_line/cells.h"
-#include "../command_line/file_writing.h"
 #include "../editor/highlight.h"
+#include "../text/text.h"
 #include "plugins.h"
 
-// the plugins whose grammars' stamps the list's room is begun with before it doubles, and the bytes a whole grammar is
-// begun to be written in, doubling as it is
-#define CLI_PLUGIN_GRAMMARS_FIRST 16u
-#define CLI_PLUGIN_GRAMMAR_FIRST 4096u
+// the plugins whose grammars' stamps the list's room is taken with, and the bytes a whole grammar is written in
+#define CLI_PLUGIN_GRAMMARS_MOST 1024u
+#define CLI_PLUGIN_GRAMMAR_ROOM (4ull << 20u)
 
 // A plugin whose grammar is stored: its id, and the stamp of the plugin.json it was read from
 typedef struct
@@ -21,25 +20,26 @@ typedef struct
     unsigned long long stamp;
 } CliPluginGrammar;
 
-// the plugins whose grammars are stored, in a cell of the plugins' whose room doubles as they are put, and how many
+// the plugins whose grammars are stored, in a cell of the plugins' at their most, and how many
 static CliPluginGrammar *s_grammars;
 static unsigned int s_grammar_room;
 static unsigned int s_grammar_count;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the list of the plugins whose grammars are stored twice its room, or CLI_PLUGIN_GRAMMARS_FIRST where it has none: 1,
-// or 0 where the cells cannot meet it; under the lock
-static int cli_grammars_grown(void)
+// the list of the plugins whose grammars are stored, taken once at CLI_PLUGIN_GRAMMARS_MOST: 1, or 0 where it stands
+// taken or the cells cannot meet it; under the lock
+static int cli_grammars_made(void)
 {
-    const unsigned int room = (s_grammar_room == 0u) ? CLI_PLUGIN_GRAMMARS_FIRST : (2u * s_grammar_room);
-    CliPluginGrammar *const grown = cli_cell_regrown(s_grammars, (size_t)s_grammar_count * sizeof(*grown),
-                                                     (unsigned long long)room * sizeof(*grown), &g_cli_plugins_cells);
-    if (grown == NULL)
+    CliPluginGrammar *const cell =
+        (s_grammar_room == 0u) ? g_cli_cells->persistent_buf_alloc(
+                                     (unsigned long long)CLI_PLUGIN_GRAMMARS_MOST * sizeof(*cell), &g_cli_plugins_cells)
+                               : NULL;
+    if (cell == NULL)
     {
         return 0;
     }
-    s_grammars = grown;
-    s_grammar_room = room;
+    s_grammars = cell;
+    s_grammar_room = CLI_PLUGIN_GRAMMARS_MOST;
     return 1;
 }
 
@@ -81,7 +81,7 @@ static void cli_grammar_each(void *context, const CliPlugin *plugin)
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     const unsigned int root =
-        cli_json_taken_temporary(&json, plugin->text, plugin->size, sought->err_msg, &g_cli_plugins_cells);
+        cli_json_taken_temporary(&json, plugin->text, plugin->size, 0u, 0ull, sought->err_msg, &g_cli_plugins_cells);
     const unsigned int grammar = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "grammar") : CLI_JSON_NONE;
     const int has_grammar = cli_json_is(&json, grammar, CFG_JSON_OBJECT);
     if ((root != CLI_JSON_NONE) && !has_grammar)
@@ -129,20 +129,18 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
     char plugin_id[CLI_NAME_MAX_LEN];
     VerbaLinea split = {plugin_id, sizeof(plugin_id), 0ull};
     const char *name = id;
-    while ((*name != '\0') && (*name != ':'))
-    {
-        name += 1;
-    }
+    name += cli_text_to_any(name, 0ull, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), ":");
     // the colon lies at or after the id's first letter
     mmgr_line_put_n(&split, id, (unsigned long long)(name - id));
     name = (*name == ':') ? (name + 1) : name;
-    VerbaLinea whole;
     if ((mmgr_line_finish(&named) == 0ull) || (mmgr_line_finish(&split) == 0ull))
     {
         mmgr_line_put(err_msg, "a plugin's id is longer than orior_cli supports");
         return 0;
     }
-    if (!cli_growing_line_temporary(&whole, CLI_PLUGIN_GRAMMAR_FIRST, &g_cli_plugins_cells))
+    char *const whole_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_GRAMMAR_ROOM, &g_cli_plugins_cells);
+    VerbaLinea whole = mmgr_line_over(whole_cell, CLI_PLUGIN_GRAMMAR_ROOM);
+    if (whole_cell == NULL)
     {
         mmgr_line_put(err_msg, "a plugin's grammar could not be given a cell to be made whole in");
         return 0;
@@ -167,7 +165,7 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
     {
         stored = cli_grammar_whole_stored(key, &whole, err_msg);
         // a grammar whose stamp the cells cannot hold is made whole again the next time it is sought
-        if (stored && (at == s_grammar_count) && ((s_grammar_count < s_grammar_room) || cli_grammars_grown()))
+        if (stored && (at == s_grammar_count) && ((s_grammar_count < s_grammar_room) || cli_grammars_made()))
         {
             memor.cpy(&(MemoriaCfg){.dst = s_grammars[at].id,
                                     .src = id,

@@ -3,7 +3,7 @@
 
 // The Profile panel: a Python run measured as it goes, on this machine or on another one reached by
 // ssh, its time and its memory by function drawn as a flame graph that grows as the counts come in.
-// Each function is a bar as wide as its share of the run's samples, or of the memory held, its
+// Each function is a bar as wide as its share of the run's samples, or of the memory kept, its
 // callers above it and what it called under it. The pointer on a bar says what it is, how much it
 // took and where it is written; a press opens the function there; the panel's menu zooms to a bar
 // and back. Run, Profile File profiles the file in the editor here, and Profile File on Another
@@ -237,9 +237,9 @@ function drawBar() {
   parts.again.disabled = state.running || !state.file;
   parts.output.setAttribute("aria-pressed", String(!parts.out.hidden));
   const counts = state.counts;
-  const held = counts?.memory ? Object.values(counts.memory).reduce((sum, one) => sum + one, 0) : 0;
+  const retained = counts?.memory ? Object.values(counts.memory).reduce((sum, one) => sum + one, 0) : 0;
   const where = state.remote ? ` on ${state.remote.split(":")[0]}` : "";
-  const measured = counts ? `${counts.seconds.toFixed(1)} s, ${counts.samples} samples, ${(held / 1048576).toFixed(1)} MB held` : "";
+  const measured = counts ? `${counts.seconds.toFixed(1)} s, ${counts.samples} samples, ${(retained / 1048576).toFixed(1)} MB kept` : "";
   parts.said.textContent = state.running ? `Profiling ${state.file}${where}${measured ? `: ${measured}` : ""}` : state.file ? `${state.said} ${state.file}${where}${measured ? `: ${measured}` : ""}` : "Run, Profile File profiles the file in the editor.";
 }
 

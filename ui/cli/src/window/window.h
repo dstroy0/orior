@@ -16,10 +16,9 @@ extern "C"
 {
 #endif
 
-    // the calls answered at once, the bytes one's answer is begun in before it grows, and the most bytes of why one
-    // failed
+    // the calls answered at once, the bytes one's answer is written in, and the most bytes of why one failed
 #define CLI_WINDOW_ROOMS 8u
-#define CLI_WINDOW_ANSWER_FIRST (64ull << 10u)
+#define CLI_WINDOW_ANSWER_ROOM (4ull << 20u)
 #define CLI_WINDOW_ERR_MSG_MAX_LEN (1ull << 16u)
 
     // the command line run on the words the program was started with, as the system keeps them: the code to exit with,

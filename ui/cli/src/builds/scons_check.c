@@ -128,10 +128,7 @@ static void check_script(void *context, const char *written, unsigned long long 
     if ((size > 0u) && (written[0] == '#'))
     {
         unsigned long long skip = 1u;
-        while ((skip < size) && (written[skip] == '/'))
-        {
-            skip += 1u;
-        }
+        skip = cli_text_past_any(written, skip, size, "/");
         mmgr_line_put_n(&line, written + skip, size - skip);
         base = check->top;
     }
@@ -253,9 +250,9 @@ static void check_read_file(const char *root, const char *path, const char *text
     s_imports = 0u;
     cli_scons_imported(check_imported, NULL);
     s_imports_most = s_imports;
-    s_import = (s_imports_most > 0u)
-                   ? g_cli_cells->persistent_buf_alloc(s_imports_most * sizeof(CliSconsImport), &g_cli_scons_rooms_cells)
-                   : NULL;
+    s_import = (s_imports_most > 0u) ? g_cli_cells->persistent_buf_alloc(s_imports_most * sizeof(CliSconsImport),
+                                                                         &g_cli_scons_rooms_cells)
+                                     : NULL;
     if (s_import == NULL)
     {
         return;
@@ -376,18 +373,12 @@ static void check_completed(const char *text, unsigned long long at, CliCompleti
 {
     const unsigned long long token = cli_build_run_before(text, at, check_chain_letter);
     unsigned long long line_start = token;
-    while ((line_start > 0u) && (text[line_start - 1u] != '\n'))
-    {
-        line_start -= 1u;
-    }
+    line_start = cli_text_back_any(text, line_start, "\n");
     const unsigned char last = (at > 0u) ? g_cli_scons.class_of[at - 1u] : CLI_SCONS_CODE;
     if (last == CLI_SCONS_STRING)
     {
         unsigned long long opened = token;
-        while ((opened > line_start) && ((text[opened - 1u] == '"') || (text[opened - 1u] == '\'')))
-        {
-            opened -= 1u;
-        }
+        opened = (line_start + cli_text_back_past(text + line_start, opened - line_start, "\"'"));
         opened = line_start + cli_text_trimmed_end(text + line_start, opened - line_start);
         if ((opened > line_start) && (text[opened - 1u] == '['))
         {
@@ -410,10 +401,7 @@ static void check_completed(const char *text, unsigned long long at, CliCompleti
         const unsigned long long name_end = cli_text_trimmed_end(text, open);
         const unsigned long long name = cli_build_run_before(text, name_end, cli_build_word_letter);
         unsigned long long since = token;
-        while ((since > open + 1u) && (text[since - 1u] != ','))
-        {
-            since -= 1u;
-        }
+        since = (open + 1u + cli_text_back_any(text + open + 1u, since - open + 1u, ","));
         const int blank = (cli_text_lead(text + since, token - since) == token - since);
         for (unsigned int one = 0u; blank && (one < 16u); one += 1u)
         {
@@ -430,10 +418,9 @@ static void check_completed(const char *text, unsigned long long at, CliCompleti
     {
         const char *const global = g_cli_scons_globals[one];
         int upper = 1;
-        for (const char *letter = global; *letter != '\0'; letter += 1)
-        {
-            upper = upper && (((*letter >= 'A') && (*letter <= 'Z')) || (*letter == '_'));
-        }
+        upper = cli_text_past_class(global, 0ull, cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}),
+                                    CLI_TEXT_UPPER,
+                                    "_") == cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL});
         (void)cli_completion_put(items, global, cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}),
                                  upper ? "constant" : "function", "SCons", 5u, global,
                                  cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}), 0);

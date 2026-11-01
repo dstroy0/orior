@@ -5,12 +5,13 @@
 // `--leave` where no one is there. A refused file is handed back as the tree has it with the writer's `file` word,
 // so that the one writer still writes every current file and the tree's copy comes out unchanged. Nothing here
 // touches the disk
-#include "../../../cli/src/text/pieces.h"
 #include "../../../cli/src/text/text.h"
 #include "../query_internal.h"
 
-// the bytes of each piece what is shown of a file is written in
-#define QUERY_SHOWN_PIECE 4096u
+// the most bytes shown of a file, and the most a byte of a file shows as: an empty line is 1 byte, its lead and its
+// break 2, and a fold of the lines beside it its own line
+#define QUERY_SHOWN_MOST (8ull << 20u)
+#define QUERY_SHOWN_WIDER 16ull
 
 static QueryAnswer query_terminal_prompt(void *context, const char *path)
 {
@@ -323,10 +324,9 @@ void query_leaf_shown(const char *path, const unsigned char *tree, unsigned long
 {
     static const char *const s_text[] = {"khw", "krs", "klq", "klm", "md", "tsv", "txt", "h", "gsm", NULL};
     const char *name = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     int is_text = 0;
@@ -394,15 +394,15 @@ int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryPrompter pr
                           (memor.cmp(&(MemoriaCfg){.src = tree, .other = stored, .bytes = (size_t)stored_size}) == 0));
         if (!same)
         {
-            // what is shown of the file written through pieces into a cell of its size
-            char piece[QUERY_SHOWN_PIECE];
-            CliPieces pieces;
-            VerbaLinea shown;
-            cli_pieces_begun(&pieces, &shown, piece, sizeof(piece), &g_query_cells);
+            // what is shown of the file in a cell of the most it writes to, up to the most shown: a line that fills it
+            // holds what fit and its 0
+            const unsigned long long wanted =
+                ((tree_size + stored_size) * QUERY_SHOWN_WIDER) + QUERY_PATH_MAX_LEN + 256ull;
+            const unsigned long long room = (wanted < QUERY_SHOWN_MOST) ? wanted : QUERY_SHOWN_MOST;
+            char *const text = g_cli_cells->temporary_buf_alloc(room, &g_query_cells);
+            VerbaLinea shown = mmgr_line_over(text, room);
             query_leaf_shown(path, (tree != NULL) ? tree : (const unsigned char *)"", tree_size, stored, stored_size,
                              &shown);
-            unsigned long long shown_size = 0ull;
-            char *const text = cli_pieces_joined(&pieces, &shown, "what is shown of a file left", &shown_size);
             if (text != NULL)
             {
                 query_print(context, text);
@@ -418,10 +418,7 @@ int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryPrompter pr
                 if (!query_writer_file(&run->writer, path, (tree != NULL) ? tree : (const unsigned char *)"", tree_size,
                                        err_msg))
                 {
-                    if (tree != NULL)
-                    {
-                        qry_member_file_unmapped(tree, tree_size);
-                    }
+                    qry_member_file_unmapped(tree, tree_size);
                     return 0;
                 }
                 char left_text[QUERY_PATH_MAX_LEN + 64u];
@@ -435,10 +432,7 @@ int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryPrompter pr
                 }
             }
         }
-        if (tree != NULL)
-        {
-            qry_member_file_unmapped(tree, tree_size);
-        }
+        qry_member_file_unmapped(tree, tree_size);
     }
     return 1;
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // catalog_scan.c: a path joined and a path's stem, and what a file declares of itself: its opening paragraph, the names
 // a case accepts, the parts a driver's usage names, and a README's first paragraph
+#include "../command_line/cells.h"
 #include "../text/text.h"
 #include "catalog_internal.h"
 
@@ -17,10 +18,7 @@ void cli_catalog_join(const char *folder, const char *name, char *path)
 void cli_catalog_stem(const char *path, char *out)
 {
     const char *name = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    while ((name > path) && (name[-1] != '/') && (name[-1] != '\\'))
-    {
-        name -= 1;
-    }
+    name = path + cli_text_back_any(path, (unsigned long long)(name - path), "/\\");
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     const unsigned long long length = ((dot != NULL) && (dot != name))
@@ -46,10 +44,7 @@ static int cli_line(const char **at, const char *end, CatalogTextLine *line)
         return 0;
     }
     const char *stop = *at;
-    while ((stop < end) && (stop[0] != '\n'))
-    {
-        stop += 1;
-    }
+    stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
     line->at = *at;
     line->length = (unsigned long long)(stop - *at);
     line->length -= ((line->length != 0ull) && (line->at[line->length - 1u] == '\r')) ? 1ull : 0ull;
@@ -149,10 +144,7 @@ static const char *cli_about_end(const char *text, unsigned long long size)
     const char *const whole = text + size;
     for (unsigned int lines = 0u; (lines < 120u) && (end < whole); lines += 1u)
     {
-        while ((end < whole) && (end[0] != '\n'))
-        {
-            end += 1;
-        }
+        end += cli_text_to_any(end, 0ull, (unsigned long long)(whole - end), "\n");
         end += (end < whole) ? 1 : 0;
     }
     return end;
@@ -211,10 +203,10 @@ static void cli_about_written(const char *path, const char *text, const char *en
             about_text.at += cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
             about_text.length -= cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
         }
-        while ((about_text.length != 0ull) && (about_text.at[0] == '!'))
         {
-            about_text.at += 1;
-            about_text.length -= 1ull;
+            const unsigned long long lead = cli_text_past_any(about_text.at, 0ull, about_text.length, "!");
+            about_text.at += lead;
+            about_text.length -= lead;
         }
         about_text = cli_trimmed(about_text);
         if (about_text.length == 0ull)
@@ -232,7 +224,7 @@ static void cli_about_written(const char *path, const char *text, const char *en
 void cli_catalog_about(const char *path, VerbaLinea *out)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_catalog_cells);
     if (bytes == NULL)
     {
         return;
@@ -240,7 +232,7 @@ void cli_catalog_about(const char *path, VerbaLinea *out)
     // the file's bytes read as its text
     const char *const text = (const char *)bytes;
     cli_about_written(path, text, cli_about_end(text, size), out);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_catalog_cells);
 }
 
 // what a file declares of itself is the text of the lines it is read from, a space put for each line's end it passes,
@@ -248,7 +240,7 @@ void cli_catalog_about(const char *path, VerbaLinea *out)
 char *cli_catalog_about_taken(const char *path)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_catalog_cells);
     if (bytes == NULL)
     {
         return NULL;
@@ -264,7 +256,7 @@ char *cli_catalog_about_taken(const char *path)
         cli_about_written(path, text, end, &line);
         mmgr_line_finish(&line);
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_catalog_cells);
     return about;
 }
 
@@ -297,10 +289,7 @@ unsigned int cli_catalog_case_names(const char *text, const char *variable, char
         }
     }
     unsigned long long close = 0ull;
-    while ((close < first.length) && (first.at[close] != ')'))
-    {
-        close += 1ull;
-    }
+    close = cli_text_to_any(first.at, 0ull, first.length, ")");
     if (close == first.length)
     {
         return 0u;
@@ -334,30 +323,24 @@ unsigned int cli_catalog_case_names(const char *text, const char *variable, char
 // NULL: its length
 static unsigned long long cli_driver_joined(const char *from, char *joined)
 {
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
     unsigned long long length = 0ull;
-    char previous = '\0';
-    int inside = 1;
-    for (const char *at = from; at[0] != '\0'; at += 1)
+    // the walk starts inside a literal, and each piece runs to its closing quote
+    for (unsigned long long at = 0ull; at < size;)
     {
-        if (at[0] == '"')
-        {
-            inside = !inside;
-            continue;
-        }
-        if (!inside)
-        {
-            continue;
-        }
-        if ((previous == '\\') && (at[0] == 'n'))
-        {
-            return length - 1ull;
-        }
+        const unsigned long long close = cli_text_to_any(from, at, size, "\"");
+        const unsigned long long stop = cli_text_to_pair(from, at, close, '\\', 'n');
         if (joined != NULL)
         {
-            joined[length] = at[0];
+            memor.cpy(&(MemoriaCfg){.dst = joined + length, .src = from + at, .bytes = (size_t)(stop - at)});
         }
-        length += 1ull;
-        previous = at[0];
+        length += stop - at;
+        if (stop < close)
+        {
+            return length;
+        }
+        const unsigned long long open = (close < size) ? cli_text_to_any(from, close + 1ull, size, "\"") : size;
+        at = (open < size) ? (open + 1ull) : size;
     }
     return length;
 }
@@ -409,7 +392,7 @@ unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME
 char *cli_catalog_markdown_taken(const char *path)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_catalog_cells);
     if (bytes == NULL)
     {
         return NULL;
@@ -417,7 +400,7 @@ char *cli_catalog_markdown_taken(const char *path)
     char *const opening = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_catalog_cells);
     if (opening == NULL)
     {
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_catalog_cells);
         return NULL;
     }
     VerbaLinea opened = {opening, size + 1ull, 0ull};
@@ -440,6 +423,6 @@ char *cli_catalog_markdown_taken(const char *path)
         cli_paragraph_put(&opened, &count, line.at, line.length);
     }
     mmgr_line_finish(&opened);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_catalog_cells);
     return opening;
 }

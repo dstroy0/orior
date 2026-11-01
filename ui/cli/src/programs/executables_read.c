@@ -78,47 +78,27 @@ char *cli_text_taken(const char *path)
     return text;
 }
 
-// a walk's room of `count` paths, `*room` of them, doubled where it is full, the depths beside it where `depth` is
-// not NULL: 1, or 0 where it is at `most` or the cells are refused
-static int walk_grown(char (**paths)[CLI_PATH_MAX_LEN], unsigned int **depth, unsigned int count, unsigned int *room,
-                      unsigned int most)
+void cli_executables_walk_taken(CliWalk *walk)
 {
-    if (count < *room)
+    const unsigned long long paths = (unsigned long long)CLI_EXECUTABLES_PENDING + CLI_EXECUTABLES_SCRIPTS;
+    char (*const cell)[CLI_PATH_MAX_LEN] = g_cli_cells->temporary_buf_alloc(
+        (paths * CLI_PATH_MAX_LEN) + ((unsigned long long)CLI_EXECUTABLES_PENDING * sizeof(unsigned int)),
+        &g_cli_executables_cells);
+    *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
+    if (cell == NULL)
     {
-        return 1;
+        return;
     }
-    if (count >= most)
-    {
-        return 0;
-    }
-    const unsigned int grown = (*room == 0u) ? CLI_EXECUTABLES_WALK_FIRST : ((*room * 2u < most) ? *room * 2u : most);
-    char (*const larger)[CLI_PATH_MAX_LEN] =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)grown * CLI_PATH_MAX_LEN, &g_cli_executables_cells);
-    unsigned int *const deeper =
-        ((larger != NULL) && (depth != NULL))
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)grown * sizeof(**depth), &g_cli_executables_cells)
-            : NULL;
-    if ((larger == NULL) || ((depth != NULL) && (deeper == NULL)))
-    {
-        g_cli_cells->persistent_buf_release(larger, &g_cli_executables_cells);
-        return 0;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = *paths, .bytes = (size_t)count * CLI_PATH_MAX_LEN});
-    g_cli_cells->persistent_buf_release(*paths, &g_cli_executables_cells);
-    *paths = larger;
-    if (depth != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = deeper, .src = *depth, .bytes = (size_t)count * sizeof(**depth)});
-        g_cli_cells->persistent_buf_release(*depth, &g_cli_executables_cells);
-        *depth = deeper;
-    }
-    *room = grown;
-    return 1;
+    walk->pending = cell;
+    walk->pending_room = CLI_EXECUTABLES_PENDING;
+    walk->found = cell + CLI_EXECUTABLES_PENDING;
+    walk->found_room = CLI_EXECUTABLES_SCRIPTS;
+    walk->depth = (unsigned int *)(void *)(cell + paths);
 }
 
 int cli_executables_pending_put(CliWalk *walk, const char *path, unsigned int depth)
 {
-    if (!walk_grown(&walk->pending, &walk->depth, walk->pending_count, &walk->pending_room, CLI_EXECUTABLES_PENDING))
+    if (walk->pending_count >= walk->pending_room)
     {
         return 0;
     }
@@ -132,7 +112,7 @@ int cli_executables_pending_put(CliWalk *walk, const char *path, unsigned int de
 
 int cli_executables_found_put(CliWalk *walk, const char *path)
 {
-    if (!walk_grown(&walk->found, NULL, walk->found_count, &walk->found_room, CLI_EXECUTABLES_SCRIPTS))
+    if (walk->found_count >= walk->found_room)
     {
         return 0;
     }
@@ -145,8 +125,6 @@ int cli_executables_found_put(CliWalk *walk, const char *path)
 
 void cli_executables_walk_given(CliWalk *walk)
 {
-    g_cli_cells->persistent_buf_release(walk->found, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(walk->depth, &g_cli_executables_cells);
     g_cli_cells->persistent_buf_release(walk->pending, &g_cli_executables_cells);
     *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
 }
@@ -223,10 +201,9 @@ void cli_executables_walked(CliWalk *walk, const char *top,
 static const char *cli_base(const char *path)
 {
     const char *name = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     return name;
 }
 
@@ -241,7 +218,7 @@ static int cli_under(const char *path, const char *folder)
 // a program put after those found
 static void cli_found_put(CliExecutables *found, unsigned int kind, const char *script, const char *name)
 {
-    if (!cli_executables_room(found))
+    if (found->count >= found->room)
     {
         return;
     }
@@ -427,6 +404,9 @@ static void cli_script_read(const char *root, const char *script, unsigned int k
 void cli_executables_read(const char *root, CliExecutables *found)
 {
     cli_executables_given(found);
+    found->item = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_EXECUTABLES_MOST * sizeof(*found->item),
+                                                    &g_cli_executables_cells);
+    found->room = (found->item != NULL) ? CLI_EXECUTABLES_MOST : 0u;
     cli_lock_take(&s_lock);
     s_scripts = g_cli_cells->persistent_buf_alloc(sizeof(*s_scripts), &g_cli_executables_cells);
     if (s_scripts == NULL)
@@ -435,7 +415,7 @@ void cli_executables_read(const char *root, CliExecutables *found)
         return;
     }
     CliWalk *const walk = &s_scripts->walk;
-    *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
+    cli_executables_walk_taken(walk);
     cli_executables_walked(walk, root, cli_script_each);
     cli_paths_sorted(walk->found, walk->found_count);
     cli_projects(walk, "CMakeLists.txt", CLI_KIND_CMAKE, found);

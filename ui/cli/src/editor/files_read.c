@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_read.c: a file read for the editor: its text where it is text, its first bytes where it is not, and a larger
 // text read a window of whole lines at a time
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
-#include "../text/pieces.h"
+#include "../text/text.h"
 #include "archive.h"
 #include "files.h"
 
@@ -11,6 +12,7 @@
 // looked through for a 0 that marks a file as no text
 #define CLI_WINDOW_FROM (1024ull * 1024ull)
 #define CLI_SHOWN_BYTES (64ull * 1024ull)
+#define CLI_SLICE_SLACK (1ull << 20u)
 #define CLI_PROBE_BYTES 8192ull
 
 // whether a letter the end of `size` bytes cuts short starts at them: a lead byte and as many of the bytes after it as
@@ -101,38 +103,21 @@ static void cli_opened_written(VerbaLinea *out, const char *path, unsigned long 
     mmgr_line_put(out, windowed ? ",\"windowed\":true}" : ",\"windowed\":false}");
 }
 
-// a file within an archive read out of it whole, through pieces into a cell of its size given back once it is
-// written as a file read
+// a file within an archive read out of it whole into a cell of its size, given back once it is written as a file read
 static int cli_archived_read(const char *root, const char *file, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char piece[4096];
-    CliPieces pieces;
-    VerbaLinea read;
-    cli_pieces_begun(&pieces, &read, piece, sizeof(piece), &g_cli_editor_cells);
-    if (!cli_archive_read(root, file, &read, err_msg))
-    {
-        cli_pieces_given(&pieces);
-        return 0;
-    }
     unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(&pieces, &read, "a file read out of an archive", &size);
+    char *const joined = cli_archive_taken(root, file, &size, &g_cli_editor_cells, err_msg);
     if (joined == NULL)
     {
-        mmgr_line_put(err_msg, "the file read out of the archive could not be stored");
         return 0;
     }
     const unsigned char *const bytes = (const unsigned char *)joined;
     // the path with the slashes at either end left off
     const char *from = file;
-    while (from[0] == '/')
-    {
-        from += 1;
-    }
+    from += cli_text_past_any(from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), "/");
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
-    while ((length > 0ull) && (from[length - 1ull] == '/'))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(from, length, "/");
     char path[CLI_PATH_MAX_LEN];
     const unsigned long long copied_len = (length < CLI_PATH_MAX_LEN) ? length : (CLI_PATH_MAX_LEN - 1ull);
     memor.cpy(&(MemoriaCfg){.dst = path, .src = from, .bytes = copied_len});
@@ -164,7 +149,7 @@ static const unsigned char *cli_mapped(const char *root, const char *file, char 
     {
         return NULL;
     }
-    const unsigned char *const bytes = cli_file_read(path, size);
+    const unsigned char *const bytes = cli_file_taken(path, size, &g_cli_editor_cells);
     if (bytes == NULL)
     {
         cli_unread(file, err_msg);
@@ -189,7 +174,8 @@ static const unsigned char *cli_piece(const char *root, const char *file, char *
         return NULL;
     }
     const unsigned long long room = (from < *whole) ? *whole - from : 0ull;
-    const unsigned char *const bytes = cli_file_piece_read(path, from, (count < room) ? count : room, got);
+    const unsigned char *const bytes =
+        cli_file_piece_taken(path, from, (count < room) ? count : room, got, &g_cli_editor_cells);
     if (bytes == NULL)
     {
         cli_unread(file, err_msg);
@@ -235,7 +221,7 @@ int cli_files_read(const char *root, const char *file, VerbaLinea *out, VerbaLin
         {
             cli_opened_written(out, shown_path, size, NULL, text, shown, 0);
         }
-        cli_file_let_go(text, size);
+        cli_file_given(text, &g_cli_editor_cells);
         return 1;
     }
     // a file the window pages: its first bytes alone, read at their offset; text where they contain no 0 and read as
@@ -249,7 +235,7 @@ int cli_files_read(const char *root, const char *file, VerbaLinea *out, VerbaLin
     const unsigned long long probe = (got < CLI_PROBE_BYTES) ? got : CLI_PROBE_BYTES;
     const int text = !cli_probe_zero(bytes, got) && cli_utf8(bytes, probe, 1);
     cli_opened_written(out, shown_path, size, NULL, text ? NULL : bytes, text ? 0ull : got, text);
-    cli_file_let_go(bytes, got);
+    cli_file_given(bytes, &g_cli_editor_cells);
     return 1;
 }
 
@@ -261,10 +247,7 @@ static unsigned long long cli_line_start(const unsigned char *bytes, unsigned lo
     {
         return (at < size) ? at : size;
     }
-    const unsigned char *const newline =
-        memor.chr(&(MemoriaCfg){.src = bytes + (at - 1ull), .val = '\n', .bytes = size - (at - 1ull)});
-    // a pointer found in the bytes is at or past their start
-    return (newline != NULL) ? ((unsigned long long)(newline - bytes) + 1ull) : size;
+    return cli_text_line_at((const char *)bytes, at - 1ull, size).next;
 }
 
 // the newlines from `from` to `to`
@@ -302,9 +285,9 @@ static void cli_slice_written(VerbaLinea *out, const unsigned char *bytes, unsig
 int cli_files_slice(const char *root, const char *file, unsigned long long start, unsigned long long end,
                     VerbaLinea *out, VerbaLinea *err_msg)
 {
-    // the bytes about the slice, from the byte before `start` so that its line's start is read, with slack past `end`
-    // for the line end there, the slack doubled while the piece contains neither line end and the file goes on; a slice
-    // past the file's end ends at the end
+    // the bytes about the slice, from the byte before `start` so that its line's start is read, with CLI_SLICE_SLACK
+    // past `end` for the line end there; a slice past the file's end ends at the end, and a line longer than the slack
+    // is cut where the piece ends
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
     if (!cli_inside(root, file, path, err_msg))
@@ -319,28 +302,21 @@ int cli_files_slice(const char *root, const char *file, unsigned long long start
     start = (start < size) ? start : size;
     end = (end < size) ? end : size;
     const unsigned long long base = (start > 0ull) ? start - 1ull : 0ull;
-    unsigned long long count = ((end > base) ? end - base : 0ull) + CLI_SHOWN_BYTES;
-    for (;;)
+    const unsigned long long at_end = (end > base) ? end - base : 0ull;
+    const unsigned long long left = size - base;
+    const unsigned long long count = ((at_end + CLI_SLICE_SLACK) < left) ? (at_end + CLI_SLICE_SLACK) : left;
+    unsigned long long got = 0ull;
+    const unsigned char *const bytes = cli_file_piece_taken(path, base, count, &got, &g_cli_editor_cells);
+    if (bytes == NULL)
     {
-        unsigned long long got = 0ull;
-        unsigned long long whole = 0ull;
-        const unsigned char *const bytes = cli_piece(root, file, path, base, count, &got, &whole, err_msg);
-        if (bytes == NULL)
-        {
-            return 0;
-        }
-        const unsigned long long at_end = ((end > base) ? end - base : 0ull);
-        const unsigned long long from = cli_line_start(bytes, start - base, got);
-        const unsigned long long to_at = cli_line_start(bytes, (at_end < got) ? at_end : got, got);
-        const unsigned long long to = (to_at > from) ? to_at : from;
-        const int reached = (base + got >= whole) || ((from < got) && (to < got));
-        if (reached)
-        {
-            cli_slice_written(out, bytes, base, from, to, whole, 0ull, 0ull);
-            cli_file_let_go(bytes, got);
-            return 1;
-        }
-        cli_file_let_go(bytes, got);
-        count *= 2ull;
+        cli_unread(file, err_msg);
+        return 0;
     }
+    const unsigned long long line_from = cli_line_start(bytes, start - base, got);
+    const unsigned long long from = ((line_from < got) || ((base + got) >= size)) ? line_from : (start - base);
+    const unsigned long long to_at = cli_line_start(bytes, (at_end < got) ? at_end : got, got);
+    const unsigned long long to = (to_at > from) ? to_at : from;
+    cli_slice_written(out, bytes, base, from, to, size, 0ull, 0ull);
+    cli_file_given(bytes, &g_cli_editor_cells);
+    return 1;
 }

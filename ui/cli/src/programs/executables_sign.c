@@ -67,10 +67,9 @@ int cli_executables_signs(void)
 static void cli_with_extension(const char *path, const char *extension, char *out)
 {
     const char *name = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     const char *const dot =
         (name[0] != '\0')
             ? cli_text_last(name + 1, cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL}), '.')
@@ -142,13 +141,13 @@ int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*sh
     {
         char thumbprint[CLI_PATH_MAX_LEN];
         VerbaLinea printed = {thumbprint, sizeof(thumbprint), 0ull};
-        for (const char *at = certificate; at[0] != '\0'; at += 1)
+        const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = certificate, .cap = CLI_CELLS_POOL});
+        for (unsigned long long at = 0ull; at < whole;)
         {
-            const char one = at[0];
-            if (((one >= '0') && (one <= '9')) || ((one >= 'a') && (one <= 'f')) || ((one >= 'A') && (one <= 'F')))
-            {
-                mmgr_line_ch(&printed, one);
-            }
+            const unsigned long long stop =
+                cli_text_past_class(certificate, at, whole, CLI_TEXT_DIGITS, "abcdefABCDEF");
+            mmgr_line_put_n(&printed, certificate + at, (size_t)(stop - at));
+            at = stop + 1ull;
         }
         mmgr_line_finish(&printed);
         cli_both(command, &line, "/sha1", "/sha1");
@@ -270,10 +269,8 @@ void cli_executables_signature_print(const char *file, QuerySink sink)
         for (const char *line = (stream == 0u) ? ran->err : ran->out; line[0] != '\0';)
         {
             const char *stop = line;
-            while ((stop[0] != '\0') && (stop[0] != '\n'))
-            {
-                stop += 1;
-            }
+            stop +=
+                cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
             const char *from = line;
             unsigned long long length = (unsigned long long)(stop - line);
             cli_scan_trim(&from, &length);

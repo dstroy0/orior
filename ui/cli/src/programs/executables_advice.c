@@ -157,10 +157,11 @@ char *cli_pyinstaller_warn(const char *spec, char *folder)
             ? (cli_text_last(spec, cellul.len(&(CatenaFinitaCfg){.src = spec, .cap = CLI_CELLS_POOL}), '\\') + 1)
             : spec;
     const char *dot = NULL;
-    for (const char *at = base + 1; (base[0] != '\0') && (at[0] != '\0'); at += 1)
-    {
-        dot = (at[0] == '.') ? at : dot;
-    }
+    const unsigned long long dot_past =
+        (base[0] != '\0')
+            ? cli_text_back_any(base + 1, cellul.len(&(CatenaFinitaCfg){.src = base + 1, .cap = CLI_CELLS_POOL}), ".")
+            : 0ull;
+    dot = (dot_past != 0ull) ? (base + dot_past) : NULL;
     char stem[CLI_NAME_MAX_LEN];
     VerbaLinea stemmed = {stem, sizeof(stem), 0ull};
     mmgr_line_put_n(&stemmed, base,
@@ -188,10 +189,7 @@ void cli_pyinstaller_missing(const char *text,
     for (const char *line = text; line[0] != '\0';)
     {
         const char *stop = line;
-        while ((stop[0] != '\0') && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
         const char *const end = ((stop > line) && (stop[-1] == '\r')) ? (stop - 1) : stop;
         const unsigned long long length = (unsigned long long)(end - line);
         if ((length > (sizeof(s_head) - 1u)) &&
@@ -209,15 +207,12 @@ void cli_pyinstaller_missing(const char *text,
                 const char *module = rest;
                 unsigned long long module_length = (unsigned long long)(by - rest);
                 cli_scan_trim(&module, &module_length);
-                while ((module_length > 0ull) && (module[0] == '\''))
                 {
-                    module += 1;
-                    module_length -= 1ull;
+                    const unsigned long long lead = cli_text_past_any(module, 0ull, module_length, "'");
+                    module += lead;
+                    module_length -= lead;
                 }
-                while ((module_length > 0ull) && (module[module_length - 1ull] == '\''))
-                {
-                    module_length -= 1ull;
-                }
+                module_length = cli_text_back_past(module, module_length, "'");
                 const char *const importers = by + sizeof(s_by) - 1u;
                 each(context, module, module_length, importers, (unsigned long long)(end - importers));
             }
@@ -370,33 +365,24 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
         const char *module = rest + 16;
         unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = module, .cap = CLI_CELLS_POOL});
         cli_scan_trim(&module, &length);
-        while ((length > 0ull) && (module[0] == '\''))
         {
-            module += 1;
-            length -= 1ull;
+            const unsigned long long lead = cli_text_past_any(module, 0ull, length, "'");
+            module += lead;
+            length -= lead;
         }
-        while ((length > 0ull) && (module[length - 1ull] == '\''))
+        length = cli_text_back_past(module, length, "'");
         {
-            length -= 1ull;
+            const unsigned long long lead = cli_text_past_any(module, 0ull, length, "\"");
+            module += lead;
+            length -= lead;
         }
-        while ((length > 0ull) && (module[0] == '"'))
-        {
-            module += 1;
-            length -= 1ull;
-        }
-        while ((length > 0ull) && (module[length - 1ull] == '"'))
-        {
-            length -= 1ull;
-        }
+        length = cli_text_back_past(module, length, "\"");
         if (length == 0ull)
         {
             continue;
         }
         unsigned long long top = 0ull;
-        while ((top < length) && (module[top] != '.'))
-        {
-            top += 1ull;
-        }
+        top = cli_text_to_any(module, top, length, ".");
         CliUnfound unfound = {module, length, module, top, 0};
         cli_pyinstaller_missing(warn, cli_unfound_each, &unfound);
         VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};

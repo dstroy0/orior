@@ -48,19 +48,11 @@ static int cli_first_line(const char *text, unsigned long long size, VerbaLinea 
     unsigned long long at = 0ull;
     while (at < size)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const unsigned long long end = cli_text_line_at(text, at, size).stop;
         unsigned long long from = at;
         unsigned long long to = end;
-        while ((from < to) && ((text[from] == ' ') || ((text[from] >= '\t') && (text[from] <= '\r'))))
-        {
-            from += 1ull;
-        }
-        while ((to > from) && ((text[to - 1ull] == ' ') || ((text[to - 1ull] >= '\t') && (text[to - 1ull] <= '\r'))))
-        {
-            to -= 1ull;
-        }
+        from = cli_text_past_any(text, from, to, CLI_TEXT_WHITE);
+        to = (from + cli_text_back_past(text + from, to - from, CLI_TEXT_WHITE));
         if (to > from)
         {
             cli_lossy(err_msg, (const unsigned char *)text + from, to - from);
@@ -282,9 +274,7 @@ void cli_containers_listed(const char *text, unsigned long long size, int listed
     }
     for (unsigned long long at = 0ull; at < size;)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const unsigned long long end = cli_text_line_at(text, at, size).stop;
         cli_container_read(text + at, end - at);
         at = end + 1ull;
     }
@@ -358,26 +348,11 @@ int cli_containers_logs(const char *name, VerbaLinea *out, VerbaLinea *err_msg)
             cli_ran_given(ran);
             return 0;
         }
-        const char *const out_newline = memor.chr(&(MemoriaCfg){.src = ran->out, .val = '\n', .bytes = ran->out_size});
-        const char *const err_newline = memor.chr(&(MemoriaCfg){.src = ran->err, .val = '\n', .bytes = ran->err_size});
-        // a newline found lies in its text, at or past its start
-        unsigned long long out_length =
-            (out_newline != NULL) ? (unsigned long long)(out_newline - ran->out) : ran->out_size;
-        unsigned long long err_length = (out_newline != NULL)   ? 0ull
-                                        : (err_newline != NULL) ? (unsigned long long)(err_newline - ran->err)
-                                                                : ran->err_size;
-        // a carriage return before the line's newline is no part of it
-        const int ends_in_err = (out_newline == NULL) && (err_newline != NULL);
-        if ((out_newline != NULL) && (out_length > 0ull) && (ran->out[out_length - 1ull] == '\r'))
-        {
-            out_length -= 1ull;
-        }
-        if (ends_in_err && (err_length > 0ull) && (ran->err[err_length - 1ull] == '\r'))
-        {
-            err_length -= 1ull;
-        }
-        cli_lossy(err_msg, (const unsigned char *)ran->out, out_length);
-        cli_lossy(err_msg, (const unsigned char *)ran->err, err_length);
+        // the output's first line, and the error's first after it where the output's has no newline
+        const CliTextLine out_line = cli_text_line_at(ran->out, 0ull, ran->out_size);
+        const CliTextLine err_line = cli_text_line_at(ran->err, 0ull, ran->err_size);
+        cli_lossy(err_msg, (const unsigned char *)ran->out, out_line.cut);
+        cli_lossy(err_msg, (const unsigned char *)ran->err, (out_line.stop < ran->out_size) ? 0ull : err_line.cut);
         cli_ran_given(ran);
         return 0;
     }

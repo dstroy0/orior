@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The editor's tabs and files: a zip in the tree opened as a folder, its files read, changed and saved
-// back into it, and a large text held on the window's side, its changes following it there and its
+// back into it, and a large text stored on the window's side, its changes following it there and its
 // gutter's marks worked out there, the tabs opened again as the tree starts, and a tab back at its
 // saved text, however it got back, marked saved; and the changes not saved kept as a window closes.
 

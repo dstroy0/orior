@@ -4,6 +4,7 @@
 // each element where its parent may not contain it, with the elements near its name, outside a `configuration` and a
 // `properties`; each property it names outside its comments that neither it, its parents nor Maven set, where every
 // parent was read; its dependencies; a parent that is a snapshot; and each execution's phase no lifecycle has
+#include "../text/text.h"
 #include "maven_internal.h"
 
 // a finding over the bytes `from` to `to` that reports `msg`
@@ -127,10 +128,7 @@ static void check_properties(const CliMavenCheck *check)
             continue;
         }
         unsigned long long end = at;
-        while ((end < xml->size) && (text[end] != '}') && (text[end] != '\n') && (text[end] != '<'))
-        {
-            end += 1u;
-        }
+        end = cli_text_to_any(text, end, xml->size, "}\n<");
         if ((end >= xml->size) || (text[end] != '}'))
         {
             continue;

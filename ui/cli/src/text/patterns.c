@@ -4,6 +4,7 @@
 // stored for each part of the window
 #include "patterns.h"
 #include "regexp.h"
+#include "text.h"
 
 // the patterns of each part, 1 in `s_made` where they were set, and the lock that is acquired while one is read or set
 static CliPatterns s_set[CLI_PARTS];
@@ -114,23 +115,14 @@ static void cli_pattern_read(CliPatterns *patterns, const char *from, const char
     }
     from += (((to - from) >= 2) && (from[0] == '.') && (from[1] == '/')) ? 2 : 0;
     const int folders = (to > from) && (to[-1] == '/');
-    while ((to > from) && (to[-1] == '/'))
-    {
-        to -= 1;
-    }
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), "/");
     if (from == to)
     {
         return;
     }
     int slashed = 0;
-    for (const char *at = from; at < to; at += 1)
-    {
-        slashed = slashed || (at[0] == '/');
-    }
-    while (slashed && (from < to) && (from[0] == '/'))
-    {
-        from += 1;
-    }
+    slashed = cli_text_to_any(from, 0ull, (unsigned long long)(to - from), "/") < (unsigned long long)(to - from);
+    from += slashed ? cli_text_past_any(from, 0ull, (unsigned long long)(to - from), "/") : 0ull;
     unsigned int *const count = include ? &patterns->includes : &patterns->hides;
     CliPattern *const list = include ? patterns->include : patterns->hide;
     const unsigned int first = patterns->used;

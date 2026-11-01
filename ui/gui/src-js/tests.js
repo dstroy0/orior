@@ -71,7 +71,7 @@ export async function loadTests() {
   return state.found;
 }
 
-// Forgets what the tree open before held.
+// Forgets what the tree open before kept.
 export function forgetTests() {
   Object.assign(state, { found: [], loaded: false, results: new Map(), run: null, last: null, coverage: new Map() });
   draw();

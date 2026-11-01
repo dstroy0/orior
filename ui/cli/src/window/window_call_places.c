@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // window_call_places.c: the window's calls on the reader's own places: orior's folder, the language files by tag, the
 // reader's stylesheet and menus, the places opened as the system opens them, and the templates projects begin from
+#include "../command_line/cells.h"
 #include "../plugins/templates.h"
 #include "window_internal.h"
 
 #include "../text/text.h"
 
-// the most language files listed, the tags their list is begun with, doubling as they are found, and the most bytes of
-// a file of the reader's places read
+// the most language files listed, the tags their list is taken with, and the most bytes of a file of the reader's
+// places read
 #define CLI_WINDOW_LANGUAGES 1024u
-#define CLI_WINDOW_LANGUAGES_FIRST 16u
 #define CLI_WINDOW_PLACE_FILE (1u << 22u)
 
 // the file at `path` written as a JSON string, the empty string where it cannot be read or is larger than
@@ -18,11 +18,11 @@
 static void places_file_quoted(const char *path, int has_path, VerbaLinea *out)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = has_path ? cli_file_read(path, &size) : NULL;
+    const unsigned char *const bytes = has_path ? cli_file_taken(path, &size, &g_cli_window_places_cells) : NULL;
     const int read = (bytes != NULL) && (size <= CLI_WINDOW_PLACE_FILE);
     // the file's bytes read as the text they are
     cli_window_counted(out, read ? (const char *)bytes : "", read ? size : 0ull);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_window_places_cells);
 }
 
 // orior's own folder, where it stores what it stores and the reader's plugins are
@@ -47,11 +47,9 @@ static int places_language_read(const CliServeArgs *args, VerbaLinea *out, Verba
         return 0;
     }
     int plain = (tag[0] != '\0');
-    for (const char *at = tag; *at != '\0'; at += 1)
-    {
-        plain &= ((*at >= 'a') && (*at <= 'z')) || ((*at >= 'A') && (*at <= 'Z')) || ((*at >= '0') && (*at <= '9')) ||
-                 (*at == '-');
-    }
+    plain = plain && (cli_text_past_class(tag, 0ull, cellul.len(&(CatenaFinitaCfg){.src = tag, .cap = CLI_CELLS_POOL}),
+                                          CLI_TEXT_LETTERS | CLI_TEXT_DIGITS,
+                                          "-") == cellul.len(&(CatenaFinitaCfg){.src = tag, .cap = CLI_CELLS_POOL}));
     char folder[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     VerbaLinea line = {path, sizeof(path), 0ull};
@@ -75,34 +73,6 @@ typedef struct
     unsigned int room;
 } CliWindowTags;
 
-// room made in the tags for one more, below CLI_WINDOW_LANGUAGES: the tags moved into a cell of twice their room,
-// CLI_WINDOW_LANGUAGES_FIRST where they have none: 1, or 0 where there is none
-static int places_tags_room(CliWindowTags *tags)
-{
-    if (tags->count < tags->room)
-    {
-        return 1;
-    }
-    const unsigned int doubled = (tags->room == 0u) ? CLI_WINDOW_LANGUAGES_FIRST : (tags->room * 2u);
-    const unsigned int room = (doubled < CLI_WINDOW_LANGUAGES) ? doubled : CLI_WINDOW_LANGUAGES;
-    char (*const grown)[CLI_NAME_MAX_LEN] =
-        (tags->room < CLI_WINDOW_LANGUAGES)
-            ? g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &g_cli_window_places_cells)
-            : NULL;
-    if (grown == NULL)
-    {
-        return 0;
-    }
-    if (tags->count != 0u)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = tags->tag, .bytes = tags->count * sizeof(*grown)});
-    }
-    g_cli_cells->persistent_buf_release(tags->tag, &g_cli_window_places_cells);
-    tags->tag = grown;
-    tags->room = room;
-    return 1;
-}
-
 // a file of the languages' folder taken, its tag stored in order where it is a .json
 static void places_tag_each(void *context, const char *name, int is_folder)
 {
@@ -110,7 +80,7 @@ static void places_tag_each(void *context, const char *name, int is_folder)
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (is_folder || (length < 5u) || (length - 5u >= CLI_NAME_MAX_LEN) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 5u, .other = ".json", .cap = CLI_CELLS_POOL})) ||
-        !places_tags_room(tags))
+        (tags->count >= tags->room))
     {
         return;
     }
@@ -132,7 +102,9 @@ static int places_languages_list(const CliServeArgs *args, VerbaLinea *out, Verb
 {
     (void)args;
     (void)err_msg;
-    CliWindowTags tags = {NULL, 0u, 0u};
+    char (*const taken)[CLI_NAME_MAX_LEN] = g_cli_cells->temporary_buf_alloc(
+        (unsigned long long)CLI_WINDOW_LANGUAGES * CLI_NAME_MAX_LEN, &g_cli_window_places_cells);
+    CliWindowTags tags = {taken, 0u, (taken != NULL) ? CLI_WINDOW_LANGUAGES : 0u};
     char folder[CLI_PATH_MAX_LEN];
     if (cli_home_languages(folder))
     {
@@ -276,7 +248,7 @@ static int places_templates_list(const CliServeArgs *args, VerbaLinea *out, Verb
     return 1;
 }
 
-// a project named `name` begun in `parent` from the template `template`: its folder
+// a project named `name` written in `parent` from the template `template`: its folder
 static int places_project_create(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     const char *const template_name = cli_serve_string(args, "template", err_msg);

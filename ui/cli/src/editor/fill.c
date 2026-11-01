@@ -5,6 +5,7 @@
 // with the cursor line's indent and mark and contain text after it, a line of a longer mark not among them; a
 // docstring's the lines of its quotes that are not blank; plain text's the lines that are not blank. One fill runs at a
 // time
+#include "../text/text.h"
 #include "fill_internal.h"
 
 const char **g_cli_fill_slice;
@@ -48,10 +49,7 @@ int cli_fill_before(const char *text, CliFillLine *line)
     }
     line->end = line->start - 1u;
     line->start = line->end;
-    while ((line->start > 0u) && (text[line->start - 1u] != '\n'))
-    {
-        line->start -= 1u;
-    }
+    line->start = cli_text_back_any(text, line->start, "\n");
     line->index -= 1u;
     return 1;
 }
@@ -103,9 +101,9 @@ void cli_filled_dropped(CliFilled *filled)
     filled->lines -= 1u;
     filled->out->at = (filled->lines > 0u) ? filled->line_start - 1u : 0ull;
     unsigned long long start = filled->out->at;
-    while ((filled->lines > 0u) && (start > 0u) && (filled->out->out[start - 1u] != '\n'))
+    if (filled->lines > 0u)
     {
-        start -= 1u;
+        start = cli_text_back_any(filled->out->out, start, "\n");
     }
     filled->line_start = start;
 }

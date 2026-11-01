@@ -80,12 +80,15 @@ static int url_host(const char *url, const char *authority, unsigned long long s
     }
     else
     {
-        for (const char *at = authority; at < authority + size; at += 1)
+        const char *const colon = cli_text_last(authority, size, ':');
+        host_size = size;
+        port_size = 0ull;
+        if (colon != NULL)
         {
-            port = (*at == ':') ? (at + 1) : port;
+            port = colon + 1;
+            host_size = (unsigned long long)(colon - authority);
+            port_size = (unsigned long long)(authority + size - port);
         }
-        host_size = (port != NULL) ? (unsigned long long)(port - 1 - authority) : size;
-        port_size = (port != NULL) ? (unsigned long long)(authority + size - port) : 0ull;
     }
     unsigned long long number = address->secure ? 443u : 80u;
     if ((port != NULL) && !cli_requests_number(port, port_size, 10u, 65535u, &number))

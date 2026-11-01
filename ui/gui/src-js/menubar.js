@@ -14,7 +14,7 @@
 // form, and starts only from there or from Run, Start.
 //
 // A press of the menu bar opens its menu, and while one is open the pointer moving
-// to another title opens that one instead. Alt held marks each title's letter, Alt and the letter
+// to another title opens that one instead. Alt pressed marks each title's letter, Alt and the letter
 // opens the menu, and Alt alone gives the bar the keys: Left and Right step along it, Down, Enter or
 // Space opens, and Escape hands the keys back. In an open menu Left and Right step to the menus on
 // either side. Past a number of titles set by the window's width, and past what fits, the titles go
@@ -38,7 +38,7 @@ import { showBranches } from "./menubar/git.js";
 import { showMemory } from "./menubar/settings.js";
 import { sheet } from "./menubar/sheets.js";
 import { freshenToolbar, loadReaderMenus, shownMenus } from "./menubar/reader.js";
-import { applyKeys, onShortcut, runHeld } from "./menubar/keys.js";
+import { applyKeys, onShortcut, runPressed } from "./menubar/keys.js";
 export { isChecked } from "./menubar/checks.js";
 export { allCommands, firstKeys } from "./menubar/keys.js";
 export { restoreEnvironment } from "./menubar/settings.js";
@@ -54,7 +54,7 @@ const TITLES_AT = [
   [0, 7],
 ];
 
-export const state = { bar: null, menus: [], open: -1, titles: [], held: false, before: null, openFolder: () => {} };
+export const state = { bar: null, menus: [], open: -1, titles: [], altPressed: false, before: null, openFolder: () => {} };
 
 // The words on and off as true and false, and anything else as undefined, for the setting to flip.
 export const onOff = (args) => (args[0] === "on" ? true : args[0] === "off" ? false : undefined);
@@ -247,15 +247,15 @@ function openAt(at, keyed) {
 // The bar holding the keys after Alt alone, its letters marked.
 function holdBar() {
   state.before = document.activeElement;
-  state.bar.classList.add("held");
+  state.bar.classList.add("pressed");
   state.titles[0]?.button.focus();
 }
 
 function leaveBar(refocus) {
-  if (!state.bar.classList.contains("held")) {
+  if (!state.bar.classList.contains("pressed")) {
     return;
   }
-  state.bar.classList.remove("held");
+  state.bar.classList.remove("pressed");
   if (refocus && state.before?.isConnected) {
     state.before.focus();
   }
@@ -345,38 +345,38 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     }
     event.preventDefault();
   });
-  state.bar.addEventListener("focusout", (event) => !state.bar.contains(event.relatedTarget) && state.bar.classList.remove("held"));
+  state.bar.addEventListener("focusout", (event) => !state.bar.contains(event.relatedTarget) && state.bar.classList.remove("pressed"));
   // The reader's menus and toolbar, and again each time the window comes back to the front.
   loadReaderMenus();
   window.addEventListener("focus", () => loadReaderMenus());
   document.getElementById("toolbar").addEventListener("pointerenter", freshenToolbar);
   window.addEventListener("keydown", (event) => {
     if (event.key === "Alt") {
-      state.held = true;
-      document.body.classList.add("alt-held");
+      state.altPressed = true;
+      document.body.classList.add("alt-pressed");
       return;
     }
-    state.held = false;
+    state.altPressed = false;
     if (event.altKey && !event.ctrlKey && !event.metaKey && /^Key[A-Z]$/.test(event.code)) {
       const letter = event.code.slice(3).toLowerCase();
       const at = state.titles.findIndex(({ button }) => button.dataset.letter === letter);
       if (at >= 0) {
         event.preventDefault();
-        document.body.classList.remove("alt-held");
+        document.body.classList.remove("alt-pressed");
         openAt(at, true);
       }
       return;
     }
     onShortcut(event);
   });
-  // A button of the mouse past its first three, and the wheel turned with a key held, run the command
+  // A button of the mouse past its first three, and the wheel turned with a key pressed, run the command
   // that holds them, where one does.
   for (const kind of ["mousedown", "mouseup"]) {
     window.addEventListener(
       kind,
       (event) => {
         const name = buttonName(event);
-        if (name && (kind === "mousedown" ? state.menus?.some((menu) => menu.all.some((item) => item.keys === name || item.also === name)) : runHeld(name))) {
+        if (name && (kind === "mousedown" ? state.menus?.some((menu) => menu.all.some((item) => item.keys === name || item.also === name)) : runPressed(name))) {
           event.preventDefault();
         }
       },
@@ -386,7 +386,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   window.addEventListener(
     "wheel",
     (event) => {
-      if (runHeld(wheelName(event))) {
+      if (runPressed(wheelName(event))) {
         event.preventDefault();
       }
     },
@@ -396,18 +396,18 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     if (event.key !== "Alt") {
       return;
     }
-    document.body.classList.remove("alt-held");
-    if (state.held && !menuOpen()) {
+    document.body.classList.remove("alt-pressed");
+    if (state.altPressed && !menuOpen()) {
       event.preventDefault();
-      if (state.bar.classList.contains("held")) {
+      if (state.bar.classList.contains("pressed")) {
         leaveBar(true);
       } else {
         holdBar();
       }
     }
-    state.held = false;
+    state.altPressed = false;
   });
-  window.addEventListener("blur", () => document.body.classList.remove("alt-held"));
+  window.addEventListener("blur", () => document.body.classList.remove("alt-pressed"));
   let wait = 0;
   window.addEventListener("resize", () => {
     window.clearTimeout(wait);

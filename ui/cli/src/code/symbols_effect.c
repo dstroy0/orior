@@ -9,16 +9,13 @@
 // reads a language's text
 #include "../builds/compile_db.h"
 #include "../command_line/cells.h"
-#include "../command_line/file_writing.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 #include "symbols_tree.h"
 
-// the bytes the walk's texts are begun with, doubling as they fill, and the room its macros and branches walked are
-// begun with, the same
-#define CLI_EFFECT_TEXT_FIRST 4096u
-#define CLI_EFFECT_ROOM_FIRST 64u
+// the bytes the walk's texts are taken with, and the room its macros and branches walked are taken with, the same
+#define CLI_EFFECT_TEXT_ROOM (8ull << 20u)
 
 // One condition open: whether its region is active, whether one of its arms was taken, and whether the region it
 // opens in is active
@@ -39,9 +36,9 @@ typedef struct
     unsigned int kind;
 } CliEffectDeclared;
 
-// A branch being walked: its leaves, its conditions open and how many, the lines of the declarations of the name
-// sought in it and how many; and for a slice's walk, every declaration its leaves name, read as they are, in a cell
-// whose room doubles as they come, how many and the room, and its place among the branches read whole
+// A branch being walked: its leaves, its conditions open and how many, the lines of the declarations of the name sought
+// in it and how many; and for a slice's walk, every declaration its leaves name, read as they are, in a cell at their
+// most, how many and the room, and its place among the branches read whole
 typedef struct
 {
     CliLeafRead read;
@@ -77,23 +74,6 @@ unsigned int cli_effect_put(CliEffect *effect, const char *text, unsigned long l
     return mmgr_line_ok(&effect->text) ? at : CLI_JSON_NONE;
 }
 
-void *cli_effect_room(void *list, unsigned int count, unsigned int *room, unsigned long long each)
-{
-    if (count < *room)
-    {
-        return list;
-    }
-    const unsigned int grown = (*room == 0u) ? CLI_EFFECT_ROOM_FIRST : (2u * *room);
-    void *const larger =
-        cli_cell_regrown(list, (size_t)(count * each), (unsigned long long)grown * each, &g_cli_code_cells);
-    if (larger == NULL)
-    {
-        return NULL;
-    }
-    *room = grown;
-    return larger;
-}
-
 // what a slice's walk met put in the walk's cell after what it met before: its place among them, or CLI_JSON_NONE
 // where the walk is no slice's, or the cells cannot meet it and the walk is refused
 static unsigned int cli_effect_seen(CliEffect *effect, const CliEffectSeen *seen)
@@ -102,13 +82,11 @@ static unsigned int cli_effect_seen(CliEffect *effect, const CliEffectSeen *seen
     {
         return CLI_JSON_NONE;
     }
-    CliEffectSeen *const room = cli_effect_room(effect->seen, effect->seens, &effect->seen_room, sizeof(CliEffectSeen));
-    if (room == NULL)
+    if (effect->seens >= effect->seen_room)
     {
         effect->refused = 1;
         return CLI_JSON_NONE;
     }
-    effect->seen = room;
     effect->seen[effect->seens] = *seen;
     effect->seens += 1u;
     return effect->seens - 1u;
@@ -156,18 +134,16 @@ typedef struct
 // texts: 1, or 0 with the walk refused where the cells cannot meet it
 static int cli_effect_value_leaf_put(CliEffect *effect, const CliLeafRead *read, unsigned int leaf)
 {
-    CliEffectValueLeaf *const room =
-        cli_effect_room(effect->value_leaf, effect->value_leaves, &effect->value_leaf_room, sizeof(CliEffectValueLeaf));
     unsigned long long length = 0ull;
     const char *const text = cli_leaf_text(read, leaf, &length);
-    const unsigned int put = (room != NULL) ? cli_effect_put(effect, text, length) : CLI_JSON_NONE;
+    const unsigned int put =
+        (effect->value_leaves < effect->value_leaf_room) ? cli_effect_put(effect, text, length) : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
     {
         effect->refused = 1;
         return 0;
     }
     const CliLeaf *const one = &read->leaf[leaf];
-    effect->value_leaf = room;
     // a leaf's text is far under 4 GiB
     effect->value_leaf[effect->value_leaves] =
         (CliEffectValueLeaf){one->is, put, (unsigned int)length, one->binds, one->base, one->does};
@@ -179,9 +155,8 @@ static int cli_effect_value_leaf_put(CliEffect *effect, const CliLeafRead *read,
 // comments and the leaves that carry its line on to the next
 static void cli_effect_met(CliEffect *effect, const CliEffectMet *met)
 {
-    CliEffectMacro *const macros =
-        cli_effect_room(effect->macro, effect->macros, &effect->macro_room, sizeof(CliEffectMacro));
-    const unsigned int named = (macros != NULL) ? cli_effect_put(effect, met->name, met->name_length) : CLI_JSON_NONE;
+    const unsigned int named =
+        (effect->macros < effect->macro_room) ? cli_effect_put(effect, met->name, met->name_length) : CLI_JSON_NONE;
     const unsigned int valued =
         (named != CLI_JSON_NONE) ? cli_effect_put(effect, met->value, met->value_length) : CLI_JSON_NONE;
     if (valued == CLI_JSON_NONE)
@@ -189,7 +164,6 @@ static void cli_effect_met(CliEffect *effect, const CliEffectMet *met)
         effect->refused = 1;
         return;
     }
-    effect->macro = macros;
     // the parameters' names put one after another, each ended by its zero, the first's place theirs
     unsigned int params = valued;
     for (unsigned int at = 0u; at < met->params; at += 1u)
@@ -308,10 +282,8 @@ static void cli_effect_include_met(void *context, const char *path, unsigned int
     {
         return;
     }
-    CliEffectInclude *const includes =
-        cli_effect_room(effect->include, effect->includes, &effect->include_room, sizeof(CliEffectInclude));
     const unsigned int put =
-        (includes != NULL)
+        (effect->includes < effect->include_room)
             ? cli_effect_put(effect, tree_path, cellul.len(&(CatenaFinitaCfg){.src = tree_path, .cap = CLI_CELLS_POOL}))
             : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
@@ -319,7 +291,6 @@ static void cli_effect_include_met(void *context, const char *path, unsigned int
         effect->refused = 1;
         return;
     }
-    effect->include = includes;
     effect->include[effect->includes] = (CliEffectInclude){put, kind};
     effect->includes += 1u;
 }
@@ -333,10 +304,8 @@ static int cli_effect_path_made(const char *path, char *out)
     while (path[at] != '\0')
     {
         unsigned long long end = at;
-        while ((path[end] != '\0') && (path[end] != '/'))
-        {
-            end += 1ull;
-        }
+        end = cli_text_to_any(path, end, end + cellul.len(&(CatenaFinitaCfg){.src = path + end, .cap = CLI_CELLS_POOL}),
+                              "/");
         const unsigned long long size = end - at;
         if ((size == 2ull) && (path[at] == '.') && (path[at + 1u] == '.'))
         {
@@ -344,10 +313,7 @@ static int cli_effect_path_made(const char *path, char *out)
             {
                 return 0;
             }
-            while ((length > 0ull) && (out[length - 1u] != '/'))
-            {
-                length -= 1ull;
-            }
+            length = cli_text_back_any(out, length, "/");
             length -= (length > 0ull) ? 1ull : 0ull;
         }
         else if ((size != 0ull) && !((size == 1ull) && (path[at] == '.')) &&
@@ -407,7 +373,11 @@ static int cli_effect_included(const CliEffect *effect, const char *path, const 
     for (unsigned int file = 0u; !found && (file < g_cli_symbol_file_count); file += 1u)
     {
         const CliSymbolFile *const branch = &g_cli_symbol_files[file];
-        const char *const stored_path = branch->used ? cli_symbol_file_path(branch) : "";
+        char stored_path[CLI_PATH_MAX_LEN] = {'\0'};
+        if (branch->used)
+        {
+            cli_symbol_path_read(branch, stored_path);
+        }
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = stored_path, .cap = CLI_CELLS_POOL});
         const int ends = (size > length) && (stored_path[size - length - 1u] == '/') &&
                          cli_text_same(stored_path + size - length, named, length);
@@ -434,10 +404,8 @@ static int cli_effect_walked(CliEffect *effect, const char *path)
             return 1;
         }
     }
-    unsigned int *const walked =
-        cli_effect_room(effect->walked, effect->walks, &effect->walk_room, sizeof(unsigned int));
     const unsigned int put =
-        (walked != NULL)
+        (effect->walks < effect->walk_room)
             ? cli_effect_put(effect, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}))
             : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
@@ -445,7 +413,6 @@ static int cli_effect_walked(CliEffect *effect, const char *path)
         effect->refused = 1;
         return 1;
     }
-    effect->walked = walked;
     effect->walked[effect->walks] = put;
     effect->walks += 1u;
     return 0;
@@ -456,9 +423,12 @@ static int cli_effect_walked(CliEffect *effect, const char *path)
 static void cli_effect_sought(CliEffect *effect, const char *path, CliEffectBranch *branch)
 {
     branch->soughts = 0u;
-    branch->declared = NULL;
+    branch->declared =
+        effect->slicing
+            ? g_cli_cells->temporary_buf_alloc(CLI_EFFECT_DECLARED_MOST * sizeof(CliEffectDeclared), &g_cli_code_cells)
+            : NULL;
     branch->declareds = 0u;
-    branch->declared_room = 0u;
+    branch->declared_room = (branch->declared != NULL) ? CLI_EFFECT_DECLARED_MOST : 0u;
     if (effect->noted != NULL)
     {
         return;
@@ -466,17 +436,23 @@ static void cli_effect_sought(CliEffect *effect, const char *path, CliEffectBran
     cli_lock_take(&g_cli_symbols_lock);
     const unsigned int file = cli_symbols_file_of(path);
     const CliSymbolFile *const stored = (file != CLI_SYMBOL_FILES) ? &g_cli_symbol_files[file] : NULL;
-    const unsigned int count = (stored != NULL) ? stored->count : 0u;
-    for (unsigned int each = 0u; (stored != NULL) && (each < count); each += 1u)
+    char *const scratch = (stored != NULL) ? cli_symbol_scratch_taken() : NULL;
+    if (scratch != NULL)
     {
-        const CliSymbol *const symbol = &cli_symbol_file_symbols(stored)[each];
+        cli_symbol_file_read(stored, scratch);
+    }
+    const unsigned int count = (scratch != NULL) ? stored->count : 0u;
+    for (unsigned int each = 0u; each < count; each += 1u)
+    {
+        const CliSymbol *const symbol = &cli_symbol_file_symbols(scratch)[each];
         if ((symbol->length == effect->length) && (branch->soughts < CLI_EFFECT_SOUGHT) &&
-            cli_text_same(stored->cell + symbol->name, effect->name, effect->length))
+            cli_text_same(scratch + symbol->name, effect->name, effect->length))
         {
             branch->sought[branch->soughts] = symbol->line;
             branch->soughts += 1u;
         }
     }
+    cli_symbol_scratch_given(scratch);
     cli_lock_give(&g_cli_symbols_lock);
 }
 
@@ -499,14 +475,11 @@ static void cli_effect_declaring(void *context, const char *name, unsigned long 
     {
         return;
     }
-    CliEffectDeclared *const room =
-        cli_effect_room(branch->declared, branch->declareds, &branch->declared_room, sizeof(CliEffectDeclared));
-    if (room == NULL)
+    if (branch->declareds >= branch->declared_room)
     {
         effect->refused = 1;
         return;
     }
-    branch->declared = room;
     const unsigned int named = cli_effect_put(effect, name, length);
     const unsigned int kinded =
         cli_effect_put(effect, kind, cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}));
@@ -556,8 +529,8 @@ static unsigned int cli_effect_next(const CliLeafRead *read, unsigned int from, 
 // its line on to the next passed over
 static long long cli_effect_judged(CliEffect *effect, const CliLeafRead *read, unsigned int from, unsigned int to)
 {
-    CliEffectToken *const token =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)((to - from) + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
+    CliEffectToken *const token = g_cli_cells->temporary_buf_alloc(
+        (unsigned long long)((to - from) + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
     if (token == NULL)
     {
         effect->refused = 1;
@@ -714,14 +687,11 @@ static void cli_effect_directive(CliEffect *effect, CliEffectBranch *branch, uns
 static unsigned int cli_effect_branch_read_put(CliEffect *effect, unsigned int path, const unsigned char *bytes,
                                                unsigned long long size, int from_disk, const CliLeafRead *read)
 {
-    CliEffectBranchRead *const room = cli_effect_room(effect->branch_read, effect->branches_read,
-                                                      &effect->branch_read_room, sizeof(CliEffectBranchRead));
-    if (room == NULL)
+    if (effect->branches_read >= effect->branch_read_room)
     {
         effect->refused = 1;
         return CLI_JSON_NONE;
     }
-    effect->branch_read = room;
     effect->branch_read[effect->branches_read] = (CliEffectBranchRead){path, bytes, size, from_disk, *read};
     effect->branches_read += 1u;
     return effect->branches_read - 1u;
@@ -771,7 +741,7 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
                           !cellul.eq(&(CatenaFinitaCfg){.src = path, .other = effect->start, .cap = CLI_CELLS_POOL});
     unsigned long long size = from_disk ? 0ull : effect->start_size;
     const unsigned char *const bytes = (branch == NULL) ? NULL
-                                       : from_disk      ? cli_file_read(full, &size)
+                                       : from_disk      ? cli_file_taken(full, &size, &g_cli_code_cells)
                                                         : (const unsigned char *)effect->start_text;
     if (bytes == NULL)
     {
@@ -881,7 +851,7 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
         cli_symbols_leaves_given(&branch->read);
         if (from_disk)
         {
-            cli_file_let_go(bytes, size);
+            cli_file_given(bytes, &g_cli_code_cells);
         }
     }
     g_cli_cells->persistent_buf_release(branch->declared, &g_cli_code_cells);
@@ -892,13 +862,26 @@ CliEffect *cli_effect_made(const char *path, const char *name, int slicing, Verb
 {
     CliEffect *const effect = g_cli_cells->persistent_buf_alloc(sizeof(CliEffect), &g_cli_code_cells);
     CliSymbolsLanguages *const languages = (effect != NULL) ? cli_symbols_languages_read() : NULL;
-    if ((languages == NULL) || !cli_growing_line_made(&effect->text, CLI_EFFECT_TEXT_FIRST, &g_cli_code_cells))
+    // the walk's lists and texts in one cell, each at its most
+    const unsigned long long branch_bytes = CLI_EFFECT_LIST_MOST * sizeof(CliEffectBranchRead);
+    const unsigned long long macro_bytes = CLI_EFFECT_LIST_MOST * sizeof(CliEffectMacro);
+    const unsigned long long seen_bytes = CLI_EFFECT_LIST_MOST * sizeof(CliEffectSeen);
+    const unsigned long long leaf_bytes = CLI_EFFECT_VALUES_MOST * sizeof(CliEffectValueLeaf);
+    const unsigned long long include_bytes = CLI_EFFECT_LIST_MOST * sizeof(CliEffectInclude);
+    const unsigned long long walked_bytes = CLI_EFFECT_LIST_MOST * sizeof(unsigned int);
+    const unsigned long long list_bytes =
+        branch_bytes + macro_bytes + seen_bytes + leaf_bytes + include_bytes + walked_bytes;
+    char *const cell = (languages != NULL)
+                           ? g_cli_cells->temporary_buf_alloc(list_bytes + CLI_EFFECT_TEXT_ROOM, &g_cli_code_cells)
+                           : NULL;
+    if (cell == NULL)
     {
         cli_symbols_languages_given(languages);
         g_cli_cells->persistent_buf_release(effect, &g_cli_code_cells);
         mmgr_line_put(err_msg, "the cells cannot meet the walk");
         return NULL;
     }
+    effect->text = (VerbaLinea){cell + list_bytes, CLI_EFFECT_TEXT_ROOM, 0ull};
     effect->languages = languages;
     cli_lock_take(&g_cli_symbols_lock);
     memor.cpy(&(MemoriaCfg){.dst = effect->root, .src = g_cli_symbols_root, .bytes = CLI_PATH_MAX_LEN});
@@ -906,18 +889,25 @@ CliEffect *cli_effect_made(const char *path, const char *name, int slicing, Verb
     effect->start = path;
     effect->start_text = NULL;
     effect->start_size = 0ull;
-    effect->macro = NULL;
+    effect->branch_read = (CliEffectBranchRead *)(void *)cell;
+    effect->branches_read = 0u;
+    effect->branch_read_room = CLI_EFFECT_LIST_MOST;
+    effect->macro = (CliEffectMacro *)(void *)(cell + branch_bytes);
     effect->macros = 0u;
-    effect->macro_room = 0u;
-    effect->value_leaf = NULL;
+    effect->macro_room = CLI_EFFECT_LIST_MOST;
+    effect->seen = (CliEffectSeen *)(void *)(cell + branch_bytes + macro_bytes);
+    effect->seens = 0u;
+    effect->seen_room = CLI_EFFECT_LIST_MOST;
+    effect->value_leaf = (CliEffectValueLeaf *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes);
     effect->value_leaves = 0u;
-    effect->value_leaf_room = 0u;
-    effect->walked = NULL;
-    effect->walks = 0u;
-    effect->walk_room = 0u;
-    effect->include = NULL;
+    effect->value_leaf_room = CLI_EFFECT_VALUES_MOST;
+    effect->include = (CliEffectInclude *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes + leaf_bytes);
     effect->includes = 0u;
-    effect->include_room = 0u;
+    effect->include_room = CLI_EFFECT_LIST_MOST;
+    effect->walked =
+        (unsigned int *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes + leaf_bytes + include_bytes);
+    effect->walks = 0u;
+    effect->walk_room = CLI_EFFECT_LIST_MOST;
     effect->name = name;
     effect->length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     effect->found = 0;
@@ -925,12 +915,6 @@ CliEffect *cli_effect_made(const char *path, const char *name, int slicing, Verb
     effect->first_line = 0u;
     effect->first_found = 0;
     effect->slicing = slicing;
-    effect->branch_read = NULL;
-    effect->branches_read = 0u;
-    effect->branch_read_room = 0u;
-    effect->seen = NULL;
-    effect->seens = 0u;
-    effect->seen_room = 0u;
     effect->noted = NULL;
     effect->noted_context = NULL;
     effect->reached = NULL;
@@ -946,14 +930,9 @@ void cli_effect_taken(CliEffect *effect, const char *path, unsigned int line)
     // each file the branch includes before its first line walked before it, as its compiler reads them
     for (unsigned int at = 0u; at < effect->includes; at += 1u)
     {
-        // the walk puts each branch's path among the texts, which move as they grow, and the file's is copied first
-        const char *const included = cli_effect_text(effect, effect->include[at].path);
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = included, .cap = CLI_CELLS_POOL});
-        if ((effect->include[at].kind == CLI_INCLUDE_FORCED) && (size < CLI_PATH_MAX_LEN))
+        if (effect->include[at].kind == CLI_INCLUDE_FORCED)
         {
-            char forced[CLI_PATH_MAX_LEN];
-            memor.cpy(&(MemoriaCfg){.dst = forced, .src = included, .bytes = (size_t)size + 1u});
-            cli_effect_walk(effect, forced, CLI_EFFECT_GIVEN, 1u);
+            cli_effect_walk(effect, cli_effect_text(effect, effect->include[at].path), CLI_EFFECT_GIVEN, 1u);
         }
     }
     cli_effect_walk(effect, path, line, 0u);
@@ -966,16 +945,10 @@ void cli_effect_given_back(CliEffect *effect)
         cli_symbols_leaves_given(&effect->branch_read[at].read);
         if (effect->branch_read[at].from_disk)
         {
-            cli_file_let_go(effect->branch_read[at].bytes, effect->branch_read[at].size);
+            cli_file_given(effect->branch_read[at].bytes, &g_cli_code_cells);
         }
     }
     g_cli_cells->persistent_buf_release(effect->branch_read, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(effect->seen, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(effect->text.out, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(effect->macro, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(effect->value_leaf, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(effect->walked, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(effect->include, &g_cli_code_cells);
     cli_symbols_languages_given(effect->languages);
     g_cli_cells->persistent_buf_release(effect, &g_cli_code_cells);
 }

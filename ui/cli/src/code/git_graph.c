@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_graph.c: every branch's commits laid out as a graph, or those a search finds over the whole history
 #include "../text/regexp.h"
+#include "../text/text.h"
 #include "git_internal.h"
 
 // the most columns the graph has, the most words a search has, and the most bytes of a commit's text searched
@@ -225,15 +226,9 @@ static int cli_drawn_put(CliGraph *found, const char *line, const char *stop)
     const char *const parents_end = fields[1] + lengths[1];
     while (word < parents_end)
     {
-        while ((word < parents_end) && (word[0] == ' '))
-        {
-            word += 1;
-        }
+        word += cli_text_past_any(word, 0ull, (unsigned long long)(parents_end - word), " ");
         const char *word_end = word;
-        while ((word_end < parents_end) && (word_end[0] != ' '))
-        {
-            word_end += 1;
-        }
+        word_end += cli_text_to_any(word_end, 0ull, (unsigned long long)(parents_end - word_end), " ");
         if ((word_end > word) && (drawn->parents < CLI_GIT_PARENTS))
         {
             drawn->parent[drawn->parents] = cli_git_text_put(&found->text, word, (unsigned long long)(word_end - word));
@@ -249,10 +244,7 @@ static int cli_drawn_put(CliGraph *found, const char *line, const char *stop)
     while (name < names_end)
     {
         const char *name_end = name;
-        while (((name_end + 1) < names_end) && !((name_end[0] == ',') && (name_end[1] == ' ')))
-        {
-            name_end += 1;
-        }
+        name_end = name + cli_text_to_pair(name, 0ull, (unsigned long long)(names_end - name), ',', ' ');
         name_end = ((name_end + 1) < names_end) ? name_end : names_end;
         if ((name_end > name) && (drawn->refs < CLI_GIT_REFS))
         {
@@ -281,15 +273,11 @@ void cli_git_graph(const char *root, const char *query, int authors, CliGraph *f
     const char *word = query;
     while ((word[0] != '\0') && (words < CLI_GIT_QUERY_WORDS))
     {
-        while ((word[0] == ' ') || ((word[0] >= '\t') && (word[0] <= '\r')))
-        {
-            word += 1;
-        }
+        word += cli_text_past_any(word, 0ull, cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}),
+                                  CLI_TEXT_WHITE);
         const char *end = word;
-        while ((end[0] != '\0') && (end[0] != ' ') && !((end[0] >= '\t') && (end[0] <= '\r')))
-        {
-            end += 1;
-        }
+        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
+                               CLI_TEXT_WHITE);
         if (end > word)
         {
             VerbaLinea line = {s_words[words], CLI_NAME_MAX_LEN, 0ull};
@@ -309,10 +297,7 @@ void cli_git_graph(const char *root, const char *query, int authors, CliGraph *f
     while (queried && (line < end) && (found->count < CLI_GIT_GRAPH))
     {
         const char *stop = line;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const char *const next = stop + 1;
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
         // a commit the search does not find leaves its texts in place, and is taken back

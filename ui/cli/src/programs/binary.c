@@ -3,6 +3,8 @@
 // binary.c: a Windows program's imports and delay-loaded imports, each looked for as Windows' loader looks for it, the
 // libraries those load in turn; what a report reports; and the libraries found through a PATH copied beside the program
 #include "binary.h"
+#include "../command_line/cells.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 
 // the Visual C++ runtime's libraries, which its Redistributable installs, and their debug forms, which only Visual
@@ -46,10 +48,9 @@ int cli_binary_text(const unsigned char *bytes, unsigned long long size, unsigne
                     unsigned long long room)
 {
     unsigned long long end = at;
-    while ((end < size) && (bytes[end] != 0u))
-    {
-        end += 1ull;
-    }
+    const unsigned char *const zero =
+        (at < size) ? memor.chr(&(MemoriaCfg){.src = bytes + at, .val = 0, .bytes = size - at}) : NULL;
+    end = (zero != NULL) ? (unsigned long long)(zero - bytes) : size;
     if (end >= size)
     {
         return 0;
@@ -63,12 +64,7 @@ int cli_binary_text(const unsigned char *bytes, unsigned long long size, unsigne
 // a name in lower case into `out`, sized for CLI_NAME_MAX_LEN
 static void cli_lower(const char *name, char *out)
 {
-    unsigned long long at = 0ull;
-    for (; (name[at] != '\0') && ((at + 1ull) < CLI_NAME_MAX_LEN); at += 1ull)
-    {
-        out[at] = ((name[at] >= 'A') && (name[at] <= 'Z')) ? (char)(name[at] + 32) : name[at];
-    }
-    out[at] = '\0';
+    (void)cli_text_lowered_into(out, CLI_NAME_MAX_LEN, name);
 }
 
 static int cli_listed(const char *lower, const char *const *names, unsigned int count)
@@ -243,10 +239,7 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
     memor.cpy(&(MemoriaCfg){
         .dst = folder, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     char *cut = folder + cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
-    while ((cut > folder) && (cut[-1] != '/') && (cut[-1] != '\\'))
-    {
-        cut -= 1;
-    }
+    cut = folder + cli_text_back_any(folder, (unsigned long long)(cut - folder), "/\\");
     const char *const program = path + (cut - folder);
     if (cut > folder)
     {
@@ -338,7 +331,8 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
             library->has_at && ((library->found == CLI_FOUND_BESIDE) || (library->found == CLI_FOUND_SYSTEM_PATH) ||
                                 (library->found == CLI_FOUND_ORIOR_PATH));
         unsigned long long more_size = 0ull;
-        const unsigned char *const more = looked ? cli_file_read(library->at, &more_size) : NULL;
+        const unsigned char *const more =
+            looked ? cli_file_taken(library->at, &more_size, &g_cli_programs_cells) : NULL;
         if (more != NULL)
         {
             char err_buf[CLI_PATH_MAX_LEN];
@@ -358,7 +352,7 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = library->name, .cap = CLI_CELLS_POOL}) + 1u});
                 queued += 1u;
             }
-            cli_file_let_go(more, more_size);
+            cli_file_given(more, &g_cli_programs_cells);
         }
     }
     return 1;
@@ -372,7 +366,7 @@ int cli_binary_read(const char *path, const char (*orior_path)[CLI_PATH_MAX_LEN]
     report->has_glibc = 0;
     report->glibc[0] = '\0';
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_programs_cells);
     if (bytes == NULL)
     {
         mmgr_line_put(err_msg, path);
@@ -405,6 +399,6 @@ int cli_binary_read(const char *path, const char (*orior_path)[CLI_PATH_MAX_LEN]
         mmgr_line_put(err_msg, " is no program orior_cli reads");
     }
     cli_lock_give(&s_lock);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_programs_cells);
     return read;
 }

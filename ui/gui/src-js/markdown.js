@@ -70,10 +70,10 @@ function sanitized(html, resolve) {
 
 // The inline marks of a run of text as HTML.
 function inline(text, resolve) {
-  const held = [];
+  const spans = [];
   const hold = (html) => {
-    held.push(html);
-    return `\u0000${held.length - 1}\u0000`;
+    spans.push(html);
+    return `\u0000${spans.length - 1}\u0000`;
   };
   let out = text;
   // code spans first, whose contents take no other mark
@@ -104,7 +104,7 @@ function inline(text, resolve) {
   out = out.replace(/\*(?=\S)([\s\S]*?\S)\*|(^|[^\w])_(?=\S)([\s\S]*?\S)_(?!\w)/g, (_, one, before, two) => (one !== undefined ? `<em>${one}</em>` : `${before}<em>${two}</em>`));
   out = out.replace(/~~(?=\S)([\s\S]*?\S)~~/g, "<del>$1</del>");
   out = out.replace(/(?: {2,}|\\)\n/g, "<br />\n");
-  return out.replace(/\u0000(\d+)\u0000/g, (_, index) => held[Number(index)]);
+  return out.replace(/\u0000(\d+)\u0000/g, (_, index) => spans[Number(index)]);
 }
 
 // A table's row as its cells, the pipes at its ends taken off and an escaped pipe kept.

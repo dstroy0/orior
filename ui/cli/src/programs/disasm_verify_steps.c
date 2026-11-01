@@ -5,8 +5,10 @@
 // their symbols listed from the program, the symbols' instructions read by the disassembler and by Ghidra's analyzer
 // running the plugin's script, and the program executed. A program that ends with a code other than 0 is reported with
 // its errors' first bytes
+#include "../command_line/cells.h"
 #include "../command_line/command_line_internal.h"
 #include "../runs/runner.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "disasm_verify.h"
 
@@ -97,8 +99,8 @@ int cli_disasm_built(const char *top, const char *target, const char *compiler, 
     cli_words_put(&s_words, bash);
     cli_words_put(&s_words, script);
     cli_words_put(&s_words, target);
-    const CliSetting settings[3] = {{"PATH", s_run_path}, {"LTO", "1"}, {"CC", compiler}};
-    CliRan *const ran = verify_ran(top, settings, 3u, CLI_DISASM_BUILD_PATIENCE, err_msg);
+    const CliSetting settings[2] = {{"PATH", s_run_path}, {"CC", compiler}};
+    CliRan *const ran = verify_ran(top, settings, 2u, CLI_DISASM_BUILD_PATIENCE, err_msg);
     if (ran == NULL)
     {
         return 0;
@@ -136,15 +138,9 @@ unsigned int cli_disasm_functions(int gnu, const char *lifter, const char *objec
         for (unsigned long long at = 0ull; (at < ran->out_size) && (count < CLI_DISASM_FUNCTIONS);)
         {
             unsigned long long end = at;
-            while ((end < ran->out_size) && (ran->out[end] != '\n'))
-            {
-                end += 1ull;
-            }
+            end = cli_text_to_any(ran->out, end, ran->out_size, "\n");
             unsigned long long word = end;
-            while ((word > at) && (ran->out[word - 1ull] != ' ') && (ran->out[word - 1ull] != '\t'))
-            {
-                word -= 1ull;
-            }
+            word = (at + cli_text_back_any(ran->out + at, word - at, " \t"));
             const int function = ((end - word) > 0ull) && ((end - word) < CLI_NAME_MAX_LEN) && (ran->out[at] == 'T');
             if (function)
             {
@@ -159,7 +155,7 @@ unsigned int cli_disasm_functions(int gnu, const char *lifter, const char *objec
     if (!gnu)
     {
         unsigned long long size = 0ull;
-        const unsigned char *const text = cli_file_read(ir, &size);
+        const unsigned char *const text = cli_file_taken(ir, &size, &g_cli_programs_cells);
         if (text == NULL)
         {
             mmgr_line_put(err_msg, ir);
@@ -167,7 +163,7 @@ unsigned int cli_disasm_functions(int gnu, const char *lifter, const char *objec
             return 0u;
         }
         count = cli_disasm_functions_defined((const char *)text, size, names, CLI_DISASM_FUNCTIONS);
-        cli_file_let_go(text, size);
+        cli_file_given(text, &g_cli_programs_cells);
     }
     if (count == 0u)
     {
@@ -262,7 +258,7 @@ const unsigned char *cli_disasm_ghidra(const char *analyzer, const char *const *
         return NULL;
     }
     unsigned long long script_size = 0ull;
-    const unsigned char *const script_text = cli_file_read(source, &script_size);
+    const unsigned char *const script_text = cli_file_taken(source, &script_size, &g_cli_programs_cells);
     if (script_text == NULL)
     {
         mmgr_line_put(err_msg, source);
@@ -271,7 +267,7 @@ const unsigned char *cli_disasm_ghidra(const char *analyzer, const char *const *
     }
     const int made = cli_private_folder_made(scripts) && cli_private_folder_made(project) &&
                      cli_private_file_written(script, script_text, script_size);
-    cli_file_let_go(script_text, script_size);
+    cli_file_given(script_text, &g_cli_programs_cells);
     static char s_names_text[CLI_DISASM_FUNCTIONS * CLI_NAME_MAX_LEN];
     VerbaLinea listed = {s_names_text, sizeof(s_names_text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
@@ -316,13 +312,10 @@ const unsigned char *cli_disasm_ghidra(const char *analyzer, const char *const *
         return NULL;
     }
     cli_ran_given(ran);
-    const unsigned char *const text = cli_file_read(into, size);
+    const unsigned char *const text = cli_file_taken(into, size, &g_cli_programs_cells);
     if ((text == NULL) || (*size == 0ull))
     {
-        if (text != NULL)
-        {
-            cli_file_let_go(text, *size);
-        }
+        cli_file_given(text, &g_cli_programs_cells);
         mmgr_line_put(err_msg, "Ghidra's script wrote nothing to ");
         mmgr_line_put(err_msg, into);
         mmgr_line_put(err_msg, ": the analyzer's log in the run's errors explains why");

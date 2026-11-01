@@ -5,7 +5,7 @@
 // kind's language as a file opened is: the cells the file gives as it opens, and a cell the reader adds.
 
 import { invoke } from "../bridge.js";
-import { mirror } from "../edit/held.js";
+import { mirror } from "../edit/mirror.js";
 import { state } from "../notebook.js";
 
 // The notebooks whose cells are branches on the window's side, each under a key of its own.

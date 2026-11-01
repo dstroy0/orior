@@ -65,17 +65,10 @@ static unsigned int cli_numbers(const char *version, unsigned long long *numbers
     while ((part[0] != '\0') && (count < CLI_DOTNET_NUMBERS))
     {
         const char *end = part;
-        while ((end[0] != '\0') && (end[0] != '.') && (end[0] != '-'))
-        {
-            end += 1;
-        }
-        int number = end > part;
-        unsigned long long value = 0ull;
-        for (const char *digit = part; number && (digit < end); digit += 1)
-        {
-            number = (digit[0] >= '0') && (digit[0] <= '9') && (value <= 0xffffffffull);
-            value = (value * 10ull) + (unsigned long long)(digit[0] - '0');
-        }
+        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), ".-");
+        const unsigned long long digits = (unsigned long long)(end - part);
+        const int number = (digits != 0ull) && (cli_text_past_class(part, 0ull, digits, CLI_TEXT_DIGITS, "") == digits);
+        const unsigned long long value = number ? cli_text_number(part, 0ull, digits, NULL) : 0ull;
         if (number && (value <= 0xffffffffull))
         {
             numbers[count] = value;
@@ -245,10 +238,7 @@ static int cli_is_own(const char *folder, const char *importer, unsigned long lo
                ((length == size) || (importer[size] == '/') || (importer[size] == '\\'));
     }
     unsigned long long top = 0ull;
-    while ((top < length) && (importer[top] != '.'))
-    {
-        top += 1ull;
-    }
+    top = cli_text_to_any(importer, top, length, ".");
     if ((top == 8ull) && (memor.cmp(&(MemoriaCfg){.src = importer, .other = "__main__", .bytes = 8u}) == 0))
     {
         return 1;
@@ -282,17 +272,11 @@ static void cli_own_each(void *context, const char *module, unsigned long long m
         // the importer up to the next `, `
         const char *const start = one;
         const char *stop = one;
-        while ((stop < end) && !(((stop + 1) < end) && (stop[0] == ',') && (stop[1] == ' ')))
-        {
-            stop += 1;
-        }
+        stop = one + cli_text_to_pair(one, 0ull, (unsigned long long)(end - one), ',', ' ');
         one = (stop < end) ? (stop + 2) : end;
         // `name (kinds)`: the `)` at its end left off, then parted at its last ` (`
         const char *close = stop;
-        while ((close > start) && (close[-1] == ')'))
-        {
-            close -= 1;
-        }
+        close = start + cli_text_back_past(start, (unsigned long long)(close - start), ")");
         const char *split = NULL;
         for (const char *at = start; (at + 1) < close; at += 1)
         {

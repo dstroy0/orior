@@ -4,6 +4,7 @@
 // as a program's input and output are. Each message waits in a cell of its own size: a request the client writes is
 // taken into one as its head gives its length, and a message the adapter sends is framed as the client reads it
 #include "../command_line/cells.h"
+#include "../text/text.h"
 #include "dap_internal.h"
 
 // A message waiting one way between orior_cli and its own adapter, in a cell of its size: the one after it, its size
@@ -156,8 +157,7 @@ static int within_length(unsigned long long head, unsigned long long *length)
     int has_length = 0;
     for (unsigned long long line = 0ull; !has_length && (line < head);)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = s_head + line, .val = '\n', .bytes = head - line});
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - s_head) : head;
+        const unsigned long long end = cli_text_line_at(s_head, line, head).stop;
         if ((end - line >= sizeof(s_length) - 1ull) &&
             (memor.cmp(&(MemoriaCfg){.src = s_head + line, .other = s_length, .bytes = sizeof(s_length) - 1ull}) == 0))
         {

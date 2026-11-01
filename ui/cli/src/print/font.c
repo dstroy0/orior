@@ -231,16 +231,7 @@ typedef struct
 
 static int cli_same_name(const char *one, const char *other)
 {
-    for (; (one[0] != '\0') && (other[0] != '\0'); one += 1, other += 1)
-    {
-        const char left = ((one[0] >= 'A') && (one[0] <= 'Z')) ? (char)(one[0] + 32) : one[0];
-        const char right = ((other[0] >= 'A') && (other[0] <= 'Z')) ? (char)(other[0] + 32) : other[0];
-        if (left != right)
-        {
-            return 0;
-        }
-    }
-    return (one[0] == '\0') && (other[0] == '\0');
+    return cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = CLI_CELLS_POOL, .ci = 1});
 }
 
 static void cli_walk_each(void *context, const char *name, int is_folder)

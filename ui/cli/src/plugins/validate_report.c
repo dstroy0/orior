@@ -91,9 +91,9 @@ static void report_barriers(void)
         }
         mmgr_line_finish(&lifted_line);
         const char *const text = first->text + message->text;
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text, .val = '\n', .bytes = message->text_size});
-        unsigned long long first_line = (newline != NULL) ? (unsigned long long)(newline - text) : message->text_size;
-        first_line -= ((newline != NULL) && (first_line > 0ull) && (text[first_line - 1ull] == '\r')) ? 1ull : 0ull;
+        const CliTextLine bounds = cli_text_line_at(text, 0ull, message->text_size);
+        unsigned long long first_line = bounds.stop;
+        first_line -= bounds.stop - bounds.cut;
         char msg_buf[8192];
         VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ull};
         mmgr_line_put(&msg, stopping->name);

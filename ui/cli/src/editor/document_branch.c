@@ -12,7 +12,7 @@
 // As each line is colored the regions its grammar's roles open and close on it are kept with it, and once every line
 // of a text is colored and its regions moved since, its folds go on: each region from the line it opens on to the last
 // line the fold hides, a paged text's those that meet the lines the page mirrors.
-// The lock is held only to claim lines and to put in what a coloring found: each batch of lines is claimed under it,
+// The lock is taken only to claim lines and to put in what a coloring found: each batch of lines is claimed under it,
 // its lines and the state the first is entered in copied out, read and colored with the lock given back, in a work of
 // the coloring's own, and put in under the lock again where the text did not move meanwhile. So the walk, the views
 // and the reads color at once, each on its own thread, and every call that reads a text waits on none of them. The walk
@@ -21,7 +21,7 @@
 #include "../code/symbols.h"
 #include "../code/symbols_internal.h"
 #include "../command_line/cells.h"
-#include "../command_line/file_writing.h"
+#include "../text/text.h"
 #include "document_internal.h"
 #include "highlight.h"
 #include "pages.h"
@@ -32,20 +32,19 @@
 // again after it, and the most bytes of lines it colors, the last line it colors maybe past them, and its colors are
 // handed on in steps, and the bytes of a coloring that colors every line asked; the lines colored at once where a
 // coloring stops at the first entered as before, and where it does not, CLI_DOC_STEP where its bytes reach no further;
-// the room a step's colors are begun in, a state's longest text, the room a text's states hold past them and the places
-// of its index they are found by, the bytes a coloring's room is begun in, the share of what a text's room for its
-// states or its runs is taken for that it holds past it, and no line
+// the room a step's colors are written in, a state's longest text, the room a text's states hold past them and the
+// places of its index they are found by, the bytes a coloring's room is written in, the share of what a text's room for
+// its states or its runs is taken for that it holds past it, and no line
 #define CLI_DOC_ROOT 0u
 #define CLI_DOC_STEP 256u
 #define CLI_DOC_STEP_BYTES 16384ull
 #define CLI_DOC_ALL_BYTES 0xffffffffffffffffull
 #define CLI_DOC_BATCH 64u
 #define CLI_DOC_RUN 4096u
-#define CLI_DOC_COLORS_FIRST 4096u
+#define CLI_DOC_COLORS_ROOM (1ull << 20u)
 #define CLI_DOC_STATE 8192u
-#define CLI_DOC_STATES_FIRST 256u
-#define CLI_DOC_INDEX_FIRST 64u
-#define CLI_DOC_ROOM_FIRST 4096u
+#define CLI_DOC_STATES_ROOM (256u << 10u)
+#define CLI_DOC_INDEX_PLACES 16384u
 #define CLI_DOC_ROOM_SHARE 8ull
 #define CLI_DOC_NONE 0xffffffffu
 
@@ -71,83 +70,6 @@ static int s_threaded;
 static unsigned int s_walkers_most;
 static CliBranchWalker s_walkers[CLI_DOC_WALKERS + 1u];
 static CliLock s_handing = CLI_LOCK_INIT;
-
-// the rooms the folds are found in, each taken once, grown as a use needs more and used again by every use after,
-// under the lock: the regions open above a line, and the widest fold that opens on each line
-static void *s_opened;
-static unsigned long long s_opened_room;
-static void *s_widest;
-static unsigned long long s_widest_room;
-
-// A coloring's work, its rooms taken as the coloring needs them, grown as it needs more and given back as it ends: the
-// UTF-8 of the lines it reads, where each of those lines starts, the names each run of a line takes, the roles of its
-// grammar's names, and what it found on each line, as it is put in
-typedef struct
-{
-    void *text;
-    unsigned long long text_room;
-    void *starts;
-    unsigned long long starts_room;
-    void *named;
-    unsigned long long named_room;
-    void *roles;
-    unsigned long long roles_room;
-    void *found;
-    unsigned long long found_room;
-} CliBranchWork;
-
-// the room `*cell` of `*room` bytes made `wanted` bytes at least, doubling from CLI_DOC_ROOM_FIRST, its first `kept`
-// bytes carried into it where it grows: 1, or 0 where the cells cannot meet it, the room as it was
-static int branch_room_made(void **cell, unsigned long long *room, unsigned long long wanted, unsigned long long kept)
-{
-    if (wanted <= *room)
-    {
-        return 1;
-    }
-    unsigned long long grown = (*room != 0ull) ? *room : CLI_DOC_ROOM_FIRST;
-    while (grown < wanted)
-    {
-        grown *= 2ull;
-    }
-    void *const made = g_cli_cells->persistent_buf_alloc(grown, &g_cli_editor_cells);
-    if (made == NULL)
-    {
-        return 0;
-    }
-    if (kept != 0ull)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = made, .src = *cell, .bytes = kept});
-    }
-    g_cli_cells->persistent_buf_release(*cell, &g_cli_editor_cells);
-    *cell = made;
-    *room = grown;
-    return 1;
-}
-
-// a work of no rooms, as a coloring begins
-static void branch_work_emptied(CliBranchWork *work)
-{
-    work->text = NULL;
-    work->text_room = 0ull;
-    work->starts = NULL;
-    work->starts_room = 0ull;
-    work->named = NULL;
-    work->named_room = 0ull;
-    work->roles = NULL;
-    work->roles_room = 0ull;
-    work->found = NULL;
-    work->found_room = 0ull;
-}
-
-// a work's rooms given back, as its coloring ends
-static void branch_work_given(CliBranchWork *work)
-{
-    g_cli_cells->persistent_buf_release(work->text, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(work->starts, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(work->named, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(work->roles, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(work->found, &g_cli_editor_cells);
-}
 
 // the hash of `length` bytes of `text`, FNV-1a over its bytes
 static unsigned int branch_state_hash(const char *text, unsigned long long length)
@@ -179,33 +101,23 @@ static void branch_index_put(CliStoredText *one, unsigned int at)
     one->state_index[entry] = at + 1u;
 }
 
-// the index twice as large where half of it holds states, every state put again: 1, or 0 where the cells cannot meet it
-static int branch_index_grown(CliStoredText *one)
+// the index taken at its most where it stands untaken: 1, or 0 where the cells cannot meet it or half of it holds
+// states
+static int branch_index_made(CliStoredText *one)
 {
-    if ((one->state_indexed != 0u) && ((2u * (one->state_count + 1u)) <= one->state_indexed))
+    if (one->state_indexed == 0u)
     {
-        return 1;
+        unsigned int *const cell =
+            g_cli_cells->persistent_buf_alloc(CLI_DOC_INDEX_PLACES * sizeof(*cell), &g_cli_editor_cells);
+        if (cell == NULL)
+        {
+            return 0;
+        }
+        memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = CLI_DOC_INDEX_PLACES * sizeof(*cell)});
+        one->state_index = cell;
+        one->state_indexed = CLI_DOC_INDEX_PLACES;
     }
-    const unsigned long long places = (one->state_indexed != 0u) ? (2ull * one->state_indexed) : CLI_DOC_INDEX_FIRST;
-    // the index is built anew over the whole cell: nothing of the old one is carried
-    unsigned int *const grown =
-        (places <= 0x80000000ull) ? cli_cell_regrown(one->state_index, 0u, places * sizeof(*grown), &g_cli_editor_cells)
-                                  : NULL;
-    if (grown == NULL)
-    {
-        return 0;
-    }
-    memor.set(&(MemoriaCfg){.dst = grown, .val = 0, .bytes = places * sizeof(*grown)});
-    one->state_index = grown;
-    // a count checked above to be no more than an unsigned int's half
-    one->state_indexed = (unsigned int)places;
-    for (unsigned int at = 0u; at < one->state_used;)
-    {
-        branch_index_put(one, at);
-        // a state's text lies within the states' room, which an unsigned int counts
-        at += (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = one->state + at, .cap = CLI_CELLS_POOL}) + 1u;
-    }
-    return 1;
+    return (2u * (one->state_count + 1u)) <= one->state_indexed;
 }
 
 // the place of the state `text` among the text's states, found by its hash, the place found last tried first, and
@@ -217,7 +129,7 @@ static unsigned int branch_state(CliStoredText *one, const char *text)
     {
         return one->state_last;
     }
-    if (!branch_index_grown(one))
+    if (!branch_index_made(one))
     {
         one->refused = 1;
         return CLI_DOC_ROOT;
@@ -232,20 +144,15 @@ static unsigned int branch_state(CliStoredText *one, const char *text)
         }
     }
     const unsigned long long needed = (unsigned long long)one->state_used + length + 1ull;
+    if (one->state_room == 0u)
+    {
+        one->state = g_cli_cells->persistent_buf_alloc(CLI_DOC_STATES_ROOM, &g_cli_editor_cells);
+        one->state_room = (one->state != NULL) ? CLI_DOC_STATES_ROOM : 0u;
+    }
     if (needed > one->state_room)
     {
-        // the states with a share of them past those, as a runs' room holds its runs
-        const unsigned long long room = needed + (needed / CLI_DOC_ROOM_SHARE) + CLI_DOC_STATES_FIRST;
-        char *const grown =
-            (room <= 0xffffffffull) ? cli_cell_regrown(one->state, one->state_used, room, &g_cli_editor_cells) : NULL;
-        if (grown == NULL)
-        {
-            one->refused = 1;
-            return CLI_DOC_ROOT;
-        }
-        one->state = grown;
-        // a room checked above to be no more than an unsigned int counts
-        one->state_room = (unsigned int)room;
+        one->refused = 1;
+        return CLI_DOC_ROOT;
     }
     memor.cpy(&(MemoriaCfg){.dst = one->state + one->state_used, .src = text, .bytes = length + 1ull});
     const unsigned int at = one->state_used;
@@ -290,15 +197,12 @@ static void branch_lines_written(const CliLines *lines, unsigned int from, unsig
     }
 }
 
-// the lines from `first` to `end` of a text read whole, `lines`, as UTF-8 in the rooms of `work`, each ended by a NUL
-// and each line's start put into its starts, as many as `bytes` of their units reach, one at the least, a unit taking a
-// byte of UTF-8 or more: the starts, the line after the last read into `read`, NULL where the cells cannot meet the
-// rooms; under the lock
-static const char **branch_lines_copied(const CliLines *lines, unsigned int first, unsigned int end,
-                                        unsigned long long bytes, CliBranchWork *work, unsigned int *read)
+// the lines from `first` to `end` of a text read whole, `lines`, measured: the line after the last that `bytes` of
+// their units reach, one at the least, into `read`, and the bytes they take as UTF-8, each unit written as three bytes
+// at the most and each line's NUL; under the lock
+static unsigned long long branch_lines_measured(const CliLines *lines, unsigned int first, unsigned int end,
+                                                unsigned long long bytes, unsigned int *read)
 {
-    *read = first;
-    // each unit written as three bytes at the most, and each line's NUL
     unsigned long long room = 1ull;
     unsigned long long spent = 0ull;
     unsigned int to = first;
@@ -308,40 +212,8 @@ static const char **branch_lines_copied(const CliLines *lines, unsigned int firs
         spent += lines->length[to] + 1ull;
         to += 1u;
     }
-    if ((to <= first) ||
-        !branch_room_made(&work->starts, &work->starts_room, (unsigned long long)(to - first) * sizeof(const char *),
-                          0ull) ||
-        !branch_room_made(&work->text, &work->text_room, room, 0ull))
-    {
-        return NULL;
-    }
-    const char **const line = (const char **)work->starts;
-    branch_lines_written(lines, first, to, (char *)work->text, room, line);
     *read = to;
-    return line;
-}
-
-// the lines from `first` to `end` of the paged text under `key` as UTF-8, read through the pages into a cell they take
-// for them, `*taken`, to be given back with g_cli_cells->persistent_buf_release, each line's start put into the starts
-// of `work`: the starts, the line after the last read into `read`, NULL where the cells cannot meet the room or the
-// pages could not read the lines; with no lock taken
-static const char **branch_lines_paged(const char *key, unsigned int first, unsigned int end, CliBranchWork *work,
-                                       unsigned int *read, char **taken)
-{
-    *read = first;
-    *taken = NULL;
-    if ((end <= first) ||
-        !branch_room_made(&work->starts, &work->starts_room,
-                          (unsigned long long)(end - first) * sizeof(const char *), 0ull))
-    {
-        return NULL;
-    }
-    const char **const line = (const char **)work->starts;
-    unsigned long long count = 0ull;
-    *taken = cli_pages_lines_taken(key, first, end, line, &count, &g_cli_editor_cells);
-    // no more lines are read than were asked, which an unsigned int counts
-    *read = first + (unsigned int)count;
-    return (*taken != NULL) ? line : NULL;
+    return room;
 }
 
 // The runs of runs of lines handed on as they are written: whether a `{"from", "runs"}` is begun, how many lines' runs
@@ -406,7 +278,11 @@ typedef struct
 // each of the two from a word of its own
 typedef struct
 {
-    CliBranchWork *work;
+    unsigned int *named;
+    unsigned long long named_room;
+    unsigned int *found;
+    unsigned long long found_room;
+    int filled;
     CliBranchScope scope;
     int placed;
     unsigned int names;
@@ -416,7 +292,9 @@ typedef struct
     int refused;
 } CliBranchFinding;
 
-// a line's scope the one the line before it ended in, and the words of a record before its runs
+// a line's scope the one the line before it ended in, the words of a record before its runs, and the words a line's
+// state and scope are given room for, those of a line past them taken from the room of the lines after it
+#define CLI_DOC_FOUND_STATE 64ull
 #define CLI_DOC_SCOPE_SAME 0xfffffffeu
 #define CLI_DOC_FOUND_HEAD 4u
 
@@ -518,8 +396,8 @@ static void branch_runs_kept(CliStoredText *one, unsigned int line, const CliLea
     unsigned int *const record = one->run + one->run_used;
     record[0] = leaves->runs;
     memor.cpy(&(MemoriaCfg){.dst = record + 1, .src = leaves->col, .bytes = leaves->runs * sizeof(*record)});
-    memor.cpy(&(MemoriaCfg){
-        .dst = record + 1 + leaves->runs, .src = leaves->name, .bytes = leaves->runs * sizeof(*record)});
+    memor.cpy(
+        &(MemoriaCfg){.dst = record + 1 + leaves->runs, .src = leaves->name, .bytes = leaves->runs * sizeof(*record)});
     lines->runs[line] = one->run_used;
     // the words written lie within the room, which an unsigned int counts
     one->run_used += (unsigned int)words;
@@ -568,18 +446,19 @@ static void branch_roles_read(CliStoredText *one)
     }
     if (names > one->roles_room)
     {
-        // the roles are read anew over the whole cell: nothing of the old ones is carried
-        unsigned int *const grown =
-            cli_cell_regrown(one->roles, 0u, (unsigned long long)names * sizeof(*grown), &g_cli_editor_cells);
-        if (grown == NULL)
+        // the roles are read anew over a cell of the names counted
+        g_cli_cells->persistent_buf_release(one->roles, &g_cli_editor_cells);
+        one->roles =
+            g_cli_cells->persistent_buf_alloc((unsigned long long)names * sizeof(*one->roles), &g_cli_editor_cells);
+        if (one->roles == NULL)
         {
+            one->roles_room = 0u;
             return;
         }
-        one->roles = grown;
         one->roles_room = names;
     }
-    memor.set(&(MemoriaCfg){
-        .dst = one->roles, .val = 0, .bytes = (unsigned long long)one->roles_room * sizeof(*one->roles)});
+    memor.set(
+        &(MemoriaCfg){.dst = one->roles, .val = 0, .bytes = (unsigned long long)one->roles_room * sizeof(*one->roles)});
     (void)cli_highlight_names_each(one->grammar, branch_role_read, one);
     unsigned int rank = 0u;
     for (unsigned int place = 0u; place < one->roles_room; place += 1u)
@@ -809,11 +688,11 @@ static void branch_scope_written(const CliBranchScope *scope, VerbaLinea *out)
 static unsigned int branch_digits(const char **from, char after)
 {
     unsigned int value = 0u;
-    while (((*from)[0] >= '0') && ((*from)[0] <= '9'))
-    {
-        value = (value * 10u) + (unsigned int)((*from)[0] - '0');
-        *from += 1;
-    }
+    unsigned long long end = 0ull;
+    // a state's digits write a place among the states, which an unsigned int counts
+    value = (unsigned int)cli_text_number(*from, 0ull,
+                                          cellul.len(&(CatenaFinitaCfg){.src = *from, .cap = CLI_CELLS_POOL}), &end);
+    *from += end;
     *from += (((*from)[0] == after) && (after != '\0')) ? 1 : 0;
     return value;
 }
@@ -889,11 +768,8 @@ static CliLeaves branch_uses_named(CliBranchFinding *finding, const CliLeaves *l
     CliLeaves named = *leaves;
     CliBranchScope *const scope = &finding->scope;
     const unsigned int names = finding->names;
-    CliBranchWork *const work = finding->work;
-    const int renaming = (leaves->runs != 0u) &&
-                         branch_room_made(&work->named, &work->named_room,
-                                          (unsigned long long)leaves->runs * sizeof(unsigned int), 0ull);
-    unsigned int *const renamed = (unsigned int *)work->named;
+    const int renaming = (leaves->runs != 0u) && (leaves->runs <= finding->named_room);
+    unsigned int *const renamed = finding->named;
     const char *const line = leaves->line;
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
     unsigned long long byte = 0ull;
@@ -953,9 +829,8 @@ static CliLeaves branch_uses_named(CliBranchFinding *finding, const CliLeaves *l
         const int closes = (roles & CLI_ROLE_DEPTH_CLOSES) != 0u;
         const int opens = (roles & CLI_ROLE_DEPTH_OPENS) != 0u;
         scope->pairs -= (closes && (scope->pairs > 0u)) ? 1u : 0u;
-        const unsigned int rank = ((closes || opens) && renaming && (names != 0u))
-                                      ? branch_depth_rank(finding, leaves, name)
-                                      : CLI_DOC_NONE;
+        const unsigned int rank =
+            ((closes || opens) && renaming && (names != 0u)) ? branch_depth_rank(finding, leaves, name) : CLI_DOC_NONE;
         if (rank != CLI_DOC_NONE)
         {
             renamed[run] = names + (rank * CLI_DOC_DEPTHS) + (scope->pairs % CLI_DOC_DEPTHS);
@@ -977,7 +852,7 @@ static CliLeaves branch_uses_named(CliBranchFinding *finding, const CliLeaves *l
 static void branch_found(void *context, const CliLeaves *leaves)
 {
     CliBranchFinding *const finding = (CliBranchFinding *)context;
-    if (finding->refused)
+    if (finding->refused || finding->filled)
     {
         return;
     }
@@ -994,14 +869,13 @@ static void branch_found(void *context, const CliLeaves *leaves)
     const unsigned long long ended_words = (ended + 3ull) / 4ull;
     const unsigned long long words =
         CLI_DOC_FOUND_HEAD + (2ull * named.runs) + ended_words + ((scope_bytes + 3ull) / 4ull);
-    CliBranchWork *const work = finding->work;
-    if (!branch_room_made(&work->found, &work->found_room, (finding->used + words) * sizeof(unsigned int),
-                          finding->used * sizeof(unsigned int)))
+    // the lines past the room are the next bundle's
+    if ((finding->used + words) > finding->found_room)
     {
-        finding->refused = 1;
+        finding->filled = 1;
         return;
     }
-    unsigned int *const record = (unsigned int *)work->found + finding->used;
+    unsigned int *const record = finding->found + finding->used;
     record[0] = named.runs;
     record[1] = regions;
     record[2] = ended;
@@ -1079,10 +953,10 @@ static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding 
                                      CliBranchRange *range)
 {
     CliLines *const lines = &one->lines;
-    const unsigned int hand_from = range->asked ? range->hand_from : one->held_from;
-    const unsigned int hand_to = range->asked ? range->hand_to : one->held_to;
+    const unsigned int hand_from = range->asked ? range->hand_from : one->cached_from;
+    const unsigned int hand_to = range->asked ? range->hand_to : one->cached_to;
     range->columns = (range->columns != 0ull) ? one->columns : 0ull;
-    const unsigned int *record = (const unsigned int *)finding->work->found;
+    const unsigned int *record = finding->found;
     const unsigned int *const last = record + finding->used;
     unsigned int line = first;
     unsigned int scoped = place;
@@ -1124,11 +998,11 @@ static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding 
         lines->ended[line] = branch_state(one, state);
         one->regions_moved = one->regions_moved || (lines->regions[line] != record[1]);
         lines->regions[line] = record[1];
-        const CliLeaves kept = {
-            NULL, runs, record + CLI_DOC_FOUND_HEAD, record + CLI_DOC_FOUND_HEAD + runs, NULL, NULL, NULL, 0u};
+        const CliLeaves kept = {NULL, runs, record + CLI_DOC_FOUND_HEAD, record + CLI_DOC_FOUND_HEAD + runs, NULL, NULL,
+                                NULL, 0u};
         const int handed = (line >= hand_from) && (line < hand_to);
-        const int held = (line >= one->held_from) && (line < one->held_to);
-        if (!one->paged || held || handed)
+        const int cached = (line >= one->cached_from) && (line < one->cached_to);
+        if (!one->paged || cached || handed)
         {
             branch_runs_kept(one, line, &kept);
         }
@@ -1154,8 +1028,7 @@ static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding 
 // across it by its caller; where the text moved meanwhile none is put in and the range is marked stale, and where the
 // grammar or the cells refused them none is and the text is marked refused. The line after the last put; under the lock
 static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first, unsigned int to, int stopping,
-                                         CliBranchWork *work, unsigned int *entering, int *stopped,
-                                         CliBranchRange *range)
+                                         unsigned int *entering, int *stopped, CliBranchRange *range)
 {
     const unsigned int most =
         stopping ? CLI_DOC_BATCH : ((range->bytes != CLI_DOC_ALL_BYTES) ? CLI_DOC_STEP : CLI_DOC_RUN);
@@ -1171,7 +1044,11 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
     const int whole = one->whole;
     const unsigned int count = one->lines.lines;
     CliBranchFinding finding;
-    finding.work = work;
+    finding.named = NULL;
+    finding.named_room = 0ull;
+    finding.found = NULL;
+    finding.found_room = 0ull;
+    finding.filled = 0;
     finding.names = one->names;
     finding.used = 0ull;
     finding.refused = 0;
@@ -1194,42 +1071,70 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
     // the roles of the grammar's names copied, read first where they were not
     branch_roles_read(one);
     const unsigned int roles = one->roles_whole ? one->roles_room : 0u;
-    finding.roles_count =
-        ((roles != 0u) &&
-         branch_room_made(&work->roles, &work->roles_room, (unsigned long long)roles * sizeof(unsigned int), 0ull))
-            ? roles
-            : 0u;
-    if (finding.roles_count != 0u)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = work->roles, .src = one->roles, .bytes = roles * sizeof(unsigned int)});
-    }
-    finding.roles = (const unsigned int *)work->roles;
+    // where each line read starts, the roles and the UTF-8 of a text read whole, in one cell the bundle gives back
     unsigned int read = first;
-    const char **line = paged ? NULL : branch_lines_copied(&one->lines, first, end, range->bytes, work, &read);
+    const unsigned long long text_room =
+        paged ? 0ull : branch_lines_measured(&one->lines, first, end, range->bytes, &read);
+    const unsigned long long starts_bytes = (unsigned long long)(end - first) * sizeof(const char *);
+    const unsigned long long roles_bytes = (unsigned long long)roles * sizeof(unsigned int);
+    char *const cell = g_cli_cells->temporary_buf_alloc(starts_bytes + roles_bytes + text_room, &g_cli_editor_cells);
+    const char **line = (const char **)(void *)cell;
+    finding.roles = NULL;
+    finding.roles_count = 0u;
+    if (cell != NULL)
+    {
+        finding.roles = (const unsigned int *)(void *)(cell + starts_bytes);
+        finding.roles_count = roles;
+        memor.cpy(&(MemoriaCfg){.dst = cell + starts_bytes, .src = one->roles, .bytes = roles_bytes});
+        if (!paged)
+        {
+            branch_lines_written(&one->lines, first, read, cell + starts_bytes + roles_bytes, text_room, line);
+        }
+    }
     const unsigned int claim = branch_claim_put(one, first, end);
     cli_document_lock_give();
     char *taken = NULL;
-    if (paged)
+    if (paged && (cell != NULL))
     {
-        line = branch_lines_paged(key, first, end, work, &read, &taken);
+        unsigned long long count = 0ull;
+        taken = cli_pages_lines_taken(key, first, end, line, &count, &g_cli_editor_cells);
+        // no more lines are read than were asked, which an unsigned int counts
+        read = first + (unsigned int)count;
     }
+    line = (paged && (taken == NULL)) ? NULL : line;
     // the lines read colored as far as the range's bytes reach, one at the least
     unsigned int spend = 0u;
     unsigned long long spent = 0ull;
+    unsigned long long total = 0ull;
+    unsigned long long longest = 0ull;
     while ((line != NULL) && ((first + spend) < read) &&
            ((spend == 0u) || (range->bytes == CLI_DOC_ALL_BYTES) || (spent < range->bytes)))
     {
-        spent += (range->bytes != CLI_DOC_ALL_BYTES)
-                     ? (cellul.len(&(CatenaFinitaCfg){.src = line[spend], .cap = CLI_CELLS_POOL}) + 1ull)
-                     : 0ull;
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = line[spend], .cap = CLI_CELLS_POOL});
+        spent += (range->bytes != CLI_DOC_ALL_BYTES) ? (length + 1ull) : 0ull;
+        total += length + 1ull;
+        longest = (length > longest) ? length : longest;
         spend += 1u;
     }
     if (range->bytes != CLI_DOC_ALL_BYTES)
     {
         range->bytes -= (spent < range->bytes) ? spent : range->bytes;
     }
+    // the names of a line's runs, one run for each of its bytes at the most, and the records: two words for each run, a
+    // record's head and CLI_DOC_FOUND_STATE words of its state for each line, and the words of one state and scope
+    // whole. The lines past them are the next bundle's
+    finding.named_room = longest + 2ull;
+    finding.found_room = (2ull * total) + ((unsigned long long)spend * (CLI_DOC_FOUND_HEAD + CLI_DOC_FOUND_STATE)) +
+                         (CLI_DOC_STATE / 2ull);
+    const unsigned long long named_bytes = finding.named_room * sizeof(unsigned int);
+    char *const found_cell =
+        (spend != 0u) ? g_cli_cells->temporary_buf_alloc(named_bytes + (finding.found_room * sizeof(unsigned int)),
+                                                         &g_cli_editor_cells)
+                      : NULL;
+    finding.named = (unsigned int *)(void *)found_cell;
+    finding.found = (found_cell != NULL) ? (unsigned int *)(void *)(found_cell + named_bytes) : NULL;
     int colored = 0;
-    if ((line != NULL) && (spend != 0u))
+    if ((line != NULL) && (found_cell != NULL))
     {
         char ended[CLI_DOC_STATE];
         VerbaLinea last = {ended, sizeof(ended), 0ull};
@@ -1241,19 +1146,22 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
     g_cli_cells->persistent_buf_release(taken, &g_cli_editor_cells);
     cli_document_lock_take();
     branch_claim_dropped(one, claim);
+    unsigned int put = first;
     if (one->let_go || (one->serial != serial))
     {
         range->stale = 1;
-        return first;
     }
-    if (!colored)
+    else if (!colored)
     {
         one->refused = 1;
-        return first;
     }
-    const unsigned int put =
-        branch_found_put(one, &finding, first, finding.scope.place, stopping, entering, stopped, range);
-    one->refused = one->refused || finding.refused;
+    else
+    {
+        put = branch_found_put(one, &finding, first, finding.scope.place, stopping, entering, stopped, range);
+        one->refused = one->refused || finding.refused;
+    }
+    g_cli_cells->persistent_buf_release(found_cell, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_editor_cells);
     return put;
 }
 
@@ -1271,16 +1179,13 @@ static unsigned int branch_colored(CliStoredText *one, unsigned int from, unsign
     unsigned int entering = (above != CLI_DOC_UNCOLORED) ? above : CLI_DOC_ROOT;
     unsigned int line = from;
     int stopped = 0;
-    CliBranchWork work;
-    branch_work_emptied(&work);
     while (!stopped && !one->refused && !range->stale && (line < to) && (range->bytes != 0ull))
     {
-        const unsigned int next = branch_batch_colored(one, line, to, stopping, &work, &entering, &stopped, range);
+        const unsigned int next = branch_batch_colored(one, line, to, stopping, &entering, &stopped, range);
         // a bundle that puts no line in ends the coloring
         stopped = stopped || (next == line);
         line = next;
     }
-    branch_work_given(&work);
     return line;
 }
 
@@ -1304,8 +1209,7 @@ static void branch_run_of(const CliStoredText *one, unsigned int at, int down, u
     {
         stop += 1u;
     }
-    while (!down && (start > low) && branch_uncolored(one, start - 1u, yielding) &&
-           ((at + 1u - start) < CLI_DOC_STEP))
+    while (!down && (start > low) && branch_uncolored(one, start - 1u, yielding) && ((at + 1u - start) < CLI_DOC_STEP))
     {
         start -= 1u;
     }
@@ -1323,8 +1227,8 @@ static void branch_run_of(const CliStoredText *one, unsigned int at, int down, u
 static void branch_bounds(const CliStoredText *one, unsigned int *low, unsigned int *high)
 {
     const unsigned int lines = one->lines.lines;
-    *high = (one->paged && (one->held_to < lines)) ? one->held_to : lines;
-    *low = one->paged ? ((one->held_from < *high) ? one->held_from : *high) : 0u;
+    *high = (one->paged && (one->cached_to < lines)) ? one->cached_to : lines;
+    *low = one->paged ? ((one->cached_from < *high) ? one->cached_from : *high) : 0u;
 }
 
 // a run of lines handed on in `out` begun: their runs written as `{"from", "runs"}`, after a comma where `*any` is set,
@@ -1391,7 +1295,7 @@ static int branch_step(CliStoredText *one, VerbaLinea *out, int *handed)
     unsigned int low = 0u;
     unsigned int high = 0u;
     branch_bounds(one, &low, &high);
-    if ((one->grammar[0] == '\0') || one->refused || (high <= low) || (one->held_to <= one->held_from))
+    if ((one->grammar[0] == '\0') || one->refused || (high <= low) || (one->cached_to <= one->cached_from))
     {
         return 0;
     }
@@ -1469,26 +1373,6 @@ static unsigned int branch_fold_of(unsigned int opened, unsigned int line, unsig
 
 // The regions open above a line as its folds are found: the line each opens on, the innermost last, in the room the
 // walk keeps for them, how many, and whether the cells refused it
-typedef struct
-{
-    unsigned int *line;
-    unsigned int count;
-    int refused;
-} CliBranchOpen;
-
-// a region opened on `line` put after those open: refused where the cells cannot meet it
-static void branch_open_put(CliBranchOpen *open, unsigned int line)
-{
-    const unsigned long long held = (unsigned long long)open->count * sizeof(unsigned int);
-    open->refused = open->refused || !branch_room_made(&s_opened, &s_opened_room, held + sizeof(unsigned int), held);
-    if (!open->refused)
-    {
-        open->line = (unsigned int *)s_opened;
-        open->line[open->count] = line;
-        open->count += 1u;
-    }
-}
-
 // the folds of `one` found, each handed to `each` with its first line, the last line it hides and whether it shows the
 // line it closes on after what it hides: each fold the widest of the regions that open on its first line, in the order
 // of their first lines; a paged text's those of the lines the page mirrors alone, and none where the cells cannot meet
@@ -1500,23 +1384,33 @@ static void branch_folds_each(const CliStoredText *one, CliFoldEach each, void *
     unsigned int end = 0u;
     branch_bounds(one, &first, &end);
     const unsigned int kept = end - first;
-    const unsigned long long widest_bytes = (unsigned long long)kept * sizeof(unsigned int);
-    const int roomed = (kept != 0u) && branch_room_made(&s_widest, &s_widest_room, widest_bytes, 0ull);
-    unsigned int *const widest = roomed ? (unsigned int *)s_widest : NULL;
-    CliBranchOpen open = {NULL, 0u, !roomed};
-    if (widest != NULL)
+    // the widest fold of each line and the regions open above a line, no more than the regions they open
+    unsigned long long opening = 0ull;
+    for (unsigned int line = first; line < end; line += 1u)
     {
-        memor.set(&(MemoriaCfg){.dst = widest, .val = 0, .bytes = widest_bytes});
+        opening += lines->regions[line] & CLI_DOC_REGION_COUNT;
     }
+    const unsigned long long widest_bytes = (unsigned long long)kept * sizeof(unsigned int);
+    unsigned int *const widest =
+        (kept != 0u)
+            ? g_cli_cells->temporary_buf_alloc(widest_bytes + (opening * sizeof(unsigned int)), &g_cli_editor_cells)
+            : NULL;
+    if (widest == NULL)
+    {
+        return;
+    }
+    memor.set(&(MemoriaCfg){.dst = widest, .val = 0, .bytes = widest_bytes});
+    unsigned int *const opened_on = widest + kept;
+    unsigned int open = 0u;
     unsigned int filled = CLI_DOC_NONE;
-    for (unsigned int line = first; !open.refused && (line < end); line += 1u)
+    for (unsigned int line = first; line < end; line += 1u)
     {
         const unsigned int regions = lines->regions[line];
         const unsigned int closes = (regions >> CLI_DOC_REGION_CLOSES_AT) & CLI_DOC_REGION_COUNT;
-        for (unsigned int close = 0u; (close < closes) && (open.count != 0u); close += 1u)
+        for (unsigned int close = 0u; (close < closes) && (open != 0u); close += 1u)
         {
-            open.count -= 1u;
-            const unsigned int opened = open.line[open.count];
+            open -= 1u;
+            const unsigned int opened = opened_on[open];
             const unsigned int fold = branch_fold_of(opened, line, close, regions, filled);
             if ((fold & ~CLI_DOC_FOLD_SHOWN) > (widest[opened - first] & ~CLI_DOC_FOLD_SHOWN))
             {
@@ -1525,17 +1419,19 @@ static void branch_folds_each(const CliStoredText *one, CliFoldEach each, void *
         }
         for (unsigned int opens = regions & CLI_DOC_REGION_COUNT; opens != 0u; opens -= 1u)
         {
-            branch_open_put(&open, line);
+            opened_on[open] = line;
+            open += 1u;
         }
         filled = ((regions & CLI_DOC_REGION_FILLED) != 0u) ? line : filled;
     }
-    for (unsigned int at = 0u; !open.refused && (at < kept); at += 1u)
+    for (unsigned int at = 0u; at < kept; at += 1u)
     {
         if (widest[at] != 0u)
         {
             each(context, first + at, (widest[at] & ~CLI_DOC_FOLD_SHOWN) - 1u, (widest[at] & CLI_DOC_FOLD_SHOWN) != 0u);
         }
     }
+    g_cli_cells->persistent_buf_release(widest, &g_cli_editor_cells);
 }
 
 // a fold written into the line `context`, `[first, last, shown]` after a comma where one was written before it
@@ -1579,23 +1475,34 @@ unsigned int cli_document_openers(const char *key, unsigned int line, unsigned i
 {
     cli_document_lock_take();
     const CliStoredText *const one = cli_document_stored(key);
-    CliBranchOpen open = {NULL, 0u, 0};
     const unsigned int end = (one != NULL) ? ((line < one->lines.lines) ? line : one->lines.lines) : 0u;
-    for (unsigned int at = 0u; !open.refused && (at < end); at += 1u)
+    // the regions open above the line, no more than those the lines above it open
+    unsigned long long opening = 0ull;
+    for (unsigned int at = 0u; at < end; at += 1u)
+    {
+        opening += one->lines.regions[at] & CLI_DOC_REGION_COUNT;
+    }
+    unsigned int *const opened_on =
+        (opening != 0ull) ? g_cli_cells->temporary_buf_alloc(opening * sizeof(unsigned int), &g_cli_editor_cells)
+                          : NULL;
+    unsigned int open = 0u;
+    for (unsigned int at = 0u; (opened_on != NULL) && (at < end); at += 1u)
     {
         const unsigned int regions = one->lines.regions[at];
         const unsigned int closes = (regions >> CLI_DOC_REGION_CLOSES_AT) & CLI_DOC_REGION_COUNT;
-        open.count -= (closes < open.count) ? closes : open.count;
+        open -= (closes < open) ? closes : open;
         for (unsigned int opens = regions & CLI_DOC_REGION_COUNT; opens != 0u; opens -= 1u)
         {
-            branch_open_put(&open, at);
+            opened_on[open] = at;
+            open += 1u;
         }
     }
-    const unsigned int count = (open.refused || (open.count < most)) ? (open.refused ? 0u : open.count) : most;
+    const unsigned int count = (open < most) ? open : most;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        opener[at] = open.line[open.count - count + at];
+        opener[at] = opened_on[open - count + at];
     }
+    g_cli_cells->persistent_buf_release(opened_on, &g_cli_editor_cells);
     cli_document_lock_give();
     return count;
 }
@@ -1604,7 +1511,7 @@ unsigned int cli_document_openers(const char *key, unsigned int line, unsigned i
 // over it having colored none and no coloring under way claiming any, and the page holding lines of it
 static int branch_folds_due(const CliStoredText *one)
 {
-    return one->regions_moved && !one->refused && (one->held_to > one->held_from) && (one->lines.lines != 0u) &&
+    return one->regions_moved && !one->refused && (one->cached_to > one->cached_from) && (one->lines.lines != 0u) &&
            !branch_claims_any(one);
 }
 
@@ -1636,10 +1543,13 @@ static void branch_walked(CliBranchWalker *walker, int own)
     for (;;)
     {
         // the line a step's colors are written into, taken as the walk begins and emptied for each step
-        const int made = (walker->step.out != NULL) ||
-                         cli_growing_line_made(&walker->step, CLI_DOC_COLORS_FIRST, &g_cli_editor_cells);
+        if (walker->step.out == NULL)
+        {
+            char *const step_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells);
+            walker->step = mmgr_line_over(step_cell, CLI_DOC_COLORS_ROOM);
+        }
+        const int made = walker->step.out != NULL;
         walker->step.at = 0u;
-        walker->step.flushed = 0u;
         cli_document_lock_take();
         CliStoredText *one = made ? cli_document_texts() : NULL;
         while ((one != NULL) && (one->walked || one->resting))
@@ -1663,7 +1573,7 @@ static void branch_walked(CliBranchWalker *walker, int own)
             one->walked = 0;
             cli_document_holder_ended(one);
         }
-        if (one == NULL)
+        else
         {
             // the step's line given back as the walk ends, before the walker is marked free to walk again
             g_cli_cells->persistent_buf_release(walker->step.out, &g_cli_editor_cells);
@@ -1764,8 +1674,10 @@ int cli_document_colored_by(const char *key, const char *grammar, int named)
 
 int cli_document_viewed(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out)
 {
-    VerbaLinea colors;
-    const int made = (out == NULL) && cli_growing_line_temporary(&colors, CLI_DOC_COLORS_FIRST, &g_cli_editor_cells);
+    char *const colors_cell =
+        (out == NULL) ? g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells) : NULL;
+    VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
+    const int made = colors_cell != NULL;
     VerbaLinea *const into = (out != NULL) ? out : &colors;
     cli_document_lock_take();
     CliStoredText *const one = cli_document_stored(key);
@@ -1875,10 +1787,11 @@ static void branch_rehanded_sent(int any, VerbaLinea *colors, int made)
     }
 }
 
-int cli_document_held(const char *key, unsigned long long from, unsigned long long to)
+int cli_document_cached(const char *key, unsigned long long from, unsigned long long to)
 {
-    VerbaLinea colors;
-    const int made = cli_growing_line_made(&colors, CLI_DOC_COLORS_FIRST, &g_cli_editor_cells);
+    char *const colors_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells);
+    VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
+    const int made = colors.out != NULL;
     cli_document_lock_take();
     CliStoredText *const one = cli_document_stored(key);
     int any = 0;
@@ -1887,23 +1800,23 @@ int cli_document_held(const char *key, unsigned long long from, unsigned long lo
         one->refused = one->refused || (one->paged && !cli_document_paged_counted(one));
         CliLines *const lines = &one->lines;
         // the lines the page mirrors stand among those the pages count, which an unsigned int counts
-        const unsigned int held_from = (from < lines->lines) ? (unsigned int)from : lines->lines;
-        const unsigned int held_to = (to < lines->lines) ? (unsigned int)to : lines->lines;
-        const unsigned int was_from = one->held_from;
-        const unsigned int was_to = (one->held_to < lines->lines) ? one->held_to : lines->lines;
+        const unsigned int cached_from = (from < lines->lines) ? (unsigned int)from : lines->lines;
+        const unsigned int cached_to = (to < lines->lines) ? (unsigned int)to : lines->lines;
+        const unsigned int was_from = one->cached_from;
+        const unsigned int was_to = (one->cached_to < lines->lines) ? one->cached_to : lines->lines;
         // a paged text's lines the page lets go let their runs go with them
         for (unsigned int line = was_from; one->paged && (line < was_to); line += 1u)
         {
-            lines->runs[line] = ((line < held_from) || (line >= held_to)) ? CLI_DOC_NO_RUNS : lines->runs[line];
+            lines->runs[line] = ((line < cached_from) || (line >= cached_to)) ? CLI_DOC_NO_RUNS : lines->runs[line];
         }
         // a line the page comes to mirror handed the runs it keeps, or colored again where it keeps none that stand,
         // the state it ends in kept: the line below it is entered in the state it was
-        any = branch_runs_rehanded(one, held_from, held_to, was_from, was_to, made ? &colors : NULL);
+        any = branch_runs_rehanded(one, cached_from, cached_to, was_from, was_to, made ? &colors : NULL);
         // a paged text's folds are those of the lines the page mirrors
         one->regions_moved =
-            one->regions_moved || (one->paged && ((held_from != one->held_from) || (held_to != one->held_to)));
-        one->held_from = held_from;
-        one->held_to = held_to;
+            one->regions_moved || (one->paged && ((cached_from != one->cached_from) || (cached_to != one->cached_to)));
+        one->cached_from = cached_from;
+        one->cached_to = cached_to;
         cli_document_woken(one);
     }
     branch_rehanded_sent(any, &colors, made);
@@ -1912,8 +1825,9 @@ int cli_document_held(const char *key, unsigned long long from, unsigned long lo
 
 int cli_document_columns(const char *key, unsigned long long columns)
 {
-    VerbaLinea colors;
-    const int made = cli_growing_line_made(&colors, CLI_DOC_COLORS_FIRST, &g_cli_editor_cells);
+    char *const colors_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells);
+    VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
+    const int made = colors.out != NULL;
     cli_document_lock_take();
     CliStoredText *const one = cli_document_stored(key);
     int any = 0;
@@ -1925,8 +1839,8 @@ int cli_document_columns(const char *key, unsigned long long columns)
         one->columns = (farther || (one->columns == 0ull)) ? columns : one->columns;
         if (farther)
         {
-            const unsigned int held_to = (one->held_to < one->lines.lines) ? one->held_to : one->lines.lines;
-            any = branch_runs_rehanded(one, one->held_from, held_to, 0u, 0u, made ? &colors : NULL);
+            const unsigned int cached_to = (one->cached_to < one->lines.lines) ? one->cached_to : one->lines.lines;
+            any = branch_runs_rehanded(one, one->cached_from, cached_to, 0u, 0u, made ? &colors : NULL);
             cli_document_woken(one);
         }
     }
@@ -1979,11 +1893,11 @@ int cli_document_runs_written(const char *key, unsigned long long first, unsigne
         // where they do not
         if (mirrored)
         {
-            const unsigned int held_from = one->held_from;
-            const unsigned int held_to = one->held_to;
-            const int meet = (from <= held_to) && (to >= held_from) && (held_from < held_to);
-            one->held_from = (meet && (held_from < from)) ? held_from : from;
-            one->held_to = (meet && (held_to > to)) ? held_to : to;
+            const unsigned int cached_from = one->cached_from;
+            const unsigned int cached_to = one->cached_to;
+            const int meet = (from <= cached_to) && (to >= cached_from) && (cached_from < cached_to);
+            one->cached_from = (meet && (cached_from < from)) ? cached_from : from;
+            one->cached_to = (meet && (cached_to > to)) ? cached_to : to;
         }
         cli_document_holder_ended(one);
     }
@@ -2043,8 +1957,9 @@ char *cli_document_text_taken(const char *key, unsigned long long *size, CellOwn
 char *cli_document_lines_taken(const char *key, unsigned long long first, unsigned long long last,
                                unsigned long long *size, char *state, unsigned long long room, CellOwner *owner)
 {
-    VerbaLinea written;
-    const int made = cli_growing_line_temporary(&written, CLI_DOC_COLORS_FIRST, owner);
+    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, owner);
+    VerbaLinea written = mmgr_line_over(written_cell, CLI_DOC_COLORS_ROOM);
+    const int made = written.out != NULL;
     VerbaLinea *const text = &written;
     cli_document_lock_take();
     const CliStoredText *const one = cli_document_stored(key);
@@ -2083,18 +1998,19 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
     cli_document_lock_give();
     if (paged[0] != '\0')
     {
-        CliBranchWork work;
-        branch_work_emptied(&work);
-        unsigned int read = from;
-        char *taken = NULL;
-        const char **const line = branch_lines_paged(paged, from, to + 1u, &work, &read, &taken);
-        for (unsigned int at = from; (line != NULL) && (at < read); at += 1u)
+        const unsigned long long wanted = (unsigned long long)(to + 1u - from);
+        const char **const starts =
+            g_cli_cells->temporary_buf_alloc(wanted * sizeof(const char *), &g_cli_editor_cells);
+        unsigned long long count = 0ull;
+        char *const taken =
+            (starts != NULL) ? cli_pages_lines_taken(paged, from, to + 1u, starts, &count, &g_cli_editor_cells) : NULL;
+        for (unsigned long long at = 0ull; (taken != NULL) && (at < count); at += 1ull)
         {
-            mmgr_line_put(text, line[at - from]);
-            mmgr_line_put(text, (at < to) ? "\n" : "");
+            mmgr_line_put(text, starts[at]);
+            mmgr_line_put(text, ((from + at) < to) ? "\n" : "");
         }
         g_cli_cells->persistent_buf_release(taken, &g_cli_editor_cells);
-        branch_work_given(&work);
+        g_cli_cells->persistent_buf_release(starts, &g_cli_editor_cells);
     }
     if ((mmgr_line_finish(&entered) == 0ull) && (room != 0ull))
     {

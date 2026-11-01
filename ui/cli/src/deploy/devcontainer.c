@@ -37,18 +37,13 @@ void cli_plain_json(const char *text, unsigned long long size, VerbaLinea *plain
         }
         else if ((letter == '/') && ((at + 1ull) < size) && (text[at + 1u] == '/'))
         {
-            while ((at < size) && (text[at] != '\n'))
-            {
-                at += 1ull;
-            }
+            at = cli_text_to_any(text, at, size, "\n");
         }
         else if ((letter == '/') && ((at + 1ull) < size) && (text[at + 1u] == '*'))
         {
             at += 2ull;
-            while (((at + 1ull) < size) && !((text[at] == '*') && (text[at + 1u] == '/')))
-            {
-                at += 1ull;
-            }
+            const unsigned long long closed = cli_text_to_pair(text, at, size, '*', '/');
+            at = (closed < size) ? closed : ((at > (size - 1ull)) ? at : (size - 1ull));
             at += 2ull;
         }
         else if (letter == ',')
@@ -140,15 +135,9 @@ void cli_devcontainer_name(const char *root, char *name)
 {
     // the tree's folder: its path's last part, the separators after it left off
     const char *end = root + cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
-    while ((end > root) && ((end[-1] == '/') || (end[-1] == '\\')))
-    {
-        end -= 1;
-    }
+    end = root + cli_text_back_past(root, (unsigned long long)(end - root), "/\\");
     const char *base = end;
-    while ((base > root) && (base[-1] != '/') && (base[-1] != '\\'))
-    {
-        base -= 1;
-    }
+    base = root + cli_text_back_any(root, (unsigned long long)(base - root), "/\\");
     base += ((base < end) && (base[0] != '\0') && (end - base == 2) && (base[1] == ':')) ? 2 : 0;
     // each letter in lower case, retained where docker takes it in a name and a '-' where not, one for each letter past
     // ASCII; the '-' at each end left off
@@ -168,14 +157,8 @@ void cli_devcontainer_name(const char *root, char *name)
         length += 1ull;
     }
     unsigned long long from = 0ull;
-    while ((from < length) && (docker_name[from] == '-'))
-    {
-        from += 1ull;
-    }
-    while ((length > from) && (docker_name[length - 1u] == '-'))
-    {
-        length -= 1ull;
-    }
+    from = cli_text_past_any(docker_name, from, length, "-");
+    length = (from + cli_text_back_past(docker_name + from, length - from, "-"));
     // FNV-1a over the path's bytes: a name the same tree is given again from one run to the next
     unsigned long long hash = 0xcbf29ce484222325ull;
     for (const char *at = root; at[0] != '\0'; at += 1)

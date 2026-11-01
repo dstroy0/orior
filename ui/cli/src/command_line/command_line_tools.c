@@ -9,10 +9,8 @@
 #include "../toolchains/toolchains.h"
 #include "command_line_internal.h"
 
-// the most plugins listed, and the rows their room is begun with before it doubles
+// the most plugins listed, and the rows their room is taken with
 #define CLI_PLUGINS_LISTED 1024u
-
-#define CLI_PLUGINS_ROWS_FIRST 32u
 
 // the nodes and the bytes of texts a tree made of a command's words contains past those its words make
 #define CLI_TOOLS_NODES_MORE 64u
@@ -31,7 +29,7 @@ typedef struct
     char opens[1024];
 } CliPluginRow;
 
-// the rows listed, in a cell whose room doubles as they are put
+// the rows listed, in a cell of `s_row_room`
 static CliPluginRow *s_rows;
 static unsigned int s_row_count;
 static unsigned int s_row_room;
@@ -48,23 +46,9 @@ static void tools_copied(char *into, unsigned long long room, const char *text, 
 static void tools_plugin_row(void *context, const CliPlugin *plugin)
 {
     (void)context;
-    if (s_row_count >= CLI_PLUGINS_LISTED)
+    if (s_row_count >= s_row_room)
     {
         return;
-    }
-    if (s_row_count == s_row_room)
-    {
-        const unsigned int room = (s_row_room == 0u) ? CLI_PLUGINS_ROWS_FIRST : (s_row_room * 2u);
-        CliPluginRow *const rows =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(*rows), &g_cli_command_line_cells);
-        if (rows == NULL)
-        {
-            return;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = rows, .src = s_rows, .bytes = (size_t)s_row_count * sizeof(*rows)});
-        g_cli_cells->persistent_buf_release(s_rows, &g_cli_command_line_cells);
-        s_rows = rows;
-        s_row_room = room;
     }
     CliPluginRow *const row = &s_rows[s_row_count];
     s_row_count += 1u;
@@ -124,6 +108,9 @@ static void tools_padded(VerbaLinea *line, const char *text, unsigned long long 
 
 int cli_plugins_list(void)
 {
+    s_rows = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_PLUGINS_LISTED * sizeof(*s_rows),
+                                              &g_cli_command_line_cells);
+    s_row_room = (s_rows != NULL) ? CLI_PLUGINS_LISTED : 0u;
     s_row_count = 0u;
     cli_plugins_each(tools_plugin_row, NULL);
     unsigned long long wide[3] = {0ull, 0ull, 0ull};
@@ -255,43 +242,47 @@ static int tools_new_plugin(const char *const *words, unsigned int count)
             replace = 1;
             known = 1;
         }
-        for (unsigned int list = 0u; (s_lists[list][0] != NULL) && !known && (value != NULL); list += 1u)
+        if (value != NULL)
         {
-            if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = s_lists[list][0], .cap = CLI_CELLS_POOL}))
+            for (unsigned int list = 0u; (s_lists[list][0] != NULL) && !known; list += 1u)
             {
-                cli_json_set(&s_json, spec, s_lists[list][1], tools_list(value));
-                taken = 1u;
+                if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = s_lists[list][0], .cap = CLI_CELLS_POOL}))
+                {
+                    cli_json_set(&s_json, spec, s_lists[list][1], tools_list(value));
+                    taken = 1u;
+                    known = 1;
+                }
+            }
+            for (unsigned int text = 0u; (text < 3u) && !known; text += 1u)
+            {
+                if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = s_texts[text][0], .cap = CLI_CELLS_POOL}))
+                {
+                    tools_set_text(spec, s_texts[text][1], value);
+                    taken = 1u;
+                    known = 1;
+                }
+            }
+            if (!known &&
+                (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--block-comment", .cap = CLI_CELLS_POOL})))
+            {
+                if (at + 2u >= count)
+                {
+                    cli_err("--block-comment takes two words, the opening and the closing");
+                    return CLI_WRONG;
+                }
+                const unsigned int block = cli_json_made(&s_json, CFG_JSON_ARRAY);
+                cli_json_append(
+                    &s_json, block,
+                    cli_json_string_made(&s_json, value,
+                                         cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL})));
+                cli_json_append(
+                    &s_json, block,
+                    cli_json_string_made(&s_json, words[at + 2u],
+                                         cellul.len(&(CatenaFinitaCfg){.src = words[at + 2u], .cap = CLI_CELLS_POOL})));
+                cli_json_set(&s_json, spec, "blockComment", block);
+                taken = 2u;
                 known = 1;
             }
-        }
-        for (unsigned int text = 0u; (text < 3u) && !known && (value != NULL); text += 1u)
-        {
-            if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = s_texts[text][0], .cap = CLI_CELLS_POOL}))
-            {
-                tools_set_text(spec, s_texts[text][1], value);
-                taken = 1u;
-                known = 1;
-            }
-        }
-        if (!known && (value != NULL) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--block-comment", .cap = CLI_CELLS_POOL})))
-        {
-            if (at + 2u >= count)
-            {
-                cli_err("--block-comment takes two words, the opening and the closing");
-                return CLI_WRONG;
-            }
-            const unsigned int block = cli_json_made(&s_json, CFG_JSON_ARRAY);
-            cli_json_append(&s_json, block,
-                            cli_json_string_made(&s_json, value,
-                                                 cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL})));
-            cli_json_append(
-                &s_json, block,
-                cli_json_string_made(&s_json, words[at + 2u],
-                                     cellul.len(&(CatenaFinitaCfg){.src = words[at + 2u], .cap = CLI_CELLS_POOL})));
-            cli_json_set(&s_json, spec, "blockComment", block);
-            taken = 2u;
-            known = 1;
         }
         if (!known && (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "--", .cap = CLI_CELLS_POOL})))
         {

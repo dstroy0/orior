@@ -34,10 +34,9 @@ static int cli_whole_written(const char *path, const char *text, unsigned long l
     // the file's path with its extension put as `saving`
     char beside[CLI_PATH_MAX_LEN];
     const char *name = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     const char *const dot =
         (name[0] != '\0')
             ? cli_text_last(name + 1, cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL}), '.')
@@ -61,19 +60,20 @@ static int cli_whole_written(const char *path, const char *text, unsigned long l
 static int cli_map_written(const char *path, CliJson *json, unsigned int object, VerbaLinea *err_msg)
 {
     cli_json_sorted(json, object);
-    CliStateWriting out;
-    cli_state_writing_begun(&out);
-    cli_json_write(json, object, &out.line, 2u, 1);
-    mmgr_line_ch(&out.line, '\n');
-    unsigned long long size = 0ull;
-    char *const written = cli_state_writing_joined(&out, &size);
-    if (written == NULL)
+    // a file past the most read is one that never reads back
+    const unsigned long long room = CLI_STATE_BYTES + 1ull;
+    char *const written = g_cli_cells->temporary_buf_alloc(room, &g_cli_state_cells);
+    VerbaLinea out = mmgr_line_over(written, room);
+    cli_json_write(json, object, &out, 2u, 1);
+    mmgr_line_ch(&out, '\n');
+    if (!mmgr_line_ok(&out))
     {
+        g_cli_cells->persistent_buf_release(written, &g_cli_state_cells);
         mmgr_line_put(err_msg, path);
-        mmgr_line_put(err_msg, ": the cells it is written in could not be taken");
+        mmgr_line_put(err_msg, ": it is larger than a stored file reads back, or its cell could not be taken");
         return 0;
     }
-    const int whole = cli_whole_written(path, written, size, err_msg);
+    const int whole = cli_whole_written(path, out.out, out.at, err_msg);
     g_cli_cells->persistent_buf_release(written, &g_cli_state_cells);
     return whole;
 }
@@ -91,7 +91,7 @@ static unsigned int cli_written(CliJson *json, const char *text, unsigned long l
     const unsigned int tokens_most = cli_json_tokens_counted(text, length) + 1u;
     CfgJsonToken *const tokens =
         g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_state_cells);
-    char *const back_text = g_cli_cells->persistent_buf_alloc(length + 2ull, &g_cli_state_cells);
+    char *const back_text = g_cli_cells->temporary_buf_alloc(length + 2ull, &g_cli_state_cells);
     const unsigned int value = ((tokens != NULL) && (back_text != NULL))
                                    ? cli_json_read(json, text, length, tokens, tokens_most, &err_msg)
                                    : CLI_JSON_NONE;
@@ -121,25 +121,12 @@ static void cli_theme_file(const char *name, char *out)
 {
     char safe[CLI_NAME_MAX_LEN];
     VerbaLinea line = {safe, sizeof(safe), 0ull};
-    for (const char *at = name; at[0] != '\0'; at += 1)
-    {
-        const char letter = at[0];
-        const int allowed = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-                            ((letter >= '0') && (letter <= '9')) || (letter == ' ') || (letter == '-') ||
-                            (letter == '_') || (letter == '.') || ((unsigned char)letter >= 0x80u);
-        mmgr_line_ch(&line, allowed ? letter : '_');
-    }
+    cli_text_put_kept(&line, name, CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_PAST_ASCII, " -_.", '_');
     const unsigned long long length = mmgr_line_finish(&line);
     const char *from = safe;
     const char *to = safe + length;
-    while ((from < to) && ((from[0] == '.') || (from[0] == ' ')))
-    {
-        from += 1;
-    }
-    while ((to > from) && ((to[-1] == '.') || (to[-1] == ' ')))
-    {
-        to -= 1;
-    }
+    from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), ". ");
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), ". ");
     VerbaLinea file = {out, CLI_NAME_MAX_LEN, 0ull};
     if (from == to)
     {
@@ -175,13 +162,17 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int themes =
-        (text != NULL) ? cli_json_taken(&json, text, length, 0u, 0ull, &unread, &g_cli_state_cells) : CLI_JSON_NONE;
+        (text != NULL) ? cli_json_taken_temporary(&json, text, length, 0u, 0ull, &unread, &g_cli_state_cells)
+                       : CLI_JSON_NONE;
     // the files written, one a theme, in a cell of their count
     const unsigned int count = cli_json_is(&json, themes, CFG_JSON_ARRAY) ? json.node[themes].count : 0u;
     char (*const saved_names)[CLI_NAME_MAX_LEN] =
         (count != 0u)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)count * CLI_NAME_MAX_LEN, &g_cli_state_cells)
+            ? g_cli_cells->temporary_buf_alloc((unsigned long long)count * CLI_NAME_MAX_LEN, &g_cli_state_cells)
             : NULL;
+    // the one cell each theme is written in, of the most a stored file reads back
+    const unsigned long long room = CLI_STATE_BYTES + 1ull;
+    char *const written = (count != 0u) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_state_cells) : NULL;
     unsigned int names = 0u;
     for (unsigned int theme = cli_json_is(&json, themes, CFG_JSON_ARRAY) ? json.node[themes].first : CLI_JSON_NONE;
          theme != CLI_JSON_NONE; theme = json.node[theme].next)
@@ -211,18 +202,15 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
             mmgr_line_put(&counted, ".json");
             mmgr_line_finish(&counted);
         }
-        CliStateWriting out;
-        cli_state_writing_begun(&out);
-        cli_json_write(&json, theme, &out.line, 2u, 0);
-        mmgr_line_ch(&out.line, '\n');
-        unsigned long long size = 0ull;
-        char *const written = cli_state_writing_joined(&out, &size);
+        VerbaLinea out = mmgr_line_over(written, room);
+        cli_json_write(&json, theme, &out, 2u, 0);
+        mmgr_line_ch(&out, '\n');
         char path[CLI_PATH_MAX_LEN];
         cli_in(folder, name, path);
-        const int whole = (written != NULL) && cli_whole_written(path, written, size, err_msg);
-        g_cli_cells->persistent_buf_release(written, &g_cli_state_cells);
+        const int whole = mmgr_line_ok(&out) && cli_whole_written(path, out.out, out.at, err_msg);
         if (!whole)
         {
+            g_cli_cells->persistent_buf_release(written, &g_cli_state_cells);
             g_cli_cells->persistent_buf_release(saved_names, &g_cli_state_cells);
             cli_json_given(&json);
             return 0;
@@ -235,6 +223,7 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
             names += 1u;
         }
     }
+    g_cli_cells->persistent_buf_release(written, &g_cli_state_cells);
     CliJsonFiles files = {NULL, 0u};
     cli_state_json_files(folder, &files);
     for (unsigned int at = 0u; at < files.count; at += 1u)
@@ -263,16 +252,17 @@ int cli_state_save(const char *folder, const char *changes, unsigned long long l
     cli_lock_take(&s_lock);
     CliJson given;
     cli_json_begun(&given, NULL, 0u, NULL, 0ull);
-    const unsigned int changed = cli_json_taken(&given, changes, length, 0u, 0ull, err_msg, &g_cli_state_cells);
+    const unsigned int changed =
+        cli_json_taken_temporary(&given, changes, length, 0u, 0ull, err_msg, &g_cli_state_cells);
     if (!cli_json_is(&given, changed, CFG_JSON_OBJECT))
     {
         cli_json_given(&given);
         cli_lock_give(&s_lock);
         return 0;
     }
-    // what the changes put in the settings or the state: each a key and an entry's text, read as JSON or stored as a
-    // string; the trees grow as the entries are put, from the changes' own nodes and bytes of room over
-    const unsigned int nodes_more = given.nodes + 2u;
+    // what the changes put in the settings or the state: each a key and an entry's text, read as JSON or as a string:
+    // a node for each 2 bytes of it at the most, and its bytes
+    const unsigned int nodes_more = given.nodes + (unsigned int)(length / 2ull) + 2u;
     const unsigned long long text_more = length + 2ull;
     CliJson settings;
     CliJson state;

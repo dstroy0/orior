@@ -63,13 +63,7 @@ int cli_prints_line(const char *path, const char *text, unsigned long long lengt
     char extension[CLI_NAME_MAX_LEN];
     const char *const dot =
         cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '.');
-    unsigned int count = 0u;
-    for (const char *at = (dot != NULL) ? (dot + 1) : ""; (at[0] != '\0') && (count < (CLI_NAME_MAX_LEN - 1u)); at += 1)
-    {
-        extension[count] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-        count += 1u;
-    }
-    extension[count] = '\0';
+    (void)cli_text_lowered_into(extension, sizeof(extension), (dot != NULL) ? (dot + 1) : "");
     // the line with the whitespace at its start left off
     unsigned long long from = 0ull;
     while (from < length)
@@ -176,14 +170,10 @@ static void cli_put_in(const char *at, const char *diff, unsigned long long size
     unsigned long long from = 0ull;
     while (from < size)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = diff + from, .val = '\n', .bytes = size - from});
-        // a newline found lies in the diff, at or past `from`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - diff) : size;
+        const CliTextLine bounds = cli_text_line_at(diff, from, size);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - from;
-        if ((newline != NULL) && (length > 0ull) && (diff[end - 1ull] == '\r'))
-        {
-            length -= 1ull;
-        }
+        length -= bounds.stop - bounds.cut;
         const char *const row = diff + from;
         from = end + 1ull;
         if ((length >= 4ull) && (memor.cmp(&(MemoriaCfg){.src = row, .other = "+++ ", .bytes = 4u}) == 0))
@@ -210,11 +200,7 @@ static void cli_put_in(const char *at, const char *diff, unsigned long long size
                 }
                 unsigned long long value = 0ull;
                 unsigned long long digit = place + 1ull;
-                while ((digit < length) && (row[digit] >= '0') && (row[digit] <= '9') && (value <= 0xffffffffull))
-                {
-                    value = (value * 10ull) + (unsigned long long)(row[digit] - '0');
-                    digit += 1ull;
-                }
+                value = cli_text_number(row, digit, length, &digit);
                 const int whole = (digit > (place + 1ull)) && (value <= 0xffffffffull) &&
                                   ((digit == length) || (row[digit] == ',') || (row[digit] == ' '));
                 start = whole ? value : 1ull;
@@ -242,7 +228,7 @@ static void cli_new_read(const char *root, const char *path)
     char full[CLI_PATH_MAX_LEN];
     cli_full(root, path, full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(full, &size);
+    const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_code_cells);
     if (bytes == NULL)
     {
         return;
@@ -261,15 +247,10 @@ static void cli_new_read(const char *root, const char *path)
     while (text && (at < size))
     {
         const char *const row = (const char *)bytes + at;
-        const unsigned char *const newline =
-            memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the bytes, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
+        const CliTextLine bounds = cli_text_line_at((const char *)bytes, at, size);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
-        if ((newline != NULL) && (length > 0ull) && (bytes[end - 1ull] == '\r'))
-        {
-            length -= 1ull;
-        }
+        length -= bounds.stop - bounds.cut;
         if (cli_prints_line(path, row, length))
         {
             cli_print_put("", path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), line, row,
@@ -278,7 +259,7 @@ static void cli_new_read(const char *root, const char *path)
         line += 1u;
         at = end + 1ull;
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_code_cells);
 }
 
 // whether a print comes before another: by path, then by line

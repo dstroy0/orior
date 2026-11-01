@@ -3,6 +3,7 @@
 // templates.c: the reader's templates listed, a project begun from one with its name written in, and a tree saved as
 // one
 #include "templates.h"
+#include "../command_line/cells.h"
 #include "../editor/files.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -117,17 +118,7 @@ static int cli_plain(const char *name)
 static int cli_named(const char *text, const char *name, char *out, unsigned long long room)
 {
     VerbaLinea line = {out, room, 0ull};
-    for (const char *at = text; at[0] != '\0';)
-    {
-        if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = "{{name}}", .cap = CLI_CELLS_POOL}))
-        {
-            mmgr_line_put(&line, name);
-            at += 8;
-            continue;
-        }
-        mmgr_line_ch(&line, at[0]);
-        at += 1;
-    }
+    cli_text_put_filled(&line, text, "{{name}}", name);
     mmgr_line_finish(&line);
     return mmgr_line_ok(&line);
 }
@@ -156,7 +147,7 @@ static int cli_uncopied(const char *path, VerbaLinea *err_msg)
 static int cli_file_copied(const char *from, const char *to, const char *name, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(from, &size);
+    const unsigned char *const bytes = cli_file_taken(from, &size, &g_cli_templates_cells);
     if (bytes == NULL)
     {
         return cli_uncopied(from, err_msg);
@@ -181,7 +172,7 @@ static int cli_file_copied(const char *from, const char *to, const char *name, V
         g_cli_cells->temporary_buf_alloc(((2ull * named) + 1ull) * sizeof(*piece), &g_cli_templates_cells);
     if (piece == NULL)
     {
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_templates_cells);
         return cli_uncopied(from, err_msg);
     }
     unsigned int pieces = 0u;
@@ -204,7 +195,7 @@ static int cli_file_copied(const char *from, const char *to, const char *name, V
     // a piece of no bytes contains no zeros either
     const int written = cli_file_pieces_written(to, piece, pieces);
     g_cli_cells->persistent_buf_release(piece, &g_cli_templates_cells);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_templates_cells);
     return written || cli_uncopied(to, err_msg);
 }
 

@@ -6,6 +6,7 @@
 // each written with what its type opens, or the values the schema allows. A text nested deeper than CLI_SCHEMA_FRAMES
 // or containing more keys open than CLI_SCHEMA_OPEN_KEYS is read as far as they fit; the schemas past
 // CLI_SCHEMA_REACHED are not offered
+#include "../text/text.h"
 #include "schema_internal.h"
 
 // the deepest frames read
@@ -272,8 +273,7 @@ void cli_schema_detail(const CliJson *json, unsigned int schema, VerbaLinea *out
     description = (description != NULL) ? description : cli_schema_string(json, schema, "title", &size);
     if (description != NULL)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = description, .val = '\n', .bytes = (size_t)size});
-        unsigned long long line = (newline != NULL) ? (unsigned long long)(newline - description) : size;
+        unsigned long long line = cli_text_line_at(description, 0ull, size).stop;
         line -= ((line > 0u) && (description[line - 1u] == '\r')) ? 1u : 0u;
         mmgr_line_put_n(out, description, line);
         return;

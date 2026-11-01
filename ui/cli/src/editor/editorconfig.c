@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // editorconfig.c: a file's indentation from the `.editorconfig` files above it
 #include "editorconfig.h"
+#include "../text/text.h"
 
 // the lock acquired while the files' bytes and a pattern's letters are stored
 static CliLock s_lock = CLI_LOCK_INIT;
@@ -18,14 +19,8 @@ static unsigned char s_text[CLI_EDITORCONFIG_BYTES];
 // The bytes from `from` up to `to` with the ASCII spaces at each end left off
 static void cli_trimmed(const char **from, const char **to)
 {
-    while ((*from < *to) && (((*from)[0] == ' ') || (((*from)[0] >= '\t') && ((*from)[0] <= '\r'))))
-    {
-        *from += 1;
-    }
-    while ((*to > *from) && (((*to)[-1] == ' ') || (((*to)[-1] >= '\t') && ((*to)[-1] <= '\r'))))
-    {
-        *to -= 1;
-    }
+    *from += cli_text_past_any(*from, 0ull, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
+    *to = *from + cli_text_back_past(*from, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
 }
 
 // whether the bytes from `from` up to `to` are `word`, the ASCII letters of either case the same
@@ -55,10 +50,7 @@ static int cli_is_root(const char *text, unsigned long long size)
     while (line < end)
     {
         const char *stop = line;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const char *from = line;
         const char *to = stop;
         cli_trimmed(&from, &to);
@@ -67,10 +59,7 @@ static int cli_is_root(const char *text, unsigned long long size)
             return 0;
         }
         const char *equals = line;
-        while ((equals < stop) && (equals[0] != '='))
-        {
-            equals += 1;
-        }
+        equals += cli_text_to_any(equals, 0ull, (unsigned long long)(stop - equals), "=");
         const char *key = line;
         const char *key_end = equals;
         const char *value = equals + 1;
@@ -115,10 +104,7 @@ static void cli_sections_read(const char *text, unsigned long long size, const c
     while (line < end)
     {
         const char *stop = line;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const char *from = line;
         const char *to = stop;
         line = stop + 1;
@@ -133,10 +119,7 @@ static void cli_sections_read(const char *text, unsigned long long size, const c
             continue;
         }
         const char *equals = from;
-        while ((equals < to) && (equals[0] != '='))
-        {
-            equals += 1;
-        }
+        equals += cli_text_to_any(equals, 0ull, (unsigned long long)(to - equals), "=");
         if ((equals == to) || !inside)
         {
             continue;
@@ -172,18 +155,17 @@ static int cli_value_number(const CliValue *value, unsigned int *number)
         return 0;
     }
     unsigned long long size = 0ull;
-    for (; at[0] != '\0'; at += 1)
+    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL});
+    if (cli_text_past_class(at, 0ull, digits, CLI_TEXT_DIGITS, "") != digits)
     {
-        if ((at[0] < '0') || (at[0] > '9'))
-        {
-            return 0;
-        }
-        size = (size * 10ull) + (unsigned long long)(at[0] - '0');
-        if (size > 0xffffffffull)
-        {
-            return 0;
-        }
+        return 0;
     }
+    size = cli_text_number(at, 0ull, digits, NULL);
+    if (size > 0xffffffffull)
+    {
+        return 0;
+    }
+    at += digits;
     // checked against the most 32 bits represent above
     *number = (unsigned int)size;
     return 1;
@@ -257,10 +239,7 @@ static void cli_indent_resolved(const char *path, CliIndent *indent)
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = path + folder + (cli_is_separator(path[folder]) ? 1u : 0u),
                                                    .cap = CLI_CELLS_POOL}) +
                      1u});
-        for (char *letter = relative; letter[0] != '\0'; letter += 1)
-        {
-            letter[0] = (letter[0] == '\\') ? '/' : letter[0];
-        }
+        cli_text_swapped(relative, cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}), '\\', '/');
         char file[CLI_PATH_MAX_LEN];
         VerbaLinea line = {file, sizeof(file), 0ull};
         mmgr_line_put_n(&line, path, folder);

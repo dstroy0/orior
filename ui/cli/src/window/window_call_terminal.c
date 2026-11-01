@@ -9,6 +9,7 @@
 // there opens over the link
 #include "../comms/link.h"
 #include "../runs/runner.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "window_internal.h"
 
@@ -109,16 +110,16 @@ static unsigned long long terminal_whole(const char *bytes, unsigned long long s
 static void terminal_read(void *context)
 {
     CliTerminal *const terminal = context;
-    unsigned long long held = 0ull;
+    unsigned long long pending = 0ull;
     for (;;)
     {
         const unsigned long long got =
-            cli_spawn_read(terminal->spawned.out, terminal->piece + held, CLI_TERMINAL_PIECE);
+            cli_spawn_read(terminal->spawned.out, terminal->piece + pending, CLI_TERMINAL_PIECE);
         if (got == 0ull)
         {
             break;
         }
-        const unsigned long long size = held + got;
+        const unsigned long long size = pending + got;
         const unsigned long long whole = terminal_whole(terminal->piece, size);
         if (whole > 0ull)
         {
@@ -138,7 +139,7 @@ static void terminal_read(void *context)
         {
             terminal->piece[at - whole] = terminal->piece[at];
         }
-        held = size - whole;
+        pending = size - whole;
     }
     cli_lock_take(&s_lock);
     terminal->reading = 0;
@@ -204,13 +205,7 @@ static int terminal_folder_of(const char *url, char *folder)
     }
     char read[CLI_PATH_MAX_LEN];
     VerbaLinea decoded = {read, sizeof(read), 0ull};
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        const int escaped = (at[0] == '%') && (terminal_hex_of(at[1]) < 16u) && (terminal_hex_of(at[2]) < 16u);
-        // two hexadecimal digits make a byte, below 256
-        mmgr_line_ch(&decoded, escaped ? (char)((terminal_hex_of(at[1]) << 4u) | terminal_hex_of(at[2])) : at[0]);
-        at += escaped ? 2 : 0;
-    }
+    cli_text_put_unescaped(&decoded, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
     if (mmgr_line_finish(&decoded) == 0ull)
     {
         return 0;
@@ -285,10 +280,7 @@ static int terminal_local_started(CliTerminal *terminal, const char *at, unsigne
     if (cli_program_own(s_program, sizeof(s_program)))
     {
         size_t end = cellul.len(&(CatenaFinitaCfg){.src = s_program, .cap = CLI_CELLS_POOL});
-        while ((end > 0u) && (s_program[end - 1u] != '/') && (s_program[end - 1u] != '\\'))
-        {
-            end -= 1u;
-        }
+        end = (size_t)cli_text_back_any(s_program, end, "/\\");
         s_program[(end > 0u) ? end - 1u : 0u] = '\0';
         VerbaLinea path = {s_path, sizeof(s_path),
                            cellul.len(&(CatenaFinitaCfg){.src = s_path, .cap = sizeof(s_path)})};
@@ -347,10 +339,7 @@ static int terminal_linked_started(CliTerminal *terminal, const CliLinkAddress *
     const char *folder = NULL;
     if ((at != NULL) && terminal_folder_of(at, s_folder))
     {
-        for (char *slash = s_folder; *slash != '\0'; slash += 1)
-        {
-            *slash = (*slash == '\\') ? '/' : *slash;
-        }
+        cli_text_swapped(s_folder, cellul.len(&(CatenaFinitaCfg){.src = s_folder, .cap = CLI_CELLS_POOL}), '\\', '/');
         folder = s_folder;
     }
     VerbaLinea shell = {s_line, sizeof(s_line), 0ull};

@@ -5,6 +5,7 @@
 // events handed on; and how it stands reported as the event "link"
 #include "../servers/lsp.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "link_internal.h"
 
 CliLink g_cli_link;
@@ -98,20 +99,8 @@ void cli_link_stderr_written(VerbaLinea *out)
     cli_lock_take(&g_cli_link_lock);
     unsigned long long start = 0ull;
     unsigned long long end = g_cli_link.stderr_tail_size;
-    while ((start < end) &&
-           (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\v\f", .cap = CLI_CELLS_POOL, .byte = g_cli_link.stderr_tail[start]}) != NULL) &&
-           (g_cli_link.stderr_tail[start] != '\0'))
-    {
-        start += 1u;
-    }
-    while ((end > start) &&
-           (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\v\f", .cap = CLI_CELLS_POOL, .byte = g_cli_link.stderr_tail[end - 1u]}) != NULL) &&
-           (g_cli_link.stderr_tail[end - 1u] != '\0'))
-    {
-        end -= 1u;
-    }
+    start = cli_text_past_any(g_cli_link.stderr_tail, start, end, CLI_TEXT_WHITE);
+    end = start + cli_text_back_past(g_cli_link.stderr_tail + start, end - start, CLI_TEXT_WHITE);
     cli_lossy(out, (const unsigned char *)g_cli_link.stderr_tail + start, end - start);
     cli_lock_give(&g_cli_link_lock);
 }
@@ -247,9 +236,6 @@ void cli_link_path_word(const char *path, VerbaLinea *out)
     char slashed[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = slashed, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = slashed; *at != '\0'; at += 1)
-    {
-        *at = (*at == '\\') ? '/' : *at;
-    }
+    cli_text_swapped(slashed, cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}), '\\', '/');
     cli_link_quote(slashed, cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}), out);
 }

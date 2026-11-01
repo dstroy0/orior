@@ -12,6 +12,7 @@
 #define _DARWIN_C_SOURCE
 #endif
 #include "../command_line/cli_internal.h"
+#include "../text/text.h"
 
 #if !defined(_WIN32)
 #include <fcntl.h>
@@ -55,10 +56,7 @@ void cli_temp_folder(char *folder)
         return;
     }
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
-    while ((end > 1u) && (folder[end - 1u] == '/'))
-    {
-        end -= 1u;
-    }
+    end = (size_t)(1u + cli_text_back_past(folder + 1u, end - 1u, "/"));
     folder[end] = '\0';
 }
 
@@ -140,10 +138,9 @@ unsigned long long cli_booted_seconds(void)
     const char *at = cellul.find(
         &(CatenaFinitaCfg){.src = s_stat, .cap = sizeof(s_stat), .other = "\nbtime ", .other_cap = CLI_CELLS_POOL});
     unsigned long long seconds = 0ull;
-    for (at = (at != NULL) ? at + 7 : s_stat + sizeof(s_stat) - 1u; (*at >= '0') && (*at <= '9'); at += 1)
-    {
-        seconds = (seconds * 10ull) + (unsigned long long)(*at - '0');
-    }
+    seconds = (at != NULL) ? cli_text_number(at + 7, 0ull,
+                                             cellul.len(&(CatenaFinitaCfg){.src = at + 7, .cap = CLI_CELLS_POOL}), NULL)
+                           : 0ull;
     cli_lock_give(&s_stat_lock);
     return seconds;
 }
@@ -153,10 +150,7 @@ void cli_logon_named(char *logon, size_t room)
 {
     char session[64];
     unsigned long long length = system_read("/proc/self/sessionid", session, sizeof(session));
-    while ((length > 0ull) && ((session[length - 1ull] == '\n') || (session[length - 1ull] == ' ')))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(session, length, "\n ");
     session[length] = '\0';
     const int kept =
         (length > 0ull) && !cellul.eq(&(CatenaFinitaCfg){.src = session, .other = "4294967295", .cap = CLI_CELLS_POOL});

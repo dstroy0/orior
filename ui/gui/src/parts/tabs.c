@@ -4,6 +4,8 @@
 // from the row's left; tabs past the row's right edge are cut off at it
 #include "tabs.h"
 
+#include "../../../cli/src/text/text.h"
+
 #include <math.h>
 
 // the close mark's text
@@ -11,17 +13,10 @@ static const char s_close[] = "\xc3\x97";
 
 const char *gui_tab_name(const GuiTab *tab, unsigned long long *length)
 {
-    unsigned long long start = 0ull;
-    unsigned long long at = 0ull;
-    while (tab->path[at] != '\0')
-    {
-        if (((tab->path[at] == '/') || (tab->path[at] == '\\')) && (tab->path[at + 1ull] != '\0'))
-        {
-            start = at + 1ull;
-        }
-        at += 1ull;
-    }
-    *length = at - start;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = tab->path, .cap = CLI_CELLS_POOL});
+    // the last mark that has a letter after it: one at the path's very end names nothing
+    const unsigned long long start = (size > 0ull) ? cli_text_back_any(tab->path, size - 1ull, "/\\") : 0ull;
+    *length = size - start;
     return tab->path + start;
 }
 
@@ -56,7 +51,8 @@ GuiRect gui_tab_close_rect(GuiGlyphs *glyphs, const GuiFrame *frame, const GuiTa
     const unsigned int size = (unsigned int)gui_scaled((int)GUI_TAB_SIZE, frame->scale);
     const float close = gui_text_width(glyphs, GUI_FACE_CODE, size, s_close, sizeof(s_close) - 1u);
     const int wide = (2 * gui_scaled(GUI_TAB_CLOSE_PAD, frame->scale)) + (int)roundf(close);
-    return (GuiRect){rect.x + rect.width - gui_scaled(GUI_TAB_PAD_RIGHT, frame->scale) - wide, rect.y, wide, rect.height};
+    return (GuiRect){rect.x + rect.width - gui_scaled(GUI_TAB_PAD_RIGHT, frame->scale) - wide, rect.y, wide,
+                     rect.height};
 }
 
 int gui_tabs_hit(GuiGlyphs *glyphs, const GuiFrame *frame, const GuiTab *tab, unsigned int count, int x, int y,
@@ -83,7 +79,8 @@ void gui_tabs_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *pale
 {
     const float scale = frame->scale;
     const int one = gui_scaled(1, scale);
-    gui_raster_filled(raster, (GuiRect){frame->tabs.x, frame->tabs.y + frame->tabs.height - one, frame->tabs.width, one},
+    gui_raster_filled(raster,
+                      (GuiRect){frame->tabs.x, frame->tabs.y + frame->tabs.height - one, frame->tabs.width, one},
                       palette->line);
     const unsigned int size = (unsigned int)gui_scaled((int)GUI_TAB_SIZE, scale);
     const float ascent = gui_glyphs_ascent(glyphs, GUI_FACE_CODE, size);
@@ -102,18 +99,22 @@ void gui_tabs_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *pale
         {
             gui_raster_rounded(raster, met, (unsigned int)gui_scaled(GUI_TAB_RADIUS, scale), palette->tab_ground);
             const int line = gui_scaled(GUI_TAB_LINE, scale);
-            gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y, rect.width, line}, frame->tabs), palette->tab_line);
-            gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y, line, rect.height}, frame->tabs), palette->tab_line);
+            gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y, rect.width, line}, frame->tabs),
+                              palette->tab_line);
+            gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y, line, rect.height}, frame->tabs),
+                              palette->tab_line);
         }
-        gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x + rect.width - one, rect.y, one, rect.height}, frame->tabs),
+        gui_raster_filled(raster,
+                          gui_rect_met((GuiRect){rect.x + rect.width - one, rect.y, one, rect.height}, frame->tabs),
                           palette->line);
         const int baseline = rect.y + (int)((((float)rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
         unsigned long long length = 0ull;
         const char *const name = gui_tab_name(&tab[at], &length);
-        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size, (float)(rect.x + gui_scaled(GUI_TAB_PAD_LEFT, scale)), baseline,
-                             name, length, shown ? palette->text : palette->text_2, met);
+        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size, (float)(rect.x + gui_scaled(GUI_TAB_PAD_LEFT, scale)),
+                             baseline, name, length, shown ? palette->text : palette->text_2, met);
         const GuiRect close = gui_tab_close_rect(glyphs, frame, tab, count, at);
-        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size, (float)(close.x + gui_scaled(GUI_TAB_CLOSE_PAD, scale)), baseline,
-                             s_close, sizeof(s_close) - 1u, palette->text_3, met);
+        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size,
+                             (float)(close.x + gui_scaled(GUI_TAB_CLOSE_PAD, scale)), baseline, s_close,
+                             sizeof(s_close) - 1u, palette->text_3, met);
     }
 }

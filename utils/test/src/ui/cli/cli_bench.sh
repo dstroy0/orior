@@ -11,14 +11,7 @@ TOP="$(cd "$HERE/../../../../.." && pwd)"
 CC="${CC:-clang}"
 LABEL="${1:-}"
 REPEAT="${2:-5}"
-# LTO=1 benches the library built as bitcode and linked whole, from build/cli/<host>-lto
-LTO="${LTO:-0}"
-LTO_SUFFIX=""
-LTO_WORDS=()
-if [ "$LTO" = 1 ]; then
-    LTO_SUFFIX="-lto"
-    LTO_WORDS=(-flto=thin -fuse-ld=lld)
-fi
+source "$TOP/ui/cli/lto_words.sh"
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc"; SUFFIX=".exe"
@@ -33,12 +26,12 @@ MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_
 
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "bench exit 1"; exit 1; }
 CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"
-LIBRARY="$TOP/build/cli/$HOST$LTO_SUFFIX/lib$CLI_NAME.a"
+LIBRARY="$TOP/build/cli/$HOST/lib$CLI_NAME.a"
 RUN="$TOP/build/cli_test"
 KEPT="$TOP/build/harness/bench"
 mkdir -p "$RUN" "$KEPT"
 
-if ! "$CC" "--target=$HOST" -std=c11 -O2 "${LTO_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/cli_bench$LTO_SUFFIX$SUFFIX" "$HERE/bench/cli_bench.c" "$HERE/bench/cli_bench_rules.c" "$HERE/bench/cli_bench_files.c" "$LIBRARY" \
+if ! "$CC" "--target=$HOST" -std=c11 -O2 "${LTO_WORDS[@]}" "${LINK_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/cli_bench$SUFFIX" "$HERE/bench/cli_bench.c" "$HERE/bench/cli_bench_rules.c" "$HERE/bench/cli_bench_files.c" "$LIBRARY" \
     "${LIBRARIES[@]}" > "$RUN/cli_bench.log" 2>&1; then
     echo "  build failed: cli_bench did not compile"
     tail -20 "$RUN/cli_bench.log"
@@ -54,7 +47,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 echo "== cli_bench $STAMP $LABEL"
 printf 'name\tbytes\tus\tMiB_s\n'
 ROWS="$RUN/bench_rows.tsv"
-(cd "$RUN" && "./cli_bench$LTO_SUFFIX$SUFFIX" "$CORPUS" "$TREE" "$REPEAT") > "$ROWS"
+(cd "$RUN" && "./cli_bench$SUFFIX" "$CORPUS" "$TREE" "$REPEAT") > "$ROWS"
 CODE=$?
 cat "$ROWS"
 sed "s|^|$STAMP\t$LABEL\t|" "$ROWS" >> "$KEPT/bench.tsv"

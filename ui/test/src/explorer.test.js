@@ -84,7 +84,7 @@ test("a folder of twenty thousand generated files opens at once with only the ro
     const openGaps = openFrames.slice(1).map((time, step) => time - openFrames[step]);
     const said = `opened in ${opened.toFixed(0)} ms, its longest frame ${Math.max(...openGaps).toFixed(1)} ms, ${files.querySelectorAll(".node").length} rows on the page`;
     assert.ok(opened < 1000, `the folder open within a second: ${said}`);
-    assert.ok(Math.max(...openGaps) < 100, `no frame held as it opened: ${said}`);
+    assert.ok(Math.max(...openGaps) < 100, `no frame delayed as it opened: ${said}`);
     assert.ok(files.querySelectorAll(".node").length < 200, `only the rows in sight and ahead on the page: ${said}`);
     // The keys step through every row, on the page or not.
     const focused = () => document.activeElement?.dataset.key;
@@ -130,8 +130,8 @@ test("a folder of twenty thousand generated files scrolls fast at the display's 
     const rate = gaps.length / ((times.at(-1) - times[0]) / 1000);
     const said = `scrolled to ${files.scrollTop} at ${rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}, the longest wait ${Math.max(...gaps).toFixed(1)} ms, ${files.querySelectorAll(".node").length} rows on the page`;
     assert.ok(files.scrollTop > box.height * 20, `the tree scrolled far: ${said}`);
-    assert.ok(rate >= display * 0.8, `the display's rate held: ${said}`);
-    assert.ok(Math.max(...gaps) < 100, `no frame held as it scrolled: ${said}`);
+    assert.ok(rate >= display * 0.8, `the display's rate kept: ${said}`);
+    assert.ok(Math.max(...gaps) < 100, `no frame delayed as it scrolled: ${said}`);
     assert.ok(files.querySelectorAll(".node").length < 200, `only the rows in sight and ahead on the page: ${said}`);
   });
 }, { timeout: 180000 });

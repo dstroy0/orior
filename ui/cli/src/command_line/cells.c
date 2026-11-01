@@ -18,9 +18,6 @@
 // host block's bytes being zero from the start, and no room reads the bytes of the one that occupied its cell before it
 LocusCarcerumHospes(cli_cells_site, MMGR_MAXIMUM_SECURITY(cli_cells_pool));
 
-// the cellblock's record, as the site declares it
-#define CLI_CELLS_RECORD cli_cells_site_cli_cells_pool_ctx
-
 #define CLI_CELL_OWNER(name_, text_) CellOwner name_ = MMGR_CELL_OWNER(text_);
 #include "cells_owners.h"
 #undef CLI_CELL_OWNER
@@ -40,7 +37,7 @@ static void cells_logged(const char *kind, const VerbaLinea *line)
 // owner of a name already registered or a queue past its room, is logged: every take for that owner is refused
 static void cells_owner_ready(CellOwner *owner)
 {
-    if ((embed_atomic_usize_load(&owner->place) != 0u) || mmgr_owner_register(owner))
+    if (mmgr_owner_registered(owner) || mmgr_owner_register(owner))
     {
         return;
     }
@@ -74,13 +71,56 @@ void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner
 
 const MaximumSecurityGuard *const g_cli_cells = &cli_cells_site.cli_cells_pool;
 
-// a peak read off the cellblock's state, `member_` persistent_hw or temporary_hw, 0 where the build tracks none
-#if defined(MMGR_ENABLE_HW_MEM_CAPACITY_CB) && MMGR_ENABLE_HW_MEM_CAPACITY_CB
-#define CLI_CELLS_PEAK(member_)                                                                                        \
-    ((CLI_CELLS_RECORD != NULL) ? (unsigned long long)embed_atomic_usize_load(&CLI_CELLS_RECORD->member_) : 0ull)
-#else
-#define CLI_CELLS_PEAK(member_) 0ull
-#endif
+// the turnstiles the option's storage has room for, which the machine's processors are bounded to, and the rows of
+// touches per thread it keeps
+#define CELLS_WIDTH_MOST 256u
+#define CELLS_TOUCH_ROWS 64u
+
+// What MMgr's movable option is given: storage whose address the linker settles, and the thread its mover runs on, kept
+// at idle between moves and raised across each, since a reader waits on the copy
+ParsMemoriaeInternae(cli_cells_movable,
+                     MMGR_MOVABLE_STORAGE_BYTES(CLI_CELLS_MOVABLE, CELLS_WIDTH_MOST, CELLS_TOUCH_ROWS));
+static CliThread s_mover;
+static CliLock s_mover_lock = CLI_LOCK_INIT;
+static CliWake s_mover_wake = CLI_WAKE_INIT;
+
+static embed_bool cells_mover_started(void (*run)(void *context), void *context)
+{
+    s_mover.run = run;
+    s_mover.context = context;
+    s_mover.priority = CLI_PRIORITY_IDLE;
+    return (embed_bool)(cli_thread_started(&s_mover) != 0);
+}
+
+static embed_bool cells_mover_waited(uint32_t milliseconds)
+{
+    cli_lock_take(&s_mover_lock);
+    (void)cli_wake_wait_for(&s_mover_wake, &s_mover_lock, milliseconds);
+    cli_lock_give(&s_mover_lock);
+    return EMBED_TRUE;
+}
+
+static void cells_mover_moving(embed_bool moving)
+{
+    cli_priority_own(moving ? CLI_PRIORITY_WORK : CLI_PRIORITY_IDLE);
+}
+
+void cli_cells_movable_ready(void)
+{
+    const unsigned int processors = cli_processors();
+    // a refusal is the option assigned already, or the thread not started, which leaves the cells working and still
+    (void)g_cli_cells->movable_init(
+        &(CarcerMovableInitCfg){.storage = mmgr_pars_storage_cli_cells_movable,
+                                .storage_bytes = cli_cells_movable_bytes,
+                                .cells = CLI_CELLS_MOVABLE,
+                                .width = (processors < CELLS_WIDTH_MOST) ? processors : CELLS_WIDTH_MOST,
+                                .rows = CELLS_TOUCH_ROWS,
+                                .thread_started = cells_mover_started,
+                                .thread_id = cli_thread_id,
+                                .thread_wait = cells_mover_waited,
+                                .thread_yield = cli_thread_yield,
+                                .thread_moving = cells_mover_moving});
+}
 
 // One owner as the cellblock's list gave it, its counts read off their atomic words and written after, since a line
 // written to may take a cell of the same cellblock
@@ -94,42 +134,15 @@ typedef struct
 // the pool's bytes, 0 while no block is allocated
 static unsigned long long cells_pool_bytes(void)
 {
-    return (CLI_CELLS_RECORD != NULL) ? (unsigned long long)CLI_CELLS_RECORD->size : 0ull;
+    const CarcerCellBlock *const record = cli_cells_site_cellblock();
+    return (record != NULL) ? (unsigned long long)record->size : 0ull;
 }
 
 CellOwner *cli_cell_owner(const void *cell)
 {
-    return ((cell != NULL) && (CLI_CELLS_RECORD != NULL)) ? mmgr_owner_of_buf(CLI_CELLS_RECORD, cell) : NULL;
+    const CarcerCellBlock *const record = cli_cells_site_cellblock();
+    return ((cell != NULL) && (record != NULL)) ? mmgr_owner_of_buf(record, cell) : NULL;
 }
-
-void *cli_cell_beside(const void *cell, size_t size, CellOwner *owner)
-{
-    // a persistent cell lies below the persistent end
-    const int temporary = (cell != NULL) && (CLI_CELLS_RECORD != NULL) &&
-                          ((size_t)((const uint8_t *)cell - CLI_CELLS_RECORD->base) >= mmgr_cellblock_persistent_end(CLI_CELLS_RECORD));
-    return temporary ? g_cli_cells->temporary_buf_alloc(size, owner) : g_cli_cells->persistent_buf_alloc(size, owner);
-}
-
-void *cli_cell_regrown(void *cell, size_t used, size_t size, CellOwner *owner)
-{
-    void *const grown = g_cli_cells->buf_grow(cell, size, owner);
-    if (grown != NULL)
-    {
-        return grown;
-    }
-    void *const larger = cli_cell_beside(cell, size, owner);
-    if (larger == NULL)
-    {
-        return NULL;
-    }
-    if (cell != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = used});
-        g_cli_cells->persistent_buf_release(cell, owner);
-    }
-    return larger;
-}
-
 
 // the owners in MMgr's owner queue copied into `owners`, sized for MMGR_CARCER_OWNERS: their count. An entry the queue
 // counts and has not written yet is passed over
@@ -142,9 +155,8 @@ static unsigned int cells_owners_read(CliCellsOwnerRead *owners)
         const CellOwner *const owner = mmgr_owner_at(at);
         if (owner != NULL)
         {
-            owners[count] =
-                (CliCellsOwnerRead){owner->name, (unsigned long long)embed_atomic_usize_load(&owner->in_use),
-                                    (unsigned long long)embed_atomic_usize_load(&owner->hw)};
+            owners[count] = (CliCellsOwnerRead){owner->name, (unsigned long long)mmgr_owner_in_use(owner),
+                                                (unsigned long long)mmgr_owner_hw(owner)};
             count += 1u;
         }
     }
@@ -189,26 +201,25 @@ int cli_cells_made(unsigned long long bytes)
     {
         cells_owner_ready(s_owners[at]);
     }
-    // a program makes its pool before any thread takes a cell, and makes it anew only while no cell is allocated: the
-    // idle test reads both tiers off one word, and nothing takes between the test and the making
-    const int idle =
-        (CLI_CELLS_RECORD == NULL) || ((mmgr_cellblock_persistent_end(CLI_CELLS_RECORD) == 0u) &&
-                                       (mmgr_cellblock_temporary_top(CLI_CELLS_RECORD) == CLI_CELLS_RECORD->size));
+    // a program makes its pool before any thread takes a cell, and makes it anew only while no cell is allocated, and
+    // nothing takes between the test and the making
+    const CarcerCellBlock *const record = cli_cells_site_cellblock();
+    const int idle = (record == NULL) || mmgr_cellblock_idle(record);
     // the block's bytes are what the system can hand out at once, which a size_t counts
-    return idle && mmgr_host_cellblock_made(&CLI_CELLS_RECORD, (size_t)bytes);
+    return idle && cli_cells_site_made((size_t)bytes);
 }
 
 void cli_cells_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary)
 {
+    const CarcerCellBlock *const record = cli_cells_site_cellblock();
     *pool = cells_pool_bytes();
-    *persistent = CLI_CELLS_PEAK(persistent_hw);
-    *temporary = CLI_CELLS_PEAK(temporary_hw);
+    *persistent = (record != NULL) ? (unsigned long long)mmgr_cellblock_persistent_hw(record) : 0ull;
+    *temporary = (record != NULL) ? (unsigned long long)mmgr_cellblock_temporary_hw(record) : 0ull;
 }
 
 int cli_cells_zero(void)
 {
-    int zero = mmgr_host_cellblock_zero(CLI_CELLS_RECORD);
-    return zero;
+    return mmgr_host_cellblock_zero(cli_cells_site_cellblock());
 }
 
 void cli_cells_usage_written(VerbaLinea *out)
@@ -222,7 +233,7 @@ void cli_cells_usage_written(VerbaLinea *out)
 
 void cli_cells_owner_usage_written(const CellOwner *owner, VerbaLinea *out)
 {
-    cells_written(out, (unsigned long long)embed_atomic_usize_load(&owner->hw), 0ull);
+    cells_written(out, (unsigned long long)mmgr_owner_hw(owner), 0ull);
 }
 
 void cli_cells_owners_written(VerbaLinea *out)

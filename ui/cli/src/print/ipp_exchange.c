@@ -5,14 +5,13 @@
 #include "../text/text.h"
 #include "ipp.h"
 
-// the most bytes of a printer's answer, its HTTP head and its body together; the bytes an answer and an encoded
-// request are begun in before they grow; and the room made for each read of the answer
+// the most bytes of a printer's answer, its HTTP head and its body together; the bytes an answer and an encoded request
+// are written in; and the room made for each read of the answer
 #define CLI_IPP_ANSWER (1u << 22u)
 
-#define CLI_IPP_FIRST (16ull << 10u)
-#define CLI_IPP_READ (16ull << 10u)
+#define CLI_IPP_REQUEST_ROOM (1ull << 20u)
 
-// the answer read, a growing cell its body is put together in, in place, under the lock while one exchange runs
+// the answer read, a cell its body is put together in, in place, under the lock while one exchange runs
 static unsigned char *s_answer;
 static CliLock s_lock = CLI_LOCK_INIT;
 
@@ -69,19 +68,13 @@ int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path,
     const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '/'});
     const char *const end =
         (slash != NULL) ? slash : (rest + cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}));
-    memor.cpy(&(MemoriaCfg){
-        .dst = path,
-        .src = (slash != NULL) ? slash : "/",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (slash != NULL) ? slash : "/", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(path, slash, "/");
     VerbaLinea named = {host, CLI_PATH_MAX_LEN, 0ull};
     *port = 631u;
     if (rest[0] == '[')
     {
         const char *close = rest + 1;
-        while ((close < end) && (close[0] != ']'))
-        {
-            close += 1;
-        }
+        close += cli_text_to_any(close, 0ull, (unsigned long long)(end - close), "]");
         if (close == end)
         {
             mmgr_line_put(err_msg, uri);
@@ -136,15 +129,9 @@ static unsigned long long cli_line(const unsigned char *bytes, unsigned long lon
                                    unsigned long long *stop)
 {
     unsigned long long end = at;
-    while ((end < size) && (bytes[end] != '\n'))
-    {
-        end += 1ull;
-    }
+    end = cli_text_to_any((const char *)bytes, end, size, "\n");
     *stop = end;
-    while ((*stop > at) && ((bytes[*stop - 1u] == '\r') || (bytes[*stop - 1u] == ' ') || (bytes[*stop - 1u] == '\t')))
-    {
-        *stop -= 1ull;
-    }
+    *stop = (at + cli_text_back_past((const char *)(bytes + at), *stop - at, "\r \t"));
     return (end < size) ? (end + 1ull) : size;
 }
 
@@ -153,10 +140,7 @@ static int cli_chunk_size(const unsigned char *from, const unsigned char *to, un
 {
     unsigned long long value = 0ull;
     const unsigned char *at = from;
-    while ((at < to) && ((at[0] == ' ') || (at[0] == '\t')))
-    {
-        at += 1;
-    }
+    at += cli_text_past_any((const char *)at, 0ull, (unsigned long long)(to - at), " \t");
     const unsigned char *const digits = at;
     for (; (at < to) && (at[0] != ';') && (at[0] != ' '); at += 1)
     {
@@ -178,8 +162,9 @@ static int cli_chunk_size(const unsigned char *from, const unsigned char *to, un
 static int cli_sent(const CliSocket *socket, const char *host, unsigned int port, const char *path,
                     const CliIppMessage *request, const unsigned char *document, unsigned long long size)
 {
-    VerbaLinea body;
-    if (!cli_growing_line_temporary(&body, CLI_IPP_FIRST, &g_cli_print_cells))
+    char *const body_cell = g_cli_cells->temporary_buf_alloc(CLI_IPP_REQUEST_ROOM, &g_cli_print_cells);
+    VerbaLinea body = mmgr_line_over(body_cell, CLI_IPP_REQUEST_ROOM);
+    if (body.out == NULL)
     {
         return 0;
     }
@@ -280,20 +265,17 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
         return 0;
     }
     unsigned long long read = 0ull;
-    VerbaLinea answer_line;
-    int reading = cli_growing_line_made(&answer_line, CLI_IPP_FIRST, &g_cli_print_cells);
-    while (reading && (read < CLI_IPP_ANSWER) && cli_growing_line_room(&answer_line, CLI_IPP_READ))
+    char *const answer_cell = g_cli_cells->persistent_buf_alloc(CLI_IPP_ANSWER, &g_cli_print_cells);
+    int reading = answer_cell != NULL;
+    while (reading && (read < CLI_IPP_ANSWER))
     {
-        const unsigned long long room = answer_line.capacity - read - 1ull;
-        const unsigned long long chunk = ((read + room) < CLI_IPP_ANSWER) ? room : (CLI_IPP_ANSWER - read);
-        const long long got = cli_socket_some(&socket, answer_line.out + read, chunk);
+        const long long got = cli_socket_some(&socket, answer_cell + read, CLI_IPP_ANSWER - read);
         reading = got > 0ll;
         // a count read is below the room requested
         read += reading ? (unsigned long long)got : 0ull;
-        answer_line.at = read;
     }
     cli_socket_closed(&socket);
-    s_answer = (unsigned char *)answer_line.out;
+    s_answer = (unsigned char *)answer_cell;
     if (s_answer == NULL)
     {
         mmgr_line_put(err_msg, "a printer's answer could not be given a cell");
@@ -303,22 +285,13 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
     unsigned long long at = cli_line(s_answer, read, 0ull, &stop);
     // the status line's second word, the code
     unsigned long long word = 0ull;
-    while ((word < stop) && (s_answer[word] != ' '))
-    {
-        word += 1ull;
-    }
-    while ((word < stop) && (s_answer[word] == ' '))
-    {
-        word += 1ull;
-    }
+    word = cli_text_to_any((const char *)s_answer, word, stop, " ");
+    word = cli_text_past_any((const char *)s_answer, word, stop, " ");
     unsigned long long code = 0ull;
     unsigned long long digits = 0ull;
-    while (((word + digits) < stop) && (s_answer[word + digits] >= '0') && (s_answer[word + digits] <= '9') &&
-           (digits < 5ull))
-    {
-        code = (code * 10ull) + (unsigned long long)(s_answer[word + digits] - '0');
-        digits += 1ull;
-    }
+    unsigned long long end = word;
+    code = cli_text_number((const char *)s_answer, word, stop, &end);
+    digits = ((end - word) <= 5ull) ? (end - word) : 0ull;
     if ((digits == 0ull) || (((word + digits) < stop) && (s_answer[word + digits] != ' ')))
     {
         mmgr_line_put(err_msg, host);
@@ -338,20 +311,11 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
             break;
         }
         unsigned long long colon = line_start;
-        while ((colon < stop) && (s_answer[colon] != ':'))
-        {
-            colon += 1ull;
-        }
+        colon = cli_text_to_any((const char *)s_answer, colon, stop, ":");
         unsigned long long key_end = colon;
-        while ((key_end > line_start) && (s_answer[key_end - 1u] == ' '))
-        {
-            key_end -= 1ull;
-        }
+        key_end = (line_start + cli_text_back_past((const char *)(s_answer + line_start), key_end - line_start, " "));
         unsigned long long value = colon + 1ull;
-        while ((value < stop) && (s_answer[value] == ' '))
-        {
-            value += 1ull;
-        }
+        value = cli_text_past_any((const char *)s_answer, value, stop, " ");
         const char *const key = (const char *)(s_answer + line_start);
         if ((colon < stop) && cli_same(key, key_end - line_start, "content-length"))
         {

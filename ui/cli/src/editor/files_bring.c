@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_bring.c: files and folders copied into the tree as a paste copies them, each file reported as it is copied, and
 // copied into a tree on another machine through calls of the tree's side there, a part at a time
+#include "../command_line/cells.h"
 #include "../text/base64.h"
 #include "../text/json_tree.h"
 #include "files_internal.h"
@@ -11,9 +12,9 @@
 #define CLI_BRING_PROGRESS_EVERY 100ull
 #define CLI_PART_BYTES (1ull << 20u)
 
-// the bytes a call's arguments and an answer of the tree's side are begun to be written in, doubling as they fill
-#define CLI_OVER_ARGUMENTS_FIRST 4096u
-#define CLI_OVER_ANSWER_FIRST 1024u
+// the bytes a call's arguments and an answer of the tree's side are written in
+#define CLI_OVER_ARGUMENTS_ROOM (64ull << 20u)
+#define CLI_OVER_ANSWER_ROOM (64ull << 20u)
 
 // What a bring copies: the tree, the path it was requested, which a failure names, and who is notified how far it is
 typedef struct
@@ -42,7 +43,7 @@ static int cli_brought(void *context, const char *source, const char *target, in
     char path[CLI_PATH_MAX_LEN];
     cli_relative(bringing->root, target, path);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(source, &size);
+    const unsigned char *const bytes = cli_file_taken(source, &size, &g_cli_editor_cells);
     int written = bytes != NULL;
     if (written)
     {
@@ -63,10 +64,7 @@ static int cli_brought(void *context, const char *source, const char *target, in
             last = cli_clock_milliseconds();
         }
     }
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, size);
-    }
+    cli_file_given(bytes, &g_cli_editor_cells);
     if (!written)
     {
         mmgr_line_put(err_msg, bringing->source);
@@ -122,7 +120,7 @@ int cli_files_bring(const char *root, const char *into, const char *const *from,
 }
 
 // What a bring over a link copies: the call of the tree's side, who is notified how far it is, and a call's arguments
-// and its answer, each a growing line given back once the bring ends
+// and its answer, each a line given back once the bring ends
 typedef struct
 {
     CliCall call;
@@ -161,7 +159,7 @@ static int cli_over_each(void *context, const char *source, const char *target, 
         return cli_over_called(over, "folder_create", err_msg);
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(source, &size);
+    const unsigned char *const bytes = cli_file_taken(source, &size, &g_cli_editor_cells);
     if (bytes == NULL)
     {
         mmgr_line_put(err_msg, "it could not be read");
@@ -191,7 +189,7 @@ static int cli_over_each(void *context, const char *source, const char *target, 
             over->progress(over->context, target, at, (size > at) ? size : at);
         }
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_editor_cells);
     return sent;
 }
 
@@ -272,14 +270,14 @@ int cli_files_bring_over(CliCall call, void *call_context, const char *into, con
                          unsigned int count, CliProgressFn progress, void *context, VerbaLinea *out,
                          VerbaLinea *err_msg)
 {
+    char *const arguments_cell = g_cli_cells->temporary_buf_alloc(CLI_OVER_ARGUMENTS_ROOM, &g_cli_editor_cells);
+    char *const answer_cell = g_cli_cells->temporary_buf_alloc(CLI_OVER_ANSWER_ROOM, &g_cli_editor_cells);
     CliOver over = {call,
                     call_context,
                     progress,
                     context,
-                    {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                    {NULL, 0ull, 0ull, NULL, NULL, 0ull}};
-    (void)cli_growing_line_made(&over.arguments, CLI_OVER_ARGUMENTS_FIRST, &g_cli_editor_cells);
-    (void)cli_growing_line_made(&over.answer, CLI_OVER_ANSWER_FIRST, &g_cli_editor_cells);
+                    mmgr_line_over(arguments_cell, CLI_OVER_ARGUMENTS_ROOM),
+                    mmgr_line_over(answer_cell, CLI_OVER_ANSWER_ROOM)};
     const int brought = cli_over_brought(&over, into, from, count, out, err_msg);
     g_cli_cells->persistent_buf_release(over.arguments.out, &g_cli_editor_cells);
     g_cli_cells->persistent_buf_release(over.answer.out, &g_cli_editor_cells);

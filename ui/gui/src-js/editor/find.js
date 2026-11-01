@@ -6,7 +6,7 @@
 import { cmp, pos } from "./document.js";
 
 const MOST = 20000;
-// Every search runs on the window's side, over the branch a text is held as or the pages a paged file is: by its sift,
+// Every search runs on the window's side, over the branch a text is stored as or the pages a paged file is: by its sift,
 // Horspool's shifts within one of the sift's windows and the sift's plan past it, where the query is sought as it is,
 // and by the regular expressions the colorer reads where it is a pattern. The matches are drawn once the answer comes,
 // each in the file's lines, a paged file's window placed among them.
@@ -14,7 +14,7 @@ let searching = null;
 
 // Gives find the way to search on the window's side: `given.search(s, sought, most)` answers a promise of the matches
 // in the file's lines as [line, from col, to col], or of null where the query does not read as a pattern, or null
-// where the text of the session `s` is held nowhere; `given.reach(s, line)` answers a promise of the file's line `line`
+// where the text of the session `s` is kept nowhere; `given.reach(s, line)` answers a promise of the file's line `line`
 // brought into the window of a paged session `s`.
 export function findWith(given) {
   searching = given;
@@ -204,7 +204,7 @@ export class Find {
     });
   }
 
-  // The file's line of the session's first: a paged session's window's, 0 for a text held whole.
+  // The file's line of the session's first: a paged session's window's, 0 for a text kept whole.
   base() {
     return this.ed.s?.base ?? 0;
   }

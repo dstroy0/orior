@@ -30,8 +30,8 @@
 #define CLI_BUILD_NOTE 3u
 
 // the most findings of one file, the most fixes of them, the most bytes their texts take, and no finding; the findings
-// and fixes their rooms are begun with, doubling as they are put; and the bytes the texts have free past the last
-// stored, the room a message or a title is written in before it is stored
+// and fixes their rooms are taken with; and the bytes the texts have free past the last stored, the room a message or a
+// title is written in before it is stored
 #define CLI_BUILD_FINDINGS 4096u
 #define CLI_BUILD_FIXES 16384u
 #define CLI_BUILD_TEXT (1u << 21u)
@@ -114,8 +114,8 @@ typedef struct
     unsigned int folder_size;
 } CliBuildFix;
 
-// A file's findings and their fixes, and the texts they take, each in a cell whose room doubles as they are put, with 1
-// in `full` where one did not fit
+// A file's findings and their fixes, and the texts they take, each in a cell at their most, with 1 in `full` where one
+// did not fit
 typedef struct
 {
     CliBuildFinding *finding;

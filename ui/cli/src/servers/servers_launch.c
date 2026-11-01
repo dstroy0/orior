@@ -12,10 +12,10 @@
 #include "../text/text.h"
 
 // how many folders below the top a search for projects goes; and the bytes the projects found and a server's options
-// are begun to be written in, doubling as they fill
+// are written in
 #define CLI_SERVERS_PROJECT_DEPTH 6u
-#define CLI_SERVERS_FOUND_FIRST 1024u
-#define CLI_SERVERS_OPTIONS_FIRST 4096u
+#define CLI_SERVERS_FOUND_ROOM (1ull << 20u)
+#define CLI_SERVERS_OPTIONS_ROOM (1ull << 20u)
 
 // what parts the folders of a PATH
 #if defined(_WIN32)
@@ -28,8 +28,8 @@
 static CliServersSink s_server_sinks[64];
 static unsigned int s_server_sink_next;
 
-// The search for projects: the file name looked for, the folder read and its depth, and the projects found, their
-// paths one after another, each with its zero after it, in a growing line, and their count
+// The search for projects: the file name looked for, the folder read and its depth, and the projects found, their paths
+// one after another, each with its zero after it, in a line, and their count
 typedef struct
 {
     const char *name;
@@ -85,8 +85,8 @@ static void launch_project_entry(void *context, const char *name, int is_folder)
 
 void cli_servers_projects_in(const char *root, const char *name, VerbaLinea *out)
 {
-    CliServersProjects projects = {name, root, 0u, {NULL, 0ull, 0ull, NULL, NULL, 0ull}, 0u};
-    (void)cli_growing_line_made(&projects.found, CLI_SERVERS_FOUND_FIRST, &g_cli_servers_launch_cells);
+    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FOUND_ROOM, &g_cli_servers_launch_cells);
+    CliServersProjects projects = {name, root, 0u, mmgr_line_over(found_cell, CLI_SERVERS_FOUND_ROOM), 0u};
     (void)query_folder_each(root, launch_project_entry, &projects);
     // the projects in order, each by where it starts among those found
     const unsigned int count = mmgr_line_ok(&projects.found) ? projects.count : 0u;
@@ -196,8 +196,8 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
         g_cli_cells->persistent_buf_release(launching, &g_cli_servers_launch_cells);
         return NULL;
     }
-    VerbaLinea options = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_temporary(&options, CLI_SERVERS_OPTIONS_FIRST, &g_cli_servers_launch_cells);
+    char *const options_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_OPTIONS_ROOM, &g_cli_servers_launch_cells);
+    VerbaLinea options = mmgr_line_over(options_cell, CLI_SERVERS_OPTIONS_ROOM);
     launch_options(root, spec, &options);
     CliWords *const words = &launching->words;
     words->count = 0u;
@@ -220,18 +220,18 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
     CliSetting *const setting = g_cli_cells->temporary_buf_alloc(most * sizeof(*setting), &g_cli_servers_launch_cells);
     char *vs_path = NULL;
     unsigned int settings = (setting != NULL) ? 1u : 0u;
+    const unsigned int vs_settings = ((setting != NULL) && (vs != NULL)) ? vs->count : 0u;
     if (setting != NULL)
     {
         setting[0] = (CliSetting){"PATH", launching->path};
     }
-    for (unsigned int at = 0u; (setting != NULL) && (vs != NULL) && (at < vs->count); at += 1u)
+    for (unsigned int at = 0u; at < vs_settings; at += 1u)
     {
         char upper[8] = {0};
-        for (unsigned int letter = 0u; (letter < 7u) && (vs->name[at][letter] != '\0'); letter += 1u)
-        {
-            const char one = vs->name[at][letter];
-            upper[letter] = ((one >= 'a') && (one <= 'z')) ? (char)(one - 'a' + 'A') : one;
-        }
+        const unsigned long long named = cellul.len(&(CatenaFinitaCfg){.src = vs->name[at], .cap = CLI_CELLS_POOL});
+        const unsigned long long copied = (named < 7ull) ? named : 7ull;
+        memor.cpy(&(MemoriaCfg){.dst = upper, .src = vs->name[at], .bytes = (size_t)copied});
+        cli_text_raised(upper, copied);
         if ((cellul.len(&(CatenaFinitaCfg){.src = vs->name[at], .cap = CLI_CELLS_POOL}) == 4u) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = upper, .other = "PATH", .cap = CLI_CELLS_POOL})))
         {
@@ -241,7 +241,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
                 cellul.len(&(CatenaFinitaCfg){.src = launching->path, .cap = CLI_CELLS_POOL}) + 2ull;
             g_cli_cells->persistent_buf_release(vs_path, &g_cli_servers_launch_cells);
             vs_path = g_cli_cells->persistent_buf_alloc(joined_size, &g_cli_servers_launch_cells);
-            VerbaLinea joined = {vs_path, (vs_path != NULL) ? joined_size : 0ull, 0ull};
+            VerbaLinea joined = mmgr_line_over(vs_path, joined_size);
             mmgr_line_put(&joined, vs->value[at]);
             mmgr_line_ch(&joined, CLI_SERVERS_PATH_PARTS);
             mmgr_line_put(&joined, launching->path);
@@ -256,12 +256,12 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
     *server_sink = *sink;
     char why[1024];
     VerbaLinea reason = {why, sizeof(why), 0ull};
-    if ((setting == NULL) || !mmgr_line_ok(&options))
+    const int met = (setting != NULL) && mmgr_line_ok(&options);
+    if (!met)
     {
         mmgr_line_put(&reason, "the cells cannot meet its options or its environment");
     }
-    CliLsp *const server = ((setting != NULL) && mmgr_line_ok(&options))
-                               ? cli_lsp_started(program, words->word, words->count, root, options.out, options.at,
+    CliLsp *const server = met ? cli_lsp_started(program, words->word, words->count, root, options.out, options.at,
                                                  setting, settings, cli_servers_recv, server_sink, &reason)
                                : NULL;
     g_cli_cells->persistent_buf_release(vs_path, &g_cli_servers_launch_cells);

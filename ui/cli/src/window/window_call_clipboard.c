@@ -76,7 +76,7 @@ static int clipboard_files_read(void)
     s_files.count = 0u;
     s_files.whole = 1;
     int cut = -1;
-    (void)cli_clipboard_files_held(clipboard_file_kept, &s_files, &cut);
+    (void)cli_clipboard_files_read(clipboard_file_kept, &s_files, &cut);
     s_files.path[s_files.count] = NULL;
     if (cut < 0)
     {

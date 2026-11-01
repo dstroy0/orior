@@ -6,6 +6,7 @@
 // choice's findings given where none fits; `not`; and `if` with `then` or `else`. A trial's findings are those that are
 // no note. Values are checked CLI_SCHEMA_DEEPEST deep at most; the bases a check reads from are stored on one stack of
 // CLI_SCHEMA_BASES bytes, a base past it read as the one before
+#include "../text/text.h"
 #include "schema_internal.h"
 
 // the most bytes of the bases a check reads from at once
@@ -252,10 +253,7 @@ static const char *check_base(const CliJson *json, unsigned int map, const char 
     {
         return base;
     }
-    while ((size > 0u) && (id[size - 1u] == '#'))
-    {
-        size -= 1u;
-    }
+    size = cli_text_back_past(id, size, "#");
     if (size + 1u > CLI_SCHEMA_BASES - s_bases_used)
     {
         return base;

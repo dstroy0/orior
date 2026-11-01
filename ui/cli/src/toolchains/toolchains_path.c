@@ -3,6 +3,7 @@
 // toolchains_path.c: the tree whose own tools come first, its environment, the PATH's folders as orior_cli reads them,
 // the PATH every step runs with, and a folder added to the reader's own PATH
 #include "../command_line/cells.h"
+#include "../text/text.h"
 #include "toolchains_internal.h"
 
 // how long the login shell is given to report its PATH, in milliseconds
@@ -115,10 +116,7 @@ int cli_toolchains_path_of_shell(const char *shell, char *path, unsigned long lo
         read += got;
     }
     cli_spawn_closed(&spawned);
-    while ((read != 0ull) && ((path[read - 1u] == ' ') || ((path[read - 1u] >= '\t') && (path[read - 1u] <= '\r'))))
-    {
-        read -= 1ull;
-    }
+    read = cli_text_back_past(path, read, CLI_TEXT_WHITE);
     path[read] = '\0';
     return read != 0ull;
 }
@@ -218,16 +216,19 @@ static unsigned int cli_registry_folders(char (*folders)[CLI_PATH_MAX_LEN], unsi
 {
     // the PATH as the registry stores it and as it reads expanded, a cell of the two
     char *const registry_buf = g_cli_cells->temporary_buf_alloc(2ull * CLI_PATH_TEXT, &g_cli_toolchains_cells);
-    char *const expanded = (registry_buf != NULL) ? registry_buf + CLI_PATH_TEXT : NULL;
-    if ((registry_buf != NULL) && cli_registry_machine_path(registry_buf, CLI_PATH_TEXT))
+    if (registry_buf != NULL)
     {
-        cli_registry_expand(registry_buf, expanded, CLI_PATH_TEXT);
-        count = cli_split(expanded, folders, count, room);
-    }
-    if ((registry_buf != NULL) && cli_registry_user_value("Path", registry_buf, CLI_PATH_TEXT))
-    {
-        cli_registry_expand(registry_buf, expanded, CLI_PATH_TEXT);
-        count = cli_split(expanded, folders, count, room);
+        char *const expanded = registry_buf + CLI_PATH_TEXT;
+        if (cli_registry_machine_path(registry_buf, CLI_PATH_TEXT))
+        {
+            cli_registry_expand(registry_buf, expanded, CLI_PATH_TEXT);
+            count = cli_split(expanded, folders, count, room);
+        }
+        if (cli_registry_user_value("Path", registry_buf, CLI_PATH_TEXT))
+        {
+            cli_registry_expand(registry_buf, expanded, CLI_PATH_TEXT);
+            count = cli_split(expanded, folders, count, room);
+        }
     }
     g_cli_cells->persistent_buf_release(registry_buf, &g_cli_toolchains_cells);
     return count;
@@ -254,10 +255,8 @@ unsigned int cli_toolchains_path_folders(char (*folders)[CLI_PATH_MAX_LEN], unsi
 static unsigned int cli_parts(const char *text)
 {
     unsigned int parts = 1u;
-    for (const char *at = text; *at != '\0'; at += 1)
-    {
-        parts += (*at == CLI_SEPARATOR) ? 1u : 0u;
-    }
+    parts += (unsigned int)cli_text_counted(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
+                                            CLI_SEPARATOR);
     return parts;
 }
 

@@ -3,72 +3,13 @@
 // file_writing.c: files written whole through a stage, each whole stage handed to the sealed writer (ksg_writing.h),
 // which writes the file beside its place under a name of this process's own, seals it where it is of a kind ksg seals,
 // and puts it in its place once every byte is on the disk, so a write that fails leaves the file it would have
-// replaced as it was; and a file written as pieces in turn the same way. And the growing line, its cells taken from
-// and given back to the custodiae
-#include "file_writing.h"
+// replaced as it was; and a file written as pieces in turn the same way
 #include "cells.h"
 #include "cli_internal.h"
 
 // the most bytes of the name a file is written under beside its place: a dot, this process's id, a dot, a count of
 // its own, and `.writing`
 #define CLI_WRITING_MAX_LEN 64u
-
-// a growing line's cell grown to twice its room where it stands, else the line moved into a cell of that room, what
-// it contains retained either way, for the owner its cell counts to: MMGR_LINE_GROWN, or 0 where the cell is refused
-static int line_grown(void *context, const char *bytes, size_t size)
-{
-    VerbaLinea *const line = (VerbaLinea *)context;
-    const size_t room = line->capacity * 2u;
-    CellOwner *const owner = cli_cell_owner(line->out);
-    char *const grown = g_cli_cells->buf_grow(line->out, room, owner);
-    if (grown != NULL)
-    {
-        line->out = grown;
-        line->capacity = room;
-        return MMGR_LINE_GROWN;
-    }
-    char *const larger = cli_cell_beside(line->out, room, owner);
-    if (larger == NULL)
-    {
-        return 0;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = bytes, .bytes = size});
-    g_cli_cells->persistent_buf_release(line->out, owner);
-    line->out = larger;
-    line->capacity = room;
-    return MMGR_LINE_GROWN;
-}
-
-int cli_growing_line_made(VerbaLinea *line, size_t first, CellOwner *owner)
-{
-    char *const out = g_cli_cells->persistent_buf_alloc(first, owner);
-    *line = (VerbaLinea){out, (out != NULL) ? first : 0u, 0u, (out != NULL) ? line_grown : NULL, line, 0u};
-    return out != NULL;
-}
-
-int cli_growing_line_temporary(VerbaLinea *line, size_t first, CellOwner *owner)
-{
-    char *const out = g_cli_cells->temporary_buf_alloc(first, owner);
-    *line = (VerbaLinea){out, (out != NULL) ? first : 0u, 0u, (out != NULL) ? line_grown : NULL, line, 0u};
-    return out != NULL;
-}
-
-void cli_growing_line_over(VerbaLinea *line, char *cell, size_t capacity)
-{
-    *line = (VerbaLinea){cell, capacity, 0u, line_grown, line, 0u};
-}
-
-int cli_growing_line_room(VerbaLinea *line, size_t size)
-{
-    while (mmgr_line_ok(line) && ((line->capacity - line->at) <= size))
-    {
-        if ((line->flush != line_grown) || !mmgr_line_flush(line))
-        {
-            return 0;
-        }
-    }
-    return mmgr_line_ok(line);
-}
 
 int cli_file_begun(CliFileWriting *file, const char *path)
 {

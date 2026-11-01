@@ -6,7 +6,7 @@
 #include "problems.h"
 
 #include "../../../cli/src/command_line/cli_internal.h"
-#include "../../../cli/src/command_line/file_writing.h"
+#include "../../../cli/src/text/text.h"
 #include "../answer.h"
 #include "explorer.h"
 
@@ -16,7 +16,8 @@ int gui_problems_made(GuiProblems *problems)
 {
     memor.set(&(MemoriaCfg){.dst = problems, .val = 0, .bytes = sizeof(*problems)});
     problems->pointed = GUI_PROBLEMS_NONE;
-    problems->file = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_FILES * sizeof(GuiProblemFile), &g_gui_problems_cells);
+    problems->file =
+        g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_FILES * sizeof(GuiProblemFile), &g_gui_problems_cells);
     problems->item = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_ITEMS * sizeof(GuiProblem), &g_gui_problems_cells);
     if ((problems->file == NULL) || (problems->item == NULL))
     {
@@ -44,12 +45,12 @@ void gui_problems_given(GuiProblems *problems)
 static void problems_packed(GuiProblems *problems)
 {
     const VerbaLinea old = problems->texts;
-    const unsigned long long live = (old.at > problems->dead) ? old.at - problems->dead : 0ull;
-    if (!cli_growing_line_made(&problems->texts, live + GUI_PROBLEMS_TEXT_FIRST, &g_gui_problems_cells))
+    char *const cell = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_TEXT_ROOM, &g_gui_problems_cells);
+    if (cell == NULL)
     {
-        problems->texts = old;
         return;
     }
+    problems->texts = (VerbaLinea){cell, GUI_PROBLEMS_TEXT_ROOM, 0ull};
     for (unsigned int at = 0u; at < problems->files; at += 1u)
     {
         GuiProblemFile *const file = &problems->file[at];
@@ -71,9 +72,10 @@ static void problems_packed(GuiProblems *problems)
 // `length` bytes of `text` stored among the texts: where they start into `at`: 1, or 0 where the line is full
 static int problems_stored(GuiProblems *problems, const char *text, unsigned long long length, unsigned long long *at)
 {
-    if ((problems->texts.out == NULL) && !cli_growing_line_made(&problems->texts, GUI_PROBLEMS_TEXT_FIRST, &g_gui_problems_cells))
+    if (problems->texts.out == NULL)
     {
-        return 0;
+        char *const cell = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_TEXT_ROOM, &g_gui_problems_cells);
+        problems->texts = mmgr_line_over(cell, GUI_PROBLEMS_TEXT_ROOM);
     }
     *at = problems->texts.at;
     mmgr_line_put_n(&problems->texts, text, length);
@@ -175,7 +177,7 @@ int gui_problems_put(GuiProblems *problems, const CliJson *json, unsigned int ro
         problems_counted(problems);
         return 0;
     }
-    if ((problems->texts.out != NULL) && (problems->dead > GUI_PROBLEMS_TEXT_FIRST) &&
+    if ((problems->texts.out != NULL) && (problems->dead > GUI_PROBLEMS_DEAD_MOST) &&
         (problems->dead * 2ull > problems->texts.at))
     {
         problems_packed(problems);
@@ -203,9 +205,9 @@ int gui_problems_put(GuiProblems *problems, const CliJson *json, unsigned int ro
         unsigned long long message_length = 0ull;
         const char *const message = cli_json_string(json, cli_json_member(json, one, "message"), &message_length);
         unsigned long long first_line = 0ull;
-        while ((message != NULL) && (first_line < message_length) && (message[first_line] != '\n'))
+        if (message != NULL)
         {
-            first_line += 1ull;
+            first_line = cli_text_to_any(message, 0ull, message_length, "\n");
         }
         GuiProblem *const item = &problems->item[problems->items];
         memor.set(&(MemoriaCfg){.dst = item, .val = 0, .bytes = sizeof(*item)});

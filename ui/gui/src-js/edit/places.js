@@ -72,7 +72,7 @@ export async function step(by) {
   }
 }
 
-// Last Editor: each press while Ctrl is held steps one tab further back in when each was shown, and
+// Last Editor: each press while Ctrl is pressed steps one tab further back in when each was shown, and
 // letting Ctrl go keeps the tab it stopped on as the one shown last.
 export function lastEditor() {
   const order = state.used.filter(tabOf);

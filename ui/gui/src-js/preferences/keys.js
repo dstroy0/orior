@@ -13,7 +13,7 @@ function element(tag, props = {}, ...children) {
 
 // The keys: the set chosen, how a letter's key is bound, each key more than one command holds with
 // those commands, and each command's keys, two at most, each set by pressing it, a button of the
-// mouse past its first three or the wheel turned with a key held, and each taken off by its cross.
+// mouse past its first three or the wheel turned with a key pressed, and each taken off by its cross.
 export function keysSection(at) {
   const { menus, state, draw } = at;
   const settings = keySettings();
@@ -33,7 +33,7 @@ export function keysSection(at) {
     setKeySettings({ by: by.value });
     draw();
   });
-  const shared = [...sharedKeys(items.map(({ item }) => item))].map(([key, held]) => element("li", {}, element("kbd", { textContent: key }), ` ${held.map((item) => items.find((one) => one.item === item)?.label ?? item.label).join(", ")}`));
+  const shared = [...sharedKeys(items.map(({ item }) => item))].map(([key, sharing]) => element("li", {}, element("kbd", { textContent: key }), ` ${sharing.map((item) => items.find((one) => one.item === item)?.label ?? item.label).join(", ")}`));
   const filter = element("input", { className: "report-field prefs-keys-filter", type: "search", placeholder: "Filter commands", value: state.keysFilter ?? "", ariaLabel: "Filter commands", spellcheck: false });
   const rows = element("div", { className: "prefs-key-rows" });
   const own = (command) => keySettings().own[command];

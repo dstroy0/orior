@@ -10,7 +10,7 @@ import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
 import { readSettings, settingsInForce, TREE_FILE } from "../../gui/src-js/settings.js";
-import { noticesHeld, noticesSaid } from "../../gui/src-js/statusbar.js";
+import { noticesWaiting, noticesSaid } from "../../gui/src-js/statusbar.js";
 import { deleteTheme, saveTheme } from "../../gui/src-js/themes.js";
 import { showView } from "../../gui/src-js/views.js";
 
@@ -30,7 +30,7 @@ async function opened(path, text) {
   return editing().editor;
 }
 
-const told = (start) => [...noticesSaid(), ...noticesHeld()].some((one) => one.text.startsWith(start));
+const told = (start) => [...noticesSaid(), ...noticesWaiting()].some((one) => one.text.startsWith(start));
 
 test("a tree's settings file stands over the reader's own as it is saved, and Preferences shows each setting's value and its file", async () => {
   runCommand("whitespace", ["off"]);

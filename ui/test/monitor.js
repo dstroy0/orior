@@ -9,8 +9,8 @@
 // sends to the network, files a report, installs a tool, keeps a template or a plugin in orior's own
 // folder, starts, stops or runs in a container of the machine, or reaches a plugin of the system's
 // other than its events. The picker answers as the
-// reader would who closed it, and every other such call fails with HELD in its message, which the
-// walker does not count as a fault. walker_probe is held too, for the walker to see the watch hold
+// reader would who closed it, and every other such call fails with BLOCKED in its message, which the
+// walker does not count as a fault. walker_probe is kept too, for the walker to see the watch hold
 // before it presses anything. The page's print and its window.open do nothing.
 //
 // Each frame's time is kept, and where every element an animation runs on stands, as a series per
@@ -21,7 +21,7 @@
   if (window.__walk) {
     return "kept";
   }
-  const HELD = "held by the walker";
+  const BLOCKED = "blocked by the walker";
   const REFUSED = new Set([
     "app_exit", "window_open", "window_act", "link_open", "home_reveal", "templates_reveal",
     "report_bug", "report_open", "report_error", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
@@ -38,7 +38,7 @@
     loafs: [],
     errors: [],
     calls: [],
-    held: [],
+    blocked: [],
     out: 0,
     outAt: [],
     lastMotion: 0,
@@ -66,8 +66,8 @@
   const watcher = (name, args, send) => {
     const at = performance.now();
     if (refused(name)) {
-      walk.held.push({ t: at, name });
-      return name === "pick" ? Promise.resolve(null) : Promise.reject(new Error(`${name}: ${HELD}`));
+      walk.blocked.push({ t: at, name });
+      return name === "pick" ? Promise.resolve(null) : Promise.reject(new Error(`${name}: ${BLOCKED}`));
     }
     const answer = send(name, args);
     if (!name.startsWith("plugin:event")) {
@@ -92,8 +92,8 @@
   });
   walk.print = window.print;
   walk.open = window.open;
-  window.print = () => walk.held.push({ t: performance.now(), name: "print" });
-  window.open = () => (walk.held.push({ t: performance.now(), name: "window.open" }), null);
+  window.print = () => walk.blocked.push({ t: performance.now(), name: "print" });
+  window.open = () => (walk.blocked.push({ t: performance.now(), name: "window.open" }), null);
 
   // Each frame, and where each element an animation runs on stands in it.
   const frame = (now) => {
@@ -169,14 +169,14 @@
     walk.loafs = walk.loafs === null ? null : [];
     walk.errors = [];
     walk.calls = [];
-    walk.held = [];
+    walk.blocked = [];
     return walk.since;
   };
 
   // How long since anything moved: an animation ran, the layout shifted or a call came back; none
   // while a call is out.
   walk.quiet = () => (walk.out > 0 ? 0 : Math.round(performance.now() - Math.max(walk.lastMotion, walk.since)));
-  // The same, a call out held against it only where it was made since `begin`: what the window does on its own, as a
+  // The same, a call out kept against it only where it was made since `begin`: what the window does on its own, as a
   // toolchain's version asked, does not keep a press from coming to rest.
   walk.quietOwn = () => (walk.outAt.some((at) => at >= walk.since) ? 0 : Math.round(performance.now() - Math.max(walk.lastMotion, walk.since)));
 
@@ -262,9 +262,9 @@
       moves: [...walk.moves.entries()].map(([node, series]) => ({ node, name: series.name, points: series.points.map((one) => ({ t: Math.round(one.t - walk.since), box: one.box })) })),
       shifts: walk.shifts.map((one) => ({ ...one, t: Math.round(one.t - walk.since) })),
       loafs: walk.loafs?.map((one) => ({ ...one, t: Math.round(one.t - walk.since) })) ?? null,
-      errors: walk.errors.filter((one) => !one.text.includes(HELD)).map((one) => ({ ...one, t: Math.round(one.t - walk.since) })),
+      errors: walk.errors.filter((one) => !one.text.includes(BLOCKED)).map((one) => ({ ...one, t: Math.round(one.t - walk.since) })),
       calls: walk.calls.map((one) => ({ ...one, t: Math.round(one.t - walk.since), ms: Math.round(one.ms) })),
-      held: walk.held.map((one) => ({ ...one, t: Math.round(one.t - walk.since) })),
+      blocked: walk.blocked.map((one) => ({ ...one, t: Math.round(one.t - walk.since) })),
       overlays: walk.overlays(),
       view: document.querySelector(".mode:not([hidden])")?.id ?? "",
     };

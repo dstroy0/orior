@@ -10,6 +10,7 @@
 #define DAP_H
 
 #include "../command_line/cli_internal.h"
+#include "../servers/lsp.h"
 
 // the most adapters open at once, and the requests that wait on answers at once
 #define CLI_DAPS_MOST 4u
@@ -44,16 +45,16 @@ int cli_dap_send(CliDap *dap, const char *message, unsigned long long size);
 int cli_dap_itself(CliDap *dap, const char *message, unsigned long long size);
 
 // a request of `command` with `length` bytes of JSON arguments, an empty object for none, sent, its sequence number
-// into `seq`; its answer waited for up to `wait` milliseconds, its body written into `body`; and the two in turn. Each
-// 1, or 0 with why given. The last line the adapter wrote to its errors, which reports why where it stops; and the
-// adapter requested to end the program, or to let go of one it attached to, and itself, and ended where it does not
-// (dap.c)
+// into `seq`; its answer waited for up to `wait` milliseconds and handed over in `answer`, whose message the caller
+// gives back to g_cli_debug_cells, NULL where the request failed; and the two in turn. Each 1, or 0 with why given. The
+// last line the adapter wrote to its errors, which reports why where it stops; and the adapter requested to end the
+// program, or to let go of one it attached to, and itself, and ended where it does not (dap.c)
 int cli_dap_sent(CliDap *dap, const char *command, const char *arguments, unsigned long long length,
                  unsigned long long *seq, VerbaLinea *err_msg);
-int cli_dap_waited(CliDap *dap, const char *command, unsigned long long seq, unsigned long long wait, VerbaLinea *body,
-                   VerbaLinea *err_msg);
+int cli_dap_waited(CliDap *dap, const char *command, unsigned long long seq, unsigned long long wait,
+                   CliLspAnswer *answer, VerbaLinea *err_msg);
 int cli_dap_requested(CliDap *dap, const char *command, const char *arguments, unsigned long long length,
-                      unsigned long long wait, VerbaLinea *body, VerbaLinea *err_msg);
+                      unsigned long long wait, CliLspAnswer *answer, VerbaLinea *err_msg);
 // whether the request of sequence number `seq` sent has its answer, without waiting and with the answer still waited
 // for after: 1 where it succeeded, 0 with why given where it failed, -1 where it has none yet; and the request let go
 // of, its answer passed over when it comes (dap_waiters.c)

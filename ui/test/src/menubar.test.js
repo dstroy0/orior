@@ -70,7 +70,7 @@ test(
     // never fail for a person: its error is set aside, the page's and the walk's alike.
     const said = (event) => String(event.error?.message ?? event.reason?.message ?? event.reason ?? event.message);
     const heard = (event) => {
-      if (said(event).includes(window.__harness.held)) {
+      if (said(event).includes(window.__harness.blocked)) {
         event.preventDefault();
         return;
       }

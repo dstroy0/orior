@@ -90,6 +90,21 @@ void cli_priority_own(unsigned int priority)
 #endif
 }
 
+size_t cli_thread_id(void)
+{
+#if defined(__linux__)
+    return (size_t)syscall(SYS_gettid);
+#else
+    // a thread's handle read as the integer it is, which identifies it for as long as it lives
+    return (size_t)(uintptr_t)pthread_self();
+#endif
+}
+
+void cli_thread_yield(void)
+{
+    (void)sched_yield();
+}
+
 int cli_thread_started(CliThread *thread)
 {
     pthread_t started;

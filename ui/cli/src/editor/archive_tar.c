@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // archive_tar.c: a tar read and written, its long names by GNU's and by pax's, and a gzip read and written
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "archive_internal.h"
 
 // a tar member's size, in octal, or in base 256 where its first byte's top bit is set
@@ -34,10 +35,9 @@ static unsigned long long cli_tar_size(const unsigned char *field, unsigned int 
 static void cli_tar_text(const unsigned char *field, unsigned int length, VerbaLinea *out)
 {
     unsigned int end = 0u;
-    while ((end < length) && (field[end] != 0u))
-    {
-        end += 1u;
-    }
+    const unsigned char *const zero = memor.chr(&(MemoriaCfg){.src = field, .val = 0, .bytes = length});
+    // a 0 found lies in the field, whose length an unsigned int stores
+    end = (zero != NULL) ? (unsigned int)(zero - field) : length;
     cli_lossy(out, field, end);
 }
 
@@ -84,15 +84,9 @@ int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMemb
                 while (record < end)
                 {
                     const unsigned char *stop = record;
-                    while ((stop < end) && (stop[0] != '\n'))
-                    {
-                        stop += 1;
-                    }
+                    stop += cli_text_to_any((const char *)stop, 0ull, (unsigned long long)(end - stop), "\n");
                     const unsigned char *space = record;
-                    while ((space < stop) && (space[0] != ' '))
-                    {
-                        space += 1;
-                    }
+                    space += cli_text_to_any((const char *)space, 0ull, (unsigned long long)(stop - space), " ");
                     if (((space + 6) <= stop) &&
                         (memor.cmp(&(MemoriaCfg){.src = space + 1, .other = "path=", .bytes = 5u}) == 0))
                     {
@@ -225,10 +219,9 @@ int cli_gunzip(const unsigned char *bytes, unsigned long long size, unsigned cha
         {
             continue;
         }
-        while ((at < size) && (bytes[at] != 0u))
-        {
-            at += 1ull;
-        }
+        const unsigned char *const zero =
+            memor.chr(&(MemoriaCfg){.src = bytes + at, .val = 0, .bytes = (at < size) ? (size - at) : 0ull});
+        at = (zero != NULL) ? (unsigned long long)(zero - bytes) : size;
         if (at >= size)
         {
             mmgr_line_put(err_msg, "a gzip's header is cut");

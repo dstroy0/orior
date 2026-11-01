@@ -34,6 +34,7 @@ MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_
     -DMMGR_CARCER_OWNERS=1024u)
 
 source "$HERE/../sanitized.sh"
+source "$TOP/ui/cli/lto_words.sh"
 
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "test exit 1"; exit 1; }
 # the command line's library, named as bin_names.tsv at the top of the tree names the command line
@@ -56,7 +57,7 @@ export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=fal
 for test in "${TESTS[@]}"; do
     name="$(basename "$test" .c)"
     echo "== $name"
-    if ! "$CC" "--target=$HOST" -std=c11 -O1 -g "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$HERE/cli_check.c" "$LIBRARY" \
+    if ! "$CC" "--target=$HOST" -std=c11 -O1 -g "${LTO_WORDS[@]}" "${LINK_WORDS[@]}" "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$HERE/cli_check.c" "$LIBRARY" \
         "${LIBRARIES[@]}" > "$RUN/$name.log" 2>&1; then
         echo "  build failed: $name did not compile"
         tail -20 "$RUN/$name.log"

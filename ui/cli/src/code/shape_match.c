@@ -9,10 +9,9 @@
 #include "shape_internal.h"
 
 // the most steps a match from one place may take, the most ends stored to be tried at once, and the ends the stack is
-// begun with, doubling as they are put
+// taken with
 #define CLI_SHAPE_STEPS 20000u
 #define CLI_SHAPE_ENDS (1u << 20u)
-#define CLI_SHAPE_ENDS_FIRST 64u
 
 void cli_shape_ends_given(CliShapeMatcher *matcher)
 {
@@ -42,20 +41,17 @@ static int match_ends_statement(const CliShapeMatcher *matcher, unsigned int at)
     return (matcher->tokens->kind[at] == CLI_SHAPE_BREAK) || ((matcher->tokens->role[at] & CLI_SHAPE_STATEMENT) != 0u);
 }
 
-// an end put on the stack where it fits: the stack moved into a cell of twice its room where it is full, below
-// CLI_SHAPE_ENDS, the end not put where the cellblock cannot meet it
+// an end put on the stack where it fits: the stack one cell, taken as its first end is put, of a token's end for each
+// part of the pattern at the most, the end not put where it is full or the cellblock cannot meet it
 static void match_end_put(CliShapeMatcher *matcher, unsigned int end)
 {
-    if ((matcher->ends_top == matcher->ends_room) && (matcher->ends_room < CLI_SHAPE_ENDS))
+    if (matcher->ends_room == 0u)
     {
-        const unsigned int room = (matcher->ends_room == 0u) ? CLI_SHAPE_ENDS_FIRST : (matcher->ends_room * 2u);
-        unsigned int *const grown = cli_cell_regrown(matcher->ends, matcher->ends_top * sizeof(*grown),
-                                                     room * sizeof(*grown), &g_cli_shape_cells);
-        if (grown != NULL)
-        {
-            matcher->ends = grown;
-            matcher->ends_room = room;
-        }
+        const unsigned long long wanted =
+            ((unsigned long long)matcher->tokens->count + 1ull) * ((unsigned long long)matcher->part_count + 1ull);
+        const unsigned int room = (wanted < CLI_SHAPE_ENDS) ? (unsigned int)wanted : CLI_SHAPE_ENDS;
+        matcher->ends = g_cli_cells->temporary_buf_alloc(room * sizeof(*matcher->ends), &g_cli_shape_cells);
+        matcher->ends_room = (matcher->ends != NULL) ? room : 0u;
     }
     if (matcher->ends_top < matcher->ends_room)
     {
@@ -208,7 +204,6 @@ int cli_shape_from(CliShapeMatcher *matcher, unsigned int part, unsigned int at,
     const unsigned int top = matcher->ends_top;
     for (unsigned int tried = first; (tried < top) && (matcher->bound_count < CLI_SHAPE_HOLES); tried += 1u)
     {
-        // the stack is read again at each try, since a try may move it into a larger cell
         const unsigned int end_at = matcher->ends[tried];
         const unsigned int bound_at = matcher->bound_count;
         matcher->bound[bound_at] = hole_at;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // toolchains_added.c: the toolchains and groups the reader added, stored in user_toolchains.json in orior's own folder,
 // and the files of orior's own folder these are stored in read and written
+#include "../text/text.h"
 #include "toolchains_internal.h"
 
 CliLock g_cli_toolchains_lock = CLI_LOCK_INIT;
@@ -180,14 +181,8 @@ void cli_toolchains_trimmed(const char *text, char *out, unsigned long long room
 {
     const char *from = (text != NULL) ? text : "";
     const char *to = from + cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
-    while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-    {
-        from += 1;
-    }
-    while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-    {
-        to -= 1;
-    }
+    from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
     VerbaLinea line = {out, room, 0ull};
     mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
     mmgr_line_finish(&line);
@@ -197,25 +192,23 @@ void cli_toolchains_trimmed(const char *text, char *out, unsigned long long room
 static void cli_id_of(const char *name, char *id)
 {
     unsigned long long length = 0ull;
-    for (const char *at = name; (at[0] != '\0') && ((length + 1ull) < CLI_NAME_MAX_LEN); at += 1)
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; (at < whole) && ((length + 1ull) < CLI_NAME_MAX_LEN);)
     {
-        const char letter = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-        const int allowed = ((letter >= 'a') && (letter <= 'z')) || ((letter >= '0') && (letter <= '9'));
-        if (allowed)
-        {
-            id[length] = letter;
-            length += 1ull;
-        }
-        else if ((length != 0ull) && (id[length - 1u] != '-'))
+        const unsigned long long stop = cli_text_past_class(name, at, whole, CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, "");
+        const unsigned long long fits = CLI_NAME_MAX_LEN - 1ull - length;
+        const unsigned long long take = ((stop - at) < fits) ? (stop - at) : fits;
+        memor.cpy(&(MemoriaCfg){.dst = id + length, .src = name + at, .bytes = (size_t)take});
+        cli_text_lowered(id + length, take);
+        length += take;
+        if ((stop < whole) && (length != 0ull) && (id[length - 1u] != '-') && ((length + 1ull) < CLI_NAME_MAX_LEN))
         {
             id[length] = '-';
             length += 1ull;
         }
+        at = stop + 1ull;
     }
-    while ((length != 0ull) && (id[length - 1u] == '-'))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(id, length, "-");
     id[length] = '\0';
 }
 

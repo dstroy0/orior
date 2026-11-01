@@ -3,6 +3,7 @@
 // editorconfig_names.c: a section's pattern, its braces spread one text at a time, each text matched against the file's
 // name or path
 #include "../text/regexp.h"
+#include "../text/text.h"
 #include "editorconfig.h"
 
 // the most texts a pattern's braces spread into

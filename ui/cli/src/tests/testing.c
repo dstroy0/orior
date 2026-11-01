@@ -4,7 +4,9 @@
 // pytest, read as pytest reads them, a setting's values split at spaces and commas with a TOML list's brackets and
 // quotes taken off, and a setting carried on to the lines indented under it; and a name matched to a rule
 #include "testing.h"
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 
 void cli_test_written(const CliTest *test, VerbaLinea *out)
 {
@@ -75,14 +77,8 @@ static void testing_values_of(CliTestRules *rules, CliTestRule *rule, const char
     rule->count = 0u;
     unsigned long long start = 0ull;
     unsigned long long end = size;
-    while ((start < end) && (raw[start] == '['))
-    {
-        start += 1u;
-    }
-    while ((end > start) && (raw[end - 1u] == ']'))
-    {
-        end -= 1u;
-    }
+    start = cli_text_past_any(raw, start, end, "[");
+    end = (start + cli_text_back_past(raw + start, end - start, "]"));
     for (unsigned long long at = start; at <= end; at += 1u)
     {
         if ((at < end) && !testing_space(raw[at]) && (raw[at] != ','))
@@ -91,14 +87,8 @@ static void testing_values_of(CliTestRules *rules, CliTestRule *rule, const char
         }
         unsigned long long from = start;
         unsigned long long to = at;
-        while ((from < to) && (testing_space(raw[from]) || (raw[from] == '"') || (raw[from] == '\'')))
-        {
-            from += 1u;
-        }
-        while ((to > from) && (testing_space(raw[to - 1u]) || (raw[to - 1u] == '"') || (raw[to - 1u] == '\'')))
-        {
-            to -= 1u;
-        }
+        from = cli_text_past_any(raw, from, to, CLI_TEXT_WHITE "\"'");
+        to = from + cli_text_back_past(raw + from, to - from, CLI_TEXT_WHITE "\"'");
         if (to > from)
         {
             testing_value_put(rules, rule, raw + from, to - from);
@@ -151,9 +141,7 @@ int cli_test_rules_in(const char *text, unsigned long long size, const char *sec
     const unsigned long long section_size = cellul.len(&(CatenaFinitaCfg){.src = section, .cap = CLI_CELLS_POOL});
     for (unsigned long long start = 0ull; start < size;)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = text + start, .val = '\n', .bytes = (size_t)(size - start)});
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const unsigned long long end = cli_text_line_at(text, start, size).stop;
         const char *const line = text + start;
         const unsigned long long line_size =
             ((end > start) && (text[end - 1u] == '\r')) ? end - start - 1u : end - start;
@@ -225,14 +213,14 @@ void cli_test_rules_of(const char *root, CliTestRules *rules)
         char path[CLI_PATH_MAX_LEN];
         cli_full(root, s_files[at], path);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_read(path, &size);
+        const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_tests_cells);
         if (bytes == NULL)
         {
             continue;
         }
         const char *const text = (const char *)bytes;
         const int read = cli_utf8_whole(text, size) && cli_test_rules_in(text, size, s_sections[at], rules);
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_tests_cells);
         if (read)
         {
             return;
@@ -285,10 +273,7 @@ int cli_test_glob(const char *pattern, const char *name, unsigned long long size
             return 0;
         }
     }
-    while ((matched < length) && (pattern[matched] == '*'))
-    {
-        matched += 1u;
-    }
+    matched = cli_text_past_any(pattern, matched, length, "*");
     return matched == length;
 }
 

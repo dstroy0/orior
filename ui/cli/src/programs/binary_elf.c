@@ -3,6 +3,7 @@
 // binary_elf.c: a Linux program's dynamic section read: its needed libraries, its run paths and the glibc versions it
 // requires; each library looked for as the Linux loader looks for it, its own run paths first, then the folders the
 // loader's settings name, then the system's own library folders; the libraries those load in turn
+#include "../command_line/cells.h"
 #include "../text/text.h"
 #include "binary.h"
 
@@ -16,11 +17,10 @@ typedef struct
     char paths[CLI_PATH_MAX_LEN * 2u];
 } CliElfQueued;
 
-// the libraries a reading's queue is begun with, doubling as they are found
-#define CLI_ELF_QUEUE_FIRST 16u
+// the libraries a reading's queue is taken with
 
 // A reading of a program's libraries, one cell for the call: the program's dynamic section and a library's, and the
-// folders the loader's settings name; and the libraries queued, a cell of `room` grown as they are
+// folders the loader's settings name; and the libraries queued, a cell of `room` at their most
 typedef struct
 {
     CliDynamic *dynamic;
@@ -41,16 +41,12 @@ static int cli_glibc_order(const char *a, const char *b)
         unsigned long long right = 0ull;
         const int has_left = (a[0] >= '0') && (a[0] <= '9');
         const int has_right = (b[0] >= '0') && (b[0] <= '9');
-        while ((a[0] >= '0') && (a[0] <= '9'))
-        {
-            left = (left * 10ull) + (unsigned long long)(a[0] - '0');
-            a += 1;
-        }
-        while ((b[0] >= '0') && (b[0] <= '9'))
-        {
-            right = (right * 10ull) + (unsigned long long)(b[0] - '0');
-            b += 1;
-        }
+        unsigned long long past_left = 0ull;
+        left = cli_text_number(a, 0ull, cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}), &past_left);
+        a += past_left;
+        unsigned long long past_right = 0ull;
+        right = cli_text_number(b, 0ull, cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}), &past_right);
+        b += past_right;
         if (!has_left || !has_right)
         {
             return has_left - has_right;
@@ -223,17 +219,11 @@ static void cli_folder_of(const char *path, char *out)
 static unsigned int cli_queued(CliElfReading *reading, unsigned int queued, const char *name, const char *by,
                                const char *origin, const CliDynamic *dynamic)
 {
-    if ((queued == reading->room) && (reading->room < CLI_BINARY_LIBRARIES))
+    if (reading->room == 0u)
     {
-        const unsigned int doubled = (reading->room == 0u) ? CLI_ELF_QUEUE_FIRST : (reading->room * 2u);
-        const unsigned int room = (doubled < CLI_BINARY_LIBRARIES) ? doubled : CLI_BINARY_LIBRARIES;
-        CliElfQueued *const grown =
-            cli_cell_regrown(reading->queue, queued * sizeof(*grown), room * sizeof(*grown), &g_cli_programs_cells);
-        if (grown != NULL)
-        {
-            reading->queue = grown;
-            reading->room = room;
-        }
+        reading->queue =
+            g_cli_cells->temporary_buf_alloc(CLI_BINARY_LIBRARIES * sizeof(*reading->queue), &g_cli_programs_cells);
+        reading->room = (reading->queue != NULL) ? CLI_BINARY_LIBRARIES : 0u;
     }
     if (queued >= reading->room)
     {
@@ -398,7 +388,6 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
     cli_build_paths(dynamic, report);
     for (unsigned int next = 0u; next < queued; next += 1u)
     {
-        // the queue is read again at each library, as a library's own may move it into a larger cell
         const CliElfQueued *const one = &reading->queue[next];
         if (cli_queued_before(reading, next) || (report->libraries >= CLI_BINARY_LIBRARIES))
         {
@@ -437,7 +426,7 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
             continue;
         }
         unsigned long long more_size = 0ull;
-        const unsigned char *const more = cli_file_read(library->at, &more_size);
+        const unsigned char *const more = cli_file_taken(library->at, &more_size, &g_cli_programs_cells);
         char err_buf[CLI_PATH_MAX_LEN];
         VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
         CliDynamic *const loaded = reading->more;
@@ -458,7 +447,7 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
                 queued = cli_queued(reading, queued, loaded->needed[at], library->name, more_origin, loaded);
             }
         }
-        cli_file_let_go(more, more_size);
+        cli_file_given(more, &g_cli_programs_cells);
     }
     return 1;
 }
@@ -468,8 +457,8 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
 {
     // the two dynamic sections on the cell's boundary, then the folders
     const unsigned long long dynamics = 2ull * sizeof(CliDynamic);
-    char *const cell = g_cli_cells->temporary_buf_alloc(dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN),
-                                      &g_cli_programs_cells);
+    char *const cell = g_cli_cells->temporary_buf_alloc(
+        dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN), &g_cli_programs_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "a reading of a program's libraries could not be given a cell");

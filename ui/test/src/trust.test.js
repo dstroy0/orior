@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Trust: a tree with no code of its own never asked about; a crate with a build script asked about
-// once, its answer kept, said on the status bar while its code is held back, asked again from there
+// once, its answer kept, said on the status bar while its code is kept back, asked again from there
 // and from File, and trusted with every tree in the folder above it. The crate is a folder of the
 // run's tree opened as the tree, and the run's tree is trusted once the tests end, its code then
 // running as it did.
@@ -17,7 +17,7 @@ const ask = () => document.getElementById("trust-ask");
 const status = () => document.getElementById("status-trust");
 const buttonNamed = (label) => [...ask().querySelectorAll("button")].find((button) => button.textContent === label);
 
-test("a tree with no code of its own is not asked about, and nothing of it is held back", async () => {
+test("a tree with no code of its own is not asked about, and nothing of it is kept back", async () => {
   const told = await readTrust();
   assert.deepEqual(told.code, []);
   assert.equal(told.answer, null);
@@ -46,7 +46,7 @@ test("a crate with a build script is asked about once, Hold It Back is kept and 
     assert.equal((await invoke("trust_read")).answer, false, "the answer is kept");
     await readTrust();
     assert.ok(ask().hidden, "asked once: not asked again as the tree opens again");
-    assert.ok(!status().hidden, "its code held back, as the status bar says");
+    assert.ok(!status().hidden, "its code kept back, as the status bar says");
     await ui.click(status());
     await ui.waitFor(() => !ask().hidden, 2000);
     await ui.click(buttonNamed("Trust Every Tree in trusting"));
@@ -64,5 +64,5 @@ test("a crate with a build script is asked about once, Hold It Back is kept and 
     await invoke("trust_set", { folder: root, trusted: true });
     await readTrust();
   }
-  assert.ok(ask().hidden && status().hidden, "the run's tree is trusted, and nothing is held back");
+  assert.ok(ask().hidden && status().hidden, "the run's tree is trusted, and nothing is kept back");
 });

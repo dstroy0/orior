@@ -3,6 +3,8 @@
 // db_results.c: the rows of the last statement run that gave rows, buffered as they are read, each a JSON array on a
 // line of a file of the connection's own in orior's temporary folder, the place of every 64th marked; a page of them
 // written back out, read on from the run where they are not buffered yet
+#include "../command_line/cells.h"
+#include "../text/text.h"
 #include "db_internal.h"
 
 #include <stdint.h>
@@ -75,29 +77,22 @@ static int results_real(const char *text, unsigned long long size)
         }
     }
     unsigned long long digits = 0ull;
-    while ((at < size) && (text[at] >= '0') && (text[at] <= '9'))
-    {
-        at += 1ull;
-        digits += 1ull;
-    }
+    digits = cli_text_past_class(text, at, size, CLI_TEXT_DIGITS, "") - at;
+    at += digits;
     if ((at < size) && (text[at] == '.'))
     {
         at += 1ull;
-        while ((at < size) && (text[at] >= '0') && (text[at] <= '9'))
-        {
-            at += 1ull;
-            digits += 1ull;
-        }
+        const unsigned long long more = cli_text_past_class(text, at, size, CLI_TEXT_DIGITS, "") - at;
+        at += more;
+        digits += more;
     }
     if ((digits > 0u) && (at < size) && ((text[at] == 'e') || (text[at] == 'E')))
     {
         at += ((at + 1u < size) && ((text[at + 1u] == '-') || (text[at + 1u] == '+'))) ? 2ull : 1ull;
         unsigned long long exponent = 0ull;
-        while ((at < size) && (text[at] >= '0') && (text[at] <= '9'))
-        {
-            at += 1ull;
-            exponent += 1ull;
-        }
+        const unsigned long long more = cli_text_past_class(text, at, size, CLI_TEXT_DIGITS, "") - at;
+        at += more;
+        exponent += more;
         digits = (exponent > 0u) ? digits : 0ull;
     }
     return (digits > 0u) && (at == size);
@@ -250,7 +245,7 @@ void cli_db_results_lines(CliDbResults *results, unsigned long long start, unsig
 {
     (void)results_flushed(results);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = (start < end) ? cli_file_read(results->path, &size) : NULL;
+    const unsigned char *const bytes = (start < end) ? cli_file_taken(results->path, &size, &g_cli_db_cells) : NULL;
     if (bytes == NULL)
     {
         return;
@@ -260,9 +255,7 @@ void cli_db_results_lines(CliDbResults *results, unsigned long long start, unsig
     unsigned long long row = mark * CLI_DB_RESULTS_EVERY;
     for (unsigned long long at = results->marks[mark]; (at < size) && (row < end);)
     {
-        const unsigned char *const newline =
-            memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = (size_t)(size - at)});
-        const unsigned long long line_end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
+        const unsigned long long line_end = cli_text_line_at((const char *)bytes, at, size).stop;
         if (row >= start)
         {
             each(context, (const char *)bytes + at, line_end - at);
@@ -270,7 +263,7 @@ void cli_db_results_lines(CliDbResults *results, unsigned long long start, unsig
         row += 1ull;
         at = line_end + 1ull;
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_db_cells);
 }
 
 // a buffered row's line written into the page after those before it

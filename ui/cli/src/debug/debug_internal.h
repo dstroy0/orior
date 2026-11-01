@@ -7,20 +7,19 @@
 
 #include "../builds/compile_db.h"
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
 #include "debug.h"
 
-// the most requests sent to adapters at once
+// the most requests sent to adapters at once, and the most bytes of a request's arguments
 #define CLI_DEBUG_ANSWERS 4u
+#define CLI_DEBUG_ARGS (1ull << 20u)
 
 // the most sessions at once, one adapter each; the exceptions one adapter can stop on; the most breakpoints the reader
-// placed that a session stores, and its data breakpoints, and those each list is begun with, doubling as they come; and
-// the nodes and bytes over an event's own its tree is read with, for what a stop rewritten adds
+// placed that a session stores, and its data breakpoints, and those each list is taken with; and the nodes and bytes
+// over an event's own its tree is read with, for what a stop rewritten adds
 #define CLI_DEBUG_SESSIONS CLI_DAPS_MOST
 #define CLI_DEBUG_FILTERS 32u
 #define CLI_DEBUG_PLACED 4096u
 #define CLI_DEBUG_DATA 256u
-#define CLI_DEBUG_LIST_FIRST 16u
 #define CLI_DEBUG_EVENT_MORE_NODES 8u
 #define CLI_DEBUG_EVENT_MORE_TEXT 64u
 // the most nodes and bytes of the adapter's spec and the launch's arguments a session is started with, the tree's cell
@@ -82,8 +81,8 @@ typedef struct
 // lldb's own watchpoints, whose stops come at breakpoints of no such number; whether orior's script is loaded into
 // lldb; the native session whose breakpoints of a step across go at the next stop; the process the adapter reports it
 // debugs; whether the adapter reported it is initialized; where its events go; the threads that let the adapter go and
-// take a step across's breakpoints away, and the session whose breakpoints they take; and the tree the session's
-// start is made in. The two lists are cells grown as they come, and they and the tree are given back with the place
+// take a step across's breakpoints away, and the session whose breakpoints they take; and the tree the session's start
+// is made in. The two lists are cells at their most, and they and the tree are given back with the place
 typedef struct
 {
     int taken;
@@ -114,11 +113,7 @@ typedef struct
     CliJson start;
 } CliDebugSession;
 
-// a list of a place, `count` items of `size` bytes in a cell of `*room`, given room for one more below `most`: moved
-// into a cell of twice its room, CLI_DEBUG_LIST_FIRST where it has none, its items copied and its cell given back. The
-// list as it stands after, `count` below `*room` where there is room; and a place freed, its lists and its tree given
-// back, under the sessions' lock (debug_place.c)
-void *cli_debug_grown(void *list, unsigned int count, unsigned int *room, unsigned long long size, unsigned int most);
+// a place freed, its lists and its tree given back, under the sessions' lock (debug_place.c)
 void cli_debug_place_freed(CliDebugSession *place);
 
 // The sessions, the number the next takes, their lock and the wake of a session's adapter reporting it is initialized
@@ -132,16 +127,12 @@ typedef struct
 
 extern CliDebugRoom g_cli_debug;
 
-// A request sent to an adapter: whether it is taken; its arguments as written, stored in pieces over a piece of its own
-// and joined as it is sent; the answer's body, in a cell of its size; and the body read as a tree taken to its size,
-// its root
+// A request sent to an adapter: whether it is taken; the line its arguments are written on, over a cell of the most
+// they hold; and the answer's body read as a tree taken to its size, its root
 typedef struct
 {
     int taken;
-    CliPieces pieces;
-    char piece[1024];
     VerbaLinea args;
-    char *body;
     CliJson json;
     unsigned int root;
 } CliDebugAnswer;

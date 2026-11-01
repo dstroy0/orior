@@ -82,7 +82,7 @@ int main(void)
     root = cli_json_taken(&json, s_read, sizeof(s_read) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(gui_editor_lines_put(&editor, &json, root, 0ull), "the lines read are kept");
     cli_json_given(&json);
-    cli_check((editor.from == 0ull) && (editor.count == 3u), "the three lines are held from the first");
+    cli_check((editor.from == 0ull) && (editor.count == 3u), "the three lines are stored from the first");
 
     const GuiRect place = {0, 0, 320, 80};
     GuiRaster raster;
@@ -105,7 +105,7 @@ int main(void)
     cli_check(painted(&raster, (GuiRect){text_x, 2 * line_tall, (int)(6.0f * cell), line_tall}, bare),
               "the third line, a comment, is drawn");
     cli_check(!painted(&raster, (GuiRect){text_x, 3 * line_tall, 200, line_tall}, bare),
-              "a row past the lines held is ground");
+              "a row past the lines stored is ground");
 
     gui_editor_scrolled(&editor, 3ll, 4u);
     cli_check(editor.top == 3ull, "the wheel moves the top down three lines");
@@ -137,7 +137,7 @@ int main(void)
     cli_check(gui_editor_frame_put(&editor, &json, root), "a view's frame is taken whole");
     cli_json_given(&json);
     cli_check((editor.lines == 3ull) && (editor.count == 3u) && (editor.from == 0ull) && (editor.top == 0ull),
-              "the frame's rows are the lines held");
+              "the frame's rows are the lines stored");
     cli_check((editor.indent_tabs == 0) && (editor.indent_size == 2u), "the frame's indentation is kept");
     cli_check(editor.has_cursor && (editor.cursor.line == 0ull) && (editor.cursor.col == 3ull) &&
                   (editor.anchor.col == 0ull),

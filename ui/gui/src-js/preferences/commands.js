@@ -104,7 +104,7 @@ const PREFERENCES = {
   "theme-icon-remove": ([pattern]) => keepIcons((shownTheme()?.icons ?? []).filter((one) => one.pattern !== pattern)),
   "keys-from": ([set]) => (SETS[set] ? setKeySettings({ set }) : failed(`Keys are from ${Object.keys(SETS).join(", ")}.`)),
   "keys-letter": ([by]) => (["character", "place"].includes(by) ? setKeySettings({ by }) : failed("A letter's key is by character or by place.")),
-  // A command's keys, the keys given first and the one it held before after them, two at most.
+  // A command's keys, the keys given first and the one it kept before after them, two at most.
   "key-set": async ([command, keys]) => {
     const now = await keysNow(command);
     return now && keys ? setOwnKeys(command, [keys, ...now.filter((one) => one !== keys)].slice(0, 2)) : failed(`No command ${command} takes keys ${keys ?? ""}.`);

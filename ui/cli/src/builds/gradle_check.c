@@ -6,7 +6,9 @@
 // gives as a string, in its notation, a snapshot noted with the line that refreshes the build's dependencies; and each
 // name a catalog's accessor leads, against the catalog's aliases (gradle_references.c). A catalog larger than
 // CLI_GRADLE_CATALOG_TEXT is not read
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "gradle_internal.h"
 #include "version_catalog_internal.h"
 
@@ -95,19 +97,13 @@ static void check_notation(CliGradleCheck *check, unsigned long long after)
     const unsigned long long line_end = (newline != NULL) ? (unsigned long long)(newline - text) : g_cli_gradle.size;
     unsigned long long at = after;
     static const char *const s_wrappers[3] = {"platform", "enforcedPlatform", "testFixtures"};
-    while ((at < line_end) && ((text[at] == ' ') || (text[at] == '\t') || (text[at] == '(')))
-    {
-        at += 1u;
-    }
+    at = cli_text_past_any(text, at, line_end, " \t(");
     for (unsigned int wrapper = 0u; wrapper < 3u; wrapper += 1u)
     {
         if (cli_text_starts(text + at, line_end - at, s_wrappers[wrapper]))
         {
             at += cellul.len(&(CatenaFinitaCfg){.src = s_wrappers[wrapper], .cap = CLI_CELLS_POOL});
-            while ((at < line_end) && ((text[at] == ' ') || (text[at] == '\t') || (text[at] == '(')))
-            {
-                at += 1u;
-            }
+            at = cli_text_past_any(text, at, line_end, " \t(");
         }
     }
     if ((at >= line_end) || (class_of[at] != CLI_GRADLE_STRING) || ((text[at] != '"') && (text[at] != '\'')))
@@ -280,12 +276,12 @@ void cli_gradle_check(const char *root, const char *path, const char *text, unsi
         // each catalog read where it lies, mapped while its aliases are read and let go after; a catalog whose
         // aliases the cellblock could not meet is not checked against
         unsigned long long read = 0ull;
-        const unsigned char *const catalog = cli_file_read(s_catalogs.path[at], &read);
+        const unsigned char *const catalog = cli_file_taken(s_catalogs.path[at], &read, &g_cli_gradle_cells);
         CliVersionsAliases aliases;
         const int whole = (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
                           cli_utf8_whole((const char *)catalog, read) &&
                           cli_versions_aliases((const char *)catalog, read, &aliases);
-        cli_file_let_go(catalog, read);
+        cli_file_given(catalog, &g_cli_gradle_cells);
         if (!whole)
         {
             continue;

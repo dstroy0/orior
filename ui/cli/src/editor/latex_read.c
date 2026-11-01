@@ -50,13 +50,7 @@ static void latex_slashed(const char *text, unsigned long long length, int plain
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = out + 2, .cap = CLI_CELLS_POOL}) + 1u});
     }
 #if defined(_WIN32)
-    for (char *letter = out; *letter != '\0'; letter += 1)
-    {
-        if ((*letter >= 'A') && (*letter <= 'Z'))
-        {
-            *letter = (char)(*letter - 'A' + 'a');
-        }
-    }
+    cli_text_lowered(out, cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL}));
 #endif
 }
 
@@ -245,11 +239,7 @@ static double latex_number_of(const char *tag, unsigned long long length, const 
     const unsigned long long piece = latex_found(tag, length, from, sought);
     const char *const quote = memor.chr(&(MemoriaCfg){.src = tag + from, .val = '"', .bytes = piece - from});
     unsigned long long end = (quote != NULL) ? (unsigned long long)(quote - tag) : piece;
-    while ((end > from) && (((tag[end - 1ull] >= 'a') && (tag[end - 1ull] <= 'z')) ||
-                            ((tag[end - 1ull] >= 'A') && (tag[end - 1ull] <= 'Z'))))
-    {
-        end -= 1ull;
-    }
+    end = from + cli_text_back_past_class(tag + from, end - from, CLI_TEXT_LETTERS, "");
     double value = 0.0;
     return cli_tex_double(tag + from, end - from, &value) ? value : 0.0;
 }

@@ -53,7 +53,7 @@ test("the call is asked of the window's side by the branch's key, with the file 
   await inTab(view, async () => {
     await parameterInfo({ quiet: true });
     const asked = made("branch_signature").at(-1).args;
-    assert.deepEqual([asked.key, asked.path, asked.line, asked.col], [view.s.doc.held.key, "given.py", 2, 13]);
+    assert.deepEqual([asked.key, asked.path, asked.line, asked.col], [view.s.doc.mirrored.key, "given.py", 2, 13]);
   });
 });
 

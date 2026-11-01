@@ -236,7 +236,7 @@ void cli_recording_recorded(CliDap *dap, const CliJson *json, unsigned int messa
     unsigned long long length = 0ull;
     const char *const path = cli_json_string(json, cli_json_member(json, message, "out"), &length);
     VerbaLinea out_line = {out, sizeof(out), 0ull};
-    mmgr_line_put_n(&out_line, (path != NULL) ? path : "", (path != NULL) ? length : 0ull);
+    mmgr_line_put_n(&out_line, (path != NULL) ? path : "", length);
     mmgr_line_finish(&out_line);
     cli_recording_read(out);
     const unsigned int code_node = cli_json_member(json, message, "code");

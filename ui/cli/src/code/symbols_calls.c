@@ -6,13 +6,12 @@
 // name's usages (symbols_usages.c), each call grouped under the function of its file it stands in; its callees from the
 // calls in its body, each grouped under its definition in effect
 #include "../command_line/cells.h"
-#include "../command_line/file_writing.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 #include "symbols_tree.h"
 
-// the bytes the regions, the calls and the usages are each begun in, doubling as they fill
-#define CLI_CALLS_FIRST 4096u
+// the bytes the regions, the calls and the usages are each written in
+#define CLI_CALLS_ROOM (4ull << 20u)
 
 // One function of a file's leaves: its head's first leaf, the bracket that opens its region, the leaf after the one
 // that closes it, and the leaf that declares its name
@@ -24,8 +23,8 @@ typedef struct
     unsigned int name;
 } CliCallsFunction;
 
-// A file read for its calls: its text, `held`'s or the disk's mapped, its size and which, its leaves, and its functions
-// in a growing line, how many
+// A file read for its calls: its text, `open_text`'s or the disk's mapped, its size and which, its leaves, and its
+// functions in a line, how many
 typedef struct
 {
     char *text;
@@ -53,10 +52,7 @@ typedef struct
 static unsigned int calls_col(const CliLeafRead *read, unsigned int leaf)
 {
     unsigned long long start = read->leaf[leaf].from;
-    while ((start > 0ull) && (read->text[start - 1ull] != '\n'))
-    {
-        start -= 1ull;
-    }
+    start = cli_text_back_any(read->text, start, "\n");
     // a line's units are below 2^32
     return (unsigned int)cli_text_units(read->text + start, read->leaf[leaf].from - start);
 }
@@ -124,14 +120,14 @@ static void calls_functions_read(CliCallsFile *file)
     }
 }
 
-// the tree's file at `path` read, its text `held`'s else the disk's, its leaves and its functions: 1, 0 where it has no
-// text or its language is none read here, or -1 where the cells cannot meet it
-static int calls_file_read(CliCallsFile *file, const char *path, CliHeld held, void *held_context)
+// the tree's file at `path` read, its text `open_text`'s else the disk's, its leaves and its functions: 1, 0 where it
+// has no text or its language is none read here, or -1 where the cells cannot meet it
+static int calls_file_read(CliCallsFile *file, const char *path, CliOpenText open_text, void *open_text_context)
 {
     *file = (CliCallsFile){
         NULL, 0ull, 0, NULL, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL, 0ull, 0ull, NULL, NULL, 0ull},
         0u};
-    char *const given = (held != NULL) ? held(held_context, path, &file->size) : NULL;
+    char *const given = (open_text != NULL) ? open_text(open_text_context, path, &file->size) : NULL;
     file->mapped = given == NULL;
     file->text = given;
     if (given == NULL)
@@ -141,7 +137,7 @@ static int calls_file_read(CliCallsFile *file, const char *path, CliHeld held, v
         cli_full(g_cli_symbols_root, path, full);
         cli_lock_give(&g_cli_symbols_lock);
         // a text read mapped is read and never written
-        file->text = (char *)cli_file_read(full, &file->size);
+        file->text = (char *)cli_file_taken(full, &file->size, &g_cli_code_cells);
     }
     if (file->text == NULL)
     {
@@ -154,7 +150,9 @@ static int calls_file_read(CliCallsFile *file, const char *path, CliHeld held, v
     {
         return 0;
     }
-    if (!cli_growing_line_made(&file->functions, CLI_CALLS_FIRST, &g_cli_code_cells))
+    char *const functions_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_ROOM, &g_cli_code_cells);
+    file->functions = mmgr_line_over(functions_cell, CLI_CALLS_ROOM);
+    if (functions_cell == NULL)
     {
         return -1;
     }
@@ -173,7 +171,7 @@ static void calls_file_given(CliCallsFile *file)
     cli_symbols_languages_given(file->languages);
     if (file->mapped && (file->text != NULL))
     {
-        cli_file_let_go((const unsigned char *)file->text, file->size);
+        cli_file_given((const unsigned char *)file->text, &g_cli_code_cells);
     }
     else
     {
@@ -215,11 +213,11 @@ static void calls_handed(const CliCallsFile *file, const char *path, CliCallsFun
     each(context, path, file->read.leaf[one.name].line, from, from + width, name, length, sites, count);
 }
 
-int cli_symbols_function_at(const char *path, unsigned int line, CliHeld held, void *held_context, CliCallReached each,
-                            void *context, VerbaLinea *err_msg)
+int cli_symbols_function_at(const char *path, unsigned int line, CliOpenText open_text, void *open_text_context,
+                            CliCallReached each, void *context, VerbaLinea *err_msg)
 {
     CliCallsFile file;
-    int found = calls_file_read(&file, path, held, held_context);
+    int found = calls_file_read(&file, path, open_text, open_text_context);
     const unsigned int at = (found == 1) ? calls_function_on(&file, line, 1) : CLI_JSON_NONE;
     found = ((found == 1) && (at == CLI_JSON_NONE)) ? 0 : found;
     if (found == 1)
@@ -273,9 +271,11 @@ static void calls_usage_put(void *context, const char *path, unsigned int line, 
 // the calls found begun, 1, or 0 where the cells cannot meet them; and given back
 static int calls_found_begun(CliCallsFound *calls)
 {
-    *calls = (CliCallsFound){{NULL, 0ull, 0ull, NULL, NULL, 0ull}, {NULL, 0ull, 0ull, NULL, NULL, 0ull}, 0u};
-    return cli_growing_line_made(&calls->found, CLI_CALLS_FIRST, &g_cli_code_cells) &&
-           cli_growing_line_made(&calls->paths, CLI_CALLS_FIRST, &g_cli_code_cells);
+    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_ROOM, &g_cli_code_cells);
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_ROOM, &g_cli_code_cells);
+    *calls =
+        (CliCallsFound){mmgr_line_over(found_cell, CLI_CALLS_ROOM), mmgr_line_over(paths_cell, CLI_CALLS_ROOM), 0u};
+    return (found_cell != NULL) && (paths_cell != NULL);
 }
 
 static void calls_found_given(CliCallsFound *calls)
@@ -299,12 +299,12 @@ static unsigned int calls_leaf_at(const CliCallsFile *file, unsigned int line, u
 
 // the usages of one file among those found from `first` to before `end`, each a call grouped under the function it
 // stands in, each function handed to `each` with its calls' places
-static int calls_callers_of(const CliCallsFound *usages, unsigned int first, unsigned int end, CliHeld held,
-                            void *held_context, CliCallReached each, void *context)
+static int calls_callers_of(const CliCallsFound *usages, unsigned int first, unsigned int end, CliOpenText open_text,
+                            void *open_text_context, CliCallReached each, void *context)
 {
     const char *const path = usages->paths.out + calls_found_at(usages, first).path;
     CliCallsFile file;
-    const int read = calls_file_read(&file, path, held, held_context);
+    const int read = calls_file_read(&file, path, open_text, open_text_context);
     CliSymbolPlace sites[CLI_SYMBOLS_PARAMS];
     unsigned int count = 0u;
     unsigned int current = CLI_JSON_NONE;
@@ -340,11 +340,11 @@ static int calls_callers_of(const CliCallsFound *usages, unsigned int first, uns
     return read >= 0;
 }
 
-int cli_symbols_callers(const char *path, unsigned int line, CliHeld held, void *held_context, CliCallReached each,
-                        void *context, VerbaLinea *err_msg)
+int cli_symbols_callers(const char *path, unsigned int line, CliOpenText open_text, void *open_text_context,
+                        CliCallReached each, void *context, VerbaLinea *err_msg)
 {
     CliCallsFile file;
-    int found = calls_file_read(&file, path, held, held_context);
+    int found = calls_file_read(&file, path, open_text, open_text_context);
     const unsigned int at = (found == 1) ? calls_function_on(&file, line, 0) : CLI_JSON_NONE;
     found = ((found == 1) && (at == CLI_JSON_NONE)) ? 0 : found;
     CliCallsFound usages;
@@ -357,8 +357,8 @@ int cli_symbols_callers(const char *path, unsigned int line, CliHeld held, void 
         const CliCallsFunction one = calls_function_at(&file, at);
         const unsigned int name_line = file.read.leaf[one.name].line;
         const unsigned int name_col = calls_col(&file.read, one.name);
-        found = (cli_symbols_usages(path, name_line, name_col, 1, held, held_context, calls_usage_put, &usages,
-                                    err_msg) < 0)
+        found = (cli_symbols_usages(path, name_line, name_col, 1, open_text, open_text_context, calls_usage_put,
+                                    &usages, err_msg) < 0)
                     ? -1
                     : 1;
         // the usages of each file stand together, in the order of their lines
@@ -372,7 +372,7 @@ int cli_symbols_callers(const char *path, unsigned int line, CliHeld held, void 
                                              .cap = CLI_CELLS_POOL});
             if (!same)
             {
-                found = calls_callers_of(&usages, first, next, held, held_context, each, context) ? 1 : -1;
+                found = calls_callers_of(&usages, first, next, open_text, open_text_context, each, context) ? 1 : -1;
                 first = next;
             }
         }
@@ -438,11 +438,11 @@ static void calls_callees_handed(const CliCallsFound *calls, const CliCallsFile 
     }
 }
 
-int cli_symbols_callees(const char *path, unsigned int line, CliHeld held, void *held_context, CliCallReached each,
-                        void *context, VerbaLinea *err_msg)
+int cli_symbols_callees(const char *path, unsigned int line, CliOpenText open_text, void *open_text_context,
+                        CliCallReached each, void *context, VerbaLinea *err_msg)
 {
     CliCallsFile file;
-    int found = calls_file_read(&file, path, held, held_context);
+    int found = calls_file_read(&file, path, open_text, open_text_context);
     const unsigned int at = (found == 1) ? calls_function_on(&file, line, 0) : CLI_JSON_NONE;
     found = ((found == 1) && (at == CLI_JSON_NONE)) ? 0 : found;
     CliCallsFound calls;
@@ -460,7 +460,7 @@ int cli_symbols_callees(const char *path, unsigned int line, CliHeld held, void 
                 continue;
             }
             CliCallsDefined defined = {&calls, {file.read.leaf[leaf].line, calls_col(&file.read, leaf)}};
-            found = (cli_symbols_definition(path, defined.site.line, defined.site.col, held, held_context,
+            found = (cli_symbols_definition(path, defined.site.line, defined.site.col, open_text, open_text_context,
                                             calls_defined_put, &defined, err_msg) < 0)
                         ? -1
                         : 1;

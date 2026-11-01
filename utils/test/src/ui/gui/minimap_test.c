@@ -63,8 +63,8 @@ int main(void)
     unsigned long long last = 0ull;
     cli_check(gui_minimap_span(&map, &first, &last) && (first == 0ull) && (last == 9ull),
               "the map stands for the whole short text");
-    cli_check(!gui_minimap_current(&map, 0ull, 9ull), "the lines held are not the whole text");
-    cli_check(gui_minimap_current(&map, 3ull, 5ull), "the lines held are the fourth to the sixth");
+    cli_check(!gui_minimap_current(&map, 0ull, 9ull), "the lines stored are not the whole text");
+    cli_check(gui_minimap_current(&map, 3ull, 5ull), "the lines stored are the fourth to the sixth");
 
     // a long text: the map's first line follows the view's top through it
     gui_editor_shaped(&editor, 1000ull);
@@ -74,10 +74,10 @@ int main(void)
     cli_check(map.place.slider_top == 80, "the slider stands where the view's top stands among the map's rows");
     cli_check(gui_minimap_span(&map, &first, &last) && (first == 450ull) && (last == 549ull),
               "the map stands for a hundred lines from its first");
-    const long long offset = map.held_offset;
+    const long long offset = map.anchor_offset;
     gui_editor_shaped(&editor, 1200ull);
     gui_minimap_placed(&map, place, 1.0f, &editor, 20.0f);
-    cli_check((map.place.start == 450ull) && (map.held_offset == offset),
+    cli_check((map.place.start == 450ull) && (map.anchor_offset == offset),
               "lines added while the view stands still leave the map where it stood");
     editor.top = 1199ull;
     gui_minimap_placed(&map, place, 1.0f, &editor, 20.0f);
@@ -142,7 +142,7 @@ int main(void)
                   !map.dragging,
               "a press on the strip goes to that part of the text, no drag begun");
     gui_minimap_cleared(&map);
-    cli_check((map.count == 0u) && map.stale && !map.held, "the map cleared holds nothing, stale, its hold let go");
+    cli_check((map.count == 0u) && map.stale && !map.anchored, "the map cleared holds nothing, stale, its hold let go");
     gui_raster_given(&raster);
     gui_minimap_given(&map);
     gui_editor_given(&editor);

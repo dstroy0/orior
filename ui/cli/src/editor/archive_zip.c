@@ -320,7 +320,8 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
     // is smaller than the member: one cell for the writing, the directory first
     const unsigned long long directory_room = end - start;
     const unsigned long long deflated_room = data_size;
-    unsigned char *const writing = g_cli_cells->temporary_buf_alloc(directory_room + deflated_room + 1ull, &g_cli_editor_cells);
+    unsigned char *const writing =
+        g_cli_cells->temporary_buf_alloc(directory_room + deflated_room + 1ull, &g_cli_editor_cells);
     if (writing == NULL)
     {
         mmgr_line_put(err_msg, "a zip's writing could not be taken");

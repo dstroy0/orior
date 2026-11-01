@@ -124,8 +124,10 @@ int gui_hover_put(GuiHover *hover, const CliJson *json, unsigned int root)
         gui_hover_hidden(hover);
         return 1;
     }
-    VerbaLinea joined;
-    if (!cli_growing_line_made(&joined, GUI_HOVER_FIRST, &g_gui_cells))
+    const unsigned long long joined_room = cli_json_written_room(json);
+    char *const joined_cell = g_cli_cells->persistent_buf_alloc(joined_room, &g_gui_cells);
+    VerbaLinea joined = mmgr_line_over(joined_cell, joined_room);
+    if (joined.out == NULL)
     {
         return 0;
     }

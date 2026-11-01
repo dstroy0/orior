@@ -45,7 +45,7 @@ import walk  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 TOP = HERE.parents[1]
-HELD = "held by the walker"
+BLOCKED = "blocked by the walker"
 
 # How long the window stays still before a press is taken as done, in milliseconds: longer than a menu's or a sheet's
 # opening runs
@@ -94,7 +94,7 @@ class Sweeper:
         self.conn.notify("Page.handleJavaScriptDialog", accept=False)
 
     def js(self, expression, timeout=60):
-        """The value of `expression` in the page; a page held by something over it is sent an Escape and
+        """The value of `expression` in the page; a page blocked by something over it is sent an Escape and
         asked again, and one that still does not answer stops the sweep."""
         try:
             return self.conn.evaluate(expression, timeout=timeout)
@@ -111,10 +111,10 @@ class Sweeper:
         holds = self.js(
             "(async () => { if (!(await window.__walk.guarded)) return false;"
             " try { await (await import('/bridge.js')).invoke('walker_probe'); return false; }"
-            " catch (error) { return String(error).includes('held by the walker'); } })()"
+            " catch (error) { return String(error).includes('blocked by the walker'); } })()"
         )
         if holds is not True:
-            raise SystemExit("the page's calls are not held by the walker's watch: nothing is pressed")
+            raise SystemExit("the page's calls are not blocked by the walker's watch: nothing is pressed")
         self.js((HERE / "sweep.js").read_text(encoding="utf-8"))
 
     def key(self, key, code, virtual, modifiers=0):
@@ -250,8 +250,8 @@ class Sweeper:
         self.js("window.__walk.answer(null)")
         report = self.js("window.__walk.report()")
         record["errors"] = [one["text"].splitlines()[0][:300] for one in report["errors"]]
-        record["failed"] = [f"{one['name']}: {one.get('error', '')[:200]}" for one in report["calls"] if not one["ok"] and HELD not in one.get("error", "")]
-        record["held"] = sorted({one["name"] for one in report["held"]})
+        record["failed"] = [f"{one['name']}: {one.get('error', '')[:200]}" for one in report["calls"] if not one["ok"] and BLOCKED not in one.get("error", "")]
+        record["blocked"] = sorted({one["name"] for one in report["blocked"]})
         record["navigations"] = self.js("window.__sweep.navigations")
         record["revealed"] = self.queue(surface, control, "left", shown)
         if control["kind"] in ("tree", "tab"):
@@ -339,9 +339,9 @@ def written(out, stamp, records, unreached, dialogs):
     stopped = [one for one in records if one.get("did") in ("hung the page", "the window closed")]
     threw = [one for one in records if one.get("errors") and one not in stopped]
     failed = [one for one in records if one.get("failed") and not one.get("errors")]
-    held_back = [one for one in records if one.get("did", "").startswith("not pressed")]
+    not_pressed = [one for one in records if one.get("did", "").startswith("not pressed")]
     lines = [f"# The window's sweep, {stamp}", "", f"{len(records)} controls swept: " + ", ".join(f"{count} {kind}" for kind, count in sorted(kinds.items())) + ".", ""]
-    lines += [f"{len(stopped)} hung the page or closed the window, {len(threw)} threw, {len(failed)} made a call that failed, {sum(len(one['keys']) for one in unreached)} could not be reached again, {len(held_back)} not pressed.", ""]
+    lines += [f"{len(stopped)} hung the page or closed the window, {len(threw)} threw, {len(failed)} made a call that failed, {sum(len(one['keys']) for one in unreached)} could not be reached again, {len(not_pressed)} not pressed.", ""]
 
     def section(title, chosen, detail):
         lines.extend([f"## {title}", ""])
@@ -354,7 +354,7 @@ def written(out, stamp, records, unreached, dialogs):
     lines.extend(["## Not reached again", ""])
     lines.extend(f"- {one['surface']}: {len(one['keys'])} controls, the first {one['keys'][0]!r}" for one in unreached if one["keys"])
     lines.append("")
-    section("Not pressed", held_back, lambda one: one["did"])
+    section("Not pressed", not_pressed, lambda one: one["did"])
     spent = sum(one.get("seconds", 0) for one in records)
     lost = sum(one.get("seconds", 0) for one in unreached)
     lines.extend(["## Time", "", f"{spent:.0f} s sweeping controls, {lost:.0f} s looking for those not reached again.", ""])

@@ -9,10 +9,7 @@
 static void cli_extension(const char *path, char *out)
 {
     const char *name = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    while ((name > path) && (name[-1] != '/') && (name[-1] != '\\'))
-    {
-        name -= 1;
-    }
+    name = path + cli_text_back_any(path, (unsigned long long)(name - path), "/\\");
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     out[0] = '\0';
@@ -20,13 +17,7 @@ static void cli_extension(const char *path, char *out)
     {
         return;
     }
-    unsigned int at = 0u;
-    for (const char *letter = dot + 1; letter[0] != '\0'; letter += 1)
-    {
-        out[at] = ((letter[0] >= 'A') && (letter[0] <= 'Z')) ? (char)(letter[0] + 32) : letter[0];
-        at += 1u;
-    }
-    out[at] = '\0';
+    (void)cli_text_lowered_into(out, 16u, dot + 1);
 }
 
 // The comment a script's cells are marked with in the language of `path`, by its extension
@@ -64,10 +55,7 @@ static int cli_is_space(char letter)
 const char *cli_notebook_line(const char *at, const char *end, const char **stop)
 {
     const char *next = at;
-    while ((next < end) && (next[0] != '\n'))
-    {
-        next += 1;
-    }
+    next += cli_text_to_any(next, 0ull, (unsigned long long)(end - next), "\n");
     *stop = ((next > at) && (next[-1] == '\r')) ? (next - 1) : next;
     return (next < end) ? (next + 1) : next;
 }
@@ -185,10 +173,7 @@ unsigned int cli_notebook_lines_of(CliJson *json, const char *text, unsigned lon
     while (from < length)
     {
         unsigned long long to = from;
-        while ((to < length) && (text[to] != '\n'))
-        {
-            to += 1ull;
-        }
+        to = cli_text_to_any(text, to, length, "\n");
         to += (to < length) ? 1ull : 0ull;
         cli_json_append(json, lines, cli_json_string_made(json, text + from, to - from));
         from = to;
@@ -287,10 +272,7 @@ static void cli_mark_read(CliJson *json, const char *rest, const char *end, unsi
             found = at;
             word = "markdown";
             after = at;
-            while ((after < end) && (after[0] != ']'))
-            {
-                after += 1;
-            }
+            after += cli_text_to_any(after, 0ull, (unsigned long long)(end - after), "]");
             after += (after < end) ? 1 : 0;
         }
     }
@@ -303,9 +285,8 @@ static void cli_mark_read(CliJson *json, const char *rest, const char *end, unsi
             after = at + 5;
         }
     }
-    *kind = cli_json_string_made(
-        json, (word != NULL) ? word : "code",
-        cellul.len(&(CatenaFinitaCfg){.src = (word != NULL) ? word : "code", .cap = CLI_CELLS_POOL}));
+    const char *const named = (word != NULL) ? word : "code";
+    *kind = cli_json_string_made(json, named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
     const unsigned long long start = json->used;
     cli_piece(json, rest, (unsigned long long)(((found != NULL) ? found : end) - rest));
     cli_piece(json, after, (unsigned long long)(end - after));

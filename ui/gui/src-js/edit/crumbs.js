@@ -50,7 +50,7 @@ function drawAllProblems() {
   window.dispatchEvent(new CustomEvent("problems-changed", { detail: { errors: all.filter((one) => one.severity === 1).length, warnings: all.filter((one) => one.severity === 2).length } }));
 }
 
-// Go to Definition, and a click with Ctrl held: where the language server says the symbol at `p`
+// Go to Definition, and a click with Ctrl pressed: where the language server says the symbol at `p`
 // is defined. A file under the tree opens there; one outside it, as a system header is, is named.
 export async function goToDefinition(p) {
   const tab = tabOf(state.active);
@@ -109,7 +109,7 @@ const CRUMBS_KEY = "orior.crumbs";
 
 // How long a text's symbols are kept for the breadcrumbs after an edit before they are read again,
 // in milliseconds.
-const CRUMB_SYMBOLS_HELD = 500;
+const CRUMB_SYMBOLS_KEPT = 500;
 
 export function crumbsShown() {
   return localStorage.getItem(CRUMBS_KEY) !== "false";
@@ -122,7 +122,7 @@ export function setCrumbs(on = !crumbsShown()) {
 
 function crumbSymbols(s) {
   const now = performance.now();
-  if (!s.crumbs || (s.crumbs.id !== s.doc.id && now - s.crumbs.at > CRUMB_SYMBOLS_HELD)) {
+  if (!s.crumbs || (s.crumbs.id !== s.doc.id && now - s.crumbs.at > CRUMB_SYMBOLS_KEPT)) {
     s.crumbs = { id: s.doc.id, at: now, symbols: symbolsOf(s.language?.id, s.doc) };
   }
   return s.crumbs.symbols;
@@ -131,15 +131,15 @@ function crumbSymbols(s) {
 // The symbols the cursor's line is inside: the last at each depth that starts at or above it, where
 // the region it opens reaches the line or it stands on the line itself.
 function symbolsAround(s, line) {
-  const held = [];
+  const stack = [];
   for (const symbol of crumbSymbols(s)) {
     if (symbol.line > line) {
       break;
     }
-    held.length = Math.min(held.length, symbol.depth);
-    held.push(symbol);
+    stack.length = Math.min(stack.length, symbol.depth);
+    stack.push(symbol);
   }
-  return held.filter((symbol) => symbol.line === line || s.endOf(symbol.line) >= line);
+  return stack.filter((symbol) => symbol.line === line || s.endOf(symbol.line) >= line);
 }
 
 // The symbols beside one in the crumbs: those `parent` holds at `depth`, or the file's outermost

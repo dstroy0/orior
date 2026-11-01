@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db_look.c: a look for the tree's compilation database: the files it reads, the look cached for two seconds
 // and cached while the files it read stand, and the words clangd starts with for the database found
+#include "../command_line/cells.h"
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
@@ -14,14 +15,11 @@ static int cli_clangd_names(const char *root, char *folder)
     char path[CLI_PATH_MAX_LEN];
     cli_full(root, ".clangd", path);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_compile_cells);
     int named = 0;
     for (unsigned long long at = 0ull; (bytes != NULL) && !named && (at < size);)
     {
-        const unsigned char *const newline =
-            memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the bytes, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
+        const unsigned long long end = cli_text_line_at((const char *)bytes, at, size).stop;
         const char *from = (const char *)bytes + at;
         const char *to = (const char *)bytes + end;
         at = end + 1ull;
@@ -38,14 +36,8 @@ static int cli_clangd_names(const char *root, char *folder)
         const char *const hash =
             memor.chr(&(MemoriaCfg){.src = from, .val = '#', .bytes = (unsigned long long)(to - from)});
         to = (hash != NULL) ? hash : to;
-        while ((from < to) && (cli_compile_white(from[0]) || (from[0] == '"')))
-        {
-            from += 1;
-        }
-        while ((to > from) && (cli_compile_white(to[-1]) || (to[-1] == '"')))
-        {
-            to -= 1;
-        }
+        from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE "\"");
+        to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE "\"");
         // the folder lies between its quotes, its end at or past its start
         const unsigned long long length = (unsigned long long)(to - from);
         if ((length > 0ull) && (length < CLI_PATH_MAX_LEN))
@@ -55,23 +47,17 @@ static int cli_clangd_names(const char *root, char *folder)
             named = 1;
         }
     }
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, size);
-    }
+    cli_file_given(bytes, &g_cli_compile_cells);
     return named;
 }
 
 // the file at `path` put among what a look reads where it is there: 1, or 0 where it is not or no room is given
 static int cli_input_put(CliInputs *inputs, const char *path)
 {
-    CliStamped *const files = cli_compile_room(inputs->file, inputs->count, &inputs->room, sizeof(CliStamped),
-                                               CLI_COMPILE_INPUTS, "the files a look reads");
-    if (files == NULL)
+    if (inputs->count >= inputs->room)
     {
         return 0;
     }
-    inputs->file = files;
     const int put = cli_compile_stamped(path, &inputs->file[inputs->count]);
     inputs->count += put ? 1u : 0u;
     return put;
@@ -80,9 +66,10 @@ static int cli_input_put(CliInputs *inputs, const char *path)
 void cli_compile_inputs(const char *root, CliInputs *inputs)
 {
     static const char *const s_reply[4] = {".cmake", "api", "v1", "reply"};
-    CliFoundFolders found = {NULL, 0u, 0u};
-    inputs->own = 0;
-    inputs->count = 0u;
+    cli_compile_inputs_given(inputs);
+    inputs->file = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_COMPILE_INPUTS * sizeof(CliStamped),
+                                                     &g_cli_compile_cells);
+    inputs->room = (inputs->file != NULL) ? CLI_COMPILE_INPUTS : 0u;
     char own[3][CLI_PATH_MAX_LEN];
     unsigned int owns = 0u;
     char named[CLI_PATH_MAX_LEN];
@@ -105,6 +92,8 @@ void cli_compile_inputs(const char *root, CliInputs *inputs)
             return;
         }
     }
+    CliFoundFolders found;
+    cli_compile_found_taken(&found);
     cli_full(root, "build/cmake", joined);
     cli_compile_folders_named(joined, s_reply, 4u, &found);
     for (unsigned int at = 0u; at < found.count; at += 1u)
@@ -211,10 +200,9 @@ int cli_compile_db_refresh(const char *root, CliDatabase *database)
 int cli_compile_db_is_cl(const char *compiler)
 {
     const char *name = compiler;
-    for (const char *at = compiler; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(compiler, cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (compiler + name_past) : name;
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     const unsigned long long stem = ((dot != NULL) && (dot != name))

@@ -12,8 +12,8 @@
 // What a carried file declares it is
 #define CLI_CARRY_MARK "orior settings"
 
-// the bytes a settings text written is begun in before it grows
-#define CLI_CARRY_WRITTEN_FIRST (4ull << 10u)
+// the bytes a settings text written is written in
+#define CLI_CARRY_WRITTEN_ROOM (16ull << 20u)
 
 // The room settings are read in: the tree, a cell sized to the texts read into it, begun empty under the lock of the
 // work that reads them and given back before it is given
@@ -30,6 +30,8 @@ void cli_carry_room_given(CliCarryRoom *room);
 // written over: 1, or 0 where they do not fit; the place of `place` among them, or their count where it is not one;
 // and the place and the value at `at` (carry.c)
 void cli_carried_clear(CliCarried *carried);
+// the most bytes the files carried write to as one JSON object, each byte escaped to at most 6
+unsigned long long cli_carried_sent_room(const CliCarried *carried);
 int cli_carried_put(CliCarried *carried, const char *place, const char *value, unsigned long long size);
 unsigned int cli_carried_find(const CliCarried *carried, const char *place);
 const char *cli_carried_place(const CliCarried *carried, unsigned int at);

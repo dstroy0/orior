@@ -8,9 +8,9 @@ import { given, putBackAsFound } from "../../menus.js";
 
 const { test, assert } = window.__harness;
 
-const event = (key, held = {}) => {
+const event = (key, modifiers = {}) => {
   let prevented = false;
-  return { key, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, ...held, preventDefault: () => (prevented = true), prevented: () => prevented };
+  return { key, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, ...modifiers, preventDefault: () => (prevented = true), prevented: () => prevented };
 };
 
 test("Vim starts in normal mode, its caret a block, and the status line shows the mode and the keys typed so far", async () => {

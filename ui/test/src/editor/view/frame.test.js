@@ -140,8 +140,8 @@ test("our own container files scroll the same way: a file read from a run's .qry
   } finally {
     await invoke("qry_stop", { path: `${root}/${container}` });
   }
-  const held = await invoke("tree_list", { dir: container });
-  assert.ok(held.some((child) => child.name === "bench" && child.dir), `the run's files under the folder they were read from: ${JSON.stringify(held.map((child) => child.name))}`);
+  const listing = await invoke("tree_list", { dir: container });
+  assert.ok(listing.some((child) => child.name === "bench" && child.dir), `the run's files under the folder they were read from: ${JSON.stringify(listing.map((child) => child.name))}`);
   await judged("sqlite3.c in a run's .qry", `${container}/${BENCH}/sqlite3.c`);
   await judged("the trace of a scroll", `build/trace/query1-${`${BENCH}/sqlite3.c`.replace(/\W/g, "_")}.qry/window.trace`);
 }, { timeout: 240000 });

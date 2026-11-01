@@ -4,6 +4,7 @@
 // reStructuredText's form or a summary line alone, from what the function declares of itself: its parameters with their
 // annotations, what it gives back, whether it yields, and what it raises
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "inspect_py.h"
 
 // the most parameters and raised names a function's docstring names
@@ -217,7 +218,7 @@ static unsigned long long s_line_start[CLI_PY_PARAMS * 4u];
 static unsigned long long s_line_size[CLI_PY_PARAMS * 4u];
 static unsigned int s_lines;
 
-// the docstring's next line begun in the pool
+// the docstring's next line written in the pool
 static VerbaLinea *write_line(void)
 {
     if (s_lines < CLI_PY_PARAMS * 4u)
@@ -396,10 +397,7 @@ int cli_inspect_py_docstring(const char *src, unsigned long long size, unsigned 
     write_signature(src, at);
     const unsigned int header_end = cli_py_tok(&g_cli_py_line[at], g_cli_py_line[at].count - 1u)->to.line;
     unsigned long long body = cli_py_tok(first, 0u)->start;
-    while ((body > 0u) && (src[body - 1u] != '\n'))
-    {
-        body -= 1u;
-    }
+    body = cli_text_back_any(src, body, "\n");
     unsigned long long indent = body;
     unsigned int units = 0u;
     while (indent < size)

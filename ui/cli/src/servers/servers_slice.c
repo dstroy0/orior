@@ -11,16 +11,18 @@
 // read them and never while a server is written to, as the thread that reads a server takes it to move the
 // diagnostics published of a version to the file's lines by the map of that version, or leave them out
 #include "../code/symbols.h"
+#include "../text/text.h"
 #include "servers_internal.h"
 
 // the last line in view of a file the page has not handed its view of, and the lines of each window the check slices a
 // file into, a view's height; the most lines a view's openers name, the most files sliced at once, and the bytes a
-// slice's text, map and paths are each begun in, doubling as they fill
+// slice's text, map and paths are each written in
 #define CLI_SERVERS_SLICE_LAST 63u
 #define CLI_SERVERS_SLICE_HEIGHT (CLI_SERVERS_SLICE_LAST + 1u)
 #define CLI_SERVERS_SLICE_OPENERS 64u
 #define CLI_SERVERS_SLICES 256u
-#define CLI_SERVERS_SLICE_FIRST_BYTES 4096u
+#define CLI_SERVERS_SLICE_ROOM (4ull << 20u)
+#define CLI_SERVERS_SLICE_MAPPED_MORE 4096ull
 
 // One line of a slice: the place of the path it came from among the slice's paths, CLI_JSON_NONE for none, and its
 // line there
@@ -57,8 +59,8 @@ static unsigned long long s_cuts;
 static CliLock s_slices_lock = CLI_LOCK_INIT;
 static CliLock s_sending_lock = CLI_LOCK_INIT;
 
-// A slice being cut: its text, its lines' map and the paths they came from, each a growing line; the path the walk gave
-// the last line as and its place among the paths; and how many lines are written
+// A slice being cut: its text, its lines' map and the paths they came from, each a line; the path the walk gave the
+// last line as and its place among the paths; and how many lines are written
 typedef struct
 {
     VerbaLinea text;
@@ -124,19 +126,20 @@ static void slice_lines_given(CliServersSlicing *slicing)
     g_cli_cells->persistent_buf_release(slicing->paths.out, &g_cli_servers_cells);
 }
 
-// the slicing's lines made, each growing, none written: 1, or 0 where the cells cannot meet them, those made given back
-// with the rest by slice_lines_given
+// the slicing's lines made, none written: 1, or 0 where the cells cannot meet them, those made given back with the rest
+// by slice_lines_given
 static int slice_lines_made(CliServersSlicing *slicing)
 {
-    *slicing = (CliServersSlicing){{NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                                   {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                                   {NULL, 0ull, 0ull, NULL, NULL, 0ull},
+    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_ROOM, &g_cli_servers_cells);
+    char *const map_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_ROOM, &g_cli_servers_cells);
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_ROOM, &g_cli_servers_cells);
+    *slicing = (CliServersSlicing){mmgr_line_over(text_cell, CLI_SERVERS_SLICE_ROOM),
+                                   mmgr_line_over(map_cell, CLI_SERVERS_SLICE_ROOM),
+                                   mmgr_line_over(paths_cell, CLI_SERVERS_SLICE_ROOM),
                                    NULL,
                                    CLI_JSON_NONE,
                                    0u};
-    return cli_growing_line_made(&slicing->text, CLI_SERVERS_SLICE_FIRST_BYTES, &g_cli_servers_cells) &&
-           cli_growing_line_made(&slicing->map, CLI_SERVERS_SLICE_FIRST_BYTES, &g_cli_servers_cells) &&
-           cli_growing_line_made(&slicing->paths, CLI_SERVERS_SLICE_FIRST_BYTES, &g_cli_servers_cells);
+    return (text_cell != NULL) && (map_cell != NULL) && (paths_cell != NULL);
 }
 
 // the slice `slicing` holds stored by `key` with the view of `head`, its openers `opener`, and its map, the file at
@@ -645,12 +648,10 @@ static unsigned long long slice_number(const char *text, unsigned long long leng
 {
     unsigned long long value = 0ull;
     int any = 0;
-    for (unsigned long long at = cli_text_lead(text, length); (at < length) && (text[at] >= '0') && (text[at] <= '9');
-         at += 1ull)
-    {
-        value = (value * 10ull) + (unsigned long long)(text[at] - '0');
-        any = 1;
-    }
+    const unsigned long long lead = cli_text_lead(text, length);
+    unsigned long long end = lead;
+    value = cli_text_number(text, lead, length, &end);
+    any = end > lead;
     return any ? value : otherwise;
 }
 
@@ -680,9 +681,12 @@ char *cli_servers_slice_diagnostics(const char *path, const char *params, unsign
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
     const unsigned int array =
         (stored != NULL) ? cli_json_taken(&json, all, size, 0u, 0ull, &ignored, &g_cli_servers_cells) : CLI_JSON_NONE;
-    VerbaLinea mapped = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    const int made = cli_json_is(&json, array, CFG_JSON_ARRAY) &&
-                     cli_growing_line_made(&mapped, (size_t)size + CLI_SERVERS_SLICE_FIRST_BYTES, owner);
+    // a diagnostic's numbers written again are at most as long again as those it came with
+    const unsigned long long mapped_room = (2ull * size) + CLI_SERVERS_SLICE_MAPPED_MORE;
+    char *const mapped_cell =
+        cli_json_is(&json, array, CFG_JSON_ARRAY) ? g_cli_cells->temporary_buf_alloc(mapped_room, owner) : NULL;
+    VerbaLinea mapped = mmgr_line_over(mapped_cell, mapped_room);
+    const int made = mapped_cell != NULL;
     if (made)
     {
         mmgr_line_ch(&mapped, '[');

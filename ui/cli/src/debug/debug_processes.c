@@ -8,9 +8,7 @@
 #define CLI_DEBUG_PROCESSES 16384u
 #define CLI_DEBUG_PROCESS_TEXT (1ull << 23u)
 
-// the processes a listing's room is begun with, and the bytes its text's is, each doubling as they are put
-#define CLI_DEBUG_PROCESSES_FIRST 256u
-#define CLI_DEBUG_PROCESS_TEXT_FIRST 16384ull
+// the processes a listing's room is taken with, and the bytes its text's is
 
 // A process listed: its number, and where its name and its line start in the text
 typedef struct
@@ -34,29 +32,10 @@ typedef struct
     CliDebugProcess *sorted;
 } CliDebugListing;
 
-// `cell` of `size` bytes moved into a cell of `larger`, given back: the larger, or NULL with `cell` retained where it
-// is refused
-static void *processes_moved(void *cell, unsigned long long size, unsigned long long larger, const char *what)
-{
-    return cli_cell_regrown(cell, (size_t)size, larger, &g_cli_debug_processes_cells);
-}
-
 // a text stored in the listing's text: where it starts, or where an empty one does where it does not fit
 static unsigned long long processes_text_stored(CliDebugListing *listing, const char *text)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    while ((listing->used + size > listing->text_room) && (listing->text_room < CLI_DEBUG_PROCESS_TEXT))
-    {
-        const unsigned long long doubled = listing->text_room * 2ull;
-        const unsigned long long larger = (doubled < CLI_DEBUG_PROCESS_TEXT) ? doubled : CLI_DEBUG_PROCESS_TEXT;
-        char *const moved = processes_moved(listing->text, listing->used, larger, "the processes' names and lines");
-        if (moved == NULL)
-        {
-            return 0ull;
-        }
-        listing->text = moved;
-        listing->text_room = larger;
-    }
     if (listing->used + size > listing->text_room)
     {
         return 0ull;
@@ -73,20 +52,6 @@ static void processes_listed(void *context, unsigned int pid, const char *name, 
     if ((pid == 0u) || (pid == listing->own) || (listing->count >= CLI_DEBUG_PROCESSES))
     {
         return;
-    }
-    if (listing->count == listing->room)
-    {
-        const unsigned int doubled = listing->room * 2u;
-        const unsigned int larger = (doubled < CLI_DEBUG_PROCESSES) ? doubled : CLI_DEBUG_PROCESSES;
-        CliDebugProcess *const moved =
-            processes_moved(listing->process, (unsigned long long)listing->count * sizeof(CliDebugProcess),
-                            (unsigned long long)larger * sizeof(CliDebugProcess), "the processes listed");
-        if (moved == NULL)
-        {
-            return;
-        }
-        listing->process = moved;
-        listing->room = larger;
     }
     listing->process[listing->count] =
         (CliDebugProcess){pid, processes_text_stored(listing, name), processes_text_stored(listing, command)};
@@ -136,11 +101,11 @@ static void processes_sorted(CliDebugListing *listing, unsigned int from, unsign
 
 void cli_debug_processes(VerbaLinea *out)
 {
-    CliDebugListing listing = {
-        NULL, 0u, CLI_DEBUG_PROCESSES_FIRST, NULL, 1ull, CLI_DEBUG_PROCESS_TEXT_FIRST, cli_process_own(), NULL};
-    listing.process = g_cli_cells->persistent_buf_alloc(CLI_DEBUG_PROCESSES_FIRST * sizeof(CliDebugProcess),
-                                                        &g_cli_debug_processes_cells);
-    listing.text = g_cli_cells->persistent_buf_alloc(CLI_DEBUG_PROCESS_TEXT_FIRST, &g_cli_debug_processes_cells);
+    CliDebugListing listing = {NULL, 0u, CLI_DEBUG_PROCESSES, NULL, 1ull, CLI_DEBUG_PROCESS_TEXT, cli_process_own(),
+                               NULL};
+    listing.process =
+        g_cli_cells->temporary_buf_alloc(CLI_DEBUG_PROCESSES * sizeof(CliDebugProcess), &g_cli_debug_processes_cells);
+    listing.text = g_cli_cells->temporary_buf_alloc(CLI_DEBUG_PROCESS_TEXT, &g_cli_debug_processes_cells);
     if ((listing.process != NULL) && (listing.text != NULL))
     {
         listing.text[0] = '\0';

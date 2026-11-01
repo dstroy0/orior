@@ -4,7 +4,7 @@
 // Keys. Each command's keys are those commands.json gives it, then those of the set of keys the reader
 // chose, orior's own or JetBrains', then the reader's own, set in Preferences, Keys: two at most for
 // a command, each a press, two presses, a button of the mouse past its first three, or the wheel
-// turned with a key held. A letter or a digit is bound by the character it types or by its place on
+// turned with a key pressed. A letter or a digit is bound by the character it types or by its place on
 // the board, as the reader sets. By the character, Undo is the key that types z on every layout that
 // types the Latin alphabet, and on a layout that types none of it, as a Greek or a Cyrillic one does,
 // a letter is bound by its place. The window's own keys work on every layout either way.
@@ -137,10 +137,10 @@ export function buttonName(event) {
   return number ? [...modifiers(event), number].join("+") : null;
 }
 
-// The name of the wheel turned with a key held, as Ctrl+Wheel Up, or null with no key held.
+// The name of the wheel turned with a key pressed, as Ctrl+Wheel Up, or null with no key pressed.
 export function wheelName(event) {
-  const held = modifiers(event);
-  return held.length && event.deltaY ? [...held, event.deltaY < 0 ? "Wheel Up" : "Wheel Down"].join("+") : null;
+  const pressed = modifiers(event);
+  return pressed.length && event.deltaY ? [...pressed, event.deltaY < 0 ? "Wheel Up" : "Wheel Down"].join("+") : null;
 }
 
 // Each key more than one of the commands `items` holds, with those commands.
@@ -156,5 +156,5 @@ export function sharedKeys(items) {
       }
     }
   }
-  return new Map([...by].filter(([, held]) => held.length > 1));
+  return new Map([...by].filter(([, sharing]) => sharing.length > 1));
 }

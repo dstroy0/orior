@@ -83,15 +83,9 @@ static int cli_source_read(CliPlan *plan, const char *file, const char *base, co
 static void cli_last_named(const char *path, char *name)
 {
     const char *end = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    while ((end > path) && ((end[-1] == '/') || (end[-1] == '\\')))
-    {
-        end -= 1;
-    }
+    end = path + cli_text_back_past(path, (unsigned long long)(end - path), "/\\");
     const char *last = end;
-    while ((last > path) && (last[-1] != '/') && (last[-1] != '\\'))
-    {
-        last -= 1;
-    }
+    last = path + cli_text_back_any(path, (unsigned long long)(last - path), "/\\");
     last += (((end - last) == 2) && (last[1] == ':')) ? 2 : 0;
     VerbaLinea line = {name, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put_n(&line, last, (unsigned long long)(end - last));

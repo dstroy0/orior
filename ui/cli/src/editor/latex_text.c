@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // latex_text.c: LaTeX text and what a make leaves read as Rust reads them: lines, whitespace and numbers, and the
 // engine a text is made with
+#include "../text/text.h"
 #include "latex_internal.h"
 
 #include <stdlib.h>
@@ -58,10 +59,7 @@ static int latex_named(const char *text, unsigned long long length, const char *
 unsigned long long cli_tex_digits(const char *text, unsigned long long length, unsigned long long at)
 {
     unsigned long long count = 0ull;
-    while ((at + count < length) && (text[at + count] >= '0') && (text[at + count] <= '9'))
-    {
-        count += 1ull;
-    }
+    count = cli_text_past_class(text, at, length, CLI_TEXT_DIGITS, "") - at;
     return count;
 }
 
@@ -152,9 +150,10 @@ int cli_tex_signed(const char *text, unsigned long long length, long long *value
 static int latex_takes_unicode(const char *line, unsigned long long size)
 {
     unsigned long long cut = 0ull;
-    while ((cut < size) && !((line[cut] == '%') && ((cut == 0ull) || (line[cut - 1ull] != '\\'))))
+    cut = cli_text_to_any(line, 0ull, size, "%");
+    while ((cut < size) && (cut != 0ull) && (line[cut - 1ull] == '\\'))
     {
-        cut += 1ull;
+        cut = cli_text_to_any(line, cut + 1ull, size, "%");
     }
     static const char word[] = "\\usepackage";
     const unsigned long long word_size = sizeof(word) - 1ull;
@@ -194,10 +193,7 @@ static int latex_takes_unicode(const char *line, unsigned long long size)
         while (name <= end)
         {
             unsigned long long stop = name;
-            while ((stop < end) && (line[stop] != ','))
-            {
-                stop += 1ull;
-            }
+            stop = cli_text_to_any(line, stop, end, ",");
             unsigned long long first = name;
             unsigned long long last = stop;
             while ((first < last) && cli_tex_white(line[first]))

@@ -3,7 +3,7 @@
 
 // Files dropped on the window from outside it. Each is copied into the tree behind the window
 // (files.rs): into the folder of the tree's pane it is dropped on, the folder of a file it is dropped
-// on, or the tree's top anywhere else. The folder it would go into is lit while it is held over the
+// on, or the tree's top anywhere else. The folder it would go into is lit while it is kept over the
 // window. Each file being copied has a bar on the status bar of how far along it is, the window
 // works on meanwhile, and nothing dropped is opened until it is asked for.
 

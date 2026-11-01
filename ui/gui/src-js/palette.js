@@ -18,7 +18,7 @@ const MOST = 200;
 
 const RECENT_COMMANDS = "orior.palette.recent";
 
-const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, drawing: 0, everywhere: false, custom: null, held: null };
+const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, drawing: 0, everywhere: false, custom: null, pickId: null };
 
 // How many of each kind Search Everywhere shows, and how close two presses of Shift come to open it,
 // in milliseconds.
@@ -147,7 +147,7 @@ async function fileRows(query) {
   if (!path) {
     return recent.map((file, at) => rowOf(file, [], -at, "recently opened"));
   }
-  // The tree's files are matched in files.rs, where the list of them is held: a name the same as
+  // The tree's files are matched in files.rs, where the list of them is kept: a name the same as
   // what was typed first, then one that starts with it, ahead of a longer name that only holds it.
   // Until the tree's files are read, the files opened lately answer.
   const found = await state.hooks.findFiles(path, recent, MOST).catch(() => ({ found: [], reading: false }));
@@ -179,7 +179,7 @@ async function everywhereRows(text) {
 
 async function rowsFor(text) {
   if (state.custom?.items) {
-    return heldRows(text.trim());
+    return cachedRows(text.trim());
   }
   if (state.custom) {
     return state.custom.rows(text.trim());
@@ -202,11 +202,11 @@ async function rowsFor(text) {
   return fileRows(text);
 }
 
-// The rows of a list given as items, matched on the window's side, picks.c, where its texts are held:
+// The rows of a list given as items, matched on the window's side, picks.c, where its texts are kept:
 // the best MOST of them for what is typed, each item's own label marked where it matched.
-async function heldRows(query) {
+async function cachedRows(query) {
   const { items } = state.custom;
-  const id = await state.held;
+  const id = await state.pickId;
   const found = await invoke("pick_find", { id, query, most: MOST }).catch(() => []);
   return found
     .filter(({ at }) => items[at])
@@ -216,11 +216,11 @@ async function heldRows(query) {
     });
 }
 
-// Lets go of the list held on the window's side for the list shown, where one is.
+// Lets go of the list stored on the window's side for the list shown, where one is.
 function letGo() {
-  const held = state.held;
-  state.held = null;
-  held?.then((id) => invoke("pick_forget", { id })).catch(() => {});
+  const pickId = state.pickId;
+  state.pickId = null;
+  pickId?.then((id) => invoke("pick_forget", { id })).catch(() => {});
 }
 
 function placeholderOf(text) {
@@ -325,7 +325,7 @@ export function openPalette(text = "", { everywhere = false, custom = null } = {
   state.everywhere = everywhere;
   state.custom = custom;
   if (custom?.items) {
-    state.held = invoke("pick_store", { texts: custom.items.map((item) => item.text.replace(/\n/g, " ")).join("\n") });
+    state.pickId = invoke("pick_store", { texts: custom.items.map((item) => item.text.replace(/\n/g, " ")).join("\n") });
   }
   state.node.classList.toggle("everywhere", everywhere);
   state.node.hidden = false;

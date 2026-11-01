@@ -1,14 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// symbols_leaves.c: a text's leaves kept for a walk over them, in a cell whose room doubles as they come: each leaf's
-// line, its bytes in the text and what it is, read off its token's name's segments alone. No language is read here
-// but by its plugin's grammar
+// symbols_leaves.c: a text's leaves kept for a walk over them, in a cell at their most: each leaf's line, its bytes in
+// the text and what it is, read off its token's name's segments alone. No language is read here but by its plugin's
+// grammar
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 
 // the room the first cell of leaves holds
-#define CLI_LEAVES_FIRST 256u
+#define CLI_LEAVES_MARKS 256ull
+#define CLI_LEAVES_MOST (1u << 19u)
 
 // whether the segment of `name` from `from`, `length` bytes, is `segment`
 static int cli_leaf_segment_is(const char *name, unsigned long long from, unsigned long long length,
@@ -80,10 +81,7 @@ static void cli_leaf_of(const char *name, CliLeaf *leaf)
     while (from <= length)
     {
         unsigned long long to = from;
-        while ((to < length) && (name[to] != '.'))
-        {
-            to += 1ull;
-        }
+        to = cli_text_to_any(name, to, length, ".");
         const unsigned long long size = to - from;
         if (counts != 0u)
         {
@@ -185,19 +183,19 @@ unsigned int cli_symbols_name_roles(const char *name)
                 : 0u);
 }
 
-// the leaves' room twice what it was, or CLI_LEAVES_FIRST where it has none: 1, or 0 where the cells cannot meet it
-static int cli_leaves_grown(CliLeafRead *read)
+// the leaves' one cell taken for the text's bytes, a leaf a byte at the most and a mark past those, at most
+// CLI_LEAVES_MOST: 1, or 0 where it stands full or the cells cannot meet it
+static int cli_leaves_taken(CliLeafRead *read)
 {
-    const unsigned int room = (read->room == 0u) ? CLI_LEAVES_FIRST : (2u * read->room);
-    const size_t bytes = (size_t)room * sizeof(CliLeaf);
-    CliLeaf *const grown = cli_cell_regrown(read->leaf, (size_t)read->count * sizeof(CliLeaf), bytes, &g_cli_leaves_cells);
-    if (grown == NULL)
+    if (read->room != 0u)
     {
         return 0;
     }
-    read->leaf = grown;
-    read->room = room;
-    return 1;
+    const unsigned long long wanted = read->size + CLI_LEAVES_MARKS;
+    const unsigned int room = (wanted < CLI_LEAVES_MOST) ? (unsigned int)wanted : CLI_LEAVES_MOST;
+    read->leaf = g_cli_cells->temporary_buf_alloc((unsigned long long)room * sizeof(CliLeaf), &g_cli_leaves_cells);
+    read->room = (read->leaf != NULL) ? room : 0u;
+    return read->leaf != NULL;
 }
 
 // One line's leaves kept after those before, each at its bytes in the text, a mark a leaf of no bytes: the copy the
@@ -225,7 +223,7 @@ static void cli_leaves_line(void *context, const CliLeaves *leaves)
         {
             continue;
         }
-        if ((read->count == read->room) && !cli_leaves_grown(read))
+        if ((read->count == read->room) && !cli_leaves_taken(read))
         {
             read->refused = 1;
             break;
@@ -256,13 +254,15 @@ int cli_symbols_leaves_declared(CliSymbolsLanguages *languages, const char *path
                                 unsigned long long size, CliLeafRead *read, CliDeclared each, void *context)
 {
     *read = (CliLeafRead){text, NULL, 0u, 0u, 0u, NULL, 0, each, context, 0};
+    read->size = size;
     return cli_symbols_leaves_in(languages, path, state, text, size, cli_leaves_line, read) && !read->refused;
 }
 
 int cli_symbols_leaves_temporary(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
-                             unsigned long long size, CliLeafRead *read)
+                                 unsigned long long size, CliLeafRead *read)
 {
     *read = (CliLeafRead){text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
+    read->size = size;
     return cli_symbols_leaves_in(languages, path, state, text, size, cli_leaves_line, read) && !read->refused;
 }
 
@@ -270,6 +270,7 @@ int cli_symbols_language_leaves_kept(CliSymbolsLanguages *languages, const char 
                                      unsigned long long size, CliLeafRead *read)
 {
     *read = (CliLeafRead){text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
+    read->size = size;
     return cli_symbols_language_leaves_in(languages, id, "root", text, size, cli_leaves_line, read) && !read->refused;
 }
 

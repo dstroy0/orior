@@ -3,6 +3,7 @@
 // git_branches.c: the branches and what is done to them, the stashes and what is done to them, the commits of other
 // branches and one applied here, and the branch pushed and pulled
 #include "../machine/net.h"
+#include "../text/text.h"
 #include "git_internal.h"
 
 // the most bytes of what git reports of what it was requested to do, stored to be reported
@@ -23,10 +24,7 @@ void cli_git_branches(const char *root, CliBranches *found)
     while ((line < end) && (found->count < CLI_GIT_BRANCHES))
     {
         const char *stop = line;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const char *const next = stop + 1;
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
         const char *at = line;
@@ -135,10 +133,7 @@ void cli_git_stashes(const char *root, CliStashes *found)
     while ((line < end) && (found->count < CLI_GIT_STASHES))
     {
         const char *stop = line;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const char *const next = stop + 1;
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
         const char *at = line;
@@ -267,15 +262,9 @@ int cli_git_ahead_behind(const char *root, unsigned int *ahead, unsigned int *be
     const char *const end = gave->out + gave->out_size;
     while (found && (read < 2u) && (at < end))
     {
-        while ((at < end) && ((at[0] == ' ') || ((at[0] >= '\t') && (at[0] <= '\r'))))
-        {
-            at += 1;
-        }
+        at += cli_text_past_any(at, 0ull, (unsigned long long)(end - at), CLI_TEXT_WHITE);
         const char *const word = at;
-        while ((at < end) && (at[0] != ' ') && !((at[0] >= '\t') && (at[0] <= '\r')))
-        {
-            at += 1;
-        }
+        at += cli_text_to_any(at, 0ull, (unsigned long long)(end - at), CLI_TEXT_WHITE);
         long long value = 0ll;
         if ((at > word) && cli_git_seconds(word, (unsigned long long)(at - word), &value) && (value >= 0ll) &&
             (value <= 0xffffffffll))

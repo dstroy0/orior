@@ -30,38 +30,14 @@ static void read_changes(unsigned int step, void (*each)(void *context, const ch
     }
 }
 
-// the values a frame's are begun to be stored in, doubling as they come
-#define CLI_RECORDED_VALUES_FIRST 16u
-
-// The values stored as the steps of a frame are read: a cell of `room` of them grown as they come for `owner`, the most
-// it contains, and how many there are
+// The values stored as the steps of a frame are read: a cell of `room` of them for `owner`, and how many there are
 typedef struct
 {
     CliRecordedValue *values;
     unsigned int room;
-    unsigned int most;
     unsigned int count;
     CellOwner *owner;
 } CliRecordedValues;
-
-// room made among the values stored for one more, below their most: the values moved into a cell of twice their room
-static void read_value_room(CliRecordedValues *recorded)
-{
-    if ((recorded->count < recorded->room) || (recorded->room >= recorded->most))
-    {
-        return;
-    }
-    const unsigned int doubled = (recorded->room == 0u) ? CLI_RECORDED_VALUES_FIRST : (recorded->room * 2u);
-    const unsigned int room = (doubled < recorded->most) ? doubled : recorded->most;
-    CliRecordedValue *const grown =
-        cli_cell_regrown(recorded->values, recorded->count * sizeof(*grown), room * sizeof(*grown), recorded->owner);
-    if (grown == NULL)
-    {
-        return;
-    }
-    recorded->values = grown;
-    recorded->room = room;
-}
 
 // a change applied to the values stored: the name's value taken out, and its new one put after the rest where it has
 // one
@@ -78,10 +54,6 @@ static void read_value_put(void *context, const char *name, const char *value)
         }
     }
     recorded->count = count;
-    if (value != NULL)
-    {
-        read_value_room(recorded);
-    }
     if ((value != NULL) && (recorded->count < recorded->room))
     {
         CliRecordedValue *const put = &recorded->values[recorded->count];
@@ -100,12 +72,14 @@ unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecor
                                   CellOwner *owner)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    CliRecordedValues recorded = {NULL, 0u, most, 0u, owner};
     *taken = NULL;
     if (serial >= recording->frame_most)
     {
         return 0u;
     }
+    CliRecordedValue *const cell =
+        g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CliRecordedValue), owner);
+    CliRecordedValues recorded = {cell, (cell != NULL) ? most : 0u, 0u, owner};
     const CliRecordedFrame *const frame = &recording->frames[serial];
     for (unsigned int index = 0u; (index < frame->count) && (recording->by_frame[frame->first + index] <= at);
          index += 1u)

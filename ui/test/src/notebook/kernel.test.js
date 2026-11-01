@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // A notebook's kernel: a cell run on the kernel the notebook names, started where none runs, what the kernel says
-// heard into the cell's outputs, what it says before the run's id comes back held for it, and the notebook checked
+// heard into the cell's outputs, what it says before the run's id comes back kept for it, and the notebook checked
 // from the top in a kernel of its own.
 
 import { state } from "../../../gui/src-js/notebook.js";
@@ -58,7 +58,7 @@ test("a cell runs on a kernel started for it, and what the kernel says fills its
   });
 });
 
-test("what the kernel says of a run before its id comes back is held for it, and an aborted run is not counted", async () => {
+test("what the kernel says of a run before its id comes back is kept for it, and an aborted run is not counted", async () => {
   await withKernels([PYTHON], async () => {
     const book = await openedNotebook("early", [code("x")]);
     const cell = book.cells[0];

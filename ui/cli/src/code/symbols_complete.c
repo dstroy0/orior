@@ -10,11 +10,11 @@
 #include "symbols_internal.h"
 #include "symbols_tree.h"
 
-// the bytes the names handed on are begun in, doubling as they fill
-#define CLI_COMPLETE_FIRST 4096u
+// the bytes the names handed on are written in
+#define CLI_COMPLETE_ROOM (1ull << 20u)
 
-// The names being completed: the word typed and how long, the names handed on, each with a zero after, in a growing
-// line, and where each goes
+// The names being completed: the word typed and how long, the names handed on, each with a zero after, in a line, and
+// where each goes
 typedef struct
 {
     const char *typed;
@@ -59,16 +59,22 @@ static void complete_kind_declared(const char *path, const char *name, unsigned 
     cli_lock_take(&g_cli_symbols_lock);
     const unsigned int file = cli_symbols_file_of(path);
     const CliSymbolFile *const branch = (file < CLI_SYMBOL_FILES) ? &g_cli_symbol_files[file] : NULL;
-    for (unsigned int at = 0u; (branch != NULL) && branch->used && (kind[0] == '\0') && (at < branch->count); at += 1u)
+    char *const scratch = ((branch != NULL) && branch->used) ? cli_symbol_scratch_taken() : NULL;
+    if (scratch != NULL)
     {
-        const CliSymbol *const one = &cli_symbol_file_symbols(branch)[at];
-        if ((one->line == line) && (one->length == length) && cli_text_same(branch->cell + one->name, name, length))
+        cli_symbol_file_read(branch, scratch);
+    }
+    for (unsigned int at = 0u; (scratch != NULL) && (kind[0] == '\0') && (at < branch->count); at += 1u)
+    {
+        const CliSymbol *const one = &cli_symbol_file_symbols(scratch)[at];
+        if ((one->line == line) && (one->length == length) && cli_text_same(scratch + one->name, name, length))
         {
             VerbaLinea written = {kind, CLI_NAME_MAX_LEN, 0ull};
-            mmgr_line_put(&written, branch->cell + one->kind);
+            mmgr_line_put(&written, scratch + one->kind);
             kind[(mmgr_line_finish(&written) != 0ull) ? written.at : 0ull] = '\0';
         }
     }
+    cli_symbol_scratch_given(scratch);
     cli_lock_give(&g_cli_symbols_lock);
 }
 
@@ -163,10 +169,7 @@ int cli_symbols_complete(const char *path, const char *text, unsigned long long 
         lines += (text[start] == '\n') ? 1u : 0u;
     }
     unsigned long long end = start;
-    while ((end < size) && (text[end] != '\n'))
-    {
-        end += 1ull;
-    }
+    end = cli_text_to_any(text, end, size, "\n");
     unsigned long long byte = 0ull;
     unsigned int units = 0u;
     const unsigned long long at = start + cli_symbols_byte_at(text + start, end - start, col, &byte, &units);
@@ -179,12 +182,10 @@ int cli_symbols_complete(const char *path, const char *text, unsigned long long 
     const unsigned long long words = CLI_LEAF_COMMENT | CLI_LEAF_STRING;
     const int named = leaved && (place < read.count) && (read.leaf[place].from < at) &&
                       ((read.leaf[place].is & CLI_LEAF_NAME) != 0u) && ((read.leaf[place].is & words) == 0u);
-    CliComplete complete = {named ? text + read.leaf[place].from : "",
-                            named ? at - read.leaf[place].from : 0ull,
-                            {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                            each,
-                            context};
-    int done = cli_growing_line_made(&complete.handed, CLI_COMPLETE_FIRST, &g_cli_code_cells);
+    char *const handed_cell = g_cli_cells->temporary_buf_alloc(CLI_COMPLETE_ROOM, &g_cli_code_cells);
+    CliComplete complete = {named ? text + read.leaf[place].from : "", named ? at - read.leaf[place].from : 0ull,
+                            mmgr_line_over(handed_cell, CLI_COMPLETE_ROOM), each, context};
+    int done = handed_cell != NULL;
     CliEffect *const effect = done ? cli_effect_made(path, "", 1, err_msg) : NULL;
     if (effect != NULL)
     {

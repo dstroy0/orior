@@ -3,6 +3,7 @@
 // git_clone.c: a folder made a repository, and a repository cloned into a folder of its own, each line of git's
 // progress reported as it comes
 #include "../machine/net.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "git_internal.h"
 
@@ -55,19 +56,13 @@ int cli_git_clone_folder(const char *url, const char *parent, char *folder, Verb
     const char *from = url;
     const char *to = url + cellul.len(&(CatenaFinitaCfg){.src = url, .cap = CLI_CELLS_POOL});
     cli_git_trimmed(&from, &to);
-    while ((to > from) && ((to[-1] == '/') || (to[-1] == '\\')))
-    {
-        to -= 1;
-    }
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), "/\\");
     if (((to - from) >= 4) && (memor.cmp(&(MemoriaCfg){.src = to - 4, .other = ".git", .bytes = 4u}) == 0))
     {
         to -= 4;
     }
     const char *name = to;
-    while ((name > from) && (name[-1] != '/') && (name[-1] != '\\') && (name[-1] != ':'))
-    {
-        name -= 1;
-    }
+    name = from + cli_text_back_any(from, (unsigned long long)(name - from), "/\\:");
     const unsigned long long length = (unsigned long long)(to - name);
     if ((length == 0ull) || ((length == 1ull) && (name[0] == '.')) ||
         ((length == 2ull) && (name[0] == '.') && (name[1] == '.')))

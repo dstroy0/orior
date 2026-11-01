@@ -6,6 +6,7 @@
 // given back as it closes, its place here empty while none is open in it
 #include "../servers/lsp.h"
 #include "../tests/test_runs.h"
+#include "../text/text.h"
 #include "db_internal.h"
 
 static CliDbLite *s_lites[CLI_DB_LITES];
@@ -295,10 +296,7 @@ static void lite_items(const char *text, unsigned long long length,
                        void (*each)(void *context, const char *item, unsigned long long size), void *context)
 {
     unsigned long long at = 0ull;
-    while ((at < length) && (text[at] != '['))
-    {
-        at += 1ull;
-    }
+    at = cli_text_to_any(text, at, length, "[");
     for (at += 1ull; at < length;)
     {
         while ((at < length) &&
@@ -346,7 +344,7 @@ int cli_db_lite_start(CliDbLite *lite, const char *statement, unsigned long long
     const unsigned long long quoted = (6ull * size) + 16ull;
     const unsigned long long room = (quoted < CLI_DB_LITE_LINE) ? quoted : CLI_DB_LITE_LINE;
     char *const request = g_cli_cells->temporary_buf_alloc(room, &g_cli_db_cells);
-    VerbaLinea query = {request, (request != NULL) ? room : 0ull, 0ull};
+    VerbaLinea query = mmgr_line_over(request, room);
     mmgr_line_put(&query, "{\"start\":");
     cli_json_quoted_lossy(&query, (const unsigned char *)statement, size);
     mmgr_line_ch(&query, '}');

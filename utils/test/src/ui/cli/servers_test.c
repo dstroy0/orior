@@ -448,20 +448,38 @@ static void servers_projects(void)
     mmgr_line_ch(&want, ']');
     (void)mmgr_line_finish(&want);
     cli_check_text(listed, out.at, wanted, "the projects a server is given are found to six folders down, in order");
-    cli_check(embed_atomic_usize_load(&g_cli_servers_launch_cells.in_use) == 0ull, "and the cells the search took are given back");
+    cli_check(embed_atomic_usize_load(&g_cli_servers_launch_cells.in_use) == 0ull,
+              "and the cells the search took are given back");
+}
+
+// params past their line are refused with why, no server reached
+static void servers_params_refused(void)
+{
+    char params_text[4];
+    VerbaLinea params = {params_text, sizeof(params_text), 0ull};
+    mmgr_line_put(&params, "{\"longer\":1}");
+    CliLspAnswer answer;
+    char why[128];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(!cli_servers_request(NULL, "textDocument/hover", &params, 0ull, &answer, &err_msg),
+              "params that did not fit their line are refused with no server reached");
+    cli_check(err_msg.at > 0ull, "and the refusal says why");
+    cli_check(answer.message == NULL, "and no answer is handed over");
 }
 
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check_begun();
+    servers_params_refused();
     servers_projects();
     servers_stop_check();
     servers_specs();
     servers_markdown();
     servers_edits();
     // the workspace edits read are a few files of a few edits each, far below the room of every edit and file
-    cli_check((embed_atomic_usize_load(&g_cli_servers_edits_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_servers_edits_cells.hw) != 0ull) &&
+    cli_check((embed_atomic_usize_load(&g_cli_servers_edits_cells.in_use) == 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_servers_edits_cells.hw) != 0ull) &&
                   (embed_atomic_usize_load(&g_cli_servers_edits_cells.hw) < 16384ull),
               "a workspace edit is stored in a cell counted to its files and edits, and given back");
     servers_offers();

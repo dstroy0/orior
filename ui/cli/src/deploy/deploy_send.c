@@ -5,7 +5,7 @@
 // runs, or into its folder itself; to a folder here each file copied into it. And a machine's `current` turned to a
 // release, its old releases let go of, and each place turned back to the release before the one it runs
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
+#include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 
@@ -27,22 +27,16 @@ static void send_releases_given(void)
     s_releases_listing = NULL;
 }
 
-// the shell line written on `line` run on `place`, joined into a cell of its size, `longer` given where that cell
-// could not be taken: 1, or 0 with why given
-static int send_line_run(const CliDeployPlace *place, CliPieces *pieces, VerbaLinea *line, const char *longer,
-                         VerbaLinea *err_msg)
+// the shell line written on `line` run on `place`, `longer` given where it did not fit: 1, or 0 with why given
+static int send_line_run(const CliDeployPlace *place, const VerbaLinea *line, const char *longer, VerbaLinea *err_msg)
 {
-    unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(pieces, line, "a deployment's shell line", &size);
-    if (joined == NULL)
+    if (!mmgr_line_ok(line))
     {
         mmgr_line_put(err_msg, longer);
         return 0;
     }
     VerbaLinea nothing = {NULL, 0ull, 0ull};
-    const int ran = cli_deploy_remote_run(place, joined, NULL, 0ull, &nothing, err_msg);
-    g_cli_cells->persistent_buf_release(joined, &g_cli_deploy_cells);
-    return ran;
+    return cli_deploy_remote_run(place, line->out, NULL, 0ull, &nothing, err_msg);
 }
 
 // `size` bytes of `text`, then `path`, as one word of a shell line
@@ -128,10 +122,8 @@ static int send_carried(unsigned int index, const char *into, const CliDeployPai
     {
         return 1;
     }
-    char piece[CLI_DEPLOY_PIECE];
-    CliPieces pieces;
-    VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_deploy_cells);
+    char *const line_text = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_LINE, &g_cli_deploy_cells);
+    VerbaLinea line = mmgr_line_over(line_text, CLI_DEPLOY_LINE);
     char current[CLI_PATH_MAX_LEN + 16u];
     VerbaLinea current_line = {current, sizeof(current), 0ull};
     mmgr_line_put(&current_line, cli_deploy_place_folder(place));
@@ -148,10 +140,8 @@ static int send_carried(unsigned int index, const char *into, const CliDeployPai
         mmgr_line_put(&to_line, path);
         mmgr_line_finish(&to_line);
         unsigned long long slash = to_line.at;
-        while ((slash > 0u) && (to[slash] != '/'))
-        {
-            slash -= 1u;
-        }
+        const unsigned long long past = cli_text_back_any(to, slash, "/");
+        slash = (past != 0ull) ? (past - 1ull) : 0ull;
         mmgr_line_put(&line, (at > 0u) ? " && mkdir -p " : "mkdir -p ");
         cli_link_quote(to, slash, &line);
         mmgr_line_put(&line, " && cp -p ");
@@ -159,8 +149,10 @@ static int send_carried(unsigned int index, const char *into, const CliDeployPai
         mmgr_line_ch(&line, ' ');
         cli_link_quote(to, to_line.at, &line);
     }
-    return send_line_run(place, &pieces, &line, "the line that copies the files retained is longer than orior_cli runs",
-                         err_msg);
+    const int ran =
+        send_line_run(place, &line, "the line that copies the files retained is longer than orior_cli runs", err_msg);
+    g_cli_cells->persistent_buf_release(line_text, &g_cli_deploy_cells);
+    return ran;
 }
 
 int cli_deploy_send_to(unsigned int index, int releases, const char *release, unsigned long long time, int replace,
@@ -205,7 +197,7 @@ int cli_deploy_send_to(unsigned int index, int releases, const char *release, un
     cli_link_quote(into, into_line.at, &command);
     mmgr_line_finish(&command);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(tar, &size);
+    const unsigned char *const bytes = cli_file_taken(tar, &size, &g_cli_deploy_cells);
     VerbaLinea none = {NULL, 0ull, 0ull};
     const int sent = (bytes != NULL) && cli_deploy_remote_run(place, line, (const char *)bytes, size, &none, err_msg);
     if (bytes == NULL)
@@ -215,7 +207,7 @@ int cli_deploy_send_to(unsigned int index, int releases, const char *release, un
     }
     else
     {
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_deploy_cells);
     }
     (void)query_removed(tar);
     return sent && (!releases || send_carried(index, into, preserved, preserved_count, remove, err_msg));
@@ -242,20 +234,18 @@ static int send_releases(unsigned int index, const char **current, VerbaLinea *e
     mmgr_line_put(&command, " 2>/dev/null || exit 0; ls -1 releases 2>/dev/null; echo '<current>'; readlink current "
                             "2>/dev/null; true");
     mmgr_line_finish(&command);
-    char piece[CLI_DEPLOY_PIECE];
-    CliPieces pieces;
-    VerbaLinea listing;
-    cli_pieces_begun(&pieces, &listing, piece, sizeof(piece), &g_cli_deploy_cells);
+    s_releases_listing = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_LINE, &g_cli_deploy_cells);
+    VerbaLinea listing = mmgr_line_over(s_releases_listing, CLI_DEPLOY_LINE);
     const int ran = cli_deploy_remote_run(place, line, NULL, 0ull, &listing, err_msg);
-    unsigned long long size = 0ull;
-    s_releases_listing = cli_pieces_joined(&pieces, &listing, "a machine's releases", &size);
+    const unsigned long long size = listing.at;
     if (!ran)
     {
         send_releases_given();
         return 0;
     }
-    if (s_releases_listing == NULL)
+    if (!mmgr_line_ok(&listing))
     {
+        send_releases_given();
         mmgr_line_put(err_msg, "it has more files than orior_cli supports");
         return 0;
     }
@@ -268,12 +258,10 @@ static int send_releases(unsigned int index, const char **current, VerbaLinea *e
         *mark = '\0';
     }
     unsigned int lines = 1u;
-    for (const char *at = s_releases_listing; *at != '\0'; at += 1)
-    {
-        lines += (*at == '\n') ? 1u : 0u;
-    }
+    lines += (unsigned int)cli_text_counted(
+        s_releases_listing, cellul.len(&(CatenaFinitaCfg){.src = s_releases_listing, .cap = CLI_CELLS_POOL}), '\n');
     s_releases =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)lines * sizeof(s_releases[0]), &g_cli_deploy_cells);
+        g_cli_cells->temporary_buf_alloc((unsigned long long)lines * sizeof(s_releases[0]), &g_cli_deploy_cells);
     if (s_releases == NULL)
     {
         send_releases_given();
@@ -283,22 +271,11 @@ static int send_releases(unsigned int index, const char **current, VerbaLinea *e
     for (char *at = s_releases_listing; (*at != '\0') && (s_release_count < lines);)
     {
         char *end = at;
-        while ((*end != '\0') && (*end != '\n'))
-        {
-            end += 1;
-        }
+        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "\n");
         const int more = (*end == '\n');
         *end = '\0';
-        char *start = at;
-        while (cellul.ws(&(CatenaFinitaCfg){.src = start}))
-        {
-            start += 1;
-        }
-        char *last = end;
-        while ((last > start) && cellul.ws(&(CatenaFinitaCfg){.src = last - 1}))
-        {
-            last -= 1;
-        }
+        char *const start = at + cli_text_past_any(at, 0ull, (unsigned long long)(end - at), CLI_TEXT_WHITE);
+        char *const last = start + cli_text_back_past(start, (unsigned long long)(end - start), CLI_TEXT_WHITE);
         *last = '\0';
         if (*start != '\0')
         {
@@ -318,10 +295,7 @@ static int send_releases(unsigned int index, const char **current, VerbaLinea *e
     {
         char *name = after + 9;
         char *last = name + cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-        while ((last > name) && ((last[-1] == '/') || cellul.ws(&(CatenaFinitaCfg){.src = last - 1})))
-        {
-            last -= 1;
-        }
+        last = name + cli_text_back_past(name, (unsigned long long)(last - name), CLI_TEXT_WHITE "/");
         *last = '\0';
         *current = name;
     }
@@ -339,10 +313,8 @@ void cli_deploy_prune(unsigned int index, unsigned long long retain)
         return;
     }
     const unsigned long long newest = (retain > 1u) ? retain : 1u;
-    char piece[CLI_DEPLOY_PIECE];
-    CliPieces pieces;
-    VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_deploy_cells);
+    char *const line_text = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_LINE, &g_cli_deploy_cells);
+    VerbaLinea line = mmgr_line_over(line_text, CLI_DEPLOY_LINE);
     mmgr_line_put(&line, "cd ");
     send_quoted(&line, place->address.folder, "/releases");
     mmgr_line_put(&line, " && rm -rf --");
@@ -359,12 +331,9 @@ void cli_deploy_prune(unsigned int index, unsigned long long retain)
         }
     }
     send_releases_given();
-    if (old == 0u)
-    {
-        cli_pieces_given(&pieces);
-        return;
-    }
-    if (!send_line_run(place, &pieces, &line, "", &none))
+    const int ran = (old != 0u) && send_line_run(place, &line, "", &none);
+    g_cli_cells->persistent_buf_release(line_text, &g_cli_deploy_cells);
+    if (!ran)
     {
         return;
     }
@@ -482,10 +451,8 @@ int cli_deploy_removed(unsigned int index, VerbaLinea *err_msg)
     }
     else
     {
-        char piece[CLI_DEPLOY_PIECE];
-        CliPieces pieces;
-        VerbaLinea line;
-        cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_deploy_cells);
+        char *const line_text = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_LINE, &g_cli_deploy_cells);
+        VerbaLinea line = mmgr_line_over(line_text, CLI_DEPLOY_LINE);
         mmgr_line_put(&line, "cd ");
         cli_link_quote(place->address.folder,
                        cellul.len(&(CatenaFinitaCfg){.src = place->address.folder, .cap = CLI_CELLS_POOL}), &line);
@@ -496,8 +463,10 @@ int cli_deploy_removed(unsigned int index, VerbaLinea *err_msg)
             cli_link_quote(gone[at].path, cellul.len(&(CatenaFinitaCfg){.src = gone[at].path, .cap = CLI_CELLS_POOL}),
                            &line);
         }
-        if (!send_line_run(place, &pieces, &line, "the line that deletes the files gone is longer than orior_cli runs",
-                           err_msg))
+        const int ran =
+            send_line_run(place, &line, "the line that deletes the files gone is longer than orior_cli runs", err_msg);
+        g_cli_cells->persistent_buf_release(line_text, &g_cli_deploy_cells);
+        if (!ran)
         {
             return 0;
         }

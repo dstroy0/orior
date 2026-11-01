@@ -3,6 +3,7 @@
 // requests_ready.c: the request at a line of a file of requests made ready to go: its address, headers and body
 // filled with the variables of the file over those of the environment chosen, an address with no scheme sent over
 // http, and a body named by `< path` read from beside the file
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
@@ -31,8 +32,8 @@ static int ready_filled(const CliRequestsParsed *parsed, CliRequestsText text, c
     return 1;
 }
 
-// the file `name`, beside the file at `path`, read whole into `body`, a growing line: its size into `size`: 1, or 0
-// with why given
+// the file `name`, beside the file at `path`, read whole into `body`, a line: its size into `size`: 1, or 0 with why
+// given
 static int ready_body_file(const char *root, const char *path, const char *name, VerbaLinea *body,
                            unsigned long long *size, VerbaLinea *err_msg)
 {
@@ -53,7 +54,8 @@ static int ready_body_file(const char *root, const char *path, const char *name,
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
     unsigned long long length = 0ull;
-    const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(beside, &length) : NULL;
+    const unsigned char *const bytes =
+        (mmgr_line_finish(&line) != 0ull) ? cli_file_taken(beside, &length, &g_cli_requests_cells) : NULL;
     const int whole = (bytes != NULL) && cli_utf8_whole((const char *)bytes, length);
     if (whole)
     {
@@ -64,10 +66,7 @@ static int ready_body_file(const char *root, const char *path, const char *name,
     {
         *size = length;
     }
-    if (bytes != NULL)
-    {
-        cli_file_let_go(bytes, length);
-    }
+    cli_file_given(bytes, &g_cli_requests_cells);
     if (!whole)
     {
         mmgr_line_put(err_msg, name);
@@ -151,7 +150,7 @@ static int ready_made(const char *root, const char *path, const CliRequestsParse
     {
         made = ready_body_file(root, path, parsed->text + request->body_file.at, body, &sent->body_size, err_msg);
     }
-    // the body's cell is the one it ended in: a growing line moves as it fills
+    // the body's cell is the one it ended in: a line moves as it fills
     sent->body = body->out;
     return made;
 }

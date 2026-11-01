@@ -94,13 +94,13 @@ typedef struct
     int full;
 } CliIppMessage;
 
-// the cells the messages' groups, attributes, values and bytes are stored in, each doubling as it is put, counted; and
-// a message's cells given back, the message left empty, a message given back once it is done with (ipp.c)
+// the cells the messages' groups, attributes, values and bytes are stored in, counted; and a message's cells given
+// back, the message left empty, a message given back once it is done with (ipp.c)
 extern CellOwner g_cli_ipp_cells;
 void cli_ipp_given(CliIppMessage *message);
 // a message begun with no groups, the cells it occupied retained for its puts; a group begun; an attribute of `name`
-// begun in the last group; and a value put after the last attribute's: a number or an enum, a truth, a range, a text by
-// its tag
+// written in the last group; and a value put after the last attribute's: a number or an enum, a truth, a range, a text
+// by its tag
 void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int request_id);
 void cli_ipp_group(CliIppMessage *message, unsigned int tag);
 void cli_ipp_attribute(CliIppMessage *message, const char *name);

@@ -186,15 +186,15 @@ LATTICE_EXPORT(lattice_paint) uint32_t lattice_paint(uint32_t slot, double width
     {
         lattice_painter_made(slot, painter);
     }
-    LatticeSlot *const held = lattice_slot(slot);
-    if ((painter->state != LATTICE_MADE) || !lattice_dots_moved(held, width, height, seconds, lattice_shades()))
+    LatticeSlot *const lattice = lattice_slot(slot);
+    if ((painter->state != LATTICE_MADE) || !lattice_dots_moved(lattice, width, height, seconds, lattice_shades()))
     {
         return 0u;
     }
-    lattice_gl_points(slot, painter->buffer, held->dots, held->count * (uint32_t)sizeof(LatticeDot));
+    lattice_gl_points(slot, painter->buffer, lattice->dots, lattice->count * (uint32_t)sizeof(LatticeDot));
     lattice_gl_begin(slot, painter->program, painter->buffer);
     lattice_gl_uniform2f(slot, painter->size, width, height);
     lattice_gl_uniform1f(slot, painter->scale, scale);
-    lattice_gl_draw(slot, painter->place, painter->radius, painter->shade, held->count);
+    lattice_gl_draw(slot, painter->place, painter->radius, painter->shade, lattice->count);
     return 1u;
 }

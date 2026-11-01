@@ -91,22 +91,22 @@ export class Minimap {
     const fileTop = (s?.base ?? 0) + viewRow;
     let start = 0;
     if (s?.window) {
-      // A file held as pages: the map stands where the view stands in the whole file, its line count as the index
-      // counts it, and not in the window held now, so the slider moves with the view as the window moves under it.
+      // A file stored as pages: the map stands where the view stands in the whole file, its line count as the index
+      // counts it, and not in the window kept now, so the slider moves with the view as the window moves under it.
       // The map's rows above or below the window stand empty until the window comes to them.
       const total = ed.linesInFile();
       const ratio = Math.min(1, Math.max(0, fileTop / Math.max(1, total - onScreen)));
       start = Math.round(ratio * Math.max(0, total - fit)) - s.base;
     } else {
-      if (this.held && this.held.session === s && this.held.fileTop === fileTop) {
+      if (this.anchor && this.anchor.session === s && this.anchor.fileTop === fileTop) {
         // The view has not moved since the map last stood: the map stands where it did beside it.
-        start = viewRow - this.held.offset;
+        start = viewRow - this.anchor.offset;
       } else if (rows.size > fit) {
         start = Math.round(Math.min(1, scrollTop / range) * (rows.size - fit));
       }
       start = Math.round(Math.max(0, Math.min(Math.max(0, rows.size - fit), start)));
     }
-    this.held = { session: s, fileTop, offset: viewRow - start };
+    this.anchor = { session: s, fileTop, offset: viewRow - start };
     const sliderTop = (viewRow - start) * ROW;
     return { rows, fit, start, range, onScreen, sliderTop, sliderHeight: Math.max(8, onScreen * ROW) };
   }
@@ -318,7 +318,7 @@ export class Minimap {
     }
     const startY = event.clientY;
     const startTop = ed.scroller.scrollTop;
-    // the slider's run down the map, the rows the map stands for counted in the whole file where it is held as pages
+    // the slider's run down the map, the rows the map stands for counted in the whole file where it is stored as pages
     const all = ed.s.window ? ed.linesInFile() : found.rows.size;
     const span = Math.max(1, (Math.min(all, found.fit) - found.onScreen) * ROW);
     this.dragging = true;

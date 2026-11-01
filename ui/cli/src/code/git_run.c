@@ -13,16 +13,14 @@
 // the most words git is started with
 #define CLI_GIT_WORDS 8192u
 
-// A room a run of git takes: what it gave and the bytes it points into, its output in a cell of its own that doubles
-// as it fills, the process, the threads that read its errors and write its input and the count of them ended, and the
-// words it is started with
+// A room a run of git takes: what it gave and the bytes it points into, the process, the threads that read its errors
+// and write its input and the count of them ended, and the words it is started with; its output stands after it in
+// its cell
 typedef struct
 {
     CliLock lock;
     CliWake wake;
     unsigned int ended;
-    char *out;
-    unsigned long long out_room;
     char err[CLI_GIT_ERR];
     CliSpawned spawned;
     CliThread reader;
@@ -37,17 +35,16 @@ typedef struct
 static char s_nothing[1];
 static CliGitGave s_refused = {s_nothing, 0ull, 1, s_nothing, 0ull, 0};
 
-// the bytes a list's texts are first taken with
-#define CLI_GIT_TEXT_FIRST 256ull
-
 void cli_git_text_begun(CliGitText *text)
 {
-    text->bytes = g_cli_cells->persistent_buf_alloc(CLI_GIT_TEXT_FIRST, &g_cli_git_cells);
-    text->room = (text->bytes != NULL) ? CLI_GIT_TEXT_FIRST : 0ull;
-    text->used = (text->bytes != NULL) ? 1ull : 0ull;
+    text->bytes = g_cli_cells->temporary_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells);
+    text->room = 0ull;
+    text->used = 0ull;
     text->full = 0;
     if (text->bytes != NULL)
     {
+        text->room = CLI_GIT_TEXT;
+        text->used = 1ull;
         text->bytes[0] = '\0';
     }
 }
@@ -59,22 +56,6 @@ unsigned int cli_git_text_put(CliGitText *text, const char *from, unsigned long 
     {
         text->full = 1;
         return 0u;
-    }
-    if (most > text->room)
-    {
-        // twice the room, and texts stored one at a time take the cell again seldom, up to the most a list's texts
-        // contain
-        const unsigned long long doubled = 2ull * text->room;
-        const unsigned long long wanted = (most > doubled) ? most : doubled;
-        const unsigned long long room = (wanted < CLI_GIT_TEXT) ? wanted : CLI_GIT_TEXT;
-        char *const grown = cli_cell_regrown(text->bytes, (size_t)text->used, room, &g_cli_git_cells);
-        if (grown == NULL)
-        {
-            text->full = 1;
-            return 0u;
-        }
-        text->bytes = grown;
-        text->room = room;
     }
     // a place is below CLI_GIT_TEXT, which an unsigned int stores
     const unsigned int at = (unsigned int)text->used;
@@ -99,25 +80,19 @@ void cli_git_text_given(CliGitText *text)
 
 CliGitGave *cli_git_taken(void)
 {
-    CliGitRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), &g_cli_git_cells);
+    CliGitRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room) + CLI_GIT_OUT, &g_cli_git_cells);
     if (room == NULL)
     {
         return &s_refused;
     }
-    room->out = g_cli_cells->persistent_buf_alloc(CLI_GIT_OUT_FIRST, &g_cli_git_cells);
-    if (room->out == NULL)
-    {
-        g_cli_cells->persistent_buf_release(room, &g_cli_git_cells);
-        return &s_refused;
-    }
-    room->out_room = CLI_GIT_OUT_FIRST;
+    char *const out = (char *)(void *)(room + 1);
     const CliLock lock = CLI_LOCK_INIT;
     const CliWake wake = CLI_WAKE_INIT;
     room->lock = lock;
     room->wake = wake;
-    room->out[0] = '\0';
+    out[0] = '\0';
     room->err[0] = '\0';
-    room->gave = (CliGitGave){room->out, 0ull, 1, room->err, 0ull, 0};
+    room->gave = (CliGitGave){out, 0ull, 1, room->err, 0ull, 0};
     return &room->gave;
 }
 
@@ -131,7 +106,6 @@ void cli_git_given(CliGitGave *gave)
 {
     if (gave != &s_refused)
     {
-        g_cli_cells->persistent_buf_release(cli_room_of(gave)->out, &g_cli_git_cells);
         g_cli_cells->persistent_buf_release(cli_room_of(gave), &g_cli_git_cells);
     }
 }
@@ -143,34 +117,6 @@ static void cli_ended(CliGitRoom *room)
     room->ended += 1u;
     cli_wake_all(&room->wake);
     cli_lock_give(&room->lock);
-}
-
-// the output given room for one more read where it has none, in a cell of twice the room up to the most, the bytes
-// read so far copied: 1, or 0 where it is at the most or the cells cannot meet it, the bytes past it read and let go
-static int cli_output_room(CliGitRoom *room)
-{
-    CliGitGave *const gave = &room->gave;
-    if ((gave->out_size + CLI_GIT_READ + 1ull) <= room->out_room)
-    {
-        return 1;
-    }
-    if (room->out_room >= CLI_GIT_OUT)
-    {
-        return 0;
-    }
-    const unsigned long long doubled = room->out_room * 2ull;
-    const unsigned long long grown = (doubled < CLI_GIT_OUT) ? doubled : CLI_GIT_OUT;
-    char *const cell = g_cli_cells->persistent_buf_alloc(grown, &g_cli_git_cells);
-    if (cell == NULL)
-    {
-        return 0;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = cell, .src = room->out, .bytes = gave->out_size});
-    g_cli_cells->persistent_buf_release(room->out, &g_cli_git_cells);
-    room->out = cell;
-    room->out_room = grown;
-    gave->out = cell;
-    return 1;
 }
 
 // what git reports went wrong read until it ends, the bytes past the room read and let go
@@ -272,7 +218,7 @@ int cli_git_gave(const char *root, const char *const *args, unsigned int count, 
     for (;;)
     {
         char spare[CLI_GIT_READ];
-        const unsigned long long room_left = cli_output_room(room) ? (room->out_room - 1ull - gave->out_size) : 0ull;
+        const unsigned long long room_left = CLI_GIT_OUT - 1ull - gave->out_size;
         char *const into = (room_left != 0ull) ? (gave->out + gave->out_size) : spare;
         const unsigned long long got =
             cli_spawn_read(room->spawned.out, into, (room_left != 0ull) ? room_left : sizeof(spare));
@@ -309,14 +255,8 @@ int cli_git_query(const char *root, const char *const *args, unsigned int count,
 
 void cli_git_trimmed(const char **from, const char **to)
 {
-    while ((*from < *to) && ((**from == ' ') || ((**from >= '\t') && (**from <= '\r'))))
-    {
-        *from += 1;
-    }
-    while ((*to > *from) && (((*to)[-1] == ' ') || (((*to)[-1] >= '\t') && ((*to)[-1] <= '\r'))))
-    {
-        *to -= 1;
-    }
+    *from += cli_text_past_any(*from, 0ull, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
+    *to = *from + cli_text_back_past(*from, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
 }
 
 int cli_git_ran(const char *root, const char *const *args, unsigned int count, const char *index, const char *input,
@@ -333,8 +273,10 @@ int cli_git_ran(const char *root, const char *const *args, unsigned int count, c
         return 0;
     }
     // what it wrote and reported joined, in a cell of their size
-    VerbaLinea joined;
-    if (!cli_growing_line_made(&joined, gave->out_size + gave->err_size + 1ull, &g_cli_git_cells))
+    const unsigned long long joined_room = gave->out_size + gave->err_size + 1ull;
+    char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_room, &g_cli_git_cells);
+    VerbaLinea joined = mmgr_line_over(joined_cell, joined_room);
+    if (joined.out == NULL)
     {
         mmgr_line_put(err_msg, "git: what it wrote and reported could not be joined: the cells cannot meet it");
         cli_git_given(gave);
@@ -376,14 +318,10 @@ int cli_git_is_id(const char *id)
     {
         return 0;
     }
-    for (const char *at = id; at[0] != '\0'; at += 1)
+    if (cli_text_past_class(id, 0ull, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), CLI_TEXT_DIGITS,
+                            "abcdefABCDEF") != cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}))
     {
-        const char letter = at[0];
-        if (!(((letter >= '0') && (letter <= '9')) || ((letter >= 'a') && (letter <= 'f')) ||
-              ((letter >= 'A') && (letter <= 'F'))))
-        {
-            return 0;
-        }
+        return 0;
     }
     return 1;
 }

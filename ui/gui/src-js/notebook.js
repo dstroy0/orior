@@ -29,7 +29,7 @@ import { say } from "./statusbar.js";
 import { drawForms, drawMap, drawMarks, drawOutputs, drawSource } from "./notebook/draw.js";
 import { checkFromTop, heard, heardCheck, kernelSpecs, restartKernel, runAll, runCell, startKernel, stopKernel } from "./notebook/kernel.js";
 import { addBar, cellNode } from "./notebook/cells.js";
-import { letMirrorGo } from "./edit/held.js";
+import { letMirrorGo } from "./edit/mirror.js";
 import { mirrorCells } from "./notebook/mirror.js";
 
 // The lines an output shows of itself before the rest is a press away, and how many of its first
@@ -103,7 +103,7 @@ export async function openNotebook(path) {
     clock: 0,
     kernel: { state: "none", display: null },
     waiting: new Map(),
-    // What a kernel said of a run before its id came back to the page, held until it does.
+    // What a kernel said of a run before its id came back to the page, kept until it does.
     early: new Map(),
     changed: false,
     focused: null,

@@ -3,6 +3,7 @@
 // windows_watch.c: the tree's changes as Windows reports them, through ReadDirectoryChangesW over the whole tree, on a
 // thread of the watch's own that waits on the system's answer and on its stop together
 #include "../command_line/cli_internal.h"
+#include "../text/text.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -59,10 +60,7 @@ static void cli_records_emitted(DWORD written)
             WideCharToMultiByte(CP_UTF8, 0u, (const wchar_t *)(const void *)(bytes + at + CLI_WATCH_NAME_AT),
                                 (int)(length / 2u), path, (int)sizeof(path) - 1, NULL, NULL);
         path[(made > 0) ? made : 0] = '\0';
-        for (char *letter = path; letter[0] != '\0'; letter += 1)
-        {
-            letter[0] = (letter[0] == '\\') ? '/' : letter[0];
-        }
+        cli_text_swapped(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '\\', '/');
         const unsigned int kind =
             ((action == FILE_ACTION_ADDED) || (action == FILE_ACTION_RENAMED_NEW_NAME))     ? CLI_CHANGE_ADDED
             : ((action == FILE_ACTION_REMOVED) || (action == FILE_ACTION_RENAMED_OLD_NAME)) ? CLI_CHANGE_REMOVED

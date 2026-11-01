@@ -725,6 +725,36 @@ static BOOL CALLBACK system_monitor_seen(HMONITOR monitor, HDC context, LPRECT r
     return TRUE;
 }
 
+// the monitor's whole size kept in the two words handed on, where it has more pixels than those seen
+static BOOL CALLBACK system_monitor_measured(HMONITOR monitor, HDC context, LPRECT rect, LPARAM data)
+{
+    (void)context;
+    (void)rect;
+    unsigned int *const most = (unsigned int *)data;
+    MONITORINFO info;
+    info.cbSize = sizeof(info);
+    if (GetMonitorInfoW(monitor, &info))
+    {
+        // a monitor's sides are not negative
+        const unsigned int width = (unsigned int)(info.rcMonitor.right - info.rcMonitor.left);
+        const unsigned int height = (unsigned int)(info.rcMonitor.bottom - info.rcMonitor.top);
+        if (((unsigned long long)width * height) > ((unsigned long long)most[0] * most[1]))
+        {
+            most[0] = width;
+            most[1] = height;
+        }
+    }
+    return TRUE;
+}
+
+void gui_system_display_most(unsigned int *width, unsigned int *height)
+{
+    unsigned int most[2] = {0u, 0u};
+    EnumDisplayMonitors(NULL, NULL, system_monitor_measured, (LPARAM)most);
+    *width = most[0];
+    *height = most[1];
+}
+
 unsigned int gui_system_areas(CliWindowArea *areas, unsigned int most)
 {
     // the count, the most and the areas handed to the enumeration together, the areas after two words

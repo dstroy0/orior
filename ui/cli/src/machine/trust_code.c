@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // trust_code.c: the files of a tree that run as code as its tools read it, cached a while, and the words git is
 // started with where a tree's hook is disabled
+#include "../command_line/cells.h"
 #include "../editor/files.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -17,10 +18,9 @@ static const char *const s_eslint[5] = {".eslintrc.js", ".eslintrc.cjs", "eslint
 // how long a tree's code found is cached before the tree is looked through again, in milliseconds
 #define CLI_TRUST_FOUND_FOR 10000ull
 
-// the most trees whose code found is cached, and the bytes the paths of a tree's code are begun to be written in,
-// doubling as they fill
+// the most trees whose code found is cached, and the bytes the paths of a tree's code are written in
 #define CLI_TRUST_TREES 8u
-#define CLI_TRUST_PATHS_FIRST 1024u
+#define CLI_TRUST_PATHS_ROOM (1ull << 20u)
 
 // The code found in a tree looked through, and when
 typedef struct
@@ -92,14 +92,8 @@ static int cli_same_word(const char *text, unsigned long long length, const char
 // the bytes from `*from` to `*to` with the whitespace at either end left off
 static void cli_trimmed(const char **from, const char **to)
 {
-    while ((*from < *to) && ((**from == ' ') || ((**from >= '\t') && (**from <= '\r'))))
-    {
-        *from += 1;
-    }
-    while ((*to > *from) && (((*to)[-1] == ' ') || (((*to)[-1] >= '\t') && ((*to)[-1] <= '\r'))))
-    {
-        *to -= 1;
-    }
+    *from += cli_text_past_any(*from, 0ull, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
+    *to = *from + cli_text_back_past(*from, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
 }
 
 int cli_trust_names_a_hook(const char *config)
@@ -110,10 +104,7 @@ int cli_trust_names_a_hook(const char *config)
     while (line[0] != '\0')
     {
         const char *end = line;
-        while ((end[0] != '\0') && (end[0] != '\n'))
-        {
-            end += 1;
-        }
+        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "\n");
         const char *const next = (end[0] != '\0') ? (end + 1) : end;
         const char *from = line;
         const char *to = end;
@@ -121,23 +112,14 @@ int cli_trust_names_a_hook(const char *config)
         line = next;
         if ((from < to) && (from[0] == '['))
         {
-            while ((from < to) && (from[0] == '['))
-            {
-                from += 1;
-            }
-            while ((to > from) && (to[-1] == ']'))
-            {
-                to -= 1;
-            }
+            from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), "[");
+            to = from + cli_text_back_past(from, (unsigned long long)(to - from), "]");
             cli_trimmed(&from, &to);
             in_core = cli_same_word(from, (unsigned long long)(to - from), "core");
             continue;
         }
         const char *equals = from;
-        while ((equals < to) && (equals[0] != '='))
-        {
-            equals += 1;
-        }
+        equals += cli_text_to_any(equals, 0ull, (unsigned long long)(to - equals), "=");
         if (!in_core || (equals == to))
         {
             continue;
@@ -148,14 +130,8 @@ int cli_trust_names_a_hook(const char *config)
         const char *value_from = equals + 1;
         const char *value_to = to;
         cli_trimmed(&value_from, &value_to);
-        while ((value_from < value_to) && (value_from[0] == '"'))
-        {
-            value_from += 1;
-        }
-        while ((value_to > value_from) && (value_to[-1] == '"'))
-        {
-            value_to -= 1;
-        }
+        value_from += cli_text_past_any(value_from, 0ull, (unsigned long long)(value_to - value_from), "\"");
+        value_to = value_from + cli_text_back_past(value_from, (unsigned long long)(value_to - value_from), "\"");
         if (!cli_same_word(name_from, (unsigned long long)(name_to - name_from), "fsmonitor"))
         {
             continue;
@@ -183,14 +159,15 @@ static char *cli_read_in(const char *folder, const char *name)
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(path, &size) : NULL;
+    const unsigned char *const bytes =
+        (mmgr_line_finish(&line) != 0ull) ? cli_file_taken(path, &size, &g_cli_trust_cells) : NULL;
     char *const text = (bytes != NULL) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_trust_cells) : NULL;
     if (text != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
         text[size] = '\0';
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_trust_cells);
     return text;
 }
 
@@ -204,22 +181,20 @@ static int cli_proc_macro(const char *text)
         char name_buf[32];
         unsigned int count = 0u;
         int longer = 0;
-        for (; (at[0] != '\0') && (at[0] != '\n'); at += 1)
+        const unsigned long long stop =
+            cli_text_to_any(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), "\n");
+        for (unsigned long long piece = cli_text_past_any(at, 0ull, stop, " "); piece < stop;)
         {
-            if (at[0] == ' ')
-            {
-                continue;
-            }
-            if (count < (sizeof(name_buf) - 1u))
-            {
-                name_buf[count] = at[0];
-                count += 1u;
-            }
-            else
-            {
-                longer = 1;
-            }
+            const unsigned long long end = cli_text_to_any(at, piece, stop, " ");
+            const unsigned long long fits = sizeof(name_buf) - 1u - count;
+            const unsigned long long take = ((end - piece) < fits) ? (end - piece) : fits;
+            memor.cpy(&(MemoriaCfg){.dst = name_buf + count, .src = at + piece, .bytes = (size_t)take});
+            // no more than fit in the name's room, which an unsigned int stores
+            count += (unsigned int)take;
+            longer = longer || (take < (end - piece));
+            piece = cli_text_past_any(at, end, stop, " ");
         }
+        at += stop;
         if ((at[0] == '\n') && (count > 0u) && (name_buf[count - 1u] == '\r') && !longer)
         {
             count -= 1u;
@@ -250,8 +225,8 @@ static int cli_named(const char *name, const char *const *names, unsigned int co
 
 int cli_trust_looked_for(const char *tree, CliTrustCode *code)
 {
-    VerbaLinea paths = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_temporary(&paths, CLI_TRUST_PATHS_FIRST, &g_cli_trust_cells);
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_TRUST_PATHS_ROOM, &g_cli_trust_cells);
+    VerbaLinea paths = mmgr_line_over(paths_cell, CLI_TRUST_PATHS_ROOM);
     const CliFiles *const files = cli_files_view(tree);
     unsigned int found = 0u;
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)

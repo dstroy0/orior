@@ -3,6 +3,7 @@
 // builds.c: a build file's kind by its name, and its check, its completion, the names SCons gives it and the line that
 // updates every snapshot dependency of its build, each handed to the reader of its kind. One check runs at a time, its
 // findings stored in their own room
+#include "../text/text.h"
 #include "gradle_internal.h"
 #include "maven_internal.h"
 #include "scons_internal.h"
@@ -14,10 +15,9 @@ static CliBuildFindings s_found;
 unsigned int cli_build_kind_of(const char *path)
 {
     const char *name = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? at + 1 : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     char lower[CLI_NAME_MAX_LEN];
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (length >= sizeof(lower))

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // report_page.c: a report's new-issue page with the template's fields filled in, and the issue's body as the
 // template's form lays out what is entered in it
+#include "../text/text.h"
 #include "report_internal.h"
 
 // the template a report fills, under .github/ISSUE_TEMPLATE
@@ -29,14 +30,8 @@ static void cli_version(const char *root, VerbaLinea *out)
     {
         const char *from = ran->out;
         const char *to = ran->out + ran->out_size;
-        while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-        {
-            from += 1;
-        }
-        while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-        {
-            to -= 1;
-        }
+        from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+        to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
         char short_commit[64];
         VerbaLinea line = {short_commit, sizeof(short_commit), 0ull};
         mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
@@ -83,14 +78,8 @@ static void cli_field(VerbaLinea *out, const char *text)
 {
     const char *from = text;
     const char *to = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-    {
-        from += 1;
-    }
-    while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-    {
-        to -= 1;
-    }
+    from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
     if (from == to)
     {
         mmgr_line_put(out, "_No response_");
@@ -116,14 +105,8 @@ void cli_report_body(const CliReport *report, const char *root, const char *prin
     mmgr_line_put(out, "\n\n### Logs\n\n");
     const char *from = report->logs;
     const char *to = report->logs + cellul.len(&(CatenaFinitaCfg){.src = report->logs, .cap = CLI_CELLS_POOL});
-    while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-    {
-        from += 1;
-    }
-    while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-    {
-        to -= 1;
-    }
+    from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
     if (from == to)
     {
         mmgr_line_put(out, "_No response_");

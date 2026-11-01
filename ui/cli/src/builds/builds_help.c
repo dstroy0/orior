@@ -105,60 +105,31 @@ unsigned long long cli_build_line_start(const CliBuildLines *lines, unsigned int
 void cli_build_findings_begun(CliBuildFindings *found)
 {
     cli_build_findings_given(found);
+    const unsigned long long finding_bytes = (unsigned long long)CLI_BUILD_FINDINGS * sizeof(CliBuildFinding);
+    const unsigned long long fix_bytes = (unsigned long long)CLI_BUILD_FIXES * sizeof(CliBuildFix);
+    char *const cell =
+        g_cli_cells->persistent_buf_alloc(finding_bytes + fix_bytes + CLI_BUILD_TEXT, &g_cli_build_cells);
+    if (cell == NULL)
+    {
+        found->full = 1;
+        return;
+    }
+    found->finding = (CliBuildFinding *)(void *)cell;
+    found->finding_room = CLI_BUILD_FINDINGS;
+    found->fix = (CliBuildFix *)(void *)(cell + finding_bytes);
+    found->fix_room = CLI_BUILD_FIXES;
+    found->text = cell + finding_bytes + fix_bytes;
+    found->text_room = CLI_BUILD_TEXT;
 }
 
 void cli_build_findings_given(CliBuildFindings *found)
 {
     g_cli_cells->persistent_buf_release(found->finding, &g_cli_build_cells);
-    g_cli_cells->persistent_buf_release(found->fix, &g_cli_build_cells);
-    g_cli_cells->persistent_buf_release(found->text, &g_cli_build_cells);
     *found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
-}
-
-// `list`, `count` items of `each` bytes in a room of `*room`, made to fit `wanted` in all, `most` at the most: the
-// list, moved into a cell of doubled room where it is full; or NULL with the findings full where `wanted` is past
-// `most` or the cell is refused
-static void *help_room(CliBuildFindings *found, void *list, unsigned int count, unsigned int *room,
-                       unsigned long long each, unsigned long long wanted, unsigned int most, const char *what)
-{
-    if (wanted <= *room)
-    {
-        return list;
-    }
-    unsigned long long grown = (*room == 0u) ? CLI_BUILD_FIRST : *room;
-    while (grown < wanted)
-    {
-        grown *= 2ull;
-    }
-    grown = (grown < most) ? grown : most;
-    void *const larger =
-        (wanted <= most) ? cli_cell_regrown(list, (size_t)(count * each), grown * each, &g_cli_build_cells) : NULL;
-    if (larger == NULL)
-    {
-        found->full = 1;
-        return NULL;
-    }
-    // a room no more than `most`, which an unsigned int stores
-    *room = (unsigned int)grown;
-    return larger;
-}
-
-// room made in the texts for `size` bytes and their terminator past those stored, and CLI_BUILD_MSG_MIN_LEN more where
-// the texts fit them: 1, or 0 with the findings full
-static int help_text_room(CliBuildFindings *found, unsigned long long size)
-{
-    const unsigned long long needed = found->used + size + 1ull;
-    const unsigned long long wanted =
-        ((needed + CLI_BUILD_MSG_MIN_LEN) < CLI_BUILD_TEXT) ? (needed + CLI_BUILD_MSG_MIN_LEN) : CLI_BUILD_TEXT;
-    char *const texts = help_room(found, found->text, found->used, &found->text_room, 1ull,
-                                  (needed <= CLI_BUILD_TEXT) ? wanted : needed, CLI_BUILD_TEXT, "a file's findings");
-    found->text = (texts != NULL) ? texts : found->text;
-    return texts != NULL;
 }
 
 VerbaLinea cli_build_msg_line(CliBuildFindings *found)
 {
-    (void)help_text_room(found, 0ull);
     return (found->text != NULL) ? (VerbaLinea){found->text + found->used, found->text_room - found->used, 0ull}
                                  : (VerbaLinea){NULL, 0ull, 0ull};
 }
@@ -167,10 +138,9 @@ VerbaLinea cli_build_msg_line(CliBuildFindings *found)
 // it does not fit
 static unsigned int help_text_stored(CliBuildFindings *found, const char *bytes, unsigned long long size)
 {
-    // a line written in place already has its room, and nothing it points at is moved; any other is copied in
+    // a line written in place already has its room; any other is copied in
     const int in_place = (found->text != NULL) && (bytes == found->text + found->used);
-    const int room = in_place ? ((found->used + size + 1u) <= found->text_room) : help_text_room(found, size);
-    if (!room)
+    if ((found->used + size + 1ull) > found->text_room)
     {
         found->full = 1;
         return CLI_BUILD_TEXT;
@@ -199,14 +169,11 @@ static unsigned int help_line_stored(CliBuildFindings *found, const VerbaLinea *
 unsigned int cli_build_finding(CliBuildFindings *found, const VerbaLinea *message, const CliBuildLines *lines,
                                unsigned long long from, unsigned long long to, unsigned int severity, const char *code)
 {
-    CliBuildFinding *const findings =
-        help_room(found, found->finding, found->count, &found->finding_room, sizeof(CliBuildFinding),
-                  found->count + 1ull, CLI_BUILD_FINDINGS, "a file's findings");
-    if (findings == NULL)
+    if (found->count >= found->finding_room)
     {
+        found->full = 1;
         return CLI_BUILD_NONE;
     }
-    found->finding = findings;
     const unsigned int at = help_line_stored(found, message);
     if (at == CLI_BUILD_TEXT)
     {
@@ -221,16 +188,11 @@ unsigned int cli_build_finding(CliBuildFindings *found, const VerbaLinea *messag
 // a fix of the finding at `finding` begun with its title: its place, or CLI_BUILD_FIXES where it does not fit
 static unsigned int help_fix(CliBuildFindings *found, unsigned int finding, const VerbaLinea *title)
 {
-    CliBuildFix *const fixes = (finding != CLI_BUILD_NONE)
-                                   ? help_room(found, found->fix, found->fixes, &found->fix_room, sizeof(CliBuildFix),
-                                               found->fixes + 1ull, CLI_BUILD_FIXES, "a file's fixes")
-                                   : NULL;
-    if (fixes == NULL)
+    if ((finding == CLI_BUILD_NONE) || (found->fixes >= found->fix_room))
     {
         found->full = 1;
         return CLI_BUILD_FIXES;
     }
-    found->fix = fixes;
     const unsigned int at = help_line_stored(found, title);
     if (at == CLI_BUILD_TEXT)
     {
@@ -397,10 +359,7 @@ int cli_build_word_letter(unsigned int letter)
 unsigned long long cli_build_run_before(const char *text, unsigned long long at, int (*of)(unsigned int letter))
 {
     unsigned long long line_start = at;
-    while ((line_start > 0u) && (text[line_start - 1u] != '\n'))
-    {
-        line_start -= 1u;
-    }
+    line_start = cli_text_back_any(text, line_start, "\n");
     unsigned long long start = at;
     while (start > line_start)
     {
@@ -458,18 +417,9 @@ void cli_build_inside(const char *root, const char *folder, char *out)
         return;
     }
     const char *rest = folder + length;
-    while ((*rest == '/') || (*rest == '\\'))
-    {
-        rest += 1;
-    }
-    for (; *rest != '\0'; rest += 1)
-    {
-        mmgr_line_ch(&line, (*rest == '\\') ? '/' : *rest);
-    }
-    while ((line.at > 0u) && (out[line.at - 1u] == '/'))
-    {
-        line.at -= 1u;
-    }
+    rest += cli_text_past_any(rest, 0ull, cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}), "/\\");
+    rest += cli_text_put_swapped(&line, rest, '\\', '/');
+    line.at = cli_text_back_past(out, line.at, "/");
     (void)mmgr_line_finish(&line);
 }
 

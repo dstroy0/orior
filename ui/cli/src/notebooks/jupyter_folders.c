@@ -3,6 +3,7 @@
 // jupyter_folders.c: where Jupyter's kernels are looked for: the Pythons a notebook can run on, whether each contains
 // ipykernel, and the folders Jupyter stores its data in, in the order it reads them
 #include "../programs/executables.h"
+#include "../text/text.h"
 #include "jupyter_internal.h"
 
 // `name` joined under `folder` into the listing's next folder, where one is left: the count after
@@ -29,10 +30,7 @@ static int jupyter_python_prefix(const char *python, char *prefix)
     }
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
     size_t start = length;
-    while ((start > 0u) && (folder[start - 1u] != '/') && (folder[start - 1u] != '\\'))
-    {
-        start -= 1u;
-    }
+    start = (size_t)cli_text_back_any(folder, start, "/\\");
     char name[16];
     const size_t size = length - start;
     for (size_t at = 0u; (at < size) && (at < sizeof(name) - 1u); at += 1u)

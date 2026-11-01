@@ -3,6 +3,8 @@
 // recording_read.c: a recorded run read from the recorder's lines, its steps, frames, files, threads and raises, and
 // what the replay requests of it: a frame's last step, its names' values at a step, the frames standing at a step, and
 // a name's history through the run
+#include "../command_line/cells.h"
+#include "../text/text.h"
 #include "recording_internal.h"
 
 CliReplay *g_cli_replay;
@@ -12,8 +14,6 @@ CliReplay *g_cli_replay;
 
 // the line read last, in a tree of its own sized to it, given back as the next is read and as the recording is let go
 static CliJson s_json;
-// the frames a thread's stack's room is begun with, doubling as frames are called
-#define CLI_RECORDING_STACK_FIRST 16u
 
 // each thread's stack of frames as the recording is read, in a cell of its own of `s_rooms` frames, its depth, and
 // whether it has one; each cell given back once the recording is read
@@ -21,29 +21,6 @@ static unsigned int *s_stacks[CLI_RECORDING_THREADS];
 static unsigned int s_rooms[CLI_RECORDING_THREADS];
 static unsigned int s_depths[CLI_RECORDING_THREADS];
 static int s_has_stack[CLI_RECORDING_THREADS];
-
-// room made on a thread's stack for one frame more: 1, or 0 where it contains the most or the larger cell is refused
-static int read_stack_room(unsigned int thread)
-{
-    if (s_depths[thread] < s_rooms[thread])
-    {
-        return 1;
-    }
-    const unsigned int doubled = (s_rooms[thread] == 0u) ? CLI_RECORDING_STACK_FIRST : (s_rooms[thread] * 2u);
-    const unsigned int room = (doubled < CLI_RECORDING_DEPTH) ? doubled : CLI_RECORDING_DEPTH;
-    unsigned int *const larger =
-        (s_depths[thread] < CLI_RECORDING_DEPTH)
-            ? cli_cell_regrown(s_stacks[thread], s_depths[thread] * sizeof(unsigned int),
-                               (unsigned long long)room * sizeof(unsigned int), &g_cli_debug_cells)
-            : NULL;
-    if (larger == NULL)
-    {
-        return 0;
-    }
-    s_stacks[thread] = larger;
-    s_rooms[thread] = room;
-    return 1;
-}
 
 // every thread's stack given back
 static void read_stacks_given(void)
@@ -84,12 +61,9 @@ static unsigned int read_digits(const char *text, unsigned long long size, unsig
 {
     unsigned long long value = 0ull;
     unsigned long long digits = 0ull;
-    while ((at < size) && (text[at] >= '0') && (text[at] <= '9') && (value < 0xffffffffull))
-    {
-        value = (value * 10ull) + (unsigned long long)(text[at] - '0');
-        at += 1ull;
-        digits += 1ull;
-    }
+    unsigned long long end = at;
+    value = cli_text_number(text, at, size, &end);
+    digits = end - at;
     return ((digits == 0ull) || (value > 0xffffffffull)) ? 0xffffffffu : (unsigned int)value;
 }
 
@@ -101,8 +75,7 @@ static void read_counted(const char *text, unsigned long long size, ReadCounts *
     *counts = (ReadCounts){0u, 0u, 0u, 0u, 0u};
     for (unsigned long long at = 0ull; at < size;)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const unsigned long long end = cli_text_line_at(text, at, size).stop;
         for (unsigned int kind = 0u; kind < 5u; kind += 1u)
         {
             const unsigned long long length =
@@ -178,10 +151,7 @@ static int read_room_taken(CliRecording *recording, const char *text, unsigned l
 static unsigned int read_record(unsigned long long at)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    const char *const newline =
-        memor.chr(&(MemoriaCfg){.src = recording->text + at, .val = '\n', .bytes = recording->size - at});
-    const unsigned long long end =
-        (newline != NULL) ? (unsigned long long)(newline - recording->text) : recording->size;
+    const unsigned long long end = cli_text_line_at(recording->text, at, recording->size).stop;
     cli_json_given(&s_json);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
@@ -272,8 +242,15 @@ static void read_call(unsigned int record)
     {
         return;
     }
-    s_has_stack[thread] = 1;
-    if (((s_depths[thread] == 0u) || (s_stacks[thread][s_depths[thread] - 1u] != serial)) && read_stack_room(thread))
+    if (!s_has_stack[thread])
+    {
+        s_stacks[thread] = g_cli_cells->persistent_buf_alloc(
+            (unsigned long long)CLI_RECORDING_DEPTH * sizeof(unsigned int), &g_cli_debug_cells);
+        s_rooms[thread] = (s_stacks[thread] != NULL) ? CLI_RECORDING_DEPTH : 0u;
+        s_has_stack[thread] = 1;
+    }
+    if (((s_depths[thread] == 0u) || (s_stacks[thread][s_depths[thread] - 1u] != serial)) &&
+        (s_depths[thread] < s_rooms[thread]))
     {
         s_stacks[thread][s_depths[thread]] = (unsigned int)serial;
         s_depths[thread] += 1u;
@@ -379,7 +356,7 @@ void cli_recording_let_go(void)
     CliRecording *const recording = &g_cli_replay->recording;
     if (recording->text != NULL)
     {
-        cli_file_let_go((const unsigned char *)recording->text, recording->size);
+        cli_file_given((const unsigned char *)recording->text, &g_cli_debug_cells);
         recording->text = NULL;
     }
     if (recording->path[0] != '\0')
@@ -487,22 +464,32 @@ void cli_recording_read(const char *path)
     memor.cpy(&(MemoriaCfg){.dst = recording->path,
                             .src = path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+    // the recording's file kept as long as it is replayed, in a persistent cell of its size and the slack
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
-    recording->text = (const char *)bytes;
-    recording->size = (bytes != NULL) ? size : 0ull;
-    if ((bytes != NULL) && !read_room_taken(recording, recording->text, recording->size))
+    unsigned char *bytes = cli_file_size(path, &size)
+                               ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_cli_debug_cells)
+                               : NULL;
+    if ((bytes != NULL) && !cli_file_read_at(path, 0ull, bytes, size, &size))
     {
-        cli_recording_let_go();
-        return;
+        g_cli_cells->persistent_buf_release(bytes, &g_cli_debug_cells);
+        bytes = NULL;
+    }
+    recording->text = (const char *)bytes;
+    recording->size = 0ull;
+    if (bytes != NULL)
+    {
+        memor.set(&(MemoriaCfg){.dst = bytes + size, .val = 0, .bytes = CLI_FILE_SLACK});
+        recording->size = size;
+        if (!read_room_taken(recording, recording->text, recording->size))
+        {
+            cli_recording_let_go();
+            return;
+        }
     }
     unsigned long long at = 0ull;
     while (at < recording->size)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = recording->text + at, .val = '\n', .bytes = recording->size - at});
-        const unsigned long long next =
-            (newline != NULL) ? (unsigned long long)(newline - recording->text) + 1ull : recording->size;
+        const unsigned long long next = cli_text_line_at(recording->text, at, recording->size).next;
         const unsigned int record = read_record(at);
         if (record != CLI_JSON_NONE)
         {

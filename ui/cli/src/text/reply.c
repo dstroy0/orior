@@ -3,22 +3,21 @@
 // reply.c: a JSON reply read off its bytes in one pass with no tree made, as reply.h describes
 #include "reply.h"
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../command_line/cells.h"
+#include "text.h"
 
 int cli_reply_read(const char *path, CliReply *reply)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_text_cells);
     reply->text = (const char *)bytes;
-    reply->size = (bytes != NULL) ? size : 0ull;
+    reply->size = size;
     return bytes != NULL;
 }
 
 void cli_reply_let_go(CliReply *reply)
 {
-    if (reply->text != NULL)
-    {
-        cli_file_let_go((const unsigned char *)reply->text, reply->size);
-    }
+    cli_file_given((const unsigned char *)reply->text, &g_cli_text_cells);
     reply->text = NULL;
     reply->size = 0ull;
 }
@@ -26,11 +25,7 @@ void cli_reply_let_go(CliReply *reply)
 // the first byte at or after `at` that is no JSON white space: its place, the size where none is
 static unsigned long long reply_dark(const CliReply *reply, unsigned long long at)
 {
-    while ((at < reply->size) && ((reply->text[at] == ' ') || (reply->text[at] == '\t') || (reply->text[at] == '\n') ||
-                                  (reply->text[at] == '\r')))
-    {
-        at += 1ull;
-    }
+    at = cli_text_past_any(reply->text, at, reply->size, " \t\n\r");
     return at;
 }
 
@@ -49,10 +44,7 @@ static unsigned long long reply_string_end(const CliReply *reply, unsigned long 
         }
         const unsigned long long place = (unsigned long long)(quote - reply->text);
         unsigned long long backslashes = 0ull;
-        while ((place - backslashes > at + 1ull) && (reply->text[place - backslashes - 1ull] == '\\'))
-        {
-            backslashes += 1ull;
-        }
+        backslashes = (place - (at + 1ull)) - cli_text_back_past(reply->text + at + 1ull, place - (at + 1ull), "\\");
         if ((backslashes % 2ull) == 0ull)
         {
             return place;
@@ -99,12 +91,7 @@ unsigned long long cli_reply_value_end(const CliReply *reply, unsigned long long
         }
         return reply->size;
     }
-    while ((at < reply->size) && (reply->text[at] != ',') && (reply->text[at] != '}') && (reply->text[at] != ']') &&
-           (reply->text[at] != ' ') && (reply->text[at] != '\t') && (reply->text[at] != '\n') &&
-           (reply->text[at] != '\r'))
-    {
-        at += 1ull;
-    }
+    at = cli_text_to_any(reply->text, at, reply->size, ",}] \t\n\r");
     return at;
 }
 
@@ -217,17 +204,9 @@ unsigned long long cli_reply_whole(const CliReply *reply, unsigned long long at)
     {
         return ~0ull;
     }
-    unsigned long long value = 0ull;
-    while ((at < reply->size) && (reply->text[at] >= '0') && (reply->text[at] <= '9'))
-    {
-        if (value > 0xffffffffull)
-        {
-            return ~0ull;
-        }
-        value = (value * 10ull) + (unsigned long long)(reply->text[at] - '0');
-        at += 1ull;
-    }
-    return value;
+    // a number whose digits but the last fit 32 bits is read, and any longer is not
+    const unsigned long long value = cli_text_number(reply->text, at, reply->size, NULL);
+    return (value > ((0xffffffffull * 10ull) + 9ull)) ? ~0ull : value;
 }
 
 int cli_reply_true(const CliReply *reply, unsigned long long at)

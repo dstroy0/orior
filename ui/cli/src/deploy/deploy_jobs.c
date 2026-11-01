@@ -4,7 +4,6 @@
 // a job's `do` names
 #include "../command_line/catalog.h"
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 
@@ -54,10 +53,10 @@ void cli_deploy_jobs(const char *root, CliCatalog *catalog)
         const CliDeployment *const deployment = &deployments[index];
         static char s_id[CLI_PATH_MAX_LEN];
         VerbaLinea id = {s_id, sizeof(s_id), 0ull};
-        char piece[CLI_DEPLOY_PIECE];
-        CliPieces pieces;
-        VerbaLinea about;
-        cli_pieces_begun(&pieces, &about, piece, sizeof(piece), &g_cli_deploy_cells);
+        // the folder it sends from and each place, and the words around them
+        const unsigned long long room = ((unsigned long long)deployment->tos + 2ull) * CLI_PATH_MAX_LEN;
+        char *const about_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_deploy_cells);
+        VerbaLinea about = mmgr_line_over(about_text, room);
         mmgr_line_put(&id, "deploy/");
         mmgr_line_put(&id, deployment->name);
         mmgr_line_put(&about, "sends the files of ");
@@ -69,12 +68,10 @@ void cli_deploy_jobs(const char *root, CliCatalog *catalog)
             mmgr_line_put(&about, deployment->to[at]);
         }
         mmgr_line_put(&about, ", a new release at each turned to once every place has it.");
-        unsigned long long size = 0ull;
-        char *const joined = cli_pieces_joined(&pieces, &about, "a deployment's job", &size);
-        const int listed =
-            (mmgr_line_finish(&id) != 0ull) && (joined != NULL) &&
-            (cli_catalog_job(catalog, s_id, "deploy", deployment->name, "deploy.json", joined, "") != CLI_CATALOG_NONE);
-        g_cli_cells->persistent_buf_release(joined, &g_cli_deploy_cells);
+        const int listed = (mmgr_line_finish(&id) != 0ull) && mmgr_line_ok(&about) &&
+                           (cli_catalog_job(catalog, s_id, "deploy", deployment->name, "deploy.json", about_text, "") !=
+                            CLI_CATALOG_NONE);
+        g_cli_cells->persistent_buf_release(about_text, &g_cli_deploy_cells);
         if (!listed)
         {
             continue;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_lines.c: the lines pytest and unittest print in their verbose reports as each test ends, read, and a test's
 // name as unittest and as pytest give it
+#include "../text/text.h"
 #include "test_runs_internal.h"
 
 // whether `length` bytes from `start` of `text` contain `part`
@@ -81,19 +82,12 @@ int cli_test_unittest_line(const char *line, unsigned long long size, char *id, 
         return 0;
     }
     unsigned long long open = 0ull;
-    while ((open + 2ull <= split) && (memor.cmp(&(MemoriaCfg){.src = line + open, .other = " (", .bytes = 2u}) != 0))
-    {
-        open += 1ull;
-    }
+    open = cli_text_to_pair(line, 0ull, split, ' ', '(');
     if (open + 2ull > split)
     {
         return 0;
     }
-    unsigned long long dotted_size = split - open - 2ull;
-    while ((dotted_size > 0ull) && (line[open + 2ull + dotted_size - 1ull] == ')'))
-    {
-        dotted_size -= 1ull;
-    }
+    const unsigned long long dotted_size = cli_text_back_past(line + open + 2ull, split - open - 2ull, ")");
     unsigned long long tail = split + 5ull;
     unsigned long long tail_size = size - tail;
     while ((tail_size > 0ull) &&

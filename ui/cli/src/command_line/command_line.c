@@ -37,10 +37,9 @@ unsigned int cli_width(void)
     unsigned long long width = 0ull;
     if (query_environment_read("COLUMNS", columns, sizeof(columns)))
     {
-        for (const char *at = columns; (*at >= '0') && (*at <= '9') && (width < 100000ull); at += 1)
-        {
-            width = (width * 10ull) + (unsigned long long)(*at - '0');
-        }
+        const unsigned long long read =
+            cli_text_number(columns, 0ull, cellul.len(&(CatenaFinitaCfg){.src = columns, .cap = CLI_CELLS_POOL}), NULL);
+        width = (read < 100000ull) ? read : 100ull;
     }
     // the width is under 100000 here, as checked as it was read
     return (width >= 40ull) ? (unsigned int)width : 100u;
@@ -122,21 +121,14 @@ int cli_contains_word(const char *text, const char *word)
 void cli_quoted_word(const char *word, VerbaLinea *out)
 {
     mmgr_line_ch(out, '"');
-    for (const char *at = word; *at != '\0'; at += 1)
-    {
-        if ((*at == '\\') || (*at == '"'))
-        {
-            mmgr_line_ch(out, '\\');
-        }
-        mmgr_line_ch(out, *at);
-    }
+    cli_text_put_marked(out, word, "\\\"", '\\');
     mmgr_line_ch(out, '"');
 }
 
 CliCatalog *cli_command_line_catalog(const char *root)
 {
     cli_catalog_given(&s_catalog);
-    cli_catalog_growing(&s_catalog, &g_cli_line_catalog_cells, CLI_LINE_JOBS);
+    cli_catalog_taken(&s_catalog, &g_cli_line_catalog_cells, CLI_LINE_JOBS);
     cli_catalog_read(root, &s_catalog);
     return &s_catalog;
 }

@@ -71,9 +71,10 @@ static int calls_of(const CliJson *json, unsigned int item, const char *site, co
     const char *const name = cli_json_string(json, cli_json_member(json, item, "name"), &size);
     mmgr_line_put(out, "{\"name\":");
     cli_json_quoted(out, (name != NULL) ? name : "", size);
+    size = 0ull;
     const char *const detail = cli_json_string(json, cli_json_member(json, item, "detail"), &size);
     mmgr_line_put(out, ",\"detail\":");
-    cli_json_quoted(out, (detail != NULL) ? detail : "", (detail != NULL) ? size : 0ull);
+    cli_json_quoted(out, (detail != NULL) ? detail : "", size);
     mmgr_line_put(out, ",\"path\":");
     calls_path_written(tree, path, out);
     mmgr_line_put(out, ",\"from\":");
@@ -143,7 +144,7 @@ typedef struct
 } CliServersTreeCalls;
 
 // the text the editor holds of the tree's file at `path`, in a cell the caller gives back: NULL where it holds none
-static char *calls_held(void *context, const char *path, unsigned long long *size)
+static char *calls_open_text(void *context, const char *path, unsigned long long *size)
 {
     const CliServersTreeCalls *const calls = (const CliServersTreeCalls *)context;
     char full[CLI_PATH_MAX_LEN];
@@ -205,10 +206,7 @@ static int calls_tree_file(const char *path, char *root, char *file, VerbaLinea 
     const char *rest = path + top;
     rest += ((*rest == '/') || (*rest == '\\')) ? 1 : 0;
     VerbaLinea line = {file, CLI_PATH_MAX_LEN, 0ull};
-    for (; *rest != '\0'; rest += 1)
-    {
-        mmgr_line_ch(&line, (*rest == '\\') ? '/' : *rest);
-    }
+    rest += cli_text_put_swapped(&line, rest, '\\', '/');
     (void)mmgr_line_finish(&line);
     return 1;
 }
@@ -220,15 +218,14 @@ int cli_servers_call_root(const char *tree, const char *path, unsigned int line,
     if ((server != NULL) && cli_servers_capable(server, "callHierarchyProvider"))
     {
         cli_servers_reading_locked(&s_reading);
-        VerbaLinea result;
-        cli_servers_answer_begun(&s_reading, &result);
+        CliLspAnswer answer;
         const int requested = cli_servers_request_at(server, "textDocument/prepareCallHierarchy", path, line, col, NULL,
-                                                     CLI_SERVERS_REQUEST_TIMEOUT_MS, &result, err_msg);
+                                                     CLI_SERVERS_REQUEST_TIMEOUT_MS, &answer, err_msg);
         cli_lsp_unref(server);
         if (requested)
         {
             const CliJson *const json = &s_reading.json;
-            const unsigned int first = cli_json_item(json, cli_servers_answer_read(&s_reading, &result), 0u);
+            const unsigned int first = cli_json_item(json, cli_servers_answer_read(&s_reading, &answer), 0u);
             if ((first == CLI_JSON_NONE) || !calls_of(json, first, NULL, NULL, 0u, tree, out))
             {
                 mmgr_line_put(out, "null");
@@ -249,7 +246,7 @@ int cli_servers_call_root(const char *tree, const char *path, unsigned int line,
     {
         CliServersTreeCalls symbols = {tree, NULL, out, 0};
         const int found =
-            cli_symbols_function_at(own, line, calls_held, &symbols, calls_symbols_written, &symbols, err_msg);
+            cli_symbols_function_at(own, line, calls_open_text, &symbols, calls_symbols_written, &symbols, err_msg);
         if (found != 0)
         {
             return found > 0;
@@ -293,8 +290,9 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
         CliServersTreeCalls symbols = {tree, incoming ? NULL : file, out, 0};
         mmgr_line_ch(out, '[');
         const int found =
-            incoming ? cli_symbols_callers(file, line, calls_held, &symbols, calls_symbols_written, &symbols, err_msg)
-                     : cli_symbols_callees(file, line, calls_held, &symbols, calls_symbols_written, &symbols, err_msg);
+            incoming
+                ? cli_symbols_callers(file, line, calls_open_text, &symbols, calls_symbols_written, &symbols, err_msg)
+                : cli_symbols_callees(file, line, calls_open_text, &symbols, calls_symbols_written, &symbols, err_msg);
         mmgr_line_ch(out, ']');
         cli_servers_reading_released(&s_item);
         return found >= 0;
@@ -343,17 +341,17 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
         return 0;
     }
     cli_servers_reading_locked(&s_reading);
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
+    // the item written back, a string's escapes free to differ from how it was given, inside its member
+    const unsigned long long room = (size * 2ull) + 16ull;
+    char *const params_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
+    VerbaLinea params = mmgr_line_over(params_text, room);
     mmgr_line_put(&params, "{\"item\":");
     cli_json_write(json, given, &params, 0u, 0);
     mmgr_line_ch(&params, '}');
-    VerbaLinea result;
-    cli_servers_answer_begun(&s_reading, &result);
+    CliLspAnswer reply;
     done = cli_servers_request(server, incoming ? "callHierarchy/incomingCalls" : "callHierarchy/outgoingCalls",
-                               &pieces, &params, CLI_SERVERS_SEARCHING, &result, err_msg);
+                               &params, CLI_SERVERS_SEARCHING, &reply, err_msg);
+    g_cli_cells->persistent_buf_release(params_text, &g_cli_servers_cells);
     cli_lsp_unref(server);
     if (done)
     {
@@ -362,7 +360,7 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
         char parent[CLI_PATH_MAX_LEN];
         const int has_parent = (uri != NULL) && cli_lsp_path_of(uri, length, parent);
         const CliJson *const answer = &s_reading.json;
-        const unsigned int all = cli_servers_answer_read(&s_reading, &result);
+        const unsigned int all = cli_servers_answer_read(&s_reading, &reply);
         mmgr_line_ch(out, '[');
         int written = 0;
         for (unsigned int one = cli_json_is(answer, all, CFG_JSON_ARRAY) ? answer->node[all].first : CLI_JSON_NONE;
@@ -373,9 +371,9 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
             const unsigned int given_ranges =
                 cli_json_is(answer, ranges, CFG_JSON_ARRAY) ? answer->node[ranges].count : 0u;
             CliTextPlace *const site =
-                (given_ranges > 0u)
-                    ? g_cli_cells->temporary_buf_alloc((unsigned long long)given_ranges * sizeof(CliTextPlace), &g_cli_servers_cells)
-                    : NULL;
+                (given_ranges > 0u) ? g_cli_cells->temporary_buf_alloc(
+                                          (unsigned long long)given_ranges * sizeof(CliTextPlace), &g_cli_servers_cells)
+                                    : NULL;
             unsigned int count = 0u;
             for (unsigned int range = (site != NULL) ? answer->node[ranges].first : CLI_JSON_NONE;
                  range != CLI_JSON_NONE; range = answer->node[range].next)

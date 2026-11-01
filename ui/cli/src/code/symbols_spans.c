@@ -39,10 +39,7 @@ static unsigned long long spans_byte_of(const char *text, unsigned long long siz
         line += (text[start] == '\n') ? 1u : 0u;
     }
     unsigned long long end = start;
-    while ((end < size) && (text[end] != '\n'))
-    {
-        end += 1ull;
-    }
+    end = cli_text_to_any(text, end, size, "\n");
     return start + cli_text_byte_of(text + start, end - start, place.col);
 }
 
@@ -57,10 +54,7 @@ static CliSymbolPlace spans_place(const CliSpans *spans, unsigned int leaf, unsi
     const char *const text = spans->read->text;
     unsigned int line = spans->read->leaf[leaf].line;
     unsigned long long start = spans->read->leaf[leaf].from;
-    while ((start > 0ull) && (text[start - 1ull] != '\n'))
-    {
-        start -= 1ull;
-    }
+    start = cli_text_back_any(text, start, "\n");
     for (unsigned long long at = spans->read->leaf[leaf].from; at < byte; at += 1ull)
     {
         if (text[at] == '\n')

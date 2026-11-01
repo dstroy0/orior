@@ -5,7 +5,9 @@
 // followed, each line it printed sent from its first as run-lines and its end as run-end, as they come, the lines of
 // one reading going as one event; a run whose process is gone with no end reported ends as stopped. A run is stopped by
 // its stop file, which its own process watches for. The detached runs are listed in serve_detached_list.c
+#include "../command_line/cells.h"
 #include "../runs/runner.h"
+#include "../text/text.h"
 #include "serve_internal.h"
 
 #include <stdlib.h>
@@ -90,7 +92,7 @@ static void detached_follower(void *context)
         if (whole > at)
         {
             unsigned long long mapped_size = 0ull;
-            const unsigned char *const mapped = cli_file_read(lines_file, &mapped_size);
+            const unsigned char *const mapped = cli_file_taken(lines_file, &mapped_size, &g_cli_window_cells);
             if (mapped != NULL)
             {
                 const unsigned long long room = sizeof(one->pending) - one->pending_size;
@@ -99,7 +101,7 @@ static void detached_follower(void *context)
                 memor.cpy(
                     &(MemoriaCfg){.dst = one->pending + one->pending_size, .src = mapped + at, .bytes = (size_t)read});
                 one->pending_size += read;
-                cli_file_let_go(mapped, mapped_size);
+                cli_file_given(mapped, &g_cli_window_cells);
             }
         }
         if (read > 0ull)
@@ -188,10 +190,9 @@ static void detached_follower(void *context)
 static int detached_followed(const char *base)
 {
     const char *name = base;
-    for (const char *at = base; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? at + 1 : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (base + name_past) : name;
     cli_lock_take(&s_lock);
     unsigned int at = 0u;
     while ((at < CLI_SERVE_FOLLOWERS) && (s_follower[at] != NULL))

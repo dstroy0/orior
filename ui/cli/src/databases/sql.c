@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sql.c: a text's tokens as each database writes them, its statements, and the statement a place stands in
 #include "sql.h"
+#include "../text/text.h"
 
 unsigned int cli_sql_dialect(const char *name)
 {
@@ -65,10 +66,7 @@ static void cli_quoted(const unsigned char *bytes, unsigned long long length, un
 static unsigned long long cli_dollar_tag(const unsigned char *bytes, unsigned long long length, unsigned long long at)
 {
     unsigned long long end = at + 1ull;
-    while ((end < length) && (cli_alpha(bytes[end]) || cli_digit(bytes[end]) || (bytes[end] == '_')))
-    {
-        end += 1ull;
-    }
+    end = cli_text_past_class((const char *)bytes, end, length, CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, "_");
     const int digit_first = ((at + 1ull) < length) && cli_digit(bytes[at + 1u]);
     return ((end < length) && (bytes[end] == '$') && !digit_first) ? (end - at + 1ull) : 0ull;
 }
@@ -96,10 +94,7 @@ int cli_sql_token(const char *text, unsigned long long length, unsigned int dial
     }
     else if (((byte == '-') && next_is && (next == '-')) || ((byte == '#') && (dialect == CLI_SQL_MYSQL)))
     {
-        while ((*at < length) && (bytes[*at] != '\n'))
-        {
-            *at += 1ull;
-        }
+        *at = cli_text_to_any((const char *)bytes, *at, length, "\n");
         kind = CLI_SQL_COMMENT;
     }
     else if ((byte == '/') && next_is && (next == '*'))
@@ -150,10 +145,7 @@ int cli_sql_token(const char *text, unsigned long long length, unsigned int dial
     }
     else if ((byte == '[') && (dialect == CLI_SQL_SQLITE))
     {
-        while ((*at < length) && (bytes[*at] != ']'))
-        {
-            *at += 1ull;
-        }
+        *at = cli_text_to_any((const char *)bytes, *at, length, "]");
         *at = ((*at + 1ull) < length) ? (*at + 1ull) : length;
         kind = CLI_SQL_NAME;
     }
@@ -172,19 +164,13 @@ int cli_sql_token(const char *text, unsigned long long length, unsigned int dial
     }
     else if (cli_alpha(byte) || (byte == '_') || (byte >= 0x80u))
     {
-        while ((*at < length) && (cli_alpha(bytes[*at]) || cli_digit(bytes[*at]) || (bytes[*at] == '_') ||
-                                  (bytes[*at] == '$') || (bytes[*at] >= 0x80u)))
-        {
-            *at += 1ull;
-        }
+        *at = cli_text_past_class((const char *)bytes, *at, length,
+                                  CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_PAST_ASCII, "_$");
         kind = CLI_SQL_WORD;
     }
     else if (cli_digit(byte))
     {
-        while ((*at < length) && (cli_alpha(bytes[*at]) || cli_digit(bytes[*at]) || (bytes[*at] == '.')))
-        {
-            *at += 1ull;
-        }
+        *at = cli_text_past_class((const char *)bytes, *at, length, CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, ".");
         kind = CLI_SQL_NUMBER;
     }
     else

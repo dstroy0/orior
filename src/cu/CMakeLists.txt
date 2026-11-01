@@ -17,8 +17,8 @@ if(NOT DEFINED ORIOR_ROOT)
     get_filename_component(ORIOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 endif()
 
-# MMgr, built as orior builds it: its suites left to its own runs, embedded_types taken from the tree's copy, and its
-# objects plain ones, since orior's library is linked by the window's linker, which reads no LLVM bitcode. orior_mmgr
+# MMgr, built as orior builds it: its suites left to its own runs, embedded_types taken from the tree's checkout, and its
+# link time optimization the flags ui/cli/build.sh hands it, which the program's whole link reads. orior_mmgr
 # builds the modules of its host environment, the ones ui/cli/build.sh joins to the command line's objects. The
 # owner queue has room for every owner orior registers, the same room in MMgr's objects and orior's
 set(MMGR_BUILD_TESTS OFF)

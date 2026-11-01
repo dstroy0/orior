@@ -64,12 +64,12 @@ static CliRenderRoom *s_room;
 
 int cli_print_faces(VerbaLinea *err_msg)
 {
-    for (unsigned int face = 0u; (s_typefaces != NULL) && (face < 4u); face += 1u)
-    {
-        cli_file_let_go(s_typefaces->face_data[face], s_typefaces->face_size[face]);
-    }
     if (s_typefaces != NULL)
     {
+        for (unsigned int face = 0u; face < 4u; face += 1u)
+        {
+            cli_file_given(s_typefaces->face_data[face], &g_cli_print_cells);
+        }
         g_cli_cells->persistent_buf_release(s_typefaces->cover, &g_cli_print_cells);
     }
     g_cli_cells->persistent_buf_release(s_typefaces, &g_cli_print_cells);
@@ -79,20 +79,29 @@ int cli_print_faces(VerbaLinea *err_msg)
         mmgr_line_put(err_msg, "the faces drawn with could not be taken");
         return 0;
     }
-    s_typefaces->cover = NULL;
-    s_typefaces->cover_room = 0ull;
+    s_typefaces->cover = g_cli_cells->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), &g_cli_print_cells);
+    s_typefaces->cover_room = (s_typefaces->cover != NULL) ? CLI_COVER_CACHE : 0ull;
+    s_typefaces->cover_used = 0ull;
     char paths[4][CLI_PATH_MAX_LEN];
     cli_font_monospace(paths);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
-        // a face's file read whole into a cell of its size, a file past CLI_FONT_BYTES let go unread
+        // a face's file read whole and kept as long as it is drawn from, in a persistent cell of its size and the
+        // slack, a file past CLI_FONT_BYTES let go unread
         unsigned long long size = 0ull;
-        const unsigned char *data = (paths[face][0] != '\0') ? cli_file_read(paths[face], &size) : NULL;
-        if ((data != NULL) && (size > CLI_FONT_BYTES))
+        unsigned char *data =
+            ((paths[face][0] != '\0') && cli_file_size(paths[face], &size) && (size <= CLI_FONT_BYTES))
+                ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_cli_print_cells)
+                : NULL;
+        if ((data == NULL) || !cli_file_read_at(paths[face], 0ull, data, size, &size))
         {
-            cli_file_let_go(data, size);
+            g_cli_cells->persistent_buf_release(data, &g_cli_print_cells);
             data = NULL;
             size = 0ull;
+        }
+        else
+        {
+            memor.set(&(MemoriaCfg){.dst = data + size, .val = 0, .bytes = CLI_FILE_SLACK});
         }
         s_typefaces->face_data[face] = data;
         s_typefaces->face_size[face] = size;
@@ -154,36 +163,13 @@ static void cli_glyphs_forgotten(void)
     s_typefaces->cover_used = 0ull;
 }
 
-// the coverage given room for a glyph, CLI_COVER_LEAST floats past those used: grown where it stands or moved, every
-// cached mask pointed into the moved cell, up to CLI_COVER_CACHE; at that ceiling, or where the cells refuse the
-// growth, the glyphs are forgotten and the coverage begins again: 1, or 0 where no coverage can be had at all
+// the coverage given room for a glyph, CLI_COVER_LEAST floats past those used: where it has none left the glyphs are
+// forgotten and the coverage begins again: 1, or 0 where no coverage can be had at all
 static int cli_cover_roomed(void)
 {
     if ((s_typefaces->cover_room - s_typefaces->cover_used) >= CLI_COVER_LEAST)
     {
         return 1;
-    }
-    const unsigned long long wanted = s_typefaces->cover_used + CLI_COVER_LEAST;
-    if (wanted <= CLI_COVER_CACHE)
-    {
-        const unsigned long long doubled = 2ull * s_typefaces->cover_room;
-        const unsigned long long more = (doubled > wanted) ? doubled : wanted;
-        const unsigned long long taken = (more < CLI_COVER_CACHE) ? more : CLI_COVER_CACHE;
-        const float *const before = s_typefaces->cover;
-        float *const grown = cli_cell_regrown(s_typefaces->cover, s_typefaces->cover_used * sizeof(float),
-                                              taken * sizeof(float), &g_cli_print_cells);
-        if (grown != NULL)
-        {
-            for (unsigned int at = 0u; (grown != before) && (at < CLI_GLYPH_CACHE); at += 1u)
-            {
-                CliCachedGlyph *const one = &s_typefaces->glyphs[at];
-                // a mask's coverage keeps its place in the cell, the cell having moved whole
-                one->mask.cover = one->used ? (grown + (one->mask.cover - before)) : one->mask.cover;
-            }
-            s_typefaces->cover = grown;
-            s_typefaces->cover_room = taken;
-            return 1;
-        }
     }
     cli_glyphs_forgotten();
     return s_typefaces->cover_room >= CLI_COVER_LEAST;

@@ -15,17 +15,14 @@
 // names another id or version than its catalog's entry is not installed. What a plugin reads, writes and reaches on
 // the network is what its own plugin.json declares (plugins.h); the window restricts it to that. Nothing is read from a
 // catalog or installed but when the reader requests it, and a plugin is updated only by installing it again
+#include "../command_line/cells.h"
 #include "plugin_catalog_internal.h"
 
 #include "../machine/net.h"
 #include "../requests/requests.h"
 #include "plugins.h"
 
-#include "../text/pieces.h"
 #include "../text/text.h"
-
-// the bytes of a piece a fetched body is written in before the piece is stored in a cell of its own
-#define CLI_PLUGIN_CATALOG_PIECE 4096u
 
 CliCatalogRoom *g_cli_catalog;
 static CliCatalogRoom s_catalog_room;
@@ -57,7 +54,7 @@ void cli_plugin_catalog_released(void)
 unsigned int cli_plugin_catalog_tree(const char *text, unsigned long long size, VerbaLinea *err_msg)
 {
     cli_json_given(&g_cli_catalog->json);
-    return cli_json_taken(&g_cli_catalog->json, text, size, 0u, 0ull, err_msg, &g_cli_plugins_cells);
+    return cli_json_taken_temporary(&g_cli_catalog->json, text, size, 0u, 0ull, err_msg, &g_cli_plugins_cells);
 }
 
 // whether `text` begins with `prefix`
@@ -82,17 +79,13 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
         VerbaLinea failed = {why, sizeof(why), 0ull};
         char reason[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea reason_line = {reason, sizeof(reason), 0ull};
-        CliPieces pieces;
-        VerbaLinea body;
-        char piece[CLI_PLUGIN_CATALOG_PIECE];
-        cli_pieces_begun(&pieces, &body, piece, sizeof(piece), &g_cli_plugins_cells);
+        // a cell of the most a catalog holds, its body's bytes stored as its text
+        const unsigned long long room = CLI_CATALOG_BYTES + 1ull;
+        unsigned char *const joined = g_cli_cells->temporary_buf_alloc(room, &g_cli_plugins_cells);
+        VerbaLinea body = mmgr_line_over((char *)joined, room);
         unsigned int status = 0u;
         int cut = 0;
         const int got = cli_requests_get(address, &status, &reason_line, &cut, &body, &failed);
-        unsigned long long joined_size = 0ull;
-        // a body's bytes are stored as its text
-        unsigned char *const joined =
-            (unsigned char *)cli_pieces_joined(&pieces, &body, "the bytes a plugin catalog fetched", &joined_size);
         if (!got)
         {
             g_cli_cells->persistent_buf_release(joined, &g_cli_plugins_cells);
@@ -111,7 +104,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
             mmgr_line_put_n(err_msg, reason, reason_line.at);
             return 0;
         }
-        if (cut || (joined == NULL) || (joined_size > CLI_CATALOG_BYTES))
+        if (cut || !mmgr_line_ok(&body))
         {
             g_cli_cells->persistent_buf_release(joined, &g_cli_plugins_cells);
             mmgr_line_put(err_msg, address);
@@ -119,25 +112,22 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
             return 0;
         }
         g_cli_catalog->bytes = joined;
-        *size = joined_size;
+        *size = body.at;
         return 1;
     }
     const char *const path = catalog_begins(address, "file://") ? (address + 7) : address;
     unsigned long long mapped_size = 0ull;
-    const unsigned char *const mapped = cli_file_read(path, &mapped_size);
+    const unsigned char *const mapped = cli_file_taken(path, &mapped_size, &g_cli_plugins_cells);
     // a file of no bytes is stored in a cell of one, and every read has a cell
     unsigned char *const bytes =
         ((mapped != NULL) && (mapped_size <= CLI_CATALOG_BYTES))
-            ? g_cli_cells->persistent_buf_alloc((mapped_size != 0ull) ? mapped_size : 1ull, &g_cli_plugins_cells)
+            ? g_cli_cells->temporary_buf_alloc((mapped_size != 0ull) ? mapped_size : 1ull, &g_cli_plugins_cells)
             : NULL;
     if (bytes != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = bytes, .src = mapped, .bytes = (size_t)mapped_size});
     }
-    if (mapped != NULL)
-    {
-        cli_file_let_go(mapped, mapped_size);
-    }
+    cli_file_given(mapped, &g_cli_plugins_cells);
     if (bytes == NULL)
     {
         mmgr_line_put(err_msg, path);
@@ -271,7 +261,7 @@ static void catalog_entry_written(const CliJson *json, unsigned int entry, Verba
         mmgr_line_put(out, "\":");
         unsigned long long length = 0ull;
         const char *const text = cli_json_string(json, cli_json_member(json, entry, s_texts[at]), &length);
-        cli_json_quoted(out, (text != NULL) ? text : "", (text != NULL) ? length : 0ull);
+        cli_json_quoted(out, (text != NULL) ? text : "", length);
     }
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {

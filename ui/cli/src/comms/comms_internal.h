@@ -13,7 +13,6 @@
 #define CLI_COMMS_PARTS 256u
 #define CLI_COMMS_LISTENERS 512u
 #define CLI_COMMS_CHANNELS 256u
-#define CLI_COMMS_FIRST 8u
 #define CLI_COMMS_STORED_MAX 20u
 #define CLI_COMMS_STORED_BODY_MAX 2048u
 
@@ -51,14 +50,15 @@ typedef struct
     void *context;
 } CliCommsListener;
 
-// A message stored as a channel's last, in a cell of its size, `from` its first byte: the part that sent it, ended by a
-// 0, and its body after, whole where it is shorter than CLI_COMMS_STORED_BODY_MAX and else given by its size, `size`
-// bytes
+// A message stored as a channel's last, in a cell of `room` bytes, `from` its first byte: the part that sent it, ended
+// by a 0, and its body after, whole where it is shorter than CLI_COMMS_STORED_BODY_MAX and else given by its size,
+// `size` bytes
 typedef struct
 {
     char *from;
     const char *body;
     unsigned long long size;
+    unsigned long long room;
 } CliCommsStoredMsg;
 
 // A channel's traffic: its name, how many messages and bytes it carried, the bytes that went through the transfer
@@ -75,8 +75,8 @@ typedef struct
     unsigned int count;
 } CliCommsTraffic;
 
-// The comms layer: its parts, listeners and channels, each table in a cell of `*_room` places grown as it fills up to
-// its most, and their lock
+// The comms layer: its parts, listeners and channels, each table in a cell of `*_room` places at their most, and their
+// lock
 typedef struct
 {
     CliCommsPart *parts;

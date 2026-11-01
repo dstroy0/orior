@@ -23,14 +23,6 @@ typedef struct
 
 static BenchReaders s_readers = {NULL, 0u, 0u, 0, CLI_LOCK_INIT, CLI_WAKE_INIT};
 
-// room for a whole file from the system's allocator, outside the cells, stored in `context` to be freed
-static unsigned char *readers_roomed(void *context, unsigned long long size)
-{
-    unsigned char **const room = context;
-    *room = malloc((size_t)size + 1u);
-    return *room;
-}
-
 // each file read in turn: through the cells, or through the system's allocator alone where the readers are plain
 static void readers_run(void *context)
 {
@@ -49,13 +41,17 @@ static void readers_run(void *context)
         unsigned long long size = 0ull;
         if (s_readers.plain)
         {
-            unsigned char *room = NULL;
-            (void)cli_file_read_whole(corpus->paths[index], readers_roomed, &room, &size);
+            // room for the whole file from the system's allocator, outside the cells
+            unsigned char *room = cli_file_size(corpus->paths[index], &size) ? malloc((size_t)size + 1u) : NULL;
+            if (room != NULL)
+            {
+                (void)cli_file_read_at(corpus->paths[index], 0ull, room, size, &size);
+            }
             free(room);
             continue;
         }
-        const unsigned char *const bytes = cli_file_read(corpus->paths[index], &size);
-        cli_file_let_go(bytes, size);
+        const unsigned char *const bytes = cli_file_taken(corpus->paths[index], &size, &g_checks_cells);
+        cli_file_given(bytes, &g_checks_cells);
     }
     cli_lock_take(&s_readers.lock);
     s_readers.running -= 1u;
@@ -131,8 +127,9 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
     BenchMeasure measure = {0ull, ~0ull};
     char under[CLI_PATH_MAX_LEN];
     cli_full(corpus->root, "ui/cli/src", under);
-    VerbaLinea out;
-    (void)cli_growing_line_made(&out, 1ull << 20u, &g_checks_cells);
+    const unsigned long long out_room = 1ull << 20u;
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_checks_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, out_room);
     for (unsigned int round = 0u; round < corpus->repeat; round += 1u)
     {
         char why[CLI_ERR_MSG_MAX_LEN];

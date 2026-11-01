@@ -3,7 +3,7 @@
 // lsp_start.c: a language server started at a tree, its readers started, and requested to initialize with what
 // orior_cli can do
 #include "../command_line/cells.h"
-#include "../text/pieces.h"
+#include "../text/text.h"
 #include "lsp_internal.h"
 
 // how long the server has to answer that it started, in milliseconds
@@ -88,15 +88,9 @@ static void lsp_initialize_params(const char *root, const char *options, unsigne
     char uri[CLI_PATH_MAX_LEN * 3u];
     cli_lsp_uri_of(root, uri, sizeof(uri));
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
-    while ((end > 0u) && ((root[end - 1u] == '/') || (root[end - 1u] == '\\')))
-    {
-        end -= 1u;
-    }
+    end = (size_t)cli_text_back_past(root, end, "/\\");
     size_t start = end;
-    while ((start > 0u) && (root[start - 1u] != '/') && (root[start - 1u] != '\\'))
-    {
-        start -= 1u;
-    }
+    start = (size_t)cli_text_back_any(root, start, "/\\");
     mmgr_line_put(out, "{\"processId\":");
     mmgr_line_decimal(out, cli_process_own(), 1u);
     mmgr_line_put(out, ",\"rootUri\":");
@@ -140,31 +134,23 @@ CliLsp *cli_lsp_started(const char *program, const char *const *args, unsigned i
         return NULL;
     }
     cli_lsp_readers_started(lsp);
-    // the params and the answer each written through pieces into a cell of its size
-    char params_piece[4096];
-    CliPieces params_pieces;
-    VerbaLinea params;
-    cli_pieces_begun(&params_pieces, &params, params_piece, sizeof(params_piece), &g_cli_servers_cells);
+    // the params in a cell of the most they hold: the tree's URI twice, its folder's name escaped, what orior can do,
+    // the server's options and the members around them
+    const unsigned long long params_room = (CLI_PATH_MAX_LEN * 12ull) + sizeof(s_capabilities) + length + 256ull;
+    char *const params_text = g_cli_cells->temporary_buf_alloc(params_room, &g_cli_servers_cells);
+    VerbaLinea params = mmgr_line_over(params_text, params_room);
     lsp_initialize_params(root, options, length, &params);
-    unsigned long long params_size = 0ull;
-    char *const params_json = cli_pieces_joined(&params_pieces, &params, "a server's initialize params", &params_size);
-    char answer_piece[4096];
-    CliPieces answer_pieces;
-    VerbaLinea answer;
-    cli_pieces_begun(&answer_pieces, &answer, answer_piece, sizeof(answer_piece), &g_cli_servers_cells);
+    CliLspAnswer answer = {NULL, NULL, 0ull};
     const unsigned long long err_from = err_msg->at;
-    if (params_json == NULL)
+    if (!mmgr_line_ok(&params))
     {
-        mmgr_line_put(err_msg, "the server's initialize params could not be written: the cells cannot meet them");
+        mmgr_line_put(err_msg, "the server's initialize params could not be written: they do not fit");
     }
-    const int initialized = (params_json != NULL) && cli_lsp_requested(lsp, "initialize", params_json, params_size,
+    const int initialized = mmgr_line_ok(&params) && cli_lsp_requested(lsp, "initialize", params.out, params.at,
                                                                        CLI_LSP_STARTING, &answer, err_msg);
-    g_cli_cells->persistent_buf_release(params_json, &g_cli_servers_cells);
-    unsigned long long reply_size = 0ull;
-    char *const reply = cli_pieces_joined(&answer_pieces, &answer, "a server's initialize answer", &reply_size);
-    if (!initialized || (reply == NULL))
+    g_cli_cells->persistent_buf_release(params_text, &g_cli_servers_cells);
+    if (!initialized)
     {
-        g_cli_cells->persistent_buf_release(reply, &g_cli_servers_cells);
         query_paused(200u);
         char complaint[CLI_LSP_COMPLAINT];
         VerbaLinea complaint_line = {complaint, sizeof(complaint), 0ull};
@@ -180,17 +166,17 @@ CliLsp *cli_lsp_started(const char *program, const char *const *args, unsigned i
     // what the server reported it can do, in a cell of its size
     unsigned long long at = 0ull;
     unsigned long long size = 0ull;
-    const int has = cli_lsp_member(reply, reply_size, "capabilities", &at, &size);
+    const int has = cli_lsp_member(answer.text, answer.size, "capabilities", &at, &size);
     lsp->capabilities_size = has ? size : 4ull;
     lsp->capabilities = g_cli_cells->persistent_buf_alloc(lsp->capabilities_size + 1ull, &g_cli_servers_cells);
     if (lsp->capabilities != NULL)
     {
         // a member of the reply, which a size_t counts
         memor.cpy(&(MemoriaCfg){
-            .dst = lsp->capabilities, .src = has ? reply + at : "null", .bytes = (size_t)lsp->capabilities_size});
+            .dst = lsp->capabilities, .src = has ? answer.text + at : "null", .bytes = (size_t)lsp->capabilities_size});
         lsp->capabilities[lsp->capabilities_size] = '\0';
     }
-    g_cli_cells->persistent_buf_release(reply, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unsent = {why, sizeof(why), 0ull};
     (void)cli_lsp_notified(lsp, "initialized", "{}", 2ull, &unsent);

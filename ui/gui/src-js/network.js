@@ -18,7 +18,7 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// Whether orior_gui is held off the network.
+// Whether orior_gui is kept off the network.
 export function offNetwork() {
   return localStorage.getItem(KEY) === "off";
 }
@@ -42,7 +42,7 @@ export async function showNetwork(sheet) {
   const said = element("p", { className: "network-said" });
   const rows = element("div", { className: "network-rows" });
   const draw = async () => {
-    said.textContent = offNetwork() ? "orior_gui is held off the network: each address it would reach is refused, saying what for." : "orior_gui reaches an address only for what you ask of it.";
+    said.textContent = offNetwork() ? "orior_gui is kept off the network: each address it would reach is refused, saying what for." : "orior_gui reaches an address only for what you ask of it.";
     const reached = await invoke("network_reached").catch(() => []);
     rows.replaceChildren(
       ...(reached.length

@@ -534,8 +534,8 @@ def cmd_profile(a):
     )
     conn.evaluate(
         "(async () => { const e = await import(location.origin + '/edit.js'); const v = e.editing().editor; if (!v) return null;"
-        " const painted = v.painted; const told = { drawn: 0, held: 0, shown: new Set(), reports: 0, answered: 0, letters: 0 }; window.__profilePaints = told; window.__profilePainted = painted;"
-        " v.painted = function (...given) { const result = painted.apply(this, given); if (this.heldFrame === this.s && this.lastTop !== undefined && this.pastWindow?.(this.lastTop)) told.held += 1; else told.drawn += 1;"
+        " const painted = v.painted; const told = { drawn: 0, kept: 0, shown: new Set(), reports: 0, answered: 0, letters: 0 }; window.__profilePaints = told; window.__profilePainted = painted;"
+        " v.painted = function (...given) { const result = painted.apply(this, given); if (this.pastWindowFrame === this.s && this.lastTop !== undefined && this.pastWindow?.(this.lastTop)) told.kept += 1; else told.drawn += 1;"
         " const rows = this.rows(); const first = Math.max(0, Math.floor(this.scrollYKnown() / this.lineHeight)); const last = Math.min(rows.size - 1, first + Math.ceil(this.viewSize().height / this.lineHeight));"
         " for (let row = first; row <= last; row += 1) told.shown.add(this.s.base + rows.lineOf(row)); return result; };"
         " if (!window.__profileHeard) { window.__profileHeard = true; const b = await import(location.origin + '/bridge.js');"
@@ -608,7 +608,7 @@ def cmd_profile(a):
         callers[key] = callers.get(key, 0) + after
     lines = ["%d frames, %d later than %d ms%s" % (len(frames), len(late), a.late, (": " + ", ".join("%.0f" % gap for gap in late[:12]) + " ms") if late else "")]
     if paints:
-        lines.append("the editor drew %d frames and kept the last one drawn in %d, its view past its file's window" % (paints["drawn"], paints["held"]))
+        lines.append("the editor drew %d frames and kept the last one drawn in %d, its view past its file's window" % (paints["drawn"], paints["retained"]))
         lines.append("a paged file's %d reports answered %d lines, %d letters; the frames showed %d lines of the file"
                      % (paints["reports"], paints["answered"], paints["letters"], paints["shown"]))
     lines.append("the page's time, %.0f ms sampled, by the function that spent it itself:" % (whole / 1000.0))
@@ -689,7 +689,7 @@ def cmd_presses(a):
     time.sleep(a.rest)
     read = conn.evaluate("(() => window.__pressesRead)()", timeout=10) or []
     reports = conn.evaluate("(() => window.__pressesReports)()", timeout=10) or []
-    lines = ["%s from line %d, %s: %s pressed %d times" % (began["path"], began["line"], "paged" if began["paged"] else "held whole", key, a.count)]
+    lines = ["%s from line %d, %s: %s pressed %d times" % (began["path"], began["line"], "paged" if began["paged"] else "retained whole", key, a.count)]
     if began["paged"]:
         lines.append("as the presses began: %d reports in flight, the calls about the file before them %s" % (began["flying"], "answered" if began["answered"] else "not answered in 200 ms"))
     lines.append("calls unanswered as the presses began: %s" % ("; ".join(began["open"]) or "none"))
@@ -848,7 +848,7 @@ def cmd_heap(a):
     lines.append("by name, the most bytes first:")
     for name, (count, total) in sorted(by_name.items(), key=lambda one: -one[1][1])[: a.count]:
         lines.append("  %9.1f KiB %8d  %s" % (total / 1024.0, count, name[:120]))
-    lines.append("held by no document: %d objects, %.1f KiB" % (sum(one[0] for one in detached.values()), sum(one[1] for one in detached.values()) / 1024.0))
+    lines.append("retained by no document: %d objects, %.1f KiB" % (sum(one[0] for one in detached.values()), sum(one[1] for one in detached.values()) / 1024.0))
     for name, (count, total) in sorted(detached.items(), key=lambda one: -one[1][1])[: a.count]:
         lines.append("  %9.1f KiB %8d  %s" % (total / 1024.0, count, name[:120]))
     text = "\n".join(lines)
@@ -985,7 +985,7 @@ def page_memory(port):
     return heap, counters
 
 
-def memory_held(port):
+def memory_retained(port):
     """What each of the web view's processes holds as the browser counts it behind its debugging port: a memory-infra
     dump taken through the browser's own target, each process's allocators at the dump's top level and the bytes each
     holds, by the process's id."""
@@ -1009,15 +1009,15 @@ def memory_held(port):
         whole.wait(60)
     finally:
         browser.close()
-    held = {}
+    retained = {}
     for event in events:
         if event.get("ph") != "v":
             continue
         for name, entry in event.get("args", {}).get("dumps", {}).get("allocators", {}).items():
             size = entry.get("attrs", {}).get("size", {}).get("value")
             if "/" not in name and size is not None:
-                held.setdefault(event.get("pid"), {})[name] = int(size, 16)
-    return held
+                retained.setdefault(event.get("pid"), {})[name] = int(size, 16)
+    return retained
 
 
 def cmd_memory(a):
@@ -1069,7 +1069,7 @@ def cmd_memory(a):
         heap, counters = page_memory(a.port)
         print("page, its garbage collected: heap %.1f MiB used of %.1f MiB, %d documents, %d nodes, %d listeners" % (heap.get("usedSize", 0) / MIB, heap.get("totalSize", 0) / MIB, counters.get("documents", 0), counters.get("nodes", 0), counters.get("jsEventListeners", 0)))
     if a.port and a.infra:
-        for process_id, allocators in sorted(memory_held(a.port).items(), key=lambda one: -sum(one[1].values())):
+        for process_id, allocators in sorted(memory_retained(a.port).items(), key=lambda one: -sum(one[1].values())):
             name = kinds.get(process_id) or next((exe for other, _, exe in every if other == process_id), "?")
             largest = sorted(allocators.items(), key=lambda one: -one[1])
             print("%7s %-28s %8.1f MiB: %s" % (process_id, name, sum(allocators.values()) / MIB, ", ".join("%s %.1f MiB" % (allocator, size / MIB) for allocator, size in largest if size >= MIB / 10)))

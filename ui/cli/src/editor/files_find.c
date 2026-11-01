@@ -86,13 +86,10 @@ static void cli_git_hits(const CliRan *ran, const char *prefix, const CliPattern
     mmgr_line_ch(out, '[');
     while ((at < end) && (found < CLI_HITS_MOST))
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = at, .val = '\n', .bytes = (unsigned long long)(end - at)});
-        const char *const line_end = (newline != NULL) ? newline : end;
-        const char *const stop =
-            ((newline != NULL) && (line_end > at) && (line_end[-1] == '\r')) ? (line_end - 1) : line_end;
+        const CliTextLine bounds = cli_text_line_at(at, 0ull, (unsigned long long)(end - at));
+        const char *const stop = at + bounds.cut;
         const char *field = at;
-        at = (newline != NULL) ? (newline + 1) : end;
+        at += bounds.next;
         unsigned long long length = 0ull;
         const char *const path = cli_git_field(&field, stop, ':', &length);
         unsigned long long number_length = 0ull;
@@ -216,54 +213,20 @@ typedef struct
     unsigned int lower[CLI_FUZZY_LETTERS];
     char (*found)[CLI_PATH_MAX_LEN];
     unsigned int found_count;
-    unsigned int found_room;
     char (*pending)[CLI_PATH_MAX_LEN];
     unsigned int pending_count;
-    unsigned int pending_room;
     const char *root;
     const char *folder;
 } CliFinding;
 
 static CliFinding s_finding;
 
-// the paths a list's room is begun with, doubling as they are put
-#define CLI_FIND_FIRST 16u
-
-// `*list`, `count` paths of `*room`, made to fit one more, `most` at the most: 1, or 0 where it contains the most or
-// the larger cell is refused
-static int cli_finding_room(char (**list)[CLI_PATH_MAX_LEN], unsigned int count, unsigned int *room, unsigned int most,
-                            const char *what)
-{
-    if (count < *room)
-    {
-        return 1;
-    }
-    const unsigned int doubled = (*room == 0u) ? CLI_FIND_FIRST : (*room * 2u);
-    const unsigned int grown = (doubled < most) ? doubled : most;
-    char (*const larger)[CLI_PATH_MAX_LEN] =
-        (count < most)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)grown * CLI_PATH_MAX_LEN, &g_cli_editor_cells)
-            : NULL;
-    if (larger == NULL)
-    {
-        return 0;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = *list, .bytes = (size_t)count * CLI_PATH_MAX_LEN});
-    g_cli_cells->persistent_buf_release(*list, &g_cli_editor_cells);
-    *list = larger;
-    *room = grown;
-    return 1;
-}
-
 // the find's lists given back
 static void cli_finding_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_finding.found, &g_cli_editor_cells);
     g_cli_cells->persistent_buf_release(s_finding.pending, &g_cli_editor_cells);
     s_finding.found = NULL;
     s_finding.pending = NULL;
-    s_finding.found_room = 0u;
-    s_finding.pending_room = 0u;
 }
 
 // whether the path contains each word of the query, case aside, and the patterns leave it
@@ -308,8 +271,7 @@ static void cli_finding_each(void *context, const char *name, int is_folder)
     {
         const int skipped = (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_CELLS_POOL})) ||
                             (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "target", .cap = CLI_CELLS_POOL}));
-        if (!skipped && cli_finding_room(&s_finding.pending, s_finding.pending_count, &s_finding.pending_room,
-                                         CLI_FIND_PENDING, "the folders a find has still to look in"))
+        if (!skipped && (s_finding.pending_count < CLI_FIND_PENDING))
         {
             memor.cpy(&(MemoriaCfg){.dst = s_finding.pending[s_finding.pending_count],
                                     .src = full,
@@ -320,8 +282,7 @@ static void cli_finding_each(void *context, const char *name, int is_folder)
     }
     char path[CLI_PATH_MAX_LEN];
     cli_relative(s_finding.root, full, path);
-    if (cli_finding_matches(path) && cli_finding_room(&s_finding.found, s_finding.found_count, &s_finding.found_room,
-                                                      CLI_FOUND_MOST, "the paths a find found"))
+    if ((s_finding.found_count < CLI_FOUND_MOST) && cli_finding_matches(path))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_finding.found[s_finding.found_count],
                                 .src = path,
@@ -382,13 +343,15 @@ void cli_files_find(const char *root, const char *query, VerbaLinea *out)
     }
     cli_seen_let(seen);
     s_finding.root = root;
-    if (!cli_finding_room(&s_finding.pending, 0u, &s_finding.pending_room, CLI_FIND_PENDING,
-                          "the folders a find has still to look in"))
+    s_finding.pending = g_cli_cells->temporary_buf_alloc(
+        ((unsigned long long)CLI_FIND_PENDING + CLI_FOUND_MOST) * CLI_PATH_MAX_LEN, &g_cli_editor_cells);
+    if (s_finding.pending == NULL)
     {
         mmgr_line_ch(out, ']');
         cli_lock_give(&s_lock);
         return;
     }
+    s_finding.found = s_finding.pending + CLI_FIND_PENDING;
     memor.cpy(&(MemoriaCfg){.dst = s_finding.pending[0],
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // history.c: a file's snapshots stored, listed and read back
 #include "history.h"
+#include "../command_line/cells.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
 
@@ -20,13 +21,10 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static int cli_snapshot_same(const char *snapshot, const char *text, unsigned long long size)
 {
     unsigned long long read = 0ull;
-    const unsigned char *const snapshot_bytes = cli_file_read(snapshot, &read);
+    const unsigned char *const snapshot_bytes = cli_file_taken(snapshot, &read, &g_cli_editor_cells);
     const int same = (snapshot_bytes != NULL) && (read == size) &&
                      (memor.cmp(&(MemoriaCfg){.src = snapshot_bytes, .other = text, .bytes = (size_t)size}) == 0);
-    if (snapshot_bytes != NULL)
-    {
-        cli_file_let_go(snapshot_bytes, read);
-    }
+    cli_file_given(snapshot_bytes, &g_cli_editor_cells);
     return same;
 }
 
@@ -242,9 +240,9 @@ int cli_history_read(const char *root, const char *path, unsigned long long at, 
         return 0;
     }
     unsigned long long file_size = 0ull;
-    const int found = cli_folder_of(home, root, path, folder) && cli_snapshot_path(folder, at, snapshot) &&
-                      cli_file_size(snapshot, &file_size) && cli_growing_line_room(out, file_size);
     const unsigned long long room = mmgr_line_ok(out) ? (out->capacity - out->at) : 0ull;
+    const int found = cli_folder_of(home, root, path, folder) && cli_snapshot_path(folder, at, snapshot) &&
+                      cli_file_size(snapshot, &file_size) && (room > file_size);
     const unsigned long long size =
         found ? qry_member_file_read(snapshot, (unsigned char *)(out->out + out->at), room) : QRY_MEMBER_UNREAD;
     if (size == QRY_MEMBER_UNREAD)

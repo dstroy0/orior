@@ -96,9 +96,9 @@ typedef struct
 
 // one lattice: its points stand on a grid, `columns` across and `rows` down, the first `half` a step in from the top
 // left and the rest a `step` apart: a point's origin is its row and column, and it stays where it is whatever the box
-// it is laid out over; each keeps the place it moves toward on its circle around its origin, drawn from a seed of its row
-// and column, as its offset across and down, a signed byte each, the circle's radius LATTICE_OFFSET_MOST, two bytes a
-// point for as many as `capacity` points. Made once a page draws with them, as many as `dots_room` and `placed_room`
+// it is laid out over; each keeps the place it moves toward on its circle around its origin, drawn from a seed of its
+// row and column, as its offset across and down, a signed byte each, the circle's radius LATTICE_OFFSET_MOST, two bytes
+// a point for as many as `capacity` points. Made once a page draws with them, as many as `dots_room` and `placed_room`
 // hold: each point moved and shaded as a dot, and each placed point's place, two doubles a point grouped by level,
 // with how many points stand at each level
 typedef struct
@@ -133,9 +133,10 @@ LatticeStageAt *lattice_stage(double seconds);
 // its radius at LATTICE_FITS of theirs
 void lattice_shaded(const LatticePens *pens, LatticeShades *shades);
 
-// every point of `held`, `width` by `height` pixels, moved where the loop at `seconds` puts it, then shaded from
+// every point of `lattice`, `width` by `height` pixels, moved where the loop at `seconds` puts it, then shaded from
 // `shades` by its disorder there, into its dots: 1, or 0 where the memory cannot hold them
-uint32_t lattice_dots_moved(LatticeSlot *held, double width, double height, double seconds, const LatticeShades *shades);
+uint32_t lattice_dots_moved(LatticeSlot *lattice, double width, double height, double seconds,
+                            const LatticeShades *shades);
 
 // 1 where the loop moved, from `then` to `now` in seconds, enough to be seen; 0 where no point moved that far
 uint32_t lattice_shows(double then, double now);

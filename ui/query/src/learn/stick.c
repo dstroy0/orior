@@ -46,14 +46,8 @@ int query_stick_changed(const char *cu, const char *fresh, const char *cubin)
     const int same = (before != NULL) && (after != NULL) && (old_size == new_size) &&
                      ((old_size == 0ull) ||
                       (memor.cmp(&(MemoriaCfg){.src = before, .other = after, .bytes = (size_t)old_size}) == 0));
-    if (before != NULL)
-    {
-        qry_member_file_unmapped(before, old_size);
-    }
-    if (after != NULL)
-    {
-        qry_member_file_unmapped(after, new_size);
-    }
+    qry_member_file_unmapped(before, old_size);
+    qry_member_file_unmapped(after, new_size);
     return !(same && query_is_file(cubin));
 }
 
@@ -188,7 +182,7 @@ static void query_code_walked(void *context, const char *name, int is_folder)
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (is_folder || (length <= 4u) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".bin", .cap = CLI_CELLS_POOL})) ||
-        !query_paths_room(walk->codes, QUERY_CODES_MOST))
+        (walk->codes->count >= walk->codes->room))
     {
         return;
     }
@@ -283,6 +277,7 @@ int query_listings_read(QueryContext *context, const QueryRun *run, const char *
                         const char *architecture, const char *folder, VerbaLinea *err_msg)
 {
     QueryPaths codes = {NULL, 0u, 0u};
+    (void)query_paths_taken(&codes, QUERY_CODES_MOST);
     QueryCodesWalk walk = {folder, &codes};
     query_folder_each(folder, query_code_walked, &walk);
     const int read =

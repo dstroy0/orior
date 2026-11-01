@@ -141,10 +141,7 @@ static void layout_paragraph_line(GuiLayout *layout, const char *text, unsigned 
             continue;
         }
         unsigned long long end = at;
-        while ((end < length) && (text[end] != ' ') && (text[end] != '`'))
-        {
-            end += 1ull;
-        }
+        end = cli_text_to_any(text, end, length, " `");
         if (code)
         {
             layout_word(layout, GUI_FACE_CODE, layout->code_size, text + at, end - at, type);
@@ -163,14 +160,8 @@ static int layout_line_is(const char *text, unsigned long long length, char mark
 {
     unsigned long long from = 0ull;
     unsigned long long to = length;
-    while ((from < to) && ((text[from] == ' ') || (text[from] == '\t') || (text[from] == '\r')))
-    {
-        from += 1ull;
-    }
-    while ((to > from) && ((text[to - 1ull] == ' ') || (text[to - 1ull] == '\t') || (text[to - 1ull] == '\r')))
-    {
-        to -= 1ull;
-    }
+    from = cli_text_past_any(text, from, to, " \t\r");
+    to = (from + cli_text_back_past(text + from, to - from, " \t\r"));
     if (to - from < 3ull)
     {
         return 0;
@@ -208,12 +199,10 @@ int gui_panel_markdown(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *p
     while (at < length)
     {
         unsigned long long end = at;
-        while ((end < length) && (text[end] != '\n'))
-        {
-            end += 1ull;
-        }
+        end = cli_text_to_any(text, end, length, "\n");
         unsigned long long line_length = end - at;
-        line_length = ((line_length > 0ull) && (text[at + line_length - 1ull] == '\r')) ? line_length - 1ull : line_length;
+        line_length =
+            ((line_length > 0ull) && (text[at + line_length - 1ull] == '\r')) ? line_length - 1ull : line_length;
         const char *const line = text + at;
         at = (end < length) ? end + 1ull : end;
         if (layout_line_is(line, line_length, '`'))
@@ -241,7 +230,8 @@ int gui_panel_markdown(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *p
             const int margin = gui_scaled(GUI_PANEL_RULE, scale);
             if (raster != NULL)
             {
-                gui_raster_filled(raster, gui_rect_met((GuiRect){x, layout.y + margin, wide, gui_scaled(1, scale)}, clip),
+                gui_raster_filled(raster,
+                                  gui_rect_met((GuiRect){x, layout.y + margin, wide, gui_scaled(1, scale)}, clip),
                                   palette->widget_line);
             }
             layout.y += (2 * margin) + gui_scaled(1, scale);

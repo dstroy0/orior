@@ -62,8 +62,22 @@ CliDebugSession *cli_debug_place(void)
             session->adapter_ended = 0;
             session->users = 1u;
             session->dap = NULL;
-            session->data_count = 0u;
+            const unsigned long long placed_bytes = (unsigned long long)CLI_DEBUG_PLACED * sizeof(*session->placed);
+            char *const lists = g_cli_cells->persistent_buf_alloc(
+                placed_bytes + ((unsigned long long)CLI_DEBUG_DATA * sizeof(*session->data)), &g_cli_debug_cells);
+            session->placed = NULL;
             session->placed_count = 0u;
+            session->placed_room = 0u;
+            session->data = NULL;
+            session->data_count = 0u;
+            session->data_room = 0u;
+            if (lists != NULL)
+            {
+                session->placed = (void *)lists;
+                session->placed_room = CLI_DEBUG_PLACED;
+                session->data = (void *)(lists + placed_bytes);
+                session->data_room = CLI_DEBUG_DATA;
+            }
             session->watching = 0;
             session->scripted = 0;
             session->has_across = 0;
@@ -115,8 +129,8 @@ CliDebugAnswer *cli_debug_answer_taken(void)
     }
     answer->taken = 1;
     cli_lock_give(&s_answers_lock);
-    cli_pieces_begun(&answer->pieces, &answer->args, answer->piece, sizeof(answer->piece), &g_cli_debug_cells);
-    answer->body = NULL;
+    char *const args_text = g_cli_cells->temporary_buf_alloc(CLI_DEBUG_ARGS, &g_cli_debug_cells);
+    answer->args = mmgr_line_over(args_text, CLI_DEBUG_ARGS);
     cli_json_begun(&answer->json, NULL, 0u, NULL, 0ull);
     answer->root = CLI_JSON_NONE;
     return answer;
@@ -124,9 +138,7 @@ CliDebugAnswer *cli_debug_answer_taken(void)
 
 void cli_debug_answer_given(CliDebugAnswer *answer)
 {
-    cli_pieces_given(&answer->pieces);
-    g_cli_cells->persistent_buf_release(answer->body, &g_cli_debug_cells);
-    answer->body = NULL;
+    g_cli_cells->persistent_buf_release(answer->args.out, &g_cli_debug_cells);
     cli_json_given(&answer->json);
     cli_lock_take(&s_answers_lock);
     answer->taken = 0;
@@ -137,28 +149,25 @@ void cli_debug_answer_given(CliDebugAnswer *answer)
 int cli_debug_request(CliDebugSession *session, const char *command, CliDebugAnswer *answer, unsigned long long wait,
                       VerbaLinea *err_msg)
 {
-    // the arguments joined into a cell of their size, an empty object where none are written
-    unsigned long long written = 0ull;
-    char *const joined = cli_pieces_joined(&answer->pieces, &answer->args, "a debug request's arguments", &written);
-    if (joined == NULL)
+    if (!mmgr_line_ok(&answer->args))
     {
-        mmgr_line_put(err_msg, "the request's arguments could not be stored");
+        mmgr_line_put(err_msg, "the request's arguments could not be stored: they do not fit");
         return 0;
     }
-    char piece[1024];
-    CliPieces pieces;
-    VerbaLinea body;
-    cli_pieces_begun(&pieces, &body, piece, sizeof(piece), &g_cli_debug_cells);
-    const int answered = cli_dap_requested(session->dap, command, (written > 0ull) ? joined : "{}",
-                                           (written > 0ull) ? written : 2ull, wait, &body, err_msg);
-    g_cli_cells->persistent_buf_release(joined, &g_cli_debug_cells);
-    unsigned long long size = 0ull;
-    answer->body = cli_pieces_joined(&pieces, &body, "a debug request's answer", &size);
-    if (!answered || (answer->body == NULL))
+    // the arguments as written, an empty object where none are; and the room emptied for a request after this one
+    const unsigned long long written = answer->args.at;
+    cli_json_given(&answer->json);
+    CliLspAnswer reply;
+    const int answered = cli_dap_requested(session->dap, command, (written > 0ull) ? answer->args.out : "{}",
+                                           (written > 0ull) ? written : 2ull, wait, &reply, err_msg);
+    answer->args.at = 0ull;
+    if (!answered)
     {
         return 0;
     }
-    answer->root = cli_json_taken(&answer->json, answer->body, size, 0u, 0ull, err_msg, &g_cli_debug_cells);
+    answer->root =
+        cli_json_taken_temporary(&answer->json, reply.text, reply.size, 0u, 0ull, err_msg, &g_cli_debug_cells);
+    g_cli_cells->persistent_buf_release(reply.message, &g_cli_debug_cells);
     return answer->root != CLI_JSON_NONE;
 }
 
@@ -289,8 +298,6 @@ int cli_debug_set(CliDebugSession *session, const char *file, const CliJson *jso
         {
             continue;
         }
-        session->placed = cli_debug_grown(session->placed, session->placed_count, &session->placed_room,
-                                          sizeof(*session->placed), CLI_DEBUG_PLACED);
         if (session->placed_count < session->placed_room)
         {
             session->placed[session->placed_count] = number;

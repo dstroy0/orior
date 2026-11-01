@@ -183,8 +183,7 @@ def cmd_cli_test(a):
 
 def cmd_cli_bench(a):
     if not a.docker:
-        env = dict(os.environ, LTO="1") if a.lto else None
-        return streamed([bash(), CLI_BENCH, a.label, str(a.repeat)], env=env)
+        return streamed([bash(), CLI_BENCH, a.label, str(a.repeat)])
     # the tree's sources copied into the container's own filesystem first; the rows therefore measure the code and not the
     # mount; the rows the run keeps are appended to the host's bench.tsv under a label that says where they ran
     inside = ("mkdir -p /work /usr/src/build/harness/bench && cp -r /usr/src/ui /usr/src/src /usr/src/utils /usr/src/bin_names.tsv /work/"
@@ -211,7 +210,6 @@ def register(sub):
     p.add_argument("--label", default="", help="the run's label in the kept rows, such as before or after")
     p.add_argument("--repeat", type=int, default=5, help="how many times each pass runs, the least time kept")
     p.add_argument("--docker", action="store_true", help="run in the Linux test image, on a copy of the tree inside it")
-    p.add_argument("--lto", action="store_true", help="the library built as bitcode and the bench linked whole, build/cli/<host>-lto")
     p.set_defaults(fn=cmd_cli_bench)
 
 

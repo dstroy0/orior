@@ -3,6 +3,7 @@
 // debug_arguments.c: what the requests to an adapter are made of and read by: numbers, truths and texts read from a
 // tree, the files a session takes, bytes from base64, a launch's arguments with their names filled in, the arguments
 // that set stepping, and breakpoints as the protocol writes them
+#include "../text/text.h"
 #include "debug_internal.h"
 
 // the bytes of a string filled in, and the lock the room it is filled in is guarded by
@@ -247,13 +248,10 @@ static int arguments_names_path(const char *one)
 {
     int marked = 0;
     int dotted = 1;
-    for (const char *letter = one; *letter != '\0'; letter += 1)
-    {
-        const char at = *letter;
-        marked = marked || (at == '/') || (at == '\\') || (at == '*') || (at == '.');
-        dotted = dotted && (((at >= 'a') && (at <= 'z')) || ((at >= 'A') && (at <= 'Z')) ||
-                            ((at >= '0') && (at <= '9')) || (at == '_') || (at == '.') || ((unsigned char)at >= 0x80u));
-    }
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL});
+    marked = cli_text_to_any(one, 0ull, size, "/\\*.") < size;
+    dotted =
+        cli_text_past_class(one, 0ull, size, CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_PAST_ASCII, "_.") == size;
     return marked && !dotted;
 }
 

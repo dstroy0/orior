@@ -3,6 +3,7 @@
 // reach.c: the windows stored in orior's home, each in a file of its own, written beside and moved into place whole;
 // and a command sent to the window open on a tree, its answer waited for on a channel of the command's own
 #include "reach.h"
+#include "../command_line/cells.h"
 
 #include "../comms/door.h"
 #include "../servers/lsp.h"
@@ -144,7 +145,7 @@ static void reach_entry(void *context, const char *name, int is_folder)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long size = 0ull;
     cli_full(read->folder, name, path);
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_machine_cells);
     if (bytes == NULL)
     {
         return;
@@ -153,7 +154,7 @@ static void reach_entry(void *context, const char *name, int is_folder)
     cli_json_begun(&json, s_nodes, CLI_REACH_NODES, s_text, sizeof(s_text));
     const unsigned int entry_count =
         cli_json_read(&json, (const char *)bytes, size, s_tokens, CLI_REACH_NODES, &err_msg);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_machine_cells);
     const char *const address = cli_json_string(&json, cli_json_member(&json, entry_count, "address"), NULL);
     const char *const key = cli_json_string(&json, cli_json_member(&json, entry_count, "key"), NULL);
     const char *const root = cli_json_string(&json, cli_json_member(&json, entry_count, "root"), NULL);
@@ -168,16 +169,10 @@ static void reach_entry(void *context, const char *name, int is_folder)
     }
     CliReachEntry *const one = &read->entries[read->count];
     one->process = 0u;
-    for (unsigned long long at = 0ull; (at < json.node[process].length) && (digits[at] >= '0') && (digits[at] <= '9');
-         at += 1ull)
-    {
-        one->process = (one->process * 10u) + (unsigned int)(digits[at] - '0');
-    }
+    // a process's id is no more than an unsigned int stores
+    one->process = (unsigned int)cli_text_number(digits, 0ull, json.node[process].length, NULL);
     one->has_root = (root != NULL);
-    memor.cpy(&(MemoriaCfg){
-        .dst = one->root,
-        .src = (root != NULL) ? root : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (root != NULL) ? root : "", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(one->root, root, "");
     memor.cpy(&(MemoriaCfg){.dst = one->address,
                             .src = address,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = address, .cap = CLI_CELLS_POOL}) + 1u});
@@ -191,14 +186,8 @@ static int reach_same(const char *one, const char *other)
 {
     size_t one_length = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL});
     size_t other_length = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_CELLS_POOL});
-    while ((one_length > 1u) && ((one[one_length - 1u] == '/') || (one[one_length - 1u] == '\\')))
-    {
-        one_length -= 1u;
-    }
-    while ((other_length > 1u) && ((other[other_length - 1u] == '/') || (other[other_length - 1u] == '\\')))
-    {
-        other_length -= 1u;
-    }
+    one_length = (size_t)(1u + cli_text_back_past(one + 1u, one_length - 1u, "/\\"));
+    other_length = (size_t)(1u + cli_text_back_past(other + 1u, other_length - 1u, "/\\"));
     return (one_length == other_length) && cli_text_same(one, other, one_length);
 }
 

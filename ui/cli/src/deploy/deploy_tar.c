@@ -144,7 +144,7 @@ int cli_deploy_tar(const char *path, const CliDeployPair *preserved, unsigned in
         cli_deploy_full(index, &full_line);
         mmgr_line_finish(&full_line);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_read(full, &size);
+        const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_deploy_cells);
         if (bytes == NULL)
         {
             mmgr_line_put(err_msg, full);
@@ -156,7 +156,7 @@ int cli_deploy_tar(const char *path, const CliDeployPair *preserved, unsigned in
         const int written = ((cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}) <= 99u) ||
                              tar_pax(path, file->path, time)) &&
                             tar_put(path, header, sizeof(header)) && tar_put(path, bytes, size);
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_deploy_cells);
         if (!written)
         {
             mmgr_line_put(err_msg, path);

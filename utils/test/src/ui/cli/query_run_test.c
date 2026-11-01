@@ -108,7 +108,8 @@ static void run_cells(void)
     const int taken = query_runs_taken(folder, &runs);
     const unsigned long long in_use_during = embed_atomic_usize_load(&g_query_cells.in_use);
     query_runs_given(&runs);
-    cli_check(taken && (runs.count == 0u) && (in_use_during > before) && (embed_atomic_usize_load(&g_query_cells.in_use) == before) &&
+    cli_check(taken && (runs.count == 0u) && (in_use_during > before) &&
+                  (embed_atomic_usize_load(&g_query_cells.in_use) == before) &&
                   (embed_atomic_usize_load(&g_query_cells.hw) >= in_use_during),
               "a folder's runs are counted to the query while in use, and its count falls back as they are given");
     (void)query_removed(folder);
@@ -262,12 +263,12 @@ static void run_read(void)
     char left[QUERY_PATH_MAX_LEN];
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned long long before = embed_atomic_usize_load(&g_query_cells.in_use);
     run_folder("build/query_test/read", base);
     cli_full(base, "sm_86.khw", file);
     cli_full(base, "absent.khw", absent);
     cli_full(base, "left.txt", left);
     (void)query_file_written(file, "forms\n", 6ull);
-    const unsigned long long before = embed_atomic_usize_load(&g_query_cells.in_use);
     cli_check(run_started(&s_run, "build/query_test/read/qry"), "a run starts");
     const char *const read[2] = {file, absent};
     cli_check(query_run_read(&s_run, read, 2u, &err_msg) &&
@@ -281,9 +282,8 @@ static void run_read(void)
     cli_check((s_run.left.count == 2u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_run.left.path[1], .other = left, .cap = CLI_CELLS_POOL})),
               "a file left is remembered too");
-    cli_check((s_run.read.room == QUERY_PATHS_FIRST) && (s_run.left.room == QUERY_PATHS_FIRST) &&
-                  (embed_atomic_usize_load(&g_query_cells.in_use) >= before + (2ull * QUERY_PATHS_FIRST * QUERY_PATH_MAX_LEN)),
-              "the files read and left are stored in cells of the query's, a first room each");
+    cli_check((s_run.read.room == QUERY_LEAVES_MOST) && (s_run.left.room == QUERY_LEAVES_MOST),
+              "the files read and left are stored in cells of the query's, at their most each");
     err_msg.at = 0ull;
     (void)query_writer_append(&s_run.writer, "build/query_test/read/sm_86.khw", "forms an earlier step wrote\n", 28ull,
                               QRY_ORDINARY, &err_msg);
@@ -294,7 +294,8 @@ static void run_read(void)
                   run_latest_is(&s_run, "build/query_test/read/sm_86.khw", "forms an earlier step wrote\n"),
               "a later step reads the run's own, not the disk's older copy");
     run_ended(&s_run);
-    cli_check((s_run.read.path == NULL) && (s_run.left.path == NULL) && (embed_atomic_usize_load(&g_query_cells.in_use) == before),
+    cli_check((s_run.read.path == NULL) && (s_run.left.path == NULL) &&
+                  (embed_atomic_usize_load(&g_query_cells.in_use) == before),
               "and the run's end gives their cells back");
     (void)query_removed(base);
 }

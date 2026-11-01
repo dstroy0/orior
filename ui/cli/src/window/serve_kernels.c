@@ -14,10 +14,9 @@
 #define CLI_SERVE_KERNEL_ENDING 2000ull
 #define CLI_SERVE_KERNEL_REQUEST_MS 3000ull
 
-// the bytes a message's line is begun with beyond what it carries, and those a reply's is begun with, each growing
-// past them as it is written
+// the bytes a message's line is taken with beyond what it carries, and those a reply's is taken with as it is written
 #define CLI_SERVE_KERNEL_MORE 4096ull
-#define CLI_SERVE_KERNEL_REPLY 16384ull
+#define CLI_SERVE_KERNEL_REPLY (8ull << 20u)
 
 // A kernel running: whether its place is taken, its key, and the kernel
 typedef struct
@@ -110,8 +109,10 @@ static CliKernel *kernels_of(const CliServeArgs *args, VerbaLinea *err_msg)
 static void kernels_recv(void *context, const char *message, unsigned long long size)
 {
     const char *const key = context;
-    VerbaLinea body;
-    if (!cli_growing_line_temporary(&body, size + CLI_SERVE_KERNEL_MORE, &g_cli_window_cells))
+    const unsigned long long body_room = size + CLI_SERVE_KERNEL_MORE;
+    char *const body_cell = g_cli_cells->temporary_buf_alloc(body_room, &g_cli_window_cells);
+    VerbaLinea body = mmgr_line_over(body_cell, body_room);
+    if (body.out == NULL)
     {
         return;
     }
@@ -308,11 +309,13 @@ static int kernels_request(const CliServeArgs *args, const char *msg_type, int d
         return 0;
     }
     const unsigned long long code_length = cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL});
-    VerbaLinea content;
-    VerbaLinea reply;
-    const int content_begun = cli_growing_line_temporary(&content, code_length + CLI_SERVE_KERNEL_MORE, &g_cli_window_cells);
-    const int reply_begun = cli_growing_line_temporary(&reply, CLI_SERVE_KERNEL_REPLY, &g_cli_window_cells);
-    const int begun = content_begun && reply_begun;
+    // the code's byte is escaped to at most 6
+    const unsigned long long content_room = (code_length * 6ull) + CLI_SERVE_KERNEL_MORE;
+    char *const content_cell = g_cli_cells->temporary_buf_alloc(content_room, &g_cli_window_cells);
+    char *const reply_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_KERNEL_REPLY, &g_cli_window_cells);
+    VerbaLinea content = mmgr_line_over(content_cell, content_room);
+    VerbaLinea reply = mmgr_line_over(reply_cell, CLI_SERVE_KERNEL_REPLY);
+    const int begun = (content_cell != NULL) && (reply_cell != NULL);
     mmgr_line_put(&content, "{\"code\":");
     cli_json_quoted(&content, code, code_length);
     mmgr_line_put(&content, ",\"cursor_pos\":");

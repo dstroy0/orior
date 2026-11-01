@@ -47,7 +47,7 @@ let fetching = false;
 // The grid's motion: rows are read as far ahead the way it scrolls as its speed carries it over two
 // reads, and those behind the motion are let go first.
 const ahead = new Ahead(SPARE);
-// Draws the rows in view, asking the server for those not held in the stretch the scroll heads
+// Draws the rows in view, asking the server for those not kept in the stretch the scroll heads
 // into, and for more as the end comes near.
 export async function drawGrid() {
   const result = state.result;
@@ -125,7 +125,7 @@ export async function drawGrid() {
 }
 
 // The rows of the last result the grid holds, for the tests.
-export const heldRows = () => [...(state.result?.rows.keys() ?? [])];
+export const cachedRows = () => [...(state.result?.rows.keys() ?? [])];
 
 export async function exportRows() {
   const result = state.result;

@@ -127,8 +127,8 @@ int cli_toolchains_environment(CliTreeEnvironment *environment);
 // started with, then the folders the login shell's PATH adds, once it has been read
 unsigned int cli_toolchains_path_folders(char (*folders)[CLI_PATH_MAX_LEN], unsigned int room);
 // the PATH's folders as cli_toolchains_path_folders reads them, in a cell counted to `owner` sized to the most their
-// texts name, which persistent_buf_release gives back: the folders, their count into `count`, or NULL with 0 where the cell
-// cannot be taken
+// texts name, which persistent_buf_release gives back: the folders, their count into `count`, or NULL with 0 where the
+// cell cannot be taken
 char (*cli_toolchains_path_taken(unsigned int *count, CellOwner *owner))[CLI_PATH_MAX_LEN];
 // the first of `count` program `names` found in the PATH's folders, in their order, into `program`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 where none contains one

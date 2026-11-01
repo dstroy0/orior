@@ -5,6 +5,7 @@
 // its `Import` calls take and those it exports; and the SConscripts its `SConscript` calls read, as the first argument
 // gives them or as `dirs` and `name` do. One file is read at a time, under the reader's lock, and a file larger than
 // CLI_SCONS_TEXT is not read
+#include "../text/text.h"
 #include "scons_internal.h"
 
 CliSconsFile g_cli_scons;
@@ -177,10 +178,7 @@ void cli_scons_calls(const char *name, CliSconsSpan each, void *context)
             continue;
         }
         unsigned long long open = at + length;
-        while ((open < size) && ((text[open] == ' ') || (text[open] == '\t')))
-        {
-            open += 1u;
-        }
+        open = cli_text_past_any(text, open, size, " \t");
         if ((open >= size) || (text[open] != '('))
         {
             at += length - 1u;

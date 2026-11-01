@@ -14,11 +14,7 @@ unsigned int cli_archive_kind_of(const char *name)
                                            ".apk", ".nupkg", ".vsix", ".xpi", ".epub"};
     char lower[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
-    for (; (name[length] != '\0') && (length < (sizeof(lower) - 1u)); length += 1ull)
-    {
-        const char letter = name[length];
-        lower[length] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + ('a' - 'A')) : letter;
-    }
+    length = cli_text_lowered_into(lower, sizeof(lower), name);
     lower[length] = '\0';
     for (unsigned int at = 0u; at < 10u; at += 1u)
     {
@@ -81,15 +77,12 @@ unsigned int cli_archive_name_stored(CliMembers *members, const char *name, unsi
             break;
         }
     }
-    while ((length > 0ull) && (name[0] == '/'))
     {
-        name += 1;
-        length -= 1ull;
+        const unsigned long long lead = cli_text_past_any(name, 0ull, length, "/");
+        name += lead;
+        length -= lead;
     }
-    while ((length > 0ull) && (name[length - 1ull] == '/'))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(name, length, "/");
     if ((members->used + length + 1ull) > CLI_ARCHIVE_NAMES)
     {
         return 0u;

@@ -5,6 +5,7 @@
 // script plugin that comes with orior is read the same way as the program is built, and built into it
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "plugins.h"
 
 // the most files a plugin's `main` names
@@ -63,10 +64,7 @@ static int code_own(const char *name)
     while (own && (part[0] != '\0'))
     {
         const char *end = part;
-        while ((end[0] != '\0') && (end[0] != '/') && (end[0] != '\\'))
-        {
-            end += 1;
-        }
+        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "/\\");
         const unsigned long long length = (unsigned long long)(end - part);
         own = (length != 0ull) && !((length == 1u) && (part[0] == '.')) &&
               !((length == 2u) && (part[0] == '.') && (part[1] == '.'));
@@ -84,9 +82,8 @@ static int code_file_read(const char *folder, const char *name, VerbaLinea *out,
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
     unsigned long long file_size = 0ull;
-    const int found =
-        (mmgr_line_finish(&line) != 0ull) && cli_file_size(file, &file_size) && cli_growing_line_room(out, file_size);
     const unsigned long long room = mmgr_line_ok(out) ? (out->capacity - out->at) : 0ull;
+    const int found = (mmgr_line_finish(&line) != 0ull) && cli_file_size(file, &file_size) && (room > file_size);
     const unsigned long long size =
         found ? qry_member_file_read(file, (unsigned char *)(out->out + out->at), room) : QRY_MEMBER_UNREAD;
     if (size == QRY_MEMBER_UNREAD)

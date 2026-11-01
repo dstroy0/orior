@@ -7,6 +7,7 @@
 #include "explorer.h"
 
 #include "../../../cli/src/command_line/cli_internal.h"
+#include "../../../cli/src/text/text.h"
 #include "../answer.h"
 
 // A mark: the type or name it stands for, its text, and which of the palette's mark colors it takes, 0 for the
@@ -20,40 +21,152 @@ typedef struct
 
 // the marks by a file's type
 static const GuiMark s_marks[] = {
-    {"js", "JS", 3u},      {"mjs", "JS", 3u},     {"cjs", "JS", 3u},     {"jsx", "JS", 3u},     {"ts", "TS", 4u},
-    {"tsx", "TS", 4u},     {"mts", "TS", 4u},     {"cts", "TS", 4u},     {"json", "{}", 3u},    {"jsonc", "{}", 3u},
-    {"cfg", "{}", 3u},     {"rs", "rs", 1u},      {"py", "py", 4u},      {"pyi", "py", 5u},     {"ipynb", "nb", 3u},
-    {"sh", "$", 2u},       {"bash", "$", 2u},     {"zsh", "$", 2u},      {"fish", "$", 2u},     {"ps1", "PS", 4u},
-    {"psm1", "PS", 4u},    {"bat", "$", 7u},      {"cmd", "$", 7u},      {"c", "C", 4u},        {"h", "h", 5u},
-    {"cu", "cu", 2u},      {"cuh", "cu", 5u},     {"cpp", "C", 4u},      {"cc", "C", 4u},       {"cxx", "C", 4u},
-    {"hpp", "h", 5u},      {"hh", "h", 5u},       {"cs", "C#", 6u},      {"fs", "F#", 4u},      {"go", "go", 4u},
-    {"java", "jv", 1u},    {"kt", "kt", 6u},      {"kts", "kt", 6u},     {"scala", "sc", 1u},   {"swift", "sw", 1u},
-    {"rb", "rb", 1u},      {"php", "ph", 6u},     {"lua", "lu", 4u},     {"r", "R", 4u},        {"jl", "jl", 6u},
-    {"hs", "hs", 6u},      {"ml", "ml", 3u},      {"ex", "ex", 6u},      {"exs", "ex", 6u},     {"erl", "er", 1u},
-    {"dart", "dt", 4u},    {"zig", "zg", 3u},     {"nim", "nm", 3u},     {"lean", "L", 4u},     {"m", "m", 3u},
-    {"mojo", "mo", 1u},    {"v", "v", 2u},        {"sv", "sv", 2u},      {"vhd", "vh", 2u},     {"vhdl", "vh", 2u},
-    {"asm", "as", 8u},     {"s", "as", 8u},       {"sql", "sq", 5u},     {"qry", "q", 2u},      {"graphql", "gq", 6u},
-    {"proto", "pb", 4u},   {"md", "M", 4u},       {"mdx", "M", 4u},      {"rst", "rs", 7u},     {"txt", "tx", 8u},
-    {"log", "lg", 8u},     {"html", "<>", 1u},    {"htm", "<>", 1u},     {"svg", "<>", 3u},     {"xml", "<>", 1u},
-    {"vue", "<>", 2u},     {"svelte", "<>", 1u},  {"css", "#", 4u},      {"scss", "#", 6u},     {"less", "#", 4u},
-    {"tex", "T", 2u},      {"sty", "T", 2u},      {"cls", "T", 2u},      {"bib", "T", 6u},      {"toml", "\xe2\x89\xa1", 7u},
-    {"ini", "\xe2\x89\xa1", 7u}, {"env", "\xe2\x89\xa1", 7u}, {"yml", "\xe2\x89\xa1", 5u}, {"yaml", "\xe2\x89\xa1", 5u}, {"tsv", "\xe2\x8a\x9e", 2u},
-    {"csv", "\xe2\x8a\x9e", 2u}, {"parquet", "\xe2\x8a\x9e", 5u}, {"lock", "\xe2\x89\xa1", 8u}, {"png", "\xe2\x96\xa3", 5u}, {"jpg", "\xe2\x96\xa3", 5u},
-    {"jpeg", "\xe2\x96\xa3", 5u}, {"gif", "\xe2\x96\xa3", 5u}, {"webp", "\xe2\x96\xa3", 5u}, {"bmp", "\xe2\x96\xa3", 5u}, {"ico", "\xe2\x96\xa3", 5u},
-    {"pdf", "\xe2\x96\xa4", 1u}, {"wav", "au", 6u},     {"mp3", "au", 6u},     {"flac", "au", 6u},    {"ogg", "au", 6u},
-    {"mp4", "av", 6u},     {"mkv", "av", 6u},     {"webm", "av", 6u},    {"zip", "zp", 7u},     {"tar", "zp", 7u},
-    {"gz", "zp", 7u},      {"tgz", "zp", 7u},     {"xz", "zp", 7u},      {"bz2", "zp", 7u},     {"7z", "zp", 7u},
-    {"rar", "zp", 7u},     {"bin", "01", 8u},     {"exe", "01", 8u},     {"dll", "01", 8u},     {"so", "01", 8u},
-    {"dylib", "01", 8u},   {"o", "01", 8u},       {"a", "01", 8u},       {"obj", "01", 8u},     {"wasm", "01", 3u},
+    {"js", "JS", 3u},
+    {"mjs", "JS", 3u},
+    {"cjs", "JS", 3u},
+    {"jsx", "JS", 3u},
+    {"ts", "TS", 4u},
+    {"tsx", "TS", 4u},
+    {"mts", "TS", 4u},
+    {"cts", "TS", 4u},
+    {"json", "{}", 3u},
+    {"jsonc", "{}", 3u},
+    {"cfg", "{}", 3u},
+    {"rs", "rs", 1u},
+    {"py", "py", 4u},
+    {"pyi", "py", 5u},
+    {"ipynb", "nb", 3u},
+    {"sh", "$", 2u},
+    {"bash", "$", 2u},
+    {"zsh", "$", 2u},
+    {"fish", "$", 2u},
+    {"ps1", "PS", 4u},
+    {"psm1", "PS", 4u},
+    {"bat", "$", 7u},
+    {"cmd", "$", 7u},
+    {"c", "C", 4u},
+    {"h", "h", 5u},
+    {"cu", "cu", 2u},
+    {"cuh", "cu", 5u},
+    {"cpp", "C", 4u},
+    {"cc", "C", 4u},
+    {"cxx", "C", 4u},
+    {"hpp", "h", 5u},
+    {"hh", "h", 5u},
+    {"cs", "C#", 6u},
+    {"fs", "F#", 4u},
+    {"go", "go", 4u},
+    {"java", "jv", 1u},
+    {"kt", "kt", 6u},
+    {"kts", "kt", 6u},
+    {"scala", "sc", 1u},
+    {"swift", "sw", 1u},
+    {"rb", "rb", 1u},
+    {"php", "ph", 6u},
+    {"lua", "lu", 4u},
+    {"r", "R", 4u},
+    {"jl", "jl", 6u},
+    {"hs", "hs", 6u},
+    {"ml", "ml", 3u},
+    {"ex", "ex", 6u},
+    {"exs", "ex", 6u},
+    {"erl", "er", 1u},
+    {"dart", "dt", 4u},
+    {"zig", "zg", 3u},
+    {"nim", "nm", 3u},
+    {"lean", "L", 4u},
+    {"m", "m", 3u},
+    {"mojo", "mo", 1u},
+    {"v", "v", 2u},
+    {"sv", "sv", 2u},
+    {"vhd", "vh", 2u},
+    {"vhdl", "vh", 2u},
+    {"asm", "as", 8u},
+    {"s", "as", 8u},
+    {"sql", "sq", 5u},
+    {"qry", "q", 2u},
+    {"graphql", "gq", 6u},
+    {"proto", "pb", 4u},
+    {"md", "M", 4u},
+    {"mdx", "M", 4u},
+    {"rst", "rs", 7u},
+    {"txt", "tx", 8u},
+    {"log", "lg", 8u},
+    {"html", "<>", 1u},
+    {"htm", "<>", 1u},
+    {"svg", "<>", 3u},
+    {"xml", "<>", 1u},
+    {"vue", "<>", 2u},
+    {"svelte", "<>", 1u},
+    {"css", "#", 4u},
+    {"scss", "#", 6u},
+    {"less", "#", 4u},
+    {"tex", "T", 2u},
+    {"sty", "T", 2u},
+    {"cls", "T", 2u},
+    {"bib", "T", 6u},
+    {"toml", "\xe2\x89\xa1", 7u},
+    {"ini", "\xe2\x89\xa1", 7u},
+    {"env", "\xe2\x89\xa1", 7u},
+    {"yml", "\xe2\x89\xa1", 5u},
+    {"yaml", "\xe2\x89\xa1", 5u},
+    {"tsv", "\xe2\x8a\x9e", 2u},
+    {"csv", "\xe2\x8a\x9e", 2u},
+    {"parquet", "\xe2\x8a\x9e", 5u},
+    {"lock", "\xe2\x89\xa1", 8u},
+    {"png", "\xe2\x96\xa3", 5u},
+    {"jpg", "\xe2\x96\xa3", 5u},
+    {"jpeg", "\xe2\x96\xa3", 5u},
+    {"gif", "\xe2\x96\xa3", 5u},
+    {"webp", "\xe2\x96\xa3", 5u},
+    {"bmp", "\xe2\x96\xa3", 5u},
+    {"ico", "\xe2\x96\xa3", 5u},
+    {"pdf", "\xe2\x96\xa4", 1u},
+    {"wav", "au", 6u},
+    {"mp3", "au", 6u},
+    {"flac", "au", 6u},
+    {"ogg", "au", 6u},
+    {"mp4", "av", 6u},
+    {"mkv", "av", 6u},
+    {"webm", "av", 6u},
+    {"zip", "zp", 7u},
+    {"tar", "zp", 7u},
+    {"gz", "zp", 7u},
+    {"tgz", "zp", 7u},
+    {"xz", "zp", 7u},
+    {"bz2", "zp", 7u},
+    {"7z", "zp", 7u},
+    {"rar", "zp", 7u},
+    {"bin", "01", 8u},
+    {"exe", "01", 8u},
+    {"dll", "01", 8u},
+    {"so", "01", 8u},
+    {"dylib", "01", 8u},
+    {"o", "01", 8u},
+    {"a", "01", 8u},
+    {"obj", "01", 8u},
+    {"wasm", "01", 3u},
 };
 
 // the marks by a file's whole name, lower case
 static const GuiMark s_named[] = {
-    {".gitignore", "\xe2\x97\x86", 1u}, {".gitattributes", "\xe2\x97\x86", 1u}, {".gitmodules", "\xe2\x97\x86", 1u},
-    {".clang-format", "\xe2\x89\xa1", 7u}, {".editorconfig", "\xe2\x89\xa1", 7u}, {"makefile", "mk", 7u},
-    {"gnumakefile", "mk", 7u}, {"cmakelists.txt", "cm", 2u}, {"dockerfile", "dk", 4u}, {"containerfile", "dk", 4u},
-    {"license", "Li", 8u}, {"licence", "Li", 8u}, {"copying", "Li", 8u}, {"readme", "M", 4u}, {"changelog", "M", 4u},
-    {"justfile", "mk", 7u}, {"procfile", "\xe2\x89\xa1", 7u},
+    {".gitignore", "\xe2\x97\x86", 1u},
+    {".gitattributes", "\xe2\x97\x86", 1u},
+    {".gitmodules", "\xe2\x97\x86", 1u},
+    {".clang-format", "\xe2\x89\xa1", 7u},
+    {".editorconfig", "\xe2\x89\xa1", 7u},
+    {"makefile", "mk", 7u},
+    {"gnumakefile", "mk", 7u},
+    {"cmakelists.txt", "cm", 2u},
+    {"dockerfile", "dk", 4u},
+    {"containerfile", "dk", 4u},
+    {"license", "Li", 8u},
+    {"licence", "Li", 8u},
+    {"copying", "Li", 8u},
+    {"readme", "M", 4u},
+    {"changelog", "M", 4u},
+    {"justfile", "mk", 7u},
+    {"procfile", "\xe2\x89\xa1", 7u},
 };
 
 // the most bytes of a name a mark is looked up by
@@ -63,7 +176,8 @@ int gui_explorer_made(GuiExplorer *explorer)
 {
     memor.set(&(MemoriaCfg){.dst = explorer, .val = 0, .bytes = sizeof(*explorer)});
     explorer->pointed = GUI_EXPLORER_NONE;
-    explorer->node = g_cli_cells->persistent_buf_alloc(GUI_EXPLORER_NODES * sizeof(*explorer->node), &g_gui_explorer_cells);
+    explorer->node =
+        g_cli_cells->persistent_buf_alloc(GUI_EXPLORER_NODES * sizeof(*explorer->node), &g_gui_explorer_cells);
     explorer->text = g_cli_cells->persistent_buf_alloc(GUI_EXPLORER_TEXT, &g_gui_explorer_cells);
     if ((explorer->node == NULL) || (explorer->text == NULL))
     {
@@ -100,7 +214,8 @@ static int explorer_node_at(const GuiExplorer *explorer, const char *path)
     for (unsigned int at = 0u; at < explorer->nodes; at += 1u)
     {
         const GuiNode *const node = &explorer->node[at];
-        if ((node->length == length) && (memor.cmp(&(MemoriaCfg){.src = explorer->text + node->path, .other = path, .bytes = length}) == 0))
+        if ((node->length == length) &&
+            (memor.cmp(&(MemoriaCfg){.src = explorer->text + node->path, .other = path, .bytes = length}) == 0))
         {
             // the nodes are fewer than an int counts
             return (int)at;
@@ -130,7 +245,8 @@ int gui_explorer_root_asked(const GuiExplorer *explorer)
 
 // a node for the entry `item` put at `at`, the nodes from there moved on by one, its path kept in the text: 1, or 0
 // where the entry is not one or there is no room
-static int explorer_node_put(GuiExplorer *explorer, const CliJson *json, unsigned int item, unsigned int at, unsigned int depth)
+static int explorer_node_put(GuiExplorer *explorer, const CliJson *json, unsigned int item, unsigned int at,
+                             unsigned int depth)
 {
     unsigned long long path_length = 0ull;
     const char *const path = cli_json_string(json, cli_json_member(json, item, "path"), &path_length);
@@ -250,7 +366,8 @@ const char *gui_explorer_path(const GuiExplorer *explorer, unsigned int node, un
 // where the rows begin in the side, below the explorer's head and the pane's
 static int explorer_rows_top(const GuiFrame *frame)
 {
-    return frame->side.y + gui_scaled(GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE + GUI_EXPLORER_PANE_HEAD, frame->scale);
+    return frame->side.y +
+           gui_scaled(GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE + GUI_EXPLORER_PANE_HEAD, frame->scale);
 }
 
 GuiRect gui_explorer_row_rect(const GuiFrame *frame, const GuiExplorer *explorer, unsigned int row)
@@ -258,7 +375,8 @@ GuiRect gui_explorer_row_rect(const GuiFrame *frame, const GuiExplorer *explorer
     const int tall = gui_scaled(GUI_EXPLORER_ROW, frame->scale);
     // the rows and the scroll are far fewer than an int counts
     const int from_top = (int)row - (int)explorer->scroll;
-    return (GuiRect){frame->side.x, explorer_rows_top(frame) + (from_top * tall), frame->side.width - gui_scaled(1, frame->scale), tall};
+    return (GuiRect){frame->side.x, explorer_rows_top(frame) + (from_top * tall),
+                     frame->side.width - gui_scaled(1, frame->scale), tall};
 }
 
 int gui_explorer_hit(const GuiExplorer *explorer, const GuiFrame *frame, int x, int y, unsigned int *row)
@@ -376,7 +494,8 @@ static unsigned int explorer_marked(const char *name, unsigned long long length,
     const char *const type = (dot < kept) ? lower + dot + 1ull : "";
     for (unsigned int at = 0u; at < sizeof(s_marks) / sizeof(s_marks[0]); at += 1u)
     {
-        if ((type[0] != '\0') && cellul.eq(&(CatenaFinitaCfg){.src = type, .other = s_marks[at].type, .cap = EXPLORER_NAME_MOST}))
+        if ((type[0] != '\0') &&
+            cellul.eq(&(CatenaFinitaCfg){.src = type, .other = s_marks[at].type, .cap = EXPLORER_NAME_MOST}))
         {
             VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ull};
             mmgr_line_put(&line, s_marks[at].text);
@@ -386,12 +505,10 @@ static unsigned int explorer_marked(const char *name, unsigned long long length,
     }
     // the quieter mark: the first two letters of the type, or of the name past its leading dots
     const char *from = (type[0] != '\0') ? type : lower;
-    while (*from == '.')
-    {
-        from += 1;
-    }
+    from += cli_text_past_any(from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), ".");
     VerbaLinea line = {text, EXPLORER_NAME_MOST, 0ull};
-    mmgr_line_put_n(&line, from, (cellul.len(&(CatenaFinitaCfg){.src = from, .cap = EXPLORER_NAME_MOST}) < 2ull) ? 1ull : 2ull);
+    mmgr_line_put_n(&line, from,
+                    (cellul.len(&(CatenaFinitaCfg){.src = from, .cap = EXPLORER_NAME_MOST}) < 2ull) ? 1ull : 2ull);
     (void)mmgr_line_finish(&line);
     return 0u;
 }
@@ -434,7 +551,8 @@ static void explorer_row_drawn(const GuiExplorer *explorer, GuiRaster *raster, G
         return;
     }
     const char *const path = explorer->text + node->path;
-    const int current = (shown != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = shown, .cap = CLI_PATH_MAX_LEN}) == node->length) &&
+    const int current = (shown != NULL) &&
+                        (cellul.len(&(CatenaFinitaCfg){.src = shown, .cap = CLI_PATH_MAX_LEN}) == node->length) &&
                         (memor.cmp(&(MemoriaCfg){.src = shown, .other = path, .bytes = node->length}) == 0);
     // the rows are far fewer than an int counts
     if (explorer->pointed == (int)row)
@@ -449,14 +567,17 @@ static void explorer_row_drawn(const GuiExplorer *explorer, GuiRaster *raster, G
     int x = rect.x + gui_scaled(GUI_EXPLORER_PAD_LEFT, scale);
     for (unsigned int level = 0u; level < node->depth; level += 1u)
     {
-        gui_raster_filled(raster, gui_rect_met((GuiRect){x + gui_scaled(7, scale), rect.y, gui_scaled(1, scale), rect.height}, clip), palette->line);
+        gui_raster_filled(
+            raster, gui_rect_met((GuiRect){x + gui_scaled(7, scale), rect.y, gui_scaled(1, scale), rect.height}, clip),
+            palette->line);
         x += guide;
     }
     const int twisty = gui_scaled(GUI_EXPLORER_TWISTY, scale);
     if (node->dir)
     {
         const int arrow = gui_scaled(GUI_EXPLORER_ARROW, scale);
-        explorer_arrow_drawn(raster, x + ((twisty - arrow) / 2), rect.y + ((rect.height - arrow) / 2), arrow, node->open, palette->text_2);
+        explorer_arrow_drawn(raster, x + ((twisty - arrow) / 2), rect.y + ((rect.height - arrow) / 2), arrow,
+                             node->open, palette->text_2);
     }
     x += twisty;
     const int icon = gui_scaled(GUI_EXPLORER_ICON, scale);
@@ -467,7 +588,8 @@ static void explorer_row_drawn(const GuiExplorer *explorer, GuiRaster *raster, G
         if (mask != NULL)
         {
             // the icon's side is far inside what an int represents
-            gui_raster_masked(raster, mask, x + ((icon - (int)size) / 2), rect.y + ((rect.height - (int)size) / 2), palette->link, met);
+            gui_raster_masked(raster, mask, x + ((icon - (int)size) / 2), rect.y + ((rect.height - (int)size) / 2),
+                              palette->link, met);
         }
     }
     else
@@ -484,8 +606,9 @@ static void explorer_row_drawn(const GuiExplorer *explorer, GuiRaster *raster, G
     x += icon + gui_scaled(GUI_EXPLORER_ICON_GAP, scale);
     const unsigned int size = (unsigned int)gui_scaled((int)GUI_EXPLORER_ROW_SIZE, scale);
     const GuiColor color = node->dir ? palette->text : (node->ignored ? palette->text_3 : palette->text_2);
-    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)x, explorer_baseline(glyphs, GUI_FACE_HEAD, size, rect.y, rect.height),
-                         path + node->name, node->length - node->name, color, met);
+    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)x,
+                         explorer_baseline(glyphs, GUI_FACE_HEAD, size, rect.y, rect.height), path + node->name,
+                         node->length - node->name, color, met);
 }
 
 void gui_explorer_drawn(const GuiExplorer *explorer, GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons,
@@ -516,12 +639,14 @@ void gui_explorer_drawn(const GuiExplorer *explorer, GuiRaster *raster, GuiGlyph
     const int pane_tall = gui_scaled(GUI_EXPLORER_PANE_HEAD, scale);
     const int pane_y = line_y + one;
     const int arrow = gui_scaled(GUI_EXPLORER_ARROW, scale);
-    explorer_arrow_drawn(raster, side.x + gui_scaled(7, scale), pane_y + ((pane_tall - arrow) / 2), arrow, 1, palette->text);
+    explorer_arrow_drawn(raster, side.x + gui_scaled(7, scale), pane_y + ((pane_tall - arrow) / 2), arrow, 1,
+                         palette->text);
     (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, head_size, (float)(side.x + gui_scaled(19, scale)),
                          explorer_baseline(glyphs, GUI_FACE_HEAD, head_size, pane_y, pane_tall), tree,
                          cellul.len(&(CatenaFinitaCfg){.src = tree, .cap = CLI_NAME_MAX_LEN}), palette->text, inside);
     const int rows_top = explorer_rows_top(frame);
-    const GuiRect body = gui_rect_met((GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, inside);
+    const GuiRect body =
+        gui_rect_met((GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, inside);
     if (gui_rect_empty(body))
     {
         return;

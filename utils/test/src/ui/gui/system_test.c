@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_test.c: the system body's check, on Windows: a window opened and the messages a check posts to its queue
 // handed on as the window's events, a key with the modifiers posted before it named as the page's editor names it, a
-// character posted typed as text and a key held with control typing none, the pointer's press and release at their
+// character posted typed as text and a key pressed with control typing none, the pointer's press and release at their
 // pixel, and the wheel; on another system the check has no window to open and checks nothing
 #include "../../../../../ui/gui/src/system.h"
 #include "../cli/cli_check.h"
@@ -95,18 +95,18 @@ static int same(const char *one, const char *other)
     return cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = 64ull});
 }
 
-// a key posted down and up with the modifiers `held` posted down before and up after, as the harness posts them
-static void posted(HWND window, const WPARAM *held, unsigned int count, WPARAM key)
+// a key posted down and up with the modifiers `modifiers` posted down before and up after, as the harness posts them
+static void posted(HWND window, const WPARAM *modifiers, unsigned int count, WPARAM key)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        PostMessageW(window, WM_KEYDOWN, held[at], 0);
+        PostMessageW(window, WM_KEYDOWN, modifiers[at], 0);
     }
     PostMessageW(window, WM_KEYDOWN, key, 0);
     PostMessageW(window, WM_KEYUP, key, 0);
     for (unsigned int at = count; at > 0u; at -= 1u)
     {
-        PostMessageW(window, WM_KEYUP, held[at - 1u], 0);
+        PostMessageW(window, WM_KEYUP, modifiers[at - 1u], 0);
     }
 }
 
@@ -116,8 +116,9 @@ int main(void)
     char why_text[1024];
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     static Handed handed;
-    static const GuiSystemEvents s_events = {handed_sized,   handed_pointer, handed_wheel, handed_key,     handed_text,  handed_nothing,
-                                             handed_nothing, handed_hit,     handed_nothing, handed_nothing, handed_shown};
+    static const GuiSystemEvents s_events = {handed_sized,   handed_pointer, handed_wheel,   handed_key,
+                                             handed_text,    handed_nothing, handed_nothing, handed_hit,
+                                             handed_nothing, handed_nothing, handed_shown};
     const CliWindowPlace place = {20, 20, 320, 200, 0};
     GuiSystem *const system = gui_system_opened(&place, "orior check", &s_events, &handed, &why);
     cli_check(system != NULL, "a window opens on the system");
@@ -131,12 +132,25 @@ int main(void)
     gui_system_pumped(system);
     cli_check(handed.sized > 0u, "the window is sized as it opens");
 
+    unsigned int most_width = 0u;
+    unsigned int most_height = 0u;
+    gui_system_display_most(&most_width, &most_height);
+    cli_check((most_width != 0u) && (most_height != 0u), "the largest monitor has a size");
+    CliWindowArea areas[16];
+    const unsigned int area_count = gui_system_areas(areas, 16u);
+    for (unsigned int at = 0u; at < area_count; at += 1u)
+    {
+        cli_check(((unsigned long long)areas[at].width * areas[at].height) <=
+                      ((unsigned long long)most_width * most_height),
+                  "and holds as many pixels as any monitor's area");
+    }
+
     const WPARAM control[1] = {VK_CONTROL};
     posted(window, control, 1u, 'Z');
     gui_system_pumped(system);
     cli_check((handed.keys == 1u) && same(handed.key, "Mod+Z"), "a key posted with control down before it is Mod+Z");
     cli_check_text(handed.text, cellul.len(&(CatenaFinitaCfg){.src = handed.text, .cap = sizeof(handed.text)}), "",
-                   "a key held with control types no text");
+                   "a key pressed with control types no text");
 
     PostMessageW(window, WM_CHAR, 'x', 0);
     gui_system_pumped(system);
@@ -145,7 +159,8 @@ int main(void)
     const WPARAM shift[1] = {VK_SHIFT};
     posted(window, shift, 1u, VK_END);
     gui_system_pumped(system);
-    cli_check((handed.keys == 2u) && same(handed.key, "Shift+End"), "a key posted with shift down before it is Shift+End");
+    cli_check((handed.keys == 2u) && same(handed.key, "Shift+End"),
+              "a key posted with shift down before it is Shift+End");
 
     posted(window, NULL, 0u, VK_LEFT);
     gui_system_pumped(system);

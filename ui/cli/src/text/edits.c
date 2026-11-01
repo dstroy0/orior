@@ -131,8 +131,8 @@ int cli_text_applied(const char *text, unsigned long long size, const CliTextEdi
     }
     // the bytes first on the cell's boundary, then the places, then the order
     const unsigned long long places = 2ull * count;
-    char *const cell =
-        g_cli_cells->temporary_buf_alloc((places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)), &g_cli_text_cells);
+    char *const cell = g_cli_cells->temporary_buf_alloc(
+        (places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)), &g_cli_text_cells);
     if (cell == NULL)
     {
         return 0;

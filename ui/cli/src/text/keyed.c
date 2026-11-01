@@ -8,7 +8,7 @@
 #include "../command_line/cells.h"
 
 // the hash of a key, FNV-1a over its bytes
-static unsigned int keyed_hash(const char *key)
+unsigned int cli_keyed_hash(const char *key)
 {
     unsigned int hash = 2166136261u;
     for (const char *at = key; *at != '\0'; at += 1)
@@ -18,10 +18,9 @@ static unsigned int keyed_hash(const char *key)
     return hash;
 }
 
-// the entry stored under `key`, `entries` where none is
-static unsigned int keyed_find(const CliKeyed *keyed, const char *key)
+// the entry stored under `key`, whose hash is `hash`, `entries` where none is
+static unsigned int keyed_find(const CliKeyed *keyed, const char *key, unsigned int hash)
 {
-    const unsigned int hash = keyed_hash(key);
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
         const CliKeyedEntry *const one = cli_keyed_entry(keyed, at);
@@ -133,14 +132,15 @@ int cli_keyed_put(CliKeyed *keyed, const char *key, const char *beside, const ch
     place[key_size + 1u + beside_size + 1u + size] = '\0';
     // a key's and a second text's sizes are a path's and a URI's, far inside what an unsigned int represents
     *cli_keyed_entry(keyed, keyed->entries) =
-        (CliKeyedEntry){1, keyed_hash(key), place, needed, (unsigned int)key_size, (unsigned int)beside_size};
+        (CliKeyedEntry){1, cli_keyed_hash(key), place, needed, (unsigned int)key_size, (unsigned int)beside_size};
     keyed->entries += 1u;
     return 1;
 }
 
-const char *cli_keyed_get(const CliKeyed *keyed, const char *key, const char **beside, unsigned long long *size)
+const char *cli_keyed_get_hashed(const CliKeyed *keyed, const char *key, unsigned int hash, const char **beside,
+                                 unsigned long long *size)
 {
-    const unsigned int at = keyed_find(keyed, key);
+    const unsigned int at = keyed_find(keyed, key, hash);
     if (at == keyed->entries)
     {
         *beside = "";
@@ -153,9 +153,14 @@ const char *cli_keyed_get(const CliKeyed *keyed, const char *key, const char **b
     return one->cell + one->key_size + 1u + one->beside_size + 1u;
 }
 
+const char *cli_keyed_get(const CliKeyed *keyed, const char *key, const char **beside, unsigned long long *size)
+{
+    return cli_keyed_get_hashed(keyed, key, cli_keyed_hash(key), beside, size);
+}
+
 void cli_keyed_remove(CliKeyed *keyed, const char *key)
 {
-    const unsigned int at = keyed_find(keyed, key);
+    const unsigned int at = keyed_find(keyed, key, cli_keyed_hash(key));
     if (at < keyed->entries)
     {
         keyed_cell_given(cli_keyed_entry(keyed, at)->cell);
@@ -193,4 +198,15 @@ void cli_keyed_each(const CliKeyed *keyed,
                  one->size - one->key_size - one->beside_size - 3u);
         }
     }
+}
+
+unsigned long long cli_keyed_listed_size(const CliKeyed *keyed)
+{
+    unsigned long long size = 0ull;
+    for (unsigned int at = 0u; at < keyed->entries; at += 1u)
+    {
+        const CliKeyedEntry *const one = cli_keyed_entry(keyed, at);
+        size += one->used ? ((unsigned long long)one->key_size + one->beside_size + 2ull) : 0ull;
+    }
+    return size;
 }

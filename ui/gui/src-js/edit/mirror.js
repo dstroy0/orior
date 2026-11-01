@@ -14,9 +14,9 @@ import { tabOf, tabOfSession } from "./tabs.js";
 // one before is answered.
 
 // Runs `work`, a call about a branch, once every call before it about that branch is answered.
-export function along(held, work) {
-  const next = held.chain.then(work);
-  held.chain = next.catch(() => {});
+export function along(mirrored, work) {
+  const next = mirrored.chain.then(work);
+  mirrored.chain = next.catch(() => {});
   return next;
 }
 
@@ -40,12 +40,12 @@ export function letMirrorGo(session) {
 
 function mirrorText(doc, key, change, first) {
   const chain = first ? Promise.resolve(first).catch(() => {}) : Promise.resolve();
-  const held = { key, ready: true, changes: change ? [change] : [], waiting: false, chain, headsAge: -1 };
-  doc.held = held;
-  held.unwatch = doc.watch(({ edits }) => {
-    held.changes.push(edits.map(({ from, to, text }) => ({ from: { line: from.line, col: from.col }, to: { line: to.line, col: to.col }, text })));
-    if (!held.waiting) {
-      held.waiting = true;
+  const mirrored = { key, ready: true, changes: change ? [change] : [], waiting: false, chain, headsAge: -1 };
+  doc.mirrored = mirrored;
+  mirrored.unwatch = doc.watch(({ edits }) => {
+    mirrored.changes.push(edits.map(({ from, to, text }) => ({ from: { line: from.line, col: from.col }, to: { line: to.line, col: to.col }, text })));
+    if (!mirrored.waiting) {
+      mirrored.waiting = true;
       window.setTimeout(() => sendChanges(doc), 0);
     }
   });
@@ -54,28 +54,28 @@ function mirrorText(doc, key, change, first) {
 
 // Sends the changes written to a mirror since the last were sent.
 export function sendChanges(doc) {
-  const held = doc?.held;
-  if (!held?.ready) {
+  const mirrored = doc?.mirrored;
+  if (!mirrored?.ready) {
     return;
   }
-  held.waiting = false;
-  if (!held.changes.length) {
+  mirrored.waiting = false;
+  if (!mirrored.changes.length) {
     return;
   }
-  const changes = held.changes;
-  held.changes = [];
-  along(held, () => invoke("document_edit", { key: held.key, changes })).catch(() => letGo(doc));
+  const changes = mirrored.changes;
+  mirrored.changes = [];
+  along(mirrored, () => invoke("document_edit", { key: mirrored.key, changes })).catch(() => letGo(doc));
 }
 
 // Lets go of a branch on the window's side; it is not mirrored again.
 function letGo(doc) {
-  const held = doc?.held;
-  if (!held) {
+  const mirrored = doc?.mirrored;
+  if (!mirrored) {
     return;
   }
-  held.unwatch?.();
-  doc.held = null;
-  invoke("document_release", { key: held.key }).catch(() => {});
+  mirrored.unwatch?.();
+  doc.mirrored = null;
+  invoke("document_release", { key: mirrored.key }).catch(() => {});
 }
 
 // The last commit's files read afresh by each branch's next marks.
@@ -85,18 +85,18 @@ export function forgetHeads() {
 
 // The gutter's marks for a branch, worked out on the window's side against its file as the last commit
 // holds it; the lines each change spans there come with them, for the peek and to put back.
-async function markHeld(tab) {
+async function markMirrored(tab) {
   const s = tab.session;
-  const held = s.doc.held;
+  const mirrored = s.doc.mirrored;
   sendChanges(s.doc);
-  const fresh = held.headsAge !== state.headsAge;
+  const fresh = mirrored.headsAge !== state.headsAge;
   const id = s.doc.id;
   if (!fresh && s.changesFor === id) {
     return;
   }
-  held.headsAge = state.headsAge;
-  const marks = await along(held, () => invoke("document_changes", { key: held.key, path: tab.file, fresh })).catch(() => null);
-  if (s.doc.id !== id || s.doc.held !== held) {
+  mirrored.headsAge = state.headsAge;
+  const marks = await along(mirrored, () => invoke("document_changes", { key: mirrored.key, path: tab.file, fresh })).catch(() => null);
+  if (s.doc.id !== id || s.doc.mirrored !== mirrored) {
     return;
   }
   if (!marks?.head) {
@@ -104,7 +104,7 @@ async function markHeld(tab) {
     markHistory(tab, null);
     return;
   }
-  markHistory(tab, `${held.key} ${state.headsAge}`);
+  markHistory(tab, `${mirrored.key} ${state.headsAge}`);
   s.changesFor = id;
   s.changesHead = null;
   const found = marks.changes;
@@ -130,14 +130,14 @@ export async function markChanges(tab) {
   if (!s) {
     return;
   }
-  if (tab.commit || s.window || s.base || !s.doc.held) {
+  if (tab.commit || s.window || s.base || !s.doc.mirrored) {
     state.editor.setChanges(s, null);
     markHistory(tab, null);
     return;
   }
-  await along(s.doc.held, () => null).catch(() => null);
-  if (s.doc.held?.ready) {
-    await markHeld(tab);
+  await along(s.doc.mirrored, () => null).catch(() => null);
+  if (s.doc.mirrored?.ready) {
+    await markMirrored(tab);
   }
 }
 

@@ -6,6 +6,7 @@
 // to, the program that runs it, and the catalogs of its `gradle` folder. One script is read at a time, under the
 // reader's lock, and a script larger than CLI_GRADLE_TEXT is not read; its classes, blocks and stray braces are cells
 // taken at the sizes it gives and given back as its reader is done with it
+#include "../text/text.h"
 #include "gradle_internal.h"
 
 #include <stdlib.h>
@@ -423,19 +424,14 @@ void cli_gradle_declared(const CliBuildLines *lines)
             if ((rest < size) && ((text[rest] == '"') || (text[rest] == '\'')))
             {
                 unsigned long long end = rest + 1u;
-                while ((end < size) && (text[end] != '"') && (text[end] != '\''))
-                {
-                    end += 1u;
-                }
+                end = cli_text_to_any(text, end, size, "\"'");
                 gradle_declare(text + rest + 1u, end - rest - 1u);
             }
         }
     }
     for (unsigned long long start = 0ull; start < size;)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = text + start, .val = '\n', .bytes = (size_t)(size - start)});
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const unsigned long long end = cli_text_line_at(text, start, size).stop;
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
         cli_text_trimmed(text + start, end - start, &from, &to);

@@ -4,6 +4,7 @@
 // import takes, followed to the module it is taken from; a dotted one is a class of a module the file imports whole,
 // by its name or its alias, or of a module a `from` import takes from a package. Six imports in, the base is outside
 // the tree
+#include "../text/text.h"
 #include "inspect_tree_internal.h"
 
 // the most imports a base is followed through
@@ -115,10 +116,7 @@ int cli_tree_base_of(unsigned int file, const char *base, unsigned long long siz
         return 0;
     }
     unsigned long long dot = size;
-    while ((dot > 0u) && (base[dot - 1u] != '.'))
-    {
-        dot -= 1u;
-    }
+    dot = cli_text_back_any(base, dot, ".");
     if (dot == 0u)
     {
         return bases_bare(file, base, size, depth, found_file, found_class);

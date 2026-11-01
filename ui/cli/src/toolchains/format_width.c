@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // format_width.c: the width a formatter wraps a file's lines to, read from the project's settings for it, and the
 // nearest settings file read
+#include "../command_line/cells.h"
+#include "../text/text.h"
 #include "format_internal.h"
 
 // A span of a text: where it starts and its bytes
@@ -49,10 +51,9 @@ int cli_format_utf8(const char *bytes, unsigned long long size)
 void cli_format_failed(const char *program, const char *path, const CliRan *ran, VerbaLinea *err_msg)
 {
     const char *name = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     mmgr_line_put(err_msg, program);
     mmgr_line_put(err_msg, " could not format ");
     mmgr_line_put(err_msg, (name[0] != '\0') ? name : path);
@@ -66,12 +67,10 @@ void cli_format_failed(const char *program, const char *path, const CliRan *ran,
     unsigned long long at = 0ull;
     for (unsigned int line = 0u; (line < 6u) && (at < whole.length); line += 1u)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = whole.at + at, .val = '\n', .bytes = whole.length - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - whole.at) : whole.length;
+        const CliTextLine bounds = cli_text_line_at(whole.at, at, whole.length);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
-        length -= ((newline != NULL) && (length > 0ull) && (whole.at[end - 1ull] == '\r')) ? 1ull : 0ull;
+        length -= bounds.stop - bounds.cut;
         if (line != 0u)
         {
             mmgr_line_ch(err_msg, '\n');
@@ -96,7 +95,7 @@ int cli_format_nearest(const char *path, const char *const *names, unsigned int 
             char file[CLI_PATH_MAX_LEN];
             cli_full(folder, names[at], file);
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = cli_file_read(file, &size);
+            const unsigned char *const bytes = cli_file_taken(file, &size, &g_cli_toolchains_cells);
             if (bytes == NULL)
             {
                 continue;
@@ -113,7 +112,7 @@ int cli_format_nearest(const char *path, const char *const *names, unsigned int 
                 g_cli_format.settings[size] = '\0';
             }
             g_cli_format.settings_size = text ? size : 0ull;
-            cli_file_let_go(bytes, size);
+            cli_file_given(bytes, &g_cli_toolchains_cells);
             if (text)
             {
                 return 1;
@@ -134,10 +133,8 @@ int cli_format_nearest(const char *path, const char *const *names, unsigned int 
 static int cli_number_after(CliSpan part, const char *key, unsigned int *number)
 {
     CliSpan rest = cli_trimmed(part);
-    while ((rest.length > 0ull) && ((rest.at[0] == '"') || (rest.at[0] == '\'')))
-    {
-        rest = (CliSpan){rest.at + 1, rest.length - 1ull};
-    }
+    const unsigned long long lead = cli_text_past_any(rest.at, 0ull, rest.length, "\"'");
+    rest = (CliSpan){rest.at + lead, rest.length - lead};
     const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
     if ((rest.length < key_length) ||
         (memor.cmp(&(MemoriaCfg){.src = rest.at, .other = key, .bytes = key_length}) != 0))
@@ -145,26 +142,19 @@ static int cli_number_after(CliSpan part, const char *key, unsigned int *number)
         return 0;
     }
     rest = (CliSpan){rest.at + key_length, rest.length - key_length};
-    while ((rest.length > 0ull) && ((rest.at[0] == '"') || (rest.at[0] == '\'')))
-    {
-        rest = (CliSpan){rest.at + 1, rest.length - 1ull};
-    }
+    const unsigned long long lead_after = cli_text_past_any(rest.at, 0ull, rest.length, "\"'");
+    rest = (CliSpan){rest.at + lead_after, rest.length - lead_after};
     rest = cli_trimmed(rest);
     if ((rest.length == 0ull) || ((rest.at[0] != '=') && (rest.at[0] != ':')))
     {
         return 0;
     }
     rest = cli_trimmed((CliSpan){rest.at + 1, rest.length - 1ull});
-    unsigned long long value = 0ull;
     unsigned long long at = 0ull;
-    while ((at < rest.length) && (rest.at[at] >= '0') && (rest.at[at] <= '9'))
+    const unsigned long long value = cli_text_number(rest.at, 0ull, rest.length, &at);
+    if (value > 0xffffffffull)
     {
-        value = (value * 10ull) + (unsigned long long)(rest.at[at] - '0');
-        if (value > 0xffffffffull)
-        {
-            return 0;
-        }
-        at += 1ull;
+        return 0;
     }
     // a value checked to fit 32 bits
     *number = (unsigned int)value;
@@ -185,15 +175,9 @@ int cli_format_number_in(const char *text, const char *table, const char *key, u
         if ((code.length > 0ull) && (code.at[0] == '[') && (code.at[code.length - 1ull] == ']'))
         {
             CliSpan name = code;
-            while ((name.length > 0ull) && ((name.at[0] == '[') || (name.at[0] == ']')))
-            {
-                name = (CliSpan){name.at + 1, name.length - 1ull};
-            }
-            while ((name.length > 0ull) &&
-                   ((name.at[name.length - 1ull] == '[') || (name.at[name.length - 1ull] == ']')))
-            {
-                name.length -= 1ull;
-            }
+            const unsigned long long lead = cli_text_past_any(name.at, 0ull, name.length, "[]");
+            name = (CliSpan){name.at + lead, name.length - lead};
+            name.length = cli_text_back_past(name.at, name.length, "[]");
             name = cli_trimmed(name);
             inside = (table != NULL) &&
                      (name.length == cellul.len(&(CatenaFinitaCfg){.src = table, .cap = CLI_CELLS_POOL})) &&
@@ -265,12 +249,13 @@ int cli_format_margin(const char *path, const char *language, unsigned int *widt
         (tool != CLI_JSON_NONE)
             ? cli_json_string(json, cli_json_member(json, cli_json_member(json, tool, "format"), "program"), NULL)
             : NULL;
+    const char *const run_by = (program != NULL) ? program : "";
     const char *const *names = NULL;
     unsigned int count = 0u;
     const char *table = NULL;
     const char *key = NULL;
     unsigned int own = 0u;
-    if ((program != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = program, .other = "black", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "black", .cap = CLI_CELLS_POOL})))
     {
         names = s_black;
         count = 1u;
@@ -278,24 +263,21 @@ int cli_format_margin(const char *path, const char *language, unsigned int *widt
         key = "line-length";
         own = 88u;
     }
-    else if ((program != NULL) &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = program, .other = "rustfmt", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "rustfmt", .cap = CLI_CELLS_POOL})))
     {
         names = s_rustfmt;
         count = 2u;
         key = "max_width";
         own = 100u;
     }
-    else if ((program != NULL) &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = program, .other = "clang-format", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "clang-format", .cap = CLI_CELLS_POOL})))
     {
         names = s_clang;
         count = 2u;
         key = "ColumnLimit";
         own = 80u;
     }
-    else if ((program != NULL) &&
-             (cellul.eq(&(CatenaFinitaCfg){.src = program, .other = "prettier", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = run_by, .other = "prettier", .cap = CLI_CELLS_POOL})))
     {
         names = s_prettier;
         count = 4u;
@@ -320,10 +302,7 @@ int cli_format_margin(const char *path, const char *language, unsigned int *widt
         found = own;
     }
     const char *const name = cli_json_string(json, cli_json_member(json, tool, "name"), NULL);
-    memor.cpy(&(MemoriaCfg){
-        .dst = by,
-        .src = (name != NULL) ? name : "",
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (name != NULL) ? name : "", .cap = CLI_CELLS_POOL}) + 1u});
+    cli_text_copied_or(by, name, "");
     *width = found;
     cli_format_released();
     return found > 0u;

@@ -12,7 +12,7 @@
 
 // the folder that contains the reader's templates into `folder`, sized for CLI_PATH_MAX_LEN: 1, or 0 where orior_cli
 // has no folder of its own; the reader's templates, by name, in order, written as a JSON array of names; a project
-// named `name` begun in `parent` from the template `name_of_template`, its folder into `made`; and the tree at `root`
+// named `name` written in `parent` from the template `name_of_template`, its folder into `made`; and the tree at `root`
 // saved as the template `name`, the template's folder into `made`. Each of the last two 1, or 0 with why given
 int cli_templates_folder(char *folder);
 void cli_templates_list(VerbaLinea *out);

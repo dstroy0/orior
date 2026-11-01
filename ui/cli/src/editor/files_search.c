@@ -2,30 +2,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_search.c: every line in the tree's files that contains a query. The files are what git tracks or would track,
 // or the whole tree where git cannot read it. Text is found by the sift: a worker on each core orior's work may take
-// reads the next file into a cell of its own, grown as a larger file comes, and searches it there, so a search takes
-// one cell a worker and not two a file; a regular expression is git's to search
+// reads the next file into a cell of its size and searches it there; a regular expression is git's to search
 #include "../machine/cores.h"
 #include "../text/regexp.h"
+#include "../text/text.h"
 #include "files_search_hits.h"
 
-// the bytes past which a search of a tree git cannot read passes a file over; the most workers a search starts; the
-// bytes a worker's cell is first taken with, doubled as a larger file comes; and the bytes a file's start is looked
-// through for a 0 that marks it as no text
+// the bytes past which a search of a tree git cannot read passes a file over; the most workers a search starts; and
+// the bytes a file's start is looked through for a 0 that marks it as no text
 #define CLI_SEARCHED_BYTES (4ull * 1024ull * 1024ull)
 #define CLI_WORKERS_MOST 256u
-#define CLI_WORKER_ROOM_FIRST (256ull * 1024ull)
 #define CLI_BINARY_LOOK 8192ull
-
-// One worker: the cell it reads each file into and that cell's bytes
-typedef struct
-{
-    unsigned char *room;
-    unsigned long long room_size;
-} CliSearchWorker;
 
 // One search: the files searched, picked from the view of the tree pinned through the search, and the most bytes of one
 // read, what is looked for and its letters in lower case; the next file to read; the workers searching; the lines
-// found; and each worker's thread and cell
+// found; and each worker's thread
 typedef struct
 {
     const char *root;
@@ -38,7 +29,6 @@ typedef struct
     CliWake wake;
     CliSearchHits hits;
     CliThread worker_thread[CLI_WORKERS_MOST];
-    CliSearchWorker worker[CLI_WORKERS_MOST];
 } CliSearch;
 
 static CliSearch s_search = {.wake = CLI_WAKE_INIT};
@@ -80,31 +70,10 @@ static void cli_searched(const unsigned char *bytes, unsigned long long size, un
     }
 }
 
-// room for a file of `size` bytes in a worker's cell: the cell as it is where it fits them, else one taken anew of
-// twice the cell's bytes or the file's and one, the cell before given back; NULL, the file passed over, where it
-// is larger than the search reads or no cell is given
-static unsigned char *cli_worker_roomed(void *context, unsigned long long size)
-{
-    CliSearchWorker *const worker = context;
-    if (size > s_search.most)
-    {
-        return NULL;
-    }
-    if ((size + 1ull) > worker->room_size)
-    {
-        g_cli_cells->persistent_buf_release(worker->room, &g_cli_editor_cells);
-        unsigned long long room = (worker->room_size * 2ull > size + 1ull) ? (worker->room_size * 2ull) : (size + 1ull);
-        room = (room < CLI_WORKER_ROOM_FIRST) ? CLI_WORKER_ROOM_FIRST : room;
-        worker->room = g_cli_cells->persistent_buf_alloc(room, &g_cli_editor_cells);
-        worker->room_size = (worker->room != NULL) ? room : 0ull;
-    }
-    return worker->room;
-}
-
-// a worker: each file left read into its cell and searched, until none is left; its cell given back as it ends
+// a worker: each file left read into a cell of its size and searched, until none is left
 static void cli_worker(void *context)
 {
-    CliSearchWorker *const worker = context;
+    (void)context;
     for (;;)
     {
         cli_lock_take(&s_lock);
@@ -121,15 +90,17 @@ static void cli_worker(void *context)
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, cli_picked_at(&s_search.paths, index));
         unsigned long long size = 0ull;
-        if ((mmgr_line_finish(&line) != 0ull) && cli_file_read_whole(full, cli_worker_roomed, worker, &size) &&
-            (worker->room != NULL))
+        if ((mmgr_line_finish(&line) != 0ull) && cli_file_size(full, &size) && (size <= s_search.most))
         {
-            cli_searched(worker->room, size, index);
+            unsigned long long got = 0ull;
+            const unsigned char *const bytes = cli_file_piece_taken(full, 0ull, size, &got, &g_cli_editor_cells);
+            if (bytes != NULL)
+            {
+                cli_searched(bytes, got, index);
+                cli_file_given(bytes, &g_cli_editor_cells);
+            }
         }
     }
-    g_cli_cells->persistent_buf_release(worker->room, &g_cli_editor_cells);
-    worker->room = NULL;
-    worker->room_size = 0ull;
     cli_lock_take(&s_lock);
     s_search.workers -= 1u;
     cli_wake_all(&s_search.wake);
@@ -174,7 +145,7 @@ static void cli_search_run(VerbaLinea *out)
         cli_lock_take(&s_lock);
         s_search.workers += 1u;
         cli_lock_give(&s_lock);
-        s_search.worker_thread[started] = (CliThread){cli_worker, &s_search.worker[started], CLI_PRIORITY_WORK};
+        s_search.worker_thread[started] = (CliThread){cli_worker, NULL, CLI_PRIORITY_WORK};
         const int one = cli_thread_started(&s_search.worker_thread[started]);
         started += one ? 1u : 0u;
         cli_lock_take(&s_lock);
@@ -185,7 +156,7 @@ static void cli_search_run(VerbaLinea *out)
     {
         // with no worker started, the files are read and searched here, one at a time
         s_search.workers = 1u;
-        cli_worker(&s_search.worker[0]);
+        cli_worker(NULL);
     }
     cli_lock_take(&s_lock);
     while (s_search.workers > 0u)
@@ -248,10 +219,7 @@ int cli_files_search(const char *root, const char *query, CliSearching how, cons
     const unsigned int letters = (unsigned int)cli_regexp_letters(
         query, cellul.len(&(CatenaFinitaCfg){.src = query, .cap = CLI_CELLS_POOL}), s_search.lower, CLI_FUZZY_LETTERS);
     int ascii = 1;
-    for (const char *at = query; at[0] != '\0'; at += 1)
-    {
-        ascii = ascii && ((unsigned char)at[0] < 0x80u);
-    }
+    ascii = ascii && cli_text_ascii(query, cellul.len(&(CatenaFinitaCfg){.src = query, .cap = CLI_CELLS_POOL}));
     for (unsigned int at = 0u; at < letters; at += 1u)
     {
         s_search.lower[at] = cli_regexp_lower(s_search.lower[at]);
@@ -261,7 +229,7 @@ int cli_files_search(const char *root, const char *query, CliSearching how, cons
                                   letters, how};
     s_search.next = 0u;
     s_search.workers = 0u;
-    cli_hits_given(&s_search.hits);
+    cli_hits_taken(&s_search.hits);
     cli_search_run(out);
     cli_hits_given(&s_search.hits);
     cli_picked_let(&s_search.paths);

@@ -101,7 +101,8 @@ static int stored_room_enter(CliLines *lines, unsigned long long units_most, uns
 // a room given back, its cell starting at its units or, for a paged text's, at its states, `lines` left empty
 static void stored_room_exit(CliLines *lines)
 {
-    g_cli_cells->persistent_buf_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun, &g_cli_editor_cells);
+    g_cli_cells->persistent_buf_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun,
+                                        &g_cli_editor_cells);
     *lines = (CliLines){NULL, 0ull, 0ull, NULL, NULL, 0u, 0u, 0};
 }
 
@@ -267,8 +268,8 @@ static int stored_lines_made(CliStoredText *one, const char *text, unsigned long
     one->paged = 0;
     one->whole = 1;
     one->regions_moved = 1;
-    one->held_from = 0u;
-    one->held_to = CLI_DOC_HELD_ALL;
+    one->cached_from = 0u;
+    one->cached_to = CLI_DOC_CACHED_ALL;
     *shape = cli_document_shape_of(&one->lines);
     return 1;
 }
@@ -300,16 +301,16 @@ int cli_document_paged(const char *key, unsigned long long from, unsigned long l
         one->head_known = 0;
         one->regions_moved = 1;
         // a line the page holds is one the pages count, which an unsigned int counts
-        one->held_from = (from < CLI_DOC_HELD_ALL) ? (unsigned int)from : CLI_DOC_HELD_ALL;
-        one->held_to = (to < CLI_DOC_HELD_ALL) ? (unsigned int)to : CLI_DOC_HELD_ALL;
+        one->cached_from = (from < CLI_DOC_CACHED_ALL) ? (unsigned int)from : CLI_DOC_CACHED_ALL;
+        one->cached_to = (to < CLI_DOC_CACHED_ALL) ? (unsigned int)to : CLI_DOC_CACHED_ALL;
     }
-    const int held = (one != NULL) && stored_states_grown(&one->lines, count);
-    if ((one != NULL) && !held)
+    const int grown = (one != NULL) && stored_states_grown(&one->lines, count);
+    if ((one != NULL) && !grown)
     {
         cli_stored_let_go(one);
     }
     cli_lock_give(&s_lock);
-    return held;
+    return grown;
 }
 
 // the states of a paged text's lines carried through one edit the pages wrote: the lines from its first to its last
@@ -345,8 +346,8 @@ static int stored_states_edited(CliLines *lines, const CliEdit *edit)
             .dst = lines->ended + to, .src = lines->ended + after, .bytes = moved * sizeof(unsigned int)});
         memor.move_down(&(MemoriaCfg){
             .dst = lines->regions + to, .src = lines->regions + after, .bytes = moved * sizeof(unsigned int)});
-        memor.move_down(&(MemoriaCfg){
-            .dst = lines->runs + to, .src = lines->runs + after, .bytes = moved * sizeof(unsigned int)});
+        memor.move_down(
+            &(MemoriaCfg){.dst = lines->runs + to, .src = lines->runs + after, .bytes = moved * sizeof(unsigned int)});
     }
     else
     {
@@ -356,8 +357,8 @@ static int stored_states_edited(CliLines *lines, const CliEdit *edit)
             .dst = lines->ended + to, .src = lines->ended + after, .bytes = moved * sizeof(unsigned int)});
         memor.move_up(&(MemoriaCfg){
             .dst = lines->regions + to, .src = lines->regions + after, .bytes = moved * sizeof(unsigned int)});
-        memor.move_up(&(MemoriaCfg){
-            .dst = lines->runs + to, .src = lines->runs + after, .bytes = moved * sizeof(unsigned int)});
+        memor.move_up(
+            &(MemoriaCfg){.dst = lines->runs + to, .src = lines->runs + after, .bytes = moved * sizeof(unsigned int)});
     }
     for (unsigned long long line = first; line < to; line += 1ull)
     {

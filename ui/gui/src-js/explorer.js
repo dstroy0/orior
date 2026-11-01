@@ -188,9 +188,9 @@ export function paneOpen(name) {
 
 // The commit `id` begins: one the panes hold, or else one of `path`'s, or one of the repository's.
 async function commitNamed(id, path = null) {
-  const held = [...state.timeline.commits, ...state.git.commits].find((one) => one.id.startsWith(id));
-  if (held) {
-    return held;
+  const commit = [...state.timeline.commits, ...state.git.commits].find((one) => one.id.startsWith(id));
+  if (commit) {
+    return commit;
   }
   const found = path ? await invoke("file_commits", { path }).catch(() => []) : await invoke("git_graph", { query: null, repo: gitRepo(), authors: false }).catch(() => []);
   return found.find((one) => one.id.startsWith(id)) ?? null;

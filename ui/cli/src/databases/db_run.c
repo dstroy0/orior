@@ -4,6 +4,7 @@
 // writes on a connection that matters and confirms; then started on the query link, its first page of rows buffered and
 // written, what it did, what the server noted, the transaction's state, the session's zone, the object it shapes, and
 // how long it took
+#include "../text/text.h"
 #include "db_internal.h"
 #include "sql.h"
 
@@ -154,10 +155,7 @@ int cli_db_run(CliDbOpen *open, const char *statement, unsigned long long size, 
     {
         end -= 1ull;
     }
-    while ((end > start) && (statement[end - 1u] == ';'))
-    {
-        end -= 1ull;
-    }
+    end = (start + cli_text_back_past(statement + start, end - start, ";"));
     while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
                                  .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = statement[end - 1u]}) != NULL))
     {

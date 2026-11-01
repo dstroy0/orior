@@ -23,13 +23,11 @@ static void cli_same(const char *path, char *out)
 {
     memor.cpy(&(MemoriaCfg){
         .dst = out, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = out; at[0] != '\0'; at += 1)
-    {
-        at[0] = (at[0] == '\\') ? '/' : at[0];
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL});
+    cli_text_swapped(out, length, '\\', '/');
 #if defined(_WIN32)
-        at[0] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
+    cli_text_lowered(out, length);
 #endif
-    }
 }
 
 // whether a path stands alone, not under a folder
@@ -44,10 +42,7 @@ static int cli_one_of(const char *text, const char *one, const char *other)
     char lower[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = lower, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = lower; at[0] != '\0'; at += 1)
-    {
-        at[0] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-    }
+    cli_text_lowered(lower, cellul.len(&(CatenaFinitaCfg){.src = lower, .cap = CLI_CELLS_POOL}));
     return (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = one, .cap = CLI_CELLS_POOL})) ||
            (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = other, .cap = CLI_CELLS_POOL}));
 }
@@ -228,10 +223,9 @@ static void cli_cmake_programs(const char *reply_folder)
     {
         // the configuration the build's folder is named for, or the first
         const char *named = build;
-        for (const char *at = build; at[0] != '\0'; at += 1)
-        {
-            named = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : named;
-        }
+        const unsigned long long named_past =
+            cli_text_back_any(build, cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), "/\\");
+        named = (named_past != 0ull) ? (build + named_past) : named;
         const unsigned long long configurations = cli_reply_member(&model, cli_reply_root(&model), "configurations");
         unsigned long long configuration = cli_reply_first(&model, configurations);
         for (unsigned long long at = configuration; at != CLI_REPLY_NONE; at = cli_reply_next(&model, at))
@@ -270,20 +264,16 @@ static const char *cli_meson_compiler_kind(const char *compiler)
 {
     char stem[CLI_NAME_MAX_LEN] = "";
     const char *name = compiler;
-    for (const char *letter = name; letter[0] != '\0'; letter += 1)
-    {
-        name = ((letter[0] == '/') || (letter[0] == '\\')) ? (letter + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (name + name_past) : name;
     cli_copied(stem, sizeof(stem), name);
     char *const dot = cli_text_last(stem, cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), '.');
     if ((dot != NULL) && (dot != stem))
     {
         dot[0] = '\0';
     }
-    for (char *letter = stem; letter[0] != '\0'; letter += 1)
-    {
-        letter[0] = ((letter[0] >= 'A') && (letter[0] <= 'Z')) ? (char)(letter[0] + 32) : letter[0];
-    }
+    cli_text_lowered(stem, cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}));
     if (cellul.eq(&(CatenaFinitaCfg){.src = stem, .other = "cl", .cap = CLI_CELLS_POOL}))
     {
         return "MSVC";
@@ -308,10 +298,9 @@ static void cli_meson_programs(const char *info)
         return;
     }
     const char *config = build;
-    for (const char *at = build; at[0] != '\0'; at += 1)
-    {
-        config = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : config;
-    }
+    const unsigned long long config_past =
+        cli_text_back_any(build, cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), "/\\");
+    config = (config_past != 0ull) ? (build + config_past) : config;
     for (unsigned long long target = cli_reply_first(&reply, cli_reply_root(&reply)); target != CLI_REPLY_NONE;
          target = cli_reply_next(&reply, target))
     {
@@ -376,7 +365,7 @@ int cli_compile_db_program_of(const char *root, const char *file, CliProgram *pr
     cli_lock_take(&s_lock);
     cli_same(file, s_search.wanted);
     s_search.found = 0;
-    s_search.folders = (CliFoundFolders){NULL, 0u, 0u};
+    cli_compile_found_taken(&s_search.folders);
     char top[CLI_PATH_MAX_LEN];
     cli_full(root, "build/cmake", top);
     cli_compile_folders_named(top, s_reply, 4u, &s_search.folders);

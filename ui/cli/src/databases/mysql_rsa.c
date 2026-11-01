@@ -5,6 +5,7 @@
 // rooms of a fixed size, enough for a key of 8192 bits and the products a power of it takes
 #include "../text/base64.h"
 #include "../text/digest.h"
+#include "../text/text.h"
 #include "mysql_internal.h"
 
 // a number with no zero words at its top
@@ -245,9 +246,7 @@ static int rsa_public_key(const char *pem, unsigned long long size, CliBig *modu
     VerbaLinea body = {s_body, sizeof(s_body), 0ull};
     for (unsigned long long at = 0ull; at < size;)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = pem + at, .val = '\n', .bytes = (size_t)(size - at)});
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - pem) : size;
+        const unsigned long long end = cli_text_line_at(pem, at, size).stop;
         if ((end - at < 5u) || (memor.cmp(&(MemoriaCfg){.src = pem + at, .other = "-----", .bytes = 5u}) != 0))
         {
             mmgr_line_put_n(&body, pem + at, end - at);

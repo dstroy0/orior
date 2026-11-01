@@ -4,6 +4,7 @@
 // take, each word of their strings; the names it exports, by `Export`'s strings, keywords and bare names and by the
 // strings of an `exports` given an `SConscript` call; and the SConscripts its `SConscript` calls read, by the strings
 // of their first argument or by their `dirs`, each joined to their `name`, `SConscript` where none is given
+#include "../text/text.h"
 #include "scons_internal.h"
 
 // The hand an import is handed to: the function and its context
@@ -147,10 +148,7 @@ static void names_dir_string(void *context, unsigned long long from, unsigned lo
     const CliSconsCall *const call = context;
     const char *const text = g_cli_scons.text;
     unsigned long long end = to;
-    while ((end > from) && (text[end - 1u] == '/'))
-    {
-        end -= 1u;
-    }
+    end = (from + cli_text_back_past(text + from, end - from, "/"));
     static char s_written[1u << 12u];
     VerbaLinea written = {s_written, sizeof(s_written), 0ull};
     mmgr_line_put_n(&written, text + from, end - from);

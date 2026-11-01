@@ -22,9 +22,12 @@ static GuiColor ground_pen_color(const GuiPalette *palette, double loose)
     const GuiColor from = palette->lattice[low];
     const GuiColor to = palette->lattice[low + 1u];
     // a channel blended between two bytes, rounded, is a byte
-    const unsigned int red = (unsigned int)((double)GUI_RED_OF(from) + ((double)GUI_RED_OF(to) - (double)GUI_RED_OF(from)) * part + 0.5);
-    const unsigned int green = (unsigned int)((double)GUI_GREEN_OF(from) + ((double)GUI_GREEN_OF(to) - (double)GUI_GREEN_OF(from)) * part + 0.5);
-    const unsigned int blue = (unsigned int)((double)GUI_BLUE_OF(from) + ((double)GUI_BLUE_OF(to) - (double)GUI_BLUE_OF(from)) * part + 0.5);
+    const unsigned int red =
+        (unsigned int)((double)GUI_RED_OF(from) + ((double)GUI_RED_OF(to) - (double)GUI_RED_OF(from)) * part + 0.5);
+    const unsigned int green = (unsigned int)((double)GUI_GREEN_OF(from) +
+                                              ((double)GUI_GREEN_OF(to) - (double)GUI_GREEN_OF(from)) * part + 0.5);
+    const unsigned int blue =
+        (unsigned int)((double)GUI_BLUE_OF(from) + ((double)GUI_BLUE_OF(to) - (double)GUI_BLUE_OF(from)) * part + 0.5);
     return GUI_RGB(red, green, blue);
 }
 
@@ -74,9 +77,9 @@ void gui_ground_given(GuiGround *ground)
 
 double gui_ground_seconds(const GuiGround *ground, unsigned long long now)
 {
-    const unsigned long long held = (ground->held_since_ms != 0ull) ? now - ground->held_since_ms : 0ull;
+    const unsigned long long paused_ms = (ground->paused_since_ms != 0ull) ? now - ground->paused_since_ms : 0ull;
     // the milliseconds since the clock began are far inside what a double holds whole
-    return (double)(now - ground->began_ms - ground->lost_ms - held) / 1000.0;
+    return (double)(now - ground->began_ms - ground->lost_ms - paused_ms) / 1000.0;
 }
 
 int gui_ground_laid(GuiGround *ground, const GuiRaster *raster, unsigned int width, unsigned int height, float scale,
@@ -101,7 +104,9 @@ void gui_ground_drawn(GuiGround *ground, const GuiPalette *palette, unsigned lon
     const double seconds = gui_ground_seconds(ground, now);
     // the raster zeroed first, since the ground color is blended over what the raster holds and a cell kept across
     // sizes holds the ground last drawn at another pitch; a raster's sides are far inside what an int represents
-    memor.set(&(MemoriaCfg){.dst = raster->pixels, .val = 0, .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
+    memor.set(&(MemoriaCfg){.dst = raster->pixels,
+                            .val = 0,
+                            .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
     gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
     ground->drawn_at = seconds;
     ground->shows_at = lattice_shown_after(seconds, seconds);
@@ -110,25 +115,26 @@ void gui_ground_drawn(GuiGround *ground, const GuiPalette *palette, unsigned lon
     {
         return;
     }
-    LatticeSlot *const held = lattice_slot(ground->slot);
-    if (!lattice_dots_moved(held, (double)ground->width / (double)ground->scale, (double)ground->height / (double)ground->scale,
-                            seconds, &ground->shades))
+    LatticeSlot *const lattice = lattice_slot(ground->slot);
+    if (!lattice_dots_moved(lattice, (double)ground->width / (double)ground->scale,
+                            (double)ground->height / (double)ground->scale, seconds, &ground->shades))
     {
         return;
     }
-    for (uint32_t point = 0u; point < held->count; point += 1u)
+    for (uint32_t point = 0u; point < lattice->count; point += 1u)
     {
-        const LatticeDot *const dot = &held->dots[point];
+        const LatticeDot *const dot = &lattice->dots[point];
         // the dot's bytes stand red, green, blue and ink in that order
         const GuiColor color = GUI_RGBA(dot->color & 0xffu, (dot->color >> 8u) & 0xffu, (dot->color >> 16u) & 0xffu,
                                         (dot->color >> 24u) & 0xffu);
-        gui_raster_dotted(raster, dot->across * ground->scale, dot->down * ground->scale, dot->radius * ground->scale, color);
+        gui_raster_dotted(raster, dot->across * ground->scale, dot->down * ground->scale, dot->radius * ground->scale,
+                          color);
     }
 }
 
 int gui_ground_ticked(GuiGround *ground, const GuiPalette *palette, unsigned long long now)
 {
-    if (!ground->laid || (ground->held_since_ms != 0ull))
+    if (!ground->laid || (ground->paused_since_ms != 0ull))
     {
         return 0;
     }
@@ -142,7 +148,7 @@ int gui_ground_ticked(GuiGround *ground, const GuiPalette *palette, unsigned lon
 
 unsigned long long gui_ground_due(const GuiGround *ground, unsigned long long now)
 {
-    if (!ground->laid || (ground->held_since_ms != 0ull))
+    if (!ground->laid || (ground->paused_since_ms != 0ull))
     {
         return 0ull;
     }
@@ -152,15 +158,15 @@ unsigned long long gui_ground_due(const GuiGround *ground, unsigned long long no
     return (wait < 1.0) ? 1ull : (unsigned long long)wait;
 }
 
-void gui_ground_held(GuiGround *ground, int held, unsigned long long now)
+void gui_ground_paused(GuiGround *ground, int paused, unsigned long long now)
 {
-    if (held && (ground->held_since_ms == 0ull))
+    if (paused && (ground->paused_since_ms == 0ull))
     {
-        ground->held_since_ms = now;
+        ground->paused_since_ms = now;
     }
-    else if (!held && (ground->held_since_ms != 0ull))
+    else if (!paused && (ground->paused_since_ms != 0ull))
     {
-        ground->lost_ms += now - ground->held_since_ms;
-        ground->held_since_ms = 0ull;
+        ground->lost_ms += now - ground->paused_since_ms;
+        ground->paused_since_ms = 0ull;
     }
 }

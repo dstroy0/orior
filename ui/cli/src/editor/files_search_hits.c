@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_search_hits.c: the lines a search finds, stored in cells whose room doubles as they are found, sorted by their
-// files and their places, the first CLI_HITS_MOST retained where more are found than are stored
+// files_search_hits.c: the lines a search finds, stored in one cell taken at their most, sorted by their files and
+// their places, the first CLI_HITS_MOST retained where more are found than are stored
 #include "files_search_hits.h"
 
 // whether the line in slot `one` comes before the line in slot `other`: by its file, then its place in it
@@ -47,55 +47,34 @@ void cli_hits_sorted(CliSearchHits *hits)
 void cli_hits_given(CliSearchHits *hits)
 {
     g_cli_cells->persistent_buf_release(hits->pool, &g_cli_search_cells);
-    g_cli_cells->persistent_buf_release(hits->live, &g_cli_search_cells);
-    g_cli_cells->persistent_buf_release(hits->spare, &g_cli_search_cells);
-    g_cli_cells->persistent_buf_release(hits->free, &g_cli_search_cells);
-    *hits = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0u, 0u};
+    *hits = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0u};
 }
 
-// the room doubled, the slots it adds free: 1, or 0 where it contains the most or a cell is refused
-static int hits_grown(CliSearchHits *hits)
+void cli_hits_taken(CliSearchHits *hits)
 {
-    const unsigned int was = hits->room;
-    const unsigned int doubled = (was == 0u) ? CLI_POOL_FIRST : (was * 2u);
-    const unsigned int room = (doubled < CLI_POOL_MOST) ? doubled : CLI_POOL_MOST;
-    const unsigned long long entry_bytes = (unsigned long long)room * sizeof(unsigned int);
-    CliSearchHit *const pool =
-        (was < CLI_POOL_MOST)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(CliSearchHit), &g_cli_search_cells)
-            : NULL;
-    unsigned int *const live =
-        (pool != NULL) ? g_cli_cells->persistent_buf_alloc(entry_bytes, &g_cli_search_cells) : NULL;
-    unsigned int *const spare =
-        (live != NULL) ? g_cli_cells->persistent_buf_alloc(entry_bytes, &g_cli_search_cells) : NULL;
-    unsigned int *const vacant =
-        (spare != NULL) ? g_cli_cells->persistent_buf_alloc(entry_bytes, &g_cli_search_cells) : NULL;
-    if (vacant == NULL)
+    const unsigned long long pool_bytes = (unsigned long long)CLI_POOL_MOST * sizeof(CliSearchHit);
+    const unsigned long long list_bytes = (unsigned long long)CLI_POOL_MOST * sizeof(unsigned int);
+    char *const cell = g_cli_cells->temporary_buf_alloc(pool_bytes + (3ull * list_bytes), &g_cli_search_cells);
+    *hits = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0u};
+    if (cell == NULL)
     {
-        g_cli_cells->persistent_buf_release(pool, &g_cli_search_cells);
-        g_cli_cells->persistent_buf_release(live, &g_cli_search_cells);
-        g_cli_cells->persistent_buf_release(spare, &g_cli_search_cells);
-        return 0;
+        return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = pool, .src = hits->pool, .bytes = (size_t)was * sizeof(CliSearchHit)});
-    memor.cpy(&(MemoriaCfg){.dst = live, .src = hits->live, .bytes = (size_t)hits->lives * sizeof(unsigned int)});
-    memor.cpy(&(MemoriaCfg){.dst = vacant, .src = hits->free, .bytes = (size_t)hits->frees * sizeof(unsigned int)});
-    const unsigned int lives = hits->lives;
-    unsigned int frees = hits->frees;
-    cli_hits_given(hits);
-    // the slots added are put free from the last, so the first of them is the next taken
-    for (unsigned int entry = room; entry > was; frees += 1u)
+    hits->pool = (CliSearchHit *)(void *)cell;
+    hits->live = (unsigned int *)(void *)(cell + pool_bytes);
+    hits->spare = hits->live + CLI_POOL_MOST;
+    hits->free = hits->spare + CLI_POOL_MOST;
+    // the slots are put free from the last, so the first is the next taken
+    for (unsigned int entry = CLI_POOL_MOST; entry > 0u; hits->frees += 1u)
     {
         entry -= 1u;
-        vacant[frees] = entry;
+        hits->free[hits->frees] = entry;
     }
-    *hits = (CliSearchHits){pool, live, lives, spare, vacant, frees, room};
-    return 1;
 }
 
 CliSearchHit *cli_hits_take(CliSearchHits *hits)
 {
-    if ((hits->frees == 0u) && !hits_grown(hits) && (hits->lives > CLI_HITS_MOST))
+    if ((hits->frees == 0u) && (hits->lives > CLI_HITS_MOST))
     {
         cli_hits_sorted(hits);
         for (unsigned int at = CLI_HITS_MOST; at < hits->lives; at += 1u)

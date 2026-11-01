@@ -43,8 +43,8 @@ test("a run started apart from the window shows as it runs: its blobs as handed,
     await invoke("qry_append", { path: qry, name: "conference_why_it_hung", text: "carrier: it hung past its bound\n" });
     await ui.waitFor(() => /why it hung/.test(shownText()) && /it hung past its bound/.test(shownText()), 5000);
     assert.ok(!document.querySelector("#runs .runs-ruling"), "no ruling before the overseer gives one");
-    await invoke("qry_append", { path: qry, name: "conference_why_it_hung", text: "gate: the launch held\noverseer: a stall, the launch held\n" });
-    await ui.waitFor(() => document.querySelector("#runs .runs-ruling")?.textContent.includes("a stall, the launch held"), 5000);
+    await invoke("qry_append", { path: qry, name: "conference_why_it_hung", text: "gate: the launch kept\noverseer: a stall, the launch kept\n" });
+    await ui.waitFor(() => document.querySelector("#runs .runs-ruling")?.textContent.includes("a stall, the launch kept"), 5000);
     assert.equal(document.querySelectorAll("#runs .runs-conference .runs-account").length, 3, "each account as it was given, then the ruling");
     const handed = performance.now();
     await invoke("qry_append", { path: qry, name: "panic", text: "the part faulted\n", priority: 0 });

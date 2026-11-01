@@ -234,19 +234,16 @@ static unsigned int parse_class_of_token(const char *name, unsigned long long si
     return CLI_INSPECT_CLASSES;
 }
 
-// `method` sent to `server` about the file `uri`, its answer read into the reading: 1, or 0 with why given
+// `method` sent to `server` about the file `uri`, its answer handed over in `answer`: 1, or 0 with why given
 static int parse_request(CliLsp *server, const char *method, const char *uri, unsigned long long wait,
-                         VerbaLinea *result, VerbaLinea *err_msg)
+                         CliLspAnswer *answer, VerbaLinea *err_msg)
 {
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
+    char text[CLI_SERVERS_PARAMS];
+    VerbaLinea params = {text, sizeof(text), 0ull};
     mmgr_line_put(&params, "{\"textDocument\":{\"uri\":");
     cli_json_quoted(&params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&params, "}}");
-    cli_servers_answer_begun(&s_reading, result);
-    return cli_servers_request(server, method, &pieces, &params, wait, result, err_msg);
+    return cli_servers_request(server, method, &params, wait, answer, err_msg);
 }
 
 // the server's semantic tokens of `path`, `lines` lines, read into the parse's runs, taken for the tokens its answer
@@ -254,13 +251,13 @@ static int parse_request(CliLsp *server, const char *method, const char *uri, un
 static int parse_tokens(CliLsp *server, const char *uri, const unsigned char *legend, unsigned int legends,
                         unsigned int lines, VerbaLinea *err_msg)
 {
-    VerbaLinea result;
-    if (!parse_request(server, "textDocument/semanticTokens/full", uri, CLI_SERVERS_SEARCHING, &result, err_msg))
+    CliLspAnswer answer;
+    if (!parse_request(server, "textDocument/semanticTokens/full", uri, CLI_SERVERS_SEARCHING, &answer, err_msg))
     {
         return 0;
     }
     const CliJson *const json = &s_reading.json;
-    const unsigned int data = cli_json_member(json, cli_servers_answer_read(&s_reading, &result), "data");
+    const unsigned int data = cli_json_member(json, cli_servers_answer_read(&s_reading, &answer), "data");
     const unsigned int numbers = cli_json_is(json, data, CFG_JSON_ARRAY) ? json->node[data].count : 0u;
     if (!parse_storage_taken(numbers / 5u, lines, 0u, 0u))
     {
@@ -316,15 +313,15 @@ static int parse_tokens(CliLsp *server, const char *uri, const unsigned char *le
 // it gives none
 static void parse_folds(CliLsp *server, const char *uri)
 {
-    VerbaLinea result;
+    CliLspAnswer answer;
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    if (!parse_request(server, "textDocument/foldingRange", uri, CLI_SERVERS_REQUEST_TIMEOUT_MS, &result, &ignored))
+    if (!parse_request(server, "textDocument/foldingRange", uri, CLI_SERVERS_REQUEST_TIMEOUT_MS, &answer, &ignored))
     {
         return;
     }
     const CliJson *const json = &s_reading.json;
-    const unsigned int all = cli_servers_answer_read(&s_reading, &result);
+    const unsigned int all = cli_servers_answer_read(&s_reading, &answer);
     const unsigned int given = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].count : 0u;
     s_room.fold_first = parse_part_taken(given, sizeof(unsigned int), "a parse's folds");
     s_room.fold_last = parse_part_taken(given, sizeof(unsigned int), "a parse's folds");

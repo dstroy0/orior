@@ -4,6 +4,7 @@
 // its parts joined by dots, `=` and a value, one entry a line, comments and blank lines passed; and what prevented it
 // from reading, each with its span. A line whose entry could not be read is passed whole, and the line after it read as
 // its own. Parts of the catalog past what its storage contains are not stored, and it is marked full
+#include "../text/text.h"
 #include "version_catalog_internal.h"
 
 CliVersionsParsed g_cli_versions;
@@ -106,10 +107,7 @@ static void read_blank(CliVersionsReader *read)
 // spaces and tabs on the line passed
 static void read_spaces(CliVersionsReader *read)
 {
-    while ((read->at < read->size) && ((read->text[read->at] == ' ') || (read->text[read->at] == '\t')))
-    {
-        read->at += 1u;
-    }
+    read->at = cli_text_past_any(read->text, read->at, read->size, " \t");
 }
 
 // the rest of the line passed

@@ -3,6 +3,7 @@
 // cores.c: the cores reserved for the reader, as given or as the reader's settings set them, and those orior's work may
 // take
 #include "cores.h"
+#include "../text/text.h"
 #include "settings.h"
 #include "state.h"
 
@@ -34,21 +35,16 @@ void cli_cores_reserve(unsigned int reserved)
 // a count as written, trimmed: 1 with it into `value`, or 0 where it is no count
 static int cli_count(const char *text, unsigned int *value)
 {
-    while ((text[0] == ' ') || ((text[0] >= '\t') && (text[0] <= '\r')))
-    {
-        text += 1;
-    }
+    text += cli_text_past_any(text, 0ull, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
+                              CLI_TEXT_WHITE);
     unsigned long long count = 0ull;
     const char *at = text;
-    for (; (at[0] >= '0') && (at[0] <= '9') && (count <= 0xffffffffull); at += 1)
-    {
-        count = (count * 10ull) + (unsigned long long)(at[0] - '0');
-    }
+    unsigned long long digits_end = 0ull;
+    count = cli_text_number(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), &digits_end);
+    at += digits_end;
     const char *rest = at;
-    while ((rest[0] == ' ') || ((rest[0] >= '\t') && (rest[0] <= '\r')))
-    {
-        rest += 1;
-    }
+    rest += cli_text_past_any(rest, 0ull, cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}),
+                              CLI_TEXT_WHITE);
     if ((at == text) || (rest[0] != '\0') || (count > 0xffffffffull))
     {
         return 0;

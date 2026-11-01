@@ -7,7 +7,6 @@
 // `forget` drops that folder; `add` and `add-group` add a toolchain or a group of the reader's, and `remove` and
 // `remove-group` take one out again
 #include "../runs/runner.h"
-#include "../text/pieces.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "cells.h"
@@ -16,17 +15,14 @@
 // the toolchains found, read as a tree sized to them while they are listed
 static CliJson s_json;
 
-// the bytes of a piece a line is written in before the piece is stored in a cell of its own
-#define CLI_TOOLCHAINS_PIECE 256u
+// the most bytes of a line of the listing or a tool's setup line, and of the toolchains found as JSON
+#define CLI_TOOLCHAINS_LINE (CLI_PATH_MAX_LEN * 4u)
+#define CLI_TOOLCHAINS_FOUND (1u << 20u)
 
-// a line written in pieces put out, joined into a cell of its size and the cell given back; an empty line where it is
-// not whole
-static void toolchains_line_out(CliPieces *pieces, VerbaLinea *line)
+// a line put out; an empty line where it did not fit
+static void toolchains_line_out(const VerbaLinea *line)
 {
-    unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(pieces, line, "a line of the toolchains", &size);
-    cli_out_line((joined != NULL) ? joined : "", (joined != NULL) ? size : 0ull);
-    g_cli_cells->persistent_buf_release(joined, &g_cli_toolchains_words_cells);
+    cli_out_line(line->out, mmgr_line_ok(line) ? line->at : 0ull);
 }
 
 // What the listing is writing: the toolchains found, and the widest id among them
@@ -59,10 +55,8 @@ static void toolchains_printed(unsigned int tool, unsigned long long wide)
     const char *const program = toolchains_text(tool, "program");
     const char *const version = toolchains_text(tool, "version");
     const char *const install = toolchains_text(tool, "install");
-    CliPieces pieces;
-    VerbaLinea line;
-    char piece[CLI_TOOLCHAINS_PIECE];
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_toolchains_words_cells);
+    char text[CLI_TOOLCHAINS_LINE];
+    VerbaLinea line = {text, sizeof(text), 0ull};
     const char *const named = (id != NULL) ? id : "";
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, named);
@@ -95,20 +89,18 @@ static void toolchains_printed(unsigned int tool, unsigned long long wide)
         mmgr_line_put(&line, "install: ");
         mmgr_line_put(&line, install);
     }
-    toolchains_line_out(&pieces, &line);
+    toolchains_line_out(&line);
 }
 
 // a group written, and each toolchain found in it
 static void toolchains_group(void *context, const char *group)
 {
     const CliToolchainsListed *const listed = context;
-    CliPieces pieces;
-    VerbaLinea line;
-    char piece[CLI_TOOLCHAINS_PIECE];
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_toolchains_words_cells);
+    char text[CLI_TOOLCHAINS_LINE];
+    VerbaLinea line = {text, sizeof(text), 0ull};
     mmgr_line_ch(&line, '\n');
     mmgr_line_put(&line, group);
-    toolchains_line_out(&pieces, &line);
+    toolchains_line_out(&line);
     int any = 0;
     for (unsigned int tool = s_json.node[listed->found].first; tool != CLI_JSON_NONE; tool = s_json.node[tool].next)
     {
@@ -129,19 +121,18 @@ static void toolchains_group(void *context, const char *group)
 // every toolchain as orior_cli finds it, a group at a time, and whether orior_cli is on the PATH
 static int toolchains_listed(void)
 {
-    CliPieces pieces;
-    VerbaLinea found;
-    char piece[CLI_TOOLCHAINS_PIECE];
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_toolchains_words_cells);
+    char *const found_text = g_cli_cells->temporary_buf_alloc(CLI_TOOLCHAINS_FOUND, &g_cli_toolchains_words_cells);
+    VerbaLinea found = mmgr_line_over(found_text, CLI_TOOLCHAINS_FOUND);
     cli_toolchains_check(1, NULL, NULL, &found);
-    unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(&pieces, &found, "the toolchains found", &size);
+    const unsigned long long found_size = mmgr_line_finish(&found);
     cli_json_begun(&s_json, NULL, 0u, NULL, 0ull);
     char why[512];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    CliToolchainsListed listed = {
-        (joined != NULL) ? cli_json_taken(&s_json, joined, size, 0u, 0ull, &unread, &g_cli_toolchains_words_cells) : CLI_JSON_NONE, 0ull};
-    g_cli_cells->persistent_buf_release(joined, &g_cli_toolchains_words_cells);
+    CliToolchainsListed listed = {(found_size != 0ull) ? cli_json_taken(&s_json, found_text, found_size, 0u, 0ull,
+                                                                        &unread, &g_cli_toolchains_words_cells)
+                                                       : CLI_JSON_NONE,
+                                  0ull};
+    g_cli_cells->persistent_buf_release(found_text, &g_cli_toolchains_words_cells);
     if (cli_json_is(&s_json, listed.found, CFG_JSON_ARRAY))
     {
         for (unsigned int tool = s_json.node[listed.found].first; tool != CLI_JSON_NONE; tool = s_json.node[tool].next)
@@ -163,12 +154,12 @@ static int toolchains_listed(void)
         cli_err_line(err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return 0;
     }
-    VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_toolchains_words_cells);
+    char text[CLI_TOOLCHAINS_LINE];
+    VerbaLinea line = {text, sizeof(text), 0ull};
     mmgr_line_put(&line, on_path ? "\norior_cli is on PATH: "
                                  : "\norior_cli is not on PATH: orior_cli file toolchains add-path orior_cli adds ");
     mmgr_line_put(&line, folder);
-    toolchains_line_out(&pieces, &line);
+    toolchains_line_out(&line);
     return 0;
 }
 
@@ -187,16 +178,11 @@ static int toolchains_done(int done, const VerbaLinea *out, const VerbaLinea *er
 // tool `id` installed: by the line its makers give, run in bash in this terminal, or its install page opened
 static int toolchains_install(const char *id, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    CliPieces pieces;
-    VerbaLinea setup;
-    char piece[CLI_TOOLCHAINS_PIECE];
-    cli_pieces_begun(&pieces, &setup, piece, sizeof(piece), &g_cli_toolchains_words_cells);
+    char setup_line[CLI_TOOLCHAINS_LINE];
+    VerbaLinea setup = {setup_line, sizeof(setup_line), 0ull};
     const int has_setup = cli_toolchains_setup_line(id, &setup, err_msg);
-    unsigned long long setup_size = 0ull;
-    char *const setup_line = cli_pieces_joined(&pieces, &setup, "a tool's setup line", &setup_size);
-    if (!has_setup || (setup_line == NULL) || (setup_size == 0ull))
+    if (!has_setup || (mmgr_line_finish(&setup) == 0u))
     {
-        g_cli_cells->persistent_buf_release(setup_line, &g_cli_toolchains_words_cells);
         err_msg->at = 0ull;
         char url_text[CLI_PATH_MAX_LEN * 4u];
         VerbaLinea url = {url_text, sizeof(url_text), 0ull};
@@ -210,28 +196,24 @@ static int toolchains_install(const char *id, VerbaLinea *out, VerbaLinea *err_m
     }
     char bash[CLI_PATH_MAX_LEN];
     // the PATH a setup runs with, as long as the system lets an environment's value be
-    char *const path =
-        cli_runner_bash(bash, err_msg) ? g_cli_cells->temporary_buf_alloc(CLI_PATH_TEXT, &g_cli_toolchains_words_cells) : NULL;
+    char *const path = cli_runner_bash(bash, err_msg)
+                           ? g_cli_cells->temporary_buf_alloc(CLI_PATH_TEXT, &g_cli_toolchains_words_cells)
+                           : NULL;
     if (path == NULL)
     {
-        g_cli_cells->persistent_buf_release(setup_line, &g_cli_toolchains_words_cells);
         return toolchains_done(0, out, err_msg);
     }
-    VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_toolchains_words_cells);
-    mmgr_line_put(&line, "$ ");
-    mmgr_line_put(&line, setup_line);
-    unsigned long long shown_size = 0ull;
-    char *const shown = cli_pieces_joined(&pieces, &line, "a setup line shown", &shown_size);
-    cli_err_line((shown != NULL) ? shown : "", (shown != NULL) ? shown_size : 0ull);
-    g_cli_cells->persistent_buf_release(shown, &g_cli_toolchains_words_cells);
+    char shown_text[CLI_TOOLCHAINS_LINE + 2u];
+    VerbaLinea shown = {shown_text, sizeof(shown_text), 0ull};
+    mmgr_line_put(&shown, "$ ");
+    mmgr_line_put(&shown, setup_line);
+    cli_err_line(shown_text, mmgr_line_ok(&shown) ? shown.at : 0ull);
     cli_toolchains_run_path(path, CLI_PATH_TEXT);
     const CliSetting setting = {"PATH", path};
     const char *const words[4] = {bash, "-c", setup_line, NULL};
     long long code = 0ll;
     const int spawned = cli_spawn_shared(words, &setting, 1u, &code, err_msg);
     g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_words_cells);
-    g_cli_cells->persistent_buf_release(setup_line, &g_cli_toolchains_words_cells);
     if (!spawned)
     {
         return toolchains_done(0, out, err_msg);

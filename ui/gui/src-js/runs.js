@@ -97,32 +97,32 @@ async function tellPanic(run) {
   say(`${nameOf(run.path)} panicked at blob ${run.panicked}`, { failed: true });
 }
 
-// A run read and held open: read whole the first time, then on from where the last read stopped while
+// A run read and kept open: read whole the first time, then on from where the last read stopped while
 // it is live, and whole again by its table once it has ended.
 async function opening(path) {
-  let held = state.open.get(path);
-  if (!held) {
-    held = { blobs: [], next: 0, live: true, table: false, stepped: 0 };
-    state.open.set(path, held);
+  let opened = state.open.get(path);
+  if (!opened) {
+    opened = { blobs: [], next: 0, live: true, table: false, stepped: 0 };
+    state.open.set(path, opened);
   }
   let read;
   try {
-    read = await invoke("qry_read", { path, from: held.live ? held.next : 0 });
+    read = await invoke("qry_read", { path, from: opened.live ? opened.next : 0 });
     // A place in a live run's schedule is no byte of its .qry: a run that ended since is read whole.
-    if (!read.live && held.live && held.next) {
+    if (!read.live && opened.live && opened.next) {
       read = await invoke("qry_read", { path, from: 0 });
     }
   } catch (error) {
-    held.error = String(error);
-    return held;
+    opened.error = String(error);
+    return opened;
   }
-  if (read.live && held.live) {
-    held.blobs.push(...read.blobs);
+  if (read.live && opened.live) {
+    opened.blobs.push(...read.blobs);
   } else {
-    held.blobs = read.blobs;
+    opened.blobs = read.blobs;
   }
-  Object.assign(held, { next: read.next, live: read.live, table: read.table, stepped: read.stepped, error: null });
-  return held;
+  Object.assign(opened, { next: read.next, live: read.live, table: read.table, stepped: read.stepped, error: null });
+  return opened;
 }
 
 function blobRow(blob) {
@@ -148,28 +148,28 @@ function conferenceOf(name, blobs) {
   );
 }
 
-function detailOf(held) {
-  if (held.error) {
-    return element("div", { className: "runs-detail" }, element("p", { className: "runs-said-error", textContent: held.error }));
+function detailOf(opened) {
+  if (opened.error) {
+    return element("div", { className: "runs-detail" }, element("p", { className: "runs-said-error", textContent: opened.error }));
   }
-  const panics = held.blobs.filter((blob) => blob.priority === 0);
+  const panics = opened.blobs.filter((blob) => blob.priority === 0);
   const conferences = new Map();
-  for (const blob of held.blobs.filter((one) => one.name.startsWith(CONFERENCE))) {
+  for (const blob of opened.blobs.filter((one) => one.name.startsWith(CONFERENCE))) {
     conferences.set(blob.name, [...(conferences.get(blob.name) ?? []), blob]);
   }
-  const shown = held.blobs.slice(-SHOWN_BLOBS);
+  const shown = opened.blobs.slice(-SHOWN_BLOBS);
   return element(
     "div",
     { className: "runs-detail" },
     ...panics.map((blob) => element("div", { className: "runs-panic" }, element("span", { className: "runs-seq", textContent: `panic #${blob.sequence}` }), element("pre", { className: "runs-panic-text", textContent: blob.text ?? "" }))),
     ...[...conferences].map(([name, blobs]) => conferenceOf(name, blobs)),
-    element("p", { className: "runs-count", textContent: `${held.blobs.length} blob${held.blobs.length === 1 ? "" : "s"}${held.live ? " so far" : held.table ? ", read by its table" : ""}${held.stepped ? `, ${held.stepped} bytes no tag opened stepped over` : ""}` }),
+    element("p", { className: "runs-count", textContent: `${opened.blobs.length} blob${opened.blobs.length === 1 ? "" : "s"}${opened.live ? " so far" : opened.table ? ", read by its table" : ""}${opened.stepped ? `, ${opened.stepped} bytes no tag opened stepped over` : ""}` }),
     element("div", { className: "runs-blobs" }, ...shown.map(blobRow))
   );
 }
 
 function runRow(run) {
-  const held = state.open.get(run.path);
+  const opened = state.open.get(run.path);
   const row = element(
     "button",
     { type: "button", className: `runs-run${run.live ? " live" : ""}${run.panicked ? " panicked" : ""}`, title: run.path },
@@ -177,7 +177,7 @@ function runRow(run) {
     run.live ? element("span", { className: "runs-live", textContent: run.panicked ? "panicked" : "live" }) : element("span", { className: "runs-size", textContent: sizeOf(run.size) })
   );
   row.dataset.path = run.path;
-  row.setAttribute("aria-expanded", String(Boolean(held)));
+  row.setAttribute("aria-expanded", String(Boolean(opened)));
   row.addEventListener("click", async () => {
     if (state.open.has(run.path)) {
       state.open.delete(run.path);
@@ -187,7 +187,7 @@ function runRow(run) {
     await opening(run.path);
     draw();
   });
-  return element("div", { className: "runs-item" }, row, held ? detailOf(held) : null);
+  return element("div", { className: "runs-item" }, row, opened ? detailOf(opened) : null);
 }
 
 function lessonsOf(folder) {
@@ -243,7 +243,7 @@ async function beat() {
     state.listedAt = performance.now();
     await list();
   }
-  const live = shown() ? [...state.open].filter(([, held]) => held.live).map(([path]) => path) : [];
+  const live = shown() ? [...state.open].filter(([, opened]) => opened.live).map(([path]) => path) : [];
   for (const path of live) {
     await opening(path);
   }

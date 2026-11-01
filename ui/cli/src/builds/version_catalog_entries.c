@@ -4,6 +4,7 @@
 // section it has no place for with the sections near its name, each alias's form and accessor, and each library, plugin
 // and bundle in its form, against the versions and libraries the catalog contains. The build a catalog belongs to is
 // the one above its `gradle` folder
+#include "../text/text.h"
 #include "builds_internal.h"
 #include "version_catalog_internal.h"
 
@@ -65,10 +66,7 @@ static void entries_library(CliVersionsCheck *check, const CliVersionsField *ent
     {
         const char *const text = cli_versions_text(entry->text_at);
         unsigned long long last = entry->text_size;
-        while ((last > 0u) && (text[last - 1u] != ':'))
-        {
-            last -= 1u;
-        }
+        last = cli_text_back_any(text, last, ":");
         if (!entries_parts(text, entry->text_size, 3u))
         {
             entries_text_error(check, entry, "catalog-library",

@@ -17,10 +17,9 @@ const char *const g_cli_inspect_docstring_forms[4] = {"google", "numpy", "rest",
 const char *cli_inspect_language_of(const char *path)
 {
     const char *name = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     if ((dot == NULL) || (dot == name))

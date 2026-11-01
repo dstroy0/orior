@@ -64,7 +64,7 @@ test("with Fuzzy Matching off, Go to File answers only the files whose paths hol
   }
 });
 
-test("a list of no rows, held on the window's side, says it holds none", async () => {
+test("a list of no rows, stored on the window's side, says it holds none", async () => {
   openPalette("", { custom: { placeholder: "No rows", empty: "Nothing here.", items: [] } });
   try {
     await ui.waitFor(() => labels()[0] === "Nothing here.", 5000, "the list's word that it holds none");
@@ -74,7 +74,7 @@ test("a list of no rows, held on the window's side, says it holds none", async (
   }
 });
 
-test("a list of thirty thousand rows, held on the window's side, answers each letter typed fast with its best rows and no frame held", async () => {
+test("a list of thirty thousand rows, stored on the window's side, answers each letter typed fast with its best rows and no frame delayed", async () => {
   const many = Array.from({ length: 30000 }, (_, at) => ({ name: `test_case_${at}_${(at * 7919) % 30000}`, file: `tests/test_part_${at % 300}.py` }));
   // The row the page's own matcher ranks first for what is typed, which the window's side ranks first too.
   let best = null;
@@ -100,7 +100,7 @@ test("a list of thirty thousand rows, held on the window's side, answers each le
     });
   try {
     await ui.waitFor(() => document.querySelectorAll("#quick-list .quick-row").length > 0, 10000, "the rows");
-    // The list held, and what its opening made let go, before the letters come.
+    // The list kept, and what its opening made let go, before the letters come.
     await frames(1500);
     const counting = frames(1500);
     const began = performance.now();
@@ -111,7 +111,7 @@ test("a list of thirty thousand rows, held on the window's side, answers each le
     const gaps = times.slice(1).map((time, at) => time - times[at]);
     const said = `${document.querySelectorAll("#quick-list .quick-row").length} rows on the page, settled ${settled.toFixed(0)} ms after the first letter, the longest frame ${Math.max(...gaps).toFixed(1)} ms`;
     assert.ok(document.querySelectorAll("#quick-list .quick-row").length <= 200, `the best rows alone on the page: ${said}`);
-    assert.ok(Math.max(...gaps) < 50, `no frame held: ${said}`);
+    assert.ok(Math.max(...gaps) < 50, `no frame delayed: ${said}`);
     assert.ok(settled < 1000, `the rows for what was typed within a second: ${said}`);
   } finally {
     await ui.key("Escape");

@@ -11,28 +11,12 @@
 // gives stand in platform/windows.c and platform/posix.c
 #include "container.h"
 
-// the room the processes are first listed in
-#define CLI_PROCESSES_FIRST 1024u
-
 CliProcess *cli_processes_taken(CellOwner *owner, unsigned int *count)
 {
-    for (unsigned int room = CLI_PROCESSES_FIRST;; room *= 2u)
-    {
-        CliProcess *const processes =
-            g_cli_cells->temporary_buf_alloc((unsigned long long)room * sizeof(CliProcess), owner);
-        if (processes == NULL)
-        {
-            *count = 0u;
-            return NULL;
-        }
-        *count = cli_processes_listed(processes, room);
-        // a list that fills its cell may be cut short
-        if ((*count < room) || (room >= CLI_PROCESSES_MOST))
-        {
-            return processes;
-        }
-        g_cli_cells->persistent_buf_release(processes, owner);
-    }
+    CliProcess *const processes =
+        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_PROCESSES_MOST * sizeof(CliProcess), owner);
+    *count = (processes != NULL) ? cli_processes_listed(processes, CLI_PROCESSES_MOST) : 0u;
+    return processes;
 }
 
 int cli_under(unsigned int root, unsigned int id, const CliProcess *parents, unsigned int count)

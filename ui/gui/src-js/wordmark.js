@@ -308,7 +308,7 @@ function lifted(node) {
 // What gives each name lifted off the loading pane back to it.
 const lifts = new Map();
 
-// tabula alone where the eye stands in `node`, orior and the eye hidden, held there whole for HOLDS and faded; the
+// tabula alone where the eye stands in `node`, orior and the eye hidden, kept there whole for HOLDS and faded; the
 // name cleared and put back as it stood once it has.
 function fadeTabula(node) {
   nameShown = true;
@@ -464,13 +464,13 @@ function go(node, home) {
 }
 
 // The large name each watched holder holds, found by its holder even while the name is lifted off it.
-const held = new WeakMap();
+const holders = new WeakMap();
 
 // What shows a large name is watched, and not the name: gone to the bar, the name stands outside the
 // view that clips it, and never reads as shown again.
 const seen = new IntersectionObserver((entries) => {
   for (const entry of entries) {
-    const node = held.get(entry.target);
+    const node = holders.get(entry.target);
     if (!node) {
       continue;
     }
@@ -488,12 +488,12 @@ const seen = new IntersectionObserver((entries) => {
   }
 });
 
-// Watches what holds `node`, once it is held.
+// Watches what holds `node`, once it is kept.
 function watch(node) {
   requestAnimationFrame(() => {
     const holder = node.parentElement;
     if (holder) {
-      held.set(holder, node);
+      holders.set(holder, node);
       seen.observe(holder);
     }
   });

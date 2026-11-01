@@ -6,15 +6,16 @@
 #include "../code/git.h"
 #include "serve_internal.h"
 
-// the bytes git's words and a file's text at a commit are begun in before they grow
-#define CLI_SERVE_WORDS_FIRST (4ull << 10u)
-#define CLI_SERVE_TEXT_AT_FIRST (64ull << 10u)
+// the bytes git's words and a file's text at a commit are written in
+#define CLI_SERVE_WORDS_ROOM (1ull << 20u)
+#define CLI_SERVE_TEXT_AT_ROOM (64ull << 20u)
 
-// a growing line begun of `first` bytes for git's words or a file's text: 1, or 0 with why given where its cell is
-// refused
-static int git_line_begun(VerbaLinea *line, unsigned long long first, VerbaLinea *err_msg)
+// a line begun of `first` bytes for git's words or a file's text: 1, or 0 with why given where its cell is refused
+static int git_line_begun(VerbaLinea *line, unsigned long long room, VerbaLinea *err_msg)
 {
-    const int begun = cli_growing_line_made(line, first, &g_cli_serve_git_cells);
+    char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_serve_git_cells);
+    *line = mmgr_line_over(cell, room);
+    const int begun = cell != NULL;
     if (!begun)
     {
         mmgr_line_put(err_msg, "git's words could not be given a cell");
@@ -52,7 +53,7 @@ static int git_branch(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     const char *const name = (act != NULL) ? cli_serve_string(args, "name", err_msg) : NULL;
     VerbaLinea words;
     if ((name == NULL) || !cli_serve_git_repo_of(args, folder, err_msg) ||
-        !git_line_begun(&words, CLI_SERVE_WORDS_FIRST, err_msg))
+        !git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
     {
         return 0;
     }
@@ -69,8 +70,10 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     const unsigned int first = cli_json_is(json, parts, CFG_JSON_ARRAY) ? json->node[parts].first : CLI_JSON_NONE;
     const unsigned int whole_most = git_items(json, cli_serve_arg(args, "whole"));
     const unsigned int parts_most = git_items(json, parts);
-    const char **const whole_of = g_cli_cells->temporary_buf_alloc((whole_most + 1ull) * sizeof(*whole_of), &g_cli_serve_git_cells);
-    CliGitPart *const part_of = g_cli_cells->temporary_buf_alloc((parts_most + 1ull) * sizeof(*part_of), &g_cli_serve_git_cells);
+    const char **const whole_of =
+        g_cli_cells->temporary_buf_alloc((whole_most + 1ull) * sizeof(*whole_of), &g_cli_serve_git_cells);
+    CliGitPart *const part_of =
+        g_cli_cells->temporary_buf_alloc((parts_most + 1ull) * sizeof(*part_of), &g_cli_serve_git_cells);
     const char *const message = cli_serve_string(args, "message", err_msg);
     VerbaLinea words = {NULL, 0ull, 0ull};
     int done = (whole_of != NULL) && (part_of != NULL) && (message != NULL) &&
@@ -96,7 +99,7 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
         part_of[count] = (CliGitPart){path, text, length};
         count += 1u;
     }
-    if (done && git_line_begun(&words, CLI_SERVE_WORDS_FIRST, err_msg))
+    if (done && git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
     {
         done = git_words_given(cli_git_commit_parts(root, message, whole_of, whole, part_of, count, &words, err_msg),
                                &words, out);
@@ -127,7 +130,7 @@ static int file_head(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     char root[CLI_PATH_MAX_LEN];
     const char *const path = cli_serve_string(args, "path", err_msg);
     VerbaLinea text;
-    if ((path == NULL) || !cli_serve_tree(root, err_msg) || !git_line_begun(&text, CLI_SERVE_TEXT_AT_FIRST, err_msg))
+    if ((path == NULL) || !cli_serve_tree(root, err_msg) || !git_line_begun(&text, CLI_SERVE_TEXT_AT_ROOM, err_msg))
     {
         return 0;
     }
@@ -157,7 +160,7 @@ static int git_commit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         mmgr_line_put(err_msg, "a commit's files could not be given a cell");
     }
     else if ((message != NULL) && cli_serve_strings(args, "paths", paths, most, &count, err_msg) &&
-             cli_serve_tree(root, err_msg) && git_line_begun(&words, CLI_SERVE_WORDS_FIRST, err_msg))
+             cli_serve_tree(root, err_msg) && git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
     {
         done = git_words_given(cli_git_commit(root, message, paths, count, &words, err_msg), &words, out);
     }
@@ -170,7 +173,7 @@ static int git_pushed_or_pulled(const CliServeArgs *args, int push, VerbaLinea *
 {
     char folder[CLI_PATH_MAX_LEN];
     VerbaLinea words;
-    if (!cli_serve_git_repo_of(args, folder, err_msg) || !git_line_begun(&words, CLI_SERVE_WORDS_FIRST, err_msg))
+    if (!cli_serve_git_repo_of(args, folder, err_msg) || !git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
     {
         return 0;
     }
@@ -206,7 +209,7 @@ static int git_stash(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     const char *const act = cli_serve_string(args, "act", err_msg);
     VerbaLinea words;
     if ((act == NULL) || !cli_serve_git_repo_of(args, folder, err_msg) ||
-        !git_line_begun(&words, CLI_SERVE_WORDS_FIRST, err_msg))
+        !git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
     {
         return 0;
     }
@@ -221,7 +224,7 @@ static int git_cherry_pick(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     const char *const id = cli_serve_string(args, "id", err_msg);
     VerbaLinea words;
     if ((id == NULL) || !cli_serve_git_repo_of(args, folder, err_msg) ||
-        !git_line_begun(&words, CLI_SERVE_WORDS_FIRST, err_msg))
+        !git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
     {
         return 0;
     }
@@ -234,7 +237,7 @@ static int file_at(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_ms
     const char *const path = cli_serve_string(args, "path", err_msg);
     const char *const id = (path != NULL) ? cli_serve_string(args, "id", err_msg) : NULL;
     VerbaLinea text;
-    if ((id == NULL) || !cli_serve_tree(root, err_msg) || !git_line_begun(&text, CLI_SERVE_TEXT_AT_FIRST, err_msg))
+    if ((id == NULL) || !cli_serve_tree(root, err_msg) || !git_line_begun(&text, CLI_SERVE_TEXT_AT_ROOM, err_msg))
     {
         return 0;
     }
@@ -256,7 +259,7 @@ static int repo_init(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
         return 0;
     }
     VerbaLinea words;
-    if (!git_line_begun(&words, CLI_SERVE_WORDS_FIRST, err_msg))
+    if (!git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
     {
         return 0;
     }

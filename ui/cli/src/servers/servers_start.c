@@ -145,10 +145,9 @@ void cli_servers_id_of(const CliServerSpec *spec, const char *path, const char *
         cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '\\');
     const int named = (dot != NULL) && ((slash == NULL) || (dot > slash)) && ((back == NULL) || (dot > back));
     char extension[32] = {0};
-    for (unsigned int at = 0u; named && (dot[1 + at] != '\0') && (at + 1u < sizeof(extension)); at += 1u)
+    if (named)
     {
-        const char one = dot[1 + at];
-        extension[at] = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
+        (void)cli_text_lowered_into(extension, sizeof(extension), dot + 1);
     }
     VerbaLinea line = {id, CLI_NAME_MAX_LEN, 0ull};
     for (unsigned int at = 0u; at < spec->ids; at += 1u)

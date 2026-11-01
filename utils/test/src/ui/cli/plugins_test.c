@@ -405,9 +405,8 @@ int main(void)
         "a file opens by its extension");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = plugins_of("build.zig"), .other = "zig", .cap = CLI_CELLS_POOL}),
               "of any language");
-    cli_check((s_languages.count > 0u) && (s_languages.room >= s_languages.count) &&
-                  (s_languages.room <= (2u * s_languages.count) + CLI_LANGUAGE_PAIRS_FIRST),
-              "the languages' keys are stored in a room that grew to them and no further than twice");
+    cli_check((s_languages.count > 0u) && (s_languages.room == CLI_LANGUAGE_PAIRS),
+              "the languages' keys are stored in a room at their most");
     cli_plugins_languages_given(&s_languages);
     cli_check((embed_atomic_usize_load(&g_cli_plugins_cells.in_use) == 0ull) &&
                   (embed_atomic_usize_load(&g_cli_plugins_cells.hw) != 0ull),

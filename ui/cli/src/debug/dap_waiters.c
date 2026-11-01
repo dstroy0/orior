@@ -29,6 +29,8 @@ void cli_dap_forgotten(CliDap *dap, unsigned long long seq)
         if (dap->waiters[at].waiting && (dap->waiters[at].seq == seq))
         {
             dap->waiters[at].waiting = 0;
+            g_cli_cells->persistent_buf_release(dap->waiters[at].answer.message, &g_cli_debug_cells);
+            dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ull};
         }
     }
     cli_lock_give(&dap->lock);

@@ -13,10 +13,7 @@ int cli_go_package(const char *text, char *out)
     while (line[0] != '\0')
     {
         const char *stop = line;
-        while ((stop[0] != '\0') && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
         const char *const next = (stop[0] != '\0') ? (stop + 1) : stop;
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
@@ -137,15 +134,15 @@ int cli_dotnet_program(const char *project, const char *text, char *out)
     }
     // the project file's name without its extension
     const char *stem = project;
-    for (const char *at = project; at[0] != '\0'; at += 1)
-    {
-        stem = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : stem;
-    }
+    const unsigned long long stem_past =
+        cli_text_back_any(project, cellul.len(&(CatenaFinitaCfg){.src = project, .cap = CLI_CELLS_POOL}), "/\\");
+    stem = (stem_past != 0ull) ? (project + stem_past) : stem;
     const char *dot = NULL;
-    for (const char *at = stem + 1; (stem[0] != '\0') && (at[0] != '\0'); at += 1)
-    {
-        dot = (at[0] == '.') ? at : dot;
-    }
+    const unsigned long long dot_past =
+        (stem[0] != '\0')
+            ? cli_text_back_any(stem + 1, cellul.len(&(CatenaFinitaCfg){.src = stem + 1, .cap = CLI_CELLS_POOL}), ".")
+            : 0ull;
+    dot = (dot_past != 0ull) ? (stem + dot_past) : NULL;
     cli_scan_copied(stem,
                     (dot != NULL) ? (unsigned long long)(dot - stem)
                                   : cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}),
@@ -221,19 +218,11 @@ void cli_zig_exes(const char *text, CliNames *names)
     for (int first = 1; line[0] != '\0'; first = 0)
     {
         const char *stop = line;
-        while ((stop[0] != '\0') && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
         const char *end = ((stop > line) && (stop[-1] == '\r')) ? (stop - 1) : stop;
-        for (const char *at = line; (at + 1) < end; at += 1)
-        {
-            if ((at[0] == '/') && (at[1] == '/'))
-            {
-                end = at;
-                break;
-            }
-        }
+        const unsigned long long code_size = (unsigned long long)(end - line);
+        const unsigned long long comment = cli_text_to_pair(line, 0ull, code_size, '/', '/');
+        end = (comment < code_size) ? (line + comment) : end;
         mmgr_line_put(&code, first ? "" : "\n");
         mmgr_line_put_n(&code, line, (unsigned long long)(end - line));
         line = (stop[0] != '\0') ? (stop + 1) : stop;
@@ -255,10 +244,7 @@ void cli_zig_exes(const char *text, CliNames *names)
         if ((length > 0ull) && (call[0] == '"'))
         {
             unsigned long long end = 1ull;
-            while ((end < length) && (call[end] != '"'))
-            {
-                end += 1ull;
-            }
+            end = cli_text_to_any(call, end, length, "\"");
             cli_scan_copied(call + 1, end - 1ull, name, sizeof(name));
         }
         else if (!cli_keyword(call, length, ".name", name))

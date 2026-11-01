@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_py_classes.c: the classes a Python file declares at its top level: each one's name, the bases it names,
 // what its body and its methods set, and the attributes its methods read of `self`
+#include "../text/text.h"
 #include "inspect_py.h"
 
 // the most attributes one class sets and reads that are recorded, and the bytes of the base being read
@@ -230,14 +231,8 @@ static void classes_method_line(const char *src, const CliPyLine *inner, int *dy
             const CliInspectTok *const named = &toks[offset + 4u];
             unsigned int start = named->start;
             unsigned int end = named->end;
-            while ((start < end) && ((src[start] == '\'') || (src[start] == '"')))
-            {
-                start += 1u;
-            }
-            while ((end > start) && ((src[end - 1u] == '\'') || (src[end - 1u] == '"')))
-            {
-                end -= 1u;
-            }
+            start = (unsigned int)cli_text_past_any(src, start, end, "'\"");
+            end = (unsigned int)(start + cli_text_back_past(src + start, end - start, "'\""));
             classes_has(src + start, end - start);
         }
     }

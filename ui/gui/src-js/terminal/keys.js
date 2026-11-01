@@ -30,10 +30,10 @@ const CURSOR_KEYS = { ArrowUp: "A", ArrowDown: "B", ArrowRight: "C", ArrowLeft: 
 
 // What a key sends the shell, or null for a key the terminal leaves alone.
 export function keyText(event, appCursor) {
-  const held = (event.shiftKey ? 1 : 0) + (event.altKey ? 2 : 0) + (event.ctrlKey ? 4 : 0);
+  const modifiers = (event.shiftKey ? 1 : 0) + (event.altKey ? 2 : 0) + (event.ctrlKey ? 4 : 0);
   if (CURSOR_KEYS[event.key]) {
     const letter = CURSOR_KEYS[event.key];
-    return held ? `\x1b[1;${held + 1}${letter}` : `${appCursor ? "\x1bO" : "\x1b["}${letter}`;
+    return modifiers ? `\x1b[1;${modifiers + 1}${letter}` : `${appCursor ? "\x1bO" : "\x1b["}${letter}`;
   }
   if (event.key === "Tab" && event.shiftKey) {
     return "\x1b[Z";

@@ -139,7 +139,7 @@ test("a letter typed is drawn before anything told of each edit hears of it", as
   assert.ok(heard[0].startsWith("xfirst"), `the row as the first told of the edit found it: ${JSON.stringify(heard[0])}`);
 });
 
-// Holds a letter down in the editor shown for `count` presses, as the system's repeat sends a held
+// Holds a letter down in the editor shown for `count` presses, as the system's repeat sends a kept
 // key, and gives, for each press: whether the letter was in its row when the frame after it began,
 // how far the caret stood from where it stood before the key, the page's own milliseconds for it from
 // its key to its row drawn, and the milliseconds from the frame after it to the next, the display's
@@ -193,7 +193,7 @@ test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000
   for (const [path, text, line, col] of files) {
     await invoke("file_write", { path, text });
     showView("edit");
-    // a file of 250,000 lines is held as pages: opened at the line, the window stands about it
+    // a file of 250,000 lines is stored as pages: opened at the line, the window stands about it
     await openAt(path, line, col);
     await ui.waitFor(() => editing().active === path && editing().editor?.s, 10000);
     const view = editing().editor;

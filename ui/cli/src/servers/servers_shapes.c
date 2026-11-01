@@ -5,43 +5,19 @@
 // server given the tree's slices, so a place goes and comes back on the file's own lines
 #include "../command_line/cells.h"
 #include "../text/measured.h"
+#include "../text/text.h"
 #include "servers_internal.h"
 
 void cli_servers_reading_locked(CliServersReading *reading)
 {
     cli_lock_take(&reading->lock);
-    reading->answer = NULL;
-    reading->answer_size = 0ull;
     cli_json_begun(&reading->json, NULL, 0u, NULL, 0ull);
-}
-
-// the reading's answer given back, and its pieces
-static void reading_answer_given(CliServersReading *reading)
-{
-    g_cli_cells->persistent_buf_release(reading->answer, &g_cli_servers_cells);
-    reading->answer = NULL;
-    reading->answer_size = 0ull;
-    cli_pieces_given(&reading->pieces);
 }
 
 void cli_servers_reading_released(CliServersReading *reading)
 {
-    reading_answer_given(reading);
     cli_json_given(&reading->json);
     cli_lock_give(&reading->lock);
-}
-
-void cli_servers_answer_begun(CliServersReading *reading, VerbaLinea *line)
-{
-    reading_answer_given(reading);
-    cli_pieces_begun(&reading->pieces, line, reading->piece, sizeof(reading->piece), &g_cli_servers_cells);
-}
-
-int cli_servers_answer_joined(CliServersReading *reading, VerbaLinea *line)
-{
-    reading->answer = cli_pieces_joined(&reading->pieces, line, "a server's answer", &reading->answer_size);
-    reading->answer_size = (reading->answer != NULL) ? reading->answer_size : 0ull;
-    return reading->answer != NULL;
 }
 
 unsigned int cli_servers_read(CliServersReading *reading, const char *text, unsigned long long size)
@@ -49,42 +25,40 @@ unsigned int cli_servers_read(CliServersReading *reading, const char *text, unsi
     cli_json_given(&reading->json);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    return cli_json_taken(&reading->json, text, size, 0u, 0ull, &err_msg, &g_cli_servers_cells);
+    return cli_json_taken_temporary(&reading->json, text, size, 0u, 0ull, &err_msg, &g_cli_servers_cells);
 }
 
-unsigned int cli_servers_answer_read(CliServersReading *reading, VerbaLinea *line)
+unsigned int cli_servers_answer_read(CliServersReading *reading, CliLspAnswer *answer)
 {
-    return cli_servers_answer_joined(reading, line) ? cli_servers_read(reading, reading->answer, reading->answer_size)
-                                                    : CLI_JSON_NONE;
+    const unsigned int root = cli_servers_read(reading, answer->text, answer->size);
+    g_cli_cells->persistent_buf_release(answer->message, &g_cli_servers_cells);
+    answer->message = NULL;
+    return root;
 }
 
-int cli_servers_request(CliLsp *server, const char *method, CliPieces *pieces, VerbaLinea *params,
-                        unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg)
+int cli_servers_request(CliLsp *server, const char *method, const VerbaLinea *params, unsigned long long wait,
+                        CliLspAnswer *answer, VerbaLinea *err_msg)
 {
-    unsigned long long length = 0ull;
-    char *const params_json = cli_pieces_joined(pieces, params, "the params a server is queried with", &length);
-    if (params_json == NULL)
+    *answer = (CliLspAnswer){NULL, NULL, 0ull};
+    if (!mmgr_line_ok(params))
     {
-        mmgr_line_put(err_msg, "the request could not be written: the cells cannot meet it");
+        mmgr_line_put(err_msg, "the request could not be written: its params do not fit");
+        return 0;
     }
     // a server given the tree's slices is waited on until it answers
     cli_servers_ask_begun(server);
-    const int requested =
-        (params_json != NULL) && cli_lsp_requested(server, method, params_json, length, wait, result, err_msg);
+    const int requested = cli_lsp_requested(server, method, params->out, params->at, wait, answer, err_msg);
     cli_servers_ask_ended(server);
-    g_cli_cells->persistent_buf_release(params_json, &g_cli_servers_cells);
     return requested;
 }
 
 int cli_servers_request_at(CliLsp *server, const char *method, const char *path, unsigned int line, unsigned int col,
-                           const char *added, unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg)
+                           const char *added, unsigned long long wait, CliLspAnswer *answer, VerbaLinea *err_msg)
 {
-    char piece[CLI_SERVERS_PIECE];
-    CliPieces pieces;
-    VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
+    char text[CLI_SERVERS_PARAMS];
+    VerbaLinea params = {text, sizeof(text), 0ull};
     cli_lsp_at(path, line, col, added, &params);
-    return cli_servers_request(server, method, &pieces, &params, wait, result, err_msg);
+    return cli_servers_request(server, method, &params, wait, answer, err_msg);
 }
 
 unsigned long long cli_servers_whole(const CliJson *json, unsigned int node, unsigned long long otherwise)
@@ -237,10 +211,7 @@ void cli_servers_item_of(const CliJson *json, unsigned int one, CliCompletions *
     if (name == NULL)
     {
         name = shown;
-        while ((name_size < shown_size) && (shown[name_size] != '(') && (shown[name_size] != ' '))
-        {
-            name_size += 1ull;
-        }
+        name_size = cli_text_to_any(shown, name_size, shown_size, "( ");
     }
     unsigned long long insert_size = 0ull;
     const char *insert =

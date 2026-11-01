@@ -34,7 +34,7 @@ typedef struct
     LatticeShades shades;
     unsigned long long began_ms;
     unsigned long long lost_ms;
-    unsigned long long held_since_ms;
+    unsigned long long paused_since_ms;
     double drawn_at;
     double shows_at;
     unsigned int frames;
@@ -58,9 +58,9 @@ int gui_ground_ticked(GuiGround *ground, const GuiPalette *palette, unsigned lon
 // the milliseconds from `now` until the loop next shows a change, 0 for never while the ground is kept still or not
 // laid
 unsigned long long gui_ground_due(const GuiGround *ground, unsigned long long now);
-// the ground kept still from `now` where `held` is 1, its clock standing, or let go where 0, the clock taking up
+// the ground kept still from `now` where `paused` is 1, its clock standing, or let go where 0, the clock taking up
 // where it stood
-void gui_ground_held(GuiGround *ground, int held, unsigned long long now);
+void gui_ground_paused(GuiGround *ground, int paused, unsigned long long now);
 // the loop's moment at `now`, in seconds
 double gui_ground_seconds(const GuiGround *ground, unsigned long long now);
 #endif

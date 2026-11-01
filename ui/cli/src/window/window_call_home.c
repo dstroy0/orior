@@ -11,8 +11,8 @@
 #include "../plugins/plugins.h"
 #include "window_internal.h"
 
-// the bytes a text written for orior's folder is begun in before it grows
-#define CLI_HOME_TEXT_FIRST (4ull << 10u)
+// the bytes a text written for orior's folder is written in
+#define CLI_HOME_TEXT_ROOM (6ull << 20u)
 
 // The settings' chains and layers of one call, a cell of them taken for it
 typedef struct
@@ -26,10 +26,12 @@ typedef struct
 // sized to what it contains
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// a growing line begun for a text of orior's folder: 1, or 0 with why given where its cell is refused
+// a line begun for a text of orior's folder: 1, or 0 with why given where its cell is refused
 static int home_line_begun(VerbaLinea *line, VerbaLinea *err_msg)
 {
-    const int begun = cli_growing_line_made(line, CLI_HOME_TEXT_FIRST, &g_cli_window_home_cells);
+    char *const cell = g_cli_cells->temporary_buf_alloc(CLI_HOME_TEXT_ROOM, &g_cli_window_home_cells);
+    *line = mmgr_line_over(cell, CLI_HOME_TEXT_ROOM);
+    const int begun = cell != NULL;
     if (!begun)
     {
         mmgr_line_put(err_msg, "a text of orior's folder could not be given a cell");
@@ -52,7 +54,7 @@ static int home_strings(const CliServeArgs *args, const char *key, const char **
         most += 1u;
     }
     *count = 0u;
-    *items = g_cli_cells->persistent_buf_alloc((most + 1ull) * sizeof(**items), &g_cli_window_home_cells);
+    *items = g_cli_cells->temporary_buf_alloc((most + 1ull) * sizeof(**items), &g_cli_window_home_cells);
     if (*items == NULL)
     {
         mmgr_line_put(err_msg, "the strings a call on orior's folder names could not be given a cell");
@@ -114,7 +116,8 @@ static unsigned int home_state_tree(CliJson *json)
         return CLI_JSON_NONE;
     }
     const unsigned int tree = (cli_state_read(folder, &state_line) && mmgr_line_ok(&state_line))
-                                  ? cli_json_taken(json, state_line.out, state_line.at, 0u, 0ull, &ignored, &g_cli_window_home_cells)
+                                  ? cli_json_taken_temporary(json, state_line.out, state_line.at, 0u, 0ull, &ignored,
+                                                             &g_cli_window_home_cells)
                                   : CLI_JSON_NONE;
     g_cli_cells->persistent_buf_release(state_line.out, &g_cli_window_home_cells);
     return cli_json_is(json, tree, CFG_JSON_OBJECT) ? tree : CLI_JSON_NONE;
@@ -151,8 +154,8 @@ static int home_state_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     return 1;
 }
 
-// the bytes the page's first script is begun in, doubling as it fills
-#define CLI_WINDOW_KEPT_SCRIPT_FIRST (16ull << 10u)
+// the bytes the page's first script is written in
+#define CLI_WINDOW_KEPT_SCRIPT_ROOM (16ull << 20u)
 
 // the page's first script before what orior's folder stores and after it
 static const char s_kept_before[] =
@@ -171,10 +174,12 @@ static VerbaLinea s_kept_script;
 const char *cli_window_kept_script(unsigned long long *size)
 {
     *size = 0ull;
-    if (!cli_growing_line_made(&s_kept_script, CLI_WINDOW_KEPT_SCRIPT_FIRST, &g_cli_window_home_cells))
+    char *const script_cell = g_cli_cells->temporary_buf_alloc(CLI_WINDOW_KEPT_SCRIPT_ROOM, &g_cli_window_home_cells);
+    if (script_cell == NULL)
     {
         return NULL;
     }
+    s_kept_script = (VerbaLinea){script_cell, CLI_WINDOW_KEPT_SCRIPT_ROOM, 0ull};
     mmgr_line_put(&s_kept_script, s_kept_before);
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
@@ -456,14 +461,14 @@ static int home_plugin_settings_read(const CliServeArgs *args, VerbaLinea *out, 
     }
     cli_lock_take(&s_lock);
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_read(path, &size);
+    const unsigned char *const mapped = cli_file_taken(path, &size, &g_cli_window_home_cells);
     const unsigned long long start = out->at;
     if ((mapped == NULL) || !cli_json_compacted((const char *)mapped, size, out))
     {
         out->at = start;
         mmgr_line_put(out, "{}");
     }
-    cli_file_let_go(mapped, size);
+    cli_file_given(mapped, &g_cli_window_home_cells);
     cli_lock_give(&s_lock);
     return 1;
 }

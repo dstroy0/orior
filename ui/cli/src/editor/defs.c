@@ -3,11 +3,11 @@
 // defs.c: the oracle tables, the k-file head and the language tables read from the tree and written as the window
 // reads them
 #include "defs.h"
+#include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-// the folders or tables a listing's room is begun with, doubling as they are put, and the most it contains
-#define CLI_DEFS_NAMES_FIRST 32u
+// the most folders or tables a listing contains
 #define CLI_DEFS_NAMES 512u
 
 // A file read: its text, mapped, and its size; the text NULL where it could not be read
@@ -17,8 +17,7 @@ typedef struct
     unsigned long long size;
 } CliDefsFile;
 
-// The names a folder lists, its folders where `folders` is 1, else its files ending `.tsv`, in a cell whose room
-// doubles as they are put
+// The names a folder lists, its folders where `folders` is 1, else its files ending `.tsv`, in a cell of `room`
 typedef struct
 {
     char (*name)[CLI_NAME_MAX_LEN];
@@ -31,7 +30,7 @@ typedef struct
 static CliDefsFile cli_mapped(const char *path)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_defs_cells);
     // a file's bytes are read as its text
     return (CliDefsFile){(const char *)bytes, size};
 }
@@ -41,7 +40,7 @@ static void cli_unmapped(CliDefsFile file)
     if (file.text != NULL)
     {
         // the text is the bytes the file was mapped as
-        cli_file_let_go((const unsigned char *)file.text, file.size);
+        cli_file_given((const unsigned char *)file.text, &g_cli_defs_cells);
     }
 }
 
@@ -49,10 +48,7 @@ static void cli_unmapped(CliDefsFile file)
 static const char *cli_line(const char *at, const char *end, const char **stop)
 {
     const char *next = at;
-    while ((next < end) && (next[0] != '\n'))
-    {
-        next += 1;
-    }
+    next += cli_text_to_any(next, 0ull, (unsigned long long)(end - next), "\n");
     *stop = ((next > at) && (next[-1] == '\r')) ? (next - 1) : next;
     return (next < end) ? (next + 1) : next;
 }
@@ -216,8 +212,8 @@ static void cli_header_written(const char *path, VerbaLinea *out)
     const CliDefsFile file = cli_mapped(path);
     const unsigned long long size = (file.text != NULL) ? file.size : 0ull;
     char *const text = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_defs_cells);
-    VerbaLinea joined = {text, (text != NULL) ? (size + 1ull) : 0ull, 0ull};
-    const char *const end = (text != NULL) ? (file.text + size) : file.text;
+    VerbaLinea joined = mmgr_line_over(text, size + 1ull);
+    const char *const end = file.text + size;
     int first = 1;
     const char *at = file.text;
     while (at < end)
@@ -237,19 +233,10 @@ static void cli_header_written(const char *path, VerbaLinea *out)
         {
             break;
         }
-        int licensed = 0;
-        for (const char *letter = from; !licensed && ((letter + 4) <= stop); letter += 1)
-        {
-            licensed = memor.cmp(&(MemoriaCfg){.src = letter, .other = "SPDX", .bytes = 4u}) == 0;
-        }
-        while (!licensed && (from < stop) && (from[0] == '/'))
-        {
-            from += 1;
-        }
-        while (!licensed && (from < stop) && cli_is_space(from[0]))
-        {
-            from += 1;
-        }
+        const int licensed = cellul.find(&(CatenaFinitaCfg){
+                                 .src = from, .cap = (size_t)(stop - from), .other = "SPDX", .other_cap = 5u}) != NULL;
+        from += !licensed ? cli_text_past_any(from, 0ull, (unsigned long long)(stop - from), "/") : 0ull;
+        from += !licensed ? cli_text_past_any(from, 0ull, (unsigned long long)(stop - from), CLI_TEXT_WHITE) : 0ull;
         if (!licensed)
         {
             mmgr_line_put(&joined, first ? "" : " ");
@@ -304,13 +291,10 @@ static int cli_define_number(const char *name, CliDefsFile file, unsigned long l
 {
     unsigned long long length = 0ull;
     const char *const value = cli_define(name, file, &length);
-    while ((value != NULL) && (length != 0ull) && (value[length - 1u] == 'u'))
-    {
-        length -= 1ull;
-    }
+    length = cli_text_back_past(value, length, "u");
     unsigned long long total = 0ull;
-    const unsigned long long sign = ((value != NULL) && (length != 0ull) && (value[0] == '+')) ? 1ull : 0ull;
-    if ((value == NULL) || (length == sign))
+    const unsigned long long sign = ((length != 0ull) && (value[0] == '+')) ? 1ull : 0ull;
+    if (length == sign)
     {
         return 0;
     }
@@ -344,20 +328,14 @@ static void cli_head_of(CliDefsFile file, VerbaLinea *out)
         return;
     }
     // the magic's quotes taken off, and its text up to its first escape
-    while ((magic_length != 0ull) && (magic[0] == '"'))
     {
-        magic += 1;
-        magic_length -= 1ull;
+        const unsigned long long lead = cli_text_past_any(magic, 0ull, magic_length, "\"");
+        magic += lead;
+        magic_length -= lead;
     }
-    while ((magic_length != 0ull) && (magic[magic_length - 1u] == '"'))
-    {
-        magic_length -= 1ull;
-    }
+    magic_length = cli_text_back_past(magic, magic_length, "\"");
     unsigned long long len = 0ull;
-    while ((len < magic_length) && (magic[len] != '\\'))
-    {
-        len += 1ull;
-    }
+    len = cli_text_to_any(magic, len, magic_length, "\\");
     mmgr_line_put(out, "{\"bytes\":");
     mmgr_line_decimal(out, bytes, 1u);
     mmgr_line_put(out, ",\"magic\":");
@@ -380,30 +358,6 @@ static void cli_head_written(const char *root, VerbaLinea *out)
 }
 
 // The names a folder lists: its folders, or its files ending `.tsv`, in order
-// room made for one name more in `names`: 1, or 0 where it contains the most or its larger cell is refused
-static int cli_name_room(CliDefsNames *names)
-{
-    if (names->count < names->room)
-    {
-        return 1;
-    }
-    const unsigned int doubled = (names->room == 0u) ? CLI_DEFS_NAMES_FIRST : (names->room * 2u);
-    const unsigned int room = (doubled < CLI_DEFS_NAMES) ? doubled : CLI_DEFS_NAMES;
-    char (*const larger)[CLI_NAME_MAX_LEN] =
-        (names->count < CLI_DEFS_NAMES)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * CLI_NAME_MAX_LEN, &g_cli_defs_cells)
-            : NULL;
-    if (larger == NULL)
-    {
-        return 0;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = names->name, .bytes = (size_t)names->count * CLI_NAME_MAX_LEN});
-    g_cli_cells->persistent_buf_release(names->name, &g_cli_defs_cells);
-    names->name = larger;
-    names->room = room;
-    return 1;
-}
-
 static void cli_name_each(void *context, const char *name, int is_folder)
 {
     CliDefsNames *const names = context;
@@ -413,7 +367,7 @@ static void cli_name_each(void *context, const char *name, int is_folder)
             ? is_folder
             : ((length > 4u) &&
                (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".tsv", .cap = CLI_CELLS_POOL})));
-    if (wanted && (length < CLI_NAME_MAX_LEN) && cli_name_room(names))
+    if (wanted && (length < CLI_NAME_MAX_LEN) && (names->count < names->room))
     {
         memor.cpy(&(MemoriaCfg){.dst = names->name[names->count], .src = name, .bytes = length + 1u});
         names->count += 1u;
@@ -424,7 +378,9 @@ static void cli_name_each(void *context, const char *name, int is_folder)
 static void cli_names_listed(const char *folder, int folders, CliDefsNames *names)
 {
     g_cli_cells->persistent_buf_release(names->name, &g_cli_defs_cells);
-    *names = (CliDefsNames){NULL, 0u, 0u, folders};
+    char (*const taken)[CLI_NAME_MAX_LEN] =
+        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_DEFS_NAMES * CLI_NAME_MAX_LEN, &g_cli_defs_cells);
+    *names = (CliDefsNames){taken, 0u, (taken != NULL) ? CLI_DEFS_NAMES : 0u, folders};
     query_folder_each(folder, cli_name_each, names);
     char (*const name)[CLI_NAME_MAX_LEN] = names->name;
     for (unsigned int at = 1u; at < names->count; at += 1u)

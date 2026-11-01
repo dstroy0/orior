@@ -4,6 +4,7 @@
 // alike, and whether a text calls a name
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "review_internal.h"
 
 // A text's lines, each where it starts and its bytes, less a carriage return before its newline, in a cell with room
@@ -33,11 +34,10 @@ static void cli_lines_of(const char *text, unsigned long long size, CliTextLines
     lines->lines = 0u;
     for (unsigned long long at = 0ull; (at < size) && (lines->lines < lines->most);)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
-        length -= ((newline != NULL) && (length > 0ull) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
+        length -= bounds.stop - bounds.cut;
         // a text is below CLI_REVIEW_TEXTS_MAX bytes, which an unsigned int stores
         lines->start[lines->lines] = (unsigned int)at;
         lines->length[lines->lines] = (unsigned int)length;

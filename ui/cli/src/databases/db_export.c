@@ -8,10 +8,10 @@
 #include "../text/text.h"
 
 // the bytes written to the file at a time, the most of the values of one buffered row read back, and the bytes a value
-// of a JSON line is begun to be written in, doubling as it is
+// of a JSON line is written in
 #define CLI_DB_EXPORT_ROOM (1u << 20u)
 #define CLI_DB_EXPORT_ROW (1u << 20u)
-#define CLI_DB_EXPORT_VALUE_FIRST 64u
+#define CLI_DB_EXPORT_VALUE_MORE 64ull
 
 // The writing of an export: its connection, its file and format, the bytes not yet written to it, whether a write
 // failed, how many rows it has written, the columns in the order a JSON line names them, each once, and a row's values;
@@ -109,8 +109,9 @@ static void export_line(CliDbExport *export, const CliDbValue *values, unsigned 
                 export_put(export, "null", 4ull);
                 continue;
             }
-            VerbaLinea value;
-            (void)cli_growing_line_temporary(&value, values[column].size + CLI_DB_EXPORT_VALUE_FIRST, &g_cli_db_cells);
+            const unsigned long long value_room = (values[column].size * 6ull) + CLI_DB_EXPORT_VALUE_MORE;
+            char *const value_cell = g_cli_cells->temporary_buf_alloc(value_room, &g_cli_db_cells);
+            VerbaLinea value = mmgr_line_over(value_cell, value_room);
             cli_json_quoted_lossy(&value, (const unsigned char *)values[column].text, values[column].size);
             export->broke = export->broke || !mmgr_line_ok(&value);
             export_put(export, value.out, mmgr_line_ok(&value) ? value.at : 0ull);
@@ -171,9 +172,10 @@ static void export_results_line(void *context, const char *line, unsigned long l
             continue;
         }
         unsigned long long end = at + 1ull;
-        while ((end < size) && (line[end] != '"'))
+        end = cli_text_to_any(line, end, size, "\"\\");
+        while ((end < size) && (line[end] == '\\'))
         {
-            end += (line[end] == '\\') ? 2ull : 1ull;
+            end = cli_text_to_any(line, end + 2ull, size, "\"\\");
         }
         char *const text = texts + used;
         if (!cli_lsp_string(line + at, end + 1u - at, text, room - used))

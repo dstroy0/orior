@@ -13,7 +13,6 @@
 #include "../plugins/plugins.h"
 #include "../text/json_tree.h"
 #include "../text/keyed.h"
-#include "../text/pieces.h"
 #include "../text/text.h"
 #include "lsp.h"
 #include "servers.h"
@@ -42,33 +41,26 @@
 // the name the findings of the files orior_cli reads itself are stored by, beside the checkers'
 #define CLI_SERVERS_OWN "orior"
 
-// the most bytes of a server's answer, and of the texts of its tree, and the most nodes the tree contains
+// the most bytes of a text written from one server's answer or one file's findings, and of what a check of the whole
+// tree finds; and the most nodes a tree contains
 #define CLI_SERVERS_ANSWER (8ull << 20u)
+#define CLI_SERVERS_FINDINGS (32ull << 20u)
 #define CLI_SERVERS_NODES (1u << 18u)
 
-// the bytes of each piece a server's answer is buffered in as it comes
-#define CLI_SERVERS_PIECE 4096u
+// the most bytes of a request's params about a file: its path as a URI, a place and a new name
+#define CLI_SERVERS_PARAMS (CLI_PATH_MAX_LEN * 4u)
 
-// A server's answer read: its lock; the answer as the server wrote it, joined into a cell of its size, and its size;
-// the tree it reads to, taken to the text it reads; and the pieces the answer is buffered in as it comes, over a piece
-// of its own. The answer and the tree are given back as the next is read and as the lock is
+// A server's answer read: its lock, and the tree it reads to, taken to the text it reads, given back as the next is
+// read and as the lock is
 typedef struct
 {
     CliLock lock;
-    char *answer;
-    unsigned long long answer_size;
     CliJson json;
-    CliPieces pieces;
-    char piece[CLI_SERVERS_PIECE];
 } CliServersReading;
 
-// a reading's lock taken; and its answer and tree given back with the lock (servers_shapes.c)
+// a reading's lock taken; and its tree given back with the lock (servers_shapes.c)
 void cli_servers_reading_locked(CliServersReading *reading);
 void cli_servers_reading_released(CliServersReading *reading);
-// `line` begun as the line a server's answer is written to, buffered in pieces as it comes; and the answer it contains
-// joined into the reading's answer: 1, or 0 where it is not whole or the cells cannot meet it, the answer empty
-void cli_servers_answer_begun(CliServersReading *reading, VerbaLinea *line);
-int cli_servers_answer_joined(CliServersReading *reading, VerbaLinea *line);
 
 // A toolchain's server: its toolchain and its name, its program, the words it starts with, the languages it serves, the
 // protocol's name for each extension's language, the line that installs it, the file that marks a project, the
@@ -152,7 +144,8 @@ typedef struct
 {
     unsigned long long path;
     unsigned int size;
-    CliServersWaiting waiting;
+    unsigned int whole;
+    CliLsp *server;
 } CliServersQueued;
 
 // The tree's check: whether it is on, its tree, where what it reports goes; its room, four cells each with its most:
@@ -182,12 +175,12 @@ typedef struct
     int started;
 } CliServersQueue;
 
-// the check's room given back, where `queue` has one; taken where it has none, each part at what it begins with:
-// 1, or 0 where the cells cannot meet it; the place of the `at`th file waiting; a file put in the queue, at its front
-// where `front`, the room grown where it is full: 1, or 0 where it has no room; and the tree's files recorded, those of
-// `files` and those recorded before. Each with the queue's lock acquired (servers_check_room.c)
+// the check's room given back, where `queue` has one; taken where it has none, sized from the tree's files: 1, or 0
+// where the cells cannot meet it; the place of the `at`th file waiting; a file put in the queue, at its front where
+// `front`: 1, or 0 where it has no room; and the tree's files recorded, those of `files` and those recorded before.
+// Each with the queue's lock acquired (servers_check_room.c)
 void cli_servers_check_room_given(CliServersQueue *queue);
-int cli_servers_check_room_made(CliServersQueue *queue);
+int cli_servers_check_room_made(CliServersQueue *queue, const char *const *files, unsigned int count);
 CliServersQueued *cli_servers_check_queued_at(const CliServersQueue *queue, unsigned int at);
 int cli_servers_check_queue_put(CliServersQueue *queue, const char *path, const CliServersWaiting *waiting, int front);
 void cli_servers_check_files_put(CliServersQueue *queue, const char *const *files, unsigned int count);
@@ -264,18 +257,18 @@ void cli_servers_recv(void *context, const char *method, const char *params, uns
 void cli_servers_stop_later(CliLsp *lsp);
 
 // `size` bytes of JSON read into `reading`'s tree, taken to their size, the tree it contained given back: its root, or
-// CLI_JSON_NONE where it is no JSON or the cells cannot meet it; the reading's answer joined from `line` and read the
-// same way; a number as a whole
-// number, `otherwise` where the node is none or no number; and the place `{"line", "character"}` (servers_shapes.c)
+// CLI_JSON_NONE where it is no JSON or the cells cannot meet it; a server's answer read the same way and its message
+// given back; a number as a whole number, `otherwise` where the node is none or no number; and the place
+// `{"line", "character"}` (servers_shapes.c)
 unsigned int cli_servers_read(CliServersReading *reading, const char *text, unsigned long long size);
-unsigned int cli_servers_answer_read(CliServersReading *reading, VerbaLinea *line);
-// `method` sent to `server` with the params `params` contains in `pieces`, joined into a cell of their size and given
-// back once sent, its answer written into `result`: 1, or 0 with why given; and the same with the params of a
+unsigned int cli_servers_answer_read(CliServersReading *reading, CliLspAnswer *answer);
+// `method` sent to `server` with the params the line `params` holds, its answer handed over in `answer`: 1, or 0 with
+// why given, a line that did not fit its params refused with no server reached; and the same with the params of a
 // request about the place `line`, `col` of `path`, `added` after the place where it is given
-int cli_servers_request(CliLsp *server, const char *method, CliPieces *pieces, VerbaLinea *params,
-                        unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg);
+int cli_servers_request(CliLsp *server, const char *method, const VerbaLinea *params, unsigned long long wait,
+                        CliLspAnswer *answer, VerbaLinea *err_msg);
 int cli_servers_request_at(CliLsp *server, const char *method, const char *path, unsigned int line, unsigned int col,
-                           const char *added, unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg);
+                           const char *added, unsigned long long wait, CliLspAnswer *answer, VerbaLinea *err_msg);
 unsigned long long cli_servers_whole(const CliJson *json, unsigned int node, unsigned long long otherwise);
 CliTextPlace cli_servers_place(const CliJson *json, unsigned int node);
 // a path written as a JSON string as it stands in `tree` (servers_shapes.c)
@@ -459,12 +452,13 @@ void cli_servers_check_open_set(const char *uri, int open);
 // again, for it to read against what changed under it; each with the taken files' lock acquired (servers_check_one.c)
 void cli_servers_check_open_cleared(void);
 void cli_servers_reread_open(CliLsp *server);
-// each of the tree's files the check was given handed to `each`, by its path in the tree: 1, or 0 where the check is
-// off or on another tree; the files a change on the disk named recorded among the tree's files, those no longer
-// there let go, and where the check's word goes into `emit`: 1, or 0 where the check is off or on another tree; and the
-// files `paths`, `count` of them, each with its server, referenced for it, and its language, queued behind those
-// waiting, each once, the check notified it is done where none waits: `count` (servers_check.c)
-int cli_servers_check_tree_files(const char *root, void (*each)(void *context, const char *file), void *context);
+// the tree's files the check was given, by their paths in the tree, each ended by a 0, in a cell of their size counted
+// to g_cli_servers_cells, their size into `size`: the cell, or NULL where the check is off or on another tree or the
+// cell cannot be taken; the files a change on the disk named recorded among the tree's files, those no longer there let
+// go, and where the check's word goes into `emit`: 1, or 0 where the check is off or on another tree; and the files
+// `paths`, `count` of them, each with its server, referenced for it, and its language, queued behind those waiting,
+// each once, the check notified it is done where none waits: `count` (servers_check.c)
+char *cli_servers_check_tree_files(const char *root, unsigned long long *size);
 int cli_servers_check_files_changed(const char *root, const char *const *files, unsigned int count,
                                     CliServersSink *sink);
 unsigned int cli_servers_check_queued(const char *const *paths, const CliServersWaiting *waiting, unsigned int count,

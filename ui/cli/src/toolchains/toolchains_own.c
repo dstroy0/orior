@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // toolchains_own.c: orior's own folder and whether it is on the PATH, and a folder added to the reader's own PATH
+#include "../text/text.h"
 #include "toolchains_internal.h"
 
 int cli_toolchains_own(char *folder, int *on_path, VerbaLinea *err_msg)
@@ -19,10 +20,7 @@ int cli_toolchains_own(char *folder, int *on_path, VerbaLinea *err_msg)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}) + 1u});
     }
     char *cut = full + cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL});
-    while ((cut > full) && (cut[-1] != '/') && (cut[-1] != '\\'))
-    {
-        cut -= 1;
-    }
+    cut = full + cli_text_back_any(full, (unsigned long long)(cut - full), "/\\");
     if (cut == full)
     {
         mmgr_line_put(err_msg, "orior's program has no folder");
@@ -78,14 +76,7 @@ static int cli_add_folder(const char *folder, VerbaLinea *err_msg)
     char line[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea made = {line, sizeof(line), 0ull};
     mmgr_line_put(&made, "export PATH=\"$PATH:");
-    for (const char *at = folder; at[0] != '\0'; at += 1)
-    {
-        mmgr_line_put(&made, (at[0] == '"') ? "\\\"" : "");
-        if (at[0] != '"')
-        {
-            mmgr_line_ch(&made, at[0]);
-        }
-    }
+    cli_text_put_marked(&made, folder, "\"", '\\');
     mmgr_line_ch(&made, '"');
     const unsigned long long line_length = mmgr_line_finish(&made);
     static const char *const s_names[4] = {"/.profile", "/.zprofile", "/.bash_profile", "/.bash_login"};
@@ -118,14 +109,8 @@ static int cli_add_folder(const char *folder, VerbaLinea *err_msg)
             {
                 const char *start = from;
                 const char *end = place;
-                while ((start < end) && ((start[0] == ' ') || ((start[0] >= '\t') && (start[0] <= '\r'))))
-                {
-                    start += 1;
-                }
-                while ((end > start) && ((end[-1] == ' ') || ((end[-1] >= '\t') && (end[-1] <= '\r'))))
-                {
-                    end -= 1;
-                }
+                start += cli_text_past_any(start, 0ull, (unsigned long long)(end - start), CLI_TEXT_WHITE);
+                end = start + cli_text_back_past(start, (unsigned long long)(end - start), CLI_TEXT_WHITE);
                 there = ((unsigned long long)(end - start) == line_length) &&
                         (memor.cmp(&(MemoriaCfg){.src = start, .other = line, .bytes = line_length}) == 0);
                 from = place + 1;

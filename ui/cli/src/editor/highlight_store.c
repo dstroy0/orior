@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // highlight_store.c: the grammars stored, each a cell of its own under its key, given back when a grammar is put in its
-// place; a grammar read, and lines colored by the grammar stored under a key. The lock is held to find the grammar and
+// place; a grammar read, and lines colored by the grammar stored under a key. The lock is taken to find the grammar and
 // to store one, never as lines are colored: a coloring holds the grammar it reads by a count in the grammar's cell and
 // works in a room it claims by a mark, so as many colorings run at once as threads ask for them. The cells are the one
 // cellblock's, counted to the grammars' own mark, which their report gives
@@ -9,8 +9,8 @@
 
 #include <stdatomic.h>
 
-// the grammars the list of those stored is begun with, doubling as every place is taken
-#define CLI_GRAMMARS_FIRST 16u
+// the grammars the list of those stored is taken with
+#define CLI_GRAMMARS_MOST 1024u
 
 // A grammar's cell begins with its head: how many colorings read the grammar, raised under the lock as each finds it
 // and lowered with no lock taken as each ends, and above them the mark that the grammar was put out of its place by
@@ -144,21 +144,21 @@ static void cli_copied(const CliGrammar *read, unsigned char *region, CliGrammar
     memor.cpy(&(MemoriaCfg){.dst = copy->text, .src = read->text, .bytes = read->text_size});
 }
 
-// the list of the grammars stored twice its room, or CLI_GRAMMARS_FIRST where it has none, the places after those it
-// left empty: 1, or 0 where the cellblock cannot meet it; under the lock
-static int cli_grammars_grown(void)
+// the list of the grammars stored taken at its most, every place empty, where it stands untaken: 1, or 0 where it
+// stands taken or the cellblock cannot meet it; under the lock
+static int cli_grammars_made(void)
 {
-    const unsigned int room = (s_grammar_room == 0u) ? CLI_GRAMMARS_FIRST : (2u * s_grammar_room);
-    CliGrammarEntry *const grown = cli_cell_regrown(s_grammars, (size_t)s_grammar_room * sizeof(*grown),
-                                                    (unsigned long long)room * sizeof(*grown), &g_cli_grammars_cells);
-    if (grown == NULL)
+    CliGrammarEntry *const cell =
+        (s_grammar_room == 0u) ? g_cli_cells->persistent_buf_alloc(
+                                     (unsigned long long)CLI_GRAMMARS_MOST * sizeof(*cell), &g_cli_grammars_cells)
+                               : NULL;
+    if (cell == NULL)
     {
         return 0;
     }
-    memor.set(&(MemoriaCfg){
-        .dst = grown + s_grammar_room, .val = 0, .bytes = (size_t)(room - s_grammar_room) * sizeof(*grown)});
-    s_grammars = grown;
-    s_grammar_room = room;
+    memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)CLI_GRAMMARS_MOST * sizeof(*cell)});
+    s_grammars = cell;
+    s_grammar_room = CLI_GRAMMARS_MOST;
     return 1;
 }
 
@@ -194,8 +194,8 @@ static int cli_grammar_stored(const char *key, const CliJson *json, unsigned int
         mmgr_line_put(err_msg, "a grammar's key is longer than orior_cli supports");
         return 0;
     }
-    // every place taken, the list doubled and the first place it adds taken
-    if ((free_at == s_grammar_room) && !cli_grammars_grown())
+    // no place free: the list is taken where it stands untaken
+    if ((free_at == s_grammar_room) && !cli_grammars_made())
     {
         mmgr_line_put(err_msg, "the grammars stored take more than orior_cli supports");
         return 0;
@@ -374,8 +374,8 @@ static unsigned int cli_grammar_entry_of(const char *key)
 }
 
 // the lines colored with the grammar stored under `key`, as `colored` says where they go, the lock taken to find the
-// grammar and count the coloring among its readers alone, and the lines colored in a room claimed with no lock taken: 1,
-// or 0 with why given
+// grammar and count the coloring among its readers alone, and the lines colored in a room claimed with no lock taken:
+// 1, or 0 with why given
 static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);

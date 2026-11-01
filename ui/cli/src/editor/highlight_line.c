@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // highlight_line.c: a line colored by a grammar: its tokens as runs, each a column in UTF-16 units and the place of
 // its name, running to the next run's column or the line's end, and the state the line ends in. Run on any thread with
-// no lock held, each coloring in a room of its own and the grammar held for it until it ends
+// no lock taken, each coloring in a room of its own and the grammar kept for it until it ends
+#include "../text/text.h"
 #include "highlight_internal.h"
 
 // the room the coloring under way on this thread works in, the one the keeper handed it, that of a coloring it was
@@ -152,10 +153,7 @@ static void cli_step(const CliGrammar *grammar, CliColoring *coloring, const cha
         (memor.cmp(&(MemoriaCfg){.src = next, .other = s_switch, .bytes = sizeof(s_switch) - 1u}) == 0);
     coloring->depth -= (switching && (coloring->depth > 1u)) ? 1u : 0u;
     const char *name = switching ? (next + sizeof(s_switch) - 1u) : next;
-    while (name[0] == '@')
-    {
-        name += 1;
-    }
+    name += cli_text_past_any(name, 0ull, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), "@");
     if (coloring->depth < CLI_HIGHLIGHT_STACK)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
@@ -235,7 +233,7 @@ static unsigned long long cli_taken(const CliGrammar *grammar, const CliHighligh
     return size;
 }
 
-// a line begun in a grammar with an `indent`, where its `skip` does not match the line: each state of its `states` on
+// a line written in a grammar with an `indent`, where its `skip` does not match the line: each state of its `states` on
 // top of the stack whose indent is as deep as the line's or deeper left, a mark of its close put at the line's start,
 // and the line's indent made the statement's where the state on top is one of its `begins`. A line's indent counts a
 // space one column and a tab to the next multiple of the grammar's `tab`
@@ -409,11 +407,9 @@ static void cli_state_written(const CliGrammar *grammar, const CliColoring *colo
 static unsigned long long cli_digits_read(const char **from)
 {
     unsigned long long value = 0ull;
-    while (((*from)[0] >= '0') && ((*from)[0] <= '9'))
-    {
-        value = (value * 10ull) + (unsigned long long)((*from)[0] - '0');
-        *from += 1;
-    }
+    unsigned long long end = 0ull;
+    value = cli_text_number(*from, 0ull, cellul.len(&(CatenaFinitaCfg){.src = *from, .cap = CLI_CELLS_POOL}), &end);
+    *from += end;
     return value;
 }
 
@@ -442,10 +438,7 @@ static void cli_stacked(const CliGrammar *grammar, CliColoring *coloring, const 
                                              : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
         // the name to its `:`, where one stands within it
         unsigned long long length = 0ull;
-        while ((length < whole) && (from[length] != ':'))
-        {
-            length += 1ull;
-        }
+        length = cli_text_to_any(from, length, whole, ":");
         if (coloring->depth < CLI_HIGHLIGHT_STACK)
         {
             VerbaLinea name = {t_room->stack[coloring->depth], CLI_NAME_MAX_LEN, 0ull};

@@ -4,6 +4,7 @@
 // leave it out; an archive, and a folder within one, listing what the archive contains
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "archive.h"
 #include "files_internal.h"
 
@@ -24,12 +25,8 @@ typedef struct
     int has_raw;
 } CliEntry;
 
-// the entries and the bytes of their texts a listing first contains, each doubled as it fills
-#define CLI_LIST_FIRST 256u
-#define CLI_LIST_TEXT_FIRST (1u << 14u)
-
-// The entries of the folder being listed, each list a cell of its own that doubles as it fills, and the folders a
-// file the patterns leave sits in, a list made of the files cellblock, under the lock
+// The entries of the folder being listed and their texts, in one cell at their most, and the folders a file the
+// patterns leave sits in, a list made of the files cellblock, under the lock
 typedef struct
 {
     CliEntry *item;
@@ -46,40 +43,10 @@ typedef struct
 static CliListing *s_listing;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// a list of `*room` items of `size` bytes, `count` stored, given room for `more` items: where they do not fit and the
-// list is below `most`, moved into a cell of twice its room, `first` where it has none, its items copied and its cell
-// given back. The list as it stands after, `count + more` within `*room` where there is room
-static void *list_grown(void *list, unsigned long long count, unsigned long long more, unsigned long long *room,
-                        unsigned long long size, unsigned long long first, unsigned long long most, const char *what)
-{
-    if ((count + more) <= *room)
-    {
-        return list;
-    }
-    unsigned long long grown = (*room != 0ull) ? *room : first;
-    while ((grown < (count + more)) && (grown < most))
-    {
-        grown = ((grown * 2ull) < most) ? (grown * 2ull) : most;
-    }
-    if (grown < (count + more))
-    {
-        return list;
-    }
-    void *const cell = cli_cell_regrown(list, count * size, grown * size, &g_cli_editor_cells);
-    if (cell == NULL)
-    {
-        return list;
-    }
-    *room = grown;
-    return cell;
-}
-
 // a text put in the entries' texts: its place
 static unsigned int cli_entry_text_stored(const char *text)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    s_listing->text = list_grown(s_listing->text, s_listing->used, length + 1ull, &s_listing->text_room, 1ull,
-                                 CLI_LIST_TEXT_FIRST, CLI_FILES_TEXT, "a folder's listing's texts");
     if ((s_listing->used + length + 1ull) > s_listing->text_room)
     {
         return 0u;
@@ -94,11 +61,6 @@ static unsigned int cli_entry_text_stored(const char *text)
 // an entry put after the entries
 static void cli_entry_put(const char *name, const char *path, int dir, int ignored, int archive, const char *raw)
 {
-    unsigned long long room = s_listing->item_room;
-    s_listing->item = list_grown(s_listing->item, s_listing->count, 1ull, &room, sizeof(*s_listing->item),
-                                 CLI_LIST_FIRST, CLI_LIST_MOST, "a folder's listing's entries");
-    // the room is bounded by CLI_LIST_MOST, which an unsigned int stores
-    s_listing->item_room = (unsigned int)room;
     if (s_listing->count >= s_listing->item_room)
     {
         return;
@@ -192,15 +154,15 @@ static void cli_folders_collected(const CliSeen *seen)
             {
                 continue;
             }
-            for (const char *at = file; at[0] != '\0'; at += 1)
+            const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL});
+            for (unsigned long long slash = cli_text_to_any(file, 0ull, whole, "/"); slash < whole;
+                 slash = cli_text_to_any(file, slash + 1ull, whole, "/"))
             {
-                // the slash lies in the path, past its start
-                const unsigned long long length = (unsigned long long)(at - file);
-                count += ((pass == 0u) && (at[0] == '/')) ? 1ull : 0ull;
-                bytes += ((pass == 0u) && (at[0] == '/')) ? (length + 1ull) : 0ull;
-                if ((pass == 1u) && (at[0] == '/'))
+                count += (pass == 0u) ? 1ull : 0ull;
+                bytes += (pass == 0u) ? (slash + 1ull) : 0ull;
+                if (pass == 1u)
                 {
-                    cli_files_put(&s_listing->folders, file, length);
+                    cli_files_put(&s_listing->folders, file, slash);
                 }
             }
         }
@@ -262,7 +224,6 @@ static void list_released(void)
 {
     cli_files_emptied(&s_listing->folders);
     g_cli_cells->persistent_buf_release(s_listing->item, &g_cli_editor_cells);
-    g_cli_cells->persistent_buf_release(s_listing->text, &g_cli_editor_cells);
     g_cli_cells->persistent_buf_release(s_listing, &g_cli_editor_cells);
     s_listing = NULL;
     cli_lock_give(&s_lock);
@@ -278,12 +239,21 @@ int cli_files_list(const char *root, const char *dir, VerbaLinea *out, VerbaLine
         mmgr_line_put(err_msg, "a folder's listing could not be taken");
         return 0;
     }
+    const unsigned long long item_bytes = (unsigned long long)CLI_LIST_MOST * sizeof(*s_listing->item);
+    char *const lists = g_cli_cells->temporary_buf_alloc(item_bytes + CLI_FILES_TEXT, &g_cli_editor_cells);
     s_listing->item = NULL;
     s_listing->count = 0u;
     s_listing->item_room = 0u;
     s_listing->text = NULL;
     s_listing->used = 0ull;
     s_listing->text_room = 0ull;
+    if (lists != NULL)
+    {
+        s_listing->item = (CliEntry *)(void *)lists;
+        s_listing->item_room = CLI_LIST_MOST;
+        s_listing->text = lists + item_bytes;
+        s_listing->text_room = CLI_FILES_TEXT;
+    }
     s_listing->folders = (CliFiles){NULL, 0u, 0u, NULL, 0ull, 0ull};
     // an archive, and a folder within one, lists what the archive contains
     char file[CLI_PATH_MAX_LEN];

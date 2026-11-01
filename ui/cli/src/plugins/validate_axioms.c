@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // validate_axioms.c: the last check's messages read: the mathematics it found wrong, and each axiom a theorem rests
 // on past those trusted, found by the theorem's declaration in the code
+#include "../text/text.h"
 #include "validate_internal.h"
 
 // An axiom answer the last check gave: where the theorem's name and its list of axioms are in the messages' texts
@@ -66,10 +67,7 @@ static int report_same(const char *text, unsigned long long size, const char *ot
 static unsigned long long report_short(const char *name, unsigned long long size)
 {
     unsigned long long start = size;
-    while ((start > 0ull) && (name[start - 1ull] != '.'))
-    {
-        start -= 1ull;
-    }
+    start = cli_text_back_any(name, start, ".");
     return start;
 }
 

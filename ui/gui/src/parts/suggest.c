@@ -6,6 +6,7 @@
 #include "suggest.h"
 
 #include "../../../cli/src/command_line/cli_internal.h"
+#include "../../../cli/src/text/text.h"
 #include "../answer.h"
 #include "../frame.h"
 
@@ -15,7 +16,8 @@ int gui_suggest_made(GuiSuggest *suggest)
 {
     memor.set(&(MemoriaCfg){.dst = suggest, .val = 0, .bytes = sizeof(*suggest)});
     suggest->item = g_cli_cells->persistent_buf_alloc(GUI_SUGGEST_ITEMS_MOST * sizeof(GuiItem), &g_gui_suggest_cells);
-    suggest->shown = g_cli_cells->persistent_buf_alloc(GUI_SUGGEST_ITEMS_MOST * sizeof(unsigned int), &g_gui_suggest_cells);
+    suggest->shown =
+        g_cli_cells->persistent_buf_alloc(GUI_SUGGEST_ITEMS_MOST * sizeof(unsigned int), &g_gui_suggest_cells);
     if ((suggest->item == NULL) || (suggest->shown == NULL))
     {
         gui_suggest_given(suggest);
@@ -108,14 +110,20 @@ unsigned int gui_suggest_score(const char *label, unsigned long long length, con
     return (at == want) ? 2u : 0u;
 }
 
-// `length` bytes of `text` stored among the items' texts: where they start, the texts' cell grown where they do not
-// fit: 1, or 0 where it could not grow
+// the items' texts' one cell, taken as the first is stored
+static void suggest_texts_taken(GuiSuggest *suggest)
+{
+    if (suggest->texts.out == NULL)
+    {
+        char *const cell = g_cli_cells->persistent_buf_alloc(GUI_SUGGEST_TEXT_ROOM, &g_gui_suggest_cells);
+        suggest->texts = mmgr_line_over(cell, GUI_SUGGEST_TEXT_ROOM);
+    }
+}
+
+// `length` bytes of `text` stored among the items' texts: where they start: 1, or 0 where they do not fit
 static int suggest_stored(GuiSuggest *suggest, const char *text, unsigned long long length, unsigned long long *at)
 {
-    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST, &g_gui_suggest_cells))
-    {
-        return 0;
-    }
+    suggest_texts_taken(suggest);
     *at = suggest->texts.at;
     mmgr_line_put_n(&suggest->texts, text, length);
     return mmgr_line_ok(&suggest->texts);
@@ -127,10 +135,7 @@ static int suggest_stored(GuiSuggest *suggest, const char *text, unsigned long l
 static int suggest_snippet_stored(GuiSuggest *suggest, const char *text, unsigned long long length,
                                   unsigned long long *at)
 {
-    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST, &g_gui_suggest_cells))
-    {
-        return 0;
-    }
+    suggest_texts_taken(suggest);
     *at = suggest->texts.at;
     unsigned long long each = 0ull;
     while (each < length)
@@ -152,17 +157,11 @@ static int suggest_snippet_stored(GuiSuggest *suggest, const char *text, unsigne
         if ((each < length) && (text[each] != '{'))
         {
             // a bare stop: its digits
-            while ((each < length) && (text[each] >= '0') && (text[each] <= '9'))
-            {
-                each += 1ull;
-            }
+            each = cli_text_past_class(text, each, length, CLI_TEXT_DIGITS, "");
             continue;
         }
         each += (each < length) ? 1ull : 0ull;
-        while ((each < length) && (text[each] >= '0') && (text[each] <= '9'))
-        {
-            each += 1ull;
-        }
+        each = cli_text_past_class(text, each, length, CLI_TEXT_DIGITS, "");
         if ((each < length) && (text[each] == ':'))
         {
             // the placeholder's text up to the closing brace, nested stops inside it flattened the same way
@@ -180,10 +179,7 @@ static int suggest_snippet_stored(GuiSuggest *suggest, const char *text, unsigne
                 {
                     depth += 1ull;
                     each += 2ull;
-                    while ((each < length) && (text[each] >= '0') && (text[each] <= '9'))
-                    {
-                        each += 1ull;
-                    }
+                    each = cli_text_past_class(text, each, length, CLI_TEXT_DIGITS, "");
                     each += ((each < length) && (text[each] == ':')) ? 1ull : 0ull;
                     continue;
                 }
@@ -201,23 +197,15 @@ static int suggest_snippet_stored(GuiSuggest *suggest, const char *text, unsigne
         {
             // the first choice
             each += 1ull;
-            while ((each < length) && (text[each] != ',') && (text[each] != '|'))
-            {
-                mmgr_line_ch(&suggest->texts, text[each]);
-                each += 1ull;
-            }
-            while ((each < length) && (text[each] != '}'))
-            {
-                each += 1ull;
-            }
+            const unsigned long long stop = cli_text_to_any(text, each, length, ",|");
+            mmgr_line_put_n(&suggest->texts, text + each, (size_t)(stop - each));
+            each = stop;
+            each = cli_text_to_any(text, each, length, "}");
             each += (each < length) ? 1ull : 0ull;
         }
         else
         {
-            while ((each < length) && (text[each] != '}'))
-            {
-                each += 1ull;
-            }
+            each = cli_text_to_any(text, each, length, "}");
             each += (each < length) ? 1ull : 0ull;
         }
     }
@@ -341,7 +329,7 @@ int gui_suggest_put(GuiSuggest *suggest, const CliJson *json, unsigned int root,
     unsigned long long prefix_length = 0ull;
     const char *const prefix = cli_json_string(json, cli_json_member(json, root, "prefix"), &prefix_length);
     VerbaLinea typed = {suggest->prefix, sizeof(suggest->prefix), 0ull};
-    mmgr_line_put_n(&typed, (prefix != NULL) ? prefix : "", (prefix != NULL) ? prefix_length : 0ull);
+    mmgr_line_put_n(&typed, (prefix != NULL) ? prefix : "", prefix_length);
     (void)mmgr_line_finish(&typed);
     const unsigned int from = cli_json_member(json, root, "from");
     suggest->line = gui_answer_member_whole(json, from, "line", 0ull);

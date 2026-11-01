@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_signature.c: the signature of the call the cursor is in, from the tree: the call found off the leaves of the
 // lines the page hands, its arguments and each one's type, every declaration of its name in the tree with its head
-// read off its own file's leaves, each held against the arguments, the best fit first. No language is read here but by
-// its plugin's grammar
+// read off its own file's leaves, each checked against the arguments, the best fit first. No language is read here but
+// by its plugin's grammar
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -70,10 +70,7 @@ static unsigned long long cli_signature_cursor(const char *text, unsigned long l
         start = (unsigned long long)(newline - text) + 1ull;
     }
     unsigned long long end = start;
-    while ((end < size) && (text[end] != '\n') && (text[end] != '\r'))
-    {
-        end += 1ull;
-    }
+    end = (unsigned int)cli_text_to_any(text, end, size, "\n\r");
     unsigned long long byte = 0ull;
     unsigned int units = 0u;
     return start + cli_symbols_byte_at(text + start, end - start, col, &byte, &units);
@@ -188,6 +185,24 @@ static void cli_signature_arguments(const CliLeafRead *read, unsigned int line, 
     cli_signature_argument_put(read, call, first, leaf);
 }
 
+// whether a stored file is one of the call's language, its cell copied into `scratch` where it is
+static int signature_file_read(CliSymbolsLanguages *languages, CliSymbolSignature *signature,
+                               const CliSymbolFile *branch, char *scratch)
+{
+    if (!branch->used)
+    {
+        return 0;
+    }
+    char path[CLI_PATH_MAX_LEN];
+    cli_symbol_path_read(branch, path);
+    const int spoken = cli_signature_language_is(languages, signature, path);
+    if (spoken)
+    {
+        cli_symbol_file_read(branch, scratch);
+    }
+    return spoken;
+}
+
 // the type of the tree's first declaration of `name`, `length` bytes, in a file of the call's language, read off the
 // leaves of its own line
 static void cli_signature_tree_type(CliSymbolsLanguages *languages, CliSymbolSignature *signature, const char *name,
@@ -195,29 +210,30 @@ static void cli_signature_tree_type(CliSymbolsLanguages *languages, CliSymbolSig
 {
     int seen = 0;
     cli_lock_take(&g_cli_symbols_lock);
-    for (unsigned int file = 0u; !seen && (file < g_cli_symbol_file_count); file += 1u)
+    char *const scratch = cli_symbol_scratch_taken();
+    for (unsigned int file = 0u; !seen && (scratch != NULL) && (file < g_cli_symbol_file_count); file += 1u)
     {
         const CliSymbolFile *const branch = &g_cli_symbol_files[file];
-        const int spoken =
-            branch->used && cli_signature_language_is(languages, signature, cli_symbol_file_path(branch));
+        const int spoken = signature_file_read(languages, signature, branch, scratch);
         for (unsigned int each = 0u; !seen && spoken && (each < branch->count); each += 1u)
         {
-            const CliSymbol *const symbol = &cli_symbol_file_symbols(branch)[each];
-            seen = (symbol->length == length) && cli_text_same(branch->cell + symbol->name, name, length);
+            const CliSymbol *const symbol = &cli_symbol_file_symbols(scratch)[each];
+            seen = (symbol->length == length) && cli_text_same(scratch + symbol->name, name, length);
             if (seen)
             {
-                const char *const path = cli_symbol_file_path(branch);
+                const char *const path = cli_symbol_file_path(branch, scratch);
                 const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
                 memor.cpy(&(MemoriaCfg){.dst = signature->sought, .src = path, .bytes = (size_t)size + 1u});
                 signature->sought_line = symbol->line;
             }
         }
     }
+    cli_symbol_scratch_given(scratch);
     cli_lock_give(&g_cli_symbols_lock);
     char full[CLI_PATH_MAX_LEN];
     cli_full(signature->root, signature->sought, full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = seen ? cli_file_read(full, &size) : NULL;
+    const unsigned char *const bytes = seen ? cli_file_taken(full, &size, &g_cli_code_cells) : NULL;
     if (bytes == NULL)
     {
         return;
@@ -226,15 +242,10 @@ static void cli_signature_tree_type(CliSymbolsLanguages *languages, CliSymbolSig
     unsigned long long start = 0ull;
     for (unsigned int at = 0u; (at < signature->sought_line) && (start < size); at += 1u)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + start, .val = '\n', .bytes = size - start});
-        // a newline found lies in the text, at or past `start`
-        start = (newline != NULL) ? ((unsigned long long)(newline - text) + 1ull) : size;
+        start = cli_text_line_at(text, start, size).next;
     }
     unsigned long long end = start;
-    while ((end < size) && (text[end] != '\n'))
-    {
-        end += 1ull;
-    }
+    end = cli_text_to_any(text, end, size, "\n");
     CliLeafRead read;
     if (cli_symbols_leaves_kept(languages, signature->sought, "root", text + start, end - start, &read))
     {
@@ -251,7 +262,7 @@ static void cli_signature_tree_type(CliSymbolsLanguages *languages, CliSymbolSig
         }
     }
     cli_symbols_leaves_given(&read);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_code_cells);
 }
 
 // the type of the argument at `argument`: a literal's where every leaf of it is a number's or every one a string's,
@@ -306,19 +317,19 @@ static void cli_signature_heads(CliSymbolsLanguages *languages, CliSymbolSignatu
 {
     signature->heads = 0u;
     cli_lock_take(&g_cli_symbols_lock);
-    for (unsigned int file = 0u; file < g_cli_symbol_file_count; file += 1u)
+    char *const scratch = cli_symbol_scratch_taken();
+    for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_symbol_file_count); file += 1u)
     {
         const CliSymbolFile *const branch = &g_cli_symbol_files[file];
-        const int spoken =
-            branch->used && cli_signature_language_is(languages, signature, cli_symbol_file_path(branch));
+        const int spoken = signature_file_read(languages, signature, branch, scratch);
         for (unsigned int each = 0u; spoken && (each < branch->count); each += 1u)
         {
-            const CliSymbol *const symbol = &cli_symbol_file_symbols(branch)[each];
+            const CliSymbol *const symbol = &cli_symbol_file_symbols(scratch)[each];
             if ((signature->heads < CLI_SYMBOLS_HEADS) && (symbol->length == length) &&
-                cli_text_same(branch->cell + symbol->name, name, length))
+                cli_text_same(scratch + symbol->name, name, length))
             {
                 CliSymbolHead *const head = &signature->head[signature->heads];
-                const char *const path = cli_symbol_file_path(branch);
+                const char *const path = cli_symbol_file_path(branch, scratch);
                 const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
                 memor.cpy(&(MemoriaCfg){.dst = head->path, .src = path, .bytes = (size_t)size + 1u});
                 head->line = symbol->line;
@@ -326,6 +337,7 @@ static void cli_signature_heads(CliSymbolsLanguages *languages, CliSymbolSignatu
             }
         }
     }
+    cli_symbol_scratch_given(scratch);
     cli_lock_give(&g_cli_symbols_lock);
     const CliSymbolCall *const call = &signature->call;
     unsigned int given = 0u;

@@ -29,9 +29,9 @@ test("a letter is bound by the character it types, or by its place where it type
 test("each set of keys holds no key twice but where the commands act in different places", () => {
   for (const set of ["orior", "jetbrains"]) {
     setKeySettings({ set, own: {} });
-    for (const [key, held] of sharedKeys(allCommands().map((one) => one.item))) {
-      const places = held.map((item) => item.needs ?? "anywhere");
-      assert.equal(new Set(places).size, held.length, `${set}: ${key} is held by ${held.map((item) => item.command).join(", ")} in the same place`);
+    for (const [key, sharing] of sharedKeys(allCommands().map((one) => one.item))) {
+      const places = sharing.map((item) => item.needs ?? "anywhere");
+      assert.equal(new Set(places).size, sharing.length, `${set}: ${key} is blocked by ${sharing.map((item) => item.command).join(", ")} in the same place`);
     }
   }
   assert.equal(commandOf("format").keys, "Ctrl+Alt+L", "JetBrains' Reformat");

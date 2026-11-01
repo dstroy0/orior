@@ -4,6 +4,7 @@
 // it, read by a shim given to that Python as its input: the file, then the line, counted from 1, its words
 #include "../command_line/cells.h"
 #include "../tests/test_runs.h"
+#include "../text/text.h"
 #include "debug_internal.h"
 
 // the shim that writes the bytecode of the function that contains a line of a Python file
@@ -49,10 +50,7 @@ static void bytecode_failed(const CliRan *ran, VerbaLinea *err_msg)
         return;
     }
     unsigned long long last = end;
-    while ((last > start) && (ran->err[last - 1ull] != '\n'))
-    {
-        last -= 1ull;
-    }
+    last = (start + cli_text_back_any(ran->err + start, last - start, "\n"));
     const unsigned long long stop = ((end > last) && (ran->err[end - 1ull] == '\r')) ? end - 1ull : end;
     cli_lossy(err_msg, (const unsigned char *)ran->err + last, stop - last);
 }
@@ -67,9 +65,9 @@ static void bytecode_instruction(const CliJson *json, unsigned int one, VerbaLin
     const char *const argument = cli_json_string(json, cli_json_member(json, one, "argument"), &argument_size);
     char text[CLI_NAME_MAX_LEN * 4u];
     VerbaLinea joined = {text, sizeof(text), 0ull};
-    mmgr_line_put_n(&joined, (name != NULL) ? name : "", (name != NULL) ? name_size : 0ull);
+    mmgr_line_put_n(&joined, (name != NULL) ? name : "", name_size);
     mmgr_line_ch(&joined, ' ');
-    mmgr_line_put_n(&joined, (argument != NULL) ? argument : "", (argument != NULL) ? argument_size : 0ull);
+    mmgr_line_put_n(&joined, (argument != NULL) ? argument : "", argument_size);
     unsigned long long start = 0ull;
     unsigned long long end = joined.at;
     while ((start < end) &&
@@ -152,7 +150,7 @@ int cli_debug_bytecode(const char *root, const char *path, unsigned int line, Ve
     unsigned long long name_size = 0ull;
     const char *const name = cli_json_string(&json, cli_json_member(&json, value, "name"), &name_size);
     mmgr_line_ch(out, '[');
-    cli_json_quoted_lossy(out, (const unsigned char *)((name != NULL) ? name : ""), (name != NULL) ? name_size : 0ull);
+    cli_json_quoted_lossy(out, (const unsigned char *)((name != NULL) ? name : ""), name_size);
     mmgr_line_put(out, ",[");
     for (unsigned int at = 0u; cli_json_item(&json, instructions, at) != CLI_JSON_NONE; at += 1u)
     {

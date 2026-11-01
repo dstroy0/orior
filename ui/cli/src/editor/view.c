@@ -22,6 +22,10 @@
 // most pairs and quotes a language has, and the room for its pattern of a line that opens a block
 #define CLI_VIEWS 64u
 #define CLI_VIEW_STEP_EDITS 256u
+#define CLI_VIEW_FOLDS 65536u
+#define CLI_VIEW_STEPS 4096u
+#define CLI_VIEW_UNITS_LEAST 256ull
+#define CLI_VIEW_FIND_UNITS 65536ull
 #define CLI_VIEW_PAIR_LINES 3000ull
 #define CLI_VIEW_STATE 1024u
 #define CLI_VIEW_PAIRS 16u
@@ -35,9 +39,9 @@
 #define CLI_VIEW_KIND_DELETE 3u
 #define CLI_VIEW_KIND_DELETE_FORWARD 4u
 
-// An edit a step holds: the span it replaced, where the text it put in ends, and that text and the text it took out
-// in a cell of the edit's own
-typedef struct
+// An edit a step holds, one cell with its texts after it: the span it replaced, where the text it put in ends, that
+// text and the text it took out, and the step's edits before and after it
+typedef struct CliViewEdit
 {
     CliPlace from;
     CliPlace to;
@@ -46,15 +50,17 @@ typedef struct
     unsigned long long put_length;
     char *took;
     unsigned long long took_length;
+    struct CliViewEdit *before;
+    struct CliViewEdit *after;
 } CliViewEdit;
 
-// A step: its edits in a cell of their own, how many and the room, the kind of edit it holds and when its last was
+// A step: its first and last edits, how many, the kind of edit it holds and when its last was
 // made, and where the cursor and the anchor stood before it and after it
 typedef struct
 {
-    CliViewEdit *edit;
+    CliViewEdit *first;
+    CliViewEdit *last;
     unsigned int edits;
-    unsigned int room;
     unsigned int kind;
     unsigned long long at_ms;
     CliPlace cursor_before;
@@ -161,16 +167,21 @@ static int view_named(const char *name, const char *wanted)
 }
 
 // the steps from `from` on let go, their cells given back
+static void view_step_given(CliViewStep *step)
+{
+    for (CliViewEdit *edit = step->first; edit != NULL;)
+    {
+        CliViewEdit *const after = edit->after;
+        g_cli_cells->persistent_buf_release(edit, &g_cli_views_cells);
+        edit = after;
+    }
+}
+
 static void view_steps_cut(CliView *view, unsigned int from)
 {
     for (unsigned int at = from; at < view->steps; at += 1u)
     {
-        CliViewStep *const step = &view->step[at];
-        for (unsigned int edit = 0u; edit < step->edits; edit += 1u)
-        {
-            g_cli_cells->persistent_buf_release(step->edit[edit].put, &g_cli_views_cells);
-        }
-        g_cli_cells->persistent_buf_release(step->edit, &g_cli_views_cells);
+        view_step_given(&view->step[at]);
     }
     view->steps = (from < view->steps) ? from : view->steps;
     view->done = (view->done < view->steps) ? view->done : view->steps;
@@ -545,17 +556,14 @@ static int view_fold_put(CliView *view, unsigned long long first, unsigned long 
         view->fold[at].last = last;
         return 1;
     }
+    if (view->folds_room == 0u)
+    {
+        view->fold = g_cli_cells->persistent_buf_alloc(CLI_VIEW_FOLDS * sizeof(*view->fold), &g_cli_views_cells);
+        view->folds_room = (view->fold != NULL) ? CLI_VIEW_FOLDS : 0u;
+    }
     if (view->folds == view->folds_room)
     {
-        const unsigned int room = (view->folds_room != 0u) ? view->folds_room * 2u : 16u;
-        CliViewFold *const grown =
-            cli_cell_regrown(view->fold, view->folds * sizeof(*grown), room * sizeof(*grown), &g_cli_views_cells);
-        if (grown == NULL)
-        {
-            return 0;
-        }
-        view->fold = grown;
-        view->folds_room = room;
+        return 0;
     }
     for (unsigned int after = view->folds; after > at; after -= 1u)
     {
@@ -640,16 +648,12 @@ static int view_units_room(CliView *view, unsigned long long units)
     {
         return 1;
     }
-    const unsigned long long room = (units > 256ull) ? units : 256ull;
-    // the line's units are read anew into the cell: nothing of the old ones is carried
-    unsigned short *const grown = cli_cell_regrown(view->line_units, 0u, room * sizeof(*grown), &g_cli_views_cells);
-    if (grown == NULL)
-    {
-        return 0;
-    }
-    view->line_units = grown;
-    view->units_room = room;
-    return 1;
+    // the line's units are read anew into a cell of their count
+    const unsigned long long room = (units > CLI_VIEW_UNITS_LEAST) ? units : CLI_VIEW_UNITS_LEAST;
+    g_cli_cells->persistent_buf_release(view->line_units, &g_cli_views_cells);
+    view->line_units = g_cli_cells->persistent_buf_alloc(room * sizeof(*view->line_units), &g_cli_views_cells);
+    view->units_room = (view->line_units != NULL) ? room : 0ull;
+    return view->line_units != NULL;
 }
 
 // the units of `line` read into the view's line cell, where they are not the line read last: a stored text's copied
@@ -900,24 +904,17 @@ static void view_vertical(CliView *view, long long by, int extend)
     view_moved(view, (CliPlace){line, view_col_at(view, line, view->goal)}, extend, 1);
 }
 
-// the query's cell grown to hold `more` units past its length: 1, or 0 where the cell could not be taken
+// the query's cell, taken at its most as its first units come, given `more` units past its length: 1, or 0 where it
+// could not be taken or they do not fit
 static int view_query_room(CliView *view, unsigned long long more)
 {
-    const unsigned long long wanted = view->find_length + more;
-    if (wanted <= view->find_room)
+    if (view->find_room == 0ull)
     {
-        return 1;
+        view->find_query =
+            g_cli_cells->persistent_buf_alloc(CLI_VIEW_FIND_UNITS * sizeof(*view->find_query), &g_cli_views_cells);
+        view->find_room = (view->find_query != NULL) ? CLI_VIEW_FIND_UNITS : 0ull;
     }
-    const unsigned long long room = (wanted > 32ull) ? wanted * 2ull : 64ull;
-    unsigned short *const grown =
-        cli_cell_regrown(view->find_query, view->find_length * sizeof(*grown), room * sizeof(*grown), &g_cli_views_cells);
-    if (grown == NULL)
-    {
-        return 0;
-    }
-    view->find_query = grown;
-    view->find_room = room;
-    return 1;
+    return (view->find_length + more) <= view->find_room;
 }
 
 // `count` units put into the query at its cursor, which moves past them; and the units from `from` to before `to`
@@ -949,22 +946,13 @@ static void view_query_cut(CliView *view, unsigned long long from, unsigned long
     view->find_stale = 1;
 }
 
-// a match found kept among the matches, their cell grown as they come
+// a match found kept among the matches, where they have room
 static void view_match_kept(void *context, unsigned long long line, unsigned long long from, unsigned long long to)
 {
     CliView *const view = context;
-    if (view->matches == view->match_room)
+    if (view->matches >= view->match_room)
     {
-        const unsigned long long room = (view->match_room != 0ull) ? view->match_room * 2ull : 256ull;
-        unsigned long long(*const grown)[3] = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &g_cli_views_cells);
-        if (grown == NULL)
-        {
-            return;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = view->match, .bytes = view->matches * sizeof(*grown)});
-        g_cli_cells->persistent_buf_release(view->match, &g_cli_views_cells);
-        view->match = grown;
-        view->match_room = room;
+        return;
     }
     view->match[view->matches][0] = line;
     view->match[view->matches][1] = from;
@@ -977,28 +965,15 @@ static void view_matches_read(CliView *view, const char *text, unsigned long lon
 {
     unsigned long long number[3] = {0ull, 0ull, 0ull};
     unsigned int part = 0u;
-    unsigned long long value = 0ull;
-    int in_number = 0;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = cli_text_to_any(text, 0ull, size, "0123456789"); at < size;
+         at = cli_text_to_any(text, at, size, "0123456789"))
     {
-        const char letter = text[at];
-        if ((letter >= '0') && (letter <= '9'))
+        number[part] = cli_text_number(text, at, size, &at);
+        part += 1u;
+        if (part == 3u)
         {
-            // a digit's value is its distance from '0'
-            value = (value * 10ull) + (unsigned long long)(letter - '0');
-            in_number = 1;
-        }
-        else if (in_number)
-        {
-            number[part] = value;
-            part += 1u;
-            value = 0ull;
-            in_number = 0;
-            if (part == 3u)
-            {
-                view_match_kept(view, number[0], number[1], number[2]);
-                part = 0u;
-            }
+            view_match_kept(view, number[0], number[1], number[2]);
+            part = 0u;
         }
     }
 }
@@ -1033,6 +1008,11 @@ static void view_searched(CliView *view)
     }
     view->find_stale = 0;
     view->matches = 0ull;
+    if (view->match == NULL)
+    {
+        view->match = g_cli_cells->persistent_buf_alloc(CLI_VIEW_MATCHES * sizeof(*view->match), &g_cli_views_cells);
+        view->match_room = (view->match != NULL) ? CLI_VIEW_MATCHES : 0ull;
+    }
     view->current = -1ll;
     if (view->find_length == 0ull)
     {
@@ -1314,12 +1294,14 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
     {
         took_room += (view_length(view, line) * 4ull) + 1ull;
     }
-    char *const cell = g_cli_cells->persistent_buf_alloc(length + 1ull + took_room + 1ull, &g_cli_views_cells);
-    if (cell == NULL)
+    CliViewEdit *const made =
+        g_cli_cells->persistent_buf_alloc(sizeof(CliViewEdit) + length + 1ull + took_room + 1ull, &g_cli_views_cells);
+    if (made == NULL)
     {
         mmgr_line_put(err_msg, "the edit's cell could not be taken");
         return 0;
     }
+    char *const cell = (char *)(made + 1);
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = text, .bytes = length});
     cell[length] = '\0';
     VerbaLinea took = {cell + length + 1ull, took_room + 1ull, 0ull};
@@ -1346,7 +1328,7 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
     view->line_known = 0;
     if (!view_written(view, edits, counts, err_msg))
     {
-        g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+        g_cli_cells->persistent_buf_release(made, &g_cli_views_cells);
         return 0;
     }
     // where the text put in ends
@@ -1370,19 +1352,25 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
                        (now - step->at_ms <= CLI_VIEW_JOINED) && (step->edits < CLI_VIEW_STEP_EDITS);
     if (!joined)
     {
-        if (view->steps == view->steps_room)
+        if (view->steps_room == 0u)
         {
-            const unsigned int room = (view->steps_room != 0u) ? view->steps_room * 2u : 16u;
-            CliViewStep *const grown =
-                cli_cell_regrown(view->step, view->steps * sizeof(*grown), room * sizeof(*grown), &g_cli_views_cells);
-            if (grown == NULL)
+            view->step = g_cli_cells->persistent_buf_alloc(CLI_VIEW_STEPS * sizeof(*view->step), &g_cli_views_cells);
+            if (view->step == NULL)
             {
-                g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+                g_cli_cells->persistent_buf_release(made, &g_cli_views_cells);
                 mmgr_line_put(err_msg, "the steps' cell could not be taken");
                 return 0;
             }
-            view->step = grown;
-            view->steps_room = room;
+            view->steps_room = CLI_VIEW_STEPS;
+        }
+        // the steps full, the oldest goes and those after it come down
+        if (view->steps == view->steps_room)
+        {
+            view_step_given(&view->step[0]);
+            memor.move_down(&(MemoriaCfg){.dst = &view->step[0],
+                                          .src = &view->step[1],
+                                          .bytes = (size_t)(view->steps - 1u) * sizeof(*view->step)});
+            view->steps -= 1u;
         }
         step = &view->step[view->steps];
         memor.set(&(MemoriaCfg){.dst = step, .val = 0, .bytes = sizeof(*step)});
@@ -1391,21 +1379,13 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
         step->anchor_before = view->anchor;
         view->steps += 1u;
     }
-    if (step->edits == step->room)
+    *made = (CliViewEdit){from, to, end, cell, length, cell + length + 1ull, took_length, step->last, NULL};
+    if (step->last != NULL)
     {
-        const unsigned int room = (step->room != 0u) ? step->room * 2u : 4u;
-        CliViewEdit *const grown =
-            cli_cell_regrown(step->edit, step->edits * sizeof(*grown), room * sizeof(*grown), &g_cli_views_cells);
-        if (grown == NULL)
-        {
-            g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
-            mmgr_line_put(err_msg, "a step's cell could not be taken");
-            return 0;
-        }
-        step->edit = grown;
-        step->room = room;
+        step->last->after = made;
     }
-    step->edit[step->edits] = (CliViewEdit){from, to, end, cell, length, cell + length + 1ull, took_length};
+    step->first = (step->first != NULL) ? step->first : made;
+    step->last = made;
     step->edits += 1u;
     step->at_ms = now;
     view->done = view->steps;
@@ -1423,9 +1403,8 @@ static int view_undone(CliView *view, VerbaLinea *err_msg)
         return 1;
     }
     CliViewStep *const step = &view->step[view->done - 1u];
-    for (unsigned int at = step->edits; at > 0u; at -= 1u)
+    for (const CliViewEdit *edit = step->last; edit != NULL; edit = edit->before)
     {
-        const CliViewEdit *const edit = &step->edit[at - 1u];
         const CliEdit back = {edit->from, edit->end, edit->took, edit->took_length};
         const CliEdit *const edits[1] = {&back};
         const unsigned int counts[1] = {1u};
@@ -1449,9 +1428,8 @@ static int view_redone(CliView *view, VerbaLinea *err_msg)
         return 1;
     }
     CliViewStep *const step = &view->step[view->done];
-    for (unsigned int at = 0u; at < step->edits; at += 1u)
+    for (const CliViewEdit *edit = step->first; edit != NULL; edit = edit->after)
     {
-        const CliViewEdit *const edit = &step->edit[at];
         const CliEdit again = {edit->from, edit->to, edit->put, edit->put_length};
         const CliEdit *const edits[1] = {&again};
         const unsigned int counts[1] = {1u};
@@ -1598,8 +1576,8 @@ static int view_opens_block(CliView *view, unsigned long long line, unsigned lon
     }
     const unsigned long long length = view_length(view, line);
     const unsigned long long count = (col < length) ? col : length;
-    unsigned char *const cell =
-        g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &g_cli_views_cells);
+    unsigned char *const cell = g_cli_cells->temporary_buf_alloc(
+        sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &g_cli_views_cells);
     if (cell == NULL)
     {
         return 0;
@@ -2123,7 +2101,8 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
         if (view->find_open && view->find_focus)
         {
             // text typed goes into the query, a byte a unit at the most
-            unsigned short *const units = g_cli_cells->temporary_buf_alloc((input->length + 1ull) * sizeof(*units), &g_cli_views_cells);
+            unsigned short *const units =
+                g_cli_cells->temporary_buf_alloc((input->length + 1ull) * sizeof(*units), &g_cli_views_cells);
             if (units != NULL)
             {
                 view_query_put(view, units, view_units_of(input->text, input->length, units, input->length + 1ull));
@@ -2179,8 +2158,8 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
     if (view->paged)
     {
         const unsigned long long rows = (view->rows != 0u) ? view->rows : 1ull;
-        const CliPagesView placed_view = {view->top, rows, view->columns, 0ull, 0ull, view->top, view->top + rows, 0ull,
-                                          0ull};
+        const CliPagesView placed_view = {view->top,        rows, view->columns, 0ull, 0ull, view->top,
+                                          view->top + rows, 0ull, 0ull};
         CliPagesPlaced placed;
         (void)cli_pages_viewed(view->key, &placed_view, &placed);
     }
@@ -2215,7 +2194,8 @@ static int view_pair(const CliView *view, CliPlace *pair)
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ull;
-    char *const text = cli_document_lines_taken(view->key, first, last, &size, state, sizeof(state), &g_cli_views_cells);
+    char *const text =
+        cli_document_lines_taken(view->key, first, last, &size, state, sizeof(state), &g_cli_views_cells);
     if (text == NULL)
     {
         return 0;
@@ -2539,7 +2519,7 @@ int cli_view_frame_written(const char *key, VerbaLinea *out)
     }
     else
     {
-        (void)cli_document_held(view->key, from, to);
+        (void)cli_document_cached(view->key, from, to);
     }
     mmgr_line_ch(out, '[');
     int any = 0;
@@ -2732,7 +2712,8 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     // the lines' runs read as the branch writes them, and their texts, a paged text's from its pages
     const unsigned long long count = (last >= first) ? last - first + 1ull : 0ull;
     char *const room = g_cli_cells->temporary_buf_alloc(CLI_VIEW_MAP_ROOM, &g_cli_views_cells);
-    const char **const line = g_cli_cells->temporary_buf_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &g_cli_views_cells);
+    const char **const line =
+        g_cli_cells->temporary_buf_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &g_cli_views_cells);
     VerbaLinea runs = {room, CLI_VIEW_MAP_ROOM, 0ull};
     CliJson json;
     unsigned int colors = CLI_JSON_NONE;
@@ -2740,15 +2721,16 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     if ((room != NULL) && cli_document_runs_written(key, first, last, 0, &runs) && mmgr_line_ok(&runs))
     {
-        colors = cli_json_taken_temporary(&json, runs.out, runs.at, &err_msg, &g_cli_views_cells);
+        colors = cli_json_taken_temporary(&json, runs.out, runs.at, 0u, 0ull, &err_msg, &g_cli_views_cells);
     }
     unsigned long long size = 0ull;
     unsigned long long read = 0ull;
     char state[64];
     char *const texts =
-        (line == NULL) ? NULL
-                       : (paged ? cli_pages_lines_taken(key, first, last + 1ull, line, &read, &g_cli_views_cells)
-                                : cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &g_cli_views_cells));
+        (line == NULL)
+            ? NULL
+            : (paged ? cli_pages_lines_taken(key, first, last + 1ull, line, &read, &g_cli_views_cells)
+                     : cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &g_cli_views_cells));
     const char *rest = texts;
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
@@ -2765,10 +2747,7 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
             // the lines come joined by newlines, each but the last followed by one
             const char *const end = texts + size;
             text = rest;
-            while ((rest < end) && (*rest != '\n'))
-            {
-                rest += 1;
-            }
+            rest += cli_text_to_any(rest, 0ull, (unsigned long long)(end - rest), "\n");
             length = (unsigned long long)(rest - text);
             rest = (rest < end) ? rest + 1 : NULL;
         }
@@ -2838,8 +2817,9 @@ int cli_view_serving(const char *full)
     cli_lock_take(&s_lock);
     for (unsigned int at = 0u; !serving && (s_views != NULL) && (at < CLI_VIEWS); at += 1u)
     {
-        serving = s_views[at].used &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].served, .other = full, .cap = sizeof(s_views[at].served)});
+        serving =
+            s_views[at].used &&
+            cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].served, .other = full, .cap = sizeof(s_views[at].served)});
     }
     cli_lock_give(&s_lock);
     return serving;
@@ -3011,9 +2991,11 @@ int cli_view_words_written(const char *key, VerbaLinea *out)
     const unsigned long long last = ((high != 0ull) && (far >= high)) ? high - 1ull : far;
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ull;
-    char *const text =
-        (last >= first) ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &g_cli_views_cells) : NULL;
-    unsigned long long (*const table)[2] = g_cli_cells->temporary_buf_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &g_cli_views_cells);
+    char *const text = (last >= first)
+                           ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &g_cli_views_cells)
+                           : NULL;
+    unsigned long long (*const table)[2] =
+        g_cli_cells->temporary_buf_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &g_cli_views_cells);
     mmgr_line_ch(out, '[');
     if ((text != NULL) && (table != NULL))
     {

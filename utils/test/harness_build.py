@@ -4,9 +4,9 @@
 the compiler and the linker's tools.
 
     harness.py build gui                      the window's release program, every window running from it ended first
-    harness.py build mmgr [--suffix S] [--flags F]
+    harness.py build mmgr [--suffix S] [--flags F] [--tests R]
                                               MMgr's Unity suites under build/mmgr_tests<S>, the owner queue's room
-                                              as orior builds MMgr, the accuracy suites run
+                                              as orior builds MMgr, the accuracy suites run, or those R matches
     harness.py build image                    the Linux test image, from ui/test/docker
     harness.py source tidy                    clang-tidy with the static analyzer, and cppcheck, in that image, the
                                               reports under build/sonarqube for the SonarQube scan
@@ -94,7 +94,7 @@ def cmd_build_mmgr(a):
     if built.returncode != 0:
         print("\n".join(grep(build_log, "error", 20)))
         return 1
-    ran = subprocess.run(["ctest", "--test-dir", tree, "-R", "memoria_operor|cellularum_laboro", "--output-on-failure"], cwd=ROOT, env=env, capture_output=True, text=True, errors="replace")
+    ran = subprocess.run(["ctest", "--test-dir", tree, "-R", a.tests, "--output-on-failure"], cwd=ROOT, env=env, capture_output=True, text=True, errors="replace")
     print("".join((ran.stdout + ran.stderr).splitlines(keepends=True)[-25:]), end="")
     return ran.returncode
 
@@ -124,11 +124,11 @@ def cmd_source_tidy(a):
     os.makedirs(os.path.join(BUILD, "sonarqube"), exist_ok=True)
     words = "-std=c11 -I src/cu/includes/mmgr/include -I src/cu/includes/mmgr/src -I src/cu/includes/embedded_types/include -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1 -DMMGR_CARCER_OWNERS=1024u"
     inside = (
-        "find ui/cli/src ui/query/src -name '*.c' -not -path '*/bundle/*' | sort > build/sonarqube/tidy_files.txt"
+        "find %s -name '*.c' -not -path '*/bundle/*' | sort > build/sonarqube/tidy_files.txt"
         " && xargs -a build/sonarqube/tidy_files.txt -P %d -I{} sh -c \"clang-tidy -quiet -checks='%s' {} -- %s 2>/dev/null\" > %s"
         "; cppcheck --quiet --enable=warning,style,performance,portability --std=c11 --language=c --inline-suppr --xml --xml-version=2"
-        " -D__clang__=1 -D__GNUC__=13 %s --file-list=build/sonarqube/tidy_files.txt --output-file=%s; wc -l < %s"
-    ) % (FRAME_JOBS, TIDY_CHECKS, words, TIDY_OUT, " ".join(word for word in words.split() if word.startswith(("-I", "-D"))), CPPCHECK_OUT, TIDY_OUT)
+        " -D__clang__=1 -D__GNUC__=13 -DEMBED_WORD_BITS=64 %s --file-list=build/sonarqube/tidy_files.txt --output-file=%s; wc -l < %s"
+    ) % (" ".join(a.folders), FRAME_JOBS, TIDY_CHECKS, words, TIDY_OUT, " ".join(re.findall(r"-I \S+|-D\S+", words)), CPPCHECK_OUT, TIDY_OUT)
     top = ROOT.replace("\\", "/")
     ran = subprocess.run(["docker", "run", "--rm", "-v", top + ":/usr/src", "-w", "/usr/src", TEST_IMAGE, "sh", "-c", inside], cwd=ROOT, capture_output=True, text=True, errors="replace")
     print((ran.stdout + ran.stderr).strip()[-2000:])
@@ -488,6 +488,7 @@ def register(sub):
     p = build.add_parser("mmgr", help="MMgr's Unity suites built and the accuracy suites run")
     p.add_argument("--suffix", default="", help="the build tree's suffix under build/mmgr_tests")
     p.add_argument("--flags", default="", help="C flags past the tree's own")
+    p.add_argument("--tests", default="memoria_operor|cellularum_laboro", help="the suites run, as ctest matches their names")
     p.set_defaults(fn=cmd_build_mmgr)
     p = build.add_parser("image", help="the Linux test image built from ui/test/docker")
     p.set_defaults(fn=cmd_build_image)
@@ -513,4 +514,5 @@ def register(sub):
     p.add_argument("files", nargs="+", help="relative to ui/gui/src-js")
     p.set_defaults(fn=cmd_source_page_names)
     p = source.add_parser("tidy", help="clang-tidy with the static analyzer, and cppcheck, in the Linux image, their reports under build/sonarqube")
+    p.add_argument("--folders", nargs="+", default=["ui/cli/src", "ui/query/src"], help="the folders read, from the top of the tree")
     p.set_defaults(fn=cmd_source_tidy)

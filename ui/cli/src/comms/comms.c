@@ -9,28 +9,30 @@
 
 CliCommsRoom g_cli_comms = {.lock = CLI_LOCK_INIT};
 
-// a table of `*room` places of `width` bytes grown to twice as many, or to CLI_COMMS_FIRST where it contains none, up
-// to `most`, the places added empty and `table` given back: the table, or NULL where it contains `most` or the cell is
-// refused and `table` is retained, under the lock
-static void *comms_grown(void *table, unsigned int *room, unsigned int most, unsigned long long width, const char *what)
+// the parts, the listeners and the channels' traffic taken at their most in one cell, all empty, as the first of them
+// is needed; under the lock
+static void comms_tables_made(void)
 {
-    if (*room >= most)
+    if (g_cli_comms.parts != NULL)
     {
-        return NULL;
+        return;
     }
-    const unsigned int doubled = (*room == 0u) ? CLI_COMMS_FIRST : (2u * *room);
-    const unsigned int taken = (doubled < most) ? doubled : most;
-    unsigned char *const grown = cli_cell_regrown(table, (size_t)((unsigned long long)*room * width),
-                                                  (unsigned long long)taken * width, &g_cli_comms_cells);
-    if (grown == NULL)
+    const unsigned long long part_bytes = (unsigned long long)CLI_COMMS_PARTS * sizeof(CliCommsPart);
+    const unsigned long long listener_bytes = (unsigned long long)CLI_COMMS_LISTENERS * sizeof(CliCommsListener);
+    const unsigned long long traffic_bytes = (unsigned long long)CLI_COMMS_CHANNELS * sizeof(CliCommsTraffic);
+    const unsigned long long bytes = part_bytes + listener_bytes + traffic_bytes;
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_comms_cells);
+    if (cell == NULL)
     {
-        return NULL;
+        return;
     }
-    memor.set(&(MemoriaCfg){.dst = grown + ((unsigned long long)*room * width),
-                            .val = 0,
-                            .bytes = (size_t)((unsigned long long)(taken - *room) * width)});
-    *room = taken;
-    return grown;
+    memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)bytes});
+    g_cli_comms.parts = (CliCommsPart *)(void *)cell;
+    g_cli_comms.parts_room = CLI_COMMS_PARTS;
+    g_cli_comms.listeners = (CliCommsListener *)(void *)(cell + part_bytes);
+    g_cli_comms.listeners_room = CLI_COMMS_LISTENERS;
+    g_cli_comms.traffic = (CliCommsTraffic *)(void *)(cell + part_bytes + listener_bytes);
+    g_cli_comms.channels_room = CLI_COMMS_CHANNELS;
 }
 
 // the place of the part of `key`, CLI_COMMS_PARTS where it is no part's, under the lock
@@ -70,18 +72,11 @@ int cli_comms_register(const char *name, int has_process, unsigned int process, 
     }
     mmgr_line_finish(&written);
     cli_lock_take(&g_cli_comms.lock);
+    comms_tables_made();
     CliCommsPart *part = NULL;
     for (unsigned int at = 0u; (at < g_cli_comms.parts_room) && (part == NULL); at += 1u)
     {
         part = g_cli_comms.parts[at].taken ? NULL : &g_cli_comms.parts[at];
-    }
-    if (part == NULL)
-    {
-        const unsigned int place = g_cli_comms.parts_room;
-        CliCommsPart *const grown = comms_grown(g_cli_comms.parts, &g_cli_comms.parts_room, CLI_COMMS_PARTS,
-                                                sizeof(CliCommsPart), "the comms layer's parts");
-        g_cli_comms.parts = (grown != NULL) ? grown : g_cli_comms.parts;
-        part = (grown != NULL) ? &g_cli_comms.parts[place] : NULL;
     }
     const unsigned int grants = listens + send_grants;
     char (*const granted)[CLI_NAME_MAX_LEN] =
@@ -285,17 +280,11 @@ int cli_comms_listen(const char *key, const char *channel, int queued, CliCommsR
         cli_lock_give(&g_cli_comms.lock);
         return 0;
     }
+    comms_tables_made();
     unsigned int vacant = g_cli_comms.listeners_room;
     for (unsigned int one = 0u; (one < g_cli_comms.listeners_room) && (vacant == g_cli_comms.listeners_room); one += 1u)
     {
         vacant = g_cli_comms.listeners[one].taken ? vacant : one;
-    }
-    if (vacant == g_cli_comms.listeners_room)
-    {
-        CliCommsListener *const grown =
-            comms_grown(g_cli_comms.listeners, &g_cli_comms.listeners_room, CLI_COMMS_LISTENERS,
-                        sizeof(CliCommsListener), "the comms layer's listeners");
-        g_cli_comms.listeners = (grown != NULL) ? grown : g_cli_comms.listeners;
     }
     if (vacant < g_cli_comms.listeners_room)
     {
@@ -333,15 +322,10 @@ static CliCommsTraffic *comms_traffic_of(const char *channel)
             return &g_cli_comms.traffic[at];
         }
     }
-    if (g_cli_comms.channels == g_cli_comms.channels_room)
+    comms_tables_made();
+    if (g_cli_comms.channels >= g_cli_comms.channels_room)
     {
-        CliCommsTraffic *const grown = comms_grown(g_cli_comms.traffic, &g_cli_comms.channels_room, CLI_COMMS_CHANNELS,
-                                                   sizeof(CliCommsTraffic), "the comms layer's channels");
-        if (grown == NULL)
-        {
-            return NULL;
-        }
-        g_cli_comms.traffic = grown;
+        return NULL;
     }
     CliCommsTraffic *const made = &g_cli_comms.traffic[g_cli_comms.channels];
     g_cli_comms.channels += 1u;
@@ -352,8 +336,8 @@ static CliCommsTraffic *comms_traffic_of(const char *channel)
     return made;
 }
 
-// a message stored among its channel's last in a cell of its own, the oldest let go past the most stored; stored not at
-// all where the cell is refused
+// a message stored among its channel's last, past the most stored over the oldest: in the oldest's cell where it fits,
+// else in a larger cell with the oldest's given back; stored not at all where the cell is refused
 static void comms_stored(CliCommsTraffic *traffic, const char *from, const char *body, unsigned long long size)
 {
     char sized[64];
@@ -365,27 +349,34 @@ static void comms_stored(CliCommsTraffic *traffic, const char *from, const char 
     const char *const stored = whole ? body : sized;
     const unsigned long long stored_size = whole ? size : sized_line.at;
     const unsigned long long from_size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u;
-    char *const cell = g_cli_cells->persistent_buf_alloc(from_size + stored_size, &g_cli_comms_cells);
+    const unsigned long long need = from_size + stored_size;
+    const unsigned int place = (traffic->first + traffic->count) % CLI_COMMS_STORED_MAX;
+    CliCommsStoredMsg *const stored_msg = &traffic->last[place];
+    const int full = traffic->count == CLI_COMMS_STORED_MAX;
+    const int fits = full && (need <= stored_msg->room);
+    char *const cell = fits ? stored_msg->from : g_cli_cells->persistent_buf_alloc(need, &g_cli_comms_cells);
     if (cell == NULL)
     {
         return;
     }
-    const unsigned int place = (traffic->first + traffic->count) % CLI_COMMS_STORED_MAX;
-    CliCommsStoredMsg *const stored_msg = &traffic->last[place];
-    if (traffic->count == CLI_COMMS_STORED_MAX)
+    if (full)
     {
         traffic->first = (traffic->first + 1u) % CLI_COMMS_STORED_MAX;
-        g_cli_cells->persistent_buf_release(stored_msg->from, &g_cli_comms_cells);
     }
     else
     {
         traffic->count += 1u;
+    }
+    if (full && !fits)
+    {
+        g_cli_cells->persistent_buf_release(stored_msg->from, &g_cli_comms_cells);
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = from, .bytes = (size_t)from_size});
     memor.cpy(&(MemoriaCfg){.dst = cell + from_size, .src = stored, .bytes = (size_t)stored_size});
     stored_msg->from = cell;
     stored_msg->body = cell + from_size;
     stored_msg->size = stored_size;
+    stored_msg->room = fits ? stored_msg->room : need;
 }
 
 int cli_comms_send(const char *key, const char *channel, const char *body, unsigned long long size,

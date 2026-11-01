@@ -14,7 +14,7 @@ void cli_files_cells_usage_written(VerbaLinea *out)
 
 void *cli_files_cell_taken(unsigned long long bytes)
 {
-    return g_cli_cells->persistent_buf_alloc(bytes, &g_cli_files_views_cells);
+    return g_cli_cells->temporary_buf_alloc(bytes, &g_cli_files_views_cells);
 }
 
 void cli_files_cell_given(void *cell)

@@ -34,8 +34,7 @@ typedef struct
 } CliSlicePart;
 
 // A slice being cut: the walk, the branch its lines stand in among those the walk read whole, the names followed and
-// the lines' own parts, each in a cell whose room doubles as they come, and for each thing the walk met whether the
-// slice writes it, in a cell of its own
+// the lines' own parts, in one cell, and for each thing the walk met whether the slice writes it, in a cell of its own
 typedef struct
 {
     CliEffect *effect;
@@ -91,13 +90,11 @@ static void cli_slice_name_put(CliSlice *slice, const char *text, unsigned long 
             return;
         }
     }
-    CliSliceName *const room = cli_effect_room(slice->name, slice->names, &slice->name_room, sizeof(CliSliceName));
-    if (room == NULL)
+    if (slice->names >= slice->name_room)
     {
         slice->effect->refused = 1;
         return;
     }
-    slice->name = room;
     slice->name[slice->names] = (CliSliceName){text, length};
     slice->names += 1u;
 }
@@ -125,13 +122,11 @@ static void cli_slice_names_of(CliSlice *slice, unsigned int branch, unsigned in
 // their leaves
 static void cli_slice_part_put(CliSlice *slice, unsigned int branch, unsigned int first, unsigned int end)
 {
-    CliSlicePart *const room = cli_effect_room(slice->part, slice->parts, &slice->part_room, sizeof(CliSlicePart));
-    if (room == NULL)
+    if (slice->parts >= slice->part_room)
     {
         slice->effect->refused = 1;
         return;
     }
-    slice->part = room;
     unsigned int at = slice->parts;
     while ((at > 0u) && (slice->part[at - 1u].first > first))
     {
@@ -518,7 +513,21 @@ static unsigned int cli_slice_head_first(const CliLeafRead *read, unsigned int l
 static int cli_slice_cut(CliEffect *effect, const char *path, unsigned int first, unsigned int last,
                          const unsigned int *opener, unsigned int openers, CliSliceLine each, void *context)
 {
+    const unsigned long long name_bytes = CLI_EFFECT_LIST_MOST * sizeof(CliSliceName);
+    char *const lists =
+        g_cli_cells->temporary_buf_alloc(name_bytes + (CLI_EFFECT_LIST_MOST * sizeof(CliSlicePart)), &g_cli_code_cells);
     CliSlice slice = {effect, CLI_JSON_NONE, NULL, 0u, 0u, NULL, 0u, 0u, NULL};
+    if (lists != NULL)
+    {
+        slice.name = (CliSliceName *)(void *)lists;
+        slice.name_room = CLI_EFFECT_LIST_MOST;
+        slice.part = (CliSlicePart *)(void *)(lists + name_bytes);
+        slice.part_room = CLI_EFFECT_LIST_MOST;
+    }
+    else
+    {
+        effect->refused = 1;
+    }
     // the branch the lines stand in, the last read whole of its path
     for (unsigned int at = 0u; at < effect->branches_read; at += 1u)
     {
@@ -570,8 +579,7 @@ static int cli_slice_cut(CliEffect *effect, const char *path, unsigned int first
     {
         cli_slice_handed(&slice, each, context);
     }
-    g_cli_cells->persistent_buf_release(slice.name, &g_cli_code_cells);
-    g_cli_cells->persistent_buf_release(slice.part, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(lists, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(slice.written, &g_cli_code_cells);
     return !effect->refused;
 }

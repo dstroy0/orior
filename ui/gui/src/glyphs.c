@@ -37,23 +37,29 @@ static int glyphs_face_read(GuiGlyphs *glyphs, unsigned int face, const char *pa
     {
         return 0;
     }
+    // the face's file kept as long as its font is drawn from, in a persistent cell of its size and the slack
     unsigned long long size = 0ull;
-    const unsigned char *const data = cli_file_read(path, &size);
-    if (data == NULL)
+    unsigned char *const data = cli_file_size(path, &size)
+                                    ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_gui_glyphs_cells)
+                                    : NULL;
+    if ((data == NULL) || !cli_file_read_at(path, 0ull, data, size, &size))
     {
+        g_cli_cells->persistent_buf_release(data, &g_gui_glyphs_cells);
         return 0;
     }
+    memor.set(&(MemoriaCfg){.dst = data + size, .val = 0, .bytes = CLI_FILE_SLACK});
     CliFont *const font = &glyphs->face[face];
     if (!cli_font_read(font, data, size, ranges))
     {
-        cli_file_let_go(data, size);
+        cli_file_given(data, &g_gui_glyphs_cells);
         return 0;
     }
     const unsigned long long bytes = (unsigned long long)font->ranges * sizeof(ranges[0]);
-    unsigned int(*const kept)[3] = g_cli_cells->persistent_buf_alloc((bytes != 0ull) ? bytes : sizeof(ranges[0]), &g_gui_glyphs_cells);
+    unsigned int (*const kept)[3] =
+        g_cli_cells->persistent_buf_alloc((bytes != 0ull) ? bytes : sizeof(ranges[0]), &g_gui_glyphs_cells);
     if (kept == NULL)
     {
-        cli_file_let_go(data, size);
+        cli_file_given(data, &g_gui_glyphs_cells);
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = kept, .src = ranges, .bytes = bytes});
@@ -102,7 +108,8 @@ static void glyphs_cells_emptied(GuiGlyphs *glyphs)
 int gui_glyphs_made(GuiGlyphs *glyphs, VerbaLinea *err_msg)
 {
     memor.set(&(MemoriaCfg){.dst = glyphs, .val = 0, .bytes = sizeof(*glyphs)});
-    unsigned int(*const ranges)[3] = g_cli_cells->persistent_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &g_gui_glyphs_cells);
+    unsigned int (*const ranges)[3] =
+        g_cli_cells->persistent_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &g_gui_glyphs_cells);
     glyphs->contours = g_cli_cells->persistent_buf_alloc(sizeof(*glyphs->contours), &g_gui_glyphs_cells);
     glyphs->slot = g_cli_cells->persistent_buf_alloc(GUI_GLYPH_SLOTS * sizeof(*glyphs->slot), &g_gui_glyphs_cells);
     glyphs->cell = g_cli_cells->persistent_buf_alloc(GUI_CELL_SLOTS * sizeof(*glyphs->cell), &g_gui_glyphs_cells);
@@ -157,7 +164,7 @@ void gui_glyphs_given(GuiGlyphs *glyphs)
         if (glyphs->has[face])
         {
             g_cli_cells->persistent_buf_release(glyphs->face[face].range, &g_gui_glyphs_cells);
-            cli_file_let_go(glyphs->data[face], glyphs->data_size[face]);
+            cli_file_given(glyphs->data[face], &g_gui_glyphs_cells);
         }
         glyphs->has[face] = 0;
         glyphs->data[face] = NULL;
@@ -299,7 +306,8 @@ static int glyphs_rasterized(const GuiGlyphs *glyphs, GuiMask *mask)
     }
     const unsigned long long room = (measured.width * measured.height) + 4ull;
     float *const floats = g_cli_cells->temporary_buf_alloc(room * sizeof(*floats), &g_gui_glyphs_cells);
-    unsigned char *const cover = g_cli_cells->persistent_buf_alloc(measured.width * measured.height, &g_gui_glyphs_cells);
+    unsigned char *const cover =
+        g_cli_cells->persistent_buf_alloc(measured.width * measured.height, &g_gui_glyphs_cells);
     if ((floats == NULL) || (cover == NULL))
     {
         g_cli_cells->persistent_buf_release(floats, &g_gui_glyphs_cells);
@@ -374,14 +382,16 @@ float gui_glyphs_cell(GuiGlyphs *glyphs, unsigned int size)
 
 // the cell keyed by `face`, `letter`, `size` and `color`, or an unused cell for it; the cells are emptied first when
 // three quarters of them are in use
-static GuiGlyphCell *glyphs_cell_slot(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color)
+static GuiGlyphCell *glyphs_cell_slot(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size,
+                                      GuiColor color)
 {
     const unsigned int start = ((face * 31u) + (letter * 7u) + (size * 131u) + (color * 2654435761u)) % GUI_CELL_SLOTS;
     unsigned int at = start;
     do
     {
         GuiGlyphCell *const cell = &glyphs->cell[at];
-        if (cell->used && (cell->face == face) && (cell->letter == letter) && (cell->size == size) && (cell->color == color))
+        if (cell->used && (cell->face == face) && (cell->letter == letter) && (cell->size == size) &&
+            (cell->color == color))
         {
             return cell;
         }
@@ -399,8 +409,8 @@ static GuiGlyphCell *glyphs_cell_slot(GuiGlyphs *glyphs, unsigned int face, unsi
     return &glyphs->cell[at];
 }
 
-static const GuiGlyphCell *glyphs_cell_made(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color,
-                                   float *advance)
+static const GuiGlyphCell *glyphs_cell_made(GuiGlyphs *glyphs, unsigned int face, unsigned int letter,
+                                            unsigned int size, GuiColor color, float *advance)
 {
     const unsigned int had = gui_face_had(glyphs, face);
     GuiGlyphCell *const cell = glyphs_cell_slot(glyphs, had, letter, size, color);
@@ -483,8 +493,8 @@ static GuiAsciiTable *glyphs_ascii_table(GuiGlyphs *glyphs, unsigned int face, u
     return table;
 }
 
-const GuiGlyphCell *gui_glyph_cell(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, GuiColor color,
-                                   float *advance)
+const GuiGlyphCell *gui_glyph_cell(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size,
+                                   GuiColor color, float *advance)
 {
     if ((letter < GUI_ASCII_FIRST) || (letter >= GUI_ASCII_FIRST + GUI_ASCII_COUNT))
     {
@@ -511,7 +521,8 @@ void gui_glyph_cell_laid(GuiRaster *raster, const GuiGlyphCell *cell, int x, int
 {
     if (cell->red_blue != NULL)
     {
-        gui_raster_lanes_laid(raster, cell->red_blue, cell->green, cell->rest, cell->width, cell->height, x + cell->left, y - cell->top, clip);
+        gui_raster_lanes_laid(raster, cell->red_blue, cell->green, cell->rest, cell->width, cell->height,
+                              x + cell->left, y - cell->top, clip);
     }
 }
 

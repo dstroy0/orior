@@ -32,6 +32,7 @@
 #define CLI_PRINT_RUNS (1u << 19u)
 
 #define CLI_PRINT_TEXT (1u << 23u)
+#define CLI_PRINT_LETTERS (CLI_PRINT_TEXT / 4u)
 
 #define CLI_PRINT_ROWS (1u << 19u)
 
@@ -59,9 +60,8 @@ typedef struct
     unsigned int runs;
 } CliPrintLine;
 
-// What prints: its title, its lines and their runs, a tab as wide as `tab` spaces, and the texts they occupy, each
-// list a cell of its own grown as the listing is read, up to CLI_PRINT_LINES lines, CLI_PRINT_RUNS runs and
-// CLI_PRINT_TEXT bytes of text
+// What prints: its title, its lines and their runs, a tab as wide as `tab` spaces, and the texts they occupy, in the
+// room's cell, up to CLI_PRINT_LINES lines, CLI_PRINT_RUNS runs and CLI_PRINT_TEXT bytes of text
 typedef struct
 {
     char title[CLI_PATH_MAX_LEN];
@@ -110,9 +110,7 @@ typedef struct
 } CliPrintRow;
 
 // The pages laid out: the rows, a page `rows_per_page` of them, the pieces and their text, and the columns the numbers
-// take
-// take, each list a cell of its own grown as the layout fills, up to CLI_PRINT_ROWS rows, CLI_PRINT_PIECES pieces and
-// CLI_PRINT_TEXT bytes of text
+// take, in the room's cell, up to CLI_PRINT_ROWS rows, CLI_PRINT_PIECES pieces and CLI_PRINT_TEXT bytes of text
 typedef struct
 {
     CliPrintRow *row;

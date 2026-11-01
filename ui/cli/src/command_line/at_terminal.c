@@ -9,7 +9,6 @@
 #include "../code/git.h"
 #include "../machine/carry.h"
 #include "../tests/testing.h"
-#include "../text/pieces.h"
 #include "../text/text.h"
 
 // the most files of tests one run of the tree's tests is given, and the most bytes of their paths
@@ -160,13 +159,11 @@ static int at_terminal_branch_delete(const char *root, const char *const *args, 
     return 0;
 }
 
-// The files of the tree's tests as a run of them is gathered, each once: their paths, each ended by a 0, written
-// through pieces, the bytes a piece is buffered in before it goes to a cell, the last path put, and how many are put
+// The files of the tree's tests as a run of them is gathered, each once: their paths, each ended by a 0, on a line over
+// a cell of the most their bytes are, the last path put, and how many are put
 typedef struct
 {
-    CliPieces pieces;
     VerbaLinea line;
-    char piece[4096];
     char last[CLI_PATH_MAX_LEN];
     unsigned int count;
 } CliTerminalFiles;
@@ -178,8 +175,7 @@ static void at_terminal_test_file(void *context, const CliTest *test)
     const size_t size = cellul.len(&(CatenaFinitaCfg){.src = test->file, .cap = CLI_CELLS_POOL}) + 1u;
     if (((found->count > 0u) &&
          (cellul.eq(&(CatenaFinitaCfg){.src = found->last, .other = test->file, .cap = CLI_CELLS_POOL}))) ||
-        (found->count == CLI_AT_TERMINAL_FILES) ||
-        (found->pieces.size + found->line.at + size > CLI_AT_TERMINAL_FILES_TEXT))
+        (found->count == CLI_AT_TERMINAL_FILES) || (found->line.at + size > CLI_AT_TERMINAL_FILES_TEXT))
     {
         return;
     }
@@ -192,18 +188,18 @@ static void at_terminal_test_file(void *context, const CliTest *test)
     found->count += 1u;
 }
 
-// the tree's tests run over the files `found` gathered: their paths joined into a cell and listed in another, both of
-// their size and given back once the run is done
+// the tree's tests run over the files `found` gathered: their paths listed in a cell of their count, given back once
+// the run is done
 static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int cover, VerbaLinea *out,
                                  VerbaLinea *err_msg)
 {
-    unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(&found->pieces, &found->line, "the files of the tree's tests", &size);
+    const char *const joined = found->line.out;
     const char **const files =
-        (joined != NULL) ? g_cli_cells->temporary_buf_alloc((found->count + 1ull) * sizeof(const char *), &g_cli_git_cells) : NULL;
+        mmgr_line_ok(&found->line)
+            ? g_cli_cells->temporary_buf_alloc((found->count + 1ull) * sizeof(const char *), &g_cli_git_cells)
+            : NULL;
     if (files == NULL)
     {
-        g_cli_cells->persistent_buf_release(joined, &g_cli_git_cells);
         mmgr_line_put(err_msg, "the cells the tests' files are allocated in could not be taken");
         return 0;
     }
@@ -215,7 +211,6 @@ static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int 
     }
     const int good = cli_at_terminal_tests(root, files, found->count, cover, out, err_msg);
     g_cli_cells->persistent_buf_release(files, &g_cli_git_cells);
-    g_cli_cells->persistent_buf_release(joined, &g_cli_git_cells);
     return good;
 }
 
@@ -305,11 +300,14 @@ int cli_at_terminal_run(const char *root, const char *command, const char *const
         static CliTerminalFiles s_found;
         static CliLock s_found_lock = CLI_LOCK_INIT;
         cli_lock_take(&s_found_lock);
-        cli_pieces_begun(&s_found.pieces, &s_found.line, s_found.piece, sizeof(s_found.piece), &g_cli_git_cells);
+        const unsigned long long room = CLI_AT_TERMINAL_FILES_TEXT + 1ull;
+        char *const found_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_git_cells);
+        s_found.line = mmgr_line_over(found_text, room);
         s_found.last[0] = '\0';
         s_found.count = 0u;
         cli_tests_found(root, at_terminal_test_file, &s_found);
         const int good = at_terminal_files_run(root, &s_found, cover, out, err_msg);
+        g_cli_cells->persistent_buf_release(found_text, &g_cli_git_cells);
         cli_lock_give(&s_found_lock);
         return good;
     }

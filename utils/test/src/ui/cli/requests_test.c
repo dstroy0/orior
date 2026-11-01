@@ -159,8 +159,8 @@ static void requests_values(void)
               "unless the environment specifies not to");
     char key[256];
     VerbaLinea key_line = {key, sizeof(key), 0ull};
-    VerbaLinea body = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    cli_growing_line_made(&body, 4096ull, &g_checks_cells);
+    char *const body_cell = g_cli_cells->temporary_buf_alloc(4096ull, &g_checks_cells);
+    VerbaLinea body = {body_cell, 4096ull, 0ull};
     err_msg.at = 0ull;
     cli_check(cli_requests_ready(root, "api/v1/calls.http", s_file, sizeof(s_file) - 1u, 14ull, "dev", &s_sent, &body,
                                  &key_line, &err_msg),

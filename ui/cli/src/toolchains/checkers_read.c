@@ -4,6 +4,7 @@
 // JSON of ruff, ESLint and ShellCheck
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "checkers_internal.h"
 
 // the most bytes of a finding's fixes
@@ -29,10 +30,9 @@ static void cli_key(const char *path, char *key)
 {
     memor.cpy(&(MemoriaCfg){
         .dst = key, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = key; at[0] != '\0'; at += 1)
-    {
-        at[0] = (at[0] == '\\') ? '/' : (((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0]);
-    }
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
+    cli_text_swapped(key, length, '\\', '/');
+    cli_text_lowered(key, length);
 }
 
 unsigned int cli_checkers_file(CliFindings *findings, const char *path, int first)

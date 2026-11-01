@@ -8,8 +8,8 @@
 
 #include <math.h>
 
-// the bytes a page's contents are begun with, the line growing past them
-#define CLI_PDF_CONTENT_FIRST 65536ull
+// the bytes a page's contents are taken with
+#define CLI_PDF_CONTENT_ROOM (4ull << 20u)
 
 // the color of the line numbers
 static const unsigned char s_number_color[3] = {0x88u, 0x88u, 0x88u};
@@ -217,8 +217,9 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
         g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(unsigned int), &g_cli_print_cells);
     unsigned long long *const offsets =
         g_cli_cells->temporary_buf_alloc((7ull + (2ull * most)) * sizeof(unsigned long long), &g_cli_print_cells);
-    VerbaLinea content;
-    const int begun = cli_growing_line_temporary(&content, CLI_PDF_CONTENT_FIRST, &g_cli_print_cells);
+    char *const content_cell = g_cli_cells->temporary_buf_alloc(CLI_PDF_CONTENT_ROOM, &g_cli_print_cells);
+    VerbaLinea content = mmgr_line_over(content_cell, CLI_PDF_CONTENT_ROOM);
+    const int begun = content.out != NULL;
     *pages = 0ull;
     if ((printed == NULL) || (offsets == NULL) || !begun)
     {

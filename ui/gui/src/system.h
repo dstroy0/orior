@@ -49,6 +49,9 @@ typedef struct
 
 // the monitors' areas into `areas`, sized for `most`, the system's main one first: their count
 unsigned int gui_system_areas(CliWindowArea *areas, unsigned int most);
+// the whole size of the monitor with the most pixels, the part a taskbar covers with the rest, where a window filling it
+// stands: 0 by 0 where there is no display
+void gui_system_display_most(unsigned int *width, unsigned int *height);
 // a window opened undecorated at `place`, titled `title`, its events handed as `events` says with `context`: the
 // window, or NULL with why given; the loop run until the window closes; the window closed, which the loop may do from
 // inside an event it hands on, the system's record kept for the loop to read; and the record given back once the

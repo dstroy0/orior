@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sea_build.c: a script built into a single executable of Node's, by `node --build-sea` from Node 25.5 and by Node's
 // documented steps before it; node's copy written in pieces from its mapping, so node is never read whole
+#include "../command_line/cells.h"
+#include "../text/text.h"
 #include "sea.h"
 
 // the most bytes of a script read, and the most modules outside Node reported
@@ -19,15 +21,15 @@ static void cli_print(QuerySink sink, const char *text)
 static void cli_with_extension(const char *path, const char *extension, char *out)
 {
     const char *name = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     const char *dot = NULL;
-    for (const char *at = name + 1; (name[0] != '\0') && (at[0] != '\0'); at += 1)
-    {
-        dot = (at[0] == '.') ? at : dot;
-    }
+    const unsigned long long dot_past =
+        (name[0] != '\0')
+            ? cli_text_back_any(name + 1, cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL}), ".")
+            : 0ull;
+    dot = (dot_past != 0ull) ? (name + dot_past) : NULL;
     VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put_n(&line, path,
                     (dot != NULL) ? (unsigned long long)(dot - path)
@@ -43,21 +45,11 @@ static void cli_slashed(VerbaLinea *line, const char *path)
     char slashed[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = slashed, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = slashed; at[0] != '\0'; at += 1)
-    {
-        at[0] = (at[0] == '\\') ? '/' : at[0];
-    }
+    cli_text_swapped(slashed, cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_CELLS_POOL}), '\\', '/');
     char quoted[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea json = {quoted, sizeof(quoted), 0ull};
     mmgr_line_ch(&json, '"');
-    for (const char *at = slashed; at[0] != '\0'; at += 1)
-    {
-        if ((at[0] == '"') || (at[0] == '\\'))
-        {
-            mmgr_line_ch(&json, '\\');
-        }
-        mmgr_line_ch(&json, at[0]);
-    }
+    cli_text_put_marked(&json, slashed, "\"\\", '\\');
     mmgr_line_ch(&json, '"');
     mmgr_line_finish(&json);
     mmgr_line_put(line, quoted);
@@ -98,10 +90,8 @@ static int cli_node_run(const char *node, const char *const *args, unsigned int 
         while (text[0] != '\0')
         {
             const char *stop = text;
-            while ((stop[0] != '\0') && (stop[0] != '\n'))
-            {
-                stop += 1;
-            }
+            stop +=
+                cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
             const unsigned long long length =
                 (unsigned long long)(stop - text) - (((stop > text) && (stop[-1] == '\r')) ? 1ull : 0ull);
             sink.print(sink.context, text, length);
@@ -143,29 +133,17 @@ static int cli_version(const char *node, unsigned long long *major, unsigned lon
     }
     const char *text = ran->out;
     const char *end = ran->out + ran->out_size;
-    while ((text < end) && ((text[0] == ' ') || ((text[0] >= '\t') && (text[0] <= '\r'))))
-    {
-        text += 1;
-    }
-    while ((end > text) && ((end[-1] == ' ') || ((end[-1] >= '\t') && (end[-1] <= '\r'))))
-    {
-        end -= 1;
-    }
+    text += cli_text_past_any(text, 0ull, (unsigned long long)(end - text), CLI_TEXT_WHITE);
+    end = text + cli_text_back_past(text, (unsigned long long)(end - text), CLI_TEXT_WHITE);
     const char *const trimmed = text;
-    while ((text < end) && (text[0] == 'v'))
-    {
-        text += 1;
-    }
+    text += cli_text_past_any(text, 0ull, (unsigned long long)(end - text), "v");
     // the parts between the dots that are numbers
     unsigned long long numbers[3] = {0ull, 0ull, 0ull};
     unsigned int read = 0u;
     while ((text < end) && (read < 3u))
     {
         const char *stop = text;
-        while ((stop < end) && (stop[0] != '.'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), ".");
         int number = stop > text;
         unsigned long long value = 0ull;
         for (const char *digit = text; number && (digit < stop); digit += 1)
@@ -290,7 +268,7 @@ static int cli_windows_copy(const unsigned char *program, unsigned long long siz
     mmgr_line_finish(&line);
     cli_print(sink, print_line);
     unsigned long long made_size = 0ull;
-    const unsigned char *const made = cli_file_read(output, &made_size);
+    const unsigned char *const made = cli_file_taken(output, &made_size, &g_cli_sea_cells);
     if (made == NULL)
     {
         return cli_failed(output, ": it could not be read", err_msg);
@@ -311,7 +289,7 @@ static int cli_windows_copy(const unsigned char *program, unsigned long long siz
             cli_failed(fused, ": it could not be written", err_msg);
         }
     }
-    cli_file_let_go(made, made_size);
+    cli_file_given(made, &g_cli_sea_cells);
     if (done && !query_file_renamed(fused, output))
     {
         return cli_failed(output, ": it could not be replaced", err_msg);
@@ -327,22 +305,16 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
     static char s_config_text[CLI_PATH_MAX_LEN * 4u];
     static CliLock s_lock = CLI_LOCK_INIT;
     unsigned long long script_size = 0ull;
-    const unsigned char *const mapped = cli_file_read(main, &script_size);
-    // the script with a terminator after it, in a cell of its bytes and one more
-    char *const script = ((mapped != NULL) && (script_size < CLI_SEA_SCRIPT))
-                             ? g_cli_cells->temporary_buf_alloc(script_size + 1ull, &g_cli_sea_cells)
-                             : NULL;
-    if (script == NULL)
+    // the script read as its text, the zero of the slack after it
+    const unsigned char *const mapped = cli_file_taken(main, &script_size, &g_cli_sea_cells);
+    if ((mapped == NULL) || (script_size >= CLI_SEA_SCRIPT))
     {
-        cli_file_let_go(mapped, script_size);
+        cli_file_given(mapped, &g_cli_sea_cells);
         return cli_failed(main, ": it could not be read", err_msg);
     }
-    memor.cpy(&(MemoriaCfg){.dst = script, .src = mapped, .bytes = (size_t)script_size});
-    script[script_size] = '\0';
-    cli_file_let_go(mapped, script_size);
     cli_lock_take(&s_lock);
-    const unsigned int wanted = cli_sea_outside(script, s_wanted, CLI_SEA_WANTED);
-    g_cli_cells->persistent_buf_release(script, &g_cli_sea_cells);
+    const unsigned int wanted = cli_sea_outside((const char *)mapped, s_wanted, CLI_SEA_WANTED);
+    cli_file_given(mapped, &g_cli_sea_cells);
     if (wanted != 0u)
     {
         mmgr_line_put(err_msg, main);
@@ -363,10 +335,9 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = output, .cap = CLI_CELLS_POOL}) + 1u});
 #if defined(_WIN32)
     const char *name = output;
-    for (const char *at = output; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(output, cellul.len(&(CatenaFinitaCfg){.src = output, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (output + name_past) : name;
     if ((name[0] != '\0') &&
         (cellul.chr(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL, .byte = '.'}) == NULL))
     {
@@ -393,10 +364,8 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
     memor.cpy(&(MemoriaCfg){.dst = config_slashed,
                             .src = config,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = config, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = config_slashed; at[0] != '\0'; at += 1)
-    {
-        at[0] = (at[0] == '\\') ? '/' : at[0];
-    }
+    cli_text_swapped(config_slashed, cellul.len(&(CatenaFinitaCfg){.src = config_slashed, .cap = CLI_CELLS_POOL}), '\\',
+                     '/');
     const int builds_itself = (major > 25ull) || ((major == 25ull) && (minor >= 5ull));
     if (!builds_itself && (major < 20ull))
     {
@@ -451,7 +420,7 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
         return 1;
     }
     unsigned long long data_size = 0ull;
-    const unsigned char *const data = cli_file_read(blob, &data_size);
+    const unsigned char *const data = cli_file_taken(blob, &data_size, &g_cli_sea_cells);
     if (data == NULL)
     {
         cli_lock_give(&s_lock);
@@ -466,7 +435,7 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
     mmgr_line_finish(&copy);
     cli_print(sink, print_line);
     unsigned long long size = 0ull;
-    const unsigned char *const program = cli_file_read(node, &size);
+    const unsigned char *const program = cli_file_taken(node, &size, &g_cli_sea_cells);
     int done = program != NULL;
     if (!done)
     {
@@ -477,11 +446,8 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
 #else
     done = done && cli_linux_copy(program, size, data, data_size, made, sink, err_msg);
 #endif
-    if (program != NULL)
-    {
-        cli_file_let_go(program, size);
-    }
-    cli_file_let_go(data, data_size);
+    cli_file_given(program, &g_cli_sea_cells);
+    cli_file_given(data, &g_cli_sea_cells);
     if (done)
     {
         cli_print(sink, "turned the fuse to 1");

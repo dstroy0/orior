@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows_files.c: the command line's file sizes, moves and writes, and the wall clock on Windows
 #include "../command_line/cli_internal.h"
+#include "../text/text.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -18,10 +19,7 @@ void cli_system_reason(unsigned int error, VerbaLinea *err_msg)
     char reason[512];
     DWORD size = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, 0u, reason,
                                 sizeof(reason), NULL);
-    while ((size > 0u) && ((reason[size - 1u] == '\r') || (reason[size - 1u] == '\n') || (reason[size - 1u] == ' ')))
-    {
-        size -= 1u;
-    }
+    size = cli_text_back_past(reason, size, "\r\n ");
     mmgr_line_put(err_msg, ": ");
     mmgr_line_put_n(err_msg, reason, size);
     mmgr_line_put(err_msg, (size > 0u) ? " (os error " : "(os error ");
@@ -80,34 +78,6 @@ int cli_file_read_at(const char *path, unsigned long long from, unsigned char *b
         return 0;
     }
     file_read_from(file, from, bytes, count, got);
-    CloseHandle(file);
-    return 1;
-}
-
-int cli_file_read_whole(const char *path, unsigned char *(*room)(void *context, unsigned long long size), void *context,
-                        unsigned long long *got)
-{
-    *got = 0ull;
-    const HANDLE file = file_opened(path);
-    if (file == INVALID_HANDLE_VALUE)
-    {
-        return 0;
-    }
-    LARGE_INTEGER measured;
-    if (!GetFileSizeEx(file, &measured))
-    {
-        CloseHandle(file);
-        return 0;
-    }
-    // a file's size is not negative
-    const unsigned long long size = (unsigned long long)measured.QuadPart;
-    unsigned char *const bytes = room(context, size);
-    if (bytes == NULL)
-    {
-        CloseHandle(file);
-        return 0;
-    }
-    file_read_from(file, 0ull, bytes, size, got);
     CloseHandle(file);
     return 1;
 }

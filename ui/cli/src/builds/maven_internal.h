@@ -126,9 +126,8 @@ extern const char *const g_cli_maven_project_properties[11];
 
 // What a POM gives its children: its properties, each a name and a value, the dependencies its management gives a
 // version, by `group:artifact`, and whether it and each parent above it were read and one of its managed dependencies
-// imports a POM, each a text of the model's. The properties' lists share a cell of `property_room` each, the managed
-// dependencies' a cell of `managed_room` each, and the texts a cell of `text_room`, each doubling as it is put, given
-// back with cli_maven_model_given
+// imports a POM, each a text of the model's. Its lists and its texts stand in one cell taken at their most as it is
+// read, given back with cli_maven_model_given
 typedef struct
 {
     unsigned int *name_at;
@@ -148,14 +147,13 @@ typedef struct
     unsigned int text_room;
 } CliMavenModel;
 
-// the cells the models read are allocated in, counted; a model's cells given back, the model left empty, a model given
-// back before it is read again or let go; room made for one property more, and for one managed dependency more: 1, or
-// 0 where the model contains the most or the cell is refused; and `size` bytes of `bytes` stored in the model's text,
-// its room doubled to fit them: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit (maven_model_text.c)
+// the cells the models read are allocated in, counted; a model's cell given back, the model left empty, a model given
+// back before it is read again or let go; a model's cell taken, its rooms none where it is refused; and `size` bytes
+// of `bytes` stored in the model's text: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit
+// (maven_model_text.c)
 extern CellOwner g_cli_maven_model_cells;
 void cli_maven_model_given(CliMavenModel *model);
-int cli_maven_property_room(CliMavenModel *model);
-int cli_maven_managed_room(CliMavenModel *model);
+void cli_maven_model_taken(CliMavenModel *model);
 unsigned int cli_maven_model_text_stored(CliMavenModel *model, const char *bytes, unsigned long long size);
 
 // what the POM at `path`, `size` bytes of its text, gives its children, its parents read up to eight above it, into

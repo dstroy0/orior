@@ -62,15 +62,14 @@ static void cli_reading_paths(const CliSeen *seen, CliFiles *paths, unsigned lon
         {
             cli_files_put(paths, file, length);
         }
-        for (const char *at = file; at[0] != '\0'; at += 1)
+        for (unsigned long long slash = cli_text_to_any(file, 0ull, length, "/"); slash < length;
+             slash = cli_text_to_any(file, slash + 1ull, length, "/"))
         {
-            // the slash lies in the path, past its start
-            const unsigned long long folder = (unsigned long long)(at - file);
-            *counted += (at[0] == '/') ? 1ull : 0ull;
-            *bytes += (at[0] == '/') ? (folder + 1ull) : 0ull;
-            if ((paths != NULL) && (at[0] == '/'))
+            *counted += 1ull;
+            *bytes += slash + 1ull;
+            if (paths != NULL)
             {
-                cli_files_put(paths, file, folder);
+                cli_files_put(paths, file, slash);
             }
         }
     }

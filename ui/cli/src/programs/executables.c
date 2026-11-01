@@ -245,10 +245,9 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     }
     const char *base = full;
-    for (const char *at = full; at[0] != '\0'; at += 1)
-    {
-        base = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : base;
-    }
+    const unsigned long long base_past =
+        cli_text_back_any(full, cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}), "/\\");
+    base = (base_past != 0ull) ? (full + base_past) : base;
     const unsigned int kind = cli_executables_kind_of(base);
     if (kind == CLI_KIND_NONE)
     {

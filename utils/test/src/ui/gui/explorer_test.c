@@ -37,9 +37,9 @@ static int row_is(const GuiExplorer *explorer, unsigned int row, const char *pat
         return 0;
     }
     unsigned long long length = 0ull;
-    const char *const held = gui_explorer_path(explorer, node, &length);
+    const char *const stored_path = gui_explorer_path(explorer, node, &length);
     return (length == cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN})) &&
-           (memor.cmp(&(MemoriaCfg){.src = held, .other = path, .bytes = length}) == 0);
+           (memor.cmp(&(MemoriaCfg){.src = stored_path, .other = path, .bytes = length}) == 0);
 }
 
 // whether any pixel of `rect` is not `ground`

@@ -113,7 +113,8 @@ int gui_editor_named(GuiEditor *editor, const CliJson *json, unsigned int names)
         bytes += length + 1ull;
     }
     editor->names = g_cli_cells->persistent_buf_alloc((bytes != 0ull) ? bytes : 1ull, &g_gui_editor_cells);
-    editor->name_at = g_cli_cells->persistent_buf_alloc(((count != 0u) ? count : 1u) * sizeof(*editor->name_at), &g_gui_editor_cells);
+    editor->name_at =
+        g_cli_cells->persistent_buf_alloc(((count != 0u) ? count : 1u) * sizeof(*editor->name_at), &g_gui_editor_cells);
     if ((editor->names == NULL) || (editor->name_at == NULL))
     {
         gui_editor_given(editor);
@@ -138,7 +139,8 @@ int gui_editor_named(GuiEditor *editor, const CliJson *json, unsigned int names)
 static unsigned long long editor_number_of(const CliJson *json, unsigned int numbers, unsigned long long from,
                                            unsigned int at)
 {
-    const unsigned int node = cli_json_is(json, numbers, CFG_JSON_ARRAY) ? cli_json_item(json, numbers, at) : CLI_JSON_NONE;
+    const unsigned int node =
+        cli_json_is(json, numbers, CFG_JSON_ARRAY) ? cli_json_item(json, numbers, at) : CLI_JSON_NONE;
     return (node != CLI_JSON_NONE) ? gui_answer_whole(json, node, from + at) : from + at;
 }
 
@@ -213,7 +215,8 @@ static int editor_array_put(GuiEditor *editor, const CliJson *json, unsigned int
     const unsigned int pairs = editor_runs_counted(json, colors, numbers, from, count);
     if (!editor_roomed((void **)&editor->line, &editor->room.line, (unsigned long long)count * sizeof(*editor->line)) ||
         !editor_roomed((void **)&editor->bytes, &editor->room.bytes, bytes) ||
-        !editor_roomed((void **)&editor->run, &editor->room.run, (unsigned long long)pairs * 2ull * sizeof(*editor->run)))
+        !editor_roomed((void **)&editor->run, &editor->room.run,
+                       (unsigned long long)pairs * 2ull * sizeof(*editor->run)))
     {
         return 0;
     }
@@ -286,7 +289,8 @@ static int editor_folds_put(GuiEditor *editor, const CliJson *json, unsigned int
 // a place `{"line", "col"}` read
 static GuiPlace editor_place_of(const CliJson *json, unsigned int node)
 {
-    const GuiPlace place = {gui_answer_member_whole(json, node, "line", 0ull), gui_answer_member_whole(json, node, "col", 0ull)};
+    const GuiPlace place = {gui_answer_member_whole(json, node, "line", 0ull),
+                            gui_answer_member_whole(json, node, "col", 0ull)};
     return place;
 }
 
@@ -311,7 +315,8 @@ static int editor_find_put(GuiEditor *editor, const CliJson *json, unsigned int 
     }
     memor.cpy(&(MemoriaCfg){.dst = editor->find.query, .src = (query != NULL) ? query : "", .bytes = length});
     editor->find.query_length = length;
-    editor->find.focus = gui_answer_member_true(json, find, "focus") || (gui_answer_member_whole(json, find, "focus", 0ull) != 0ull);
+    editor->find.focus =
+        gui_answer_member_true(json, find, "focus") || (gui_answer_member_whole(json, find, "focus", 0ull) != 0ull);
     editor->find.at = gui_answer_member_whole(json, find, "at", 0ull);
     editor->find.regex = gui_answer_member_whole(json, find, "regex", 0ull) != 0ull;
     editor->find.match_case = gui_answer_member_whole(json, find, "case", 0ull) != 0ull;
@@ -319,7 +324,8 @@ static int editor_find_put(GuiEditor *editor, const CliJson *json, unsigned int 
     editor->find.count = gui_answer_member_whole(json, find, "count", 0ull);
     const unsigned int current = cli_json_member(json, find, "current");
     // the current match is counted among the matches, which a long long counts
-    editor->find.current = cli_json_is(json, current, CFG_JSON_NUMBER) ? (long long)gui_answer_whole(json, current, 0ull) : -1ll;
+    editor->find.current =
+        cli_json_is(json, current, CFG_JSON_NUMBER) ? (long long)gui_answer_whole(json, current, 0ull) : -1ll;
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
         // the matches among the rows are far inside what an unsigned int represents
@@ -375,7 +381,8 @@ int gui_editor_colored(GuiEditor *editor, const CliJson *json, unsigned int colo
                                          : editor->line[at].run_count;
     }
     // the runs laid into the second cell from the first, the two then trading places
-    if (!editor_roomed((void **)&editor->run_laid, &editor->room.run_laid, (unsigned long long)pairs * 2ull * sizeof(*editor->run)))
+    if (!editor_roomed((void **)&editor->run_laid, &editor->room.run_laid,
+                       (unsigned long long)pairs * 2ull * sizeof(*editor->run)))
     {
         return 0;
     }
@@ -523,33 +530,33 @@ int gui_editor_row_at(const GuiEditor *editor, GuiRect place, float cell, float 
     return 1;
 }
 
-// the byte of the stored line `held` where its unit `col` starts, the line's length where the column is past it
-static unsigned long long editor_byte_of(const GuiEditor *editor, const GuiLine *held, unsigned long long col)
+// the byte of the stored line `stored_line` where its unit `col` starts, the line's length where the column is past it
+static unsigned long long editor_byte_of(const GuiEditor *editor, const GuiLine *stored_line, unsigned long long col)
 {
-    const char *const text = editor->bytes + held->text;
+    const char *const text = editor->bytes + stored_line->text;
     unsigned long long at = 0ull;
     unsigned long long units = 0ull;
-    while ((at < held->length) && (units < col))
+    while ((at < stored_line->length) && (units < col))
     {
         unsigned long long took = 0ull;
-        const unsigned int letter = cli_text_letter(text, held->length, at, &took);
+        const unsigned int letter = cli_text_letter(text, stored_line->length, at, &took);
         at += (took != 0ull) ? took : 1ull;
         units += (letter >= 0x10000u) ? 2ull : 1ull;
     }
     return at;
 }
 
-int gui_editor_units_text(const GuiEditor *editor, unsigned long long line, unsigned long long from, unsigned long long to,
-                          const char **text, unsigned long long *length)
+int gui_editor_units_text(const GuiEditor *editor, unsigned long long line, unsigned long long from,
+                          unsigned long long to, const char **text, unsigned long long *length)
 {
     for (unsigned int at = 0u; at < editor->count; at += 1u)
     {
-        const GuiLine *const held = &editor->line[at];
-        if (held->number == line)
+        const GuiLine *const stored_line = &editor->line[at];
+        if (stored_line->number == line)
         {
-            const unsigned long long start = editor_byte_of(editor, held, from);
-            const unsigned long long end = editor_byte_of(editor, held, (to > from) ? to : from);
-            *text = editor->bytes + held->text + start;
+            const unsigned long long start = editor_byte_of(editor, stored_line, from);
+            const unsigned long long end = editor_byte_of(editor, stored_line, (to > from) ? to : from);
+            *text = editor->bytes + stored_line->text + start;
             *length = end - start;
             return 1;
         }
@@ -567,7 +574,8 @@ GuiRect gui_editor_caret_rect(const GuiEditor *editor, GuiGlyphs *glyphs, GuiRec
     const unsigned int size = (unsigned int)(((float)GUI_CODE_SIZE * scale) + 0.5f);
     const float cell = gui_glyphs_cell(glyphs, size);
     const int gutter = gui_editor_gutter(editor, cell, scale);
-    const GuiRect text_clip = gui_rect_met(place, (GuiRect){place.x + gutter, place.y, place.width - gutter, place.height});
+    const GuiRect text_clip =
+        gui_rect_met(place, (GuiRect){place.x + gutter, place.y, place.width - gutter, place.height});
     GuiRect at;
     if (!gui_editor_place_rect(editor, place, cell, scale, editor->cursor.line, editor->cursor.col, &at))
     {
@@ -597,9 +605,10 @@ GuiRect gui_editor_caret_drawn(GuiEditor *editor, GuiRaster *raster, const GuiPa
     {
         for (unsigned int row = 0u; row < tall; row += 1u)
         {
-            memor.cpy(&(MemoriaCfg){.dst = &editor->caret_under[row * wide],
-                                    .src = &raster->pixels[(((unsigned int)caret.y + row) * raster->width) + (unsigned int)caret.x],
-                                    .bytes = wide * sizeof(GuiColor)});
+            memor.cpy(&(MemoriaCfg){
+                .dst = &editor->caret_under[row * wide],
+                .src = &raster->pixels[(((unsigned int)caret.y + row) * raster->width) + (unsigned int)caret.x],
+                .bytes = wide * sizeof(GuiColor)});
         }
         editor->caret_rect = caret;
         editor->caret_kept = 1;
@@ -620,9 +629,10 @@ GuiRect gui_editor_caret_redrawn(GuiEditor *editor, GuiRaster *raster, const Gui
     const unsigned int tall = (unsigned int)caret.height;
     for (unsigned int row = 0u; row < tall; row += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = &raster->pixels[(((unsigned int)caret.y + row) * raster->width) + (unsigned int)caret.x],
-                                .src = &editor->caret_under[row * wide],
-                                .bytes = wide * sizeof(GuiColor)});
+        memor.cpy(&(MemoriaCfg){
+            .dst = &raster->pixels[(((unsigned int)caret.y + row) * raster->width) + (unsigned int)caret.x],
+            .src = &editor->caret_under[row * wide],
+            .bytes = wide * sizeof(GuiColor)});
     }
     gui_raster_filled(raster, caret, editor_caret_color(palette, editor->caret_ink));
     return caret;
@@ -723,10 +733,7 @@ GuiColor gui_editor_color(const GuiEditor *editor, const GuiPalette *palette, un
     }
     const char *const text = editor->names + editor->name_at[name];
     unsigned long long length = 0ull;
-    while (text[length] != '\0')
-    {
-        length += 1ull;
-    }
+    length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
     return gui_palette_token(palette, text, length);
 }
 
@@ -780,16 +787,18 @@ static void editor_line_drawn(const GuiEditor *editor, const GuiLine *line, GuiR
 static void editor_box_drawn(GuiRaster *raster, GuiRect rect, int thick, GuiColor color, GuiRect clip)
 {
     gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y, rect.width, thick}, clip), color);
-    gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y + rect.height - thick, rect.width, thick}, clip), color);
+    gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y + rect.height - thick, rect.width, thick}, clip),
+                      color);
     gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y, thick, rect.height}, clip), color);
-    gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x + rect.width - thick, rect.y, thick, rect.height}, clip), color);
+    gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x + rect.width - thick, rect.y, thick, rect.height}, clip),
+                      color);
 }
 
 // the matches on the line `line` drawn on the row `row_rect`, each cell they span in the match ground, the current one
 // in the stronger ground and boxed where `boxed` is 1
-static void editor_matches_drawn(const GuiEditor *editor, const GuiLine *held, unsigned long long line, GuiRaster *raster,
-                                 const GuiPalette *palette, GuiRect row_rect, float text_x, float cell, int boxed,
-                                 float scale, GuiRect clip)
+static void editor_matches_drawn(const GuiEditor *editor, const GuiLine *stored_line, unsigned long long line,
+                                 GuiRaster *raster, const GuiPalette *palette, GuiRect row_rect, float text_x,
+                                 float cell, int boxed, float scale, GuiRect clip)
 {
     for (unsigned long long at = 0ull; at < editor->matches; at += 1ull)
     {
@@ -798,8 +807,10 @@ static void editor_matches_drawn(const GuiEditor *editor, const GuiLine *held, u
             continue;
         }
         const int current = (editor->find.current >= 0ll) && ((unsigned long long)editor->find.current == at);
-        const int left = (int)roundf(text_x + ((float)editor_cell_of(editor, held, editor->match[at][1]) * cell));
-        const int right = (int)roundf(text_x + ((float)editor_cell_of(editor, held, editor->match[at][2]) * cell));
+        const int left =
+            (int)roundf(text_x + ((float)editor_cell_of(editor, stored_line, editor->match[at][1]) * cell));
+        const int right =
+            (int)roundf(text_x + ((float)editor_cell_of(editor, stored_line, editor->match[at][2]) * cell));
         const GuiRect span = {left, row_rect.y, right - left, row_rect.height};
         if (boxed)
         {
@@ -847,12 +858,13 @@ static void editor_find_drawn(const GuiEditor *editor, GuiRaster *raster, GuiGly
     const GuiRect field_clip = gui_rect_met(field, place);
     if (editor->find.query_length == 0ull)
     {
-        gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, text_x, baseline, "Find", 4ull, palette->text_3, field_clip);
+        gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, text_x, baseline, "Find", 4ull, palette->text_3,
+                       field_clip);
     }
     else
     {
-        gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, text_x, baseline, editor->find.query, editor->find.query_length,
-                       palette->editor_text, field_clip);
+        gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, text_x, baseline, editor->find.query,
+                       editor->find.query_length, palette->editor_text, field_clip);
     }
     if (editor->find.focus)
     {
@@ -868,8 +880,8 @@ static void editor_find_drawn(const GuiEditor *editor, GuiRaster *raster, GuiGly
         }
         const float before = gui_text_width(glyphs, GUI_FACE_HEAD, size, editor->find.query, bytes);
         gui_raster_filled(raster,
-                          gui_rect_met((GuiRect){(int)roundf(text_x + before), field.y + gui_scaled(3, scale), gui_scaled(1, scale),
-                                                 field_tall - gui_scaled(6, scale)},
+                          gui_rect_met((GuiRect){(int)roundf(text_x + before), field.y + gui_scaled(3, scale),
+                                                 gui_scaled(1, scale), field_tall - gui_scaled(6, scale)},
                                        place),
                           palette->caret);
     }
@@ -881,12 +893,14 @@ static void editor_find_drawn(const GuiEditor *editor, GuiRaster *raster, GuiGly
         const GuiRect toggle = {x, field.y, toggle_wide, field_tall};
         if (on[at])
         {
-            gui_raster_rounded(raster, gui_rect_met(toggle, place), (unsigned int)gui_scaled(4, scale), palette->selection);
+            gui_raster_rounded(raster, gui_rect_met(toggle, place), (unsigned int)gui_scaled(4, scale),
+                               palette->selection);
             editor_box_drawn(raster, toggle, gui_scaled(1, scale), palette->hover, place);
         }
         const float label_wide = gui_text_width(glyphs, GUI_FACE_HEAD, size, s_toggle[at], 2ull);
-        gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)toggle.x + (((float)toggle_wide - label_wide) / 2.0f),
-                       baseline, s_toggle[at], 2ull, on[at] ? palette->editor_text : palette->text_2, place);
+        gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size,
+                       (float)toggle.x + (((float)toggle_wide - label_wide) / 2.0f), baseline, s_toggle[at], 2ull,
+                       on[at] ? palette->editor_text : palette->text_2, place);
         x += toggle_wide + gap;
     }
     char count_text[64];
@@ -898,16 +912,17 @@ static void editor_find_drawn(const GuiEditor *editor, GuiRaster *raster, GuiGly
     else
     {
         // the current match is counted among the matches
-        mmgr_line_decimal(&count, (editor->find.current >= 0ll) ? (unsigned long long)editor->find.current + 1ull : 0ull, 1u);
+        mmgr_line_decimal(&count,
+                          (editor->find.current >= 0ll) ? (unsigned long long)editor->find.current + 1ull : 0ull, 1u);
         mmgr_line_put(&count, " of ");
         mmgr_line_decimal(&count, editor->find.count, 1u);
     }
-    gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(x + gui_scaled(4, scale)), baseline, count_text, count.at,
-                   palette->text_2, place);
+    gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(x + gui_scaled(4, scale)), baseline, count_text,
+                   count.at, palette->text_2, place);
 }
 
-void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette,
-                      GuiRect place, float scale)
+void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, GuiRect place,
+                      float scale)
 {
     if (gui_rect_empty(place))
     {
@@ -924,14 +939,16 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
     const int baseline = (int)((((float)line_tall - ascent - descent) / 2.0f) + ascent + 0.5f);
     const int numbers_right = place.x + gutter - (int)(((float)GUI_GUTTER_AFTER * scale) + 0.5f);
     const float text_x = (float)(place.x + gutter);
-    const GuiRect text_clip = gui_rect_met(place, (GuiRect){place.x + gutter, place.y, place.width - gutter, place.height});
+    const GuiRect text_clip =
+        gui_rect_met(place, (GuiRect){place.x + gutter, place.y, place.width - gutter, place.height});
     const int rows = (line_tall > 0) ? (place.height + line_tall - 1) / line_tall : 0;
     // the selection's ends in order
     const int anchored = (editor->anchor.line < editor->cursor.line) ||
                          ((editor->anchor.line == editor->cursor.line) && (editor->anchor.col < editor->cursor.col));
     const GuiPlace selected_from = anchored ? editor->anchor : editor->cursor;
     const GuiPlace selected_to = anchored ? editor->cursor : editor->anchor;
-    const int selected = editor->has_cursor && ((selected_from.line != selected_to.line) || (selected_from.col != selected_to.col));
+    const int selected =
+        editor->has_cursor && ((selected_from.line != selected_to.line) || (selected_from.col != selected_to.col));
     // the first row drawn is the first line stored at or below the view's top
     unsigned int start = 0u;
     while ((start < editor->count) && (editor->line[start].number < editor->top))
@@ -949,7 +966,7 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
         const unsigned long long line = editor->line[at].number;
         const int y = place.y + (row * line_tall) + baseline;
         const GuiRect row_rect = {text_clip.x, place.y + (row * line_tall), text_clip.width, line_tall};
-        const GuiLine *const held = &editor->line[at];
+        const GuiLine *const stored_line = &editor->line[at];
         const GuiFold *const fold = editor_fold_on(editor, line);
         // the current line's ground, the selection's span on the line, and the caret
         if (editor->has_cursor && (line == editor->cursor.line) && !selected)
@@ -958,16 +975,20 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
         }
         if (selected && (line >= selected_from.line) && (line <= selected_to.line))
         {
-            const unsigned long long start_cell = (line == selected_from.line) ? editor_cell_of(editor, held, selected_from.col) : 0ull;
-            const unsigned long long end_cell = (line == selected_to.line) ? editor_cell_of(editor, held, selected_to.col)
-                                                                            : editor_cell_of(editor, held, ~0ull) + 1ull;
+            const unsigned long long start_cell =
+                (line == selected_from.line) ? editor_cell_of(editor, stored_line, selected_from.col) : 0ull;
+            const unsigned long long end_cell = (line == selected_to.line)
+                                                    ? editor_cell_of(editor, stored_line, selected_to.col)
+                                                    : editor_cell_of(editor, stored_line, ~0ull) + 1ull;
             const int left = (int)roundf(text_x + ((float)start_cell * cell));
             const int right = (int)roundf(text_x + ((float)end_cell * cell));
-            gui_raster_filled(raster, gui_rect_met((GuiRect){left, row_rect.y, right - left, line_tall}, text_clip), palette->selection);
+            gui_raster_filled(raster, gui_rect_met((GuiRect){left, row_rect.y, right - left, line_tall}, text_clip),
+                              palette->selection);
         }
         if (editor->find.open)
         {
-            editor_matches_drawn(editor, held, line, raster, palette, row_rect, text_x, cell, 0, scale, text_clip);
+            editor_matches_drawn(editor, stored_line, line, raster, palette, row_rect, text_x, cell, 0, scale,
+                                 text_clip);
         }
         char digits[24];
         VerbaLinea number = {digits, sizeof(digits), 0ull};
@@ -980,26 +1001,29 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
             editor_fold_marked(raster, numbers_right + gui_scaled(4, scale), row_rect.y + (line_tall / 2),
                                gui_scaled(7, scale), palette->number, place);
         }
-        editor_line_drawn(editor, held, raster, glyphs, palette, text_x, y, cell, size, text_clip);
+        editor_line_drawn(editor, stored_line, raster, glyphs, palette, text_x, y, cell, size, text_clip);
         if ((fold != NULL) && fold->closed)
         {
-            const float after = text_x + ((float)(editor_cell_of(editor, held, ~0ull) + 1ull) * cell);
-            (void)editor_folded_drawn(editor, fold, raster, glyphs, palette, after, row_rect.y, y, line_tall, cell, size,
-                                      scale, text_clip);
+            const float after = text_x + ((float)(editor_cell_of(editor, stored_line, ~0ull) + 1ull) * cell);
+            (void)editor_folded_drawn(editor, fold, raster, glyphs, palette, after, row_rect.y, y, line_tall, cell,
+                                      size, scale, text_clip);
         }
         for (unsigned int each = 0u; editor->has_pair && (each < 2u); each += 1u)
         {
             if (editor->pair[each].line == line)
             {
-                const int left = (int)roundf(text_x + ((float)editor_cell_of(editor, held, editor->pair[each].col) * cell));
-                const int right = (int)roundf(text_x + ((float)(editor_cell_of(editor, held, editor->pair[each].col) + 1ull) * cell));
+                const int left =
+                    (int)roundf(text_x + ((float)editor_cell_of(editor, stored_line, editor->pair[each].col) * cell));
+                const int right = (int)roundf(
+                    text_x + ((float)(editor_cell_of(editor, stored_line, editor->pair[each].col) + 1ull) * cell));
                 editor_box_drawn(raster, (GuiRect){left, row_rect.y, right - left, line_tall}, gui_scaled(1, scale),
                                  palette->caret, text_clip);
             }
         }
         if (editor->find.open)
         {
-            editor_matches_drawn(editor, held, line, raster, palette, row_rect, text_x, cell, 1, scale, text_clip);
+            editor_matches_drawn(editor, stored_line, line, raster, palette, row_rect, text_x, cell, 1, scale,
+                                 text_clip);
         }
     }
     if (editor->find.open)

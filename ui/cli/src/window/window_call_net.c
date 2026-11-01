@@ -5,6 +5,7 @@
 // plugin's request sent, a picture read as a data address, a page opened in the browser, a toolchain's install page,
 // and a repository cloned, its progress reported as it comes
 #include "../code/git.h"
+#include "../command_line/cells.h"
 #include "../machine/net.h"
 #include "../machine/report.h"
 #include "../plugins/plugin_catalog.h"
@@ -18,8 +19,7 @@
 // the most bytes of a picture behind the editor
 #define CLI_WINDOW_IMAGE_MOST (8ull << 20u)
 
-// the bytes a catalog entry's line is begun with before it grows
-#define CLI_WINDOW_ENTRY_FIRST 4096ull
+// the bytes a catalog entry's line is taken with
 
 static CliLock s_lock = CLI_LOCK_INIT;
 
@@ -60,8 +60,10 @@ static int net_catalog_install(const CliServeArgs *args, VerbaLinea *out, VerbaL
     {
         return 0;
     }
-    VerbaLinea entry;
-    if (!cli_growing_line_temporary(&entry, CLI_WINDOW_ENTRY_FIRST, &g_cli_window_cells))
+    const unsigned long long entry_room = cli_json_written_room(args->json);
+    char *const entry_cell = g_cli_cells->temporary_buf_alloc(entry_room, &g_cli_window_cells);
+    VerbaLinea entry = mmgr_line_over(entry_cell, entry_room);
+    if (entry.out == NULL)
     {
         mmgr_line_put(err_msg, "the catalog's entry could not be stored");
         return 0;
@@ -217,7 +219,7 @@ static int net_image_data(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_window_cells);
     if (bytes == NULL)
     {
         mmgr_line_put(err_msg, path);
@@ -226,7 +228,7 @@ static int net_image_data(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     }
     if (size > CLI_WINDOW_IMAGE_MOST)
     {
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_window_cells);
         mmgr_line_put(err_msg, path);
         mmgr_line_put(err_msg, " is over 8 MB, the most an image behind the editor is");
         return 0;
@@ -236,7 +238,7 @@ static int net_image_data(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     mmgr_line_put(out, ";base64,");
     cli_base64(out, bytes, size);
     mmgr_line_ch(out, '"');
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_window_cells);
     return 1;
 }
 

@@ -8,7 +8,7 @@ import { given, marked, putBackAsFound } from "../../../menus.js";
 
 const { test, assert } = window.__harness;
 
-test("an opening bracket types its pair, its closer is stepped over, and a selection is held between them", async () => {
+test("an opening bracket types its pair, its closer is stepped over, and a selection is kept between them", async () => {
   const view = await given("x = |");
   view.type("(");
   assert.equal(marked(), "x = (|)");

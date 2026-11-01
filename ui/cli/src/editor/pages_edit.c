@@ -7,11 +7,10 @@
 #include "files.h"
 #include "pages_internal.h"
 
-// the most bytes of an edit's lines, the most bytes of the matches find writes, and the bytes a reading's cell begins
-// with for an edit, find and a save, which grows to the lines read
+// the most bytes of an edit's lines, the most bytes of the matches find writes, and the bytes a reading's cell takes
+// for an edit, find and a save
 #define CLI_PAGE_EDIT (1u << 25u)
 #define CLI_PAGE_FOUND (1u << 24u)
-#define CLI_PAGE_LINES_FIRST (64ull * 1024ull)
 // the bytes a save stages before each write to the file beside the text
 #define CLI_PAGE_SAVE_STAGE (1ull << 20u)
 
@@ -225,8 +224,8 @@ int cli_pages_edit(const char *key, const CliEdit *const *changes, const unsigne
 {
     cli_lock_take(&g_cli_pages_lock);
     CliPaged *const one = cli_paged_of(key, err_msg);
-    CliPageLines lines;
-    int written = (one != NULL) && cli_page_lines_reserved(&lines, 2ull, CLI_PAGE_LINES_FIRST, err_msg);
+    CliPageLines lines = {0};
+    int written = one != NULL;
     const int done = written;
     for (unsigned int change = 0u; written && (change < count); change += 1u)
     {
@@ -361,13 +360,14 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
 {
     cli_lock_take(&g_cli_pages_lock);
     CliPaged *const one = cli_paged_of(key, err_msg);
-    char *const found_text = (one != NULL) ? g_cli_cells->temporary_buf_alloc(CLI_PAGE_FOUND, &g_cli_editor_cells) : NULL;
+    char *const found_text =
+        (one != NULL) ? g_cli_cells->temporary_buf_alloc(CLI_PAGE_FOUND, &g_cli_editor_cells) : NULL;
     if ((one != NULL) && (found_text == NULL))
     {
         mmgr_line_put(err_msg, "the matches find writes could not be taken");
     }
-    CliPageLines lines;
-    int read = (found_text != NULL) && cli_page_lines_reserved(&lines, CLI_PAGE_BLOCK, CLI_PAGE_LINES_FIRST, err_msg);
+    CliPageLines lines = {0};
+    int read = found_text != NULL;
     const int done = read;
     const unsigned long long total = read ? cli_total(one) : 0ull;
     VerbaLinea written = {found_text, CLI_PAGE_FOUND, 0ull};
@@ -385,14 +385,15 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
         }
         // the block's units and lines a cell sized to the lines read, given back as the block is searched; a block
         // whose units the cells cannot meet is read again as half as many lines
-        unsigned char *const storage = read ? g_cli_cells->temporary_buf_alloc(cli_block_bytes(&lines), &g_cli_editor_cells) : NULL;
-        if (read && (storage == NULL) && (block_most > 1ull))
-        {
-            block_most /= 2ull;
-            continue;
-        }
+        unsigned char *const storage =
+            read ? g_cli_cells->temporary_buf_alloc(cli_block_bytes(&lines), &g_cli_editor_cells) : NULL;
         if (read && (storage == NULL))
         {
+            if (block_most > 1ull)
+            {
+                block_most /= 2ull;
+                continue;
+            }
             mmgr_line_put(err_msg, "a block's units for find could not be taken");
             read = 0;
         }
@@ -438,12 +439,7 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
-    CliPageLines lines;
-    if (!cli_page_lines_reserved(&lines, CLI_PAGE_BLOCK, CLI_PAGE_LINES_FIRST, err_msg))
-    {
-        cli_lock_give(&g_cli_pages_lock);
-        return 0;
-    }
+    CliPageLines lines = {0};
     // the text goes to the file as the tree writes every file: beside it, then moved over it once whole
     const unsigned long long total = cli_total(one);
     char beside[CLI_PATH_MAX_LEN];
@@ -461,7 +457,7 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
     {
         mmgr_line_put(err_msg, "the stage a save writes through could not be taken");
     }
-    VerbaLinea block = {stage, (stage != NULL) ? CLI_PAGE_SAVE_STAGE : 0ull, 0ull};
+    VerbaLinea block = mmgr_line_over(stage, CLI_PAGE_SAVE_STAGE);
     const unsigned long long eol_size = cellul.len(&(CatenaFinitaCfg){.src = one->eol, .cap = CLI_CELLS_POOL});
     unsigned long long block_most = CLI_PAGE_BLOCK;
     for (unsigned long long from = 0ull; written && (from < total);)

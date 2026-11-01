@@ -3,10 +3,12 @@
 // net.c: an address reached requested, refused where orior_cli is blocked from the network, and logged where it is let
 // on
 #include "net.h"
+#include "../command_line/cells.h"
 #include "../deploy/devcontainer.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 
-// the most addresses logged, and the bytes an address's line written is begun with past the file before it grows
+// the most addresses logged, and the bytes an address's line written is taken with past the file
 #define CLI_NET_LOG_MAX_LINES 1000u
 
 #define CLI_NET_LINE_MORE (4ull << 10u)
@@ -45,19 +47,17 @@ static int cli_settings_off(void)
     mmgr_line_put(&line, folder);
     mmgr_line_put(&line, "/settings.json");
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(path, &size) : NULL;
+    const unsigned char *const bytes =
+        (mmgr_line_finish(&line) != 0ull) ? cli_file_taken(path, &size, &g_cli_machine_cells) : NULL;
     if (bytes == NULL)
     {
         return 0;
     }
     // a text made plain is never longer than the text, as it only leaves comments and commas out
     char *const plain_text = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_machine_cells);
-    VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
-    if (plain_text != NULL)
-    {
-        cli_plain_json((const char *)bytes, size, &plain);
-    }
-    cli_file_let_go(bytes, size);
+    VerbaLinea plain = mmgr_line_over(plain_text, size + 1ull);
+    cli_plain_json((const char *)bytes, size, &plain);
+    cli_file_given(bytes, &g_cli_machine_cells);
     unsigned int count = 0u;
     CfgJsonToken *const tokens = (plain_text != NULL) ? cli_net_tokens(plain_text, plain.at, &count) : NULL;
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
@@ -87,10 +87,7 @@ void cli_net_host_of(const char *address, char *host)
         &(CatenaFinitaCfg){.src = address, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
     rest = (rest != NULL) ? (rest + 3) : address;
     const char *end = rest;
-    while ((end[0] != '\0') && (end[0] != '/') && (end[0] != '?') && (end[0] != '#'))
-    {
-        end += 1;
-    }
+    end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "/?#");
     // after the last `@`, the user before it left off
     for (const char *at = end; at > rest; at -= 1)
     {
@@ -104,10 +101,7 @@ void cli_net_host_of(const char *address, char *host)
     if (rest[0] == '[')
     {
         const char *close = rest + 1;
-        while ((close < end) && (close[0] != ']'))
-        {
-            close += 1;
-        }
+        close += cli_text_to_any(close, 0ull, (unsigned long long)(end - close), "]");
         mmgr_line_put_n(&line, rest + 1, (unsigned long long)(close - rest - 1));
         mmgr_line_finish(&line);
         return;
@@ -128,14 +122,8 @@ int cli_net_local(const char *host)
     char lower[CLI_PATH_MAX_LEN];
     const char *from = host;
     const char *to = host + cellul.len(&(CatenaFinitaCfg){.src = host, .cap = CLI_CELLS_POOL});
-    while ((from < to) && ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r'))))
-    {
-        from += 1;
-    }
-    while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-    {
-        to -= 1;
-    }
+    from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
     unsigned long long length = 0ull;
     for (const char *at = from; (at < to) && (length + 1ull < sizeof(lower)); at += 1)
     {
@@ -182,8 +170,10 @@ static void net_logged(const char *address, const char *purpose)
     query_folder_made(folder);
     unsigned long long log_size = 0ull;
     (void)cli_file_size(path, &log_size);
-    VerbaLinea line;
-    if (!cli_growing_line_temporary(&line, log_size + CLI_NET_LINE_MORE, &g_cli_machine_cells))
+    const unsigned long long line_room = log_size + CLI_NET_LINE_MORE;
+    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_machine_cells);
+    VerbaLinea line = mmgr_line_over(line_cell, line_room);
+    if (line.out == NULL)
     {
         return;
     }
@@ -254,7 +244,7 @@ void cli_net_reached(unsigned int most, VerbaLinea *out)
     mmgr_line_put(&named, "/network.jsonl");
     unsigned long long size = 0ull;
     const unsigned char *const bytes =
-        (homed && (mmgr_line_finish(&named) != 0ull)) ? cli_file_read(path, &size) : NULL;
+        (homed && (mmgr_line_finish(&named) != 0ull)) ? cli_file_taken(path, &size, &g_cli_machine_cells) : NULL;
     const char *const log_text = (const char *)bytes;
     // every line's tokens are at most the file's, and one cell of the file's fits any line's
     unsigned int count = 0u;
@@ -264,10 +254,7 @@ void cli_net_reached(unsigned int most, VerbaLinea *out)
     while ((end > 0ull) && (written < most))
     {
         unsigned long long start = end;
-        while ((start > 0ull) && (log_text[start - 1u] != '\n'))
-        {
-            start -= 1ull;
-        }
+        start = cli_text_back_any(log_text, start, "\n");
         unsigned long long stop = end;
         stop -= ((stop > start) && (log_text[stop - 1u] == '\n')) ? 1ull : 0ull;
         stop -= ((stop > start) && (log_text[stop - 1u] == '\r')) ? 1ull : 0ull;
@@ -304,7 +291,7 @@ void cli_net_reached(unsigned int most, VerbaLinea *out)
         end = start - 1ull;
     }
     g_cli_cells->persistent_buf_release(tokens, &g_cli_machine_cells);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_machine_cells);
     cli_lock_give(&s_lock);
     mmgr_line_ch(out, ']');
 }

@@ -377,7 +377,7 @@ static void files_listing(void)
     cli_files_forget_seen();
 }
 
-// a search stores what it finds in cells that grow past their first room as lines are found, each given back as it ends
+// a search stores what it finds in one cell at its most, given back as it ends
 static void files_searched(void)
 {
     char root[CLI_PATH_MAX_LEN];
@@ -406,7 +406,8 @@ static void files_searched(void)
         hits += 1u;
     }
     cli_check(found && (hits == 101u), "every line that contains the query is found");
-    cli_check((embed_atomic_usize_load(&g_cli_search_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_search_cells.hw) > (64ull * sizeof(CliSearchHit))),
+    cli_check((embed_atomic_usize_load(&g_cli_search_cells.in_use) == 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_search_cells.hw) > (64ull * sizeof(CliSearchHit))),
               "the lines found are stored in cells grown past their first room, each given back");
     cli_files_forget_seen();
 }

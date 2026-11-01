@@ -4,6 +4,7 @@
 // the request that stops the statement it runs, sent on a connection of its own; and a string written as PostgreSQL
 // reads it back
 #include "../machine/net.h"
+#include "../text/text.h"
 #include "pg_internal.h"
 
 const CliDbHead *cli_pg_head(const CliPg *pg)
@@ -84,13 +85,6 @@ int cli_pg_cancel_sent(const CliPgCancel *cancel, VerbaLinea *err_msg)
 void cli_pg_literal(const char *text, VerbaLinea *out)
 {
     mmgr_line_ch(out, '\'');
-    for (const char *letter = text; *letter != '\0'; letter += 1)
-    {
-        mmgr_line_put(out, (*letter == '\'') ? "''" : "");
-        if (*letter != '\'')
-        {
-            mmgr_line_ch(out, *letter);
-        }
-    }
+    cli_text_put_doubled(out, text, "'");
     mmgr_line_ch(out, '\'');
 }

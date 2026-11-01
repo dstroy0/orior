@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // jupyter_debug.c: a kernel's next run of a file's code readied to be debugged under that file's name, with debugpy
 // listening in the kernel's process from the first time it is requested
+#include "../text/text.h"
 #include "jupyter_internal.h"
 
 // how long the kernel has to ready the run, in milliseconds
@@ -44,16 +45,8 @@ static int jupyter_port_read(const char *text, unsigned int *port)
 {
     unsigned long long start = 0ull;
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    while ((start < end) &&
-           ((text[start] == ' ') || (text[start] == '\t') || (text[start] == '\n') || (text[start] == '\r')))
-    {
-        start += 1ull;
-    }
-    while ((end > start) && ((text[end - 1ull] == ' ') || (text[end - 1ull] == '\t') || (text[end - 1ull] == '\n') ||
-                             (text[end - 1ull] == '\r')))
-    {
-        end -= 1ull;
-    }
+    start = cli_text_past_any(text, start, end, " \t\n\r");
+    end = (start + cli_text_back_past(text + start, end - start, " \t\n\r"));
     start += ((start < end) && (text[start] == '+')) ? 1ull : 0ull;
     unsigned int value = 0u;
     for (unsigned long long at = start; at < end; at += 1ull)

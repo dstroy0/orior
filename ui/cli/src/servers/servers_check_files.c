@@ -80,10 +80,10 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
     cli_lock_take(&s_lock);
     s_batch = g_cli_cells->persistent_buf_alloc(sizeof(*s_batch), &g_cli_servers_check_cells);
     char *const text = g_cli_cells->temporary_buf_alloc(text_bytes, &g_cli_servers_check_cells);
-    const char **const paths =
-        g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*paths), &g_cli_servers_check_cells);
-    CliServersWaiting *const waiting_on =
-        g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*waiting_on), &g_cli_servers_check_cells);
+    const char **const paths = g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*paths),
+                                                                &g_cli_servers_check_cells);
+    CliServersWaiting *const waiting_on = g_cli_cells->temporary_buf_alloc(
+        ((unsigned long long)most + 1ull) * sizeof(*waiting_on), &g_cli_servers_check_cells);
     if ((s_batch == NULL) || (text == NULL) || (paths == NULL) || (waiting_on == NULL))
     {
         g_cli_cells->persistent_buf_release(waiting_on, &g_cli_servers_check_cells);

@@ -22,7 +22,7 @@
 // Each tree keeps its own tabs, the one shown, the files opened last, and the text of every file with
 // changes not yet saved: the app closed with changes open comes back with them still unsaved. Back and
 // Forward walk the places the cursor jumped from and to, and Last Editor steps through the tabs by
-// when each was last shown, while Ctrl is held.
+// when each was last shown, while Ctrl is pressed.
 
 import { invoke } from "./bridge.js";
 import { findWith } from "./editor/find.js";
@@ -45,7 +45,7 @@ import { findPaged, inWindow, jumpPaged } from "./paged.js";
 import { compareWithClipboard, conflicted, openMerge } from "./edit/compare.js";
 import { checkShown, drawCrumbs, goToDefinition, tidy } from "./edit/crumbs.js";
 import { drawBinary, drawDefs } from "./edit/defs.js";
-import { along, forgetHeads, markChanges, sendChanges, setLineHistory } from "./edit/held.js";
+import { along, forgetHeads, markChanges, sendChanges, setLineHistory } from "./edit/mirror.js";
 import { closeSplitTab, moveToNextSplit, openInSplit, splitEditor, unsplit } from "./edit/open.js";
 import { bindPage, startPanes } from "./edit/panes.js";
 import { closePeek, stepChange } from "./edit/peek.js";
@@ -84,7 +84,7 @@ export const state = {
   moving: false,
   // Whether the tabs the tree had open are being opened again as it starts.
   restoring: false,
-  // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is held.
+  // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is pressed.
   used: [],
   cycle: null,
   // How many times the last commit's files were forgotten, for a branch on the window's side to know
@@ -249,19 +249,19 @@ export function drawEmpty(shown) {
 export async function startEdit(defs) {
   document.querySelector("#mode-edit .desk").dataset.tabs = sideTabs() ? "side" : "row";
   new ResizeObserver(() => rowOverflowing()).observe(document.getElementById("tabs"));
-  // Find runs on the window's side: over the branch a text is held as, once the changes before it have gone there, and
-  // over the pages a paged file is held as, the window brought to a match outside it.
+  // Find runs on the window's side: over the branch a text is stored as, once the changes before it have gone there, and
+  // over the pages a paged file is stored as, the window brought to a match outside it.
   findWith({
     search: (s, sought, most) => {
       if (s.window?.paged) {
         return findPaged(s, sought, most).catch(() => null);
       }
-      const held = s.doc.held;
-      if (!held?.ready) {
+      const mirrored = s.doc.mirrored;
+      if (!mirrored?.ready) {
         return null;
       }
       sendChanges(s.doc);
-      return along(held, () => invoke("document_find", { key: held.key, sought, most })).catch(() => null);
+      return along(mirrored, () => invoke("document_find", { key: mirrored.key, sought, most })).catch(() => null);
     },
     reach: (s, line) => (s.window?.paged && !inWindow(s, line) ? jumpPaged(s, line) : Promise.resolve()),
   });
@@ -442,7 +442,7 @@ export function editing() {
 }
 
 // Forgets the folders read so far and the tabs, for a tree opened in place of this one. What the tabs
-// held stays kept with the tree they were open in.
+// kept stays kept with the tree they were open in.
 // Sends each file opened in this window to `elsewhere`, a function of its path, line and column, or
 // with null keeps them here.
 export function openElsewhere(elsewhere) {

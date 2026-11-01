@@ -80,7 +80,7 @@ export function fuzzy(query, text, from = 0) {
 // `text` as nodes, the places in `hits` marked.
 export function marked(text, hits) {
   const nodes = [];
-  const held = new Set(hits);
+  const hitSet = new Set(hits);
   let run = "";
   let inside = false;
   const flush = () => {
@@ -90,9 +90,9 @@ export function marked(text, hits) {
     run = "";
   };
   for (let at = 0; at < text.length; at += 1) {
-    if (held.has(at) !== inside) {
+    if (hitSet.has(at) !== inside) {
       flush();
-      inside = held.has(at);
+      inside = hitSet.has(at);
     }
     run += text[at];
   }

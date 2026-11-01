@@ -7,22 +7,19 @@
 #include "../machine/carry.h"
 #include "../tests/test_runs.h"
 #include "../text/json_tree.h"
-#include "../text/pieces.h"
+#include "../text/text.h"
 #include "at_terminal.h"
 
 // the most files and settings one taking takes; the most bytes of the lines a run's failed tests or its coverage print;
-// and the bytes a piece of a text written is buffered in before it goes to a cell of its own
+// and the most bytes of what is carried written as its differences or as a taking
 #define CLI_AT_TERMINAL_TAKEN 4096u
 #define CLI_AT_TERMINAL_LINES (1u << 20u)
-#define CLI_AT_TERMINAL_PIECE 4096u
+#define CLI_AT_TERMINAL_CARRIED (8ull << 20u)
 
-// Lines a run prints, buffered in pieces through the run: each piece a cell of its own, the line the next is written
-// into, and how many lines are buffered
+// Lines a run prints, buffered through the run: the line over a cell of the most they hold, and how many are buffered
 typedef struct
 {
-    CliPieces pieces;
     VerbaLinea line;
-    char piece[CLI_AT_TERMINAL_PIECE];
     unsigned long long lines;
 } CliTestLines;
 
@@ -41,8 +38,7 @@ static CliWake s_wake = CLI_WAKE_INIT;
 // out
 static void tests_line_put(CliTestLines *lines, const char *text, unsigned long long size)
 {
-    const unsigned long long used = lines->pieces.size + lines->line.at;
-    if (used + size + 1ull > CLI_AT_TERMINAL_LINES)
+    if (lines->line.at + size + 1ull > CLI_AT_TERMINAL_LINES)
     {
         return;
     }
@@ -51,24 +47,32 @@ static void tests_line_put(CliTestLines *lines, const char *text, unsigned long 
     lines->lines += 1ull;
 }
 
-// `size` bytes written into the line `context`
-static void tests_written(void *context, const char *bytes, unsigned long long size)
+// the line of the lines buffered begun over a cell of the most they hold
+static void tests_lines_begun(CliTestLines *lines)
 {
-    mmgr_line_put_n((VerbaLinea *)context, bytes, size);
+    const unsigned long long room = CLI_AT_TERMINAL_LINES + 1ull;
+    char *const text = g_cli_cells->temporary_buf_alloc(room, &g_cli_command_line_cells);
+    lines->line = mmgr_line_over(text, room);
+    lines->lines = 0ull;
 }
 
-// the lines buffered written into `into` and a line's end after them, where any are buffered, and their cells given
-// back
+// the cell of the lines buffered given back
+static void tests_lines_given(CliTestLines *lines)
+{
+    g_cli_cells->persistent_buf_release(lines->line.out, &g_cli_command_line_cells);
+    lines->line = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    lines->lines = 0ull;
+}
+
+// the lines buffered written into `into` and a line's end after them, where any are buffered, and their cell given back
 static void tests_lines_written(CliTestLines *lines, VerbaLinea *into)
 {
-    const int whole = cli_pieces_ended(&lines->pieces, &lines->line);
-    if (whole && (lines->lines > 0ull))
+    if (mmgr_line_ok(&lines->line) && (lines->lines > 0ull))
     {
-        cli_pieces_each(&lines->pieces, tests_written, into);
+        (void)mmgr_line_put_n(into, lines->line.out, lines->line.at);
         mmgr_line_ch(into, '\n');
     }
-    cli_pieces_given(&lines->pieces);
-    lines->lines = 0ull;
+    tests_lines_given(lines);
 }
 
 // a whole number member of `node` in `json`, 0 where it has none
@@ -77,10 +81,7 @@ static unsigned long long tests_whole(const CliJson *json, unsigned int node, co
     const unsigned int member = cli_json_member(json, node, name);
     unsigned long long value = 0ull;
     const char *const digits = cli_json_is(json, member, CFG_JSON_NUMBER) ? json->text + json->node[member].text : "";
-    for (unsigned long long at = 0ull; (digits[at] >= '0') && (digits[at] <= '9'); at += 1ull)
-    {
-        value = (value * 10ull) + (unsigned long long)(digits[at] - '0');
-    }
+    value = cli_text_number(digits, 0ull, cellul.len(&(CatenaFinitaCfg){.src = digits, .cap = CLI_CELLS_POOL}), NULL);
     return value;
 }
 
@@ -104,10 +105,7 @@ static void tests_counts(const CliJson *json, unsigned int done)
     // the seconds to a tenth: the whole seconds, then the tenths rounded from the hundredths
     unsigned long long whole = 0ull;
     unsigned long long at = 0ull;
-    for (; (written[at] >= '0') && (written[at] <= '9'); at += 1ull)
-    {
-        whole = (whole * 10ull) + (unsigned long long)(written[at] - '0');
-    }
+    whole = cli_text_number(written, 0ull, cellul.len(&(CatenaFinitaCfg){.src = written, .cap = CLI_CELLS_POOL}), &at);
     unsigned long long tenths = 0ull;
     if (written[at] == '.')
     {
@@ -159,16 +157,13 @@ static void tests_event(void *context, const char *body, unsigned long long size
             unsigned long long message_size = 0ull;
             const char *const id = cli_json_string(json, cli_json_member(json, outcome, "id"), NULL);
             const char *const message = cli_json_string(json, cli_json_member(json, outcome, "message"), &message_size);
-            unsigned long long first = 0ull;
-            while ((message != NULL) && (first < message_size) && (message[first] != '\n'))
-            {
-                first += 1ull;
-            }
-            first -= ((first > 0ull) && (message[first - 1ull] == '\r')) ? 1ull : 0ull;
+            const char *const said = (message != NULL) ? message : "";
+            unsigned long long first = cli_text_to_any(said, 0ull, message_size, "\n");
+            first -= ((first > 0ull) && (said[first - 1ull] == '\r')) ? 1ull : 0ull;
             mmgr_line_put(&failed, "FAILED ");
             mmgr_line_put(&failed, (id != NULL) ? id : "");
             mmgr_line_put(&failed, ": ");
-            mmgr_line_put_n(&failed, (message != NULL) ? message : "", first);
+            mmgr_line_put_n(&failed, said, first);
             tests_line_put(&s_failed, line, mmgr_line_ok(&failed) ? failed.at : 0ull);
         }
     }
@@ -210,12 +205,8 @@ int cli_at_terminal_tests(const char *root, const char *const *given, unsigned i
     static CliLock s_running = CLI_LOCK_INIT;
     cli_lock_take(&s_running);
     cli_lock_take(&s_lock);
-    cli_pieces_begun(&s_failed.pieces, &s_failed.line, s_failed.piece, sizeof(s_failed.piece),
-                     &g_cli_command_line_cells);
-    cli_pieces_begun(&s_covered.pieces, &s_covered.line, s_covered.piece, sizeof(s_covered.piece),
-                     &g_cli_command_line_cells);
-    s_failed.lines = 0ull;
-    s_covered.lines = 0ull;
+    tests_lines_begun(&s_failed);
+    tests_lines_begun(&s_covered);
     s_counts_used = 0ull;
     s_done = 0;
     s_good = 0;
@@ -224,6 +215,10 @@ int cli_at_terminal_tests(const char *root, const char *const *given, unsigned i
     unsigned long long run = 0ull;
     if (!cli_test_runs_start(root, given, count, 1, cover, sink, &run, err_msg))
     {
+        cli_lock_take(&s_lock);
+        tests_lines_given(&s_failed);
+        tests_lines_given(&s_covered);
+        cli_lock_give(&s_lock);
         cli_lock_give(&s_running);
         return 0;
     }
@@ -242,19 +237,23 @@ int cli_at_terminal_tests(const char *root, const char *const *given, unsigned i
     return good;
 }
 
-// what `line` wrote in `pieces` joined into a cell, read into `json`, a tree of its size, and the cell given back: the
-// tree's root, or CLI_JSON_NONE with the tree containing nothing where the text or its tree could not be parsed
-static unsigned int tests_tree_of(CliJson *json, CliPieces *pieces, VerbaLinea *line, const char *what)
+// a cell of the most what is carried writes to
+static char *tests_carried_taken(void)
+{
+    return g_cli_cells->temporary_buf_alloc(CLI_AT_TERMINAL_CARRIED, &g_cli_command_line_cells);
+}
+
+// what `line` wrote read into `json`, a tree of its size, and the cell it wrote in given back: the tree's root, or
+// CLI_JSON_NONE with the tree containing nothing where the text or its tree could not be parsed
+static unsigned int tests_tree_of(CliJson *json, char *cell, const VerbaLinea *line)
 {
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
-    unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(pieces, line, what, &size);
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    const unsigned int root = (joined != NULL)
-                                  ? cli_json_taken(json, joined, size, 0u, 0ull, &ignored, &g_cli_command_line_cells)
-                                  : CLI_JSON_NONE;
-    g_cli_cells->persistent_buf_release(joined, &g_cli_command_line_cells);
+    const unsigned int root = mmgr_line_ok(line) ? cli_json_taken_temporary(json, line->out, line->at, 0u, 0ull,
+                                                                            &ignored, &g_cli_command_line_cells)
+                                                 : CLI_JSON_NONE;
+    g_cli_cells->persistent_buf_release(cell, &g_cli_command_line_cells);
     return root;
 }
 
@@ -269,17 +268,16 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
         cli_lock_give(&s_take_lock);
         return 0;
     }
-    char piece[CLI_AT_TERMINAL_PIECE];
-    CliPieces pieces;
-    VerbaLinea differences;
-    cli_pieces_begun(&pieces, &differences, piece, sizeof(piece), &g_cli_command_line_cells);
+    char *const differences_text = tests_carried_taken();
+    VerbaLinea differences = mmgr_line_over(differences_text, CLI_AT_TERMINAL_CARRIED);
     cli_carry_differences(home, &s_there, &differences);
     CliJson tree;
     CliJson *const json = &tree;
-    const unsigned int all = tests_tree_of(json, &pieces, &differences, "the differences of what is carried");
+    const unsigned int all = tests_tree_of(json, differences_text, &differences);
     // a place and a key are each a node of the differences: as many as their nodes, and settings.json, contain them
     const unsigned int room = ((json->nodes + 1u) < CLI_AT_TERMINAL_TAKEN) ? (json->nodes + 1u) : CLI_AT_TERMINAL_TAKEN;
-    const char **const chosen_places = g_cli_cells->temporary_buf_alloc(2ull * room * sizeof(const char *), &g_cli_command_line_cells);
+    const char **const chosen_places =
+        g_cli_cells->temporary_buf_alloc(2ull * room * sizeof(const char *), &g_cli_command_line_cells);
     if (chosen_places == NULL)
     {
         cli_json_given(json);
@@ -339,11 +337,11 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
     }
     else
     {
-        VerbaLinea taking;
-        cli_pieces_begun(&pieces, &taking, piece, sizeof(piece), &g_cli_command_line_cells);
+        char *const taking_text = tests_carried_taken();
+        VerbaLinea taking = mmgr_line_over(taking_text, CLI_AT_TERMINAL_CARRIED);
         done = cli_carry_take(home, from, &s_there, chosen_places, places, chosen_keys, keys, &taking, err_msg);
         CliJson took_tree;
-        const unsigned int took = tests_tree_of(&took_tree, &pieces, &taking, "a taking");
+        const unsigned int took = tests_tree_of(&took_tree, taking_text, &taking);
         if (done)
         {
             const unsigned int files = cli_json_member(&took_tree, took, "files");
@@ -369,13 +367,11 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
 
 int cli_at_terminal_undo(const char *home, const char *id, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char piece[CLI_AT_TERMINAL_PIECE];
-    CliPieces pieces;
-    VerbaLinea taking;
-    cli_pieces_begun(&pieces, &taking, piece, sizeof(piece), &g_cli_command_line_cells);
+    char *const taking_text = tests_carried_taken();
+    VerbaLinea taking = mmgr_line_over(taking_text, CLI_AT_TERMINAL_CARRIED);
     const int done = cli_carry_undo(home, id, &taking, err_msg);
     CliJson tree;
-    const unsigned int took = tests_tree_of(&tree, &pieces, &taking, "a taking undone");
+    const unsigned int took = tests_tree_of(&tree, taking_text, &taking);
     if (done)
     {
         unsigned long long size = 0ull;

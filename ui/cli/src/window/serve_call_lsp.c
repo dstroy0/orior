@@ -10,9 +10,7 @@
 #include "../editor/files.h"
 #include "serve_internal.h"
 
-// the bytes an argument handed to a server is begun to be written in, doubling as it fills, and the most lines a view's
-// openers name
-#define CLI_SERVE_LSP_JSON_FIRST 4096u
+// the bytes an argument handed to a server is written in, and the most lines a view's openers name
 #define CLI_SERVE_LSP_OPENERS 64u
 
 // the tree open into `root` and the file of the argument `path` joined to it into `full`, the servers informed where
@@ -185,12 +183,14 @@ static int lsp_actions_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
            cli_serve_place(args, "to", &to, err_msg) && cli_servers_actions(full, from, to, out, err_msg);
 }
 
-// the argument `key` written as JSON into `line`, made growing, null where it is not given, the line given back with
-// g_cli_cells->persistent_buf_release(line->out, &g_cli_window_cells) either way: 1, or 0 with why given where the cellblock could not
-// meet it
+// the argument `key` written as JSON into `line`, null where it is not given, the line given back with
+// g_cli_cells->persistent_buf_release(line->out, &g_cli_window_cells) either way: 1, or 0 with why given where the
+// cellblock could not meet it
 static int lsp_json_written(const CliServeArgs *args, const char *key, VerbaLinea *line, VerbaLinea *err_msg)
 {
-    (void)cli_growing_line_made(line, CLI_SERVE_LSP_JSON_FIRST, &g_cli_window_cells);
+    const unsigned long long room = cli_json_written_room(args->json);
+    char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_window_cells);
+    *line = mmgr_line_over(cell, room);
     const unsigned int given = cli_serve_arg(args, key);
     if (given != CLI_JSON_NONE)
     {
@@ -328,12 +328,13 @@ static int checkers_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     return cli_servers_set_checkers(s_names, count, has_root ? root : NULL, &emit, out, err_msg);
 }
 
-// the argument `key` written as JSON into `json`, a growing line given back by the caller, `null` where there is none:
-// 1, or 0 with why given where the cells cannot meet it
+// the argument `key` written as JSON into `json`, a line given back by the caller, `null` where there is none: 1, or 0
+// with why given where the cells cannot meet it
 static int plugin_json_of(const CliServeArgs *args, const char *key, VerbaLinea *json, VerbaLinea *err_msg)
 {
-    *json = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(json, CLI_SERVE_LSP_JSON_FIRST, &g_cli_window_cells);
+    const unsigned long long room = cli_json_written_room(args->json);
+    char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_window_cells);
+    *json = mmgr_line_over(cell, room);
     const unsigned int node = cli_serve_arg(args, key);
     if (node == CLI_JSON_NONE)
     {

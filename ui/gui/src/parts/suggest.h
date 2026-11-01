@@ -15,7 +15,7 @@
 // 26rem, the detail pane's width, 18rem, and its most height, 14rem, a kind's mark, 0.55rem, a row's padding across,
 // 0.55rem, the gap between a row's parts, 0.5rem, the list's padding down, 0.2rem, how far the list's left stands
 // before the prefix's cell, and the detail's padding; the most items stored, the most bytes a prefix takes, and the
-// bytes the items' texts are stored in before they grow
+// bytes the items' texts are stored in
 #define GUI_SUGGEST_ROW 22
 #define GUI_SUGGEST_ROWS 10u
 #define GUI_SUGGEST_LEAST 256
@@ -31,7 +31,7 @@
 #define GUI_SUGGEST_DETAIL_PAD_Y 6
 #define GUI_SUGGEST_ITEMS_MOST 8192u
 #define GUI_SUGGEST_PREFIX 256u
-#define GUI_SUGGEST_TEXT_FIRST 65536u
+#define GUI_SUGGEST_TEXT_ROOM (1ull << 20u)
 
 // what a key did: nothing of the list's, the list changed, the item chosen accepted, or the list closed
 #define GUI_SUGGEST_NONE 0u
@@ -55,7 +55,7 @@ typedef struct
 } GuiItem;
 
 // The completion: whether the list is open and whether the keys forced it open; the items in a cell, how many, and
-// their texts in a line that grows in a cell of its own; the items shown, indexes in a cell in rank order, how many;
+// their texts in a line in a cell of its own; the items shown, indexes in a cell in rank order, how many;
 // the row chosen and the first row shown; the prefix the items answer, its line and its first unit; and the list's
 // rectangle, the rows' and the detail pane's, where they were drawn last
 typedef struct

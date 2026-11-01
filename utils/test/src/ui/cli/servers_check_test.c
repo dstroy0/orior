@@ -12,23 +12,6 @@ static char s_names[CHECK_FILES][64];
 static const char *s_files[CHECK_FILES];
 static char s_owners[1u << 18u];
 
-// The files the check lists back: how many, and whether each stood where it was given
-typedef struct
-{
-    unsigned int count;
-    int in_order;
-} CheckListed;
-
-// a file the check lists, checked against the one given at its place
-static void check_listed(void *context, const char *file)
-{
-    CheckListed *const listed = context;
-    listed->in_order =
-        listed->in_order && (listed->count < CHECK_FILES) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = s_names[listed->count], .cap = CLI_CELLS_POOL}));
-    listed->count += 1u;
-}
-
 // nothing the servers send is received
 static void events_ignored(void *context, const char *event, const char *json, unsigned long long size)
 {
@@ -89,9 +72,22 @@ int main(void)
     }
     CliServersSink sink = {events_ignored, NULL, ""};
     (void)cli_servers_check_tree(root, s_files, CHECK_FILES, &sink);
-    CheckListed listed = {0u, 1};
-    cli_check(cli_servers_check_tree_files(root, check_listed, &listed), "the check is on over the tree");
-    cli_check((listed.count == CHECK_FILES) && listed.in_order, "every file of the tree is stored and listed in order");
+    unsigned long long listed_size = 0ull;
+    char *const listed = cli_servers_check_tree_files(root, &listed_size);
+    cli_check(listed != NULL, "the check is on over the tree");
+    unsigned int count = 0u;
+    int in_order = 1;
+    for (unsigned long long at = 0ull; at < listed_size; count += 1u)
+    {
+        const char *const file = listed + at;
+        in_order = in_order && (count < CHECK_FILES) &&
+                   (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = s_names[count], .cap = CLI_CELLS_POOL}));
+        at += cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1ull;
+    }
+    cli_check((count == CHECK_FILES) && in_order, "every file of the tree is stored and listed in order");
+    g_cli_cells->persistent_buf_release(listed, &g_cli_servers_cells);
+    char *const elsewhere = cli_servers_check_tree_files("another tree", &listed_size);
+    cli_check((elsewhere == NULL) && (listed_size == 0ull), "and no file is listed of another tree");
     const unsigned long long in_use = check_in_use();
     cli_check(in_use < (1ull << 20u), "the check takes cells sized to the tree's files, under a mebibyte for these");
     cli_servers_check_let_go();

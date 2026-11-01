@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db_vs.c: Visual Studio's environment, as its vcvars64.bat sets it, read once for a program that runs as cl
 // does
+#include "../text/text.h"
 #include "compile_db_internal.h"
 
 #if defined(_WIN32)
@@ -94,12 +95,10 @@ static int cli_vs_read(void)
     s_vs.count = 0u;
     for (unsigned long long at = 0ull; at < ran->out_size;)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = ran->out + at, .val = '\n', .bytes = ran->out_size - at});
-        // a newline found lies in the output, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - ran->out) : ran->out_size;
+        const CliTextLine bounds = cli_text_line_at(ran->out, at, ran->out_size);
+        const unsigned long long end = bounds.stop;
         unsigned long long size = end - at;
-        size -= ((newline != NULL) && (size > 0ull) && (ran->out[end - 1ull] == '\r')) ? 1ull : 0ull;
+        size -= bounds.stop - bounds.cut;
         const char *const row = ran->out + at;
         at = end + 1ull;
         const char *const equals = memor.chr(&(MemoriaCfg){.src = row, .val = '=', .bytes = size});

@@ -8,6 +8,7 @@
 #include "icons.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
+#include "../../cli/src/text/text.h"
 
 #include <math.h>
 
@@ -47,14 +48,17 @@ static const char s_eye_strokes[] =
     "M60.5 147.2L59.2 150.8M152.2 149L150 150M152.5 149L155 149.5L176.5 149.2"
     "M188.2 149L187 149.5L181.2 149.5L179.2 150M188.8 149L189.8 149.2M268.8 149L269 150.8"
     "M75.5 149.2L64.8 150.8L59.5 151M177 149.2L178.5 149.5L179 150M252.5 149.2L263.2 150.8L268.8 151"
-    "M149.8 150.2L148.9 153.2L141.2 166.5L140.6 168.5L141.1 169.6L187.9 169.6L188.4 168.5L187.8 166.5L180.2 153.5L179.2 150.2"
+    "M149.8 150.2L148.9 153.2L141.2 166.5L140.6 168.5L141.1 169.6L187.9 169.6L188.4 168.5L187.8 166.5L180.2 "
+    "153.5L179.2 150.2"
     "M59.2 151.2L59.2 152.5L59.7 154L61.8 156.2M269 151.2L269.2 151.8M272.2 151.8L269.5 152"
     "M269.2 152.2L268.8 154M268.5 154.2L263 155.4L251.5 159.8M268.8 154.5L267.9 157.5L265.8 160.2"
     "M62.2 156.2L63.8 155.5L65.2 155.7L75.5 159.4L76.8 159.5M62 156.5L63 159.2L65 161.2"
     "M265.2 160.2L262.5 161.1L253.2 167.7L241 175.2L230 180.8L215.8 186.6L199 191.4L197.5 192.2"
-    "M265.5 160.5L264.9 162.8L263.8 164.5L251.8 177.1L240.5 187.1L227.5 196.6L214.5 204.2L202.5 209.7L189 214L182.5 215.1L181 214.8"
+    "M265.5 160.5L264.9 162.8L263.8 164.5L251.8 177.1L240.5 187.1L227.5 196.6L214.5 204.2L202.5 209.7L189 214L182.5 "
+    "215.1L181 214.8"
     "M65.5 161.2L68.8 162.3L84.8 172.1L96.2 178.1L113.2 185.1L125.2 188.8L128.8 190.2"
-    "M65.2 161.5L65.7 163.2L66.9 165.2L78.8 177.2L88.5 185.8L103 196.6L115.5 204L127.8 209.6L140.5 213.7L142.8 214.1L144.5 213.8"
+    "M65.2 161.5L65.7 163.2L66.9 165.2L78.8 177.2L88.5 185.8L103 196.6L115.5 204L127.8 209.6L140.5 213.7L142.8 "
+    "214.1L144.5 213.8"
     "M38.8 168.5L43.8 174L52.5 182.6L53.8 185M290 169L277.1 183.2L276 185.5M53.5 185.2L50 189.5"
     "M54 185.2L56.8 186.5L69.2 197.2L70.5 199.2M275.8 185.8L273 187.2L261.8 196.9L260.4 198.2L259.8 199.8"
     "M276 185.8L279.8 189.5M129 190.5L131 190.4L141.5 192.6L144.2 192"
@@ -72,9 +76,9 @@ static const char s_eye_strokes[] =
     "M135.2 231.8L139 231.9L142 232.6L151.5 234L162.5 234.6L164.2 235.2M135.2 231.8L130.5 263.2"
     "M194.5 232L192.8 231.8L180.8 233.8L166.8 234.8L164.5 235.2M194.5 232L199 263"
     "M164.5 235.5L164.2 276.5L164.8 278.8";
-static const char s_eye_iris[] =
-    "M163 209.4L158.8 208.9L155.5 207.9L151.2 205.4L145.4 199.5L142.6 194.8L145.2 192.1L159 193.6L176.2 193.6L180.2 193.1"
-    "L183.1 196L180.9 199.8L175.2 205.4L173 206.9L167.5 208.9L163 209.4Z";
+static const char s_eye_iris[] = "M163 209.4L158.8 208.9L155.5 207.9L151.2 205.4L145.4 199.5L142.6 194.8L145.2 "
+                                 "192.1L159 193.6L176.2 193.6L180.2 193.1"
+                                 "L183.1 196L180.9 199.8L175.2 205.4L173 206.9L167.5 208.9L163 209.4Z";
 static const float s_eye_box[4] = {36.8f, 28.5f, 255.2f, 252.2f};
 // the eye's line in its units, as the page strokes it
 #define ICONS_EYE_STROKE 2.2f
@@ -85,11 +89,18 @@ static const float s_git_dots[] = {5.0f, 3.0f, 1.5f, 5.0f, 13.0f, 1.5f, 11.0f, 4
 static const float s_render_dots[] = {10.6f, 6.1f, 1.1f};
 static const float s_view_dots[] = {8.0f, 8.0f, 1.9f};
 
-#define ICONS_BOX "M3.4 3h9.2A1.4 1.4 0 0 1 14 4.4v7.2a1.4 1.4 0 0 1-1.4 1.4H3.4A1.4 1.4 0 0 1 2 11.6V4.4A1.4 1.4 0 0 1 3.4 3z"
+#define ICONS_BOX                                                                                                      \
+    "M3.4 3h9.2A1.4 1.4 0 0 1 14 4.4v7.2a1.4 1.4 0 0 1-1.4 1.4H3.4A1.4 1.4 0 0 1 2 11.6V4.4A1.4 1.4 0 0 1 3.4 3z"
 #define ICONS_LOCK_BODY "M4.6 7.4h6.8a.9.9 0 0 1 .9.9v4.6a.9.9 0 0 1-.9.9H4.6a.9.9 0 0 1-.9-.9V8.3a.9.9 0 0 1 .9-.9z"
 
 static const GuiIconShape s_shapes[] = {
-    {"folder", {"M2 4.6A1.6 1.6 0 0 1 3.6 3h2.8l1.6 1.6h4.4A1.6 1.6 0 0 1 14 6.2v5.2a1.6 1.6 0 0 1-1.6 1.6H3.6A1.6 1.6 0 0 1 2 11.4z", NULL, NULL}, NULL, 0u, 0},
+    {"folder",
+     {"M2 4.6A1.6 1.6 0 0 1 3.6 3h2.8l1.6 1.6h4.4A1.6 1.6 0 0 1 14 6.2v5.2a1.6 1.6 0 0 1-1.6 1.6H3.6A1.6 1.6 0 0 1 2 "
+      "11.4z",
+      NULL, NULL},
+     NULL,
+     0u,
+     0},
     {"structure", {"M2.5 2.5h4v3h-4zM9.5 6.5h4v3h-4zM9.5 11h4v3h-4z", "M4.5 5.5v7h5M4.5 8h5", NULL}, NULL, 0u, 0},
     {"commit", {"M1.5 8h4M10.5 8h4", "M8 5.4a2.6 2.6 0 1 1 0 5.2a2.6 2.6 0 0 1 0-5.2z", NULL}, NULL, 0u, 0},
     {"more", {NULL, NULL, NULL}, s_more_dots, 3u, 0},
@@ -100,11 +111,25 @@ static const GuiIconShape s_shapes[] = {
     {"git", {"M5 3.6v8.8", "M5 10c0-2.6 6-2.2 6-5", NULL}, s_git_dots, 3u, 0},
     {"profile", {"M2 13.5h12M3 10.5h8.5M4 7.5h5M5 4.5h2", NULL, NULL}, NULL, 0u, 0},
     {"containers", {"M2.5 5L8 2.5 13.5 5v6L8 13.5 2.5 11z", "M2.5 5L8 7.5 13.5 5M8 7.5v6", NULL}, NULL, 0u, 0},
-    {"tests", {"M6.2 2h3.6", "M6.8 2v4.3L3.1 12.5A1 1 0 0 0 4 14h8a1 1 0 0 0 .9-1.5L9.2 6.3V2", "M4.7 10.4h6.6"}, NULL, 0u, 0},
+    {"tests",
+     {"M6.2 2h3.6", "M6.8 2v4.3L3.1 12.5A1 1 0 0 0 4 14h8a1 1 0 0 0 .9-1.5L9.2 6.3V2", "M4.7 10.4h6.6"},
+     NULL,
+     0u,
+     0},
     {"gear", {NULL, "M8 5.9a2.1 2.1 0 1 1 0 4.2a2.1 2.1 0 0 1 0-4.2z", NULL}, NULL, 0u, 1},
     {"bell", {"M4.2 11.2V7.6a3.8 3.8 0 0 1 7.6 0v3.6l1.2 1.4H3z", "M6.6 13.9a1.5 1.5 0 0 0 2.8 0", NULL}, NULL, 0u, 0},
-    {"database", {"M3 4.2C3 3 5.2 2 8 2s5 1 5 2.2-2.2 2.2-5 2.2-5-1-5-2.2z", "M3 4.2v7.6C3 13 5.2 14 8 14s5-1 5-2.2V4.2", "M3 8c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2"}, NULL, 0u, 0},
-    {"comms", {"M8 6.3a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 0 1 0-3.4z", "M8 6.3V3.6M6.5 8.9l-2.3 1.4M9.5 8.9l2.3 1.4", "M8 1.6a1 1 0 1 1 0 2a1 1 0 0 1 0-2zM3.3 10a1 1 0 1 1 0 2a1 1 0 0 1 0-2zM12.7 10a1 1 0 1 1 0 2a1 1 0 0 1 0-2z"}, NULL, 0u, 0},
+    {"database",
+     {"M3 4.2C3 3 5.2 2 8 2s5 1 5 2.2-2.2 2.2-5 2.2-5-1-5-2.2z", "M3 4.2v7.6C3 13 5.2 14 8 14s5-1 5-2.2V4.2",
+      "M3 8c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2"},
+     NULL,
+     0u,
+     0},
+    {"comms",
+     {"M8 6.3a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 0 1 0-3.4z", "M8 6.3V3.6M6.5 8.9l-2.3 1.4M9.5 8.9l2.3 1.4",
+      "M8 1.6a1 1 0 1 1 0 2a1 1 0 0 1 0-2zM3.3 10a1 1 0 1 1 0 2a1 1 0 0 1 0-2zM12.7 10a1 1 0 1 1 0 2a1 1 0 0 1 0-2z"},
+     NULL,
+     0u,
+     0},
     {"lock", {ICONS_LOCK_BODY, "M5.9 7.4V5.6a2.1 2.1 0 0 1 4.2 0v1.8", NULL}, NULL, 0u, 0},
     {"unlock", {ICONS_LOCK_BODY, "M5.9 7.4V5.6a2.1 2.1 0 0 1 4-.9", NULL}, NULL, 0u, 0},
     {"chevron", {"M6 4l4 4-4 4", NULL, NULL}, NULL, 0u, 0},
@@ -116,20 +141,47 @@ static const GuiIconShape s_shapes[] = {
     {"maximize", {"M4 4h8v8H4z", NULL, NULL}, NULL, 0u, 0},
     {"restore", {"M4 6h6v6H4z", "M6 6V4h6v6h-2", NULL}, NULL, 0u, 0},
     {"close", {"M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6", NULL, NULL}, NULL, 0u, 0},
-    {"protocol", {"M3.5 2.5v11M12.5 2.5v11", "M3.5 5.5h7.4M9.4 4l1.5 1.5-1.5 1.5", "M12.5 10.5H5.1M6.6 9l-1.5 1.5 1.5 1.5"}, NULL, 0u, 0},
-    {"ingest", {"M8 2.2v7.3M5 6.6l3 3 3-3", "M2.5 10.2v1.9a1.4 1.4 0 0 0 1.4 1.4h8.2a1.4 1.4 0 0 0 1.4-1.4v-1.9", NULL}, NULL, 0u, 0},
+    {"protocol",
+     {"M3.5 2.5v11M12.5 2.5v11", "M3.5 5.5h7.4M9.4 4l1.5 1.5-1.5 1.5", "M12.5 10.5H5.1M6.6 9l-1.5 1.5 1.5 1.5"},
+     NULL,
+     0u,
+     0},
+    {"ingest",
+     {"M8 2.2v7.3M5 6.6l3 3 3-3", "M2.5 10.2v1.9a1.4 1.4 0 0 0 1.4 1.4h8.2a1.4 1.4 0 0 0 1.4-1.4v-1.9", NULL},
+     NULL,
+     0u,
+     0},
     {"render", {ICONS_BOX, "M2.4 11.4 6 7.8l2.6 2.6 1.6-1.6 3.4 3.4", NULL}, s_render_dots, 1u, 0},
     {"sim", {"M1.8 8.6C3.3 3.4 4.9 3.4 6.4 8.2s3.2 4.8 4.7.4c.9-2.6 2-3.4 3.1-2.6", NULL, NULL}, NULL, 0u, 0},
     {"pipeline", {"M1.5 6h3.2v4H1.5zM6.4 6h3.2v4H6.4zM11.3 6h3.2v4h-3.2z", "M4.7 8h1.7M9.6 8h1.7", NULL}, NULL, 0u, 0},
     {"stage", {"M8 2.3 14 5.3 8 8.3 2 5.3z", "M2 8.1l6 3 6-3", "M2 10.9l6 3 6-3"}, NULL, 0u, 0},
     {"runs", {"M1.5 8.5h2.8l1.6-4.2 2.7 7.4 1.6-3.2h4.3", NULL, NULL}, NULL, 0u, 0},
     {"search", {"M6.8 2.4a4.4 4.4 0 1 1 0 8.8a4.4 4.4 0 0 1 0-8.8z", "M10 10l3.9 3.9", NULL}, NULL, 0u, 0},
-    {"program", {"M4.6 4.6h6.8v6.8H4.6z", "M6.6 2.2v2.4M9.4 2.2v2.4M6.6 11.4v2.4M9.4 11.4v2.4M2.2 6.6h2.4M2.2 9.4h2.4M11.4 6.6h2.4M11.4 9.4h2.4", NULL}, NULL, 0u, 0},
+    {"program",
+     {"M4.6 4.6h6.8v6.8H4.6z",
+      "M6.6 2.2v2.4M9.4 2.2v2.4M6.6 11.4v2.4M9.4 11.4v2.4M2.2 6.6h2.4M2.2 9.4h2.4M11.4 6.6h2.4M11.4 9.4h2.4", NULL},
+     NULL,
+     0u,
+     0},
     {"launch", {"M2.6 3.6 7 8l-4.4 4.4", "M8.4 3.6 12.8 8l-4.4 4.4", NULL}, NULL, 0u, 0},
-    {"view", {"M1.5 8C3.2 4.8 5.4 3.5 8 3.5s4.8 1.3 6.5 4.5c-1.7 3.2-3.9 4.5-6.5 4.5S3.2 11.2 1.5 8z", NULL, NULL}, s_view_dots, 1u, 0},
-    {"check", {"M3.6 2.6h8.8a1 1 0 0 1 1 1v8.8a1 1 0 0 1-1 1H3.6a1 1 0 0 1-1-1V3.6a1 1 0 0 1 1-1z", "M5.4 8.3l1.9 1.9 3.5-4", NULL}, NULL, 0u, 0},
+    {"view",
+     {"M1.5 8C3.2 4.8 5.4 3.5 8 3.5s4.8 1.3 6.5 4.5c-1.7 3.2-3.9 4.5-6.5 4.5S3.2 11.2 1.5 8z", NULL, NULL},
+     s_view_dots,
+     1u,
+     0},
+    {"check",
+     {"M3.6 2.6h8.8a1 1 0 0 1 1 1v8.8a1 1 0 0 1-1 1H3.6a1 1 0 0 1-1-1V3.6a1 1 0 0 1 1-1z", "M5.4 8.3l1.9 1.9 3.5-4",
+      NULL},
+     NULL,
+     0u,
+     0},
     {"hammer", {"M6.4 4.6 9.6 1.4l4.9 4.9-3.2 3.2z", "M8 6.2 2.2 12a1.1 1.1 0 0 0 1.6 1.6L9.6 7.8", NULL}, NULL, 0u, 0},
-    {"wrench", {"M10.8 2.2a3.2 3.2 0 0 0-3.9 4.3L2.4 11a1.5 1.5 0 0 0 2.1 2.1l4.5-4.5a3.2 3.2 0 0 0 4.3-3.9l-2 2-1.9-.6-.6-1.9z", NULL, NULL}, NULL, 0u, 0},
+    {"wrench",
+     {"M10.8 2.2a3.2 3.2 0 0 0-3.9 4.3L2.4 11a1.5 1.5 0 0 0 2.1 2.1l4.5-4.5a3.2 3.2 0 0 0 4.3-3.9l-2 2-1.9-.6-.6-1.9z",
+      NULL, NULL},
+     NULL,
+     0u,
+     0},
     {"eye", {s_eye_strokes, NULL, NULL}, NULL, 0u, 0, s_eye_box, s_eye_iris},
 };
 #define ICONS_COUNT (sizeof(s_shapes) / sizeof(s_shapes[0]))
@@ -297,7 +349,8 @@ static void pen_filled(GuiPen *pen)
                         const float y0 = pen->corner[(at * 2u) + 1u];
                         const float x1 = pen->corner[next * 2u];
                         const float y1 = pen->corner[(next * 2u) + 1u];
-                        if (((y0 > sample_y) != (y1 > sample_y)) && (sample_x < x0 + ((sample_y - y0) * (x1 - x0) / (y1 - y0))))
+                        if (((y0 > sample_y) != (y1 > sample_y)) &&
+                            (sample_x < x0 + ((sample_y - y0) * (x1 - x0) / (y1 - y0))))
                         {
                             crossings += 1u;
                         }
@@ -429,10 +482,7 @@ static void pen_arced(GuiPen *pen, float rx, float ry, float turn, int large, in
 static int icons_number(const char **at, float *value)
 {
     const char *text = *at;
-    while ((*text == ' ') || (*text == ','))
-    {
-        text += 1;
-    }
+    text += cli_text_past_any(text, 0ull, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), " ,");
     const int negative = *text == '-';
     if ((*text == '-') || (*text == '+'))
     {
@@ -532,8 +582,8 @@ static int pen_commanded(GuiPen *pen, char command, const char **at)
         {
             return 0;
         }
-        pen_curved(pen, base_x + values[0], base_y + values[1], base_x + values[2], base_y + values[3], base_x + values[4],
-                   base_y + values[5]);
+        pen_curved(pen, base_x + values[0], base_y + values[1], base_x + values[2], base_y + values[3],
+                   base_x + values[4], base_y + values[5]);
         return 1;
     }
     else if (upper == 'S')
@@ -572,10 +622,7 @@ static void pen_path(GuiPen *pen, const char *d)
     char command = '\0';
     for (;;)
     {
-        while ((*at == ' ') || (*at == ','))
-        {
-            at += 1;
-        }
+        at += cli_text_past_any(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), " ,");
         if (*at == '\0')
         {
             return;
@@ -610,7 +657,8 @@ static void pen_cog(GuiPen *pen)
     for (unsigned int tooth = 0u; tooth < 8u; tooth += 1u)
     {
         const float middle = (float)tooth * step;
-        const float turns[4] = {middle - (step * 0.32f), middle - (step * 0.18f), middle + (step * 0.18f), middle + (step * 0.32f)};
+        const float turns[4] = {middle - (step * 0.32f), middle - (step * 0.18f), middle + (step * 0.18f),
+                                middle + (step * 0.32f)};
         const float radii[4] = {inner, outer, outer, inner};
         for (unsigned int corner = 0u; corner < 4u; corner += 1u)
         {
@@ -687,12 +735,15 @@ static int icons_drawn(const GuiIconShape *shape, unsigned int size, float strok
     pen.cover = floats;
     pen.side = size;
     // a shape on its own box is fitted to the square by the box's longer side and centered along its shorter
-    const float box_wide = (shape->box != NULL) ? shape->box[2] : GUI_ICON_UNITS;
-    const float box_tall = (shape->box != NULL) ? shape->box[3] : GUI_ICON_UNITS;
+    // a shape on no box of its own stands on the icon's square
+    static const float s_square[4] = {0.0f, 0.0f, GUI_ICON_UNITS, GUI_ICON_UNITS};
+    const float *const box = (shape->box != NULL) ? shape->box : s_square;
+    const float box_wide = box[2];
+    const float box_tall = box[3];
     const float longer = (box_wide > box_tall) ? box_wide : box_tall;
     pen.scale = (float)size / longer;
-    pen.left = (shape->box != NULL) ? shape->box[0] : 0.0f;
-    pen.top = (shape->box != NULL) ? shape->box[1] : 0.0f;
+    pen.left = box[0];
+    pen.top = box[1];
     pen.pad_x = (longer - box_wide) * pen.scale / 2.0f;
     pen.pad_y = (longer - box_tall) * pen.scale / 2.0f;
     pen.radius = stroke / 2.0f;
@@ -710,7 +761,8 @@ static int icons_drawn(const GuiIconShape *shape, unsigned int size, float strok
     for (unsigned int dot = 0u; dot < shape->fills; dot += 1u)
     {
         const float *const fill = &shape->fill[dot * 3u];
-        pen_capsule(&pen, pen_px(&pen, fill[0]), pen_py(&pen, fill[1]), pen_px(&pen, fill[0]), pen_py(&pen, fill[1]), fill[2] * pen.scale);
+        pen_capsule(&pen, pen_px(&pen, fill[0]), pen_py(&pen, fill[1]), pen_px(&pen, fill[0]), pen_py(&pen, fill[1]),
+                    fill[2] * pen.scale);
     }
     if (shape->filled != NULL)
     {

@@ -71,10 +71,11 @@ static int pages_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     return 1;
 }
 
-// where the page's view of the paged text under `key` stands, `{top, rows, columns, map_from, map_to, held_from,
-// held_to, held_cut, width}` as cli_pages_viewed reads them, placed here: answered `{"keep": [from, to], "from", "cut",
-// "lines", "lengths", "colors"}`, the lines the page is to hold with their colors no further than the view reaches, and
-// where the lines are cut each one's whole length in the page's units; `{"keep"}` alone where it holds what it needs
+// where the page's view of the paged text under `key` stands, `{top, rows, columns, map_from, map_to, cached_from,
+// cached_to, cached_cut, width}` as cli_pages_viewed reads them, placed here: answered `{"keep": [from, to], "from",
+// "cut", "lines", "lengths", "colors"}`, the lines the page is to hold with their colors no further than the view
+// reaches, and where the lines are cut each one's whole length in the page's units; `{"keep"}` alone where it holds
+// what it needs
 static int pages_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     const char *const key = cli_serve_string(args, "key", err_msg);
@@ -82,11 +83,12 @@ static int pages_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     {
         return 0;
     }
-    const CliPagesView view = {cli_serve_whole_or(args, "top", 0ull),       cli_serve_whole_or(args, "rows", 1ull),
-                               cli_serve_whole_or(args, "columns", 0ull),   cli_serve_whole_or(args, "map_from", 0ull),
-                               cli_serve_whole_or(args, "map_to", 0ull),    cli_serve_whole_or(args, "held_from", 0ull),
-                               cli_serve_whole_or(args, "held_to", 0ull),   cli_serve_whole_or(args, "held_cut", 0ull),
-                               cli_serve_whole_or(args, "width", 0ull)};
+    const CliPagesView view = {
+        cli_serve_whole_or(args, "top", 0ull),       cli_serve_whole_or(args, "rows", 1ull),
+        cli_serve_whole_or(args, "columns", 0ull),   cli_serve_whole_or(args, "map_from", 0ull),
+        cli_serve_whole_or(args, "map_to", 0ull),    cli_serve_whole_or(args, "cached_from", 0ull),
+        cli_serve_whole_or(args, "cached_to", 0ull), cli_serve_whole_or(args, "cached_cut", 0ull),
+        cli_serve_whole_or(args, "width", 0ull)};
     CliPagesPlaced placed = {0ull, 0ull, 0ull, 0ull, 0ull};
     if (!cli_pages_viewed(key, &view, &placed))
     {
@@ -111,8 +113,7 @@ static int pages_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         // the cut the lines were read at, 0 where none of them was longer
         unsigned long long cut = placed.cut;
         const int read = ((placed.cut == 0ull) || (cell != NULL)) &&
-                         cli_pages_read(key, placed.from, placed.to, &cut, out, (cell != NULL) ? &lengths : NULL,
-                                        err_msg);
+                         cli_pages_read(key, placed.from, placed.to, &cut, out, &lengths, err_msg);
         if (cell != NULL)
         {
             mmgr_line_put(out, (cut != 0ull) ? ",\"lengths\":" : "");

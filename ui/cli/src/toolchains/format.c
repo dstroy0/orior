@@ -78,10 +78,9 @@ int cli_format_language_of(const char *path, char *id)
 {
     static CliLock s_lock = CLI_LOCK_INIT;
     const char *name = path;
-    for (const char *at = path; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (path + name_past) : name;
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     if ((dot == NULL) || (dot == name))
@@ -89,13 +88,7 @@ int cli_format_language_of(const char *path, char *id)
         return 0;
     }
     cli_lock_take(&s_lock);
-    unsigned int count = 0u;
-    for (const char *at = dot + 1; (at[0] != '\0') && (count < (CLI_NAME_MAX_LEN - 1u)); at += 1)
-    {
-        s_choice.extension[count] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-        count += 1u;
-    }
-    s_choice.extension[count] = '\0';
+    (void)cli_text_lowered_into(s_choice.extension, CLI_NAME_MAX_LEN, dot + 1);
     s_choice.chosen = 0;
     cli_plugins_each(cli_plugin_each, NULL);
     const int chosen = s_choice.chosen;
@@ -217,30 +210,17 @@ void cli_format_edition_of(const char *path, char *edition)
         const char *end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
         end = (end != NULL) ? end : (line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
         const char *at = line;
-        while ((at < end) && ((at[0] == ' ') || (at[0] == '\t')))
-        {
-            at += 1;
-        }
+        at += cli_text_past_any(at, 0ull, (unsigned long long)(end - at), " \t");
         if (((end - at) >= 7) && (memor.cmp(&(MemoriaCfg){.src = at, .other = "edition", .bytes = 7u}) == 0))
         {
             at += 7;
-            while ((at < end) && ((at[0] == ' ') || (at[0] == '\t')))
-            {
-                at += 1;
-            }
+            at += cli_text_past_any(at, 0ull, (unsigned long long)(end - at), " \t");
             if ((at < end) && (at[0] == '='))
             {
                 at += 1;
                 const char *stop = end;
-                while ((at < stop) && ((at[0] == ' ') || ((at[0] >= '\t') && (at[0] <= '\r')) || (at[0] == '"')))
-                {
-                    at += 1;
-                }
-                while ((stop > at) &&
-                       ((stop[-1] == ' ') || ((stop[-1] >= '\t') && (stop[-1] <= '\r')) || (stop[-1] == '"')))
-                {
-                    stop -= 1;
-                }
+                at += cli_text_past_any(at, 0ull, (unsigned long long)(stop - at), "  \t\n\v\f\r\"");
+                stop = at + cli_text_back_past(at, (unsigned long long)(stop - at), "  \t\n\v\f\r\"");
                 // the edition lies between its quotes, its end at or past its start
                 const unsigned long long length = (unsigned long long)(stop - at);
                 if (length < CLI_NAME_MAX_LEN)
@@ -261,22 +241,30 @@ static const char *cli_word_filled(const char *word, const char *file, const cha
 {
     char *const start = g_cli_format.words + *used;
     VerbaLinea line = {start, CLI_WORDS_TEXT - *used, 0ull};
-    for (const char *at = word; at[0] != '\0';)
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; at < whole;)
     {
-        if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = "{file}", .cap = CLI_CELLS_POOL}))
+        const unsigned long long stop = cli_text_to_any(word, at, whole, "{");
+        mmgr_line_put_n(&line, word + at, (size_t)(stop - at));
+        at = stop;
+        if (stop == whole)
+        {
+            break;
+        }
+        if (cellul.starts(&(CatenaFinitaCfg){.src = word + stop, .other = "{file}", .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(&line, file);
-            at += 6;
+            at += 6ull;
         }
-        else if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = "{edition}", .cap = CLI_CELLS_POOL}))
+        else if (cellul.starts(&(CatenaFinitaCfg){.src = word + stop, .other = "{edition}", .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(&line, edition);
-            at += 9;
+            at += 9ull;
         }
         else
         {
-            mmgr_line_ch(&line, at[0]);
-            at += 1;
+            mmgr_line_ch(&line, '{');
+            at += 1ull;
         }
     }
     mmgr_line_finish(&line);

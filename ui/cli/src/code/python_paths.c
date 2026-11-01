@@ -4,6 +4,7 @@
 // name in the tree counted, the most used first
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "python_paths_internal.h"
 
 // A span of a text: where it starts and its bytes
@@ -136,14 +137,10 @@ static void cli_logical_lines(const char *text, unsigned long long size)
     unsigned long long at = 0ull;
     while (at < size)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        const unsigned long long end = bounds.stop;
         CliSpan raw = {text + at, end - at};
-        if ((newline != NULL) && (raw.length > 0ull) && (raw.at[raw.length - 1ull] == '\r'))
-        {
-            raw.length -= 1ull;
-        }
+        raw.length -= bounds.stop - bounds.cut;
         at = end + 1ull;
         const CliSpan code = {raw.at, cli_found(raw, " #")};
         const CliSpan trimmed_line = cli_trimmed_of(code, '\\');
@@ -402,10 +399,8 @@ void cli_py_paths_in(const char *file, const char *text, unsigned long long size
                             .src = file,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
 #if defined(_WIN32)
-    for (char *at = g_cli_py.file; at[0] != '\0'; at += 1)
-    {
-        at[0] = (at[0] == '/') ? '\\' : at[0];
-    }
+    cli_text_swapped(g_cli_py.file, cellul.len(&(CatenaFinitaCfg){.src = g_cli_py.file, .cap = CLI_CELLS_POOL}), '/',
+                     '\\');
 #endif
     cli_logical_lines(text, size);
     for (unsigned int index = 0u; index < s_lines.count; index += 1u)

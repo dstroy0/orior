@@ -92,7 +92,7 @@ export function drawStatus() {
   this.status.replaceChildren(...parts);
 }
 
-// Sticky scroll: the line that opens each region the editor's top row is inside, held along the
+// Sticky scroll: the line that opens each region the editor's top row is inside, kept along the
 // top, the outermost first. A click on one goes to it, and the wheel over them scrolls the text.
 export function setSticky(on) {
   this.stickyOn = on;
@@ -111,43 +111,43 @@ export function drawSticky(rows, top, left = this.scroller.scrollLeft) {
     return;
   }
   const firstRow = Math.floor(top / LINE);
-  const heldFor = `${s.doc.id}|${firstRow}|${rows.size}|${s.highlight.foldsCame}`;
-  let held = this.stickyHeldFor === heldFor ? this.stickyHeld : [];
-  // The held lines cover rows of their own, and they hold the regions of the row under them.
-  for (let pass = 0; pass < 3 && this.stickyHeldFor !== heldFor; pass += 1) {
-    const line = rows.lineOf(Math.min(rows.size - 1, firstRow + held.length));
+  const rowsFor = `${s.doc.id}|${firstRow}|${rows.size}|${s.highlight.foldsCame}`;
+  let stickyLines = this.stickyRowsFor === rowsFor ? this.stickyRows : [];
+  // The kept lines cover rows of their own, and they hold the regions of the row under them.
+  for (let pass = 0; pass < 3 && this.stickyRowsFor !== rowsFor; pass += 1) {
+    const line = rows.lineOf(Math.min(rows.size - 1, firstRow + stickyLines.length));
     const openersCall = enter("openers");
     const next = s.openersOf(line, STICKY_MOST);
     leave(openersCall);
-    if (next.join() === held.join()) {
+    if (next.join() === stickyLines.join()) {
       break;
     }
-    held = next;
+    stickyLines = next;
   }
-  this.stickyHeldFor = heldFor;
-  this.stickyHeld = held;
+  this.stickyRowsFor = rowsFor;
+  this.stickyRows = stickyLines;
   if (top <= 0) {
-    held = [];
+    stickyLines = [];
   }
   const gutter = this.gutterWidth ?? this.gutter.offsetWidth;
-  const key = `${held.join()}|${s.doc.id}|${left}|${gutter}|${this.viewSize().width}|${s.base}`;
+  const key = `${stickyLines.join()}|${s.doc.id}|${left}|${gutter}|${this.viewSize().width}|${s.base}`;
   if (key === this.stickyKey) {
     return;
   }
   this.stickyKey = key;
-  this.sticky.hidden = !held.length;
-  if (!held.length) {
+  this.sticky.hidden = !stickyLines.length;
+  if (!stickyLines.length) {
     return;
   }
   this.sticky.style.width = `${gutter + this.viewSize().width}px`;
-  const heldCall = enter("held");
-  this.sticky.innerHTML = held
+  const stickyCall = enter("sticky");
+  this.sticky.innerHTML = stickyLines
     .map(
       (line) =>
         `<div class="ed-sticky-row" data-line="${line}" style="height:${LINE}px"><span class="ed-sticky-num" style="width:${gutter}px">${s.base + line + 1}</span><span class="ed-sticky-text"><span style="display:inline-block;padding-left:${PAD}px;transform:translateX(${-left}px)">${this.rowHtml(line)}</span></span></div>`
     )
     .join("");
-  leave(heldCall);
+  leave(stickyCall);
 }
 
 // Colors the minimap reads from the stylesheet, read again once the scheme changes.

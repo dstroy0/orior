@@ -36,11 +36,11 @@ static void debug_event(void *context, unsigned long long session, const char *e
             cli_debug_process(session, (unsigned int)pid);
         }
     }
-    // the event's line in a cell of its body and the words about it, the event's name quoted on top, grown where that
-    // name is quoted longer
+    // the event's line in a cell of its body and the words about it, the event's name quoted on top
     const unsigned long long named = cellul.len(&(CatenaFinitaCfg){.src = event, .cap = CLI_CELLS_POOL});
-    VerbaLinea line;
-    (void)cli_growing_line_temporary(&line, size + named + 64ull, &g_cli_window_cells);
+    const unsigned long long line_room = size + named + 64ull;
+    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_window_cells);
+    VerbaLinea line = mmgr_line_over(line_cell, line_room);
     mmgr_line_put(&line, "{\"session\":");
     mmgr_line_decimal(&line, session, 1u);
     mmgr_line_put(&line, ",\"event\":");

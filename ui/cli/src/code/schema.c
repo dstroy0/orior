@@ -30,8 +30,8 @@ int cli_schema_locked(void)
         g_cli_schema_read->pool_most = 0u;
     }
     const int grown = (g_cli_schema_store != NULL) &&
-                      cli_json_growing(&g_cli_schema_store->json, CLI_SCHEMA_STORE_NODES_FIRST,
-                                       CLI_SCHEMA_STORE_TEXT_FIRST, "the schemas reached", &g_cli_code_cells);
+                      cli_json_reserved_temporary(&g_cli_schema_store->json, CLI_SCHEMA_STORE_NODES_ROOM,
+                                                  CLI_SCHEMA_STORE_TEXT_ROOM, "the schemas reached", &g_cli_code_cells);
     if ((g_cli_schema_read == NULL) || !grown)
     {
         cli_schema_released();
@@ -40,54 +40,9 @@ int cli_schema_locked(void)
     return 1;
 }
 
-void *cli_schema_grown(void *cells, unsigned int *most, unsigned long long needed, size_t each, unsigned int hard,
-                       const char *what)
-{
-    if (needed <= *most)
-    {
-        return cells;
-    }
-    if (needed > hard)
-    {
-        return NULL;
-    }
-    unsigned long long grown = (*most == 0u) ? CLI_SCHEMA_FIRST : *most;
-    while (grown < needed)
-    {
-        grown *= 2ull;
-    }
-    grown = (grown < hard) ? grown : hard;
-    // the places stored are below the list's room, which a size_t stores
-    unsigned char *const moved = cli_cell_regrown(cells, (size_t)*most * each, grown * each, &g_cli_schema_cells);
-    if (moved == NULL)
-    {
-        return NULL;
-    }
-    // no more than `hard`, an unsigned int
-    *most = (unsigned int)grown;
-    return moved;
-}
-
-int cli_schema_read_room(CliSchemaRead *read, unsigned long long nodes, unsigned long long members,
-                         unsigned long long pool)
-{
-    CliSchemaNode *const node = cli_schema_grown(read->node, &read->nodes_most, nodes, sizeof(*node), CLI_SCHEMA_NODES,
-                                                 "a schema read's values");
-    read->node = (node != NULL) ? node : read->node;
-    CliSchemaMember *const member = cli_schema_grown(read->member, &read->members_most, members, sizeof(*member),
-                                                     CLI_SCHEMA_MEMBERS, "a schema read's members");
-    read->member = (member != NULL) ? member : read->member;
-    char *const text =
-        cli_schema_grown(read->pool, &read->pool_most, pool, 1u, CLI_SCHEMA_POOL, "a schema read's texts");
-    read->pool = (text != NULL) ? text : read->pool;
-    return (nodes <= read->nodes_most) && (members <= read->members_most) && (pool <= read->pool_most);
-}
-
 void cli_schema_read_given(CliSchemaRead *read)
 {
     g_cli_cells->persistent_buf_release(read->node, &g_cli_schema_cells);
-    g_cli_cells->persistent_buf_release(read->member, &g_cli_schema_cells);
-    g_cli_cells->persistent_buf_release(read->pool, &g_cli_schema_cells);
     read->node = NULL;
     read->member = NULL;
     read->pool = NULL;
@@ -156,10 +111,7 @@ static void schema_missing(const char *root, const char *key, const char *text, 
     {
         return;
     }
-    for (char *at = place; *at != '\0'; at += 1)
-    {
-        *at = (*at == '\\') ? '/' : *at;
-    }
+    cli_text_swapped(place, cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}), '\\', '/');
     VerbaLinea title = cli_build_msg_line(&s_found);
     mmgr_line_put(&title, "Fetch the schema to ");
     mmgr_line_put(&title, place);
@@ -193,8 +145,6 @@ void cli_schema_check(const char *root, const char *path, const char *text, unsi
     unsigned int *const starts = cli_build_lines_taken(text, size, &lines);
     CliSchemaRead *const read = g_cli_schema_read;
     cli_schema_read(text, size, read);
-    const unsigned long long checked = (unsigned long long)read->nodes + read->members + CLI_SCHEMA_CHECK_NODES;
-    (void)cli_schema_read_room(read, (checked < CLI_SCHEMA_NODES) ? checked : CLI_SCHEMA_NODES, 0ull, 0ull);
     for (unsigned int at = 0u; at < read->errors; at += 1u)
     {
         const CliSchemaError *const error = &read->error[at];

@@ -107,8 +107,7 @@ static unsigned long long cli_side_bytes(unsigned int lines)
 
 unsigned int cli_review_piece_text_put(const char *text, unsigned long long length)
 {
-    if (!cli_review_room(&g_cli_review.texts, &g_cli_review.texts_room, g_cli_review.texts_used, length + 1ull,
-                         CLI_REVIEW_TEXTS_MAX, "a review's piece texts"))
+    if ((length + 1ull) > (g_cli_review.texts_room - g_cli_review.texts_used))
     {
         return 0u;
     }
@@ -127,11 +126,10 @@ static void cli_lines_of(const char *text, unsigned long long size, CliSide *sid
     side->lines = 0u;
     for (unsigned long long at = 0ull; (at < size) && (side->lines < side->lines_most);)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
-        length -= ((newline != NULL) && (length > 0ull) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
+        length -= bounds.stop - bounds.cut;
         // a text is below CLI_REVIEW_TEXT bytes, which an unsigned int stores
         side->start[side->lines] = (unsigned int)at;
         side->length[side->lines] = (unsigned int)length;
@@ -149,9 +147,7 @@ static unsigned int cli_joined(const CliSide *side, unsigned int from, unsigned 
     {
         size += side->length[line] + ((line != from) ? 1ull : 0ull);
     }
-    // the pieces' texts grown to fit the joined lines and their end, as a piece's text put grows them
-    if (!cli_review_room(&g_cli_review.texts, &g_cli_review.texts_room, at, size + 1ull, CLI_REVIEW_TEXTS_MAX,
-                         "a review's piece texts"))
+    if ((size + 1ull) > (g_cli_review.texts_room - at))
     {
         return 0u;
     }
@@ -477,28 +473,10 @@ static void cli_moves(void)
     }
 }
 
-// room made for one call more: 1, or 0 where the review contains the most or the larger cell is refused
+// room made for one call more: 1, or 0 where the review contains the most or the cell is refused
 static int compare_call_room(void)
 {
-    if (g_cli_review.calls < g_cli_review.call_room)
-    {
-        return 1;
-    }
-    const unsigned int doubled =
-        (g_cli_review.call_room == 0u) ? CLI_REVIEW_CALLS_FIRST : (g_cli_review.call_room * 2u);
-    const unsigned int room = (doubled < CLI_REVIEW_CALLS) ? doubled : CLI_REVIEW_CALLS;
-    unsigned int *const larger =
-        (g_cli_review.calls < CLI_REVIEW_CALLS)
-            ? cli_cell_regrown(g_cli_review.call, (size_t)g_cli_review.calls * sizeof(unsigned int),
-                               (unsigned long long)room * sizeof(unsigned int), &g_cli_code_cells)
-            : NULL;
-    if (larger == NULL)
-    {
-        return 0;
-    }
-    g_cli_review.call = larger;
-    g_cli_review.call_room = room;
-    return 1;
+    return g_cli_review.calls < CLI_REVIEW_CALLS;
 }
 
 void cli_review_compare(void)

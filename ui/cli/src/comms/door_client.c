@@ -5,6 +5,7 @@
 // time, the region a long body is in handed over with its frame
 #include "../servers/lsp.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "door_internal.h"
 
 // the most clients in one process; the bytes of an answer stored; and the messages queued for one client
@@ -191,11 +192,7 @@ static int client_request(CliDoorClient *client, const char *request, unsigned l
     if ((delivered != NULL) && cli_lsp_member(client->answer, client->answer_size, "delivered", &start, &length))
     {
         *delivered = 0ull;
-        for (unsigned long long at = start;
-             (at < start + length) && (client->answer[at] >= '0') && (client->answer[at] <= '9'); at += 1ull)
-        {
-            *delivered = (*delivered * 10ull) + (unsigned long long)(client->answer[at] - '0');
-        }
+        *delivered = cli_text_number(client->answer, start, start + length, NULL);
     }
     cli_lock_give(&client->output);
     return 1;

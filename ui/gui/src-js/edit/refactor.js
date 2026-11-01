@@ -199,13 +199,13 @@ export function moveHere(ask) {
 export async function holdMemory(budget) {
   const open = [...new Set(state.tabs.map((tab) => tab.session?.language?.id).filter(Boolean))];
   const shown = tabOf(state.active)?.session?.language?.id ?? null;
-  const held = await invoke("servers_unneeded_stop", { open, shown, budget }).catch(() => null);
-  if (!held?.stopped.length) {
+  const answer = await invoke("servers_unneeded_stop", { open, shown, budget }).catch(() => null);
+  if (!answer?.stopped.length) {
     return;
   }
   const root = document.getElementById("tree-path").textContent;
   const plain = (path) => path.replace(/\\/g, "/").toLowerCase();
-  const files = new Set(held.files.map(plain));
+  const files = new Set(answer.files.map(plain));
   for (const tab of state.tabs) {
     if (tab.served && files.has(plain(`${root}/${tab.file}`))) {
       Object.assign(tab, { served: undefined, untold: false, unserved: true });
@@ -216,6 +216,6 @@ export async function holdMemory(budget) {
     }
   }
   problemsChanged();
-  say(`${held.stopped.join(", ")} stopped to hold memory to its budget; ${held.files.length ? "its files are handed to it again as each shows" : "no open tab needed it"}.`);
+  say(`${answer.stopped.join(", ")} stopped to hold memory to its budget; ${answer.files.length ? "its files are handed to it again as each shows" : "no open tab needed it"}.`);
 }
 

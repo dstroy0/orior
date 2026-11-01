@@ -15,7 +15,8 @@ int gui_minimap_made(GuiMinimap *map)
 {
     memor.set(&(MemoriaCfg){.dst = map, .val = 0, .bytes = sizeof(*map)});
     map->stale = 1;
-    map->line_at = g_cli_cells->persistent_buf_alloc((GUI_MAP_LINES_MOST + 1u) * sizeof(*map->line_at), &g_gui_minimap_cells);
+    map->line_at =
+        g_cli_cells->persistent_buf_alloc((GUI_MAP_LINES_MOST + 1u) * sizeof(*map->line_at), &g_gui_minimap_cells);
     map->bar = g_cli_cells->persistent_buf_alloc(GUI_MAP_BARS_MOST * sizeof(*map->bar), &g_gui_minimap_cells);
     if ((map->line_at == NULL) || (map->bar == NULL))
     {
@@ -41,14 +42,15 @@ void gui_minimap_cleared(GuiMinimap *map)
     map->count = 0u;
     map->bars = 0u;
     map->stale = 1;
-    map->held = 0;
+    map->anchored = 0;
     map->dragging = 0;
 }
 
 int gui_minimap_put(GuiMinimap *map, const CliJson *json, unsigned int root)
 {
     const unsigned int lines = cli_json_member(json, root, "bars");
-    if (!cli_json_is(json, root, CFG_JSON_OBJECT) || !cli_json_is(json, lines, CFG_JSON_ARRAY) || (map->line_at == NULL))
+    if (!cli_json_is(json, root, CFG_JSON_OBJECT) || !cli_json_is(json, lines, CFG_JSON_ARRAY) ||
+        (map->line_at == NULL))
     {
         return 0;
     }
@@ -112,10 +114,10 @@ void gui_minimap_placed(GuiMinimap *map, GuiRect place, float scale, const GuiEd
     if (editor->lines > (unsigned long long)at->fit)
     {
         const unsigned long long most = editor->lines - (unsigned long long)at->fit;
-        if (map->held && (map->held_top == top))
+        if (map->anchored && (map->anchor_top == top))
         {
             // the view has not moved since the map last stood: the map stands where it did beside it
-            const long long kept = (long long)top - map->held_offset;
+            const long long kept = (long long)top - map->anchor_offset;
             start = (kept > 0ll) ? (unsigned long long)kept : 0ull;
         }
         else
@@ -126,9 +128,9 @@ void gui_minimap_placed(GuiMinimap *map, GuiRect place, float scale, const GuiEd
         start = (start > most) ? most : start;
     }
     at->start = start;
-    map->held = 1;
-    map->held_top = top;
-    map->held_offset = (long long)top - (long long)start;
+    map->anchored = 1;
+    map->anchor_top = top;
+    map->anchor_offset = (long long)top - (long long)start;
     // the slider's top is at or below the map's top, the view's top being at or below the map's first line
     at->slider_top = (int)(top - start) * row_tall;
     const int least = gui_scaled(GUI_MAP_SLIDER_LEAST, scale);
@@ -181,14 +183,18 @@ static void map_strip_drawn(GuiRaster *raster, const GuiPalette *palette, const 
     {
         for (unsigned long long at = 0ull; at < editor->matches; at += 1ull)
         {
-            gui_raster_filled(raster, (GuiRect){left + inset, map_strip_y(place, editor->lines, editor->match[at][0]), strip_wide - inset, tall},
+            gui_raster_filled(raster,
+                              (GuiRect){left + inset, map_strip_y(place, editor->lines, editor->match[at][0]),
+                                        strip_wide - inset, tall},
                               palette->map_match);
         }
     }
     if (editor->has_cursor)
     {
-        gui_raster_filled(raster, (GuiRect){left + inset, map_strip_y(place, editor->lines, editor->cursor.line), strip_wide - inset, mark},
-                          palette->caret);
+        gui_raster_filled(
+            raster,
+            (GuiRect){left + inset, map_strip_y(place, editor->lines, editor->cursor.line), strip_wide - inset, mark},
+            palette->caret);
     }
 }
 
@@ -221,13 +227,16 @@ void gui_minimap_drawn(GuiMinimap *map, GuiRaster *raster, const GuiPalette *pal
                          ((editor->anchor.line == editor->cursor.line) && (editor->anchor.col < editor->cursor.col));
     const GuiPlace selected_from = anchored ? editor->anchor : editor->cursor;
     const GuiPlace selected_to = anchored ? editor->cursor : editor->anchor;
-    const int selected = editor->has_cursor && ((selected_from.line != selected_to.line) || (selected_from.col != selected_to.col));
+    const int selected =
+        editor->has_cursor && ((selected_from.line != selected_to.line) || (selected_from.col != selected_to.col));
     if (selected && (selected_to.line >= first) && (selected_from.line < end))
     {
         const unsigned long long top_row = (selected_from.line > first) ? selected_from.line : first;
         const unsigned long long bottom_row = (selected_to.line < end - 1ull) ? selected_to.line : end - 1ull;
         // the rows are within the map's, which an int counts
-        gui_raster_filled(raster, (GuiRect){rows.x, place.y + ((int)(top_row - first) * row_tall), rows.width, (int)(bottom_row - top_row + 1ull) * row_tall},
+        gui_raster_filled(raster,
+                          (GuiRect){rows.x, place.y + ((int)(top_row - first) * row_tall), rows.width,
+                                    (int)(bottom_row - top_row + 1ull) * row_tall},
                           palette->map_selection);
     }
     if (editor->find.open)
@@ -237,7 +246,8 @@ void gui_minimap_drawn(GuiMinimap *map, GuiRaster *raster, const GuiPalette *pal
             const unsigned long long line = editor->match[each][0];
             if ((line >= first) && (line < end))
             {
-                gui_raster_filled(raster, (GuiRect){rows.x, place.y + ((int)(line - first) * row_tall), rows.width, row_tall},
+                gui_raster_filled(raster,
+                                  (GuiRect){rows.x, place.y + ((int)(line - first) * row_tall), rows.width, row_tall},
                                   palette->map_match);
             }
         }
@@ -249,24 +259,28 @@ void gui_minimap_drawn(GuiMinimap *map, GuiRaster *raster, const GuiPalette *pal
         {
             continue;
         }
-        const unsigned int held = (unsigned int)(line - map->from);
+        const unsigned int line_index = (unsigned int)(line - map->from);
         const int y = place.y + ((int)(line - first) * row_tall);
-        for (unsigned int bar = map->line_at[held]; bar < map->line_at[held + 1u]; bar += 1u)
+        for (unsigned int bar = map->line_at[line_index]; bar < map->line_at[line_index + 1u]; bar += 1u)
         {
             const GuiBar *const one = &map->bar[bar];
             if (one->start >= GUI_MAP_WIDEST)
             {
                 continue;
             }
-            const unsigned int width = (one->start + one->width > GUI_MAP_WIDEST) ? GUI_MAP_WIDEST - one->start : one->width;
+            const unsigned int width =
+                (one->start + one->width > GUI_MAP_WIDEST) ? GUI_MAP_WIDEST - one->start : one->width;
             const GuiColor color = gui_editor_color(editor, palette, one->name);
             // the bars' cells are within the map's width, which an int counts
-            gui_raster_filled(raster,
-                              gui_rect_met((GuiRect){place.x + margin + ((int)one->start * cell), y, (int)width * cell, bar_tall}, rows),
-                              (color & 0x00ffffffu) | (MAP_BAR_ALPHA << 24u));
+            gui_raster_filled(
+                raster,
+                gui_rect_met((GuiRect){place.x + margin + ((int)one->start * cell), y, (int)width * cell, bar_tall},
+                             rows),
+                (color & 0x00ffffffu) | (MAP_BAR_ALPHA << 24u));
         }
     }
-    gui_raster_filled(raster, gui_rect_met((GuiRect){place.x, place.y + at->slider_top, place.width, at->slider_tall}, place),
+    gui_raster_filled(raster,
+                      gui_rect_met((GuiRect){place.x, place.y + at->slider_top, place.width, at->slider_tall}, place),
                       map->dragging ? palette->map_slider_on : palette->map_slider);
     map_strip_drawn(raster, palette, editor, place, scale);
 }

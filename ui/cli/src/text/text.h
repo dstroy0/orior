@@ -7,6 +7,17 @@
 
 #include "../command_line/cli_internal.h"
 
+// A line of a text: where it stops, at its "\n" or the text's end; where it stops with a "\r" before its "\n" left
+// out; and where the next starts, past its "\n" or at the text's end
+typedef struct
+{
+    unsigned long long stop;
+    unsigned long long cut;
+    unsigned long long next;
+} CliTextLine;
+
+// the line of `size` bytes of `text` that starts at `at`
+CliTextLine cli_text_line_at(const char *text, unsigned long long at, unsigned long long size);
 // the letter at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the letter that ends before
 // `end` and the bytes it takes
 unsigned int cli_text_letter(const char *text, unsigned long long size, unsigned long long at,
@@ -18,6 +29,66 @@ unsigned int cli_text_letter_before(const char *text, unsigned long long end, un
 int cli_text_white(unsigned int letter);
 int cli_text_alphabetic(unsigned int letter);
 int cli_text_alphanumeric(unsigned int letter);
+
+// `size` bytes of `text` with each byte `from` made `to`, and with each capital made small; how many of them are
+// `byte`; and whether every one is below 0x80. Each a word at a time
+void cli_text_swapped(char *text, unsigned long long size, char from, char to);
+void cli_text_lowered(char *text, unsigned long long size);
+// the small letters of `size` bytes made capitals; and `text` copied into `out`, sized for `room`, in lower case: its
+// length, the copy ended with a NUL
+void cli_text_raised(char *text, unsigned long long size);
+unsigned long long cli_text_lowered_into(char *out, unsigned long long room, const char *text);
+// the text `text`, `otherwise` where it is NULL, copied into `out` with its terminator
+void cli_text_copied_or(char *out, const char *text, const char *otherwise);
+// `size` bytes with each byte neither of `classes` nor of `set` made `other`
+void cli_text_kept(char *text, unsigned long long size, unsigned int classes, const char *set, char other);
+unsigned long long cli_text_counted(const char *text, unsigned long long size, char byte);
+int cli_text_ascii(const char *text, unsigned long long size);
+// the text written to `out`: with each byte `from` as `to`, answering the text's bytes; with `mark` before each byte of
+// `set`; with `with` in the place of each byte of `set`; and with `value` in the place of each `name`
+unsigned long long cli_text_put_swapped(VerbaLinea *out, const char *text, char from, char to);
+void cli_text_put_marked(VerbaLinea *out, const char *text, const char *set, char mark);
+void cli_text_put_replaced(VerbaLinea *out, const char *text, const char *set, const char *with);
+void cli_text_put_filled(VerbaLinea *out, const char *text, const char *name, const char *value);
+// the text written to `out`: `size` bytes of it with `mark` before each byte of `set`; with each byte of `set` twice;
+// in lower case; with each byte neither of `classes` nor of `set` as `other`; and `size` bytes of it with each %xx made
+// the byte it writes
+void cli_text_put_marked_n(VerbaLinea *out, const char *text, unsigned long long size, const char *set, char mark);
+void cli_text_put_doubled(VerbaLinea *out, const char *text, const char *set);
+void cli_text_put_lowered(VerbaLinea *out, const char *text);
+void cli_text_put_kept(VerbaLinea *out, const char *text, unsigned int classes, const char *set, char other);
+void cli_text_put_unescaped(VerbaLinea *out, const char *text, unsigned long long size);
+
+// the ASCII whitespace, a set of bytes for the walks below
+#define CLI_TEXT_WHITE " \t\n\v\f\r"
+// the kinds of byte a class walk passes over: ASCII letters, decimal digits, the bytes past ASCII, the capitals and the
+// small letters
+#define CLI_TEXT_LETTERS 1u
+#define CLI_TEXT_DIGITS 2u
+#define CLI_TEXT_PAST_ASCII 4u
+#define CLI_TEXT_UPPER 8u
+#define CLI_TEXT_LOWER 16u
+
+// the first place from `at` below `size` whose byte the set `set` holds, and whose byte it does not: `size` where none
+// is, `at` where it stands at or past `size`; and the place past the last byte before `at` the set holds, and it does
+// not: 0 where none is. A set is at most 16 bytes. Each walks the widest lane the build has, then a word at a time, and
+// reads no byte past the bounds it is given
+unsigned long long cli_text_to_any(const char *text, unsigned long long at, unsigned long long size, const char *set);
+unsigned long long cli_text_past_any(const char *text, unsigned long long at, unsigned long long size, const char *set);
+unsigned long long cli_text_back_any(const char *text, unsigned long long at, const char *set);
+unsigned long long cli_text_back_past(const char *text, unsigned long long at, const char *set);
+// the first place from `at` below `size` whose byte is neither of `classes` nor of the set `set`, `size` where none is;
+// the place past the last such byte before `at`, 0 where none is; the first place from `at` that holds `first` and then
+// `second`, `size` where none does; and the number the decimal digits from `at` below `size` write, all ones where they
+// are more than 19, the place past them into `end` where it is not NULL. Each a word at a time
+unsigned long long cli_text_past_class(const char *text, unsigned long long at, unsigned long long size,
+                                       unsigned int classes, const char *set);
+unsigned long long cli_text_back_past_class(const char *text, unsigned long long at, unsigned int classes,
+                                            const char *set);
+unsigned long long cli_text_to_pair(const char *text, unsigned long long at, unsigned long long size, char first,
+                                    char second);
+unsigned long long cli_text_number(const char *text, unsigned long long at, unsigned long long size,
+                                   unsigned long long *end);
 
 // the bytes of `size` bytes of `text` its whitespace at the start takes; and the length of the text with its
 // whitespace at the end taken off

@@ -97,7 +97,7 @@ def cmd_scan(a):
         "-v", top + ":/usr/src", "-v", SCANNER_CACHE + ":/opt/sonar-scanner/.sonar/cache",
         SCANNER_IMAGE,
         "-Dsonar.projectKey=" + PROJECT, "-Dsonar.projectName=" + PROJECT,
-        "-Dsonar.sources=ui", "-Dsonar.sourceEncoding=UTF-8", "-Dsonar.scm.disabled=true",
+        "-Dsonar.sources=" + ",".join(a.sources), "-Dsonar.sourceEncoding=UTF-8", "-Dsonar.scm.disabled=true",
         "-Dsonar.exclusions=" + EXCLUSIONS, "-Dsonar.cpd.exclusions=",
         # the C sources, read by the sonar-cxx plugin where the server holds it, and the reports `source tidy` wrote
         "-Dsonar.cxx.file.suffixes=.c,.h,.cu,.cuh",
@@ -115,7 +115,20 @@ def cmd_scan(a):
         return 1
     telling = [line.rstrip("\n") for line in lines if re.search(r"EXECUTION|ANALYSIS SUCCESSFUL|duplicat|files indexed|ERROR", line)]
     print("\n".join(telling[-12:]))
-    return 0
+    return 0 if processed() else 1
+
+
+def processed():
+    """Whether the server finished the report a scan handed it, within two minutes. The scanner ends when the report
+    is handed over, and until the server has read it the issues listed are the last scan's."""
+    for _ in range(120):
+        state = asked("ce/component", "GET", ADMIN, component=PROJECT)
+        if not state.get("queue") and state.get("current", {}).get("status") != "IN_PROGRESS":
+            print("the server's reading of the scan: %s" % state.get("current", {}).get("status"))
+            return True
+        time.sleep(1)
+    print("the server had not read the scan in two minutes")
+    return False
 
 
 def duplications_listed(token):
@@ -199,7 +212,8 @@ def register(sub):
     sonarqube = group.add_subparsers(dest="command", required=True)
     p = sonarqube.add_parser("project", help="the project made and its token written to build/harness/sonarqube_token.txt")
     p.set_defaults(fn=cmd_project)
-    p = sonarqube.add_parser("scan", help="ui/ scanned through the scanner's image, the log to build/sonarqube_scan.log")
+    p = sonarqube.add_parser("scan", help="the sources scanned through the scanner's image, ui/ where none are named, the log to build/sonarqube_scan.log")
+    p.add_argument("--sources", nargs="+", default=["ui"], help="the folders scanned, from the top of the tree")
     p.set_defaults(fn=cmd_scan)
     p = sonarqube.add_parser("profile", help="the cxx profile orior, with the clang-tidy, cppcheck and clang analyzer rules on, set for the project")
     p.set_defaults(fn=cmd_profile)

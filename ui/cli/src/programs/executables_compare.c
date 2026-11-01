@@ -3,6 +3,7 @@
 // executables_compare.c: the program a build made compared with the last build of the same commit, and the command
 // that runs it, in the folder the job names, with the variables of the tree's .env
 #include "../code/git.h"
+#include "../command_line/cells.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "executables_internal.h"
@@ -86,14 +87,8 @@ void cli_executables_compare_build(const char *root, const char *id, const char 
     char slug[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = slug, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
-    for (char *at = slug; at[0] != '\0'; at += 1)
-    {
-        const char one = at[0];
-        const int allowed = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
-                            ((one >= '0') && (one <= '9')) || (one == '.') || (one == '-') ||
-                            ((unsigned char)one >= 0x80u);
-        at[0] = allowed ? one : '_';
-    }
+    cli_text_kept(slug, cellul.len(&(CatenaFinitaCfg){.src = slug, .cap = CLI_CELLS_POOL}),
+                  CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_PAST_ASCII, ".-", '_');
     char folder[CLI_PATH_MAX_LEN];
     char folder_buf[CLI_PATH_MAX_LEN];
     char allowed[CLI_PATH_MAX_LEN];
@@ -113,13 +108,13 @@ void cli_executables_compare_build(const char *root, const char *id, const char 
         return;
     }
     unsigned long long now_size = 0ull;
-    const unsigned char *const now = cli_file_read(file, &now_size);
+    const unsigned char *const now = cli_file_taken(file, &now_size, &g_cli_executables_cells);
     if (now == NULL)
     {
         return;
     }
     unsigned long long old_size = 0ull;
-    const unsigned char *const old = cli_file_read(allowed, &old_size);
+    const unsigned char *const old = cli_file_taken(allowed, &old_size, &g_cli_executables_cells);
     if (old != NULL)
     {
         char print_buf[CLI_PATH_MAX_LEN * 2u];
@@ -184,7 +179,7 @@ void cli_executables_compare_build(const char *root, const char *id, const char 
         }
         mmgr_line_finish(&print_line);
         cli_print(sink, print_buf);
-        cli_file_let_go(old, old_size);
+        cli_file_given(old, &g_cli_executables_cells);
     }
     query_removed(folder);
     if (query_folder_made(folder_buf))
@@ -192,7 +187,7 @@ void cli_executables_compare_build(const char *root, const char *id, const char 
         const CliFilePiece piece = {now, now_size};
         cli_file_pieces_written(allowed, &piece, 1u);
     }
-    cli_file_let_go(now, now_size);
+    cli_file_given(now, &g_cli_executables_cells);
 }
 
 // each `NAME=value` line of a tree's .env handed to `each`, in order: a leading `export` taken off, a value in quotes
@@ -203,10 +198,7 @@ static void cli_dot_env(const char *text, void (*each)(void *context, const char
     for (const char *line = text; line[0] != '\0';)
     {
         const char *stop = line;
-        while ((stop[0] != '\0') && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
         cli_scan_trim(&from, &length);
@@ -221,10 +213,7 @@ static void cli_dot_env(const char *text, void (*each)(void *context, const char
             length -= 7ull;
         }
         unsigned long long equals = 0ull;
-        while ((equals < length) && (from[equals] != '='))
-        {
-            equals += 1ull;
-        }
+        equals = cli_text_to_any(from, equals, length, "=");
         if (equals == length)
         {
             continue;
@@ -262,10 +251,7 @@ static void cli_dot_env(const char *text, void (*each)(void *context, const char
         {
             // a bare value up to ` #`, trimmed
             unsigned long long end = 0ull;
-            while (((end + 1ull) < value_length) && !((value[end] == ' ') && (value[end + 1ull] == '#')))
-            {
-                end += 1ull;
-            }
+            end = cli_text_to_pair(value, 0ull, value_length, ' ', '#');
             end = ((end + 1ull) < value_length) ? end : value_length;
             const char *bare = value;
             cli_scan_trim(&bare, &end);

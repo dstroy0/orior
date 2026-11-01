@@ -5,7 +5,8 @@
     harness.py wsl mount                  the volume's state: mounted, made and not mounted, or not made
     harness.py wsl mount --create         the volume made as WSL's root: a 64 GB ext4 image on the distro's disk
     harness.py wsl mount --attach         the volume made before mounted again, as after a WSL restart
-    harness.py wsl sync                   the working tree copied onto the volume with rsync, build/ and .git left out
+    harness.py wsl sync                   the working tree copied onto the volume with rsync, build/ and .git left out, a
+                                          repository of its own there: git tells the program what a checkout has
     harness.py wsl run -- COMMAND...      a command run in the volume's tree under bash -lc, the tree copied first
 
 The repository sits on a Windows drive, which WSL reaches through its 9p mount; a build there spends its time in the
@@ -109,8 +110,14 @@ def cmd_wsl_mount(a):
 
 
 def synced():
-    """The working tree copied onto the volume, build/ and .git left out: rsync's exit code."""
-    return ran("rsync -a --delete --exclude /build/ --exclude /.git/ %s/ %s/" % (wsl_path(ROOT), TREE))
+    """The working tree copied onto the volume, build/ and .git left out, and a repository of its own there: the first
+    exit code that is not zero. A file copied is stamped with WSL's clock, which runs apart from the system's, and a build
+    on the volume sees it as newer than what it built; `-c` keeps a deleted file's name from being made again."""
+    copied = ran(
+        "set -o pipefail; rsync -a --delete --exclude /build/ --exclude /.git/ --out-format=%%n %s/ %s/ "
+        "| sed '/\\/$/d' | (cd %s && xargs -r -d '\\n' touch -c --)" % (wsl_path(ROOT), TREE, TREE)
+    )
+    return copied or ran("git -C %s init -q" % TREE)
 
 
 def cmd_wsl_sync(a):
@@ -127,7 +134,7 @@ def cmd_wsl_run(a):
         if code != 0:
             return code
     words_given = a.words[1:] if a.words[:1] == ["--"] else a.words
-    return ran("cd %s && %s" % (TREE, " ".join(shlex.quote(word) for word in words_given)))
+    return ran("cd %s && %s" % (TREE, " ".join(shlex.quote(word) for word in words_given)), a.user)
 
 
 def register(sub):
@@ -145,5 +152,6 @@ def register(sub):
     p.set_defaults(fn=cmd_wsl_sync, create=False, attach=False)
     p = wsl.add_parser("run", help="a command run in the volume's tree, the tree copied first")
     p.add_argument("--no-sync", action="store_true", help="run on the tree as it stands on the volume")
+    p.add_argument("--user", default=None, help="the user the command runs as, the distribution's default where none is named")
     p.add_argument("words", nargs=argparse.REMAINDER, help="the command and its words, after --")
     p.set_defaults(fn=cmd_wsl_run, create=False, attach=False)

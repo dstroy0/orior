@@ -80,10 +80,7 @@ int cli_files_tracked(const char *root, const char *path)
     for (unsigned long long at = 0ull;;)
     {
         end = at;
-        while ((end < folder_length) && (path[end] != '/'))
-        {
-            end += 1ull;
-        }
+        end = cli_text_to_any(path, end, folder_length, "/");
         VerbaLinea part = {outside, sizeof(outside), 0ull};
         mmgr_line_put_n(&part, path, end);
         mmgr_line_finish(&part);

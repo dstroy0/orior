@@ -4,16 +4,14 @@
 // function as llvm-nm lists it, the instructions of a function as llvm-objdump prints them and as the plugin ghidra's
 // script writes them, and whether two readings give the same instructions, the two readers' spellings of one
 // instruction taken as one
+#include "../text/text.h"
 #include "disasm_verify.h"
 
 // the end of the line of `text` that contains `at`: its newline, or the text's end
 static unsigned long long read_line_end(const char *text, unsigned long long size, unsigned long long at)
 {
     unsigned long long end = at;
-    while ((end < size) && (text[end] != '\n'))
-    {
-        end += 1ull;
-    }
+    end = cli_text_to_any(text, end, size, "\n");
     return end;
 }
 
@@ -48,9 +46,9 @@ unsigned int cli_disasm_functions_defined(const char *ir, unsigned long long siz
         const int defines = ((end - at) > 7ull) &&
                             cellul.starts(&(CatenaFinitaCfg){.src = ir + at, .other = "define ", .cap = end - at});
         unsigned long long name = at;
-        while (defines && (name < end) && (ir[name] != '@'))
+        if (defines)
         {
-            name += 1ull;
+            name = cli_text_to_any(ir, name, end, "@");
         }
         if (defines && (name < end))
         {
@@ -80,10 +78,7 @@ int cli_disasm_symbol_of(const char *text, unsigned long long size, const char *
         const unsigned long long end = read_line_end(text, size, at);
         // the line's last word is the symbol: an address, a kind letter and the name, each apart by one space
         unsigned long long word = end;
-        while ((word > at) && (text[word - 1ull] != ' '))
-        {
-            word -= 1ull;
-        }
+        word = (at + cli_text_back_any(text + at, word - at, " "));
         const unsigned long long found = end - word;
         const int same =
             (found == length) && cellul.starts(&(CatenaFinitaCfg){.src = text + word, .other = name, .cap = found});
@@ -138,12 +133,10 @@ static int read_decimal(const char *text, unsigned long long end, unsigned long 
 {
     unsigned long long number = 0ull;
     unsigned long long digits = 0ull;
-    while ((*at < end) && (text[*at] >= '0') && (text[*at] <= '9'))
-    {
-        number = (number * 10ull) + (unsigned long long)(text[*at] - '0');
-        digits += 1ull;
-        *at += 1ull;
-    }
+    unsigned long long stop = *at;
+    number = cli_text_number(text, *at, end, &stop);
+    digits = stop - *at;
+    *at = stop;
     *value = number;
     return digits > 0ull;
 }
@@ -151,20 +144,14 @@ static int read_decimal(const char *text, unsigned long long end, unsigned long 
 // `at` moved past the spaces and tabs at `text`
 static void read_blanks(const char *text, unsigned long long end, unsigned long long *at)
 {
-    while ((*at < end) && ((text[*at] == ' ') || (text[*at] == '\t')))
-    {
-        *at += 1ull;
-    }
+    *at = cli_text_past_any(text, *at, end, " \t");
 }
 
 // the word at `text` from `at`, up to a blank or the end, its length; `at` moved past it
 static unsigned long long read_word(const char *text, unsigned long long end, unsigned long long *at)
 {
     const unsigned long long from = *at;
-    while ((*at < end) && (text[*at] != ' ') && (text[*at] != '\t') && (text[*at] != '\r'))
-    {
-        *at += 1ull;
-    }
+    *at = cli_text_to_any(text, *at, end, " \t\r");
     return *at - from;
 }
 
@@ -369,12 +356,11 @@ static const CliDisasmSpelling s_spellings[] = {
 static void read_one_spelling(const char *mnemonic, char *out)
 {
     unsigned long long length = 0ull;
-    while ((mnemonic[length] != '\0') && (mnemonic[length] != '.') && (length < (CLI_DISASM_MNEMONIC - 1u)))
-    {
-        const char letter = mnemonic[length];
-        out[length] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + ('a' - 'A')) : letter;
-        length += 1ull;
-    }
+    length =
+        cli_text_to_any(mnemonic, 0ull, cellul.len(&(CatenaFinitaCfg){.src = mnemonic, .cap = CLI_CELLS_POOL}), ".");
+    length = (length < (CLI_DISASM_MNEMONIC - 1u)) ? length : (CLI_DISASM_MNEMONIC - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = out, .src = mnemonic, .bytes = (size_t)length});
+    cli_text_lowered(out, length);
     out[length] = '\0';
     for (unsigned int each = 0u; each < (sizeof(s_spellings) / sizeof(s_spellings[0])); each += 1u)
     {

@@ -18,10 +18,8 @@
 
 #define CLI_LISTED_MOST 4096u
 
-#define CLI_LISTED_FIRST 16u
-
 // A tree's walk: its root, when it was walked on the clock that only goes forward, whether the tree's watch lost
-// changes since, and its folders of runs in order, in a cell of `room` grown as they are found and cached with the walk
+// changes since, and its folders of runs in order, in a cell of `room` at their most
 typedef struct
 {
     char root[CLI_PATH_MAX_LEN];
@@ -48,7 +46,7 @@ typedef struct
 static CliWalk s_walks[CLI_WALKS_MOST];
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// The folders a walk has yet to read, in a cell of `room` grown as they are found
+// The folders a walk has yet to read, in a cell of `room`
 typedef struct
 {
     char (*folder)[CLI_PATH_MAX_LEN];
@@ -56,35 +54,13 @@ typedef struct
     unsigned int room;
 } CliPending;
 
-// The runs listed, in a cell of `room` grown as they are read
+// The runs listed, in a cell of `room`
 typedef struct
 {
     CliListed *run;
     unsigned int count;
     unsigned int room;
 } CliRuns;
-
-// a list of `*room` places of `width` bytes grown to twice as many, or to CLI_LISTED_FIRST where it contains none, up
-// to `most`, `list` given back: the list, or NULL where it contains `most` or the cell is refused and `list` is
-// retained
-static void *cli_listed_grown(void *list, unsigned int *room, unsigned int most, unsigned long long width,
-                              const char *what)
-{
-    if (*room >= most)
-    {
-        return NULL;
-    }
-    const unsigned int doubled = (*room == 0u) ? CLI_LISTED_FIRST : (2u * *room);
-    const unsigned int taken = (doubled < most) ? doubled : most;
-    void *const grown = cli_cell_regrown(list, (size_t)((unsigned long long)*room * width),
-                                         (unsigned long long)taken * width, &g_cli_qry_listed_cells);
-    if (grown == NULL)
-    {
-        return NULL;
-    }
-    *room = taken;
-    return grown;
-}
 
 // What one folder read of a walk hands on: the walk, the folder read, and the folders that wait
 typedef struct
@@ -104,12 +80,6 @@ static void cli_walk_folder_put(CliWalk *walk, const char *folder)
         {
             return;
         }
-    }
-    if (walk->count == walk->room)
-    {
-        void *const grown =
-            cli_listed_grown(walk->folders, &walk->room, CLI_RUN_FOLDERS, CLI_PATH_MAX_LEN, "a tree's folders of runs");
-        walk->folders = (grown != NULL) ? grown : walk->folders;
     }
     if (walk->count == walk->room)
     {
@@ -147,12 +117,6 @@ static void cli_walk_each(void *context, const char *name, int is_folder)
         }
         if (pending->count == pending->room)
         {
-            void *const grown = cli_listed_grown(pending->folder, &pending->room, CLI_WALK_PENDING, CLI_PATH_MAX_LEN,
-                                                 "the folders a walk has yet to read");
-            pending->folder = (grown != NULL) ? grown : pending->folder;
-        }
-        if (pending->count == pending->room)
-        {
             return;
         }
         VerbaLinea line = {pending->folder[pending->count], CLI_PATH_MAX_LEN, 0ull};
@@ -175,12 +139,19 @@ static void cli_walk_each(void *context, const char *name, int is_folder)
 static void cli_walked(const char *root, CliWalk *walk)
 {
     walk->count = 0u;
+    if (walk->folders == NULL)
+    {
+        walk->folders = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_RUN_FOLDERS * CLI_PATH_MAX_LEN,
+                                                          &g_cli_qry_listed_cells);
+        walk->room = (walk->folders != NULL) ? CLI_RUN_FOLDERS : 0u;
+    }
     CliPending pending = {NULL, 0u, 0u};
-    pending.folder =
-        cli_listed_grown(NULL, &pending.room, CLI_WALK_PENDING, CLI_PATH_MAX_LEN, "the folders a walk has yet to read");
-    pending.count = (pending.folder != NULL) ? 1u : 0u;
+    pending.folder = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_WALK_PENDING * CLI_PATH_MAX_LEN,
+                                                      &g_cli_qry_listed_cells);
     if (pending.folder != NULL)
     {
+        pending.room = CLI_WALK_PENDING;
+        pending.count = 1u;
         pending.folder[0][0] = '\0';
     }
     while (pending.count > 0u)
@@ -256,10 +227,7 @@ void cli_qry_run_written(const char *root, const char *path, unsigned long long 
     }
     // the folder is the path before its last slash, the top of the tree where it has none
     unsigned long long cut = length;
-    while ((cut > 0u) && (path[cut - 1u] != '/'))
-    {
-        cut -= 1u;
-    }
+    cut = cli_text_back_any(path, cut, "/");
     char folder[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = folder, .src = path, .bytes = (size_t)((cut > 0u) ? cut - 1u : 0u)});
     folder[(cut > 0u) ? cut - 1u : 0u] = '\0';
@@ -301,12 +269,6 @@ static void cli_run_each(void *context, const char *name, int is_folder)
         (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
     {
         return;
-    }
-    if (runs->count == runs->room)
-    {
-        void *const grown =
-            cli_listed_grown(runs->run, &runs->room, CLI_LISTED_MOST, sizeof(CliListed), "the runs of a tree listed");
-        runs->run = (grown != NULL) ? grown : runs->run;
     }
     if (runs->count == runs->room)
     {
@@ -358,24 +320,15 @@ void cli_qry_lessons_written(const char *text, unsigned long long size, VerbaLin
     while (at < end)
     {
         const char *stop = at;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const char *words[4] = {NULL, NULL, NULL, NULL};
         unsigned long long lengths[4] = {0ull, 0ull, 0ull, 0ull};
         const char *rest = at;
         for (unsigned int each = 0u; each < 3u; each += 1u)
         {
-            while ((rest < stop) && ((rest[0] == ' ') || ((rest[0] >= '\t') && (rest[0] <= '\r'))))
-            {
-                rest += 1;
-            }
+            rest += cli_text_past_any(rest, 0ull, (unsigned long long)(stop - rest), CLI_TEXT_WHITE);
             words[each] = rest;
-            while ((rest < stop) && !((rest[0] == ' ') || ((rest[0] >= '\t') && (rest[0] <= '\r'))))
-            {
-                rest += 1;
-            }
+            rest += cli_text_to_any(rest, 0ull, (unsigned long long)(stop - rest), CLI_TEXT_WHITE);
             lengths[each] = (unsigned long long)(rest - words[each]);
         }
         // the stand-in: the words after, one space between each
@@ -383,15 +336,9 @@ void cli_qry_lessons_written(const char *text, unsigned long long size, VerbaLin
         VerbaLinea joined = {stand_in, sizeof(stand_in), 0ull};
         while (rest < stop)
         {
-            while ((rest < stop) && ((rest[0] == ' ') || ((rest[0] >= '\t') && (rest[0] <= '\r'))))
-            {
-                rest += 1;
-            }
+            rest += cli_text_past_any(rest, 0ull, (unsigned long long)(stop - rest), CLI_TEXT_WHITE);
             const char *const word = rest;
-            while ((rest < stop) && !((rest[0] == ' ') || ((rest[0] >= '\t') && (rest[0] <= '\r'))))
-            {
-                rest += 1;
-            }
+            rest += cli_text_to_any(rest, 0ull, (unsigned long long)(stop - rest), CLI_TEXT_WHITE);
             if (rest > word)
             {
                 mmgr_line_put(&joined, (joined.at != 0ull) ? " " : "");
@@ -432,7 +379,9 @@ void cli_qry_listed(const char *root, VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
     const CliWalk *const walk = cli_walk_of(root);
-    CliRuns runs = {NULL, 0u, 0u};
+    CliListed *const listed_cell = g_cli_cells->temporary_buf_alloc(
+        (unsigned long long)CLI_LISTED_MOST * sizeof(CliListed), &g_cli_qry_listed_cells);
+    CliRuns runs = {listed_cell, 0u, (listed_cell != NULL) ? CLI_LISTED_MOST : 0u};
     for (unsigned int index = 0u; index < walk->count; index += 1u)
     {
         char full[CLI_PATH_MAX_LEN];
@@ -486,12 +435,13 @@ void cli_qry_listed(const char *root, VerbaLinea *out)
         mmgr_line_put(&line, cli_folder_full(root, walk->folders[index], full) ? full : "");
         mmgr_line_put(&line, "/overseer.txt");
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(overseer, &size) : NULL;
+        const unsigned char *const bytes =
+            (mmgr_line_finish(&line) != 0ull) ? cli_file_taken(overseer, &size, &g_cli_qry_listed_cells) : NULL;
         if (bytes != NULL)
         {
             // the overseer's bytes are its text
             cli_qry_lessons_written((const char *)bytes, size, out);
-            cli_file_let_go(bytes, size);
+            cli_file_given(bytes, &g_cli_qry_listed_cells);
         }
         mmgr_line_put(out, "]}");
     }

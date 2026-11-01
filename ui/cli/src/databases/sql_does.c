@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sql_does.c: what a statement does by its first word, the query that counts the rows an unbounded write reaches, and
 // the object a statement that shapes the schema names
+#include "../text/text.h"
 #include "sql.h"
 
 // the most words of a statement read, and the most of its tokens past spaces and comments
@@ -218,15 +219,8 @@ static unsigned long long cli_ends(const char *statement, unsigned long long len
 // the bytes from `from` to `to` of the statement put, trimmed
 static void cli_trimmed_put(VerbaLinea *out, const char *statement, unsigned long long from, unsigned long long to)
 {
-    while ((from < to) && ((statement[from] == ' ') || ((statement[from] >= '\t') && (statement[from] <= '\r'))))
-    {
-        from += 1ull;
-    }
-    while ((to > from) &&
-           ((statement[to - 1u] == ' ') || ((statement[to - 1u] >= '\t') && (statement[to - 1u] <= '\r'))))
-    {
-        to -= 1ull;
-    }
+    from = cli_text_past_any(statement, from, to, CLI_TEXT_WHITE);
+    to = (from + cli_text_back_past(statement + from, to - from, CLI_TEXT_WHITE));
     mmgr_line_put_n(out, statement + from, (to > from) ? (to - from) : 0ull);
 }
 

@@ -38,6 +38,7 @@ MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_
     -DMMGR_CARCER_OWNERS=1024u)
 
 source "$HERE/../sanitized.sh"
+source "$TOP/ui/cli/lto_words.sh"
 
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "test exit 1"; exit 1; }
 CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"
@@ -50,6 +51,10 @@ sanitized_checks_begin
 export ORIOR_HOME="$RUN/home"
 rm -rf "$ORIOR_HOME"
 mkdir -p "$ORIOR_HOME"
+# the checks run the tree's language server, which reads the database under build/, and a tree new to this machine has none
+if [ ! -f "$TOP/build/compile_commands.json" ]; then
+    "$(command -v python3 || command -v python)" "$TOP/utils/maint/engine/clangd_database.py" > /dev/null || exit 1
+fi
 
 # the window's modules a check may reach: every source but the program's own and the other systems' bodies
 MODULES=()
@@ -80,7 +85,7 @@ for test in "${TESTS[@]}"; do
         *_test.c) OPTIMIZED=-O1 ;;
         *) OPTIMIZED=-O2 ;;
     esac
-    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" \
+    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${LTO_WORDS[@]}" "${LINK_WORDS[@]}" "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" \
         "${MODULES[@]}" "$LIBRARY" "${LIBRARIES[@]}" > "$RUN/$name.log" 2>&1; then
         echo "  build failed: $name did not compile"
         tail -20 "$RUN/$name.log"

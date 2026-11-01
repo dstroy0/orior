@@ -5,6 +5,7 @@
 // quotes, a summary line that ends in a period, a blank line after the summary line where more follows, and closing
 // quotes on a line of their own after more than one line
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "inspect_py.h"
 
 // the page of PEP 257, which a docstring's finding links to
@@ -47,11 +48,10 @@ static int doc_line(const char *src, DocPart part, unsigned int index, DocPart *
     unsigned long long at = part.start;
     for (unsigned int count = 0u; at < part.end; count += 1u)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (size_t)(part.end - at)});
-        unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - src) : part.end;
-        const unsigned long long next = (newline != NULL) ? (end + 1u) : part.end;
-        end -= ((newline != NULL) && (end > at) && (src[end - 1u] == '\r')) ? 1u : 0u;
+        const CliTextLine bounds = cli_text_line_at(src, at, part.end);
+        unsigned long long end = bounds.stop;
+        const unsigned long long next = bounds.next;
+        end -= bounds.stop - bounds.cut;
         if (count == index)
         {
             *line = (DocPart){at, end};
@@ -190,10 +190,7 @@ static void doc_checked(const char *src, unsigned long long size, const CliInspe
     const char *const whole = src + tok->start;
     const unsigned long long length = tok->end - tok->start;
     unsigned long long prefix = 0ull;
-    while ((prefix < length) && (whole[prefix] != '"') && (whole[prefix] != '\''))
-    {
-        prefix += 1u;
-    }
+    prefix = cli_text_to_any(whole, prefix, length, "\"'");
     prefix = (prefix == length) ? 0ull : prefix;
     for (unsigned long long at = 0ull; at < prefix; at += 1u)
     {
@@ -280,10 +277,7 @@ static void doc_checked(const char *src, unsigned long long size, const CliInspe
                  "docstring-blank");
     }
     unsigned long long last = inner.end;
-    while ((last > inner.start) && (src[last - 1u] != '\n'))
-    {
-        last -= 1u;
-    }
+    last = (inner.start + cli_text_back_any(src + inner.start, last - inner.start, "\n"));
     const DocPart closing = doc_trimmed(src, (DocPart){last, inner.end});
     if (closing.start < closing.end)
     {

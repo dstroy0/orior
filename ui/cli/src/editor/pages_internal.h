@@ -89,8 +89,8 @@ typedef struct CliPaged
 } CliPaged;
 
 // Lines a reading of a text gives, each where it starts in the text and its bytes: one cell containing the starts, the
-// lengths and the text, sized to the lines requested and the bytes read and moved into one of twice the room as either
-// fills, up to CLI_PAGE_READ_LINES lines and CLI_PAGE_READ_TEXT bytes, past which the reading is full
+// lengths and the text, sized to the lines requested and the bytes they take, up to CLI_PAGE_READ_LINES lines and
+// CLI_PAGE_READ_TEXT bytes, past which the reading is full
 typedef struct
 {
     unsigned char *cell;
@@ -104,10 +104,9 @@ typedef struct
     int full;
 } CliPageLines;
 
-// the lines stored in a cell of `lines_first` lines and `text_first` bytes to begin with: 1, or 0 with why given; the
-// lines emptied, their cell retained; room for `lines_more` lines and `text_more` bytes, the cell moved into one of
-// twice the room where they do not fit: 1, or 0 with the lines full; a line of `size` bytes put after the lines, the
-// lines full where it does not fit; and the cell given back (pages_lines.c)
+// the lines stored in a cell of `lines_first` lines and `text_first` bytes: 1, or 0 with why given; the lines emptied,
+// their cell retained; whether `lines_more` lines and `text_more` bytes fit: 1, or 0 with the lines full; a line of
+// `size` bytes put after the lines, the lines full where it does not fit; and the cell given back (pages_lines.c)
 int cli_page_lines_reserved(CliPageLines *lines, unsigned long long lines_first, unsigned long long text_first,
                             VerbaLinea *err_msg);
 void cli_page_lines_emptied(CliPageLines *lines);

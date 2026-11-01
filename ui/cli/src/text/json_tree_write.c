@@ -104,7 +104,7 @@ unsigned long long cli_lossy_letter(const unsigned char *text, unsigned long lon
 static void cli_lossy_run_put(VerbaLinea *out, const unsigned char *text, unsigned long long from,
                               unsigned long long to)
 {
-    // a byte of the line is held back for the terminator
+    // a byte of the line is kept back for the terminator
     const unsigned long long room = (out->at < out->capacity) ? (out->capacity - out->at - 1ull) : 0ull;
     unsigned long long fits = to;
     if ((out->flush == NULL) && ((to - from) > room))
@@ -268,4 +268,21 @@ void cli_json_write(const CliJson *json, unsigned int node, VerbaLinea *out, uns
     {
         cli_written(json, node, out, indent, sorted, 0u);
     }
+}
+
+// the deepest level a pretty writing's room counts
+#define CLI_JSON_PRETTY_DEPTH 16ull
+
+unsigned long long cli_json_written_room(const CliJson *json)
+{
+    // a text's byte is escaped to at most 6, and a node adds at most its quotes, its key's colon, its comma and a
+    // literal
+    return (json->used * 6ull) + ((unsigned long long)json->nodes * 16ull) + 16ull;
+}
+
+unsigned long long cli_json_pretty_room(const CliJson *json, unsigned int indent)
+{
+    // a node adds its line's end, its key's space and its level's spaces
+    return cli_json_written_room(json) +
+           ((unsigned long long)json->nodes * (((unsigned long long)indent * CLI_JSON_PRETTY_DEPTH) + 2ull));
 }

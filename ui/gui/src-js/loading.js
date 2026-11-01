@@ -5,7 +5,7 @@
 // name standing over the window's lattice, glass over it as every view is. It stays at least SHORTEST
 // milliseconds, so a fast read shows the pane whole instead of flashing it, and fades after. It is killed
 // at once, its wait ended, where the window goes while it still shows, and where the app asks for that.
-// The eye that follows the pointer (eye.js) is held back from it.
+// The eye that follows the pointer (eye.js) is kept back from it.
 
 export const SHORTEST = 6000;
 export const FADE = 350;

@@ -344,9 +344,8 @@ static void highlight_plugin_line(const char *id, const char *text, const char *
 }
 
 // a function's parameters, their types and a body's locals named by the C, Python, Rust and JavaScript plugins'
-// grammars
-// a grammar whose `indent` runs a block by indent, a tab to the next fourth column, lines of blanks or a `;` note alone
-// passed over, and statements begun in root and in a block
+// grammars a grammar whose `indent` runs a block by indent, a tab to the next fourth column, lines of blanks or a `;`
+// note alone passed over, and statements written in root and in a block
 static const char s_indented[] =
     "{\"indent\": {\"states\": {\"block\": \"close\"}, \"tab\": 4, \"skip\": \"^\\\\s*(?:;.*)?$\", "
     "\"begins\": [\"root\", \"block\"]}, \"tokenizer\": {"
@@ -384,27 +383,29 @@ static void highlight_indent(void)
 
 static void highlight_declarations(void)
 {
-    highlight_plugin_line("c", "static int add(const char *name, unsigned int count);",
-                          "0 keyword|6 |7 type|10 |11 identifier.declaration.function|14 "
-                          "delimiter.bracket.parameter.depth.open|15 keyword|20 |21 type.string|25 |26 operator.memory|27 "
-                          "identifier.parameter|31 delimiter.separator|32 |33 type.number|41 |42 type.number|45 |46 "
-                          "identifier.parameter|51 delimiter.bracket.parameter.depth.close|52 delimiter.statement",
-                          "C's prototype names its parameters and their types");
+    highlight_plugin_line(
+        "c", "static int add(const char *name, unsigned int count);",
+        "0 keyword|6 |7 type|10 |11 identifier.declaration.function|14 "
+        "delimiter.bracket.parameter.depth.open|15 keyword|20 |21 type.string|25 |26 operator.memory|27 "
+        "identifier.parameter|31 delimiter.separator|32 |33 type.number|41 |42 type.number|45 |46 "
+        "identifier.parameter|51 delimiter.bracket.parameter.depth.close|52 delimiter.statement",
+        "C's prototype names its parameters and their types");
     highlight_plugin_line("c", "    unsigned int total = 0u;",
                           "0 |4 type.number|12 |13 type.number|16 |17 identifier.local|22 |23 operator.assign|24 |25 "
                           "number|26 number.suffix|27 delimiter.statement",
                           "a C local and its type");
-    highlight_plugin_line("python", "def total(first: int, second=\"x\"):",
-                          "0 keyword|3 |4 identifier.declaration.function|9 delimiter.bracket.parameter.depth.open|10 "
-                          "identifier.parameter|15 delimiter|16 |17 type.number|20 delimiter.separator|21 |22 "
-                          "identifier.parameter|28 operator.assign|29 string|32 delimiter.bracket.parameter.depth.close|33 "
-                          "operator.region.open|34 delimiter.statement",
-                          "Python's head names its parameters and an annotation's type, the colon that ends its line a "
-                          "region's opening, and the line's end its statement's");
     highlight_plugin_line(
-        "python", "    count: int = 0",
-        "0 |4 identifier.local|9 delimiter|10 |11 type.number|14 |15 operator.assign|16 |17 number|18 delimiter.statement",
-        "a Python local with its annotation");
+        "python", "def total(first: int, second=\"x\"):",
+        "0 keyword|3 |4 identifier.declaration.function|9 delimiter.bracket.parameter.depth.open|10 "
+        "identifier.parameter|15 delimiter|16 |17 type.number|20 delimiter.separator|21 |22 "
+        "identifier.parameter|28 operator.assign|29 string|32 delimiter.bracket.parameter.depth.close|33 "
+        "operator.region.open|34 delimiter.statement",
+        "Python's head names its parameters and an annotation's type, the colon that ends its line a "
+        "region's opening, and the line's end its statement's");
+    highlight_plugin_line("python", "    count: int = 0",
+                          "0 |4 identifier.local|9 delimiter|10 |11 type.number|14 |15 operator.assign|16 |17 "
+                          "number|18 delimiter.statement",
+                          "a Python local with its annotation");
     highlight_plugin_line("python", "    total = 4",
                           "0 |4 identifier.local|9 |10 operator.assign|11 |12 number|13 delimiter.statement",
                           "and one without");
@@ -477,7 +478,7 @@ int main(void)
                                            .other = "0 ",
                                            .cap = CLI_CELLS_POOL}),
               "what matches no rule has no token");
-    // grammars stored under many keys, each stored as the list of them grows, the first still colors after the last
+    // grammars stored under many keys, the first still colors after the last
     int stored = 1;
     for (unsigned int at = 0u; at < 100u; at += 1u)
     {

@@ -2,23 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cargo_scan.c: a file of Rust read as the search for tests reads it: its tokens, comments, strings and characters
 // passed over, and the tests and the modules it contains
+#include "../text/text.h"
 #include "cargo_tests_internal.h"
 
 CliCargoScan g_cli_cargo_scan;
-
-void *cli_cargo_grown(void *cell, unsigned long long *room, unsigned long long most, unsigned long long width,
-                      const char *what)
-{
-    const unsigned long long doubled = 2ull * *room;
-    const unsigned long long taken = (most > doubled) ? most : doubled;
-    void *const grown = cli_cell_regrown(cell, (size_t)(*room * width), taken * width, &g_cli_cargo_cells);
-    if (grown == NULL)
-    {
-        return NULL;
-    }
-    *room = taken;
-    return grown;
-}
 
 // the most modules written in one another at once
 #define CLI_CARGO_INLINE 256u
@@ -78,11 +65,9 @@ static void scan_put(unsigned int kind, unsigned int letter, unsigned long long 
 static unsigned long long scan_raw(const char *text, unsigned long long size, unsigned long long at, unsigned int *line)
 {
     unsigned long long hashes = 0ull;
-    while ((at < size) && (text[at] == '#'))
-    {
-        hashes += 1ull;
-        at += 1ull;
-    }
+    const unsigned long long past = cli_text_past_any(text, at, size, "#");
+    hashes = past - at;
+    at = past;
     if ((at >= size) || (text[at] != '"'))
     {
         const unsigned long long start = at;
@@ -98,10 +83,10 @@ static unsigned long long scan_raw(const char *text, unsigned long long size, un
     while (at < size)
     {
         unsigned long long closed = 0ull;
-        while ((text[at] == '"') && (closed < hashes) && (at + 1ull + closed < size) &&
-               (text[at + 1ull + closed] == '#'))
+        if (text[at] == '"')
         {
-            closed += 1ull;
+            const unsigned long long hashed = cli_text_past_any(text, at + 1ull, size, "#") - (at + 1ull);
+            closed = (hashed < hashes) ? hashed : hashes;
         }
         if ((text[at] == '"') && (closed == hashes))
         {
@@ -137,10 +122,7 @@ static void scan_tokens_put(const char *text, unsigned long long size)
         }
         else if ((c == '/') && (next == '/'))
         {
-            while ((at < size) && (text[at] != '\n'))
-            {
-                at += 1ull;
-            }
+            at = cli_text_to_any(text, at, size, "\n");
         }
         else if ((c == '/') && (next == '*'))
         {
@@ -171,11 +153,12 @@ static void scan_tokens_put(const char *text, unsigned long long size)
         else if (c == '"')
         {
             at += 1ull;
+            at = cli_text_to_any(text, at, size, "\"\\\n");
             while ((at < size) && (text[at] != '"'))
             {
                 at += (text[at] == '\\') ? 1ull : 0ull;
                 line += ((at < size) && (text[at] == '\n')) ? 1u : 0u;
-                at += 1ull;
+                at = cli_text_to_any(text, at + 1ull, size, "\"\\\n");
             }
             at += 1ull;
         }
@@ -187,10 +170,7 @@ static void scan_tokens_put(const char *text, unsigned long long size)
             if (next == '\\')
             {
                 at += 2ull;
-                while ((at < size) && (text[at] != '\''))
-                {
-                    at += 1ull;
-                }
+                at = cli_text_to_any(text, at, size, "'");
                 at += 1ull;
             }
             else if (third == '\'')
@@ -261,7 +241,6 @@ void cli_cargo_scan_given(void)
 {
     g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
     g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
-    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.names, &g_cli_cargo_cells);
     memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
 }
 
@@ -303,27 +282,10 @@ static void scan_item_put(const char *text, const unsigned int *inline_names, un
         mmgr_line_put_n(&line, text + token->start, token->size);
     }
     const CliRustToken *const named = &g_cli_cargo_scan.tokens[name];
-    const unsigned long long items_needed = g_cli_cargo_scan.item_count + 1ull;
-    if (items_needed > g_cli_cargo_scan.item_room)
-    {
-        CliRustItem *const grown = cli_cargo_grown(g_cli_cargo_scan.items, &g_cli_cargo_scan.item_room, items_needed,
-                                                   sizeof(CliRustItem), "the tests and modules followed");
-        if (grown == NULL)
-        {
-            return;
-        }
-        g_cli_cargo_scan.items = grown;
-    }
     const unsigned long long names_most = g_cli_cargo_scan.name_used + line.at + 1ull + named->size + 1ull;
-    if (names_most > g_cli_cargo_scan.name_room)
+    if ((g_cli_cargo_scan.item_count >= g_cli_cargo_scan.item_room) || (names_most > g_cli_cargo_scan.name_room))
     {
-        char *const grown = cli_cargo_grown(g_cli_cargo_scan.names, &g_cli_cargo_scan.name_room, names_most, 1ull,
-                                            "the names of the tests and modules followed");
-        if (grown == NULL)
-        {
-            return;
-        }
-        g_cli_cargo_scan.names = grown;
+        return;
     }
     const unsigned long long inline_at = scan_name_put(joined, line.at);
     const unsigned long long name_at = scan_name_put(text + named->start, named->size);
@@ -375,6 +337,18 @@ static unsigned int scan_attribute(const char *text, unsigned int at, int *marke
 
 unsigned int cli_cargo_scan(const char *text)
 {
+    if (g_cli_cargo_scan.items == NULL)
+    {
+        const unsigned long long item_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(CliRustItem);
+        char *const cell = g_cli_cells->persistent_buf_alloc(item_bytes + CLI_CARGO_TEXT, &g_cli_cargo_cells);
+        if (cell != NULL)
+        {
+            g_cli_cargo_scan.items = (CliRustItem *)(void *)cell;
+            g_cli_cargo_scan.item_room = CLI_CARGO_FOUND;
+            g_cli_cargo_scan.names = cell + item_bytes;
+            g_cli_cargo_scan.name_room = CLI_CARGO_TEXT;
+        }
+    }
     const unsigned int first = g_cli_cargo_scan.item_count;
     unsigned int inline_names[CLI_CARGO_INLINE];
     unsigned long long inline_depths[CLI_CARGO_INLINE];

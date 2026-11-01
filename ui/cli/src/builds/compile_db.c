@@ -22,26 +22,6 @@ int cli_compile_stamped(const char *path, CliStamped *stamped)
     return 1;
 }
 
-void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsigned long long each, unsigned int most,
-                       const char *what)
-{
-    if (count < *room)
-    {
-        return list;
-    }
-    const unsigned int doubled = (*room == 0u) ? CLI_COMPILE_FIRST : (*room * 2u);
-    const unsigned int grown = (doubled < most) ? doubled : most;
-    void *const larger = (count < most) ? cli_cell_regrown(list, (size_t)(count * each),
-                                                           (unsigned long long)grown * each, &g_cli_compile_cells)
-                                        : NULL;
-    if (larger == NULL)
-    {
-        return NULL;
-    }
-    *room = grown;
-    return larger;
-}
-
 void cli_compile_inputs_given(CliInputs *inputs)
 {
     g_cli_cells->persistent_buf_release(inputs->file, &g_cli_compile_cells);
@@ -54,6 +34,13 @@ void cli_compile_found_given(CliFoundFolders *found)
     *found = (CliFoundFolders){NULL, 0u, 0u};
 }
 
+void cli_compile_found_taken(CliFoundFolders *found)
+{
+    char (*const paths)[CLI_PATH_MAX_LEN] = g_cli_cells->temporary_buf_alloc(
+        (unsigned long long)CLI_COMPILE_FOUND * CLI_PATH_MAX_LEN, &g_cli_compile_cells);
+    *found = (CliFoundFolders){paths, 0u, (paths != NULL) ? CLI_COMPILE_FOUND : 0u};
+}
+
 // A folder still to look in below a build, and its depth
 typedef struct
 {
@@ -61,8 +48,7 @@ typedef struct
     unsigned int depth;
 } CliBelowFolder;
 
-// A search below a build: the folders still to look in, in a cell whose room doubles as they are put, and the folder
-// looked in and its depth
+// A search below a build: the folders still to look in, in a cell of `room`, and the folder looked in and its depth
 typedef struct
 {
     CliBelowFolder *pending;
@@ -75,14 +61,8 @@ typedef struct
 static void cli_below_each(void *context, const char *name, int is_folder)
 {
     CliBelow *const below = context;
-    CliBelowFolder *const pending =
-        (is_folder && (name[0] != '.'))
-            ? cli_compile_room(below->pending, below->count, &below->room, sizeof(CliBelowFolder), CLI_COMPILE_PENDING,
-                               "the folders a search below a build has still to look in")
-            : NULL;
-    if (pending != NULL)
+    if (is_folder && (name[0] != '.') && (below->count < below->room))
     {
-        below->pending = pending;
         cli_full(below->folder, name, below->pending[below->count].path);
         below->pending[below->count].depth = below->folder_depth + 1u;
         below->count += 1u;
@@ -93,9 +73,9 @@ static void cli_below_each(void *context, const char *name, int is_folder)
 static void cli_walked_below(const char *top, int (*each)(void *context, const char *folder, unsigned int depth),
                              void *context)
 {
-    CliBelow below = {NULL, 0u, 0u, NULL, 0u};
-    below.pending = cli_compile_room(NULL, 0u, &below.room, sizeof(CliBelowFolder), CLI_COMPILE_PENDING,
-                                     "the folders a search below a build has still to look in");
+    CliBelow below = {NULL, 0u, CLI_COMPILE_PENDING, NULL, 0u};
+    below.pending = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_COMPILE_PENDING * sizeof(CliBelowFolder),
+                                                     &g_cli_compile_cells);
     if (below.pending == NULL)
     {
         return;
@@ -133,12 +113,8 @@ typedef struct
 
 static void cli_found_put(CliFoundFolders *found, const char *path)
 {
-    char (*const paths)[CLI_PATH_MAX_LEN] =
-        cli_compile_room(found->path, found->count, &found->room, CLI_PATH_MAX_LEN, CLI_COMPILE_FOUND,
-                         "the folders a search below a build found");
-    if (paths != NULL)
+    if (found->count < found->room)
     {
-        found->path = paths;
         memor.cpy(&(MemoriaCfg){.dst = found->path[found->count],
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
@@ -307,7 +283,7 @@ int cli_compile_first_word(const char *text, unsigned long long length, char *fi
 unsigned int cli_compile_json_read(CliJson *json, const char *path)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(path, &size);
+    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_compile_cells);
     if (bytes == NULL)
     {
         return CLI_JSON_NONE;
@@ -323,6 +299,6 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path)
         root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
     }
     g_cli_cells->persistent_buf_release(tokens, &g_cli_compile_cells);
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_compile_cells);
     return root;
 }

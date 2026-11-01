@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_lists.c: the commits of other branches not applied here, the commits that touched a file, a file's text as a
 // commit left it, who made a commit, and the files a commit changed
+#include "../text/text.h"
 #include "git_internal.h"
 
 // the commits a list requests from git, as git is given the count
@@ -15,10 +16,7 @@ static void cli_commits_of(const char *out, unsigned long long size, CliCommits 
     while ((line < end) && (found->count < CLI_GIT_COMMITS))
     {
         const char *stop = line;
-        while ((stop < end) && (stop[0] != '\n'))
-        {
-            stop += 1;
-        }
+        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
         const char *const next = stop + 1;
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
         const char *at = line;
@@ -72,10 +70,7 @@ static void cli_records(const char *out, unsigned long long size,
             stop += 1;
         }
         const char *const next = stop + 1;
-        while ((record < stop) && (record[0] == '\n'))
-        {
-            record += 1;
-        }
+        record += cli_text_past_any(record, 0ull, (unsigned long long)(stop - record), "\n");
         const char *at = record;
         unsigned long long lengths[4] = {0ull, 0ull, 0ull, 0ull};
         const char *fields[4] = {NULL, NULL, NULL, NULL};
@@ -88,11 +83,8 @@ static void cli_records(const char *out, unsigned long long size,
         if ((fields[3] != NULL) && (message != NULL) && cli_git_seconds(fields[1], lengths[1], &when))
         {
             const char *message_end = stop;
-            while ((message_end > message) &&
-                   ((message_end[-1] == ' ') || ((message_end[-1] >= '\t') && (message_end[-1] <= '\r'))))
-            {
-                message_end -= 1;
-            }
+            message_end =
+                message + cli_text_back_past(message, (unsigned long long)(message_end - message), CLI_TEXT_WHITE);
             each(fields[0], lengths[0], when, fields[2], (unsigned long long)(message_end - fields[2]));
         }
         record = next;
@@ -118,10 +110,7 @@ static void cli_elsewhere_each(const char *id, unsigned long long id_length, lon
         message += (message < (made + made_length)) ? 1 : 0;
     }
     const char *line_end = message;
-    while ((line_end < (made + made_length)) && (line_end[0] != '\n'))
-    {
-        line_end += 1;
-    }
+    line_end += cli_text_to_any(line_end, 0ull, (unsigned long long)((made + made_length) - line_end), "\n");
     line_end -= ((line_end > message) && (line_end[-1] == '\r')) ? 1 : 0;
     CliCommit *const one = &found->item[found->count];
     one->id = cli_git_text_put(&found->text, id, id_length);
@@ -315,15 +304,10 @@ int cli_git_made_by(const char *root, const char *id, VerbaLinea *name, VerbaLin
     int found = cli_git_query(root, args, 4u, gave);
     const char *from = gave->out;
     const char *to = gave->out + gave->out_size;
-    while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
-    {
-        to -= 1;
-    }
+    to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
     const char *zero = from;
-    while ((zero < to) && (zero[0] != '\0'))
-    {
-        zero += 1;
-    }
+    const char *const nul = memor.chr(&(MemoriaCfg){.src = from, .val = 0, .bytes = (unsigned long long)(to - from)});
+    zero = (nul != NULL) ? nul : to;
     found = found && (zero < to);
     if (found)
     {

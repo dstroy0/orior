@@ -73,7 +73,7 @@ function statusOf(run) {
   }
   parts.push(spanSaid(nowMs));
   const box = element("div", { className: "protocol-status", id: "protocol-status" }, element("span", { textContent: parts.join(" \u00b7 ") }));
-  const errors = [["held", read.held], ["refused", read.refused], ["faulted", read.faulted], ["panics", read.panics]].filter(([, count]) => count);
+  const errors = [["blocked", read.blocked], ["refused", read.refused], ["faulted", read.faulted], ["panics", read.panics]].filter(([, count]) => count);
   if (errors.length) {
     box.append(element("span", { className: "warn", textContent: errors.map(([name, count]) => `${count} ${name}`).join(" \u00b7 ") }));
   }

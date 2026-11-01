@@ -5,6 +5,7 @@
 #include "profile.h"
 #include "../servers/lsp.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 
 // the profiles open at once, the one running and the one before it ending; the longest line read whole, and the bytes
@@ -136,13 +137,13 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     g_cli_cells->persistent_buf_release(json_buf, &g_cli_profile_cells);
 }
 
-// the lines of a pipe read until it ends, each in a cell grown as it fills, handed on with its "\r" before "\n" taken
-// off, a line longer than CLI_PROFILE_LINE, or than the cell could be grown to, handed on in pieces of that length
+// the lines of a pipe read until it ends, each in one cell of CLI_PROFILE_LINE, handed on with its "\r" before "\n"
+// taken off, a longer line handed on in pieces of that length
 static void profile_lines(CliProfile *profile, unsigned long long pipe,
                           void (*each_line)(CliProfile *profile, const char *line, unsigned long long size))
 {
-    char *line = NULL;
-    unsigned long long room = 0ull;
+    char *const line = g_cli_cells->temporary_buf_alloc(CLI_PROFILE_LINE, &g_cli_profile_cells);
+    const unsigned long long room = (line != NULL) ? CLI_PROFILE_LINE : 0ull;
     unsigned long long used = 0ull;
     char piece[4096];
     for (;;)
@@ -152,31 +153,26 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
         {
             break;
         }
-        for (unsigned long long at = 0ull; at < count; at += 1ull)
+        unsigned long long at = 0ull;
+        while ((room != 0ull) && (at < count))
         {
-            if ((used == room) && (room < CLI_PROFILE_LINE) && (piece[at] != '\n'))
+            const unsigned long long stop = cli_text_line_at(piece, at, count).stop;
+            const unsigned long long left = room - used;
+            const unsigned long long fits = ((stop - at) < left) ? (stop - at) : left;
+            memor.cpy(&(MemoriaCfg){.dst = line + used, .src = piece + at, .bytes = (size_t)fits});
+            used += fits;
+            at += fits;
+            if (at < stop)
             {
-                const unsigned long long doubled = (room == 0ull) ? CLI_PROFILE_LINE_FIRST : (2ull * room);
-                const unsigned long long wanted = (doubled < CLI_PROFILE_LINE) ? doubled : CLI_PROFILE_LINE;
-                char *const grown = g_cli_cells->persistent_buf_alloc(wanted, &g_cli_profile_cells);
-                if (grown != NULL)
-                {
-                    memor.cpy(&(MemoriaCfg){.dst = grown, .src = line, .bytes = (size_t)used});
-                    g_cli_cells->persistent_buf_release(line, &g_cli_profile_cells);
-                    line = grown;
-                    room = wanted;
-                }
-            }
-            if ((piece[at] == '\n') || ((used == room) && (used > 0ull)))
-            {
-                each_line(profile, line,
-                          ((piece[at] == '\n') && (used > 0ull) && (line[used - 1ull] == '\r')) ? used - 1ull : used);
+                // a line past the room is handed on as far as it reaches, the rest as a line after it
+                each_line(profile, line, used);
                 used = 0ull;
             }
-            if ((piece[at] != '\n') && (used < room))
+            else if (stop < count)
             {
-                line[used] = piece[at];
-                used += 1ull;
+                each_line(profile, line, ((used > 0ull) && (line[used - 1ull] == '\r')) ? used - 1ull : used);
+                used = 0ull;
+                at = stop + 1ull;
             }
         }
     }
@@ -318,11 +314,7 @@ static void profile_let_go(CliProfile *profile)
 static void profile_quoted(VerbaLinea *out, const char *text)
 {
     mmgr_line_ch(out, '\'');
-    for (const char *letter = text; *letter != '\0'; letter += 1)
-    {
-        mmgr_line_put(out, (*letter == '\'') ? "'\\''" : "");
-        mmgr_line_put_n(out, letter, (*letter == '\'') ? 0ull : 1ull);
-    }
+    cli_text_put_replaced(out, text, "'", "'\\''");
     mmgr_line_ch(out, '\'');
 }
 
@@ -330,10 +322,8 @@ int cli_profile_start(const char *root, const char *file, const char *remote, Cl
 {
     cli_profile_stop();
     const char *trimmed = (remote != NULL) ? remote : "";
-    while ((*trimmed == ' ') || (*trimmed == '\t'))
-    {
-        trimmed += 1;
-    }
+    trimmed +=
+        cli_text_past_any(trimmed, 0ull, cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), " \t");
     const int far = (*trimmed != '\0');
     const char *const colon =
         far ? cellul.chr(&(CatenaFinitaCfg){.src = remote, .cap = CLI_CELLS_POOL, .byte = ':'}) : NULL;
@@ -351,8 +341,9 @@ int cli_profile_start(const char *root, const char *file, const char *remote, Cl
     }
     CliProfile *const profile = profile_taken(sink);
     // the PATH a program here runs with, as long as the system lets an environment's value be
-    profile->path =
-        ((profile->words != NULL) && !far) ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &g_cli_profile_cells) : NULL;
+    profile->path = ((profile->words != NULL) && !far)
+                        ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &g_cli_profile_cells)
+                        : NULL;
     if ((profile->words == NULL) || (!far && (profile->path == NULL)))
     {
         profile_let_go(profile);

@@ -189,14 +189,14 @@ export function onScroll() {
   write("scroll", { speed, heading: moved ? Math.sign(moved) : status.scroll.heading });
   // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late, except into the
   // lines a paged file's window has not read: there they stand as last drawn until the window comes to the view.
-  if (!(this.heldFrame === this.s && this.pastWindow(top))) {
+  if (!(this.pastWindowFrame === this.s && this.pastWindow(top))) {
     this.follow(top, left);
   }
   this.rest();
   this.schedule();
 }
 
-// Once the view has rested REST, its speed falls to nothing, the work held back while it moved
+// Once the view has rested REST, its speed falls to nothing, the work kept back while it moved
 // goes on, and the lines ahead of where it was heading are colored while the page is idle.
 export function rest() {
   window.clearTimeout(this.restWait);

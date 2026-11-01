@@ -86,11 +86,10 @@ int cli_purpose_uses(const char *text, unsigned long long size, const char *name
     }
     for (unsigned long long at = 0ull; at < size;)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = size - at});
-        // a newline found lies in the text, at or past `at`
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
+        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
-        length -= ((newline != NULL) && (length > 0ull) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
+        length -= bounds.stop - bounds.cut;
         const char *const line = text + at;
         at = end + 1ull;
         unsigned long long lead = 0ull;
@@ -142,7 +141,7 @@ int cli_purpose_written(const char *root, const char *path, VerbaLinea *out, Ver
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_read(file, &size);
+    const unsigned char *const bytes = cli_file_taken(file, &size, &g_cli_code_cells);
     if (bytes == NULL)
     {
         mmgr_line_put(err_msg, path);
@@ -159,7 +158,7 @@ int cli_purpose_written(const char *root, const char *path, VerbaLinea *out, Ver
         mmgr_line_finish(&text);
         cli_purpose_first_comment(file, s_text, text.at, &comment);
     }
-    cli_file_let_go(bytes, size);
+    cli_file_given(bytes, &g_cli_code_cells);
     cli_json_quoted(out, s_comment_buf, comment.at);
     cli_lock_give(&s_lock);
     return 1;
@@ -209,7 +208,7 @@ static void cli_part_read(CliPurposePart *part)
         char full[CLI_PATH_MAX_LEN];
         cli_full(s_users->root, other, full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_read(full, &size);
+        const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_code_cells);
         if (bytes == NULL)
         {
             continue;
@@ -220,7 +219,7 @@ static void cli_part_read(CliPurposePart *part)
             const unsigned long long length = cli_text_of(bytes, read, part->text);
             s_users->used[index] = (unsigned char)cli_purpose_uses(part->text, length, s_users->name, s_users->stem);
         }
-        cli_file_let_go(bytes, size);
+        cli_file_given(bytes, &g_cli_code_cells);
     }
 }
 
@@ -265,10 +264,9 @@ static int cli_users_found(const char *root, const char *path, VerbaLinea *err_m
         return 0;
     }
     const char *name = file;
-    for (const char *at = file; at[0] != '\0'; at += 1)
-    {
-        name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
-    }
+    const unsigned long long name_past =
+        cli_text_back_any(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), "/\\");
+    name = (name_past != 0ull) ? (file + name_past) : name;
     memor.cpy(&(MemoriaCfg){.dst = s_users->name,
                             .src = name,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});

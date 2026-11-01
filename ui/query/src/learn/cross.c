@@ -3,6 +3,7 @@
 // cross.c: the cross alone (measuring_stick_query.c): the latest listed questions carried into a run of its own from
 // the latest run that contains them, each question's container popped by the carrier with the part taken out, and the
 // cross read over them against the vendor's disassembler. It reaches no part
+#include "../../../cli/src/text/text.h"
 #include "../query_loops.h"
 
 // the base source the words name, where they do, into `base`: 1, or 0 with why given
@@ -39,15 +40,9 @@ static void query_list_named(const unsigned char *list, unsigned long long size,
         unsigned long long walk = at;
         while ((walk < past) && (words < 3u))
         {
-            while ((walk < past) && ((list[walk] == ' ') || (list[walk] == '\t') || (list[walk] == '\r')))
-            {
-                walk += 1ull;
-            }
+            walk = cli_text_past_any((const char *)list, walk, past, " \t\r");
             const unsigned long long first = walk;
-            while ((walk < past) && (list[walk] != ' ') && (list[walk] != '\t') && (list[walk] != '\r'))
-            {
-                walk += 1ull;
-            }
+            walk = cli_text_to_any((const char *)list, walk, past, " \t\r");
             if (walk > first)
             {
                 word[words] = (const char *)(list + first);

@@ -189,8 +189,8 @@ static int plugins_written(const char *dir, const CliJson *json, unsigned int pl
         mmgr_line_put(err_msg, ": it could not be made");
         return 0;
     }
-    VerbaLinea text;
-    (void)cli_growing_line_temporary(&text, CLI_PLUGIN_TEXT_FIRST, &g_cli_plugins_cells);
+    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_TEXT_ROOM, &g_cli_plugins_cells);
+    VerbaLinea text = mmgr_line_over(text_cell, CLI_PLUGIN_TEXT_ROOM);
     cli_plugins_text_of(json, plugin, &text);
     int written = mmgr_line_ok(&text) && query_file_written(file, text.out, text.at);
     g_cli_cells->persistent_buf_release(text.out, &g_cli_plugins_cells);
@@ -204,8 +204,8 @@ static int plugins_written(const char *dir, const CliJson *json, unsigned int pl
     // 1 where both are written, 0 where plugin.json is not, 2 where the sample is not
     if (written)
     {
-        VerbaLinea sample_text;
-        (void)cli_growing_line_temporary(&sample_text, CLI_PLUGIN_TEXT_FIRST, &g_cli_plugins_cells);
+        char *const sample_text_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_TEXT_ROOM, &g_cli_plugins_cells);
+        VerbaLinea sample_text = mmgr_line_over(sample_text_cell, CLI_PLUGIN_TEXT_ROOM);
         cli_plugins_sample_of(json, plugin, &sample_text);
         const int sampled = (mmgr_line_finish(&sample_name) != 0ull) && mmgr_line_ok(&sample_text) &&
                             query_file_written(sample, sample_text.out, sample_text.at);

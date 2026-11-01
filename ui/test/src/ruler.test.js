@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The time ruler under the fuse: a run that has ended fitted whole, one still going held with its latest moment near
+// The time ruler under the fuse: a run that has ended fitted whole, one still going kept with its latest moment near
 // the right, and the keys that zoom it, move it and fit it again.
 
 import { makeRuler } from "../../gui/src-js/ruler.js";
