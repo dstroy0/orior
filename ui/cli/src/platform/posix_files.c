@@ -4,6 +4,7 @@
 #if !defined(_WIN32)
 // clock_gettime is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
+#define _DARWIN_C_SOURCE
 #endif
 #include "../command_line/cli_internal.h"
 

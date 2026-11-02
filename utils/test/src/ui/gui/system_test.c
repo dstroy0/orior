@@ -20,6 +20,7 @@ typedef struct
     unsigned int texts;
     char text[32];
     unsigned int pointers;
+    unsigned int lefts;
     unsigned int pointer;
     int x;
     int y;
@@ -55,7 +56,11 @@ static void transferred_input(const GuiEachInputCfg *args)
         mmgr_line_put_n(&line, args->input->text, args->input->size);
         (void)mmgr_line_finish(&line);
     }
-    else
+    else if (args->input->type == GUI_INPUT_LEFT)
+    {
+        transferred->lefts += 1u;
+    }
+    else if (args->input->type != GUI_INPUT_MOVED)
     {
         transferred->pointers += 1u;
         transferred->pointer = args->input->type;
@@ -192,7 +197,7 @@ int main(void)
     const int off_window = cursor_read && !PtInRect(&frame, cursor);
     PostMessageW(window, WM_MOUSELEAVE, 0, 0);
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
-    cli_check((transferred.pointer == GUI_INPUT_LEFT) == (off_window != 0), "a leave off the window is told as the pointer gone");
+    cli_check((transferred.lefts != 0u) == (off_window != 0), "a leave off the window is told as the pointer gone");
 
     // a second window its owner's: it has its own events, and closing it leaves the owner running
     static Transferred owner_transferred;
@@ -222,7 +227,7 @@ int main(void)
         PostMessageW(window, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(11, 13));
         PostMessageW(window, WM_LBUTTONUP, 0, MAKELPARAM(11, 13));
         EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
-        cli_check((transferred.pointers >= owner_pointers + 2u) && (transferred.x == 11), "closing it leaves the owner running");
+        cli_check((transferred.pointers == owner_pointers + 2u) && (transferred.x == 11), "closing it leaves the owner running");
     }
 
     EMBED_CALL(gui_system_table.close, GuiSystemCfg, .system = system);

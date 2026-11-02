@@ -5,6 +5,7 @@
 #if !defined(_WIN32) && !defined(__APPLE__)
 // dlopen and inet_pton are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
+#define _DARWIN_C_SOURCE
 #endif
 #include "../comms/tls.h"
 

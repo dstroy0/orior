@@ -41,6 +41,13 @@ static const char *node_written(const CliJson *json, unsigned int node)
     return s_out;
 }
 
+// the word of the line the child is started with
+#if defined(_WIN32)
+static const char s_expected[] = "127.0.0.1";
+#else
+static const char s_expected[] = "3";
+#endif
+
 // whether the processes listed contain `pid` with a line it started with: its line into s_child_line, and whether this process is listed recorded
 static int process_listing(unsigned long long pid)
 {
@@ -98,9 +105,9 @@ static void processes_run_result(void)
     s_list_consumed = cli_clock_milliseconds() - began;
     s_in_use_after = embed_atomic_usize_load(&g_cli_debug_processes_cells.in_use);
     s_high_water = embed_atomic_usize_load(&g_cli_debug_processes_cells.hw);
-    // on Linux a process has its name as its program starts and its line an instant after, once the system has mapped the program: the list is read
-    // again until the line shows
-    for (unsigned int tries = 0u; !s_child_listing && (tries < 40u); tries += 1u)
+    // on Linux a process stands under its parent's line until it has started its program, and has its own an instant after: the list is read again until
+    // the child's own line shows
+    for (unsigned int tries = 0u; (!s_child_listing || (cellul.find(&(CatenaFinitaCfg){.src = s_child_line, .cap = CLI_CELLS_POOL, .other = s_expected, .other_cap = CLI_CELLS_POOL}) == NULL)) && (tries < 40u); tries += 1u)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 25u);
         s_child_listing = process_listing(child.id);
@@ -210,11 +217,6 @@ void test_a_functions_bytecode_is_read_with_its_name_and_lines(void)
 
 void test_the_machines_processes_are_listing_with_the_lines_they_started_with(void)
 {
-#if defined(_WIN32)
-    static const char s_expected[] = "127.0.0.1";
-#else
-    static const char s_expected[] = "3";
-#endif
     processes_run_result();
     TEST_ASSERT_TRUE(s_process_started);
     TEST_ASSERT_TRUE(s_child_listing);

@@ -6,6 +6,7 @@
 // fork, exec, the environment, folders, the clock and nanosleep are POSIX, outside strict C11, and realpath is an
 // X/Open extension glibc declares under _DEFAULT_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#define _DARWIN_C_SOURCE
 #define _DEFAULT_SOURCE
 #endif
 #include "../../../cli/src/command_line/callback_cfg.h"

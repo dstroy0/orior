@@ -7,6 +7,7 @@
 #if !defined(_WIN32)
 // O_CLOEXEC is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
+#define _DARWIN_C_SOURCE
 #endif
 #include "../command_line/callback_cfg.h"
 #include "../text/json_tree.h"
