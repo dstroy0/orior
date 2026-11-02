@@ -13,19 +13,36 @@
 
 static const unsigned char s_zeros[2u * CLI_DEPLOY_BLOCK];
 
+typedef struct
+{
+    unsigned char *field;
+    unsigned int width;
+    unsigned long long value;
+    unsigned int digits;
+    unsigned char *header;
+    const char *name;
+    unsigned long long size;
+    unsigned int mode;
+    unsigned long long time;
+    char kind;
+    const char *path;
+    const void *bytes;
+    const CliDeployPair *preserved;
+    unsigned int count;
+} DeployTarCtx;
 // `value` written in octal, `digits` of them at the fewest, and a 0 after, into `field` of `width` bytes, cut to it
-static void tar_octal(unsigned char *field, unsigned int width, unsigned long long value, unsigned int digits)
+EMBED_INLINE void tar_octal(const DeployTarCtx *args)
 {
     char text[32];
     unsigned int length = 0u;
-    for (unsigned long long left = value; (left > 0u) || (length == 0u); left /= 8u)
+    for (unsigned long long left = args->value; (left > 0u) || (length == 0u); left /= 8u)
     {
         text[length] = (char)('0' + (left % 8u));
         length += 1u;
     }
     char written[40];
     unsigned int at = 0u;
-    for (unsigned int pad = length; pad < digits; pad += 1u)
+    for (unsigned int pad = length; pad < args->digits; pad += 1u)
     {
         written[at] = '0';
         at += 1u;
@@ -37,49 +54,53 @@ static void tar_octal(unsigned char *field, unsigned int width, unsigned long lo
     }
     written[at] = '\0';
     at += 1u;
-    memor.cpy(&(MemoriaCfg){.dst = field, .src = written, .bytes = (at < width) ? at : width});
+    memor.cpy(&(MemoriaCfg){.dst = args->field, .src = written, .bytes = (at < args->width) ? at : args->width});
 }
 
 // the fields of a ustar header, its checksum filled in, into `header`
-static void tar_header(unsigned char *header, const char *name, unsigned long long size, unsigned int mode,
-                       unsigned long long time, char kind)
+EMBED_INLINE void tar_header(const DeployTarCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = header, .bytes = CLI_DEPLOY_BLOCK, .val = 0u});
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    memor.cpy(&(MemoriaCfg){.dst = header, .src = name, .bytes = (length < 100u) ? length : 100u});
-    tar_octal(header + 100, 8u, mode, 7u);
-    memor.cpy(&(MemoriaCfg){.dst = header + 108, .src = "0000000", .bytes = 8u});
-    memor.cpy(&(MemoriaCfg){.dst = header + 116, .src = "0000000", .bytes = 8u});
-    tar_octal(header + 124, 12u, size, 11u);
-    tar_octal(header + 136, 12u, time, 11u);
-    memor.set(&(MemoriaCfg){.dst = header + 148, .bytes = 8u, .val = (uint8_t)' '});
-    header[156] = (unsigned char)kind;
-    memor.cpy(&(MemoriaCfg){.dst = header + 257, .src = "ustar", .bytes = 6u});
-    memor.cpy(&(MemoriaCfg){.dst = header + 263, .src = "00", .bytes = 2u});
+    memor.set(&(MemoriaCfg){.dst = args->header, .bytes = CLI_DEPLOY_BLOCK, .val = 0u});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    memor.cpy(&(MemoriaCfg){.dst = args->header, .src = args->name, .bytes = (length < 100u) ? length : 100u});
+    EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 100, .width = 8u, .value = args->mode, .digits = 7u);
+    memor.cpy(&(MemoriaCfg){.dst = args->header + 108, .src = "0000000", .bytes = 8u});
+    memor.cpy(&(MemoriaCfg){.dst = args->header + 116, .src = "0000000", .bytes = 8u});
+    EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 124, .width = 12u, .value = args->size, .digits = 11u);
+    EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 136, .width = 12u, .value = args->time, .digits = 11u);
+    memor.set(&(MemoriaCfg){.dst = args->header + 148, .bytes = 8u, .val = (uint8_t)' '});
+    args->header[156] = (unsigned char)args->kind;
+    memor.cpy(&(MemoriaCfg){.dst = args->header + 257, .src = "ustar", .bytes = 6u});
+    memor.cpy(&(MemoriaCfg){.dst = args->header + 263, .src = "00", .bytes = 2u});
     unsigned long long sum = 0ull;
     for (unsigned int at = 0u; at < CLI_DEPLOY_BLOCK; at += 1u)
     {
-        sum += header[at];
+        sum += args->header[at];
     }
-    tar_octal(header + 148, 8u, sum, 6u);
-    header[155] = ' ';
+    EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 148, .width = 8u, .value = sum, .digits = 6u);
+    args->header[155] = ' ';
 }
 
 // `size` bytes added to the tar at `path`, then zeros to the end of their last block: 1, or 0 where they could not be
-static int tar_put(const char *path, const void *bytes, unsigned long long size)
+EMBED_INLINE int tar_put(const DeployTarCtx *args)
 {
+    const char *path = args->path;
+    const void *bytes = args->bytes;
+    unsigned long long size = args->size;
     const unsigned long long pad = (CLI_DEPLOY_BLOCK - (size % CLI_DEPLOY_BLOCK)) % CLI_DEPLOY_BLOCK;
-    return ((size == 0u) || cli_file_appended(path, bytes, size, 0)) &&
-           ((pad == 0u) || cli_file_appended(path, s_zeros, pad, 0));
+    return ((size == 0u) || EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path,
+                                       .bytes = bytes, .size = size, .fresh = 0)) &&
+           ((pad == 0u) || EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path,
+                                      .bytes = s_zeros, .size = pad, .fresh = 0));
 }
 
 // the PAX header that names a long path, written before its file
-static int tar_pax(const char *path, const char *name, unsigned long long time)
+EMBED_INLINE int tar_pax(const DeployTarCtx *args)
 {
     char record[CLI_PATH_MAX_LEN + 16u];
     VerbaLinea record_line = {record, sizeof(record), 0ull};
     mmgr_line_put(&record_line, " path=");
-    mmgr_line_put(&record_line, name);
+    mmgr_line_put(&record_line, args->name);
     mmgr_line_ch(&record_line, '\n');
     // the record's length counts the digits that write it
     unsigned long long length = record_line.at;
@@ -99,19 +120,23 @@ static int tar_pax(const char *path, const char *name, unsigned long long time)
     mmgr_line_decimal(&pax_line, length, 1u);
     mmgr_line_put_n(&pax_line, record, record_line.at);
     unsigned char header[CLI_DEPLOY_BLOCK];
-    tar_header(header, "PaxHeader", pax_line.at, 0644u, time, 'x');
-    return mmgr_line_ok(&pax_line) && tar_put(path, header, sizeof(header)) && tar_put(path, pax, pax_line.at);
+    EMBED_CALL(tar_header, DeployTarCtx, .header = header, .name = "PaxHeader", .size = pax_line.at, .mode = 0644u,
+               .time = args->time, .kind = 'x');
+    return mmgr_line_ok(&pax_line) &&
+           EMBED_CALL(tar_put, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
+           EMBED_CALL(tar_put, DeployTarCtx, .path = args->path, .bytes = pax, .size = pax_line.at);
 }
 
 // whether `name` is among the paths of `preserved`, sorted by their bytes
-static int tar_is_preserved(const char *name, const CliDeployPair *preserved, unsigned int count)
+EMBED_INLINE int tar_is_preserve(const DeployTarCtx *args)
 {
     unsigned int low = 0u;
-    unsigned int high = count;
+    unsigned int high = args->count;
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        const int order = cli_deploy_order(preserved[middle].path, name);
+        const int order = EMBED_CALL(cli_deploy_left_internal.order, CliDeployLeftCtx,
+                                     .left = args->preserved[middle].path, .right = args->name);
         if (order == 0)
         {
             return 1;
@@ -122,52 +147,58 @@ static int tar_is_preserved(const char *name, const CliDeployPair *preserved, un
     return 0;
 }
 
-int cli_deploy_tar(const char *path, const CliDeployPair *preserved, unsigned int preserved_count,
-                   unsigned long long time, VerbaLinea *err_msg)
+int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
 {
     const CliDeployRun *const run = &g_cli_deploy;
-    if (!cli_file_appended(path, "", 0ull, 1))
+    if (!EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->path, .bytes = "", .size = 0ull,
+                    .fresh = 1))
     {
-        mmgr_line_put(err_msg, path);
-        mmgr_line_put(err_msg, ": it could not be written");
+        mmgr_line_put(args->err_msg, args->path);
+        mmgr_line_put(args->err_msg, ": it could not be written");
         return 0;
     }
     for (unsigned int index = 0u; index < run->sents; index += 1u)
     {
         const CliDeploySent *const file = &run->sent[index];
-        if (tar_is_preserved(file->path, preserved, preserved_count))
+        if (EMBED_CALL(tar_is_preserve, DeployTarCtx, .name = file->path, .preserved = args->preserved,
+                       .count = args->preserved_count))
         {
             continue;
         }
         char full[(2u * CLI_PATH_MAX_LEN) + 2u];
         VerbaLinea full_line = {full, sizeof(full), 0ull};
-        cli_deploy_full(index, &full_line);
+        EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = index, .out = &full_line);
         mmgr_line_finish(&full_line);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_deploy_cells);
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+                                                      .size_pointer = &size, .owner = &g_cli_deploy_cells);
         if (bytes == NULL)
         {
-            mmgr_line_put(err_msg, full);
-            mmgr_line_put(err_msg, ": it could not be read");
+            mmgr_line_put(args->err_msg, full);
+            mmgr_line_put(args->err_msg, ": it could not be read");
             return 0;
         }
         unsigned char header[CLI_DEPLOY_BLOCK];
-        tar_header(header, file->path, size, file->mode, time, '0');
-        const int written = ((cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}) <= 99u) ||
-                             tar_pax(path, file->path, time)) &&
-                            tar_put(path, header, sizeof(header)) && tar_put(path, bytes, size);
-        cli_file_given(bytes, &g_cli_deploy_cells);
+        EMBED_CALL(tar_header, DeployTarCtx, .header = header, .name = file->path, .size = size, .mode = file->mode,
+                   .time = args->time, .kind = '0');
+        const int written =
+            ((cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}) <= 99u) ||
+             EMBED_CALL(tar_pax, DeployTarCtx, .path = args->path, .name = file->path, .time = args->time)) &&
+            EMBED_CALL(tar_put, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
+            EMBED_CALL(tar_put, DeployTarCtx, .path = args->path, .bytes = bytes, .size = size);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
         if (!written)
         {
-            mmgr_line_put(err_msg, path);
-            mmgr_line_put(err_msg, ": it could not be written");
+            mmgr_line_put(args->err_msg, args->path);
+            mmgr_line_put(args->err_msg, ": it could not be written");
             return 0;
         }
     }
-    if (!cli_file_appended(path, s_zeros, sizeof(s_zeros), 0))
+    if (!EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->path, .bytes = s_zeros,
+                    .size = sizeof(s_zeros), .fresh = 0))
     {
-        mmgr_line_put(err_msg, path);
-        mmgr_line_put(err_msg, ": it could not be written");
+        mmgr_line_put(args->err_msg, args->path);
+        mmgr_line_put(args->err_msg, ": it could not be written");
         return 0;
     }
     return 1;

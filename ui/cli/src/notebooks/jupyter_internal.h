@@ -4,9 +4,20 @@
 // requests waiting on replies, and the wire: keys, ids, frames signed and messages read back
 #ifndef JUPYTER_INTERNAL_H
 #define JUPYTER_INTERNAL_H
+typedef struct CliJupyterKernelCtx CliJupyterKernelCtx;
+typedef struct CliJupyterOutCtx CliJupyterOutCtx;
+typedef struct CliJupyterPythonsPythonCountCtx CliJupyterPythonsPythonCountCtx;
+typedef struct CliJupyterSessionCtx CliJupyterSessionCtx;
+typedef struct CliJupyterPythonsCtx CliJupyterPythonsCtx;
+typedef struct CliJupyterAtCtx CliJupyterAtCtx;
+typedef struct CliJupyterKernelParentCtx CliJupyterKernelParentCtx;
+typedef struct CliJupyterSpecCtx CliJupyterSpecCtx;
+typedef struct CliJupyterCtx CliJupyterCtx;
+typedef struct CliJupyterKeyCtx CliJupyterKeyCtx;
 
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
+#include "embed_dispatch_layout.h"
 #include "jupyter.h"
 #include "zmtp.h"
 
@@ -112,7 +123,7 @@ struct CliKernel
 extern CliLock g_cli_kernels_lock;
 
 // a text of a spec by its place, "" for none (jupyter_specs.c)
-const char *cli_kernel_text(const CliKernelSpec *spec, unsigned int at);
+const char *cli_kernel_text(const CliJupyterSpecCtx *args);
 
 // the most folders Jupyter's data is read from and Pythons found
 #define CLI_KERNEL_FOLDERS 64u
@@ -123,26 +134,25 @@ const char *cli_kernel_text(const CliKernelSpec *spec, unsigned int at);
 // Jupyter stores its data in, in the order it reads them, the Pythons' own following the reader's, each into
 // `folders`, sized for CLI_KERNEL_FOLDERS: their count; and whether a Python contains ipykernel, by the package's
 // folder in its site-packages (jupyter_folders.c)
-unsigned int cli_kernel_pythons(char (*pythons)[CLI_PATH_MAX_LEN], int *has_environment);
-unsigned int cli_kernel_data_folders(const char (*pythons)[CLI_PATH_MAX_LEN], unsigned int python_count,
-                                     char (*folders)[CLI_PATH_MAX_LEN]);
-int cli_kernel_has_ipykernel(const char *python);
+unsigned int cli_kernel_pythons(const CliJupyterPythonsCtx *args);
+unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args);
+int cli_kernel_has_ipykernel(const CliJupyterCtx *args);
 
 // the reader `at` of the kernel's started on a thread of its own, counted while it reads (jupyter_readers.c)
-void cli_kernel_reader_started(CliKernel *kernel, unsigned int at);
+void cli_kernel_reader_start(const CliJupyterAtCtx *args);
 
 // the kernel's process ended where it runs, the whole tree on Windows, as a kernel's own children would outlive it, and
 // the process elsewhere, and waited on; and its connection file and interrupt event let go (jupyter_requests.c)
-void cli_kernel_ended(CliKernel *kernel);
-void cli_kernel_forgotten(CliKernel *kernel);
+void cli_kernel_end(const CliJupyterAtCtx *args);
+void cli_kernel_forgotten(const CliJupyterAtCtx *args);
 
 // a key no other process can guess, 64 hex digits, into `key`, sized for 65; the next of the numbers ids and
 // connection files are made with, from 1; an id made of the session and the next number into `id`, which is sized for
 // CLI_KERNEL_ID; and the time now written as Jupyter's headers write it, in UTC to the microsecond (jupyter_wire.c)
-void cli_kernel_key_made(char *key);
+void cli_kernel_key_init(const CliJupyterKeyCtx *args);
 unsigned long long cli_kernel_next(void);
-void cli_kernel_id_made(const char *session, char *id);
-void cli_kernel_now_written(VerbaLinea *out);
+void cli_kernel_id_init(const CliJupyterSessionCtx *args);
+void cli_kernel_now_write(const CliJupyterOutCtx *args);
 
 // a message of `msg_type` with `length` bytes of JSON content signed and sent whole on `socket` under `lock`, its
 // header carrying `id`, or on the shell queued where a request is in flight on it: 1, or 0 where the connection failed
@@ -151,10 +161,171 @@ void cli_kernel_now_written(VerbaLinea *out);
 // its signature checked, written as the page reads a message with `channel`, its parent's id into `parent`, sized for
 // CLI_KERNEL_ID, "" where it is longer: 1, or 0 where the frames are not a whole message signed with the kernel's key,
 // or what they contain is no JSON (jupyter_wire.c)
-int cli_kernel_frames_sent(CliKernel *kernel, const CliSocket *socket, CliLock *lock, const char *id,
-                           const char *msg_type, const char *content, unsigned long long length);
-void cli_kernel_shell_answered(CliKernel *kernel, const char *parent);
-int cli_kernel_message_written(CliKernelReader *reader, const CliZmtpFrame *frames, unsigned int count, VerbaLinea *out,
-                               char *parent);
+int cli_kernel_frames_send(const CliJupyterKernelCtx *args);
+void cli_kernel_shell_answer(const CliJupyterKernelParentCtx *args);
+int cli_kernel_message_write(const CliJupyterOutCtx *args);
+
+struct CliJupyterKernelCtx
+{
+    CliKernel *kernel;
+    const CliSocket *socket;
+    CliLock *lock;
+    const char *id_read;
+    const char *msg_type;
+    const char *content;
+    unsigned long long length;
+};
+
+struct CliJupyterOutCtx
+{
+    VerbaLinea *out;
+    CliKernelReader *reader;
+    const CliZmtpFrame *frames;
+    unsigned int count;
+    char *parent_out;
+};
+
+struct CliJupyterPythonsPythonCountCtx
+{
+    const char (*pythons_callback)[CLI_PATH_MAX_LEN];
+    unsigned int python_count;
+    char (*folders)[CLI_PATH_MAX_LEN];
+};
+
+struct CliJupyterSessionCtx
+{
+    const char *session;
+    char *id;
+};
+
+struct CliJupyterPythonsCtx
+{
+    char (*pythons)[CLI_PATH_MAX_LEN];
+    int *has_environment;
+};
+
+struct CliJupyterAtCtx
+{
+    unsigned int at;
+    CliKernel *kernel;
+};
+
+struct CliJupyterKernelParentCtx
+{
+    CliKernel *kernel;
+    const char *parent;
+};
+
+struct CliJupyterSpecCtx
+{
+    const CliKernelSpec *spec;
+    unsigned int at;
+};
+
+struct CliJupyterCtx
+{
+    const char *python;
+};
+
+struct CliJupyterKeyCtx
+{
+    char *key;
+};
+
+typedef struct
+{
+    const char *(*kernel_text)(const CliJupyterSpecCtx *args);
+} CliJupyterSpecNs;
+EMBED_TABLE_LAYOUT(CliJupyterSpecNs, kernel_text);
+EMBED_TABLE_STORAGE CliJupyterSpecNs cli_jupyter_spec_internal EMBED_UNUSED = {
+    .kernel_text = cli_kernel_text,
+};
+
+typedef struct
+{
+    unsigned int (*kernel_pythons)(const CliJupyterPythonsCtx *args);
+} CliJupyterPythonsNs;
+EMBED_TABLE_LAYOUT(CliJupyterPythonsNs, kernel_pythons);
+EMBED_TABLE_STORAGE CliJupyterPythonsNs cli_jupyter_pythons_internal EMBED_UNUSED = {
+    .kernel_pythons = cli_kernel_pythons,
+};
+
+typedef struct
+{
+    unsigned int (*kernel_data_folders)(const CliJupyterPythonsPythonCountCtx *args);
+} CliJupyterPythonsPythonCountNs;
+EMBED_TABLE_LAYOUT(CliJupyterPythonsPythonCountNs, kernel_data_folders);
+EMBED_TABLE_STORAGE CliJupyterPythonsPythonCountNs cli_jupyter_pythons_python_count_internal EMBED_UNUSED = {
+    .kernel_data_folders = cli_kernel_data_folders,
+};
+
+typedef struct
+{
+    int (*kernel_has_ipykernel)(const CliJupyterCtx *args);
+} CliJupyterNsTable;
+EMBED_TABLE_LAYOUT(CliJupyterNsTable, kernel_has_ipykernel);
+EMBED_TABLE_STORAGE CliJupyterNsTable cli_jupyter_internal EMBED_UNUSED = {
+    .kernel_has_ipykernel = cli_kernel_has_ipykernel,
+};
+
+typedef struct
+{
+    void (*kernel_reader_start)(const CliJupyterAtCtx *args);
+    void (*kernel_end)(const CliJupyterAtCtx *args);
+    void (*kernel_forgotten)(const CliJupyterAtCtx *args);
+} CliJupyterAtNs;
+EMBED_TABLE_LAYOUT(CliJupyterAtNs, kernel_reader_start, kernel_end, kernel_forgotten);
+EMBED_TABLE_STORAGE CliJupyterAtNs cli_jupyter_at_internal EMBED_UNUSED = {
+    .kernel_reader_start = cli_kernel_reader_start,
+    .kernel_end = cli_kernel_end,
+    .kernel_forgotten = cli_kernel_forgotten,
+};
+
+typedef struct
+{
+    void (*kernel_key_init)(const CliJupyterKeyCtx *args);
+} CliJupyterKeyNs;
+EMBED_TABLE_LAYOUT(CliJupyterKeyNs, kernel_key_init);
+EMBED_TABLE_STORAGE CliJupyterKeyNs cli_jupyter_key_internal EMBED_UNUSED = {
+    .kernel_key_init = cli_kernel_key_init,
+};
+
+typedef struct
+{
+    void (*kernel_id_init)(const CliJupyterSessionCtx *args);
+} CliJupyterSessionNs;
+EMBED_TABLE_LAYOUT(CliJupyterSessionNs, kernel_id_init);
+EMBED_TABLE_STORAGE CliJupyterSessionNs cli_jupyter_session_internal EMBED_UNUSED = {
+    .kernel_id_init = cli_kernel_id_init,
+};
+
+typedef struct
+{
+    void (*kernel_now_write)(const CliJupyterOutCtx *args);
+    int (*kernel_message_write)(const CliJupyterOutCtx *args);
+} CliJupyterOutNsTable;
+EMBED_TABLE_LAYOUT(CliJupyterOutNsTable, kernel_now_write, kernel_message_write);
+EMBED_TABLE_STORAGE CliJupyterOutNsTable cli_jupyter_out_internal EMBED_UNUSED = {
+    .kernel_now_write = cli_kernel_now_write,
+    .kernel_message_write = cli_kernel_message_write,
+};
+
+typedef struct
+{
+    int (*kernel_frames_send)(const CliJupyterKernelCtx *args);
+} CliJupyterKernelNs;
+EMBED_TABLE_LAYOUT(CliJupyterKernelNs, kernel_frames_send);
+EMBED_TABLE_STORAGE CliJupyterKernelNs cli_jupyter_kernel_internal EMBED_UNUSED = {
+    .kernel_frames_send = cli_kernel_frames_send,
+};
+
+typedef struct
+{
+    void (*kernel_shell_answer)(const CliJupyterKernelParentCtx *args);
+} CliJupyterKernelParentNs;
+EMBED_TABLE_LAYOUT(CliJupyterKernelParentNs, kernel_shell_answer);
+EMBED_TABLE_STORAGE CliJupyterKernelParentNs cli_jupyter_kernel_parent_internal EMBED_UNUSED = {
+    .kernel_shell_answer = cli_kernel_shell_answer,
+};
 
 #endif

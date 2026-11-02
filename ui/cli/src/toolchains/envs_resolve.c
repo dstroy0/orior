@@ -20,8 +20,21 @@ typedef struct
 static CliEnvRoom *s_room;
 static CliLock s_lock = CLI_LOCK_INIT;
 
+typedef struct
+{
+    const char *folder;
+    CliTreeEnvironment *environment;
+    VerbaLinea *err_msg;
+    const char *id;
+    const char *const *request;
+    unsigned int count;
+    const char *one;
+    unsigned long long one_length;
+    const char *other;
+    unsigned long long other_length;
+} EnvsResolveCtx;
 // the Python and the bin folder of a virtual environment's folder into `environment`: 1, or 0 with why given
-static int cli_venv_at(const char *folder, CliTreeEnvironment *environment, VerbaLinea *err_msg)
+EMBED_INLINE int cli_venv_at(const EnvsResolveCtx *args)
 {
 #if defined(_WIN32)
     static const char *const s_bin = "Scripts";
@@ -32,50 +45,62 @@ static int cli_venv_at(const char *folder, CliTreeEnvironment *environment, Verb
 #endif
     char bin[CLI_PATH_MAX_LEN];
     char python[CLI_PATH_MAX_LEN];
-    cli_full(folder, s_bin, bin);
-    cli_full(bin, s_python, python);
-    if (!query_is_file(python))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = s_bin, .joined = bin);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = bin, .relative = s_python, .joined = python);
+    if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = python))
     {
-        mmgr_line_put(err_msg, folder);
-        mmgr_line_put(err_msg, " contains no Python");
+        mmgr_line_put(args->err_msg, args->folder);
+        mmgr_line_put(args->err_msg, " contains no Python");
         return 0;
     }
-    environment->bins = 1u;
-    memor.cpy(&(MemoriaCfg){.dst = environment->bin[0],
+    args->environment->bins = 1u;
+    memor.cpy(&(MemoriaCfg){.dst = args->environment->bin[0],
                             .src = bin,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = bin, .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = environment->python,
+    memor.cpy(&(MemoriaCfg){.dst = args->environment->python,
                             .src = python,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL}) + 1u});
-    environment->has_python = 1;
-    environment->place[0] = '\0';
+    args->environment->has_python = 1;
+    args->environment->place[0] = '\0';
     return 1;
 }
 
 // the output of the program the manifest names `id`, run in `folder` with `args`, into the room: 1, or 0 with why
 // given
-static int cli_tool_output_read(const char *id, const char *folder, const char *const *args, unsigned int count,
-                                VerbaLinea *err_msg)
+static int cli_tool_output_read(const EnvsResolveCtx *args)
 {
+    const char *id = args->id;
+    const char *folder = args->folder;
+    unsigned int count = args->count;
+    VerbaLinea *err_msg = args->err_msg;
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unknown = {why, sizeof(why), 0ull};
-    const unsigned int tool = cli_toolchains_tool(&json, cli_toolchains_manifest(&json, 0u, 0ull), id, &unknown);
+    const unsigned int tool =
+        EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
+                   .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                   .id = id, .err_msg = &unknown);
     if (tool == CLI_JSON_NONE)
     {
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         mmgr_line_put(err_msg, id);
         mmgr_line_put(err_msg, " is not in the manifest");
         return 0;
     }
-    const char *const shown = cli_json_string(&json, cli_json_member(&json, tool, "name"), NULL);
+    const char *const shown =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = tool, .name = "name"),
+                   .length_pointer = NULL);
     char name[CLI_NAME_MAX_LEN];
-    cli_text_copied_or(name, shown, id);
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = name, .text = shown, .otherwise = id);
     unsigned int folders = 0u;
     char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders, &g_cli_toolchains_cells);
-    cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])path, folders, &s_room->found);
+    EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool,
+               .path_callback = (const char (*)[CLI_PATH_MAX_LEN])path, .count = folders, .found = &s_room->found);
     g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_cells);
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     if (!s_room->found.has_program)
     {
         mmgr_line_put(err_msg, name);
@@ -85,16 +110,18 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
     const char *words[16] = {s_room->found.program};
     for (unsigned int at = 0u; (at < count) && (at < 14u); at += 1u)
     {
-        words[at + 1u] = args[at];
+        words[at + 1u] = args->request[at];
     }
     words[((count < 14u) ? count : 14u) + 1u] = NULL;
-    cli_toolchains_run_path(s_room->path, sizeof(s_room->path));
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_room->path,
+               .size = sizeof(s_room->path));
     const CliSetting settings[2] = {{"PATH", s_room->path}, {"PIPENV_IGNORE_VIRTUALENVS", "1"}};
-    CliRan *const ran = cli_ran_taken();
+    CliRan *const ran = cli_ran_take();
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
-    if (!cli_ran(words, folder, settings, 2u, ran, &unstarted))
+    if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = folder, .settings = settings,
+                    .count = 2u, .ran = ran, .err_msg = &unstarted))
     {
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, ": ");
         mmgr_line_put_n(err_msg, why, unstarted.at);
@@ -104,23 +131,27 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
     {
         // the last line of what it printed, trimmed, or that it failed
         unsigned long long end = ran->err_size;
-        end = cli_text_back_past(ran->err, end, CLI_TEXT_WHITE);
+        end = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = ran->err, .at = end,
+                         .set = CLI_TEXT_WHITE);
         unsigned long long start = end;
-        start = cli_text_back_any(ran->err, start, "\n");
+        start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = ran->err, .at = start,
+                           .set = "\n");
         unsigned long long first = 0ull;
-        first = cli_text_past_any(ran->err, first, end, CLI_TEXT_WHITE);
+        first = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = ran->err, .at = first,
+                           .size = end, .set = CLI_TEXT_WHITE);
         start = (start > first) ? start : first;
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, ": ");
         if (end > start)
         {
-            cli_lossy(err_msg, (const unsigned char *)ran->err + start, end - start);
+            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = err_msg,
+                       .text_bytes = (const unsigned char *)ran->err + start, .length = end - start);
         }
         else
         {
             mmgr_line_put(err_msg, "it failed");
         }
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return 0;
     }
     g_cli_cells->persistent_buf_release(s_room->output, &g_cli_toolchains_cells);
@@ -128,7 +159,7 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
     if (s_room->output == NULL)
     {
         s_room->output_size = 0ull;
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, ": its answer could not be stored");
         return 0;
@@ -136,36 +167,46 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
     s_room->output_size = ran->out_size;
     memor.cpy(&(MemoriaCfg){.dst = s_room->output, .src = ran->out, .bytes = ran->out_size});
     s_room->output[ran->out_size] = '\0';
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     return 1;
 }
 
 // the folders of a Nix development shell's PATH that are in its store, and its Python where one of them contains it
-static int cli_nix_read(CliTreeEnvironment *environment, VerbaLinea *err_msg)
+EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
 {
+    VerbaLinea *err_msg = args->err_msg;
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root =
-        cli_json_taken(&json, s_room->output, s_room->output_size, 0u, 0ull, &unread, &g_cli_toolchains_cells);
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                   .text = s_room->output, .size = s_room->output_size, .nodes_more = 0u, .text_more = 0ull,
+                   .err_msg = &unread, .owner = &g_cli_toolchains_cells);
     if (root == CLI_JSON_NONE)
     {
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         mmgr_line_put(err_msg, "Nix: ");
         mmgr_line_put_n(err_msg, why, unread.at);
         return 0;
     }
-    const unsigned int path = cli_json_member(&json, cli_json_member(&json, root, "variables"), "PATH");
+    const unsigned int path = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                         .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                              .json_read = &json, .object = root, .name = "variables"),
+                                         .name = "PATH");
     unsigned long long length = 0ull;
-    const char *folders = cli_json_string(&json, cli_json_member(&json, path, "value"), &length);
+    const char *folders =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = path, .name = "value"),
+                   .length_pointer = &length);
     folders = (folders != NULL) ? folders : "";
 #if defined(_WIN32)
     const char parting = ';';
 #else
     const char parting = ':';
 #endif
-    environment->bins = 0u;
-    environment->has_python = 0;
+    args->environment->bins = 0u;
+    args->environment->has_python = 0;
     unsigned long long from = 0ull;
     for (unsigned long long at = 0ull; at <= length; at += 1ull)
     {
@@ -177,7 +218,7 @@ static int cli_nix_read(CliTreeEnvironment *environment, VerbaLinea *err_msg)
         const unsigned long long size = at - from;
         const char *const start = folders + from;
         from = at + 1ull;
-        if ((size >= CLI_PATH_MAX_LEN) || (environment->bins >= CLI_ENVIRONMENT_BINS))
+        if ((size >= CLI_PATH_MAX_LEN) || (args->environment->bins >= CLI_ENVIRONMENT_BINS))
         {
             continue;
         }
@@ -188,104 +229,113 @@ static int cli_nix_read(CliTreeEnvironment *environment, VerbaLinea *err_msg)
         {
             continue;
         }
-        memor.cpy(&(MemoriaCfg){.dst = environment->bin[environment->bins],
+        memor.cpy(&(MemoriaCfg){.dst = args->environment->bin[args->environment->bins],
                                 .src = folder,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
-        environment->bins += 1u;
+        args->environment->bins += 1u;
         char python[CLI_PATH_MAX_LEN];
-        cli_full(folder, "python3", python);
-        if (!environment->has_python && query_is_file(python))
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "python3", .joined = python);
+        if (!args->environment->has_python &&
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = python))
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = environment->python,
+                &(MemoriaCfg){.dst = args->environment->python,
                               .src = python,
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL}) + 1u});
-            environment->has_python = 1;
+            args->environment->has_python = 1;
         }
     }
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     return 1;
 }
 
-int cli_envs_resolve(const char *root, const char *kind, const char *place, CliTreeEnvironment *environment,
-                     VerbaLinea *err_msg)
+int cli_envs_resolve(const CliEnvsRootCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    if (place[0] == '\0')
+    if (args->place[0] == '\0')
     {
-        memor.cpy(&(MemoriaCfg){.dst = folder,
-                                .src = root,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = folder,
+                          .src = args->root,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     }
     else
     {
-        cli_full(root, place, folder);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->place, .joined = folder);
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_toolchains_cells);
     if (s_room == NULL)
     {
-        cli_lock_give(&s_lock);
-        mmgr_line_put(err_msg, "an environment's resolving could not be taken");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        mmgr_line_put(args->err_msg, "an environment's resolving could not be taken");
         return 0;
     }
     s_room->output = NULL;
     s_room->output_size = 0ull;
     int made = 0;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "venv", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "venv", .cap = CLI_CELLS_POOL}))
     {
-        made = cli_venv_at(folder, environment, err_msg);
+        made = EMBED_CALL(cli_venv_at, EnvsResolveCtx, .folder = folder, .environment = args->environment,
+                          .err_msg = args->err_msg);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "pipenv", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "pipenv", .cap = CLI_CELLS_POOL}))
     {
         static const char *const s_args[1] = {"--venv"};
-        made = cli_tool_output_read("pipenv", folder, s_args, 1u, err_msg);
+        made = EMBED_CALL(cli_tool_output_read, EnvsResolveCtx, .id = "pipenv", .folder = folder, .request = s_args,
+                          .count = 1u, .err_msg = args->err_msg);
         if (made)
         {
             // the folder Pipenv gave, trimmed
             unsigned long long start = 0ull;
             unsigned long long end = s_room->output_size;
-            start = cli_text_past_any(s_room->output, start, end, CLI_TEXT_WHITE);
-            end = (start + cli_text_back_past(s_room->output + start, end - start, CLI_TEXT_WHITE));
+            start = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = s_room->output,
+                               .at = start, .size = end, .set = CLI_TEXT_WHITE);
+            end = (start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+                                      .text = s_room->output + start, .at = end - start, .set = CLI_TEXT_WHITE));
             s_room->output[end] = '\0';
-            made = cli_venv_at(s_room->output + start, environment, err_msg);
+            made = EMBED_CALL(cli_venv_at, EnvsResolveCtx, .folder = s_room->output + start,
+                              .environment = args->environment, .err_msg = args->err_msg);
         }
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "nix", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "nix", .cap = CLI_CELLS_POOL}))
     {
         static const char *const s_args[2] = {"print-dev-env", "--json"};
-        made = cli_tool_output_read("nix", folder, s_args, 2u, err_msg) && cli_nix_read(environment, err_msg);
+        made = EMBED_CALL(cli_tool_output_read, EnvsResolveCtx, .id = "nix", .folder = folder, .request = s_args,
+                          .count = 2u, .err_msg = args->err_msg) &&
+               EMBED_CALL(cli_nix_read, EnvsResolveCtx, .environment = args->environment, .err_msg = args->err_msg);
     }
     else
     {
-        mmgr_line_put(err_msg, kind);
-        mmgr_line_put(err_msg, " is no kind of environment");
+        mmgr_line_put(args->err_msg, args->kind);
+        mmgr_line_put(args->err_msg, " is no kind of environment");
     }
     if (made)
     {
-        memor.cpy(&(MemoriaCfg){.dst = environment->place,
-                                .src = place,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = args->environment->place,
+                          .src = args->place,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->place, .cap = CLI_CELLS_POOL}) + 1u});
     }
     g_cli_cells->persistent_buf_release(s_room->output, &g_cli_toolchains_cells);
     g_cli_cells->persistent_buf_release(s_room, &g_cli_toolchains_cells);
     s_room = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return made;
 }
 
 // `text` of `length` bytes as pip names a package, in lower case with `_` written as `-`, compared with another
-static int cli_package_same(const char *one, unsigned long long one_length, const char *other,
-                            unsigned long long other_length)
+EMBED_INLINE int cli_package_same(const EnvsResolveCtx *args)
 {
-    if (one_length != other_length)
+    if (args->one_length != args->other_length)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < one_length; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->one_length; at += 1ull)
     {
-        char left = ((one[at] >= 'A') && (one[at] <= 'Z')) ? (char)(one[at] + 32) : one[at];
-        char right = ((other[at] >= 'A') && (other[at] <= 'Z')) ? (char)(other[at] + 32) : other[at];
+        char left = ((args->one[at] >= 'A') && (args->one[at] <= 'Z')) ? (char)(args->one[at] + 32) : args->one[at];
+        char right =
+            ((args->other[at] >= 'A') && (args->other[at] <= 'Z')) ? (char)(args->other[at] + 32) : args->other[at];
         left = (left == '_') ? '-' : left;
         right = (right == '_') ? '-' : right;
         if (left != right)
@@ -296,50 +346,65 @@ static int cli_package_same(const char *one, unsigned long long one_length, cons
     return 1;
 }
 
-void cli_envs_missing(const CliTreeEnvironment *environment, const char *const *requires, unsigned int count,
-                      VerbaLinea *out)
+void cli_envs_missing(const CliEnvsOutCfg *args)
 {
     // pip's list read into a tree sized to it; where it cannot be read none is reported to be missing, as where the
     // environment has no Python
     CliJson json;
-    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
+               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
     unsigned int listed = CLI_JSON_NONE;
     int started = 0;
-    if (environment->has_python)
+    if (args->environment_read->has_python)
     {
-        const char *const words[8] = {environment->python,           "-m", "pip", "list", "--format", "json",
-                                      "--disable-pip-version-check", NULL};
-        CliRan *const ran = cli_ran_taken();
+        const char *const words[8] = {args->environment_read->python, "-m", "pip", "list", "--format", "json",
+                                      "--disable-pip-version-check",  NULL};
+        CliRan *const ran = cli_ran_take();
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea unstarted = {why, sizeof(why), 0ull};
-        started = cli_ran(words, NULL, NULL, 0u, ran, &unstarted);
+        started = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL,
+                             .count = 0u, .ran = ran, .err_msg = &unstarted);
         if (started)
         {
             VerbaLinea unread = {why, sizeof(why), 0ull};
-            listed = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, &unread, &g_cli_toolchains_cells);
+            listed = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                                .text = ran->out, .size = ran->out_size, .nodes_more = 0u, .text_more = 0ull,
+                                .err_msg = &unread, .owner = &g_cli_toolchains_cells);
         }
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     }
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     unsigned int written = 0u;
-    for (unsigned int index = 0u; started && (index < count); index += 1u)
+    for (unsigned int index = 0u; started && (index < args->count); index += 1u)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = requires[index], .cap = CLI_CELLS_POOL});
+        const unsigned long long length =
+            cellul.len(&(CatenaFinitaCfg){.src = args->requires[index], .cap = CLI_CELLS_POOL});
         int installed = 0;
-        for (unsigned int at = 0u; !installed && (cli_json_item(&json, listed, at) != CLI_JSON_NONE); at += 1u)
+        for (unsigned int at = 0u;
+             !installed && (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                       .json_read = &json, .array = listed, .index = at) != CLI_JSON_NONE);
+             at += 1u)
         {
             unsigned long long name_length = 0ull;
-            const char *const name =
-                cli_json_string(&json, cli_json_member(&json, cli_json_item(&json, listed, at), "name"), &name_length);
-            installed = (name != NULL) && cli_package_same(name, name_length, requires[index], length);
+            const char *const name = EMBED_CALL(
+                cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                   .object = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                                        .json_read = &json, .array = listed, .index = at),
+                                   .name = "name"),
+                .length_pointer = &name_length);
+            installed =
+                (name != NULL) && EMBED_CALL(cli_package_same, EnvsResolveCtx, .one = name, .one_length = name_length,
+                                             .other = args->requires[index], .other_length = length);
         }
         if (!installed)
         {
-            mmgr_line_put(out, (written != 0u) ? "," : "");
-            cli_json_quoted(out, requires[index], length);
+            mmgr_line_put(args->out, (written != 0u) ? "," : "");
+            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                       .text = args->requires[index], .length = length);
             written += 1u;
         }
     }
-    mmgr_line_ch(out, ']');
-    cli_json_given(&json);
+    mmgr_line_ch(args->out, ']');
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
 }

@@ -19,22 +19,54 @@ static char (*s_folders)[CLI_PATH_MAX_LEN];
 static CliFound s_found;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// a search's toolchains and the PATH's folders given back, and the lock
-static void find_released(CliJson *manifest)
+typedef struct
 {
-    cli_json_given(manifest);
+    CliJson *manifest;
+    const CliJson *json;
+    unsigned int array;
+    const char *text;
+    const unsigned int *named;
+    unsigned int count;
+    VerbaLinea *out;
+    unsigned int *named_out;
+    unsigned int *words;
+    const char *ahead;
+    unsigned long long size;
+    unsigned int most;
+    const char *path;
+    char *out_room;
+    char *stem;
+    unsigned int named_value;
+    unsigned int words_node;
+    const char *out_text;
+    const char *program;
+    CliWords *words_words_pointer;
+    VerbaLinea *err_msg;
+} DebugFindCtx;
+// a search's toolchains and the PATH's folders given back, and the lock
+EMBED_INLINE void find_release(const DebugFindCtx *args)
+{
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = args->manifest);
     g_cli_cells->persistent_buf_release(s_folders, &g_cli_debug_cells);
     s_folders = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // whether the array `array` of `json` contains the string `text`
-static int find_contains(const CliJson *json, unsigned int array, const char *text)
+EMBED_INLINE int find_contains(const DebugFindCtx *args)
 {
-    for (unsigned int at = 0u; cli_json_item(json, array, at) != CLI_JSON_NONE; at += 1u)
+    const CliJson *json = args->json;
+    unsigned int array = args->array;
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = array, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
-        const char *const one = cli_json_string(json, cli_json_item(json, array, at), NULL);
-        if ((one != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = one, .other = text, .cap = CLI_CELLS_POOL})))
+        const char *const one =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = array, .index = at),
+                       .length_pointer = NULL);
+        if ((one != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = one, .other = args->text, .cap = CLI_CELLS_POOL})))
         {
             return 1;
         }
@@ -43,61 +75,84 @@ static int find_contains(const CliJson *json, unsigned int array, const char *te
 }
 
 // the names of the toolchains `named`, `count` of them, joined by " or " into `out`
-static void find_names_joined(const CliJson *json, const unsigned int *named, unsigned int count, VerbaLinea *out)
+EMBED_INLINE void find_names_join(const DebugFindCtx *args)
 {
-    for (unsigned int at = 0u; at < count; at += 1u)
+    const CliJson *json = args->json;
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        mmgr_line_put(out, (at > 0u) ? " or " : "");
-        mmgr_line_put(out, cli_debug_text(json, cli_json_member(json, named[at], "name"), ""));
+        mmgr_line_put(args->out, (at > 0u) ? " or " : "");
+        mmgr_line_put(args->out,
+                      EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = json,
+                                 .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                    .json_read = json, .object = args->named[at], .name = "name"),
+                                 .fallback = ""));
     }
 }
 
 // the toolchains `named`, `count` of them, with the one of id `ahead` put first, the others in their order
-static void find_ahead_first(const CliJson *json, unsigned int *named, unsigned int *words, unsigned int count,
-                             const char *ahead)
+EMBED_INLINE void find_ahead_first(const DebugFindCtx *args)
 {
+    const CliJson *json = args->json;
     unsigned int first = 0u;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = cli_debug_text(json, cli_json_member(json, named[at], "id"), ""),
-                                          .other = ahead,
-                                          .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){
+                .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = json,
+                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                     .json_read = json, .object = args->named_out[at], .name = "id"),
+                                  .fallback = ""),
+                .other = args->ahead,
+                .cap = CLI_CELLS_POOL}))
         {
             continue;
         }
-        const unsigned int tool = named[at];
-        const unsigned int word = words[at];
+        const unsigned int tool = args->named_out[at];
+        const unsigned int word = args->words[at];
         for (unsigned int moved = at; moved > first; moved -= 1u)
         {
-            named[moved] = named[moved - 1u];
-            words[moved] = words[moved - 1u];
+            args->named_out[moved] = args->named_out[moved - 1u];
+            args->words[moved] = args->words[moved - 1u];
         }
-        named[first] = tool;
-        words[first] = word;
+        args->named_out[first] = tool;
+        args->words[first] = word;
         first += 1u;
     }
 }
 
-int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, unsigned int *spec, char *tool,
-                      char *tool_id, char *program, VerbaLinea *err_msg)
+int cli_debug_adapter(const CliDebugErrMsgCtx *args)
 {
+    CliJson *json = args->json_out;
+    unsigned int *spec = args->spec;
     unsigned int named[CLI_DEBUG_NAMED];
     unsigned int specs[CLI_DEBUG_NAMED];
     unsigned int count = 0u;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliJson manifest_json;
-    const unsigned int manifest = cli_toolchains_manifest(&manifest_json, 0u, 0ull);
+    const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
     const char *const system = cli_toolchains_system();
     for (unsigned int at = 0u;
-         (cli_json_item(&manifest_json, manifest, at) != CLI_JSON_NONE) && (count < CLI_DEBUG_NAMED); at += 1u)
+         (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &manifest_json,
+                     .array = manifest, .index = at) != CLI_JSON_NONE) &&
+         (count < CLI_DEBUG_NAMED);
+         at += 1u)
     {
-        const unsigned int one = cli_json_item(&manifest_json, manifest, at);
-        const unsigned int debugger = cli_json_member(&manifest_json, one, "debugger");
-        const unsigned int systems = cli_json_member(&manifest_json, debugger, "systems");
-        const int on_system = (cli_json_item(&manifest_json, systems, 0u) == CLI_JSON_NONE) ||
-                              find_contains(&manifest_json, systems, system);
-        if (cli_json_is(&manifest_json, debugger, CFG_JSON_OBJECT) &&
-            find_contains(&manifest_json, cli_json_member(&manifest_json, debugger, "languages"), language) &&
+        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                            .json_read = &manifest_json, .array = manifest, .index = at);
+        const unsigned int debugger = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                 .json_read = &manifest_json, .object = one, .name = "debugger");
+        const unsigned int systems = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = &manifest_json, .object = debugger, .name = "systems");
+        const int on_system =
+            (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &manifest_json,
+                        .array = systems, .index = 0u) == CLI_JSON_NONE) ||
+            EMBED_CALL(find_contains, DebugFindCtx, .json = &manifest_json, .array = systems, .text = system);
+        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &manifest_json,
+                       .node = debugger, .kind = CFG_JSON_OBJECT) &&
+            EMBED_CALL(find_contains, DebugFindCtx, .json = &manifest_json,
+                       .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                           .json_read = &manifest_json, .object = debugger, .name = "languages"),
+                       .text = args->language) &&
             on_system)
         {
             named[count] = one;
@@ -107,57 +162,87 @@ int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, un
     }
     if (count == 0u)
     {
-        find_released(&manifest_json);
-        mmgr_line_put(err_msg, "orior_cli has no debugger for ");
-        mmgr_line_put(err_msg, language);
+        EMBED_CALL(find_release, DebugFindCtx, .manifest = &manifest_json);
+        mmgr_line_put(args->err_msg, "orior_cli has no debugger for ");
+        mmgr_line_put(args->err_msg, args->language);
         return 0;
     }
-    find_ahead_first(&manifest_json, named, specs, count, ahead);
+    EMBED_CALL(find_ahead_first, DebugFindCtx, .json = &manifest_json, .named_out = named, .words = specs,
+               .count = count, .ahead = args->ahead);
     unsigned int folders = 0u;
     s_folders = cli_toolchains_path_taken(&folders, &g_cli_debug_cells);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_toolchains_find(&manifest_json, named[at], (const char (*)[CLI_PATH_MAX_LEN])s_folders, folders, &s_found);
+        EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = named[at],
+                   .path_callback = (const char (*)[CLI_PATH_MAX_LEN])s_folders, .count = folders, .found = &s_found);
         const char *const names[1] = {
-            cli_debug_text(&manifest_json, cli_json_member(&manifest_json, specs[at], "program"), "")};
-        if ((s_found.folder[0] != '\0') && cli_toolchains_program_in(s_found.folder, names, 1u, program))
+            EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = &manifest_json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = &manifest_json, .object = specs[at], .name = "program"),
+                       .fallback = "")};
+        if ((s_found.folder[0] != '\0') &&
+            EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = s_found.folder, .names = names,
+                       .count = 1u, .path = args->program))
         {
-            *spec = cli_json_copy_from(json, &manifest_json, specs[at]);
+            *spec = EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .to = json,
+                               .from = &manifest_json, .node = specs[at]);
             memor.cpy(&(MemoriaCfg){
-                .dst = tool,
-                .src = cli_debug_text(&manifest_json, cli_json_member(&manifest_json, named[at], "name"), ""),
-                .bytes =
-                    cellul.len(&(CatenaFinitaCfg){
-                        .src = cli_debug_text(&manifest_json, cli_json_member(&manifest_json, named[at], "name"), ""),
-                        .cap = CLI_CELLS_POOL}) +
-                    1u});
+                .dst = args->tool,
+                .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx,
+                                  .json = &manifest_json,
+                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                     .json_read = &manifest_json, .object = named[at], .name = "name"),
+                                  .fallback = ""),
+                .bytes = cellul.len(&(CatenaFinitaCfg){
+                             .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx,
+                                               .json = &manifest_json,
+                                               .node = EMBED_CALL(cli_json_tree_object.json_member,
+                                                                  CliJsonTreeObjectCfg, .json_read = &manifest_json,
+                                                                  .object = named[at], .name = "name"),
+                                               .fallback = ""),
+                             .cap = CLI_CELLS_POOL}) +
+                         1u});
             memor.cpy(&(MemoriaCfg){
-                .dst = tool_id,
-                .src = cli_debug_text(&manifest_json, cli_json_member(&manifest_json, named[at], "id"), ""),
-                .bytes =
-                    cellul.len(&(CatenaFinitaCfg){
-                        .src = cli_debug_text(&manifest_json, cli_json_member(&manifest_json, named[at], "id"), ""),
-                        .cap = CLI_CELLS_POOL}) +
-                    1u});
-            find_released(&manifest_json);
+                .dst = args->tool_id,
+                .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx,
+                                  .json = &manifest_json,
+                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                     .json_read = &manifest_json, .object = named[at], .name = "id"),
+                                  .fallback = ""),
+                .bytes = cellul.len(&(CatenaFinitaCfg){
+                             .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx,
+                                               .json = &manifest_json,
+                                               .node = EMBED_CALL(cli_json_tree_object.json_member,
+                                                                  CliJsonTreeObjectCfg, .json_read = &manifest_json,
+                                                                  .object = named[at], .name = "id"),
+                                               .fallback = ""),
+                             .cap = CLI_CELLS_POOL}) +
+                         1u});
+            EMBED_CALL(find_release, DebugFindCtx, .manifest = &manifest_json);
             return 1;
         }
     }
-    find_names_joined(&manifest_json, named, count, err_msg);
-    find_released(&manifest_json);
-    mmgr_line_put(err_msg, " debugs it, and is not found: File, Toolchains opens its install page or takes its folder");
+    EMBED_CALL(find_names_join, DebugFindCtx, .json = &manifest_json, .named = named, .count = count,
+               .out = args->err_msg);
+    EMBED_CALL(find_release, DebugFindCtx, .manifest = &manifest_json);
+    mmgr_line_put(args->err_msg,
+                  " debugs it, and is not found: File, Toolchains opens its install page or takes its folder");
     return 0;
 }
 
 // the last lines of what a build wrote that are not blank, `most` of them at most, joined by "\n" into `out`
-static void find_tail(const char *text, unsigned long long size, unsigned int most, VerbaLinea *out)
+EMBED_INLINE void find_tail(const DebugFindCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    VerbaLinea *out = args->out;
     unsigned long long starts[CLI_DEBUG_TAIL];
     unsigned long long ends[CLI_DEBUG_TAIL];
     unsigned int count = 0u;
     for (unsigned long long start = 0ull; start < size;)
     {
-        const CliTextLine bounds = cli_text_line_at(text, start, size);
+        const CliTextLine bounds =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = start, .size = size);
         const unsigned long long next = bounds.next;
         unsigned long long end = bounds.stop;
         end = ((end > start) && (text[end - 1ull] == '\r')) ? end - 1ull : end;
@@ -169,90 +254,98 @@ static void find_tail(const char *text, unsigned long long size, unsigned int mo
         }
         if (!blank)
         {
-            const unsigned int place = (count < most) ? count : most - 1u;
-            for (unsigned int moved = 0u; (count >= most) && (moved + 1u < most); moved += 1u)
+            const unsigned int place = (count < args->most) ? count : args->most - 1u;
+            for (unsigned int moved = 0u; (count >= args->most) && (moved + 1u < args->most); moved += 1u)
             {
                 starts[moved] = starts[moved + 1u];
                 ends[moved] = ends[moved + 1u];
             }
             starts[place] = start;
             ends[place] = end;
-            count = (count < most) ? count + 1u : count;
+            count = (count < args->most) ? count + 1u : count;
         }
         start = next;
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         mmgr_line_put(out, (at > 0u) ? "\n" : "");
-        cli_lossy(out, (const unsigned char *)text + starts[at], ends[at] - starts[at]);
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)text + starts[at], .length = ends[at] - starts[at]);
     }
 }
 
-int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *err_msg)
+int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
 {
     char tool[CLI_PATH_MAX_LEN];
-    if (!cli_executables_program(made->tool, made->tool, tool, err_msg))
+    if (!EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = args->made->tool,
+                    .name = args->made->tool, .path = tool, .err_msg = args->err_msg))
     {
         return 0;
     }
     char path[CLI_PATH_TEXT];
-    cli_toolchains_run_path(path, sizeof(path));
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = sizeof(path));
     const CliSetting settings[1] = {{"PATH", path}};
-    const int meson = (cellul.eq(&(CatenaFinitaCfg){.src = made->tool, .other = "meson", .cap = CLI_CELLS_POOL}));
-    const char *const meson_words[6] = {tool, "compile", "-C", made->build, made->target, NULL};
-    const char *const cmake_words[9] = {tool,       "--build",    made->build, "--target", made->target,
-                                        "--config", made->config, NULL,        NULL};
+    const int meson = (cellul.eq(&(CatenaFinitaCfg){.src = args->made->tool, .other = "meson", .cap = CLI_CELLS_POOL}));
+    const char *const meson_words[6] = {tool, "compile", "-C", args->made->build, args->made->target, NULL};
+    const char *const cmake_words[9] = {
+        tool, "--build", args->made->build, "--target", args->made->target, "--config", args->made->config, NULL, NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_taken();
-    if (!cli_ran(meson ? meson_words : cmake_words, NULL, settings, 1u, ran, &err_buf))
+    CliRan *const ran = cli_ran_take();
+    if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = meson ? meson_words : cmake_words, .folder = NULL,
+                    .settings = settings, .count = 1u, .ran = ran, .err_msg = &err_buf))
     {
-        cli_ran_given(ran);
-        mmgr_line_put(err_msg, tool);
-        mmgr_line_put(err_msg, ": ");
-        mmgr_line_put_n(err_msg, err_buf.out, err_buf.at);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        mmgr_line_put(args->err_msg, tool);
+        mmgr_line_put(args->err_msg, ": ");
+        mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
         return 0;
     }
     if (ran->code != 0ll)
     {
         // what the build wrote to its output, then to its errors, as one text, a cell of their size
         char *const both = g_cli_cells->temporary_buf_alloc(ran->out_size + ran->err_size + 1ull, &g_cli_debug_cells);
-        mmgr_line_put(err_msg, "The build of ");
-        mmgr_line_put(err_msg, made->target);
-        mmgr_line_put(err_msg, " failed");
+        mmgr_line_put(args->err_msg, "The build of ");
+        mmgr_line_put(args->err_msg, args->made->target);
+        mmgr_line_put(args->err_msg, " failed");
         if (both != NULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = both, .src = ran->out, .bytes = ran->out_size});
             memor.cpy(&(MemoriaCfg){.dst = both + ran->out_size, .src = ran->err, .bytes = ran->err_size});
-            mmgr_line_put(err_msg, ":\n");
-            find_tail(both, ran->out_size + ran->err_size, CLI_DEBUG_TAIL, err_msg);
+            mmgr_line_put(args->err_msg, ":\n");
+            EMBED_CALL(find_tail, DebugFindCtx, .text = both, .size = ran->out_size + ran->err_size,
+                       .most = CLI_DEBUG_TAIL, .out = args->err_msg);
         }
         g_cli_cells->persistent_buf_release(both, &g_cli_debug_cells);
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return 0;
     }
-    cli_ran_given(ran);
-    memor.cpy(&(MemoriaCfg){.dst = program,
-                            .src = made->program,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = made->program, .cap = CLI_CELLS_POOL}) + 1u});
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->program,
+                      .src = args->made->program,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->made->program, .cap = CLI_CELLS_POOL}) + 1u});
     return 1;
 }
 
 // the extension of the file `path` names, lowercase, into `out`, sized for CLI_NAME_MAX_LEN, empty where it has
 // none; and its name without its extension into `stem`, sized for CLI_PATH_MAX_LEN
-static void find_name_parts(const char *path, char *out, char *stem)
+EMBED_INLINE void find_name_parts(const DebugFindCtx *args)
 {
-    const char *name = path;
+    char *out = args->out_room;
+    const char *name = args->path;
     const unsigned long long name_past =
-        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
-    name = (name_past != 0ull) ? (path + name_past) : name;
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+    name = (name_past != 0ull) ? (args->path + name_past) : name;
     const char *const dot =
-        cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
     const int has = (dot != NULL) && (dot != name);
     VerbaLinea extension = {out, CLI_NAME_MAX_LEN, 0ull};
-    cli_text_put_lowered(&extension, has ? (dot + 1) : "");
+    EMBED_CALL(cli_text_out_name.put_lower, CliTextOutNameCfg, .out = &extension, .text = has ? (dot + 1) : "");
     mmgr_line_finish(&extension);
-    VerbaLinea stem_line = {stem, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea stem_line = {args->stem, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put_n(&stem_line, name,
                     has ? (unsigned long long)(dot - name)
                         : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
@@ -262,30 +355,41 @@ static void find_name_parts(const char *path, char *out, char *stem)
 // the words of the build of the toolchain `named` found, at `program`, filled in: the file's path, the program it
 // makes and the toolchain's program, and each other "{name}" the toolchain's program of that name in its folder, put
 // into `words`: 1, or 0 with why given
-static int find_build_words(const CliJson *json, unsigned int named, unsigned int words_node, const char *path,
-                            const char *out, const char *program, CliWords *words, VerbaLinea *err_msg)
+EMBED_INLINE int find_build_words(const DebugFindCtx *args)
 {
+    const CliJson *json = args->json;
+    const char *path = args->path;
+    const char *out = args->out_text;
+    CliWords *words = args->words_words_pointer;
     char folder[CLI_PATH_MAX_LEN];
-    if (!cli_path_parent(program, folder))
+    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->program, .out = folder))
     {
         folder[0] = '\0';
     }
-    for (unsigned int at = 0u; cli_json_item(json, words_node, at) != CLI_JSON_NONE; at += 1u)
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = args->words_node, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
         unsigned long long length = 0ull;
-        const char *const word = cli_json_string(json, cli_json_item(json, words_node, at), &length);
+        const char *const word =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = args->words_node, .index = at),
+                       .length_pointer = &length);
         const char *const text = (word != NULL) ? word : "";
         if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{path}", .cap = CLI_CELLS_POOL}))
         {
-            cli_words_put(words, path);
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = path);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{out}", .cap = CLI_CELLS_POOL}))
         {
-            cli_words_put(words, out);
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = out);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{program}", .cap = CLI_CELLS_POOL}))
         {
-            cli_words_put(words, program);
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = args->program);
         }
         else if ((length >= 2ull) && (text[0] == '{') && (text[length - 1ull] == '}'))
         {
@@ -295,54 +399,72 @@ static int find_build_words(const CliJson *json, unsigned int named, unsigned in
             mmgr_line_put_n(&name_line, text + 1, length - 2ull);
             mmgr_line_finish(&name_line);
             const char *const names[1] = {name};
-            if (!cli_toolchains_program_in(folder, names, 1u, found))
+            if (!EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names,
+                            .count = 1u, .path = found))
             {
-                mmgr_line_put(err_msg, cli_debug_text(json, cli_json_member(json, named, "name"), ""));
-                mmgr_line_put(err_msg, " has no ");
-                mmgr_line_put(err_msg, name);
-                mmgr_line_put(err_msg, " in ");
-                mmgr_line_put(err_msg, folder);
+                mmgr_line_put(
+                    args->err_msg,
+                    EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = json,
+                               .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                  .json_read = json, .object = args->named_value, .name = "name"),
+                               .fallback = ""));
+                mmgr_line_put(args->err_msg, " has no ");
+                mmgr_line_put(args->err_msg, name);
+                mmgr_line_put(args->err_msg, " in ");
+                mmgr_line_put(args->err_msg, folder);
                 return 0;
             }
-            cli_words_put(words, found);
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = found);
         }
         else
         {
-            cli_words_put(words, text);
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = text);
         }
     }
     return 1;
 }
 
-int cli_debug_build(const char *root, const char *path, const char *language, const char *ahead, char *program,
-                    int *built, VerbaLinea *err_msg)
+int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
 {
+    const char *path = args->path;
+    int *built = args->built;
     char extension[CLI_NAME_MAX_LEN];
     char stem[CLI_PATH_MAX_LEN];
     char keys[2][CLI_NAME_MAX_LEN];
-    find_name_parts(path, extension, stem);
+    EMBED_CALL(find_name_parts, DebugFindCtx, .path = path, .out_room = extension, .stem = stem);
     VerbaLinea key = {keys[0], sizeof(keys[0]), 0ull};
-    mmgr_line_put(&key, language);
+    mmgr_line_put(&key, args->language);
     mmgr_line_ch(&key, '.');
     mmgr_line_put(&key, extension);
     mmgr_line_finish(&key);
-    memor.cpy(&(MemoriaCfg){.dst = keys[1],
-                            .src = language,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = language, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(
+        &(MemoriaCfg){.dst = keys[1],
+                      .src = args->language,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_CELLS_POOL}) + 1u});
     unsigned int named[CLI_DEBUG_NAMED];
     unsigned int words_of[CLI_DEBUG_NAMED];
     unsigned int count = 0u;
     *built = 0;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliJson json;
-    const unsigned int manifest = cli_toolchains_manifest(&json, 0u, 0ull);
+    const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                             .json_out = &json, .nodes_more = 0u, .text_more = 0ull);
     for (unsigned int one = 0u; one < 2u; one += 1u)
     {
-        for (unsigned int at = 0u; (cli_json_item(&json, manifest, at) != CLI_JSON_NONE) && (count < CLI_DEBUG_NAMED);
+        for (unsigned int at = 0u; (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                               .json_read = &json, .array = manifest, .index = at) != CLI_JSON_NONE) &&
+                                   (count < CLI_DEBUG_NAMED);
              at += 1u)
         {
-            const unsigned int tool = cli_json_item(&json, manifest, at);
-            const unsigned int words = cli_json_member(&json, cli_json_member(&json, tool, "builds"), keys[one]);
+            const unsigned int tool = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                                 .json_read = &json, .array = manifest, .index = at);
+            const unsigned int words =
+                EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                           .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = &json, .object = tool, .name = "builds"),
+                           .name = keys[one]);
             if (words != CLI_JSON_NONE)
             {
                 named[count] = tool;
@@ -353,17 +475,19 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     }
     if (count == 0u)
     {
-        find_released(&json);
+        EMBED_CALL(find_release, DebugFindCtx, .manifest = &json);
         return 1;
     }
-    find_ahead_first(&json, named, words_of, count, ahead);
+    EMBED_CALL(find_ahead_first, DebugFindCtx, .json = &json, .named_out = named, .words = words_of, .count = count,
+               .ahead = args->ahead);
     unsigned int folders = 0u;
     s_folders = cli_toolchains_path_taken(&folders, &g_cli_debug_cells);
     unsigned int chosen = count;
     char compiler[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; (at < count) && (chosen == count); at += 1u)
     {
-        cli_toolchains_find(&json, named[at], (const char (*)[CLI_PATH_MAX_LEN])s_folders, folders, &s_found);
+        EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = named[at],
+                   .path_callback = (const char (*)[CLI_PATH_MAX_LEN])s_folders, .count = folders, .found = &s_found);
         if (s_found.has_program)
         {
             chosen = at;
@@ -375,26 +499,28 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     }
     if (chosen == count)
     {
-        find_names_joined(&json, named, count, err_msg);
-        find_released(&json);
-        mmgr_line_put(err_msg,
+        EMBED_CALL(find_names_join, DebugFindCtx, .json = &json, .named = named, .count = count, .out = args->err_msg);
+        EMBED_CALL(find_release, DebugFindCtx, .manifest = &json);
+        mmgr_line_put(args->err_msg,
                       " builds it, and is not found: File, Toolchains opens its install page or takes its folder");
         return 0;
     }
     char out_folder[CLI_PATH_MAX_LEN];
     char build_folder[CLI_PATH_MAX_LEN];
-    cli_full(root, "build", build_folder);
-    cli_full(build_folder, "debug", out_folder);
-    if (!query_folder_made(out_folder))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = "build", .joined = build_folder);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = build_folder, .relative = "debug", .joined = out_folder);
+    if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = out_folder))
     {
-        find_released(&json);
-        mmgr_line_put(err_msg, "build/debug: the folder could not be made");
+        EMBED_CALL(find_release, DebugFindCtx, .manifest = &json);
+        mmgr_line_put(args->err_msg, "build/debug: the folder could not be made");
         return 0;
     }
     char out[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
     // the stem's own extension, where it has one, gives way to .exe, as a program's name is set on Windows
-    char *const dot = cli_text_last(stem, cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), '.');
+    char *const dot =
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stem,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), .byte = '.');
     if ((dot != NULL) && (dot != stem))
     {
         *dot = '\0';
@@ -404,72 +530,81 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     mmgr_line_put(&exe, ".exe");
     mmgr_line_finish(&exe);
 #endif
-    cli_full(out_folder, stem, out);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = out_folder, .relative = stem, .joined = out);
     static CliWords s_words;
     static CliLock s_words_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_words_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_words_lock);
     s_words.count = 0u;
     s_words.used = 0u;
     s_words.full = 0;
-    const int filled = find_build_words(&json, named[chosen], words_of[chosen], path, out, compiler, &s_words, err_msg);
-    find_released(&json);
+    const int filled = EMBED_CALL(find_build_words, DebugFindCtx, .json = &json, .named_value = named[chosen],
+                                  .words_node = words_of[chosen], .path = path, .out_text = out, .program = compiler,
+                                  .words_words_pointer = &s_words, .err_msg = args->err_msg);
+    EMBED_CALL(find_release, DebugFindCtx, .manifest = &json);
     if (filled && (s_words.count == 0u))
     {
-        mmgr_line_put(err_msg, "the build names no program");
+        mmgr_line_put(args->err_msg, "the build names no program");
     }
     if (!filled || (s_words.count == 0u))
     {
-        cli_lock_give(&s_words_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_words_lock);
         return 0;
     }
     char run_path[CLI_PATH_TEXT];
-    cli_toolchains_run_path(run_path, sizeof(run_path));
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = run_path,
+               .size = sizeof(run_path));
     const CliSetting settings[1] = {{"PATH", run_path}};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_taken();
+    CliRan *const ran = cli_ran_take();
     const int ran_well =
-        cli_ran_within(s_words.word, root, settings, 1u, NULL, 0ull, CLI_DEBUG_BUILDING, ran, &err_buf);
+        EMBED_CALL(cli_words_internal.ran_within, CliWordsCtx, .words = s_words.word, .folder = args->root,
+                   .settings = settings, .count = 1u, .input = NULL, .length = 0ull,
+                   .milliseconds_u64 = CLI_DEBUG_BUILDING, .ran = ran, .err_msg = &err_buf);
     if (!ran_well)
     {
-        mmgr_line_put(err_msg, s_words.word[0]);
-        mmgr_line_put(err_msg, ": ");
-        mmgr_line_put_n(err_msg, err_buf.out, err_buf.at);
+        mmgr_line_put(args->err_msg, s_words.word[0]);
+        mmgr_line_put(args->err_msg, ": ");
+        mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
     }
-    cli_lock_give(&s_words_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_words_lock);
     if (ran_well && ran->stopped)
     {
-        mmgr_line_put(err_msg, "the build took longer than 300 s");
+        mmgr_line_put(args->err_msg, "the build took longer than 300 s");
     }
     else if (ran_well && (ran->code != 0ll))
     {
         unsigned long long length = 0ull;
-        mmgr_line_put(err_msg, "the build for debugging failed:\n");
+        mmgr_line_put(args->err_msg, "the build for debugging failed:\n");
         // its errors, then its output, trimmed at both ends
-        const unsigned long long start = err_msg->at;
-        cli_lossy(err_msg, (const unsigned char *)ran->err, ran->err_size);
-        cli_lossy(err_msg, (const unsigned char *)ran->out, ran->out_size);
-        while ((err_msg->at > start) &&
-               (cellul.chr(&(CatenaFinitaCfg){
-                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = err_msg->out[err_msg->at - 1ull]}) != NULL))
+        const unsigned long long start = args->err_msg->at;
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
+                   .text_bytes = (const unsigned char *)ran->err, .length = ran->err_size);
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
+                   .text_bytes = (const unsigned char *)ran->out, .length = ran->out_size);
+        while ((args->err_msg->at > start) &&
+               (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n\f\v",
+                                              .cap = CLI_CELLS_POOL,
+                                              .byte = args->err_msg->out[args->err_msg->at - 1ull]}) != NULL))
         {
-            err_msg->at -= 1ull;
+            args->err_msg->at -= 1ull;
         }
-        while ((start + length < err_msg->at) &&
+        while ((start + length < args->err_msg->at) &&
                (cellul.chr(&(CatenaFinitaCfg){
-                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = err_msg->out[start + length]}) != NULL))
+                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = args->err_msg->out[start + length]}) != NULL))
         {
             length += 1ull;
         }
-        memor.move_down(&(MemoriaCfg){
-            .dst = err_msg->out + start, .src = err_msg->out + start + length, .bytes = err_msg->at - start - length});
-        err_msg->at -= length;
+        memor.move_down(&(MemoriaCfg){.dst = args->err_msg->out + start,
+                                      .src = args->err_msg->out + start + length,
+                                      .bytes = args->err_msg->at - start - length});
+        args->err_msg->at -= length;
     }
     const int done = ran_well && !ran->stopped && (ran->code == 0ll);
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     if (done)
     {
-        memor.cpy(&(MemoriaCfg){.dst = program,
+        memor.cpy(&(MemoriaCfg){.dst = args->program,
                                 .src = out,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL}) + 1u});
         *built = 1;

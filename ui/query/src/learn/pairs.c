@@ -16,8 +16,9 @@ static const char *const s_modes[11] = {"frame", "past",  "pair",  "cost",      
                                         "queue", "curve", "fixed", "text_identity", "stick"};
 
 // the words of a pairs read into `mode`: 1, or 0 with why given
-int query_pairs_read(const char *const *words, unsigned int count, QueryPairsMode *mode, VerbaLinea *err_msg)
+int query_pairs_read(const QueryPairsErrMsgCtx *args)
 {
+    QueryPairsMode *mode = args->mode_out;
     static const char *const s_usage = "pairs takes frame|fixed|pair|cost|stall|register|past|queue|curve|"
                                        "text_identity|stick [<words>] [--part <part>] [--to <language>] [--dry] "
                                        "[--seed <n>] [--trace <folder>]";
@@ -25,19 +26,21 @@ int query_pairs_read(const char *const *words, unsigned int count, QueryPairsMod
     mode->part = "sm_86";
     mode->to = "sass";
     int known = 0;
-    for (unsigned int at = 0u; (count != 0u) && (at < 11u); at += 1u)
+    for (unsigned int at = 0u; (args->count != 0u) && (at < 11u); at += 1u)
     {
-        known = known || (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = s_modes[at], .cap = CLI_CELLS_POOL}));
+        known =
+            known ||
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->words_letters[0], .other = s_modes[at], .cap = CLI_CELLS_POOL}));
     }
     if (!known)
     {
-        mmgr_line_put(err_msg, s_usage);
+        mmgr_line_put(args->err_msg, s_usage);
         return 0;
     }
-    mode->mode = words[0];
-    for (unsigned int at = 1u; at < count; at += 1u)
+    mode->mode = args->words_letters[0];
+    for (unsigned int at = 1u; at < args->count; at += 1u)
     {
-        const char *const word = words[at];
+        const char *const word = args->words_letters[at];
         const char **const field =
             (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--part", .cap = CLI_CELLS_POOL}))    ? &mode->part
             : (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--to", .cap = CLI_CELLS_POOL}))    ? &mode->to
@@ -50,13 +53,13 @@ int query_pairs_read(const char *const *words, unsigned int count, QueryPairsMod
         }
         else if (field != NULL)
         {
-            if ((at + 1u) >= count)
+            if ((at + 1u) >= args->count)
             {
-                mmgr_line_put(err_msg, word);
-                mmgr_line_put(err_msg, " takes a value");
+                mmgr_line_put(args->err_msg, word);
+                mmgr_line_put(args->err_msg, " takes a value");
                 return 0;
             }
-            *field = words[at + 1u];
+            *field = args->words_letters[at + 1u];
             at += 1u;
         }
         else if (mode->word_count < QUERY_WORDS_MOST)
@@ -67,36 +70,42 @@ int query_pairs_read(const char *const *words, unsigned int count, QueryPairsMod
     }
     if (!cellul.eq(&(CatenaFinitaCfg){.src = mode->to, .other = "sass", .cap = CLI_CELLS_POOL}))
     {
-        mmgr_line_put(err_msg, "orior_klq_identity writes forms in sass alone, and --to names ");
-        mmgr_line_put(err_msg, mode->to);
+        mmgr_line_put(args->err_msg, "orior_klq_identity writes forms in sass alone, and --to names ");
+        mmgr_line_put(args->err_msg, mode->to);
         return 0;
     }
     return 1;
 }
 
-void query_part_read(const char *part, char *name, size_t room)
+void query_part_read(const QueryPairsPartNameCtx *args)
 {
-    VerbaLinea line = {name, room, 0ull};
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
+    VerbaLinea line = {args->name, args->room, 0ull};
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at < whole;)
     {
-        const unsigned long long stop = cli_text_to_any(part, at, whole, "_");
+        const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                   .text = args->part, .at = at, .size = whole, .set = "_");
         const size_t from = line.at;
-        const size_t taken = mmgr_line_put_n(&line, part + at, (size_t)(stop - at));
-        cli_text_raised(line.out + from, taken);
+        const size_t taken = mmgr_line_put_n(&line, args->part + at, (size_t)(stop - at));
+        EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = line.out + from, .size = taken);
         at = stop + 1ull;
     }
     mmgr_line_finish(&line);
 }
 
-int query_pairs_carry(QueryContext *context, const char *part, int dry, QueryWords *words, VerbaLinea *err_msg)
+int query_pairs_carry(const QueryPairsPartContextDryCtx *args)
 {
+    QueryContext *context = args->context;
+    VerbaLinea *err_msg = args->err_msg;
     static char s_carrier[QUERY_PATH_MAX_LEN];
     static char s_cross[QUERY_PATH_MAX_LEN];
     static char s_nvdisasm[QUERY_PATH_MAX_LEN];
-    if (!query_context_tool(context, "orior_cubin_run", s_carrier, err_msg) ||
-        !query_context_tool(context, "orior_measuring_stick_query", s_cross, err_msg) ||
-        !query_nvdisasm(context, s_nvdisasm, err_msg))
+    if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
+                    .name = "orior_cubin_run", .binary = s_carrier, .err_msg = err_msg) ||
+        !EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
+                    .name = "orior_measuring_stick_query", .binary = s_cross, .err_msg = err_msg) ||
+        !EMBED_CALL(query_loops_err_msg.nvdisasm, QueryLoopsErrMsgCfg, .context_read = context, .path = s_nvdisasm,
+                    .err_msg = err_msg))
     {
         return 0;
     }
@@ -105,53 +114,81 @@ int query_pairs_carry(QueryContext *context, const char *part, int dry, QueryWor
     char name[QUERY_PATH_MAX_LEN];
     VerbaLinea line = {name, sizeof(name), 0ull};
     mmgr_line_put(&line, QUERY_TABLE "/");
-    mmgr_line_put(&line, part);
+    mmgr_line_put(&line, args->part);
     mmgr_line_put(&line, ".khw");
     mmgr_line_finish(&line);
-    query_at(context, name, machine);
-    query_at(context, QUERY_NVIDIA "/elf64_nvidia.tsv", layout);
-    query_pairs_carry_words(words, s_carrier, s_cross, s_nvdisasm, machine, layout, part, dry);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = name,
+               .path_out = machine);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_NVIDIA "/elf64_nvidia.tsv", .path_out = layout);
+    EMBED_CALL(query_pairs_part_dry_internal.carry_words, QueryPairsPartDryCtx, .words = args->words,
+               .carrier = s_carrier, .cross = s_cross, .nvdisasm = s_nvdisasm, .machine = machine, .layout = layout,
+               .part = args->part, .dry = args->dry);
     return 1;
 }
 
-void query_pairs_carry_words(QueryWords *words, const char *carrier, const char *cross, const char *nvdisasm,
-                             const char *machine, const char *layout, const char *part, int dry)
+void query_pairs_carry_words(const QueryPairsPartDryCtx *args)
 {
+    QueryWords *words = args->words;
     char reader[64];
-    query_part_read(part, reader, sizeof(reader));
+    EMBED_CALL(query_pairs_part_name_internal.part_read, QueryPairsPartNameCtx, .part = args->part, .name = reader,
+               .room = sizeof(reader));
     // the carrier, its dry flags first where `dry` as it reads them, its gated list and its lessons, the machine file
     // and the layout; the pop, dry and full; and the cross with the vendor's reader
-    query_words_add(words, carrier);
-    if (dry)
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->carrier);
+    if (args->dry)
     {
-        query_words_add(words, "--dry");
-        query_words_add(words, "--full");
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+                   .word = "--dry");
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+                   .word = "--full");
     }
     static const char *const s_feedback_words[4] = {"--gated", "gated.txt", "--lessons", "overseer.txt"};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        query_words_add(words, s_feedback_words[at]);
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+                   .word = s_feedback_words[at]);
     }
-    query_words_text(words, machine);
-    query_words_text(words, layout);
-    query_words_add(words, "--pop");
-    query_words_add(words, carrier);
-    query_words_add(words, "--dry");
-    query_words_add(words, "--full");
-    query_words_add(words, "--lessons");
-    query_words_add(words, "overseer.txt");
-    query_words_text(words, machine);
-    query_words_text(words, layout);
-    query_words_add(words, "--cross");
-    query_words_add(words, cross);
-    query_words_add(words, nvdisasm);
-    query_words_text(words, reader);
-    query_words_add(words, "airlock.md");
-    query_words_add(words, "gated.txt");
+    EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
+               .text = args->machine);
+    EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
+               .text = args->layout);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "--pop");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->carrier);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "--dry");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "--full");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "--lessons");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "overseer.txt");
+    EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
+               .text = args->machine);
+    EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
+               .text = args->layout);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "--cross");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->cross);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->nvdisasm);
+    EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
+               .text = reader);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "airlock.md");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "gated.txt");
 }
 
-int query_pairs_configs(QueryContext *context, QueryRun *run, const char *part, VerbaLinea *err_msg)
+int query_pairs_configs(const QueryPairsPartContextCtx *args)
 {
+    QueryContext *context = args->context;
+    QueryRun *run = args->run_out;
+    VerbaLinea *err_msg = args->err_msg;
     static const char *const s_kinds[3] = {"khw", "ksc", "kqr"};
     static char s_paths[7][QUERY_PATH_MAX_LEN];
     static const char *s_read[7];
@@ -160,28 +197,38 @@ int query_pairs_configs(QueryContext *context, QueryRun *run, const char *part, 
         char name[QUERY_PATH_MAX_LEN];
         VerbaLinea line = {name, sizeof(name), 0ull};
         mmgr_line_put(&line, QUERY_TABLE "/");
-        mmgr_line_put(&line, part);
+        mmgr_line_put(&line, args->part);
         mmgr_line_ch(&line, '.');
         mmgr_line_put(&line, s_kinds[at]);
         mmgr_line_finish(&line);
-        query_at(context, name, s_paths[at]);
+        EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = name,
+                   .path_out = s_paths[at]);
     }
-    query_at(context, QUERY_TABLE "/Lstar.klq", s_paths[3]);
-    query_at(context, QUERY_TABLE "/cu.krs", s_paths[4]);
-    query_at(context, QUERY_TABLE "/sass.krs", s_paths[5]);
-    query_at(context, QUERY_PAIRS_STICK "/measuring_stick.tsv", s_paths[6]);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_TABLE "/Lstar.klq", .path_out = s_paths[3]);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_TABLE "/cu.krs", .path_out = s_paths[4]);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_TABLE "/sass.krs", .path_out = s_paths[5]);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_PAIRS_STICK "/measuring_stick.tsv", .path_out = s_paths[6]);
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
         s_read[at] = s_paths[at];
     }
-    return query_run_read(run, s_read, 7u, err_msg);
+    return EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = run, .paths_letters = s_read,
+                      .count = 7u, .err_msg = err_msg);
 }
 
-int query_host_answered(QueryContext *context, const QueryRun *run, const char *out, VerbaLinea *err_msg)
+int query_host_answer(const QueryPairsContextCtx *args)
 {
+    QueryContext *context = args->context;
+    const QueryRun *run = args->run;
+    VerbaLinea *err_msg = args->err_msg;
     const unsigned char *questions = NULL;
     unsigned long long size = 0ull;
-    if (!query_writer_latest(&run->writer, "host_questions.cpp", &questions, &size))
+    if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &run->writer,
+                    .name = "host_questions.cpp", .bytes_u8s = &questions, .size_pointer = &size))
     {
         mmgr_line_put(err_msg, "the run contains no host_questions.cpp");
         return 0;
@@ -190,23 +237,26 @@ int query_host_answered(QueryContext *context, const QueryRun *run, const char *
     char program[QUERY_PATH_MAX_LEN];
     char base[64];
     VerbaLinea source_line = {source, sizeof(source), 0ull};
-    mmgr_line_put(&source_line, out);
+    mmgr_line_put(&source_line, args->out);
     mmgr_line_put(&source_line, "/host_questions.cpp");
     mmgr_line_finish(&source_line);
-    query_binary_name("host_questions", base, sizeof(base));
+    EMBED_CALL(query_name_room_internal.binary_name, QueryNameRoomCtx, .name = "host_questions", .binary = base,
+               .room = sizeof(base));
     VerbaLinea program_line = {program, sizeof(program), 0ull};
-    mmgr_line_put(&program_line, out);
+    mmgr_line_put(&program_line, args->out);
     mmgr_line_ch(&program_line, '/');
     mmgr_line_put(&program_line, base);
     mmgr_line_finish(&program_line);
-    if (!query_file_written(source, questions, size))
+    if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = source,
+                    .bytes = questions, .size = size))
     {
         mmgr_line_put(err_msg, source);
         mmgr_line_put(err_msg, " could not be written");
         return 0;
     }
     static char s_cxx[QUERY_PATH_MAX_LEN];
-    if (!context->programs->program(context->programs->context, QUERY_ROLE_CXX, s_cxx, sizeof(s_cxx), err_msg))
+    if (!EMBED_CALL(context->programs->program, QueryEachRolePathRoomErrMsgCfg, .context = context->programs->context,
+                    .role = QUERY_ROLE_CXX, .path = s_cxx, .room = sizeof(s_cxx), .err_msg = err_msg))
     {
         return 0;
     }
@@ -216,7 +266,9 @@ int query_host_answered(QueryContext *context, const QueryRun *run, const char *
     s_compile[7] = source;
     s_compile[8] = NULL;
     long long code = -1ll;
-    if (!query_context_teed(context, run, "host_questions_compile", s_compile, &code, err_msg))
+    if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
+                    .context = context, .run = run, .name = "host_questions_compile", .words = s_compile, .code = &code,
+                    .err_msg = err_msg))
     {
         return 0;
     }
@@ -226,7 +278,9 @@ int query_host_answered(QueryContext *context, const QueryRun *run, const char *
         return 0;
     }
     const char *const answer[2] = {program, NULL};
-    if (!query_context_handed(context, run, "host_answers.txt", answer, &code, err_msg))
+    if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
+                    .context = context, .run = run, .name = "host_answers.txt", .words = answer, .code = &code,
+                    .err_msg = err_msg))
     {
         return 0;
     }
@@ -244,32 +298,43 @@ static unsigned char s_writer_setting[1024u + 64u + 1024u + 1024u];
 static unsigned char s_seed_setting[8];
 static char s_ruleset_setting[64];
 
-static int query_identity_writer(const char *const *fields, VerbaLinea *err_msg)
+typedef struct
+{
+    const char *const *fields;
+    VerbaLinea *err_msg;
+    QueryContext *context;
+    const QueryPairsMode *mode;
+} PairsCtx;
+EMBED_INLINE int query_identity_writer(const PairsCtx *args)
 {
     static const unsigned int s_rooms[4] = {1024u, 64u, 1024u, 1024u};
     memor.set(&(MemoriaCfg){.dst = s_writer_setting, .val = 0, .bytes = sizeof(s_writer_setting)});
     unsigned int at = 0u;
     for (unsigned int field = 0u; field < 4u; field += 1u)
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = fields[field], .cap = CLI_CELLS_POOL});
+        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->fields[field], .cap = CLI_CELLS_POOL});
         if (length >= s_rooms[field])
         {
-            mmgr_line_put(err_msg, fields[field]);
-            mmgr_line_put(err_msg, " does not fit the writer's room");
+            mmgr_line_put(args->err_msg, args->fields[field]);
+            mmgr_line_put(args->err_msg, " does not fit the writer's room");
             return 0;
         }
-        memor.cpy(&(MemoriaCfg){.dst = &s_writer_setting[at], .src = fields[field], .bytes = length});
+        memor.cpy(&(MemoriaCfg){.dst = &s_writer_setting[at], .src = args->fields[field], .bytes = length});
         at += s_rooms[field];
     }
     return 1;
 }
 
 // Every mode: the stick's listing and the part's files read, the settings given, and the mode run
-static int query_pairs_mode_run(QueryContext *context, const QueryPairsMode *mode, VerbaLinea *err_msg)
+static int query_pairs_mode_run(const PairsCtx *args)
 {
+    QueryContext *context = args->context;
+    const QueryPairsMode *mode = args->mode;
+    VerbaLinea *err_msg = args->err_msg;
     char stick[QUERY_PATH_MAX_LEN];
-    query_at(context, QUERY_PAIRS_STICK "/measuring_stick_nvcc.sass", stick);
-    if (!query_is_file(stick))
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_PAIRS_STICK "/measuring_stick_nvcc.sass", .path_out = stick);
+    if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = stick))
     {
         mmgr_line_put(err_msg, "no stick: run orior_cli protocol stick");
         return -1;
@@ -285,8 +350,9 @@ static int query_pairs_mode_run(QueryContext *context, const QueryPairsMode *mod
         mmgr_line_ch(&line, '.');
         mmgr_line_put(&line, s_kinds[at]);
         mmgr_line_finish(&line);
-        query_at(context, name, path);
-        if (!query_is_file(path))
+        EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = name,
+                   .path_out = path);
+        if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
         {
             mmgr_line_put(err_msg, "no ");
             mmgr_line_put(err_msg, mode->part);
@@ -320,13 +386,15 @@ static int query_pairs_mode_run(QueryContext *context, const QueryPairsMode *mod
     // the machine file the mode names
     static char s_writer[QUERY_PATH_MAX_LEN];
     static QueryFiles s_files;
-    if (!query_context_tool(context, "orior_khw_machine_write", s_writer, err_msg))
+    if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
+                    .name = "orior_khw_machine_write", .binary = s_writer, .err_msg = err_msg))
     {
         return -1;
     }
-    query_files_of(context->root, mode->part, &s_files);
+    EMBED_CALL(query_loops_root.files_get, QueryLoopsRootCfg, .root = context->root, .part = mode->part,
+               .files = &s_files);
     const char *const fields[4] = {s_writer, mode->part, s_files.layout, s_files.mnemonics};
-    if (!query_identity_writer(fields, err_msg))
+    if (!EMBED_CALL(query_identity_writer, PairsCtx, .fields = fields, .err_msg = err_msg))
     {
         return -1;
     }
@@ -339,40 +407,52 @@ static int query_pairs_mode_run(QueryContext *context, const QueryPairsMode *mod
     context->setting[context->settings] = (QuerySetting){"identity.ruleset", s_ruleset_setting, ruleset.at};
     context->settings += 1u;
     static char s_identity[QUERY_PATH_MAX_LEN];
-    if (!query_context_tool(context, "orior_klq_identity", s_identity, err_msg))
+    if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
+                    .name = "orior_klq_identity", .binary = s_identity, .err_msg = err_msg))
     {
         return -1;
     }
     char work[QUERY_PATH_MAX_LEN];
-    query_at(context, QUERY_PAIRS_WORK, work);
-    if (!query_folder_made(work))
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_PAIRS_WORK, .path_out = work);
+    if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = work))
     {
         mmgr_line_put(err_msg, work);
         mmgr_line_put(err_msg, " could not be made");
         return -1;
     }
     char folder[QUERY_PATH_MAX_LEN];
-    cli_text_copied_or(folder, mode->trace, QUERY_PAIRS_FOLDER);
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = folder, .text = mode->trace,
+               .otherwise = QUERY_PAIRS_FOLDER);
     int code = -1;
     if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "text_identity", .cap = CLI_CELLS_POOL}))
     {
-        code = query_text_identity(context, mode, s_identity, folder, err_msg);
+        code =
+            EMBED_CALL(query_pairs_context_err_msg_internal.text_identity, QueryPairsContextErrMsgCtx,
+                       .context = context, .mode = mode, .identity = s_identity, .folder = folder, .err_msg = err_msg);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "stick", .cap = CLI_CELLS_POOL}))
     {
-        code = query_stick_sliced(context, mode, s_identity, folder, err_msg);
+        code =
+            EMBED_CALL(query_pairs_context_err_msg_internal.stick_slice, QueryPairsContextErrMsgCtx, .context = context,
+                       .mode = mode, .identity = s_identity, .folder = folder, .err_msg = err_msg);
     }
     else
     {
-        code = query_judged(context, mode, s_identity, folder, err_msg);
+        code = EMBED_CALL(query_pairs_context_err_msg_internal.judged, QueryPairsContextErrMsgCtx, .context = context,
+                          .mode = mode, .identity = s_identity, .folder = folder, .err_msg = err_msg);
     }
     context->settings = 0u;
     return code;
 }
 
-int query_pairs_pair(QueryContext *context, const char *part, const char *to, int dry, const char *seed,
-                     const char *trace, VerbaLinea *err_msg)
+int query_pairs_pair(const QueryLoopsContextErrMsgPartCfg *args)
 {
+    const char *part = args->part;
+    const char *to = args->to;
+    int dry = args->dry;
+    const char *seed = args->seed;
+    const char *trace = args->trace;
     QueryPairsMode mode;
     memor.set(&(MemoriaCfg){.dst = &mode, .val = 0, .bytes = sizeof(mode)});
     mode.mode = "pair";
@@ -383,19 +463,25 @@ int query_pairs_pair(QueryContext *context, const char *part, const char *to, in
     mode.trace = trace;
     if (!cellul.eq(&(CatenaFinitaCfg){.src = to, .other = "sass", .cap = CLI_CELLS_POOL}))
     {
-        mmgr_line_put(err_msg, "orior_klq_identity writes forms in sass alone, and --to names ");
-        mmgr_line_put(err_msg, to);
+        mmgr_line_put(args->err_msg, "orior_klq_identity writes forms in sass alone, and --to names ");
+        mmgr_line_put(args->err_msg, to);
         return -1;
     }
-    return query_pairs_mode_run(context, &mode, err_msg);
+    return EMBED_CALL(query_pairs_mode_run, PairsCtx, .context = args->context, .mode = &mode,
+                      .err_msg = args->err_msg);
 }
 
-int query_pairs_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
+int query_pairs_run(const QueryLoopCfg *args)
 {
+    QueryContext *context = args->context;
+    const char *const *words = args->words;
+    unsigned int count = args->count;
+    VerbaLinea *err_msg = args->err_msg;
     static QueryPairsMode s_mode;
-    if (!query_pairs_read(words, count, &s_mode, err_msg))
+    if (!EMBED_CALL(query_pairs_err_msg_internal.read, QueryPairsErrMsgCtx, .words_letters = words, .count = count,
+                    .mode_out = &s_mode, .err_msg = err_msg))
     {
         return -1;
     }
-    return query_pairs_mode_run(context, &s_mode, err_msg);
+    return EMBED_CALL(query_pairs_mode_run, PairsCtx, .context = context, .mode = &s_mode, .err_msg = err_msg);
 }

@@ -4,11 +4,13 @@
 // readers and the requests waiting on answers, and the queues an adapter in orior_cli is connected to through
 #ifndef DAP_INTERNAL_H
 #define DAP_INTERNAL_H
+typedef struct CliDapCtx CliDapCtx;
 
 #include "../servers/lsp.h"
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 #include "dap.h"
+#include "embed_dispatch_layout.h"
 
 // the most bytes of what an adapter writes to its errors that are retained
 #define CLI_DAP_COMPLAINT 4096u
@@ -66,12 +68,31 @@ extern CliLock g_cli_daps_lock;
 // a place for an adapter taken, referenced once and made empty, NULL where every place is taken; and its readers
 // started: what it writes read on a thread of its own, each response handed to the request waiting on it, each event
 // received and each request of its refused, and, for a program, what it writes to its errors retained (dap.c)
-CliDap *cli_dap_place_taken(void);
-void cli_dap_readers_started(CliDap *dap, int complaints);
+CliDap *cli_dap_place_take(void);
+void cli_dap_readers_start(const CliDapCtx *args);
 // the adapter ended: its connection ended, its process ended and waited on, an adapter in orior_cli notified no more
 // comes
-void cli_dap_ended(CliDap *dap);
+void cli_dap_end(const CliDapCtx *args);
 // what an adapter in orior_cli is connected to through let go, as it is (dap_within.c)
-void cli_dap_within_let_go(CliDap *dap);
+void cli_dap_within_let_go(const CliDapCtx *args);
+
+struct CliDapCtx
+{
+    CliDap *dap;
+    int complaints;
+};
+
+typedef struct
+{
+    void (*readers_start)(const CliDapCtx *args);
+    void (*end)(const CliDapCtx *args);
+    void (*within_let_go)(const CliDapCtx *args);
+} CliDapNs;
+EMBED_TABLE_LAYOUT(CliDapNs, readers_start, end, within_let_go);
+EMBED_TABLE_STORAGE CliDapNs cli_dap_internal EMBED_UNUSED = {
+    .readers_start = cli_dap_readers_start,
+    .end = cli_dap_end,
+    .within_let_go = cli_dap_within_let_go,
+};
 
 #endif

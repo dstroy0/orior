@@ -10,22 +10,27 @@
 // the build, since only a bundler such as Bun or Deno takes those in.
 #ifndef SEA_H
 #define SEA_H
+typedef struct CliSeaNodeCfg CliSeaNodeCfg;
+typedef struct CliSeaErrMsgCfg CliSeaErrMsgCfg;
+typedef struct CliSeaErrMsgProgramCfg CliSeaErrMsgProgramCfg;
+typedef struct CliSeaErrMsgProgramSizeCfg CliSeaErrMsgProgramSizeCfg;
+typedef struct CliSeaCfg CliSeaCfg;
 
 #include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most program headers a Linux node's are read with, the two this adds among them
 #define CLI_SEA_HEADERS 4096u
 
 // the modules a script requires that Node does not contain itself, each named in a require(), an import or an import(),
 // other than a `node:` name or one of Node's own, into `found`, sized for `room`: their count
-unsigned int cli_sea_outside(const char *text, char (*found)[CLI_NAME_MAX_LEN], unsigned int room);
+unsigned int cli_sea_outside(const CliSeaCfg *args);
 // the script at `main` built into the single executable `output` with `node`, `module` specifying the script is an ES
 // module, each step printed through `sink` as it goes: the executable's path into `made`, sized for CLI_PATH_MAX_LEN,
 // 1, or 0 with why given the cells a build occupies while it runs, the script read (sea_build.c)
 extern CellOwner g_cli_sea_cells;
-int cli_sea_build(const char *node, const char *main, const char *output, int module, QuerySink sink, char *made,
-                  VerbaLinea *err_msg);
+int cli_sea_build(const CliSeaNodeCfg *args);
 
 // What adding a note to a Linux node changes: the program headers as they become, `table` bytes of them; where the new
 // segment starts, past every segment the program loads, the table at its head; where the note starts in it; and the
@@ -44,10 +49,97 @@ typedef struct
 // has no fuse or has it turned; a Windows program's signature: 1 with the place of the certificate table's entry to
 // empty and the length the file is cut to, 0 where it has none, -1 with why given where it is no Windows program; and
 // the note of `data_size` bytes a Linux program takes, 1, or 0 with why given
-int cli_sea_fuse_at(const unsigned char *program, unsigned long long size, unsigned long long *at, VerbaLinea *err_msg);
-int cli_sea_signature(const unsigned char *program, unsigned long long size, unsigned long long *entry,
-                      unsigned long long *length, VerbaLinea *err_msg);
-int cli_sea_note(const unsigned char *program, unsigned long long size, unsigned long long data_size, CliSeaNote *note,
-                 VerbaLinea *err_msg);
+int cli_sea_fuse_at(const CliSeaErrMsgProgramSizeCfg *args);
+int cli_sea_signature(const CliSeaErrMsgProgramCfg *args);
+int cli_sea_note(const CliSeaErrMsgCfg *args);
+
+struct CliSeaNodeCfg
+{
+    const char *node;
+    const char *main;
+    const char *output;
+    int module;
+    QuerySink sink;
+    char *made;
+    VerbaLinea *err_msg;
+};
+
+struct CliSeaErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    const unsigned char *program;
+    unsigned long long size;
+    unsigned long long data_size;
+    CliSeaNote *note;
+};
+
+struct CliSeaErrMsgProgramCfg
+{
+    VerbaLinea *err_msg;
+    const unsigned char *program;
+    unsigned long long size;
+    unsigned long long *entry;
+    unsigned long long *length;
+};
+
+struct CliSeaErrMsgProgramSizeCfg
+{
+    VerbaLinea *err_msg;
+    const unsigned char *program;
+    unsigned long long size;
+    unsigned long long *at;
+};
+
+struct CliSeaCfg
+{
+    const char *text;
+    char (*found)[CLI_NAME_MAX_LEN];
+    unsigned int room;
+};
+
+typedef struct
+{
+    unsigned int (*outside)(const CliSeaCfg *args);
+} CliSeaNs;
+EMBED_TABLE_LAYOUT(CliSeaNs, outside);
+EMBED_TABLE_STORAGE CliSeaNs cli_sea_table EMBED_UNUSED = {
+    .outside = cli_sea_outside,
+};
+
+typedef struct
+{
+    int (*build)(const CliSeaNodeCfg *args);
+} CliSeaNodeNs;
+EMBED_TABLE_LAYOUT(CliSeaNodeNs, build);
+EMBED_TABLE_STORAGE CliSeaNodeNs cli_sea_node EMBED_UNUSED = {
+    .build = cli_sea_build,
+};
+
+typedef struct
+{
+    int (*fuse_at)(const CliSeaErrMsgProgramSizeCfg *args);
+} CliSeaErrMsgProgramSizeNs;
+EMBED_TABLE_LAYOUT(CliSeaErrMsgProgramSizeNs, fuse_at);
+EMBED_TABLE_STORAGE CliSeaErrMsgProgramSizeNs cli_sea_err_msg_program_size EMBED_UNUSED = {
+    .fuse_at = cli_sea_fuse_at,
+};
+
+typedef struct
+{
+    int (*signature)(const CliSeaErrMsgProgramCfg *args);
+} CliSeaErrMsgProgramNs;
+EMBED_TABLE_LAYOUT(CliSeaErrMsgProgramNs, signature);
+EMBED_TABLE_STORAGE CliSeaErrMsgProgramNs cli_sea_err_msg_program EMBED_UNUSED = {
+    .signature = cli_sea_signature,
+};
+
+typedef struct
+{
+    int (*note)(const CliSeaErrMsgCfg *args);
+} CliSeaErrMsgNs;
+EMBED_TABLE_LAYOUT(CliSeaErrMsgNs, note);
+EMBED_TABLE_STORAGE CliSeaErrMsgNs cli_sea_err_msg EMBED_UNUSED = {
+    .note = cli_sea_note,
+};
 
 #endif

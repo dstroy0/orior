@@ -20,24 +20,30 @@
 // `indent`, `{ states: { <state>: <token>, ... }, tab, skip, begins: [<state>, ...] }`, runs the states it names by
 // indent, each line's indent its spaces and tabs before its first other letter, a tab to the next multiple of `tab`,
 // one column where it gives none. A line `skip` matches is passed over. Any other line begun with a state of `begins`
-// on top makes its indent the statement's, and a rule entering a state of `states` keeps the statement's indent with
+// on top makes its indent the statement's, and a rule entering a state of `states` saves the statement's indent with
 // it; the line, on such a state on top of the stack whose indent is as deep as its own or deeper, leaves it, a mark of
 // the state's token put at the line's start for each left. The text's end is a line of no indent, a mark put at the
 // end of its last line for each state it leaves. A grammar with an `indent` writes the states each line ends in after
 // the statement's indent and `|`, each state of `states` followed by `:` and its indent
 #ifndef HIGHLIGHT_H
 #define HIGHLIGHT_H
+typedef struct CliHighlightKeyCfg CliHighlightKeyCfg;
+typedef struct CliHighlightKeyErrMsgCfg CliHighlightKeyErrMsgCfg;
+typedef struct CliHighlightKeyJsonCfg CliHighlightKeyJsonCfg;
+typedef struct CliHighlightKeyContextCfg CliHighlightKeyContextCfg;
+typedef struct CliHighlightCfg CliHighlightCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
 
 // the grammar at `def` in `json` read and stored under `key`, in the place of one stored there before: 1, or 0 with
 // what in it is not read here reported
-int cli_highlight_store(const char *key, const CliJson *json, unsigned int def, VerbaLinea *err_msg);
+int cli_highlight_store(const CliHighlightKeyJsonCfg *args);
 // `count` lines colored with the grammar stored under `key`, the first starting in `state` and each after in the state
 // the one before it ends in, written into `out` as `{"names": [every name a token can take, the empty name first],
 // "runs": [[[column, name], ...] for each line], "states": [the state each line ends in]}`: 1, or 0 with why given
-int cli_highlight_color(const char *key, const char *state, const char *const *lines, unsigned int count,
-                        VerbaLinea *out, VerbaLinea *err_msg);
+int cli_highlight_color(const CliHighlightKeyErrMsgCfg *args);
 // One line's leaves as the colorer hands them over: the line, and its runs, each the column it starts at in UTF-16
 // units and its token's name, running to the next run's column or the column the colored line ends at, `end`; a run's
 // name is `text` from `name_at[name[run]]`, the empty name, the first, where the grammar gives none; and the state the
@@ -54,25 +60,123 @@ typedef struct
     unsigned int end;
 } CliLeaves;
 
+typedef struct
+{
+    void *context;
+    const CliLeaves *leaves;
+} CliLeavesEachCfg;
+
 // what each line's leaves are handed to, in turn
-typedef void (*CliLeavesEach)(void *context, const CliLeaves *leaves);
+typedef void (*CliLeavesEach)(const CliLeavesEachCfg *args);
 
 // `count` lines colored with the grammar stored under `key`, the first starting in `state` and each after in the state
 // the one before it ends in, the last ending the text where `ends` is 1, each line's leaves handed to `each`, and the
 // state the last ends in written into `ended`: 1, or 0 with why given. The lines are colored and `each` runs with no
 // lock taken, on the calling thread, as many colorings at once as threads call for them
-int cli_highlight_leaves(const char *key, const char *state, const char *const *lines, unsigned int count, int ends,
-                         CliLeavesEach each, void *context, VerbaLinea *ended, VerbaLinea *err_msg);
+int cli_highlight_leaves(const CliHighlightKeyCfg *args);
 // every name a token of the grammar stored under `key` can take, the empty name first, written into `out` as a JSON
 // array: 1, or 0 where no grammar is stored under `key`; each of those names handed to `each` with its place, in turn,
 // under the lock the grammars are stored under: how many, 0 where no grammar is stored under `key`; and one line's
 // runs written into `out` as `[column, name, column, name, ...]`, as the page reads a line's colors
-int cli_highlight_names_written(const char *key, VerbaLinea *out);
-typedef void (*CliNameEach)(void *context, unsigned int place, const char *name);
-unsigned int cli_highlight_names_each(const char *key, CliNameEach each, void *context);
-void cli_highlight_runs_written(const CliLeaves *leaves, VerbaLinea *out);
+int cli_highlight_names_write(const CliHighlightKeyErrMsgCfg *args);
+typedef void (*CliNameEach)(const CliNameEachCfg *args);
+unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args);
+void cli_highlight_runs_write(const CliHighlightCfg *args);
 // the grammars' own report, `<pool's bytes> <their mark> 0`, the most the grammars and their rooms occupied of the
 // cellblock at once, written into `out` (highlight_store.c)
-void cli_highlight_cells_usage_written(VerbaLinea *out);
+void cli_highlight_cells_usage_write(const CliHighlightCfg *args);
+
+struct CliHighlightKeyCfg
+{
+    const char *key;
+    VerbaLinea *err_msg;
+    const char *state;
+    const char *const *lines;
+    unsigned int count;
+    int ends;
+    CliLeavesEach each;
+    void *context;
+    VerbaLinea *ended;
+};
+
+struct CliHighlightKeyErrMsgCfg
+{
+    const char *key;
+    VerbaLinea *err_msg;
+    const char *state;
+    const char *const *lines;
+    unsigned int count;
+    VerbaLinea *out;
+};
+
+struct CliHighlightKeyJsonCfg
+{
+    const char *key;
+    const CliJson *json;
+    unsigned int def;
+    VerbaLinea *err_msg;
+};
+
+struct CliHighlightKeyContextCfg
+{
+    const char *key;
+    void *context;
+    CliNameEach each_name_each;
+};
+
+struct CliHighlightCfg
+{
+    VerbaLinea *out;
+    const CliLeaves *leaves;
+};
+
+typedef struct
+{
+    int (*store)(const CliHighlightKeyJsonCfg *args);
+} CliHighlightKeyJsonNs;
+EMBED_TABLE_LAYOUT(CliHighlightKeyJsonNs, store);
+EMBED_TABLE_STORAGE CliHighlightKeyJsonNs cli_highlight_key_json EMBED_UNUSED = {
+    .store = cli_highlight_store,
+};
+
+typedef struct
+{
+    int (*color)(const CliHighlightKeyErrMsgCfg *args);
+    int (*names_write)(const CliHighlightKeyErrMsgCfg *args);
+} CliHighlightKeyErrMsgNs;
+EMBED_TABLE_LAYOUT(CliHighlightKeyErrMsgNs, color, names_write);
+EMBED_TABLE_STORAGE CliHighlightKeyErrMsgNs cli_highlight_key_err_msg EMBED_UNUSED = {
+    .color = cli_highlight_color,
+    .names_write = cli_highlight_names_write,
+};
+
+typedef struct
+{
+    int (*leaves)(const CliHighlightKeyCfg *args);
+} CliHighlightKeyNs;
+EMBED_TABLE_LAYOUT(CliHighlightKeyNs, leaves);
+EMBED_TABLE_STORAGE CliHighlightKeyNs cli_highlight_key EMBED_UNUSED = {
+    .leaves = cli_highlight_leaves,
+};
+
+typedef struct
+{
+    unsigned int (*names_each)(const CliHighlightKeyContextCfg *args);
+} CliHighlightKeyContextNs;
+EMBED_TABLE_LAYOUT(CliHighlightKeyContextNs, names_each);
+EMBED_TABLE_STORAGE CliHighlightKeyContextNs cli_highlight_key_context EMBED_UNUSED = {
+    .names_each = cli_highlight_names_each,
+};
+
+typedef struct
+{
+    void (*runs_write)(const CliHighlightCfg *args);
+    void (*cells_usage_write)(const CliHighlightCfg *args);
+} CliHighlightNs;
+EMBED_TABLE_LAYOUT(CliHighlightNs, runs_write, cells_usage_write);
+EMBED_TABLE_STORAGE CliHighlightNs cli_highlight EMBED_UNUSED = {
+    .runs_write = cli_highlight_runs_write,
+    .cells_usage_write = cli_highlight_cells_usage_write,
+};
 
 #endif

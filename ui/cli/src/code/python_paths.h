@@ -15,13 +15,32 @@
 // python_paths_eval.c)
 #ifndef PYTHON_PATHS_H
 #define PYTHON_PATHS_H
+typedef struct CliPythonPathsCfg CliPythonPathsCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the folders the Python scripts of the tree at `root` put on `sys.path`, each a folder there in the tree other than
 // its top, the most used first, the first `most` of them each handed to `each`: their count. A tree's reading stands
 // thirty seconds before it is read again
-unsigned int cli_python_paths(const char *root, unsigned int most, void (*each)(void *context, const char *path),
-                              void *context);
+unsigned int cli_python_paths(const CliPythonPathsCfg *args);
+
+struct CliPythonPathsCfg
+{
+    const char *root;
+    unsigned int most;
+    void (*each)(const CliEachPathCfg *args);
+    void *context;
+};
+
+typedef struct
+{
+    unsigned int (*python_paths)(const CliPythonPathsCfg *args);
+} CliPythonPathsNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsNs, python_paths);
+EMBED_TABLE_STORAGE CliPythonPathsNs cli_python_paths_table EMBED_UNUSED = {
+    .python_paths = cli_python_paths,
+};
 
 #endif

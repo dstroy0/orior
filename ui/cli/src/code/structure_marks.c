@@ -8,25 +8,47 @@
 // a name a rename of which was seen two ways, and so renamed nowhere
 #define CLI_BECAME_TWO_WAYS 0xfffffffeu
 
-// a token's mark: its line, where it starts and ends, and its kind
-static void cli_mark(const CliSide *side, unsigned int token, unsigned int kind, unsigned int (*marks)[4],
-                     unsigned int *count)
+typedef struct
 {
-    marks[*count][0] = side->token[token].line;
-    marks[*count][1] = side->token[token].from;
-    marks[*count][2] = side->token[token].to;
-    marks[*count][3] = kind;
+    const CliSide *side;
+    unsigned int token;
+    unsigned int kind;
+    unsigned int (*marks_callback)[4];
+    unsigned int *count_pointer;
+    const CliSide *one;
+    unsigned int at;
+    const CliSide *other;
+    unsigned int other_at;
+    unsigned int x;
+    unsigned int y;
+    const unsigned int (*marks)[4];
+    unsigned int count;
+    unsigned char *worst;
+    unsigned int lines;
+    VerbaLinea *out;
+    const unsigned int *numbers;
+    const unsigned char *kinds;
+} StructureMarksCtx;
+// a token's mark: its line, where it starts and ends, and its kind
+EMBED_INLINE void cli_mark(const StructureMarksCtx *args)
+{
+    unsigned int *count = args->count_pointer;
+    args->marks_callback[*count][0] = args->side->token[args->token].line;
+    args->marks_callback[*count][1] = args->side->token[args->token].from;
+    args->marks_callback[*count][2] = args->side->token[args->token].to;
+    args->marks_callback[*count][3] = args->kind;
     *count += 1u;
 }
 
 // whether a token's text and another's are in order, by their bytes, the shorter first where one starts the other
-static int cli_text_order(const CliSide *one, unsigned int at, const CliSide *other, unsigned int other_at)
+EMBED_INLINE int cli_text_order(const StructureMarksCtx *args)
 {
-    const CliToken *const left = &one->token[at];
-    const CliToken *const right = &other->token[other_at];
+    const CliSide *other = args->other;
+    const CliToken *const left = &args->one->token[args->at];
+    const CliToken *const right = &other->token[args->other_at];
     const unsigned int left_length = left->end - left->start;
     const unsigned int right_length = right->end - right->start;
-    const int compared = memor.cmp(&(MemoriaCfg){.src = one->text + left->start,
+    const int compared = memor.cmp(&(MemoriaCfg){.src = args->one->text + left->start,
                                                  .other = other->text + right->start,
                                                  .bytes = (left_length < right_length) ? left_length : right_length});
     return (compared != 0) ? compared : ((left_length < right_length) ? -1 : (left_length > right_length) ? 1 : 0);
@@ -34,10 +56,10 @@ static int cli_text_order(const CliSide *one, unsigned int at, const CliSide *ot
 
 // A name is renamed where every place it changed in a pair it became the same other name; the renames, by what they
 // were, what they became and how many places, in order
-unsigned int cli_structure_renames_found(const CliCompare *compare)
+unsigned int cli_structure_renames_find(const CliStructureCompareRenamesCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = g_cli_structure->became, .val = 0, .bytes = sizeof(g_cli_structure->became)});
-    for (unsigned int pair = 0u; pair < compare->pairs; pair += 1u)
+    for (unsigned int pair = 0u; pair < args->compare_read->pairs; pair += 1u)
     {
         const unsigned int from = g_cli_structure->old.token_name[g_cli_structure->pair_x[pair]];
         const unsigned int to = g_cli_structure->new.token_name[g_cli_structure->pair_y[pair]];
@@ -58,7 +80,7 @@ unsigned int cli_structure_renames_found(const CliCompare *compare)
         }
     }
     unsigned int renames = 0u;
-    for (unsigned int pair = 0u; pair < compare->pairs; pair += 1u)
+    for (unsigned int pair = 0u; pair < args->compare_read->pairs; pair += 1u)
     {
         const unsigned int from = g_cli_structure->old.token_name[g_cli_structure->pair_x[pair]];
         if ((g_cli_structure->became[from] == CLI_BECAME_TWO_WAYS) || (g_cli_structure->became_count[from] == 0u))
@@ -75,11 +97,13 @@ unsigned int cli_structure_renames_found(const CliCompare *compare)
         while (place > 0u)
         {
             const unsigned int before = g_cli_structure->renames[place - 1u];
-            int order = cli_text_order(&g_cli_structure->old, g_cli_structure->became_from[before],
-                                       &g_cli_structure->old, g_cli_structure->became_from[from]);
+            int order = EMBED_CALL(cli_text_order, StructureMarksCtx, .one = &g_cli_structure->old,
+                                   .at = g_cli_structure->became_from[before], .other = &g_cli_structure->old,
+                                   .other_at = g_cli_structure->became_from[from]);
             order = (order != 0) ? order
-                                 : cli_text_order(&g_cli_structure->new, g_cli_structure->became_to[before],
-                                                  &g_cli_structure->new, g_cli_structure->became_to[from]);
+                                 : EMBED_CALL(cli_text_order, StructureMarksCtx, .one = &g_cli_structure->new,
+                                              .at = g_cli_structure->became_to[before], .other = &g_cli_structure->new,
+                                              .other_at = g_cli_structure->became_to[from]);
             order = (order != 0) ? order
                                  : (((g_cli_structure->became_count[before] & 0x7fffffffu) >
                                      (g_cli_structure->became_count[from] & 0x7fffffffu))
@@ -99,31 +123,31 @@ unsigned int cli_structure_renames_found(const CliCompare *compare)
 }
 
 // whether `x` became `y` as a name renamed
-static int cli_renamed(unsigned int x, unsigned int y)
+EMBED_INLINE int cli_rename(const StructureMarksCtx *args)
 {
-    const unsigned int from = g_cli_structure->old.token_name[x];
+    const unsigned int from = g_cli_structure->old.token_name[args->x];
     return (g_cli_structure->became[from] != CLI_BECAME_TWO_WAYS) &&
-           (g_cli_structure->became[from] == g_cli_structure->new.token_name[y]);
+           (g_cli_structure->became[from] == g_cli_structure->new.token_name[args->y]);
 }
 
 // each line's worst kind among its tokens' marks: changed over any other, else the first kind marked
-static void cli_kinds(const unsigned int (*marks)[4], unsigned int count, unsigned char *worst, unsigned int lines)
+EMBED_INLINE void cli_kinds(const StructureMarksCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = worst, .val = CLI_SAME, .bytes = lines});
-    for (unsigned int at = 0u; at < count; at += 1u)
+    memor.set(&(MemoriaCfg){.dst = args->worst, .val = CLI_SAME, .bytes = args->lines});
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if ((marks[at][3] == CLI_CHANGED) || (worst[marks[at][0]] == CLI_SAME))
+        if ((args->marks[at][3] == CLI_CHANGED) || (args->worst[args->marks[at][0]] == CLI_SAME))
         {
             // a kind is one of five
-            worst[marks[at][0]] = (unsigned char)marks[at][3];
+            args->worst[args->marks[at][0]] = (unsigned char)args->marks[at][3];
         }
     }
 }
 
-int cli_structure_mark_order(const void *one, const void *other)
+int cli_structure_mark_order(const CliStructureOneCtx *args)
 {
-    const unsigned int *const left = (const unsigned int *)one;
-    const unsigned int *const right = (const unsigned int *)other;
+    const unsigned int *const left = (const unsigned int *)args->one;
+    const unsigned int *const right = (const unsigned int *)args->other;
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         if (left[at] != right[at])
@@ -135,84 +159,93 @@ int cli_structure_mark_order(const void *one, const void *other)
 }
 
 // a list of numbers, or of a side's line kinds, written as JSON
-static void cli_numbers_written(VerbaLinea *out, const unsigned int *numbers, const unsigned char *kinds,
-                                unsigned int count)
+EMBED_INLINE void cli_numbers_write(const StructureMarksCtx *args)
 {
-    mmgr_line_ch(out, '[');
-    for (unsigned int at = 0u; at < count; at += 1u)
+    mmgr_line_ch(args->out, '[');
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        mmgr_line_put(out, (at != 0u) ? "," : "");
-        mmgr_line_decimal(out, (numbers != NULL) ? numbers[at] : kinds[at], 1u);
+        mmgr_line_put(args->out, (at != 0u) ? "," : "");
+        mmgr_line_decimal(args->out, (args->numbers != NULL) ? args->numbers[at] : args->kinds[at], 1u);
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
 }
 
-static void cli_marks_written(VerbaLinea *out, const unsigned int (*marks)[4], unsigned int count)
+EMBED_INLINE void cli_marks_write(const StructureMarksCtx *args)
 {
-    mmgr_line_ch(out, '[');
-    for (unsigned int at = 0u; at < count; at += 1u)
+    mmgr_line_ch(args->out, '[');
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        mmgr_line_put(out, (at != 0u) ? "," : "");
-        cli_numbers_written(out, marks[at], NULL, 4u);
+        mmgr_line_put(args->out, (at != 0u) ? "," : "");
+        EMBED_CALL(cli_numbers_write, StructureMarksCtx, .out = args->out, .numbers = args->marks[at], .kinds = NULL,
+                   .count = 4u);
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
 }
 
 // the compare written as the window reads it
-void cli_structure_written(const CliCompare *compare, unsigned int renames, VerbaLinea *out)
+void cli_structure_write(const CliStructureCompareRenamesCtx *args)
 {
-    mmgr_line_put(out, "{\"rows\":[");
-    for (unsigned int row = 0u; row < compare->rows; row += 1u)
+    mmgr_line_put(args->out, "{\"rows\":[");
+    for (unsigned int row = 0u; row < args->compare_read->rows; row += 1u)
     {
-        mmgr_line_put(out, (row != 0u) ? ",[" : "[");
+        mmgr_line_put(args->out, (row != 0u) ? ",[" : "[");
         const unsigned int sides[2] = {g_cli_structure->row_left[row], g_cli_structure->row_right[row]};
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
-            mmgr_line_put(out, (side != 0u) ? "," : "");
+            mmgr_line_put(args->out, (side != 0u) ? "," : "");
             if (sides[side] == CLI_STRUCTURE_NONE)
             {
-                mmgr_line_put(out, "null");
+                mmgr_line_put(args->out, "null");
             }
             else
             {
-                mmgr_line_decimal(out, sides[side], 1u);
+                mmgr_line_decimal(args->out, sides[side], 1u);
             }
         }
-        mmgr_line_ch(out, ']');
+        mmgr_line_ch(args->out, ']');
     }
-    mmgr_line_put(out, "],\"starts\":");
-    cli_numbers_written(out, g_cli_structure->starts, NULL, compare->starts);
-    mmgr_line_put(out, ",\"left\":");
-    cli_numbers_written(out, NULL, g_cli_structure->left, g_cli_structure->old.lines);
-    mmgr_line_put(out, ",\"right\":");
-    cli_numbers_written(out, NULL, g_cli_structure->right, g_cli_structure->new.lines);
-    mmgr_line_put(out, ",\"left_marks\":");
-    cli_marks_written(out, (const unsigned int (*)[4])g_cli_structure->left_marks, compare->left_marks);
-    mmgr_line_put(out, ",\"right_marks\":");
-    cli_marks_written(out, (const unsigned int (*)[4])g_cli_structure->right_marks, compare->right_marks);
-    mmgr_line_put(out, ",\"renames\":[");
-    for (unsigned int at = 0u; at < renames; at += 1u)
+    mmgr_line_put(args->out, "],\"starts\":");
+    EMBED_CALL(cli_numbers_write, StructureMarksCtx, .out = args->out, .numbers = g_cli_structure->starts,
+               .kinds = NULL, .count = args->compare_read->starts);
+    mmgr_line_put(args->out, ",\"left\":");
+    EMBED_CALL(cli_numbers_write, StructureMarksCtx, .out = args->out, .numbers = NULL, .kinds = g_cli_structure->left,
+               .count = g_cli_structure->old.lines);
+    mmgr_line_put(args->out, ",\"right\":");
+    EMBED_CALL(cli_numbers_write, StructureMarksCtx, .out = args->out, .numbers = NULL, .kinds = g_cli_structure->right,
+               .count = g_cli_structure->new.lines);
+    mmgr_line_put(args->out, ",\"left_marks\":");
+    EMBED_CALL(cli_marks_write, StructureMarksCtx, .out = args->out,
+               .marks = (const unsigned int (*)[4])g_cli_structure->left_marks,
+               .count = args->compare_read->left_marks);
+    mmgr_line_put(args->out, ",\"right_marks\":");
+    EMBED_CALL(cli_marks_write, StructureMarksCtx, .out = args->out,
+               .marks = (const unsigned int (*)[4])g_cli_structure->right_marks,
+               .count = args->compare_read->right_marks);
+    mmgr_line_put(args->out, ",\"renames\":[");
+    for (unsigned int at = 0u; at < args->renames; at += 1u)
     {
         const unsigned int from = g_cli_structure->renames[at];
         const CliToken *const was = &g_cli_structure->old.token[g_cli_structure->became_from[from]];
         const CliToken *const became = &g_cli_structure->new.token[g_cli_structure->became_to[from]];
-        mmgr_line_put(out, (at != 0u) ? ",[" : "[");
-        cli_json_quoted(out, g_cli_structure->old.text + was->start, was->end - was->start);
-        mmgr_line_ch(out, ',');
-        cli_json_quoted(out, g_cli_structure->new.text + became->start, became->end - became->start);
-        mmgr_line_ch(out, ',');
-        mmgr_line_decimal(out, g_cli_structure->became_count[from] & 0x7fffffffu, 1u);
-        mmgr_line_ch(out, ']');
+        mmgr_line_put(args->out, (at != 0u) ? ",[" : "[");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = g_cli_structure->old.text + was->start, .length = was->end - was->start);
+        mmgr_line_ch(args->out, ',');
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = g_cli_structure->new.text + became->start, .length = became->end - became->start);
+        mmgr_line_ch(args->out, ',');
+        mmgr_line_decimal(args->out, g_cli_structure->became_count[from] & 0x7fffffffu, 1u);
+        mmgr_line_ch(args->out, ']');
     }
-    mmgr_line_put(out, "],\"moved\":");
-    mmgr_line_decimal(out, compare->moved, 1u);
-    mmgr_line_put(out, ",\"reshaped\":");
-    mmgr_line_decimal(out, compare->reshaped, 1u);
-    mmgr_line_ch(out, '}');
+    mmgr_line_put(args->out, "],\"moved\":");
+    mmgr_line_decimal(args->out, args->compare_read->moved, 1u);
+    mmgr_line_put(args->out, ",\"reshaped\":");
+    mmgr_line_decimal(args->out, args->compare_read->reshaped, 1u);
+    mmgr_line_ch(args->out, '}');
 }
 
 // the tokens of each moved line marked moved
-void cli_structure_moved_marked(CliCompare *compare)
+void cli_structure_moved_mark(const CliStructureCtx *args)
 {
     for (unsigned int line = 0u; line < g_cli_structure->old.lines; line += 1u)
     {
@@ -220,7 +253,8 @@ void cli_structure_moved_marked(CliCompare *compare)
              (g_cli_structure->left[line] == CLI_MOVED) && (token < g_cli_structure->old.line_first[line + 1u]);
              token += 1u)
         {
-            cli_mark(&g_cli_structure->old, token, CLI_MOVED, g_cli_structure->left_marks, &compare->left_marks);
+            EMBED_CALL(cli_mark, StructureMarksCtx, .side = &g_cli_structure->old, .token = token, .kind = CLI_MOVED,
+                       .marks_callback = g_cli_structure->left_marks, .count_pointer = &args->compare->left_marks);
         }
     }
     for (unsigned int line = 0u; line < g_cli_structure->new.lines; line += 1u)
@@ -229,45 +263,52 @@ void cli_structure_moved_marked(CliCompare *compare)
              (g_cli_structure->right[line] == CLI_MOVED) && (token < g_cli_structure->new.line_first[line + 1u]);
              token += 1u)
         {
-            cli_mark(&g_cli_structure->new, token, CLI_MOVED, g_cli_structure->right_marks, &compare->right_marks);
+            EMBED_CALL(cli_mark, StructureMarksCtx, .side = &g_cli_structure->new, .token = token, .kind = CLI_MOVED,
+                       .marks_callback = g_cli_structure->right_marks, .count_pointer = &args->compare->right_marks);
         }
     }
 }
 
 // each token of a change that is not moved marked renamed, where it and the token across from it were a name renamed,
 // or changed
-void cli_structure_touched_marked(CliCompare *compare)
+void cli_structure_touched_mark(const CliStructureCtx *args)
 {
-    for (unsigned int each = 0u; each < compare->touched; each += 1u)
+    for (unsigned int each = 0u; each < args->compare->touched; each += 1u)
     {
         const CliHunk *const touched = &g_cli_structure->touched[each];
         const int paired = touched->out_count == touched->in_count;
         for (unsigned int place = 0u; place < touched->out_count; place += 1u)
         {
             const unsigned int x = g_cli_structure->run_out[touched->out_first + place];
-            const int renamed = paired && cli_renamed(x, g_cli_structure->run_in[touched->in_first + place]);
-            cli_mark(&g_cli_structure->old, x, renamed ? CLI_RENAMED : CLI_CHANGED, g_cli_structure->left_marks,
-                     &compare->left_marks);
+            const int renamed = paired && EMBED_CALL(cli_rename, StructureMarksCtx, .x = x,
+                                                     .y = g_cli_structure->run_in[touched->in_first + place]);
+            EMBED_CALL(cli_mark, StructureMarksCtx, .side = &g_cli_structure->old, .token = x,
+                       .kind = renamed ? CLI_RENAMED : CLI_CHANGED, .marks_callback = g_cli_structure->left_marks,
+                       .count_pointer = &args->compare->left_marks);
         }
         for (unsigned int place = 0u; place < touched->in_count; place += 1u)
         {
             const unsigned int y = g_cli_structure->run_in[touched->in_first + place];
-            const int renamed = paired && cli_renamed(g_cli_structure->run_out[touched->out_first + place], y);
-            cli_mark(&g_cli_structure->new, y, renamed ? CLI_RENAMED : CLI_CHANGED, g_cli_structure->right_marks,
-                     &compare->right_marks);
+            const int renamed = paired && EMBED_CALL(cli_rename, StructureMarksCtx,
+                                                     .x = g_cli_structure->run_out[touched->out_first + place], .y = y);
+            EMBED_CALL(cli_mark, StructureMarksCtx, .side = &g_cli_structure->new, .token = y,
+                       .kind = renamed ? CLI_RENAMED : CLI_CHANGED, .marks_callback = g_cli_structure->right_marks,
+                       .count_pointer = &args->compare->right_marks);
         }
     }
 }
 
 // Each line of a change that is not moved: changed where a token of it changed, renamed where only names were renamed,
 // and reshaped where none of its tokens changed
-void cli_structure_lines_kinded(CliCompare *compare)
+void cli_structure_lines_kind(const CliStructureCtx *args)
 {
-    cli_kinds((const unsigned int (*)[4])g_cli_structure->left_marks, compare->left_marks, g_cli_structure->left_kinds,
-              g_cli_structure->old.lines);
-    cli_kinds((const unsigned int (*)[4])g_cli_structure->right_marks, compare->right_marks,
-              g_cli_structure->right_kinds, g_cli_structure->new.lines);
-    for (unsigned int each = 0u; each < compare->hunks; each += 1u)
+    EMBED_CALL(cli_kinds, StructureMarksCtx, .marks = (const unsigned int (*)[4])g_cli_structure->left_marks,
+               .count = args->compare->left_marks, .worst = g_cli_structure->left_kinds,
+               .lines = g_cli_structure->old.lines);
+    EMBED_CALL(cli_kinds, StructureMarksCtx, .marks = (const unsigned int (*)[4])g_cli_structure->right_marks,
+               .count = args->compare->right_marks, .worst = g_cli_structure->right_kinds,
+               .lines = g_cli_structure->new.lines);
+    for (unsigned int each = 0u; each < args->compare->hunks; each += 1u)
     {
         const CliHunk *const hunk = &g_cli_structure->hunks[each];
         for (unsigned int at = 0u; at < hunk->out_count; at += 1u)
@@ -283,7 +324,7 @@ void cli_structure_lines_kinded(CliCompare *compare)
             g_cli_structure->right[line] = (g_cli_structure->right_kinds[line] == CLI_SAME)
                                                ? (unsigned char)CLI_RESHAPED
                                                : g_cli_structure->right_kinds[line];
-            compare->reshaped += (g_cli_structure->right[line] == CLI_RESHAPED) ? 1u : 0u;
+            args->compare->reshaped += (g_cli_structure->right[line] == CLI_RESHAPED) ? 1u : 0u;
         }
     }
 }

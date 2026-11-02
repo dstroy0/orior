@@ -4,6 +4,7 @@
 // through the cells or through the system's allocator alone; the view of the tree's files picked as a search picks it;
 // and the tree searched as the window's search does it
 #include "../../../../../../ui/cli/src/code/symbols.h"
+#include "../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../../ui/cli/src/editor/files_internal.h"
 #include "bench.h"
@@ -31,10 +32,10 @@ static void readers_run(void *context)
     const BenchCorpus *const corpus = s_readers.corpus;
     for (;;)
     {
-        cli_lock_take(&s_readers.lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_readers.lock);
         const unsigned int index = s_readers.next;
         s_readers.next += (index < corpus->count) ? 1u : 0u;
-        cli_lock_give(&s_readers.lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_readers.lock);
         if (index >= corpus->count)
         {
             break;
@@ -43,21 +44,21 @@ static void readers_run(void *context)
         if (s_readers.plain)
         {
             // room for the whole file from the system's allocator, outside the cells
-            unsigned char *room = cli_file_size(corpus->paths[index], &size) ? malloc((size_t)size + 1u) : NULL;
+            unsigned char *room = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = corpus->paths[index], .size_pointer = &size) ? malloc((size_t)size + 1u) : NULL;
             if (room != NULL)
             {
-                (void)cli_file_read_at(corpus->paths[index], 0ull, room, size, &size);
+                (void)EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = corpus->paths[index], .from = 0ull, .bytes_bytes = room, .count_u64 = size, .got = &size);
             }
             free(room);
             continue;
         }
-        const unsigned char *const bytes = cli_file_taken(corpus->paths[index], &size, &g_checks_cells);
-        cli_file_given(bytes, &g_checks_cells);
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size, .owner = &g_checks_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_checks_cells);
     }
-    cli_lock_take(&s_readers.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_readers.lock);
     s_readers.running -= 1u;
-    cli_wake_all(&s_readers.wake);
-    cli_lock_give(&s_readers.lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_readers.wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_readers.lock);
 }
 
 BenchMeasure bench_files_read_by(const BenchCorpus *corpus, unsigned int threads, int plain)
@@ -75,17 +76,17 @@ BenchMeasure bench_files_read_by(const BenchCorpus *corpus, unsigned int threads
         for (unsigned int at = 0u; at < threads; at += 1u)
         {
             s_thread[at] = (CliThread){readers_run, NULL, CLI_PRIORITY_WORK};
-            if (!cli_thread_started(&s_thread[at]))
+            if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread[at]))
             {
                 readers_run(NULL);
             }
         }
-        cli_lock_take(&s_readers.lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_readers.lock);
         while (s_readers.running > 0u)
         {
-            cli_wake_wait(&s_readers.wake, &s_readers.lock);
+            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_readers.wake, .lock = &s_readers.lock);
         }
-        cli_lock_give(&s_readers.lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_readers.lock);
         const unsigned long long took = cli_clock_microseconds() - began;
         measure.bytes = corpus->whole;
         measure.least = (took < measure.least) ? took : measure.least;
@@ -93,10 +94,9 @@ BenchMeasure bench_files_read_by(const BenchCorpus *corpus, unsigned int threads
     return measure;
 }
 
-static int picked_include(void *context, const char *path)
+static int picked_include(const CliEachPathCfg *args)
 {
-    (void)context;
-    (void)path;
+    (void)args;
     return 1;
 }
 
@@ -104,7 +104,7 @@ BenchMeasure bench_picked(const BenchCorpus *corpus)
 {
     BenchMeasure measure = {0ull, ~0ull};
     char under[CLI_PATH_MAX_LEN];
-    cli_full(corpus->root, "ui/cli/src", under);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = corpus->root, .relative = "ui/cli/src", .joined = under);
     for (unsigned int round = 0u; round < corpus->repeat; round += 1u)
     {
         // the view is read once, as the window caches it between searches; the first repeat pays for it
@@ -114,9 +114,9 @@ BenchMeasure bench_picked(const BenchCorpus *corpus)
         }
         CliPicked picked = {NULL, 0u};
         const unsigned long long began = cli_clock_microseconds();
-        (void)cli_files_picked(&picked, under, picked_include, NULL);
+        (void)EMBED_CALL(cli_files_picked_internal.pick, CliFilesPickedCtx, .picked = &picked, .root = under, .filter = picked_include, .context = NULL);
         const unsigned long long took = cli_clock_microseconds() - began;
-        cli_picked_let(&picked);
+        EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &picked);
         measure.bytes = corpus->whole;
         measure.least = (took < measure.least) ? took : measure.least;
     }
@@ -127,7 +127,7 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
 {
     BenchMeasure measure = {0ull, ~0ull};
     char under[CLI_PATH_MAX_LEN];
-    cli_full(corpus->root, "ui/cli/src", under);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = corpus->root, .relative = "ui/cli/src", .joined = under);
     const unsigned long long out_room = 1ull << 20u;
     char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_checks_cells);
     VerbaLinea out = mmgr_line_over(out_cell, out_room);
@@ -142,7 +142,7 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
             cli_tree_forgotten();
         }
         const unsigned long long began = cli_clock_microseconds();
-        (void)cli_files_search(under, needle, (CliSearching){0, 0, 0}, &none, &out, &err_msg);
+        (void)EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = under, .query = needle, .how = (CliSearching){0, 0, 0}, .set = &none, .out = &out, .err_msg = &err_msg);
         const unsigned long long took = cli_clock_microseconds() - began;
         measure.bytes = corpus->whole;
         measure.least = (took < measure.least) ? took : measure.least;

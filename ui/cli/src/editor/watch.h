@@ -12,15 +12,34 @@
 // watching's patterns hide is left out (watch.c, watch_read.c)
 #ifndef WATCH_H
 #define WATCH_H
+typedef struct CliWatchCfg CliWatchCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // a batch handed to the window, written as `{"folders", "files", "git", "lost"}`, `size` bytes
-typedef void (*CliTake)(void *context, const char *batch, unsigned long long size);
+typedef void (*CliTake)(const CliEachBatchSizeCfg *args);
 
 // the tree at `root` watched, each batch of changes handed to `take` on a thread of the watch's own, any watch before
 // it stopped first; and the watch stopped, its threads waited for
-void cli_watch_start(const char *root, CliTake take, void *context);
+void cli_watch_start(const CliWatchCfg *args);
 void cli_watch_stop(void);
+
+struct CliWatchCfg
+{
+    const char *root;
+    CliTake take;
+    void *context;
+};
+
+typedef struct
+{
+    void (*start)(const CliWatchCfg *args);
+} CliWatchNs;
+EMBED_TABLE_LAYOUT(CliWatchNs, start);
+EMBED_TABLE_STORAGE CliWatchNs cli_watch EMBED_UNUSED = {
+    .start = cli_watch_start,
+};
 
 #endif

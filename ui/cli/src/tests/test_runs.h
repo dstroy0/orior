@@ -12,8 +12,12 @@
 // test_reports.c, test_coverage.c)
 #ifndef TEST_RUNS_H
 #define TEST_RUNS_H
+typedef struct CliTestRunsRootCfg CliTestRunsRootCfg;
+typedef struct CliTestRunsCfg CliTestRunsCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // What a run reports as it goes, written as JSON, `{"kind": "started" | "result" | "coverage" | "done", "run", ...}`:
 // that it started, with how many tests or files, over how many processes and with which runner; each result, `{"id",
@@ -21,19 +25,53 @@
 // with its counts. Handed to `emit` with its context, on a thread of the run's own
 typedef struct
 {
-    void (*emit)(void *context, const char *json, unsigned long long size);
+    void (*emit)(const CliEachJsonSizeCfg *args);
     void *context;
 } CliJsonSink;
 
 // the Python a tree's tests run with, its environment's or the toolchains' own, into `python`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 where there is none
-int cli_test_python(char *python);
+int cli_test_python(const CliTestRunsCfg *args);
 
 // `count` tests by their names or files by their paths, `given`, run in the tree at `root`, any run going stopped
 // first: spread over the machine's cores where `parallel`, with coverage recorded where `cover`. The run's number into
 // `run`, 1, or 0 with why given; what it finds comes by `sink`. And the run going stopped, where one is
-int cli_test_runs_start(const char *root, const char *const *given, unsigned int count, int parallel, int cover,
-                        CliJsonSink sink, unsigned long long *run, VerbaLinea *err_msg);
+int cli_test_runs_start(const CliTestRunsRootCfg *args);
 void cli_test_runs_stop(void);
+
+struct CliTestRunsRootCfg
+{
+    const char *root;
+    const char *const *given;
+    unsigned int count;
+    int parallel;
+    int cover;
+    CliJsonSink sink;
+    unsigned long long *number;
+    VerbaLinea *err_msg;
+};
+
+struct CliTestRunsCfg
+{
+    char *python;
+};
+
+typedef struct
+{
+    int (*test_python)(const CliTestRunsCfg *args);
+} CliTestRunsNs;
+EMBED_TABLE_LAYOUT(CliTestRunsNs, test_python);
+EMBED_TABLE_STORAGE CliTestRunsNs cli_test_runs EMBED_UNUSED = {
+    .test_python = cli_test_python,
+};
+
+typedef struct
+{
+    int (*start)(const CliTestRunsRootCfg *args);
+} CliTestRunsRootNs;
+EMBED_TABLE_LAYOUT(CliTestRunsRootNs, start);
+EMBED_TABLE_STORAGE CliTestRunsRootNs cli_test_runs_root EMBED_UNUSED = {
+    .start = cli_test_runs_start,
+};
 
 #endif

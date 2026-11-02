@@ -1,41 +1,47 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // carry_undo.c: the takings saved, read back and written, and a taking undone
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "carry_internal.h"
 
-void cli_carry_taking_written(const CliTaking *taking, int pretty, VerbaLinea *out)
+void cli_carry_taking_write(const CliCarryOutCtx *args)
 {
-    mmgr_line_put(out, pretty ? "{\n  \"id\": " : "{\"id\":");
-    cli_json_quoted(out, taking->id, cellul.len(&(CatenaFinitaCfg){.src = taking->id, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, pretty ? ",\n  \"at\": " : ",\"at\":");
-    mmgr_line_decimal(out, taking->at, 0u);
-    mmgr_line_put(out, pretty ? ",\n  \"from\": " : ",\"from\":");
-    cli_json_quoted(out, taking->from, cellul.len(&(CatenaFinitaCfg){.src = taking->from, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, pretty ? ",\n  \"files\": [" : ",\"files\":[");
-    for (unsigned int at = 0u; at < taking->files; at += 1u)
+    mmgr_line_put(args->out, args->pretty ? "{\n  \"id\": " : "{\"id\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+               .text = args->taking->id,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->taking->id, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->out, args->pretty ? ",\n  \"at\": " : ",\"at\":");
+    mmgr_line_decimal(args->out, args->taking->at, 0u);
+    mmgr_line_put(args->out, args->pretty ? ",\n  \"from\": " : ",\"from\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+               .text = args->taking->from,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->taking->from, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->out, args->pretty ? ",\n  \"files\": [" : ",\"files\":[");
+    for (unsigned int at = 0u; at < args->taking->files; at += 1u)
     {
-        if (pretty)
+        if (args->pretty)
         {
-            mmgr_line_put(out, (at != 0u) ? ",\n    [\n      " : "\n    [\n      ");
+            mmgr_line_put(args->out, (at != 0u) ? ",\n    [\n      " : "\n    [\n      ");
         }
         else
         {
-            mmgr_line_put(out, (at != 0u) ? ",[" : "[");
+            mmgr_line_put(args->out, (at != 0u) ? ",[" : "[");
         }
-        cli_json_quoted(out, taking->place[at],
-                        cellul.len(&(CatenaFinitaCfg){.src = taking->place[at], .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, pretty ? ",\n      " : ",");
-        mmgr_line_put(out, taking->stood[at] ? "true" : "false");
-        mmgr_line_put(out, pretty ? "\n    ]" : "]");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = args->taking->place[at],
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->taking->place[at], .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(args->out, args->pretty ? ",\n      " : ",");
+        mmgr_line_put(args->out, args->taking->stood[at] ? "true" : "false");
+        mmgr_line_put(args->out, args->pretty ? "\n    ]" : "]");
     }
-    if (pretty)
+    if (args->pretty)
     {
-        mmgr_line_put(out, (taking->files != 0u) ? "\n  ]\n}" : "]\n}");
+        mmgr_line_put(args->out, (args->taking->files != 0u) ? "\n  ]\n}" : "]\n}");
     }
     else
     {
-        mmgr_line_put(out, "]}");
+        mmgr_line_put(args->out, "]}");
     }
 }
 
@@ -54,49 +60,75 @@ static CliTakings s_takings;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // the lock taken and the room begun empty under it
-static void undo_locked(void)
+static void undo_lock(void)
 {
-    cli_lock_take(&s_lock);
-    cli_carry_room_begun(&s_takings.room);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_carry_room_object_internal.room_begin, CliCarryRoomObjectCtx, .room = &s_takings.room);
 }
 
 // the room's tree given back, and the lock
-static void undo_released(void)
+static void undo_release(void)
 {
-    cli_carry_room_given(&s_takings.room);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_carry_room_object_internal.room_free, CliCarryRoomObjectCtx, .room = &s_takings.room);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
+typedef struct
+{
+    const char *file;
+    CliTaking *taking;
+    const char *home;
+    char *carried;
+    const char *carried_read;
+    const char *name;
+} CarryUndoCtx;
 // the taking saved at `file` read into `taking`: 1, or 0 where it is not there or not one
-static int cli_taking_read(const char *file, CliTaking *taking)
+static int cli_taking_read(const CarryUndoCtx *args)
 {
     CliJson *const json = &s_takings.room.json;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(file, &size, &g_cli_machine_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->file,
+                                                  .size_pointer = &size, .owner = &g_cli_machine_cells);
     if (bytes == NULL)
     {
         return 0;
     }
-    cli_json_given(json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(json, (const char *)bytes, size, 0u, 0ull, &unread, &g_cli_machine_cells);
-    cli_file_given(bytes, &g_cli_machine_cells);
-    const char *const id = cli_json_string(json, cli_json_member(json, root, "id"), NULL);
-    const char *const from = cli_json_string(json, cli_json_member(json, root, "from"), NULL);
-    const unsigned int at = cli_json_member(json, root, "at");
-    const unsigned int files = cli_json_member(json, root, "files");
-    if ((id == NULL) || (from == NULL) || !cli_json_is(json, at, CFG_JSON_NUMBER) ||
-        !cli_json_is(json, files, CFG_JSON_ARRAY))
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+                                         .json = json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
+                                         .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_machine_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
+    const char *const id =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = root, .name = "id"),
+                   .length_pointer = NULL);
+    const char *const from =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = root, .name = "from"),
+                   .length_pointer = NULL);
+    const unsigned int at = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                       .object = root, .name = "at");
+    const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = root, .name = "files");
+    if ((id == NULL) || (from == NULL) ||
+        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = at,
+                    .kind = CFG_JSON_NUMBER) ||
+        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = files,
+                    .kind = CFG_JSON_ARRAY))
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = taking->id, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = taking->from,
+    memor.cpy(&(MemoriaCfg){.dst = args->taking->id,
+                            .src = id,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = args->taking->from,
                             .src = from,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
-    taking->at = 0ull;
+    args->taking->at = 0ull;
     const CliJsonNode *const number = &json->node[at];
     for (unsigned long long digit = 0ull; digit < number->length; digit += 1ull)
     {
@@ -105,41 +137,50 @@ static int cli_taking_read(const char *file, CliTaking *taking)
         {
             return 0;
         }
-        taking->at = (taking->at * 10ull) + (unsigned long long)(letter - '0');
+        args->taking->at = (args->taking->at * 10ull) + (unsigned long long)(letter - '0');
     }
-    taking->files = 0u;
-    for (unsigned int one = 0u; cli_json_item(json, files, one) != CLI_JSON_NONE; one += 1u)
+    args->taking->files = 0u;
+    for (unsigned int one = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                           .json_read = json, .array = files, .index = one) != CLI_JSON_NONE;
+         one += 1u)
     {
-        const unsigned int pair = cli_json_item(json, files, one);
-        const char *const place = cli_json_string(json, cli_json_item(json, pair, 0u), NULL);
-        const unsigned int stood = cli_json_item(json, pair, 1u);
-        const int truth = cli_json_is(json, stood, CFG_JSON_TRUE);
-        if ((place == NULL) || (!truth && !cli_json_is(json, stood, CFG_JSON_FALSE)))
+        const unsigned int pair = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = json, .array = files, .index = one);
+        const char *const place =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = pair, .index = 0u),
+                       .length_pointer = NULL);
+        const unsigned int stood = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                              .json_read = json, .array = pair, .index = 1u);
+        const int truth = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                     .node = stood, .kind = CFG_JSON_TRUE);
+        if ((place == NULL) || (!truth && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                      .json_read = json, .node = stood, .kind = CFG_JSON_FALSE)))
         {
             return 0;
         }
-        if (taking->files < CLI_TAKING_FILES)
+        if (args->taking->files < CLI_TAKING_FILES)
         {
-            memor.cpy(&(MemoriaCfg){.dst = taking->place[taking->files],
+            memor.cpy(&(MemoriaCfg){.dst = args->taking->place[args->taking->files],
                                     .src = place,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}) + 1u});
-            taking->stood[taking->files] = truth ? 1u : 0u;
-            taking->files += 1u;
+            args->taking->stood[args->taking->files] = truth ? 1u : 0u;
+            args->taking->files += 1u;
         }
     }
     return 1;
 }
 
-static void cli_taking_each(void *context, const char *name, int is_folder)
+static void cli_taking_each(const CliEachNameIsFolderCfg *args)
 {
-    (void)context;
     char folder[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
-    cli_full(s_takings.carried, name, folder);
-    cli_full(folder, "taking.json", file);
-    if (!is_folder || (s_takings.count >= CLI_TAKINGS) ||
-        (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) >= 64u) ||
-        !cli_taking_read(file, &s_takings.taking))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_takings.carried, .relative = args->name, .joined = folder);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "taking.json", .joined = file);
+    if (!args->is_folder || (s_takings.count >= CLI_TAKINGS) ||
+        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) >= 64u) ||
+        !EMBED_CALL(cli_taking_read, CarryUndoCtx, .file = file, .taking = &s_takings.taking))
     {
         return;
     }
@@ -155,109 +196,120 @@ static void cli_taking_each(void *context, const char *name, int is_folder)
         place -= 1u;
     }
     memor.cpy(&(MemoriaCfg){.dst = s_takings.name[place],
-                            .src = name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->name,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
     s_takings.at[place] = s_takings.taking.at;
     s_takings.count += 1u;
 }
 
 // every taking saved under `home`, by its folder, the last first
-static void cli_takings_read(const char *home, char *carried)
+EMBED_INLINE void cli_takings_read(const CarryUndoCtx *args)
 {
-    cli_full(home, "carried", carried);
+    char *carried = args->carried;
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->home, .relative = "carried", .joined = carried);
     s_takings.carried = carried;
     s_takings.count = 0u;
-    query_folder_each(carried, cli_taking_each, NULL);
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = carried, .each = cli_taking_each,
+               .context_bytess = NULL);
 }
 
 // the taking saved in the folder `name` read into the room's taking: 1, or 0
-static int cli_taking_of(const char *carried, const char *name)
+EMBED_INLINE int cli_taking_get(const CarryUndoCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
-    cli_full(carried, name, folder);
-    cli_full(folder, "taking.json", file);
-    return cli_taking_read(file, &s_takings.taking);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->carried_read, .relative = args->name,
+               .joined = folder);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "taking.json", .joined = file);
+    return EMBED_CALL(cli_taking_read, CarryUndoCtx, .file = file, .taking = &s_takings.taking);
 }
 
-void cli_carry_takings(const char *home, VerbaLinea *out)
+void cli_carry_takings(const CliCarryHomeToCfg *args)
 {
-    undo_locked();
+    undo_lock();
     char carried[CLI_PATH_MAX_LEN];
-    cli_takings_read(home, carried);
-    mmgr_line_ch(out, '[');
+    EMBED_CALL(cli_takings_read, CarryUndoCtx, .home = args->home, .carried = carried);
+    mmgr_line_ch(args->out, '[');
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < s_takings.count; at += 1u)
     {
-        if (cli_taking_of(carried, s_takings.name[at]))
+        if (EMBED_CALL(cli_taking_get, CarryUndoCtx, .carried_read = carried, .name = s_takings.name[at]))
         {
-            mmgr_line_put(out, (written != 0u) ? "," : "");
-            cli_carry_taking_written(&s_takings.taking, 0, out);
+            mmgr_line_put(args->out, (written != 0u) ? "," : "");
+            EMBED_CALL(cli_carry_out_internal.taking_write, CliCarryOutCtx, .taking = &s_takings.taking, .pretty = 0,
+                       .out = args->out);
             written += 1u;
         }
     }
-    mmgr_line_ch(out, ']');
-    undo_released();
+    mmgr_line_ch(args->out, ']');
+    undo_release();
 }
 
-int cli_carry_undo(const char *home, const char *id, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_carry_undo(const CliCarryHomeOutCfg *args)
 {
-    undo_locked();
+    undo_lock();
     char carried[CLI_PATH_MAX_LEN];
-    cli_takings_read(home, carried);
+    EMBED_CALL(cli_takings_read, CarryUndoCtx, .home = args->home, .carried = carried);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < s_takings.count); at += 1u)
     {
-        found = cli_taking_of(carried, s_takings.name[at]) &&
-                (cellul.eq(&(CatenaFinitaCfg){.src = s_takings.taking.id, .other = id, .cap = CLI_CELLS_POOL}));
+        found = EMBED_CALL(cli_taking_get, CarryUndoCtx, .carried_read = carried, .name = s_takings.name[at]) &&
+                (cellul.eq(&(CatenaFinitaCfg){.src = s_takings.taking.id, .other = args->id, .cap = CLI_CELLS_POOL}));
     }
     if (!found)
     {
-        mmgr_line_put(err_msg, "no taking ");
-        mmgr_line_put(err_msg, id);
-        mmgr_line_put(err_msg, " is saved");
-        undo_released();
+        mmgr_line_put(args->err_msg, "no taking ");
+        mmgr_line_put(args->err_msg, args->id);
+        mmgr_line_put(args->err_msg, " is saved");
+        undo_release();
         return 0;
     }
     const CliTaking *const taking = &s_takings.taking;
     char backup_dir[CLI_PATH_MAX_LEN];
-    cli_full(carried, taking->id, backup_dir);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = carried, .relative = taking->id, .joined = backup_dir);
     for (unsigned int at = 0u; at < taking->files; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
         char saved[CLI_PATH_MAX_LEN];
-        cli_full(home, taking->place[at], path);
-        cli_full(backup_dir, taking->place[at], saved);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->home, .relative = taking->place[at],
+                   .joined = path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = backup_dir, .relative = taking->place[at],
+                   .joined = saved);
         if (taking->stood[at])
         {
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = cli_file_taken(saved, &size, &g_cli_machine_cells);
-            const int back = (bytes != NULL) && query_file_written(path, bytes, size);
-            cli_file_given(bytes, &g_cli_machine_cells);
+            const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = saved,
+                                                          .size_pointer = &size, .owner = &g_cli_machine_cells);
+            const int back =
+                (bytes != NULL) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
+                                              .path = path, .bytes = bytes, .size = size);
+            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
+                       .owner = &g_cli_machine_cells);
             if (!back)
             {
-                mmgr_line_put(err_msg, (bytes == NULL) ? saved : path);
-                mmgr_line_put(err_msg, (bytes == NULL) ? ": it could not be read" : ": it could not be written");
-                undo_released();
+                mmgr_line_put(args->err_msg, (bytes == NULL) ? saved : path);
+                mmgr_line_put(args->err_msg, (bytes == NULL) ? ": it could not be read" : ": it could not be written");
+                undo_release();
                 return 0;
             }
         }
-        else if (query_is_file(path) && !query_removed(path))
+        else if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path) &&
+                 !EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path))
         {
-            mmgr_line_put(err_msg, path);
-            mmgr_line_put(err_msg, ": it could not be taken out");
-            undo_released();
+            mmgr_line_put(args->err_msg, path);
+            mmgr_line_put(args->err_msg, ": it could not be taken out");
+            undo_release();
             return 0;
         }
     }
-    if (!query_removed(backup_dir))
+    if (!EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = backup_dir))
     {
-        mmgr_line_put(err_msg, backup_dir);
-        mmgr_line_put(err_msg, ": it could not be taken out");
-        undo_released();
+        mmgr_line_put(args->err_msg, backup_dir);
+        mmgr_line_put(args->err_msg, ": it could not be taken out");
+        undo_release();
         return 0;
     }
-    cli_carry_taking_written(taking, 0, out);
-    undo_released();
+    EMBED_CALL(cli_carry_out_internal.taking_write, CliCarryOutCtx, .taking = taking, .pretty = 0, .out = args->out);
+    undo_release();
     return 1;
 }

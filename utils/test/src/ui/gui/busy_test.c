@@ -86,74 +86,96 @@ static int burn_middle(const GuiRaster *raster, GuiRect rect, const GuiPalette *
 static void stage_laid(GuiBusy *busy, GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame, unsigned int stage)
 {
     grounded(raster);
-    gui_busy_drawn(busy, raster, palette, frame, busy->shown_ms + ((unsigned long long)stage * GUI_BUSY_STAGE_MS));
+    g_test_clock_ms = busy->visible_start_ms + ((unsigned long long)stage * GUI_BUSY_STAGE_MS);
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = busy, .raster = raster, .palette = palette, .frame = frame);
 }
 
 int main(void)
 {
-    (void)cli_cells_made(CLI_CELLS_POOL);
-    const GuiPalette *const palette = gui_palette(GUI_SCHEME_DARK);
+    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
+    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     static GuiBusy busy;
-    gui_busy_made(&busy);
+    EMBED_CALL(cli_busy_still.init, GuiBusyStillCfg, .busy = &busy);
 
     // the asks
     unsigned long long since = 0ull;
-    cli_check(!gui_busy_waiting(&busy, &since), "nothing asked, nothing waits");
-    gui_busy_asked(&busy, 1ull, 1000ull);
-    gui_busy_asked(&busy, 2ull, 1010ull);
-    gui_busy_asked(&busy, 3ull, 1020ull);
-    cli_check(gui_busy_waiting(&busy, &since) && (since == 1000ull), "the oldest ask is the one that waits longest");
-    gui_busy_answered(&busy, 2ull);
-    cli_check(gui_busy_waiting(&busy, &since) && (since == 1000ull), "one answered behind it changes nothing");
-    gui_busy_answered(&busy, 1ull);
-    cli_check(gui_busy_waiting(&busy, &since) && (since == 1020ull), "the oldest answered, the next unanswered is the oldest, the one answered out of turn passed over");
-    gui_busy_answered(&busy, 3ull);
-    cli_check(!gui_busy_waiting(&busy, &since), "every ask answered, nothing waits");
-    gui_busy_answered(&busy, 3ull);
-    gui_busy_answered(&busy, 900ull);
-    cli_check(!gui_busy_waiting(&busy, &since), "an answer twice over or to no ask counts for nothing");
+    cli_check(!EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since), "nothing asked, nothing waits");
+    g_test_clock_ms = 1000ull;
+    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &busy, .ticket = 1ull);
+    g_test_clock_ms = 1010ull;
+    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &busy, .ticket = 2ull);
+    g_test_clock_ms = 1020ull;
+    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &busy, .ticket = 3ull);
+    cli_check(EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since) && (since == 1000ull), "the oldest ask is the one that waits longest");
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &busy, .ticket = 2ull);
+    cli_check(EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since) && (since == 1000ull), "one answered behind it changes nothing");
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &busy, .ticket = 1ull);
+    cli_check(EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since) && (since == 1020ull), "the oldest answered, the next unanswered is the oldest, the one answered out of turn passed over");
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &busy, .ticket = 3ull);
+    cli_check(!EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since), "every ask answered, nothing waits");
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &busy, .ticket = 3ull);
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &busy, .ticket = 900ull);
+    cli_check(!EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since), "an answer twice over or to no ask counts for nothing");
 
     // work the CLI reports running waits like an ask, from when it began until it ends, the oldest of them waiting longest
-    gui_busy_work(&busy, 1, 1100ull);
-    cli_check(gui_busy_waiting(&busy, &since) && (since == 1100ull), "work running waits as an ask does");
-    gui_busy_work(&busy, 1, 1500ull);
-    cli_check(gui_busy_waiting(&busy, &since) && (since == 1100ull), "still running, it waits from when it began");
-    gui_busy_asked(&busy, 4ull, 1050ull);
-    cli_check(gui_busy_waiting(&busy, &since) && (since == 1050ull), "an ask older than the work waits longer");
-    gui_busy_answered(&busy, 4ull);
-    cli_check(gui_busy_waiting(&busy, &since) && (since == 1100ull), "the ask answered, the work still waits");
-    gui_busy_work(&busy, 0, 1600ull);
-    cli_check(!gui_busy_waiting(&busy, &since), "the work ended, nothing waits");
+    g_test_clock_ms = 1100ull;
+    EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &busy, .running = 1);
+    cli_check(EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since) && (since == 1100ull), "work running waits as an ask does");
+    g_test_clock_ms = 1500ull;
+    EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &busy, .running = 1);
+    cli_check(EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since) && (since == 1100ull), "still running, it waits from when it began");
+    g_test_clock_ms = 1050ull;
+    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &busy, .ticket = 4ull);
+    cli_check(EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since) && (since == 1050ull), "an ask older than the work waits longer");
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &busy, .ticket = 4ull);
+    cli_check(EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since) && (since == 1100ull), "the ask answered, the work still waits");
+    g_test_clock_ms = 1600ull;
+    EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &busy, .running = 0);
+    cli_check(!EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &busy, .since = &since), "the work ended, nothing waits");
 
     // the wait and the least it stands
-    cli_check((gui_busy_due(&busy, 2000ull) == 0ull) && !gui_busy_ticked(&busy, 2000ull) && !busy.shown, "nothing asked, no tick is wanted and no circle comes");
-    gui_busy_asked(&busy, 5ull, 2000ull);
-    cli_check(gui_busy_due(&busy, 2050ull) == GUI_BUSY_WAITS - 50ull, "an ask waiting, a tick is wanted as the wait ends");
-    cli_check(!gui_busy_ticked(&busy, 2000ull + GUI_BUSY_WAITS - 1ull) && !busy.shown, "the circle stays away through the wait");
-    cli_check(gui_busy_ticked(&busy, 2000ull + GUI_BUSY_WAITS) && busy.shown, "the circle comes as the wait ends");
-    const unsigned long long came = 2000ull + GUI_BUSY_WAITS;
-    gui_busy_answered(&busy, 5ull);
-    cli_check(!gui_busy_ticked(&busy, came + GUI_BUSY_STANDS - 1ull) && busy.shown, "answered at once, it stands its least");
-    cli_check(gui_busy_ticked(&busy, came + GUI_BUSY_STANDS) && !busy.shown, "and then goes");
+    g_test_clock_ms = 2000ull;
+    cli_check((EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &busy) == 0ull) && !EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &busy) && !busy.shown, "nothing asked, no tick is wanted and no circle comes");
+    g_test_clock_ms = 2000ull;
+    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &busy, .ticket = 5ull);
+    g_test_clock_ms = 2050ull;
+    cli_check(EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &busy) == 2050ull + GUI_BUSY_SHOW_DELAY_MS - 50ull, "an ask waiting, a tick is wanted as the wait ends");
+    g_test_clock_ms = 2000ull + GUI_BUSY_SHOW_DELAY_MS - 1ull;
+    cli_check(!EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &busy) && !busy.shown, "the circle stays away through the wait");
+    g_test_clock_ms = 2000ull + GUI_BUSY_SHOW_DELAY_MS;
+    cli_check(EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &busy) && busy.shown, "the circle comes as the wait ends");
+    const unsigned long long came = 2000ull + GUI_BUSY_SHOW_DELAY_MS;
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &busy, .ticket = 5ull);
+    g_test_clock_ms = came + GUI_BUSY_MIN_VISIBLE_MS - 1ull;
+    cli_check(!EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &busy) && busy.shown, "answered at once, it stands its least");
+    g_test_clock_ms = came + GUI_BUSY_MIN_VISIBLE_MS;
+    cli_check(EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &busy) && !busy.shown, "and then goes");
     cli_check(busy.cell == NULL, "its cell is given back");
 
     // a stage by the clock
-    gui_busy_asked(&busy, 6ull, 3000ull);
-    (void)gui_busy_ticked(&busy, 3000ull + GUI_BUSY_WAITS);
-    const unsigned long long shown = 3000ull + GUI_BUSY_WAITS;
-    cli_check(gui_busy_stage_at(&busy, shown) == 0u, "it comes at the first stage");
-    cli_check(gui_busy_stage_at(&busy, shown + GUI_BUSY_STAGE_MS - 1ull) == 0u, "a stage stands its time");
-    cli_check(gui_busy_stage_at(&busy, shown + GUI_BUSY_STAGE_MS) == 1u, "and the next follows");
-    cli_check(gui_busy_stage_at(&busy, shown + (GUI_BUSY_STAGE_MS * GUI_BUSY_STAGES)) == 0u, "the swirl runs round");
-    cli_check((gui_busy_due(&busy, shown + 3ull) == GUI_BUSY_STAGE_MS - 3ull), "a tick is wanted as the next stage comes");
+    g_test_clock_ms = 3000ull;
+    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &busy, .ticket = 6ull);
+    g_test_clock_ms = 3000ull + GUI_BUSY_SHOW_DELAY_MS;
+    (void)EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &busy);
+    const unsigned long long shown = 3000ull + GUI_BUSY_SHOW_DELAY_MS;
+    g_test_clock_ms = shown;
+    cli_check(EMBED_CALL(gui_busy.stage_at, GuiBusyCfg, .busy_read = &busy) == 0u, "it comes at the first stage");
+    g_test_clock_ms = shown + GUI_BUSY_STAGE_MS - 1ull;
+    cli_check(EMBED_CALL(gui_busy.stage_at, GuiBusyCfg, .busy_read = &busy) == 0u, "a stage stands its time");
+    g_test_clock_ms = shown + GUI_BUSY_STAGE_MS;
+    cli_check(EMBED_CALL(gui_busy.stage_at, GuiBusyCfg, .busy_read = &busy) == 1u, "and the next follows");
+    g_test_clock_ms = shown + (GUI_BUSY_STAGE_MS * GUI_BUSY_STAGES);
+    cli_check(EMBED_CALL(gui_busy.stage_at, GuiBusyCfg, .busy_read = &busy) == 0u, "the swirl runs round");
+    g_test_clock_ms = shown + 3ull;
+    cli_check((EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &busy) == shown + 3ull + GUI_BUSY_STAGE_MS - 3ull), "a tick is wanted as the next stage comes");
 
     // the picture
     GuiRaster raster;
-    cli_check(gui_raster_made(&raster, PICTURE_SIDE, PICTURE_SIDE), "a raster to lay it on");
+    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = PICTURE_SIDE, .height = PICTURE_SIDE), "a raster to lay it on");
     GuiFrame frame;
-    gui_frame_laid(&frame, 800u, 500u, 1.0f);
+    EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 800u, .height = 500u, .scale = 100);
     frame.editor = (GuiRect){0, 0, PICTURE_SIDE, PICTURE_SIDE};
-    const GuiRect rect = gui_busy_rect(&frame);
+    const GuiRect rect = EMBED_CALL(gui_busy_frame.rect, GuiBusyFrameCfg, .frame = &frame);
     cli_check((rect.width == GUI_BUSY_SIDE) && (rect.height == GUI_BUSY_SIDE), "the circle is its side across at the page's scale");
     cli_check((rect.x + rect.width == (int)PICTURE_SIDE - GUI_BUSY_EDGE) && (rect.y + rect.height == (int)PICTURE_SIDE - GUI_BUSY_EDGE), "it keeps its distance from the editor's corner");
     stage_laid(&busy, &raster, palette, &frame, 0u);
@@ -181,7 +203,7 @@ int main(void)
     unsigned int least_lit = 5u;
     unsigned int most_lit = 0u;
     int never_past_five = 1;
-    int shape_kept = 1;
+    int shape_saved = 1;
     int within_a_pixel = 1;
     unsigned int twitches = 0u;
     for (unsigned int stage = 0u; stage < GUI_BUSY_STAGES; stage += 1u)
@@ -198,7 +220,7 @@ int main(void)
         {
             int middle_x = 0;
             int middle_y = 0;
-            shape_kept = shape_kept && burn_middle(&raster, rect, palette, &middle_x, &middle_y);
+            shape_saved = shape_saved && burn_middle(&raster, rect, palette, &middle_x, &middle_y);
         }
         // the white hot pixel, where one stands, is the burn's middle
         if (core == 1u)
@@ -216,7 +238,7 @@ int main(void)
     cli_check(never_past_five, "across the swirl no more than five pixels burn, no more than one of them white hot");
     cli_check(most_lit == 5u, "at the pulse's height all five burn");
     cli_check(least_lit < most_lit, "at its foot the dither lets some of them go");
-    cli_check(shape_kept, "the five are two lines of three crossing");
+    cli_check(shape_saved, "the five are two lines of three crossing");
     cli_check(within_a_pixel && (twitches > 0u), "the burn twitches a pixel off the ring and no further");
 
     // ash ahead of the fire, the trail hot behind it, cooling back round to the ash; at the first stage the head is at the top and
@@ -236,15 +258,18 @@ int main(void)
     // a step restores what lay under it, pixel for pixel: a frame with a line through it, a step to another stage, the same as
     // the stage laid straight over that frame
     GuiRaster straight;
-    cli_check(gui_raster_made(&straight, PICTURE_SIDE, PICTURE_SIDE), "a second raster to lay it on");
+    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &straight, .width = PICTURE_SIDE, .height = PICTURE_SIDE), "a second raster to lay it on");
     grounded(&raster);
     grounded(&straight);
-    gui_raster_line(&raster, 0, rect.y + half, PICTURE_SIDE - 1, rect.y + half, palette->link);
-    gui_raster_line(&straight, 0, rect.y + half, PICTURE_SIDE - 1, rect.y + half, palette->link);
-    gui_busy_drawn(&busy, &raster, palette, &frame, busy.shown_ms);
-    const GuiRect again = gui_busy_redrawn(&busy, &raster, busy.shown_ms + (20ull * GUI_BUSY_STAGE_MS));
+    EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = &raster, .x0 = 0, .y0 = rect.y + half, .x1 = PICTURE_SIDE - 1, .y1 = rect.y + half, .color = palette->link);
+    EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = &straight, .x0 = 0, .y0 = rect.y + half, .x1 = PICTURE_SIDE - 1, .y1 = rect.y + half, .color = palette->link);
+    g_test_clock_ms = busy.visible_start_ms;
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &busy, .raster = &raster, .palette = palette, .frame = &frame);
+    g_test_clock_ms = busy.visible_start_ms + (20ull * GUI_BUSY_STAGE_MS);
+    const GuiRect again = EMBED_CALL(gui_busy_frame.redrawn, GuiBusyFrameCfg, .busy = &busy, .raster = &raster);
     cli_check((again.x == rect.x) && (again.y == rect.y) && (again.width == rect.width) && (again.height == rect.height), "the step answers the circle's rectangle");
-    gui_busy_drawn(&busy, &straight, palette, &frame, busy.shown_ms + (20ull * GUI_BUSY_STAGE_MS));
+    g_test_clock_ms = busy.visible_start_ms + (20ull * GUI_BUSY_STAGE_MS);
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &busy, .raster = &straight, .palette = palette, .frame = &frame);
     int same = 1;
     for (unsigned int pixel = 0u; pixel < PICTURE_SIDE * PICTURE_SIDE; pixel += 1u)
     {
@@ -256,52 +281,69 @@ int main(void)
     GuiFrame edged = frame;
     edged.editor = (GuiRect){(int)PICTURE_SIDE - 10, (int)PICTURE_SIDE - 10, 30, 30};
     grounded(&raster);
-    gui_busy_drawn(&busy, &raster, palette, &edged, busy.shown_ms);
-    const GuiRect clipped = gui_busy_redrawn(&busy, &raster, busy.shown_ms + GUI_BUSY_STAGE_MS);
-    cli_check(!gui_rect_empty(clipped) && (clipped.x + clipped.width <= (int)PICTURE_SIDE) && (clipped.y + clipped.height <= (int)PICTURE_SIDE), "off the raster's edge it is clipped to the raster");
+    g_test_clock_ms = busy.visible_start_ms;
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &busy, .raster = &raster, .palette = palette, .frame = &edged);
+    g_test_clock_ms = busy.visible_start_ms + GUI_BUSY_STAGE_MS;
+    const GuiRect clipped = EMBED_CALL(gui_busy_frame.redrawn, GuiBusyFrameCfg, .busy = &busy, .raster = &raster);
+    cli_check(!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = clipped) && (clipped.x + clipped.width <= (int)PICTURE_SIDE) && (clipped.y + clipped.height <= (int)PICTURE_SIDE), "off the raster's edge it is clipped to the raster");
 
     // another scale makes the pictures again at its side, even, with the burn's cells grown to fill it
     GuiFrame doubled = frame;
-    doubled.scale = 2.0f;
+    doubled.scale = 200;
     doubled.editor = (GuiRect){0, 0, PICTURE_SIDE, PICTURE_SIDE};
-    cli_check(gui_busy_rect(&doubled).width == 2 * GUI_BUSY_SIDE, "at twice the scale it is twice as wide");
+    cli_check(EMBED_CALL(gui_busy_frame.rect, GuiBusyFrameCfg, .frame = &doubled).width == 2 * GUI_BUSY_SIDE, "at twice the scale it is twice as wide");
     grounded(&raster);
-    gui_busy_drawn(&busy, &raster, palette, &doubled, busy.shown_ms);
+    g_test_clock_ms = busy.visible_start_ms;
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &busy, .raster = &raster, .palette = palette, .frame = &doubled);
     cli_check(busy.side == 2u * GUI_BUSY_SIDE, "and its pictures are made again at that side");
-    gui_busy_drawn(&busy, &raster, palette, &frame, busy.shown_ms);
+    g_test_clock_ms = busy.visible_start_ms;
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &busy, .raster = &raster, .palette = palette, .frame = &frame);
     cli_check(busy.side == GUI_BUSY_SIDE, "and again at the first scale");
 
     // standing still: the one stage, no tick wanted for it, and made again for the swirl
     const unsigned long long swirling_bytes = busy.cell_bytes;
-    gui_busy_still(&busy, 1);
+    EMBED_CALL(cli_busy_still.still, GuiBusyStillCfg, .busy = &busy, .still = 1);
     cli_check((busy.cell == NULL) && busy.shown, "asked to stand still it stays and lets its stages go");
-    // the work a check runs brings the circle after the wait and keeps it past the ask's answer
+    // the work a check runs brings the circle after the wait and saves it past the ask's answer
     GuiBusy working;
-    gui_busy_made(&working);
-    gui_busy_asked(&working, 1ull, 5000ull);
-    gui_busy_work(&working, 1, 5010ull);
-    gui_busy_answered(&working, 1ull);
-    cli_check(!gui_busy_ticked(&working, 5100ull) && !working.shown, "the work stands its wait as an ask does");
-    cli_check(gui_busy_ticked(&working, 5010ull + GUI_BUSY_WAITS) && working.shown, "and the circle comes");
-    cli_check(!gui_busy_ticked(&working, 9000ull) && working.shown, "it stays as long as the work runs");
-    gui_busy_work(&working, 0, 9000ull);
-    cli_check(gui_busy_ticked(&working, 9000ull) && !working.shown, "and goes as it ends");
+    EMBED_CALL(cli_busy_still.init, GuiBusyStillCfg, .busy = &working);
+    g_test_clock_ms = 5000ull;
+    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &working, .ticket = 1ull);
+    g_test_clock_ms = 5010ull;
+    EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &working, .running = 1);
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &working, .ticket = 1ull);
+    g_test_clock_ms = 5100ull;
+    cli_check(!EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &working) && !working.shown, "the work stands its wait as an ask does");
+    g_test_clock_ms = 5010ull + GUI_BUSY_SHOW_DELAY_MS;
+    cli_check(EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &working) && working.shown, "and the circle comes");
+    g_test_clock_ms = 9000ull;
+    cli_check(!EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &working) && working.shown, "it stays as long as the work runs");
+    g_test_clock_ms = 9000ull;
+    EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &working, .running = 0);
+    g_test_clock_ms = 9000ull;
+    cli_check(EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &working) && !working.shown, "and goes as it ends");
     grounded(&raster);
-    gui_busy_drawn(&busy, &raster, palette, &frame, busy.shown_ms);
+    g_test_clock_ms = busy.visible_start_ms;
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &busy, .raster = &raster, .palette = palette, .frame = &frame);
     cli_check((busy.stages == 1u) && (busy.cell_bytes < swirling_bytes), "its one stage is made");
-    cli_check(gui_busy_stage_at(&busy, busy.shown_ms + (9ull * GUI_BUSY_STAGE_MS)) == 0u, "the clock does not move it");
-    cli_check(gui_busy_due(&busy, busy.shown_ms + GUI_BUSY_STANDS) == 0ull, "standing with its ask unanswered, no tick is wanted: the answer wakes it");
-    gui_busy_answered(&busy, 6ull);
-    cli_check(gui_busy_due(&busy, busy.shown_ms + GUI_BUSY_STANDS) == 1ull, "answered, a tick is wanted to take it away");
-    cli_check(gui_busy_due(&busy, busy.shown_ms + 1ull) == GUI_BUSY_STANDS - 1ull, "or as its least ends");
-    gui_busy_still(&busy, 0);
+    g_test_clock_ms = busy.visible_start_ms + (9ull * GUI_BUSY_STAGE_MS);
+    cli_check(EMBED_CALL(gui_busy.stage_at, GuiBusyCfg, .busy_read = &busy) == 0u, "the clock does not move it");
+    g_test_clock_ms = busy.visible_start_ms + GUI_BUSY_MIN_VISIBLE_MS;
+    cli_check(EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &busy) == 0ull, "standing with its ask unanswered, no tick is wanted: the answer wakes it");
+    EMBED_CALL(gui_busy_ticket.answer, GuiBusyTicketCfg, .busy = &busy, .ticket = 6ull);
+    g_test_clock_ms = busy.visible_start_ms + GUI_BUSY_MIN_VISIBLE_MS;
+    cli_check(EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &busy) == busy.visible_start_ms + GUI_BUSY_MIN_VISIBLE_MS + 1ull, "answered, a tick is wanted to take it away");
+    g_test_clock_ms = busy.visible_start_ms + 1ull;
+    cli_check(EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &busy) == busy.visible_start_ms + 1ull + GUI_BUSY_MIN_VISIBLE_MS - 1ull, "or as its least ends");
+    EMBED_CALL(cli_busy_still.still, GuiBusyStillCfg, .busy = &busy, .still = 0);
     grounded(&raster);
-    gui_busy_drawn(&busy, &raster, palette, &frame, busy.shown_ms);
+    g_test_clock_ms = busy.visible_start_ms;
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &busy, .raster = &raster, .palette = palette, .frame = &frame);
     cli_check(busy.stages == GUI_BUSY_STAGES, "swirling again its stages are made");
 
-    gui_raster_given(&raster);
-    gui_raster_given(&straight);
-    gui_busy_given(&busy);
+    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &straight);
+    EMBED_CALL(cli_busy_still.free, GuiBusyStillCfg, .busy = &busy);
     cli_check(busy.cell == NULL, "the cell is given back at the end");
-    return cli_checked();
+    return cli_on_check();
 }

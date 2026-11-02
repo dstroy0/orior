@@ -9,10 +9,10 @@
 // the crumbs' mark between a folder and what it holds
 static const char s_crumb_mark[] = "\xe2\x80\xba";
 
-void gui_status_memory_text(unsigned long long bytes, char *text, unsigned long long size)
+void gui_status_memory_text(const GuiStatusbarBytesCfg *args)
 {
-    VerbaLinea line = {text, size, 0ull};
-    const unsigned long long tenths = ((bytes * 10ull) + (1024ull * 512ull)) / (1024ull * 1024ull);
+    VerbaLinea line = {args->text, args->size, 0ull};
+    const unsigned long long tenths = ((args->bytes * 10ull) + (1024ull * 512ull)) / (1024ull * 1024ull);
     if (tenths < 1000ull)
     {
         mmgr_line_decimal(&line, tenths / 10ull, 1u);
@@ -21,28 +21,30 @@ void gui_status_memory_text(unsigned long long bytes, char *text, unsigned long 
     }
     else
     {
-        mmgr_line_decimal(&line, (bytes + (1024ull * 512ull)) / (1024ull * 1024ull), 1u);
+        mmgr_line_decimal(&line, (args->bytes + (1024ull * 512ull)) / (1024ull * 1024ull), 1u);
     }
     mmgr_line_put(&line, " MB");
     (void)mmgr_line_finish(&line);
 }
 
-void gui_status_cursor_text(const GuiStatus *status, char *text, unsigned long long size)
+void gui_status_cursor_text(const GuiStatusbarCfg *args)
 {
-    VerbaLinea line = {text, size, 0ull};
-    mmgr_line_decimal(&line, status->line + 1ull, 1u);
+    VerbaLinea line = {args->text, args->size, 0ull};
+    mmgr_line_decimal(&line, args->status->line + 1ull, 1u);
     mmgr_line_ch(&line, ':');
-    mmgr_line_decimal(&line, status->col + 1ull, 1u);
+    mmgr_line_decimal(&line, args->status->col + 1ull, 1u);
     (void)mmgr_line_finish(&line);
 }
 
-void gui_status_selection_text(const GuiStatus *status, char *text, unsigned long long size)
+void gui_status_selection_text(const GuiStatusbarCfg *args)
 {
-    VerbaLinea line = {text, size, 0ull};
-    const unsigned long long lines =
-        (status->anchor_line > status->line) ? status->anchor_line - status->line : status->line - status->anchor_line;
-    const unsigned long long letters =
-        (status->anchor_col > status->col) ? status->anchor_col - status->col : status->col - status->anchor_col;
+    VerbaLinea line = {args->text, args->size, 0ull};
+    const unsigned long long lines = (args->status->anchor_line > args->status->line)
+                                         ? args->status->anchor_line - args->status->line
+                                         : args->status->line - args->status->anchor_line;
+    const unsigned long long letters = (args->status->anchor_col > args->status->col)
+                                           ? args->status->anchor_col - args->status->col
+                                           : args->status->col - args->status->anchor_col;
     if (lines != 0ull)
     {
         mmgr_line_decimal(&line, lines + 1ull, 1u);
@@ -56,11 +58,11 @@ void gui_status_selection_text(const GuiStatus *status, char *text, unsigned lon
     (void)mmgr_line_finish(&line);
 }
 
-void gui_status_indent_text(const GuiStatus *status, char *text, unsigned long long size)
+void gui_status_indent_text(const GuiStatusbarCfg *args)
 {
-    VerbaLinea line = {text, size, 0ull};
-    const unsigned int step = (status->indent_size != 0u) ? status->indent_size : 4u;
-    if (status->indent_tabs == 1)
+    VerbaLinea line = {args->text, args->size, 0ull};
+    const unsigned int step = (args->status->indent_size != 0u) ? args->status->indent_size : 4u;
+    if (args->status->indent_tabs == 1)
     {
         mmgr_line_put(&line, "Tab ");
         mmgr_line_decimal(&line, step, 1u);
@@ -73,101 +75,160 @@ void gui_status_indent_text(const GuiStatus *status, char *text, unsigned long l
     (void)mmgr_line_finish(&line);
 }
 
-// an item's text drawn ending at `right`, on the baseline, in `color`: the x it starts at
-static float statusbar_item_drawn(GuiRaster *raster, GuiGlyphs *glyphs, unsigned int size, float right, int baseline,
-                                  const char *text, GuiColor color, GuiRect clip)
+typedef struct
 {
+    GuiRaster *raster;
+    GuiGlyphs *glyphs;
+    unsigned int size;
+    float right;
+    int baseline;
+    const char *text;
+    GuiColor color;
+    GuiRect clip;
+} StatusbarCtx;
+// an item's text drawn ending at `right`, on the baseline, in `color`: the x it starts at
+EMBED_INLINE float statusbar_item_draw(const StatusbarCtx *args)
+{
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    unsigned int size = args->size;
+    const char *text = args->text;
+    GuiColor color = args->color;
+    GuiRect clip = args->clip;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_STATUS_TEXT});
-    const float wide = gui_text_width(glyphs, GUI_FACE_HEAD, size, text, length);
-    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, right - wide, baseline, text, length, color, clip);
-    return right - wide;
+    const float wide = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                  .face = GUI_FACE_HEAD, .size = size, .text = text, .length = length);
+    (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                     .face = GUI_FACE_HEAD, .size = size, .x_f32 = args->right - wide, .y = args->baseline,
+                     .text = text, .length = length, .color = color, .clip = clip);
+    return args->right - wide;
 }
 
-void gui_statusbar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons, const GuiPalette *palette,
-                         const GuiFrame *frame, const GuiStatus *status)
+void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
 {
-    const float scale = frame->scale;
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    GuiIcons *icons = args->icons;
+    const int scale = args->frame->scale;
     // the bar's pane is the slat its edge shows, whole outside the claim, laid by the frame's base; the items stand
     // in the slat
-    const GuiRect bar = gui_rect_met(frame->status_slat, frame->status);
-    if (gui_rect_empty(bar))
+    const GuiRect bar = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->status_slat,
+                                   .other = args->frame->status);
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = bar))
     {
         return;
     }
-    const unsigned int size = (unsigned int)gui_scaled((int)GUI_STATUS_SIZE, scale);
-    const float ascent = gui_glyphs_ascent(glyphs, GUI_FACE_HEAD, size);
-    const float descent = gui_glyphs_descent(glyphs, GUI_FACE_HEAD, size);
+    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                       .pixels = (int)GUI_STATUS_SIZE, .scale = scale);
+    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_HEAD, .size = size);
+    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                     .face = GUI_FACE_HEAD, .size = size);
     const int baseline = bar.y + (int)((((float)bar.height - ascent - descent) / 2.0f) + ascent + 0.5f);
-    const int gap = gui_scaled(GUI_STATUS_GAP, scale);
+    const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_GAP, .scale = scale);
     char text[GUI_STATUS_TEXT];
     // the items from the right: the lock, the indentation, the encoding, the line ends, the selection and the cursor,
     // while a file is shown, then the memory reading
-    float right = (float)(bar.x + bar.width - gui_scaled(GUI_STATUS_PAD, scale));
-    if (status->has_cursor)
+    float right =
+        (float)(bar.x + bar.width -
+                EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_PAD, .scale = scale));
+    if (args->status->has_cursor)
     {
-        const int lock = gui_scaled(GUI_STATUS_LOCK, scale);
-        right -= (float)(gui_scaled(GUI_FRAME_GAP + GUI_STATUS_LOCK_END, scale) + lock);
+        const int lock =
+            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_LOCK, .scale = scale);
+        right -= (float)(EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                    .pixels = GUI_FRAME_GAP + GUI_STATUS_LOCK_END, .scale = scale) +
+                         lock);
         const GuiMask *const mask =
-            gui_icon(icons, "unlock", (unsigned int)lock, GUI_ICON_STROKE * (float)lock / GUI_ICON_UNITS);
+            EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons, .name = "unlock", .size = (unsigned int)lock,
+                       .stroke = GUI_ICON_STROKE * (float)lock / GUI_ICON_UNITS);
         if (mask != NULL)
         {
-            gui_raster_masked(raster, mask, (int)right, bar.y + ((bar.height - lock) / 2), palette->status_text, bar);
+            EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = raster, .mask = mask, .x = (int)right,
+                       .y = bar.y + ((bar.height - lock) / 2), .color = args->palette->status_text, .clip = bar);
         }
         right -= (float)gap;
-        gui_status_indent_text(status, text, sizeof(text));
-        right =
-            statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) - (float)gap;
-        right = statusbar_item_drawn(raster, glyphs, size, right, baseline, "UTF-8", palette->status_text, bar) -
+        EMBED_CALL(gui_statusbar.status_indent_text, GuiStatusbarCfg, .status = args->status, .text = text,
+                   .size = sizeof(text));
+        right = EMBED_CALL(statusbar_item_draw, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size,
+                           .right = right, .baseline = baseline, .text = text, .color = args->palette->status_text,
+                           .clip = bar) -
                 (float)gap;
-        right = statusbar_item_drawn(raster, glyphs, size, right, baseline, status->crlf ? "CRLF" : "LF",
-                                     palette->status_text, bar) -
+        right = EMBED_CALL(statusbar_item_draw, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size,
+                           .right = right, .baseline = baseline, .text = "UTF-8", .color = args->palette->status_text,
+                           .clip = bar) -
                 (float)gap;
-        gui_status_selection_text(status, text, sizeof(text));
+        right = EMBED_CALL(statusbar_item_draw, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size,
+                           .right = right, .baseline = baseline, .text = args->status->crlf ? "CRLF" : "LF",
+                           .color = args->palette->status_text, .clip = bar) -
+                (float)gap;
+        EMBED_CALL(gui_statusbar.status_selection_text, GuiStatusbarCfg, .status = args->status, .text = text,
+                   .size = sizeof(text));
         if (text[0] != '\0')
         {
-            right = statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) -
+            right = EMBED_CALL(statusbar_item_draw, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size,
+                               .right = right, .baseline = baseline, .text = text, .color = args->palette->status_text,
+                               .clip = bar) -
                     (float)gap;
         }
-        gui_status_cursor_text(status, text, sizeof(text));
-        right =
-            statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar) - (float)gap;
+        EMBED_CALL(gui_statusbar.status_cursor_text, GuiStatusbarCfg, .status = args->status, .text = text,
+                   .size = sizeof(text));
+        right = EMBED_CALL(statusbar_item_draw, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size,
+                           .right = right, .baseline = baseline, .text = text, .color = args->palette->status_text,
+                           .clip = bar) -
+                (float)gap;
     }
-    if (status->memory != 0ull)
+    if (args->status->memory != 0ull)
     {
-        gui_status_memory_text(status->memory, text, sizeof(text));
-        const float least = (float)GUI_STATUS_MEMORY_ZEROS * gui_text_width(glyphs, GUI_FACE_HEAD, size, "0", 1ull);
-        const float wide = gui_text_width(glyphs, GUI_FACE_HEAD, size, text,
-                                          cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_STATUS_TEXT}));
-        (void)statusbar_item_drawn(raster, glyphs, size, right, baseline, text, palette->status_text, bar);
+        EMBED_CALL(gui_statusbar_bytes.status_memory_text, GuiStatusbarBytesCfg, .bytes = args->status->memory,
+                   .text = text, .size = sizeof(text));
+        const float least = (float)GUI_STATUS_MEMORY_ZEROS *
+                            EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                       .face = GUI_FACE_HEAD, .size = size, .text = "0", .length = 1ull);
+        const float wide = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                      .face = GUI_FACE_HEAD, .size = size, .text = text,
+                                      .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_STATUS_TEXT}));
+        (void)EMBED_CALL(statusbar_item_draw, StatusbarCtx, .raster = raster, .glyphs = glyphs, .size = size,
+                         .right = right, .baseline = baseline, .text = text, .color = args->palette->status_text,
+                         .clip = bar);
         right -= ((wide > least) ? wide : least) + (float)gap;
     }
     // the crumbs from the left, as far as the items leave
-    if (status->path[0] == '\0')
+    if (args->status->path[0] == '\0')
     {
         return;
     }
-    const GuiRect room = gui_rect_met((GuiRect){bar.x, bar.y, (int)right - bar.x, bar.height}, bar);
+    const GuiRect room = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                    .one = (GuiRect){bar.x, bar.y, (int)right - bar.x, bar.height}, .other = bar);
     // the crumbs start past the strip's width, which the claim takes to none
     // a share of a width in pixels, rounded, is far inside what an int represents
-    const int strip_room = (int)((((long long)(GUI_WHOLE - frame->claim.claim) * (long long)frame->strip.width) + (GUI_WHOLE / 2)) / GUI_WHOLE);
-    float x = (float)(frame->status.x + strip_room + gui_scaled(GUI_STATUS_PAD, scale));
-    const float crumb_gap = (float)gui_scaled(GUI_STATUS_CRUMB_GAP, scale);
-    const char *at = status->path;
+    const int strip_room =
+        (int)((((long long)(GUI_WHOLE - args->frame->claim.claim) * (long long)args->frame->strip.width) +
+               (GUI_WHOLE / 2)) /
+              GUI_WHOLE);
+    float x = (float)(args->frame->status.x + strip_room +
+                      EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_PAD, .scale = scale));
+    const float crumb_gap =
+        (float)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STATUS_CRUMB_GAP, .scale = scale);
+    const char *at = args->status->path;
     while (*at != '\0')
     {
         unsigned long long length = 0ull;
-        length = cli_text_to_any(
-            at, length, length + cellul.len(&(CatenaFinitaCfg){.src = at + length, .cap = CLI_CELLS_POOL}), "/\\");
+        length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = length,
+                            .size = length + cellul.len(&(CatenaFinitaCfg){.src = at + length, .cap = CLI_CELLS_POOL}),
+                            .set = "/\\");
         const int last = at[length] == '\0';
-        x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, x, baseline, at, length,
-                           last ? palette->bar_bright : palette->status_text, room);
+        x = EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                       .face = GUI_FACE_HEAD, .size = size, .x_f32 = x, .y = baseline, .text = at, .length = length,
+                       .color = last ? args->palette->bar_bright : args->palette->status_text, .clip = room);
         if (last)
         {
             break;
         }
         x += crumb_gap;
-        x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, x, baseline, s_crumb_mark, sizeof(s_crumb_mark) - 1u,
-                           palette->bar_path, room) +
+        x = EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                       .face = GUI_FACE_HEAD, .size = size, .x_f32 = x, .y = baseline, .text = s_crumb_mark,
+                       .length = sizeof(s_crumb_mark) - 1u, .color = args->palette->bar_path, .clip = room) +
             crumb_gap;
         at += length + 1ull;
     }

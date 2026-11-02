@@ -18,7 +18,11 @@
 // error (cargo_scan.c, cargo_targets.c, cargo_found.c, cargo_run.c, cargo_binary.c)
 #ifndef CARGO_TESTS_H
 #define CARGO_TESTS_H
+typedef struct CliCargoTestsIdCfg CliCargoTestsIdCfg;
+typedef struct CliCargoTestsGivenCfg CliCargoTestsGivenCfg;
+typedef struct CliCargoTestsCfg CliCargoTestsCfg;
 
+#include "embed_dispatch_layout.h"
 #include "testing.h"
 
 // the most tests found, and the bytes their texts take
@@ -62,7 +66,7 @@ typedef struct CliCargoPieceStruct
 
 // The Rust tests of a tree and the texts they take, with 1 in `full` where one did not fit: the tests in a cell at
 // their most, CLI_CARGO_FOUND at the most, and their texts in pieces that never move, the newest first, CLI_CARGO_TEXT
-// bytes at the most, each given back with cli_cargo_tests_given
+// bytes at the most, each given back with cli_cargo_tests_free
 typedef struct
 {
     CliCargoFound *found;
@@ -74,16 +78,70 @@ typedef struct
 } CliCargoTests;
 
 // whether `id`, a test's name or a file's path, is of Rust (cargo_found.c)
-int cli_cargo_is_rust(const char *id);
+int cli_cargo_is_rust(const CliCargoTestsIdCfg *args);
 // the Rust tests of the tree at `root` into `tests`, package by package in the order of their manifests' paths, those
 // it contained before given back; and the tests' cells given back, the tests left empty
-void cli_cargo_found(const char *root, CliCargoTests *tests);
-void cli_cargo_tests_given(CliCargoTests *tests);
+void cli_cargo_find(const CliCargoTestsCfg *args);
+void cli_cargo_tests_free(const CliCargoTestsCfg *args);
 // how many cargo tests a run of `given`, `count` tests by their names or files by their paths, starts (cargo_run.c)
-unsigned int cli_cargo_targets_given(const char *root, const char *const *given, unsigned int count);
+unsigned int cli_cargo_targets_free(const CliCargoTestsGivenCfg *args);
 // the program that runs the test `id` and the name the harness gives it, built as cargo test builds it, with the
 // package's folder for it to run in, for a debugger to start it: each into what is sized for CLI_PATH_MAX_LEN, 1, or 0
 // with why given (cargo_binary.c)
-int cli_cargo_binary(const char *root, const char *id, char *program, char *full, char *package, VerbaLinea *err_msg);
+int cli_cargo_binary(const CliCargoTestsIdCfg *args);
+
+struct CliCargoTestsIdCfg
+{
+    const char *id;
+    const char *root;
+    char *program;
+    char *full;
+    char *package;
+    VerbaLinea *err_msg;
+};
+
+struct CliCargoTestsGivenCfg
+{
+    const char *root;
+    const char *const *given;
+    unsigned int count;
+};
+
+struct CliCargoTestsCfg
+{
+    const char *root;
+    CliCargoTests *tests;
+};
+
+typedef struct
+{
+    int (*cargo_is_rust)(const CliCargoTestsIdCfg *args);
+    int (*cargo_binary)(const CliCargoTestsIdCfg *args);
+} CliCargoTestsIdNs;
+EMBED_TABLE_LAYOUT(CliCargoTestsIdNs, cargo_is_rust, cargo_binary);
+EMBED_TABLE_STORAGE CliCargoTestsIdNs cli_cargo_tests_id EMBED_UNUSED = {
+    .cargo_is_rust = cli_cargo_is_rust,
+    .cargo_binary = cli_cargo_binary,
+};
+
+typedef struct
+{
+    void (*cargo_find)(const CliCargoTestsCfg *args);
+    void (*free)(const CliCargoTestsCfg *args);
+} CliCargoTestsNs;
+EMBED_TABLE_LAYOUT(CliCargoTestsNs, cargo_find, free);
+EMBED_TABLE_STORAGE CliCargoTestsNs cli_cargo_tests_table EMBED_UNUSED = {
+    .cargo_find = cli_cargo_find,
+    .free = cli_cargo_tests_free,
+};
+
+typedef struct
+{
+    unsigned int (*cargo_targets_free)(const CliCargoTestsGivenCfg *args);
+} CliCargoTestsGivenNs;
+EMBED_TABLE_LAYOUT(CliCargoTestsGivenNs, cargo_targets_free);
+EMBED_TABLE_STORAGE CliCargoTestsGivenNs cli_cargo_tests_given_table EMBED_UNUSED = {
+    .cargo_targets_free = cli_cargo_targets_free,
+};
 
 #endif

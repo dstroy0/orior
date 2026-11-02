@@ -7,11 +7,19 @@
 // (problems.c)
 #ifndef GUI_PARTS_PROBLEMS_H
 #define GUI_PARTS_PROBLEMS_H
+typedef struct GuiProblemsRowFrameCfg GuiProblemsRowFrameCfg;
+typedef struct GuiProblemsPathRasterCfg GuiProblemsPathRasterCfg;
+typedef struct GuiProblemsFrameCfg GuiProblemsFrameCfg;
+typedef struct GuiProblemsRowCfg GuiProblemsRowCfg;
+typedef struct GuiProblemsCfg GuiProblemsCfg;
+typedef struct GuiProblemsPathCfg GuiProblemsPathCfg;
+typedef struct GuiProblemsJsonCfg GuiProblemsJsonCfg;
 #include "../../../cli/src/text/json_tree.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
 #include "editor.h"
+#include "embed_dispatch_layout.h"
 
 // the most files and diagnostics stored and the bytes their texts are stored in; no row; the sizes in the page's
 // pixels: a file's row, a diagnostic's row, the pane's head, a row's padding at the left, the guide's width before a
@@ -102,44 +110,188 @@ typedef struct
 } GuiProblems;
 
 // problems holding none, the cells taken: 1, or 0 where they could not be; and every cell given back
-int gui_problems_made(GuiProblems *problems);
-void gui_problems_given(GuiProblems *problems);
+int gui_problems_init(const GuiProblemsCfg *args);
+void gui_problems_free(const GuiProblemsCfg *args);
 // the event `root` of `json`, `{"path", "items": [{"from", "to", "severity", "message"}...]}`, taken: the file's
 // diagnostics replaced by the items, the worst first and the earliest among the same, the file dropped where none
 // come: 1, or 0 where the event is no such object or the cells are full
-int gui_problems_put(GuiProblems *problems, const CliJson *json, unsigned int root);
+int gui_problems_put(const GuiProblemsJsonCfg *args);
 // the tree's check gone `done` of `total` files, a total of 0 for no check running
-void gui_problems_checking(GuiProblems *problems, unsigned long long done, unsigned long long total);
+void gui_problems_checking(const GuiProblemsCfg *args);
 // whether the tree's check is running
-int gui_problems_running(const GuiProblems *problems);
+int gui_problems_running(const GuiProblemsPathCfg *args);
 // the diagnostics of the file at `path`: how many, and the first of them into `first`
-unsigned int gui_problems_of(const GuiProblems *problems, const char *path, unsigned int *first);
+unsigned int gui_problems_get(const GuiProblemsPathCfg *args);
 // the rows: a row for each file and, where its rows are open, one for each of its diagnostics: how many; and the
 // row `row` read: the file into `file` and the diagnostic into `item`, GUI_PROBLEMS_NONE for a file's row: 1, or 0
 // past the rows
-unsigned int gui_problems_rows(const GuiProblems *problems);
-int gui_problems_row(const GuiProblems *problems, unsigned int row, unsigned int *file, int *item);
+unsigned int gui_problems_rows(const GuiProblemsRowFrameCfg *args);
+int gui_problems_row(const GuiProblemsRowCfg *args);
 // the top of the rows in the frame's side, under the group's title and the pane's head; the rectangle of the row
 // `row` as the rows are scrolled; and the row at x, y: 1 with its number into `row`, else 0
-int gui_problems_rows_top(const GuiFrame *frame);
-GuiRect gui_problems_row_rect(const GuiProblems *problems, const GuiFrame *frame, unsigned int row);
-int gui_problems_hit(const GuiProblems *problems, const GuiFrame *frame, int x, int y, unsigned int *row);
+int gui_problems_rows_top(const GuiProblemsRowFrameCfg *args);
+GuiRect gui_problems_row_rect(const GuiProblemsRowFrameCfg *args);
+int gui_problems_hit(const GuiProblemsRowFrameCfg *args);
 // the pointer moved to x, y: the row it stands on marked: 1 where that changed
-int gui_problems_moved(GuiProblems *problems, const GuiFrame *frame, int x, int y);
+int gui_problems_move(const GuiProblemsFrameCfg *args);
 // a press at x, y: on the head, the check picked to start, or to stop where one runs; on a file's row its rows
 // closed or opened; on a diagnostic's row its place picked: 1 where the press was the side's
-int gui_problems_pressed(GuiProblems *problems, const GuiFrame *frame, int x, int y, GuiProblemPick *pick);
+int gui_problems_press(const GuiProblemsFrameCfg *args);
 // the wheel turned `rows` rows, down where positive: the rows scrolled, no further than the last fills the pane: 1
 // where the scroll changed
-int gui_problems_wheeled(GuiProblems *problems, const GuiFrame *frame, int rows);
+int gui_problems_wheel(const GuiProblemsRowFrameCfg *args);
 // the pane drawn in the frame's side under the group's title: its head, the check's progress while one runs, else
 // the count of problems and files or the check offered; then the rows, a file's its arrow, name, folder and count,
 // a diagnostic's its guide, its mark in its severity's color, its message and its place, the row pointed on the
 // pointed ground
-void gui_problems_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette,
-                        const GuiFrame *frame);
+void gui_problems_draw(const GuiProblemsRowFrameCfg *args);
 // the spans of the diagnostics of the file at `path` underlined in the editor drawn in `place` at `scale` with the
 // code cell `cell`, each on the rows it stands in, in its severity's color
-void gui_problems_underlined(const GuiProblems *problems, const char *path, const GuiEditor *editor, GuiRaster *raster,
-                             const GuiPalette *palette, GuiRect place, float cell, float scale);
+void gui_problems_underlined(const GuiProblemsPathRasterCfg *args);
+struct GuiProblemsRowFrameCfg
+{
+    GuiProblems *problems_out;
+    const GuiProblems *problems;
+    unsigned int row;
+    const GuiFrame *frame;
+    int x;
+    int y;
+    unsigned int *row_pointer;
+    int rows;
+    GuiRaster *raster;
+    GuiGlyphs *glyphs;
+    const GuiPalette *palette;
+};
+
+struct GuiProblemsPathRasterCfg
+{
+    const GuiProblems *problems;
+    const char *path;
+    GuiRaster *raster;
+    const GuiPalette *palette;
+    const GuiEditor *editor;
+    GuiRect place;
+    float cell;
+    int scale;
+};
+
+struct GuiProblemsFrameCfg
+{
+    GuiProblems *problems_out;
+    const GuiFrame *frame;
+    int x;
+    int y;
+    GuiProblemPick *pick;
+};
+
+struct GuiProblemsRowCfg
+{
+    const GuiProblems *problems;
+    unsigned int row;
+    unsigned int *file;
+    int *item;
+};
+
+struct GuiProblemsCfg
+{
+    GuiProblems *problems_out;
+    unsigned long long done;
+    unsigned long long total;
+};
+
+struct GuiProblemsPathCfg
+{
+    const GuiProblems *problems;
+    const char *path;
+    unsigned int *first;
+};
+
+struct GuiProblemsJsonCfg
+{
+    GuiProblems *problems_out;
+    const CliJson *json;
+    unsigned int root;
+};
+
+typedef struct
+{
+    int (*init)(const GuiProblemsCfg *args);
+    void (*free)(const GuiProblemsCfg *args);
+    void (*checking)(const GuiProblemsCfg *args);
+} CliProblemsNs;
+EMBED_TABLE_LAYOUT(CliProblemsNs, init, free, checking);
+EMBED_TABLE_STORAGE CliProblemsNs cli_problems EMBED_UNUSED = {
+    .init = gui_problems_init,
+    .free = gui_problems_free,
+    .checking = gui_problems_checking,
+};
+
+typedef struct
+{
+    int (*put)(const GuiProblemsJsonCfg *args);
+} GuiProblemsJsonNs;
+EMBED_TABLE_LAYOUT(GuiProblemsJsonNs, put);
+EMBED_TABLE_STORAGE GuiProblemsJsonNs gui_problems_json EMBED_UNUSED = {
+    .put = gui_problems_put,
+};
+
+typedef struct
+{
+    int (*running)(const GuiProblemsPathCfg *args);
+    unsigned int (*get)(const GuiProblemsPathCfg *args);
+} GuiProblemsPathNs;
+EMBED_TABLE_LAYOUT(GuiProblemsPathNs, running, get);
+EMBED_TABLE_STORAGE GuiProblemsPathNs gui_problems_path EMBED_UNUSED = {
+    .running = gui_problems_running,
+    .get = gui_problems_get,
+};
+
+typedef struct
+{
+    unsigned int (*rows)(const GuiProblemsRowFrameCfg *args);
+    int (*rows_top)(const GuiProblemsRowFrameCfg *args);
+    GuiRect (*row_rect)(const GuiProblemsRowFrameCfg *args);
+    int (*hit)(const GuiProblemsRowFrameCfg *args);
+    int (*wheel)(const GuiProblemsRowFrameCfg *args);
+    void (*draw)(const GuiProblemsRowFrameCfg *args);
+} GuiProblemsRowFrameNs;
+EMBED_TABLE_LAYOUT(GuiProblemsRowFrameNs, rows, rows_top, row_rect, hit, wheel, draw);
+EMBED_TABLE_STORAGE GuiProblemsRowFrameNs gui_problems_row_frame EMBED_UNUSED = {
+    .rows = gui_problems_rows,
+    .rows_top = gui_problems_rows_top,
+    .row_rect = gui_problems_row_rect,
+    .hit = gui_problems_hit,
+    .wheel = gui_problems_wheel,
+    .draw = gui_problems_draw,
+};
+
+typedef struct
+{
+    int (*row)(const GuiProblemsRowCfg *args);
+} CliProblemsRowNs;
+EMBED_TABLE_LAYOUT(CliProblemsRowNs, row);
+EMBED_TABLE_STORAGE CliProblemsRowNs cli_problems_row EMBED_UNUSED = {
+    .row = gui_problems_row,
+};
+
+typedef struct
+{
+    int (*move)(const GuiProblemsFrameCfg *args);
+    int (*press)(const GuiProblemsFrameCfg *args);
+} GuiProblemsFrameNs;
+EMBED_TABLE_LAYOUT(GuiProblemsFrameNs, move, press);
+EMBED_TABLE_STORAGE GuiProblemsFrameNs gui_problems_frame EMBED_UNUSED = {
+    .move = gui_problems_move,
+    .press = gui_problems_press,
+};
+
+typedef struct
+{
+    void (*underlined)(const GuiProblemsPathRasterCfg *args);
+} GuiProblemsPathRasterNs;
+EMBED_TABLE_LAYOUT(GuiProblemsPathRasterNs, underlined);
+EMBED_TABLE_STORAGE GuiProblemsPathRasterNs gui_problems_path_raster EMBED_UNUSED = {
+    .underlined = gui_problems_underlined,
+};
+
 #endif

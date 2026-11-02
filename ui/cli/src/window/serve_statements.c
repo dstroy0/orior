@@ -5,27 +5,43 @@
 #include "../databases/db.h"
 #include "serve_internal.h"
 
-int cli_serve_db_statement_at(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_db_statement_at(const CliServeAnswerCfg *args)
 {
-    const char *const text = cli_serve_string(args, "text", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const text = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "text", .err_msg = err_msg);
     unsigned long long offset = 0ull;
-    const char *const kind = (text != NULL) ? cli_serve_string(args, "kind", err_msg) : NULL;
-    if ((kind == NULL) || !cli_serve_whole(args, "offset", &offset, err_msg))
+    const char *const kind = (text != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "kind", .err_msg = err_msg)
+                                            : NULL;
+    if ((kind == NULL) || !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "offset", .value = &offset, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_db_statement_at(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), offset, kind, out);
+    EMBED_CALL(cli_db_out_size.statement_at, CliDbOutSizeCfg, .text = text,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .offset = offset,
+               .kind = kind, .out = out);
     return 1;
 }
 
-int cli_serve_db_statements(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_db_statements(const CliServeAnswerCfg *args)
 {
-    const char *const text = cli_serve_string(args, "text", err_msg);
-    const char *const kind = (text != NULL) ? cli_serve_string(args, "kind", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const text = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "text", .err_msg = err_msg);
+    const char *const kind = (text != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "kind", .err_msg = err_msg)
+                                            : NULL;
     if (kind == NULL)
     {
         return 0;
     }
-    cli_db_statements(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), kind, out);
+    EMBED_CALL(cli_db_out_size.statements, CliDbOutSizeCfg, .text = text,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .kind = kind, .out = out);
     return 1;
 }

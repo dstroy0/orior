@@ -25,26 +25,36 @@ unsigned int cli_cores_machine(void)
     return cli_processors();
 }
 
-void cli_cores_reserve(unsigned int reserved)
+void cli_cores_reserve(const CliCoresCfg *args)
 {
-    cli_lock_take(&s_lock);
-    s_reserved = (reserved > CLI_CORES_RESERVED_MIN) ? reserved : CLI_CORES_RESERVED_MIN;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    s_reserved = (args->reserved > CLI_CORES_RESERVED_MIN) ? args->reserved : CLI_CORES_RESERVED_MIN;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
-// a count as written, trimmed: 1 with it into `value`, or 0 where it is no count
-static int cli_count(const char *text, unsigned int *value)
+typedef struct
 {
-    text += cli_text_past_any(text, 0ull, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
-                              CLI_TEXT_WHITE);
+    const char *text;
+    unsigned int *value;
+} CoresCtx;
+// a count as written, trimmed: 1 with it into `value`, or 0 where it is no count
+EMBED_INLINE int cli_count(const CoresCtx *args)
+{
+    const char *text = args->text;
+    unsigned int *value = args->value;
+    text +=
+        EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ull,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
     unsigned long long count = 0ull;
     const char *at = text;
     unsigned long long digits_end = 0ull;
-    count = cli_text_number(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), &digits_end);
+    count = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at, .at = 0ull,
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .end = &digits_end);
     at += digits_end;
     const char *rest = at;
-    rest += cli_text_past_any(rest, 0ull, cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}),
-                              CLI_TEXT_WHITE);
+    rest +=
+        EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ull,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
     if ((at == text) || (rest[0] != '\0') || (count > 0xffffffffull))
     {
         return 0;
@@ -54,59 +64,66 @@ static int cli_count(const char *text, unsigned int *value)
     return 1;
 }
 
-unsigned int cli_cores_reserved(void)
+unsigned int cli_cores_on_reserve(void)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_reserved != 0u)
     {
         const unsigned int reserved = s_reserved;
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return reserved;
     }
     CliCoresRead *const read = g_cli_cells->temporary_buf_alloc(sizeof(*read), &g_cli_settings_cells);
     if (read == NULL)
     {
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return CLI_CORES_RESERVED_MIN;
     }
-    cli_settings_reader(&read->reader);
-    cli_json_begun(&read->none.json, NULL, 0u, NULL, 0ull);
+    EMBED_CALL(cli_settings_path_table.reader, CliSettingsPathCfg, .chain = &read->reader);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &read->none.json,
+               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
     read->none.files = 0u;
     read->none.problems = 0u;
-    cli_settings_layers(&read->reader, &read->none, "", &read->layers);
+    EMBED_CALL(cli_settings_root.layers, CliSettingsRootCfg, .reader = &read->reader, .tree = &read->none, .root = "",
+               .layers = &read->layers);
     // the setting over the reader's own, else their own settings.json's, else under it
     char own[CLI_PATH_MAX_LEN];
-    const char *set = cli_settings_layer(&read->layers, CLI_CORES_KEY, 1);
+    const char *set = EMBED_CALL(cli_settings_key.layer, CliSettingsKeyCfg, .layers_read = &read->layers,
+                                 .key = CLI_CORES_KEY, .over = 1);
     if ((set == NULL) && (read->reader.files != 0u))
     {
         const CliJson *const json = &read->reader.json;
-        const unsigned int value = cli_json_member(json, read->reader.values[read->reader.files - 1u], CLI_CORES_KEY);
+        const unsigned int value =
+            EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                       .object = read->reader.values[read->reader.files - 1u], .name = CLI_CORES_KEY);
         if (value != CLI_JSON_NONE)
         {
             VerbaLinea line = {own, sizeof(own), 0ull};
-            cli_state_read_back(json, value, &line);
+            EMBED_CALL(cli_state_json.read_back, CliStateJsonCfg, .json = json, .value = value, .out = &line);
             mmgr_line_finish(&line);
             set = own;
         }
     }
-    set = (set != NULL) ? set : cli_settings_layer(&read->layers, CLI_CORES_KEY, 0);
+    set = (set != NULL) ? set
+                        : EMBED_CALL(cli_settings_key.layer, CliSettingsKeyCfg, .layers_read = &read->layers,
+                                     .key = CLI_CORES_KEY, .over = 0);
     unsigned int reserved = CLI_CORES_RESERVED_MIN;
-    if ((set == NULL) || !cli_count(set, &reserved))
+    if ((set == NULL) || !EMBED_CALL(cli_count, CoresCtx, .text = set, .value = &reserved))
     {
         reserved = CLI_CORES_RESERVED_MIN;
     }
-    cli_settings_layers_given(&read->layers);
-    cli_settings_chain_given(&read->reader);
+    EMBED_CALL(cli_settings_root.layers_free, CliSettingsRootCfg, .layers = &read->layers);
+    EMBED_CALL(cli_settings_path_table.chain_free, CliSettingsPathCfg, .chain = &read->reader);
     g_cli_cells->persistent_buf_release(read, &g_cli_settings_cells);
     s_reserved = (reserved > CLI_CORES_RESERVED_MIN) ? reserved : CLI_CORES_RESERVED_MIN;
     reserved = s_reserved;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return reserved;
 }
 
 unsigned int cli_cores_for_work(void)
 {
     const unsigned int machine = cli_cores_machine();
-    const unsigned int reserved = cli_cores_reserved();
+    const unsigned int reserved = cli_cores_on_reserve();
     return (machine > reserved) ? (machine - reserved) : 1u;
 }

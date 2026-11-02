@@ -9,13 +9,14 @@
 #include "../text/text.h"
 
 // whether `err_text`, what a write that failed reported, is the system refusing it the rights
-int cli_raised_is_refused(const char *err_text)
+int cli_raised_is_reject(const CliRaisedCfg *args)
 {
     static const char *const s_parts[6] = {"access is denied", "permission denied", "operation not permitted",
                                            "os error 5)",      "os error 13)",      "os error 1)"};
     char lower[CLI_ERR_MSG_MAX_LEN];
     size_t length = 0u;
-    length = (size_t)cli_text_lowered_into(lower, sizeof(lower), err_text);
+    length = (size_t)EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = lower,
+                                .room = sizeof(lower), .text = args->err_text);
     lower[length] = '\0';
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
@@ -30,23 +31,26 @@ int cli_raised_is_refused(const char *err_text)
            NULL;
 }
 
-int cli_raised_copy_over(const char *from, const char *to, VerbaLinea *err_msg)
+int cli_raised_copy_over(const CliRaisedFromCfg *args)
 {
-    if (!query_file_copied(from, to))
+    if (!EMBED_CALL(query_from_internal.file_copy, QueryFromCtx, .from = args->from, .to = args->to))
     {
-        mmgr_line_put(err_msg, to);
-        mmgr_line_put(err_msg, ": it could not be written");
+        mmgr_line_put(args->err_msg, args->to);
+        mmgr_line_put(args->err_msg, ": it could not be written");
         return 0;
     }
     return 1;
 }
 
-int cli_raised_write(const char *path, const void *text, unsigned long long size, VerbaLinea *err_msg)
+int cli_raised_write(const CliRaisedErrMsgCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     char staged[CLI_PATH_MAX_LEN];
     char base[CLI_PATH_MAX_LEN];
-    if (!query_environment_read("TEMP", base, sizeof(base)) && !query_environment_read("TMPDIR", base, sizeof(base)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TEMP", .value_out = base,
+                    .room = sizeof(base)) &&
+        !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TMPDIR", .value_out = base,
+                    .room = sizeof(base)))
     {
         memor.cpy(&(MemoriaCfg){.dst = base,
                                 .src = "/tmp",
@@ -63,14 +67,17 @@ int cli_raised_write(const char *path, const void *text, unsigned long long size
     mmgr_line_decimal(&staged_line, cli_process_own(), 0u);
     mmgr_line_ch(&staged_line, '-');
     mmgr_line_decimal(&staged_line, cli_clock_milliseconds(), 0u);
-    if ((ended == 0ull) || (mmgr_line_finish(&staged_line) == 0ull) || !query_folder_made(folder) ||
-        !query_file_written(staged, text, size))
+    if ((ended == 0ull) || (mmgr_line_finish(&staged_line) == 0ull) ||
+        !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder) ||
+        !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = staged,
+                    .bytes = args->text, .size = args->size))
     {
-        mmgr_line_put(err_msg, staged);
-        mmgr_line_put(err_msg, ": it could not be written");
+        mmgr_line_put(args->err_msg, staged);
+        mmgr_line_put(args->err_msg, ": it could not be written");
         return 0;
     }
-    const int done = cli_raised_platform(staged, path, err_msg);
-    query_removed(staged);
+    const int done = EMBED_CALL(cli_err_msg_from_internal.raised_platform, CliErrMsgFromCtx, .from_text = staged,
+                                .to = args->path, .err_msg = args->err_msg);
+    EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = staged);
     return done;
 }

@@ -4,6 +4,7 @@
 // what a tree whose code is disabled or runs adds, its environment the PATH every step runs with; clangd given the
 // build's database and its compilers, and Visual Studio's environment where one is cl
 #include "../builds/compile_db.h"
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../machine/trust.h"
 #include "../toolchains/toolchains.h"
@@ -50,44 +51,48 @@ typedef struct
 } CliServersLaunching;
 
 // an entry of a folder the search reads: a folder gone into, no deeper than the search goes, or a project
-static void launch_project_entry(void *context, const char *name, int is_folder)
+static void launch_project_entry(const CliEachNameIsFolderCfg *args)
 {
+    void *context = args->context;
     CliServersProjects *const projects = context;
     static const char *const s_not[4] = {"target", "build", "node_modules", "archive"};
     char path[CLI_PATH_MAX_LEN];
-    if (is_folder)
+    if (args->is_folder)
     {
-        int skipped = (name[0] == '.') || (projects->at_depth >= CLI_SERVERS_PROJECT_DEPTH);
+        int skipped = (args->name[0] == '.') || (projects->at_depth >= CLI_SERVERS_PROJECT_DEPTH);
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            skipped |= (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_not[at], .cap = CLI_CELLS_POOL}));
+            skipped |= (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_not[at], .cap = CLI_CELLS_POOL}));
         }
         if (!skipped)
         {
-            cli_full(projects->at, name, path);
+            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = projects->at, .relative = args->name,
+                       .joined = path);
             const char *const above = projects->at;
             projects->at = path;
             projects->at_depth += 1u;
-            (void)query_folder_each(path, launch_project_entry, projects);
+            (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = path,
+                             .each = launch_project_entry, .context_bytess = projects);
             projects->at = above;
             projects->at_depth -= 1u;
         }
         return;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = projects->name, .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = projects->name, .cap = CLI_CELLS_POOL}))
     {
-        cli_full(projects->at, name, path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = projects->at, .relative = args->name, .joined = path);
         mmgr_line_put_n(&projects->found, path,
                         cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u);
         projects->count += 1u;
     }
 }
 
-void cli_servers_projects_in(const char *root, const char *name, VerbaLinea *out)
+void cli_servers_projects_in(const CliServersRootOutCtx *args)
 {
     char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FOUND_ROOM, &g_cli_servers_launch_cells);
-    CliServersProjects projects = {name, root, 0u, mmgr_line_over(found_cell, CLI_SERVERS_FOUND_ROOM), 0u};
-    (void)query_folder_each(root, launch_project_entry, &projects);
+    CliServersProjects projects = {args->name, args->root, 0u, mmgr_line_over(found_cell, CLI_SERVERS_FOUND_ROOM), 0u};
+    (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->root,
+                     .each = launch_project_entry, .context_bytess = &projects);
     // the projects in order, each by where it starts among those found
     const unsigned int count = mmgr_line_ok(&projects.found) ? projects.count : 0u;
     const char **const found =
@@ -103,41 +108,54 @@ void cli_servers_projects_in(const char *root, const char *name, VerbaLinea *out
     {
         const char *const swap = found[at];
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(found[place - 1u], swap) > 0))
+        while ((place > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = found[place - 1u],
+                                           .other_pointer = swap) > 0))
         {
             found[place] = found[place - 1u];
             place -= 1u;
         }
         found[place] = swap;
     }
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     for (unsigned int at = 0u; at < listed; at += 1u)
     {
-        mmgr_line_put(out, (at > 0u) ? "," : "");
-        cli_json_quoted_lossy(out, (const unsigned char *)found[at],
-                              cellul.len(&(CatenaFinitaCfg){.src = found[at], .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(args->out, (at > 0u) ? "," : "");
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+                   .text_bytes = (const unsigned char *)found[at],
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = found[at], .cap = CLI_CELLS_POOL}));
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
     g_cli_cells->persistent_buf_release(found, &g_cli_servers_launch_cells);
     g_cli_cells->persistent_buf_release(projects.found.out, &g_cli_servers_launch_cells);
 }
 
-// the options a server starts with: the projects it is given, then what the tree adds, `null` where neither is
-static void launch_options(const char *root, const CliServerSpec *spec, VerbaLinea *out)
+typedef struct
 {
-    const char *const added = cli_trust_blocked(root) ? spec->blocked_args : spec->trusted;
+    const char *root;
+    const CliServerSpec *spec;
+    VerbaLinea *out;
+} ServersLaunchCtx;
+// the options a server starts with: the projects it is given, then what the tree adds, `null` where neither is
+EMBED_INLINE void launch_options(const ServersLaunchCtx *args)
+{
+    const char *root = args->root;
+    VerbaLinea *out = args->out;
+    const char *const added = EMBED_CALL(cli_trust_tree_words.block, CliTrustTreeWordsCfg, .tree = root)
+                                  ? args->spec->blocked_args
+                                  : args->spec->trusted;
     const int adds = (added[0] == '{');
-    if ((spec->projects[0] == '\0') && !adds)
+    if ((args->spec->projects[0] == '\0') && !adds)
     {
         mmgr_line_put(out, "null");
         return;
     }
     mmgr_line_ch(out, '{');
     int members = 0;
-    if (spec->projects[0] != '\0')
+    if (args->spec->projects[0] != '\0')
     {
         mmgr_line_put(out, "\"linkedProjects\":");
-        cli_servers_projects_in(root, spec->projects, out);
+        EMBED_CALL(cli_servers_root_out_internal.projects_in, CliServersRootOutCtx, .root = root,
+                   .name = args->spec->projects, .out = out);
         members = 1;
     }
     if (adds)
@@ -147,7 +165,8 @@ static void launch_options(const char *root, const CliServerSpec *spec, VerbaLin
         to -= ((to > 1u) && (added[to - 1u] == '}')) ? 1u : 0u;
         unsigned long long inner_from = 0ull;
         unsigned long long inner_to = 0ull;
-        cli_text_trimmed(added + from, to - from, &inner_from, &inner_to);
+        EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = added + from, .size = to - from,
+                   .from_u64s = &inner_from, .to_u64s = &inner_to);
         if (inner_to > inner_from)
         {
             mmgr_line_put(out, members ? "," : "");
@@ -157,13 +176,18 @@ static void launch_options(const char *root, const CliServerSpec *spec, VerbaLin
     mmgr_line_ch(out, '}');
 }
 
-CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const CliServersSink *sink, VerbaLinea *err_msg)
+CliLsp *cli_servers_launch(const CliServersRootCtx *args)
 {
+    const char *root = args->root;
+    VerbaLinea *err_msg = args->err_msg;
     CliJson manifest_json;
-    const unsigned int manifest = cli_toolchains_manifest(&manifest_json, 0u, 0ull);
+    const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    const unsigned int tool = cli_toolchains_tool(&manifest_json, manifest, spec->tool, &ignored);
+    const unsigned int tool =
+        EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &manifest_json,
+                   .manifest = manifest, .id = args->spec_read->tool, .err_msg = &ignored);
     CliServersLaunching *const launching =
         g_cli_cells->temporary_buf_alloc(sizeof(*launching), &g_cli_servers_launch_cells);
     if (launching != NULL)
@@ -174,45 +198,53 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
     {
         unsigned int count = 0u;
         char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_servers_launch_cells);
-        cli_toolchains_find(&manifest_json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &launching->found);
+        EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = tool,
+                   .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count,
+                   .found = &launching->found);
         g_cli_cells->persistent_buf_release(folders, &g_cli_servers_launch_cells);
     }
-    cli_json_given(&manifest_json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &manifest_json);
     if (launching == NULL)
     {
         mmgr_line_put(err_msg, "the cells cannot meet what ");
-        mmgr_line_put(err_msg, spec->program);
+        mmgr_line_put(err_msg, args->spec_read->program);
         mmgr_line_put(err_msg, " is started with");
         return NULL;
     }
     char program[CLI_PATH_MAX_LEN];
-    const char *const names[1] = {spec->program};
-    if ((launching->found.folder[0] == '\0') || !cli_toolchains_program_in(launching->found.folder, names, 1u, program))
+    const char *const names[1] = {args->spec_read->program};
+    if ((launching->found.folder[0] == '\0') ||
+        !EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = launching->found.folder, .names = names,
+                    .count = 1u, .path = program))
     {
-        mmgr_line_put(err_msg, spec->program);
+        mmgr_line_put(err_msg, args->spec_read->program);
         mmgr_line_put(err_msg, " is not found: File, Toolchains opens ");
-        mmgr_line_put(err_msg, spec->name);
+        mmgr_line_put(err_msg, args->spec_read->name);
         mmgr_line_put(err_msg, "'s install page or takes its folder");
         g_cli_cells->persistent_buf_release(launching, &g_cli_servers_launch_cells);
         return NULL;
     }
     char *const options_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_OPTIONS_ROOM, &g_cli_servers_launch_cells);
     VerbaLinea options = mmgr_line_over(options_cell, CLI_SERVERS_OPTIONS_ROOM);
-    launch_options(root, spec, &options);
+    EMBED_CALL(launch_options, ServersLaunchCtx, .root = root, .spec = args->spec_read, .out = &options);
     CliWords *const words = &launching->words;
     words->count = 0u;
     words->used = 0u;
     words->full = 0;
-    for (unsigned int at = 0u; at < spec->args; at += 1u)
+    for (unsigned int at = 0u; at < args->spec_read->args; at += 1u)
     {
-        cli_words_put(words, spec->arg[at]);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word = args->spec_read->arg[at]);
     }
-    cli_toolchains_run_path(launching->path, sizeof(launching->path));
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = launching->path,
+               .size = sizeof(launching->path));
     const CliVsEnvironment *vs = NULL;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = spec->program, .other = "clangd", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->spec_read->program, .other = "clangd", .cap = CLI_CELLS_POOL}))
     {
-        (void)cli_compile_db_refresh(root, &launching->database);
-        cli_compile_db_words(&launching->database, words);
+        (void)EMBED_CALL(cli_compile_db_root_database.refresh, CliCompileDbRootDatabaseCfg, .root = root,
+                         .database = &launching->database);
+        EMBED_CALL(cli_compile_db_database.words, CliCompileDbDatabaseCfg, .database_read = &launching->database,
+                   .words = words);
         vs = launching->database.msvc ? cli_compile_db_vs_environment() : NULL;
     }
     // the settings of the server's environment, the PATH and Visual Studio's where one is cl, in a cell of their count
@@ -231,7 +263,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
         const unsigned long long named = cellul.len(&(CatenaFinitaCfg){.src = vs->name[at], .cap = CLI_CELLS_POOL});
         const unsigned long long copied = (named < 7ull) ? named : 7ull;
         memor.cpy(&(MemoriaCfg){.dst = upper, .src = vs->name[at], .bytes = (size_t)copied});
-        cli_text_raised(upper, copied);
+        EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = upper, .size = copied);
         if ((cellul.len(&(CatenaFinitaCfg){.src = vs->name[at], .cap = CLI_CELLS_POOL}) == 4u) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = upper, .other = "PATH", .cap = CLI_CELLS_POOL})))
         {
@@ -253,7 +285,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
     }
     CliServersSink *const server_sink = &s_server_sinks[s_server_sink_next % 64u];
     s_server_sink_next += 1u;
-    *server_sink = *sink;
+    *server_sink = *args->sink;
     char why[1024];
     VerbaLinea reason = {why, sizeof(why), 0ull};
     const int met = (setting != NULL) && mmgr_line_ok(&options);
@@ -261,23 +293,26 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
     {
         mmgr_line_put(&reason, "the cells cannot meet its options or its environment");
     }
-    CliLsp *const server = met ? cli_lsp_started(program, words->word, words->count, root, options.out, options.at,
-                                                 setting, settings, cli_servers_recv, server_sink, &reason)
-                               : NULL;
+    CliLsp *const server =
+        met ? EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .program = program, .request = words->word,
+                         .count = words->count, .root = root, .options = options.out, .length = options.at,
+                         .settings = setting, .setting_count = settings, .recv = cli_servers_recv,
+                         .context = server_sink, .err_msg = &reason)
+            : NULL;
     g_cli_cells->persistent_buf_release(vs_path, &g_cli_servers_launch_cells);
     g_cli_cells->persistent_buf_release(setting, &g_cli_servers_launch_cells);
     g_cli_cells->persistent_buf_release(options.out, &g_cli_servers_launch_cells);
     g_cli_cells->persistent_buf_release(launching, &g_cli_servers_launch_cells);
     if (server == NULL)
     {
-        mmgr_line_put(err_msg, spec->program);
+        mmgr_line_put(err_msg, args->spec_read->program);
         mmgr_line_put(err_msg, " did not start");
-        if (spec->setup[0] != '\0')
+        if (args->spec_read->setup[0] != '\0')
         {
             mmgr_line_put(err_msg, " (");
             mmgr_line_put_n(err_msg, why, reason.at);
             mmgr_line_put(err_msg, "): ");
-            mmgr_line_put(err_msg, spec->setup);
+            mmgr_line_put(err_msg, args->spec_read->setup);
             mmgr_line_put(err_msg, " installs it");
         }
         else

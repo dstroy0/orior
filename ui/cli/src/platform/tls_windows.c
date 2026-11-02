@@ -14,11 +14,7 @@
 #include <schannel.h>
 #include <security.h>
 
-// the bytes of what came and is not yet opened a session buffers through its handshake, whose tokens have no bound the
-// protocol sets; once the handshake gives the session's largest record, what came, what is opened and what is sealed
-// to go are each stored in a cell of one record
-#define CLI_SEALED_BYTES (1u << 17u)
-
+#if (defined(_WIN32))
 struct CliTls
 {
     int used;
@@ -36,58 +32,74 @@ struct CliTls
     unsigned long long message_room;
     int ended;
 };
+#endif
+// the bytes of what came and is not yet opened a session buffers through its handshake, whose tokens have no bound the
+// protocol sets; once the handshake gives the session's largest record, what came, what is opened and what is sealed
+// to go are each stored in a cell of one record
+#define CLI_SEALED_BYTES (1u << 17u)
 
 static CliTls s_sessions[CLI_TLS_MOST];
 static CliLock s_lock = CLI_LOCK_INIT;
 
+typedef struct
+{
+#if (defined(_WIN32))
+    VerbaLinea *err_msg;
+    SECURITY_STATUS status;
+    CliTls *tls;
+    unsigned long extra_len;
+    const char *host;
+#endif
+} TlsWindowsCtx;
 // What a status Schannel gives means, in words where it is one a reader meets
-static void cli_status_err_written(VerbaLinea *err_msg, SECURITY_STATUS status)
+EMBED_INLINE void cli_status_err_write(const TlsWindowsCtx *args)
 {
     // a status is read as its bit pattern
-    const unsigned long code = (unsigned long)status;
-    mmgr_line_put(err_msg, "TLS: ");
-    mmgr_line_put(err_msg, (code == 0x80090325ul)
-                               ? "the server's certificate is not signed by a root this system trusts"
-                           : (code == 0x80090322ul) ? "the server's certificate names another host"
-                           : (code == 0x80090328ul) ? "the server's certificate has expired"
-                           : (code == 0x80090331ul) ? "the server and this system share no TLS version or cipher"
-                           : (code == 0x80090326ul) ? "the server sent a message TLS does not allow"
-                           : (code == 0x80090327ul) ? "the server's certificate could not be read"
-                                                    : "Schannel reported 0x");
+    const unsigned long code = (unsigned long)args->status;
+    mmgr_line_put(args->err_msg, "TLS: ");
+    mmgr_line_put(args->err_msg, (code == 0x80090325ul)
+                                     ? "the server's certificate is not signed by a root this system trusts"
+                                 : (code == 0x80090322ul) ? "the server's certificate names another host"
+                                 : (code == 0x80090328ul) ? "the server's certificate has expired"
+                                 : (code == 0x80090331ul) ? "the server and this system share no TLS version or cipher"
+                                 : (code == 0x80090326ul) ? "the server sent a message TLS does not allow"
+                                 : (code == 0x80090327ul) ? "the server's certificate could not be read"
+                                                          : "Schannel reported 0x");
     if ((code != 0x80090325ul) && (code != 0x80090322ul) && (code != 0x80090328ul) && (code != 0x80090331ul) &&
         (code != 0x80090326ul) && (code != 0x80090327ul))
     {
-        mmgr_line_hex(err_msg, code, 8u);
+        mmgr_line_hex(args->err_msg, code, 8u);
     }
 }
 
 // more of what came read onto the sealed bytes: the count, 0 where the peer closed or there is no room
-static long long cli_fill(CliTls *tls)
+EMBED_INLINE long long cli_fill(const TlsWindowsCtx *args)
 {
-    const long long read =
-        cli_socket_some(tls->socket, tls->sealed + tls->sealed_size, tls->sealed_room - tls->sealed_size);
+    const long long read = EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = args->tls->socket,
+                                      .bytes_out = args->tls->sealed + args->tls->sealed_size,
+                                      .room = args->tls->sealed_room - args->tls->sealed_size);
     // a count read is below the room, which an unsigned long counts
-    tls->sealed_size += (read > 0ll) ? (unsigned long)read : 0ul;
+    args->tls->sealed_size += (read > 0ll) ? (unsigned long)read : 0ul;
     return read;
 }
 
 // the last `extra_len` sealed bytes moved to the front, the rest let go
-static void cli_extra_saved(CliTls *tls, unsigned long extra_len)
+EMBED_INLINE void cli_extra_save(const TlsWindowsCtx *args)
 {
-    const unsigned long from = tls->sealed_size - extra_len;
-    for (unsigned long at = 0ul; at < extra_len; at += 1ul)
+    const unsigned long from = args->tls->sealed_size - args->extra_len;
+    for (unsigned long at = 0ul; at < args->extra_len; at += 1ul)
     {
-        tls->sealed[at] = tls->sealed[from + at];
+        args->tls->sealed[at] = args->tls->sealed[from + at];
     }
-    tls->sealed_size = extra_len;
+    args->tls->sealed_size = args->extra_len;
 }
 
-static int cli_handshake(CliTls *tls, const char *host, VerbaLinea *err_msg)
+EMBED_INLINE int cli_handshake(const TlsWindowsCtx *args)
 {
     wchar_t target[CLI_PATH_MAX_LEN];
-    if (MultiByteToWideChar(CP_UTF8, 0, host, -1, target, CLI_PATH_MAX_LEN) == 0)
+    if (MultiByteToWideChar(CP_UTF8, 0, args->host, -1, target, CLI_PATH_MAX_LEN) == 0)
     {
-        mmgr_line_put(err_msg, "TLS: the host's name is too long");
+        mmgr_line_put(args->err_msg, "TLS: the host's name is too long");
         return 0;
     }
     const unsigned long wanted = ISC_REQ_SEQUENCE_DETECT | ISC_REQ_REPLAY_DETECT | ISC_REQ_CONFIDENTIALITY |
@@ -95,30 +107,33 @@ static int cli_handshake(CliTls *tls, const char *host, VerbaLinea *err_msg)
     int first = 1;
     for (;;)
     {
-        SecBuffer input[2] = {{tls->sealed_size, SECBUFFER_TOKEN, tls->sealed}, {0ul, SECBUFFER_EMPTY, NULL}};
+        SecBuffer input[2] = {{args->tls->sealed_size, SECBUFFER_TOKEN, args->tls->sealed},
+                              {0ul, SECBUFFER_EMPTY, NULL}};
         SecBuffer output[1] = {{0ul, SECBUFFER_TOKEN, NULL}};
         SecBufferDesc input_list = {SECBUFFER_VERSION, 2ul, input};
         SecBufferDesc output_list = {SECBUFFER_VERSION, 1ul, output};
         unsigned long given = 0ul;
-        const SECURITY_STATUS status =
-            InitializeSecurityContextW(&tls->credential, first ? NULL : &tls->context, target, wanted, 0ul, 0ul,
-                                       first ? NULL : &input_list, 0ul, &tls->context, &output_list, &given, NULL);
+        const SECURITY_STATUS status = InitializeSecurityContextW(
+            &args->tls->credential, first ? NULL : &args->tls->context, target, wanted, 0ul, 0ul,
+            first ? NULL : &input_list, 0ul, &args->tls->context, &output_list, &given, NULL);
         first = 0;
         if (output[0].pvBuffer != NULL)
         {
             const int sent =
-                (output[0].cbBuffer == 0ul) || cli_socket_written(tls->socket, output[0].pvBuffer, output[0].cbBuffer);
+                (output[0].cbBuffer == 0ul) ||
+                EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->tls->socket,
+                           .bytes = output[0].pvBuffer, .size = output[0].cbBuffer);
             FreeContextBuffer(output[0].pvBuffer);
             if (!sent)
             {
-                mmgr_line_put(err_msg, "TLS: the server could not be written to in the handshake");
+                mmgr_line_put(args->err_msg, "TLS: the server could not be written to in the handshake");
                 return 0;
             }
         }
         const unsigned long extra = (input[1].BufferType == SECBUFFER_EXTRA) ? input[1].cbBuffer : 0ul;
         if (status == SEC_E_OK)
         {
-            cli_extra_saved(tls, extra);
+            EMBED_CALL(cli_extra_save, TlsWindowsCtx, .tls = args->tls, .extra_len = extra);
             return 1;
         }
         if (status == SEC_I_INCOMPLETE_CREDENTIALS)
@@ -129,45 +144,47 @@ static int cli_handshake(CliTls *tls, const char *host, VerbaLinea *err_msg)
         {
             if (status == SEC_I_CONTINUE_NEEDED)
             {
-                cli_extra_saved(tls, extra);
+                EMBED_CALL(cli_extra_save, TlsWindowsCtx, .tls = args->tls, .extra_len = extra);
             }
-            if (((status == SEC_E_INCOMPLETE_MESSAGE) || (tls->sealed_size == 0ul)) && (cli_fill(tls) <= 0ll))
+            if (((status == SEC_E_INCOMPLETE_MESSAGE) || (args->tls->sealed_size == 0ul)) && (cli_fill(args) <= 0ll))
             {
-                mmgr_line_put(err_msg, "TLS: the server closed the connection in the handshake");
+                mmgr_line_put(args->err_msg, "TLS: the server closed the connection in the handshake");
                 return 0;
             }
             continue;
         }
-        cli_status_err_written(err_msg, status);
+        EMBED_CALL(cli_status_err_write, TlsWindowsCtx, .err_msg = args->err_msg, .status = status);
         return 0;
     }
 }
 
 // the session's cells sized to its largest record once the handshake gives it, what came past the handshake retained:
 // 1, or 0 where a cell is refused
-static int cli_records_reserved(CliTls *tls)
+EMBED_INLINE int cli_records_reserve(const TlsWindowsCtx *args)
 {
-    const unsigned long record = tls->sizes.cbHeader + tls->sizes.cbMaximumMessage + tls->sizes.cbTrailer;
-    const unsigned long sealed_room = (record > tls->sealed_size) ? record : tls->sealed_size;
+    const unsigned long record =
+        args->tls->sizes.cbHeader + args->tls->sizes.cbMaximumMessage + args->tls->sizes.cbTrailer;
+    const unsigned long sealed_room = (record > args->tls->sealed_size) ? record : args->tls->sealed_size;
     unsigned char *const sealed = g_cli_cells->persistent_buf_alloc(sealed_room, &g_cli_tls_cells);
-    tls->plain = g_cli_cells->persistent_buf_alloc(tls->sizes.cbMaximumMessage, &g_cli_tls_cells);
-    tls->plain_room = (tls->plain != NULL) ? tls->sizes.cbMaximumMessage : 0ull;
-    tls->message = g_cli_cells->persistent_buf_alloc(record, &g_cli_tls_cells);
-    tls->message_room = (tls->message != NULL) ? record : 0ull;
+    args->tls->plain = g_cli_cells->persistent_buf_alloc(args->tls->sizes.cbMaximumMessage, &g_cli_tls_cells);
+    args->tls->plain_room = (args->tls->plain != NULL) ? args->tls->sizes.cbMaximumMessage : 0ull;
+    args->tls->message = g_cli_cells->persistent_buf_alloc(record, &g_cli_tls_cells);
+    args->tls->message_room = (args->tls->message != NULL) ? record : 0ull;
     if (sealed == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = sealed, .src = tls->sealed, .bytes = tls->sealed_size});
-    g_cli_cells->persistent_buf_release(tls->sealed, &g_cli_tls_cells);
-    tls->sealed = sealed;
-    tls->sealed_room = sealed_room;
-    return (tls->plain != NULL) && (tls->message != NULL);
+    memor.cpy(&(MemoriaCfg){.dst = sealed, .src = args->tls->sealed, .bytes = args->tls->sealed_size});
+    g_cli_cells->persistent_buf_release(args->tls->sealed, &g_cli_tls_cells);
+    args->tls->sealed = sealed;
+    args->tls->sealed_room = sealed_room;
+    return (args->tls->plain != NULL) && (args->tls->message != NULL);
 }
 
-CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLinea *err_msg)
+CliTls *cli_tls_connect(const CliTlsCfg *args)
 {
-    cli_lock_take(&s_lock);
+    CliSocket *socket = args->socket;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliTls *tls = NULL;
     for (unsigned int at = 0u; (tls == NULL) && (at < CLI_TLS_MOST); at += 1u)
     {
@@ -177,10 +194,10 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLi
     {
         tls->used = 1;
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (tls == NULL)
     {
-        mmgr_line_put(err_msg, "TLS: more sessions are open than orior_cli supports");
+        mmgr_line_put(args->err_msg, "TLS: more sessions are open than orior_cli supports");
         return NULL;
     }
     tls->socket = socket;
@@ -193,12 +210,12 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLi
     memor.set(&(MemoriaCfg){.dst = &credentials, .val = 0, .bytes = sizeof(credentials)});
     credentials.dwVersion = SCHANNEL_CRED_VERSION;
     credentials.dwFlags = SCH_CRED_NO_DEFAULT_CREDS | SCH_USE_STRONG_CRYPTO |
-                          (verify ? SCH_CRED_AUTO_CRED_VALIDATION : SCH_CRED_MANUAL_CRED_VALIDATION);
+                          (args->verify ? SCH_CRED_AUTO_CRED_VALIDATION : SCH_CRED_MANUAL_CRED_VALIDATION);
     SECURITY_STATUS status = AcquireCredentialsHandleW(NULL, (LPWSTR)UNISP_NAME_W, SECPKG_CRED_OUTBOUND, NULL,
                                                        &credentials, NULL, NULL, &tls->credential, NULL);
     if (status != SEC_E_OK)
     {
-        cli_status_err_written(err_msg, status);
+        EMBED_CALL(cli_status_err_write, TlsWindowsCtx, .err_msg = args->err_msg, .status = status);
         tls->used = 0;
         return NULL;
     }
@@ -206,166 +223,167 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLi
     if (tls->sealed == NULL)
     {
         tls->sealed_room = 0ul;
-        mmgr_line_put(err_msg, "TLS: the handshake could not be stored");
-        cli_tls_closed(tls);
+        mmgr_line_put(args->err_msg, "TLS: the handshake could not be stored");
+        EMBED_CALL(cli_tls_out.close, CliTlsOutCfg, .tls = tls);
         return NULL;
     }
     tls->sealed_room = CLI_SEALED_BYTES;
-    if (!cli_handshake(tls, host, err_msg))
+    if (!EMBED_CALL(cli_handshake, TlsWindowsCtx, .tls = tls, .host = args->host, .err_msg = args->err_msg))
     {
-        cli_tls_closed(tls);
+        EMBED_CALL(cli_tls_out.close, CliTlsOutCfg, .tls = tls);
         return NULL;
     }
     status = QueryContextAttributesW(&tls->context, SECPKG_ATTR_STREAM_SIZES, &tls->sizes);
     if (status != SEC_E_OK)
     {
-        cli_status_err_written(err_msg, status);
-        cli_tls_closed(tls);
+        EMBED_CALL(cli_status_err_write, TlsWindowsCtx, .err_msg = args->err_msg, .status = status);
+        EMBED_CALL(cli_tls_out.close, CliTlsOutCfg, .tls = tls);
         return NULL;
     }
-    if (!cli_records_reserved(tls))
+    if (!EMBED_CALL(cli_records_reserve, TlsWindowsCtx, .tls = tls))
     {
-        mmgr_line_put(err_msg, "TLS: the session's records could not be stored");
-        cli_tls_closed(tls);
+        mmgr_line_put(args->err_msg, "TLS: the session's records could not be stored");
+        EMBED_CALL(cli_tls_out.close, CliTlsOutCfg, .tls = tls);
         return NULL;
     }
     return tls;
 }
 
-long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, VerbaLinea *err_msg)
+long long cli_tls_read(const CliTlsOutCfg *args)
 {
-    while ((tls->plain_size == 0ull) && !tls->ended)
+    while ((args->tls->plain_size == 0ull) && !args->tls->ended)
     {
-        if (tls->sealed_size == 0ul)
+        if (args->tls->sealed_size == 0ul)
         {
-            const long long read = cli_fill(tls);
+            const long long read = EMBED_CALL(cli_fill, TlsWindowsCtx, .tls = args->tls);
             if (read == CLI_SOCKET_WAITED)
             {
                 return CLI_SOCKET_WAITED;
             }
             if (read <= 0ll)
             {
-                tls->ended = 1;
+                args->tls->ended = 1;
                 break;
             }
         }
-        SecBuffer buffers[4] = {{tls->sealed_size, SECBUFFER_DATA, tls->sealed},
+        SecBuffer buffers[4] = {{args->tls->sealed_size, SECBUFFER_DATA, args->tls->sealed},
                                 {0ul, SECBUFFER_EMPTY, NULL},
                                 {0ul, SECBUFFER_EMPTY, NULL},
                                 {0ul, SECBUFFER_EMPTY, NULL}};
         SecBufferDesc list = {SECBUFFER_VERSION, 4ul, buffers};
-        const SECURITY_STATUS status = DecryptMessage(&tls->context, &list, 0ul, NULL);
+        const SECURITY_STATUS status = DecryptMessage(&args->tls->context, &list, 0ul, NULL);
         if ((status == SEC_E_OK) || (status == SEC_I_RENEGOTIATE))
         {
             unsigned long extra = 0ul;
             for (unsigned int at = 0u; at < 4u; at += 1u)
             {
                 if ((buffers[at].BufferType == SECBUFFER_DATA) && (buffers[at].cbBuffer > 0ul) &&
-                    ((tls->plain_size + buffers[at].cbBuffer) <= tls->plain_room))
+                    ((args->tls->plain_size + buffers[at].cbBuffer) <= args->tls->plain_room))
                 {
-                    memor.cpy(&(MemoriaCfg){.dst = tls->plain + tls->plain_size,
+                    memor.cpy(&(MemoriaCfg){.dst = args->tls->plain + args->tls->plain_size,
                                             .src = buffers[at].pvBuffer,
                                             .bytes = buffers[at].cbBuffer});
-                    tls->plain_size += buffers[at].cbBuffer;
+                    args->tls->plain_size += buffers[at].cbBuffer;
                 }
                 extra = ((buffers[at].BufferType == SECBUFFER_EXTRA) && (extra == 0ul)) ? buffers[at].cbBuffer : extra;
             }
-            cli_extra_saved(tls, extra);
-            if ((status == SEC_I_RENEGOTIATE) && (tls->plain_size == 0ull))
+            EMBED_CALL(cli_extra_save, TlsWindowsCtx, .tls = args->tls, .extra_len = extra);
+            if ((status == SEC_I_RENEGOTIATE) && (args->tls->plain_size == 0ull))
             {
-                mmgr_line_put(err_msg, "TLS: the server requested to renegotiate");
+                mmgr_line_put(args->err_msg, "TLS: the server requested to renegotiate");
                 return CLI_SOCKET_FAILED;
             }
         }
         else if (status == SEC_E_INCOMPLETE_MESSAGE)
         {
-            const long long read = cli_fill(tls);
+            const long long read = EMBED_CALL(cli_fill, TlsWindowsCtx, .tls = args->tls);
             if (read == CLI_SOCKET_WAITED)
             {
                 return CLI_SOCKET_WAITED;
             }
-            tls->ended = read <= 0ll;
+            args->tls->ended = read <= 0ll;
         }
         else if (status == SEC_I_CONTEXT_EXPIRED)
         {
-            tls->ended = 1;
+            args->tls->ended = 1;
         }
         else
         {
-            cli_status_err_written(err_msg, status);
+            EMBED_CALL(cli_status_err_write, TlsWindowsCtx, .err_msg = args->err_msg, .status = status);
             return CLI_SOCKET_FAILED;
         }
     }
-    const unsigned long long taken = (room < tls->plain_size) ? room : tls->plain_size;
-    memor.cpy(&(MemoriaCfg){.dst = out, .src = tls->plain, .bytes = taken});
-    for (unsigned long long at = taken; at < tls->plain_size; at += 1ull)
+    const unsigned long long taken = (args->room < args->tls->plain_size) ? args->room : args->tls->plain_size;
+    memor.cpy(&(MemoriaCfg){.dst = args->out, .src = args->tls->plain, .bytes = taken});
+    for (unsigned long long at = taken; at < args->tls->plain_size; at += 1ull)
     {
-        tls->plain[at - taken] = tls->plain[at];
+        args->tls->plain[at - taken] = args->tls->plain[at];
     }
-    tls->plain_size -= taken;
+    args->tls->plain_size -= taken;
     // a count opened is below the room a session has
     return (long long)taken;
 }
 
-long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, VerbaLinea *err_msg)
+long long cli_tls_write(const CliTlsDataCfg *args)
 {
     static CliLock s_writing = CLI_LOCK_INIT;
-    const unsigned long header = tls->sizes.cbHeader;
-    const unsigned long trailer = tls->sizes.cbTrailer;
-    const unsigned long most = tls->sizes.cbMaximumMessage;
-    const unsigned long part = (size < most) ? (unsigned long)size : most;
-    if ((header + part + trailer) > tls->message_room)
+    const unsigned long header = args->tls->sizes.cbHeader;
+    const unsigned long trailer = args->tls->sizes.cbTrailer;
+    const unsigned long most = args->tls->sizes.cbMaximumMessage;
+    const unsigned long part = (args->size < most) ? (unsigned long)args->size : most;
+    if ((header + part + trailer) > args->tls->message_room)
     {
-        mmgr_line_put(err_msg, "TLS: a record is larger than orior_cli seals");
+        mmgr_line_put(args->err_msg, "TLS: a record is larger than orior_cli seals");
         return CLI_SOCKET_FAILED;
     }
-    unsigned char *const message = tls->message;
-    cli_lock_take(&s_writing);
-    memor.cpy(&(MemoriaCfg){.dst = message + header, .src = data, .bytes = part});
+    unsigned char *const message = args->tls->message;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_writing);
+    memor.cpy(&(MemoriaCfg){.dst = message + header, .src = args->data, .bytes = part});
     SecBuffer buffers[4] = {{header, SECBUFFER_STREAM_HEADER, message},
                             {part, SECBUFFER_DATA, message + header},
                             {trailer, SECBUFFER_STREAM_TRAILER, message + header + part},
                             {0ul, SECBUFFER_EMPTY, NULL}};
     SecBufferDesc list = {SECBUFFER_VERSION, 4ul, buffers};
-    const SECURITY_STATUS status = EncryptMessage(&tls->context, 0ul, &list, 0ul);
-    const int sent = (status == SEC_E_OK) && cli_socket_written(tls->socket, message,
-                                                                (unsigned long long)buffers[0].cbBuffer +
-                                                                    buffers[1].cbBuffer + buffers[2].cbBuffer);
-    cli_lock_give(&s_writing);
+    const SECURITY_STATUS status = EncryptMessage(&args->tls->context, 0ul, &list, 0ul);
+    const int sent =
+        (status == SEC_E_OK) &&
+        EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->tls->socket, .bytes = message,
+                   .size = (unsigned long long)buffers[0].cbBuffer + buffers[1].cbBuffer + buffers[2].cbBuffer);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_writing);
     if (status != SEC_E_OK)
     {
-        cli_status_err_written(err_msg, status);
+        EMBED_CALL(cli_status_err_write, TlsWindowsCtx, .err_msg = args->err_msg, .status = status);
         return CLI_SOCKET_FAILED;
     }
     if (!sent)
     {
-        mmgr_line_put(err_msg, "TLS: the server could not be written to");
+        mmgr_line_put(args->err_msg, "TLS: the server could not be written to");
         return CLI_SOCKET_FAILED;
     }
     return (long long)part;
 }
 
-void cli_tls_closed(CliTls *tls)
+void cli_tls_close(const CliTlsOutCfg *args)
 {
-    DeleteSecurityContext(&tls->context);
-    FreeCredentialsHandle(&tls->credential);
+    DeleteSecurityContext(&args->tls->context);
+    FreeCredentialsHandle(&args->tls->credential);
     // what came and went in the clear, which the pool would leave as it is
-    if (tls->plain != NULL)
+    if (args->tls->plain != NULL)
     {
-        mmgr_zero_buf(tls->plain, tls->plain_room);
+        mmgr_zero_buf(args->tls->plain, args->tls->plain_room);
     }
-    if (tls->message != NULL)
+    if (args->tls->message != NULL)
     {
-        mmgr_zero_buf(tls->message, tls->message_room);
+        mmgr_zero_buf(args->tls->message, args->tls->message_room);
     }
-    g_cli_cells->persistent_buf_release(tls->sealed, &g_cli_tls_cells);
-    g_cli_cells->persistent_buf_release(tls->plain, &g_cli_tls_cells);
-    g_cli_cells->persistent_buf_release(tls->message, &g_cli_tls_cells);
-    tls->sealed = NULL;
-    tls->plain = NULL;
-    tls->message = NULL;
-    cli_lock_take(&s_lock);
-    tls->used = 0;
-    cli_lock_give(&s_lock);
+    g_cli_cells->persistent_buf_release(args->tls->sealed, &g_cli_tls_cells);
+    g_cli_cells->persistent_buf_release(args->tls->plain, &g_cli_tls_cells);
+    g_cli_cells->persistent_buf_release(args->tls->message, &g_cli_tls_cells);
+    args->tls->sealed = NULL;
+    args->tls->plain = NULL;
+    args->tls->message = NULL;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    args->tls->used = 0;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 #endif

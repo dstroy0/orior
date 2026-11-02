@@ -4,10 +4,25 @@
 // reads into under its lock, and the code, the prover's messages and the findings
 #ifndef VALIDATE_INTERNAL_H
 #define VALIDATE_INTERNAL_H
+typedef struct CliValidateProgramCtx CliValidateProgramCtx;
+typedef struct CliValidateTextCtx CliValidateTextCtx;
+typedef struct CliValidateTextSizeCtx CliValidateTextSizeCtx;
+typedef struct CliValidateErrMsgCtx CliValidateErrMsgCtx;
+typedef struct CliValidateLengthCtx CliValidateLengthCtx;
+typedef struct CliValidateJsonCtx CliValidateJsonCtx;
+typedef struct CliValidateTextLengthCtx CliValidateTextLengthCtx;
+typedef struct CliValidateSizeCtx CliValidateSizeCtx;
+typedef struct CliValidateProjectCtx CliValidateProjectCtx;
+typedef struct CliValidateAnswersCtx CliValidateAnswersCtx;
+typedef struct CliValidateMessagesCtx CliValidateMessagesCtx;
+typedef struct CliValidateCtx CliValidateCtx;
+typedef struct CliValidateAtCtx CliValidateAtCtx;
+typedef struct CliValidateIdCtx CliValidateIdCtx;
 
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
+#include "embed_dispatch_layout.h"
 #include "validate.h"
 
 // the most nodes and bytes of a tool's plugin.json, barriers and flags a tool has, bytes of a file validated and of its
@@ -186,23 +201,23 @@ typedef struct
 // the room, a cell taken with the validation's lock and given back with it; and the lock taken with the room: 1, or 0
 // with the lock given back where the cells cannot meet it; and the room given back with the lock (validate.c)
 extern CliValidateRoom *g_cli_validate;
-int cli_validate_locked(void);
-void cli_validate_released(void);
+int cli_validate_lock(void);
+void cli_validate_release(void);
 
 // whether the JSON array `array` contains the string of `length` bytes `text`; and whether `length` bytes of `text`
 // contain `part` (validate_tool.c)
-int cli_validate_in_array(const CliJson *json, unsigned int array, const char *text, unsigned long long length);
-int cli_validate_contains(const char *text, unsigned long long length, const char *part);
+int cli_validate_in_array(const CliValidateJsonCtx *args);
+int cli_validate_contains(const CliValidateTextLengthCtx *args);
 // the tool plugin `id` read into the room's tool: 1, or 0 where no tool plugin is of that id
-int cli_validate_tool_read(const char *id);
+int cli_validate_tool_read(const CliValidateIdCtx *args);
 
 // `size` bytes of text with their comments and strings blanked, every letter preserved in its place as one, so that
 // each word found in it is a word of the code, into the room's code: 1, or 0 where it is larger than the room fits;
 // each word of the code with its line and column into the room's words; the full name of each theorem the code
 // declares, with the namespaces open where it is declared, into the room's theorems; and each use of a flagged word, as
 // a word or the last part of a dotted name, `@` before it or not, a finding (validate_code.c)
-int cli_validate_code_of(const char *text, unsigned long long size);
-void cli_validate_words_of(void);
+int cli_validate_code_get(const CliValidateTextCtx *args);
+void cli_validate_words_get(void);
 void cli_validate_theorems_in(void);
 void cli_validate_flags_in(void);
 
@@ -210,46 +225,274 @@ void cli_validate_flags_in(void);
 // one, into `messages`; the barrier a message shows stopped the check, by its kind or its words, -1 for none; the
 // axioms a theorem rests on, from the message that answers the line requesting for them: 1 with the name's start and
 // size and the list's, 0 where the message answers none, `none` 1 where it rests on no axioms (validate_messages.c)
-void cli_validate_messages_of(const char *output, unsigned long long size, CliProverMessages *messages);
-int cli_validate_barrier_of(const CliProverMessages *messages, const CliProverMessage *message);
-int cli_validate_axioms_of(const char *text, unsigned long long size, unsigned long long *name,
-                           unsigned long long *name_size, unsigned long long *list, unsigned long long *list_size);
+void cli_validate_messages_get(const CliValidateSizeCtx *args);
+int cli_validate_barrier_get(const CliValidateMessagesCtx *args);
+int cli_validate_axioms_get(const CliValidateTextCtx *args);
 
 // the copy of `size` bytes of text that is checked, into the room's copy: each `set_option <name> <value>` of the
 // options `names`, `count` of them in the order of their names, set to its value of `values` where that is larger,
 // each change written into `changed`, "; " between them, and the lines that request each theorem's axioms after it: the
 // copy's size, or more than the room fits where it does not fit (validate_messages.c)
-unsigned long long cli_validate_copy_of(const char *text, unsigned long long size, const char *const *names,
-                                        const unsigned long long *values, unsigned int count, VerbaLinea *changed);
+unsigned long long cli_validate_copy_get(const CliValidateTextSizeCtx *args);
 
 // the limits grown, by their barriers' names in order, into `keys`, sized for CLI_VALIDATE_BARRIERS: their count
 // (validate.c)
-unsigned int cli_validate_grown_keys(unsigned int *keys);
+unsigned int cli_validate_grown_keys(const CliValidateCtx *args);
 
 // the words that run the program on `file` into `words`, the limits' settings just before the file, where the prover
 // reads its own options, the first of them at `from` and `settings` of them, and the folder they run from into `dir`,
 // sized for CLI_PATH_MAX_LEN; and one check run, taking at most the tool's patience: its output, the error stream
 // after it where it prints anything, into the room's output, the seconds it took into `seconds`, and whether it ran
 // out of time into the room. Each 1, or 0 with why given (validate_run.c)
-int cli_validate_command_for(const char *program, const char *file, const char *project, CliWords *words,
-                             unsigned int *from, unsigned int *settings, char *dir, VerbaLinea *err_msg);
-int cli_validate_checked(const CliWords *words, const char *dir, double *seconds, VerbaLinea *err_msg);
+int cli_validate_command_for(const CliValidateProgramCtx *args);
+int cli_validate_check(const CliValidateErrMsgCtx *args);
 
 // the last check's messages: each axiom answer recorded, each barrier's error passed over, and the rest the
 // mathematics, each a finding: the count of axiom answers; and each axiom a theorem rests on past those trusted
 // reported, as a finding where the proof does not stand on a gap the prover put there, the theorem's name into
 // `untrusted` (validate_axioms.c)
 unsigned int cli_validate_mathematics(void);
-void cli_validate_axioms_reported(unsigned int answers, VerbaLinea *untrusted);
+void cli_validate_axioms_report(const CliValidateAnswersCtx *args);
 
 // the first barrier of the name barrier `at` has, which stands for that name's limit (validate.c)
-unsigned int cli_validate_key_of(unsigned int at);
+unsigned int cli_validate_key_get(const CliValidateAtCtx *args);
 
 // a finding put with its message, `lifted` NULL for none; and what the checks run found, from the first check's
 // messages and the last's, the flags and the axioms, written as the report of the file `path` and its `project`, NULL
 // for none (validate_report.c)
-void cli_validate_finding_put(const CliFinding *finding, const char *message, unsigned long long length,
-                              const char *lifted);
-void cli_validate_reported(const char *path, const char *project, VerbaLinea *report);
+void cli_validate_finding_put(const CliValidateLengthCtx *args);
+void cli_validate_report(const CliValidateProjectCtx *args);
+
+struct CliValidateProgramCtx
+{
+    const char *program;
+    const char *file;
+    const char *project;
+    CliWords *words;
+    unsigned int *from;
+    unsigned int *settings;
+    char *dir;
+    VerbaLinea *err_msg;
+};
+
+struct CliValidateTextCtx
+{
+    const char *text;
+    unsigned long long size;
+    unsigned long long *name;
+    unsigned long long *name_size;
+    unsigned long long *list;
+    unsigned long long *list_size;
+};
+
+struct CliValidateTextSizeCtx
+{
+    const char *text;
+    unsigned long long size;
+    const char *const *names;
+    const unsigned long long *values;
+    unsigned int count;
+    VerbaLinea *changed;
+};
+
+struct CliValidateErrMsgCtx
+{
+    VerbaLinea *err_msg;
+    const CliWords *words_read;
+    const char *dir_read;
+    double *seconds;
+};
+
+struct CliValidateLengthCtx
+{
+    unsigned long long length;
+    const CliFinding *finding;
+    const char *message_text;
+    const char *lifted;
+};
+
+struct CliValidateJsonCtx
+{
+    const CliJson *json;
+    unsigned int array;
+    const char *text;
+    unsigned long long length;
+};
+
+struct CliValidateTextLengthCtx
+{
+    const char *text;
+    unsigned long long length;
+    const char *part;
+};
+
+struct CliValidateSizeCtx
+{
+    unsigned long long size;
+    const char *output;
+    CliProverMessages *messages;
+};
+
+struct CliValidateProjectCtx
+{
+    const char *project;
+    const char *path;
+    VerbaLinea *report;
+};
+
+struct CliValidateAnswersCtx
+{
+    unsigned int answers;
+    VerbaLinea *untrusted;
+};
+
+struct CliValidateMessagesCtx
+{
+    const CliProverMessages *messages_read;
+    const CliProverMessage *message;
+};
+
+struct CliValidateCtx
+{
+    unsigned int *keys;
+};
+
+struct CliValidateAtCtx
+{
+    unsigned int at;
+};
+
+struct CliValidateIdCtx
+{
+    const char *id;
+};
+
+typedef struct
+{
+    int (*in_array)(const CliValidateJsonCtx *args);
+} CliValidateJsonNs;
+EMBED_TABLE_LAYOUT(CliValidateJsonNs, in_array);
+EMBED_TABLE_STORAGE CliValidateJsonNs cli_validate_json_internal EMBED_UNUSED = {
+    .in_array = cli_validate_in_array,
+};
+
+typedef struct
+{
+    int (*contains)(const CliValidateTextLengthCtx *args);
+} CliValidateTextLengthNs;
+EMBED_TABLE_LAYOUT(CliValidateTextLengthNs, contains);
+EMBED_TABLE_STORAGE CliValidateTextLengthNs cli_validate_text_length_internal EMBED_UNUSED = {
+    .contains = cli_validate_contains,
+};
+
+typedef struct
+{
+    int (*tool_read)(const CliValidateIdCtx *args);
+} CliValidateIdNs;
+EMBED_TABLE_LAYOUT(CliValidateIdNs, tool_read);
+EMBED_TABLE_STORAGE CliValidateIdNs cli_validate_id_internal EMBED_UNUSED = {
+    .tool_read = cli_validate_tool_read,
+};
+
+typedef struct
+{
+    int (*code_get)(const CliValidateTextCtx *args);
+    int (*axioms_get)(const CliValidateTextCtx *args);
+} CliValidateTextNs;
+EMBED_TABLE_LAYOUT(CliValidateTextNs, code_get, axioms_get);
+EMBED_TABLE_STORAGE CliValidateTextNs cli_validate_text_internal EMBED_UNUSED = {
+    .code_get = cli_validate_code_get,
+    .axioms_get = cli_validate_axioms_get,
+};
+
+typedef struct
+{
+    void (*messages_get)(const CliValidateSizeCtx *args);
+} CliValidateSizeNs;
+EMBED_TABLE_LAYOUT(CliValidateSizeNs, messages_get);
+EMBED_TABLE_STORAGE CliValidateSizeNs cli_validate_size_internal EMBED_UNUSED = {
+    .messages_get = cli_validate_messages_get,
+};
+
+typedef struct
+{
+    int (*barrier_get)(const CliValidateMessagesCtx *args);
+} CliValidateMessagesNs;
+EMBED_TABLE_LAYOUT(CliValidateMessagesNs, barrier_get);
+EMBED_TABLE_STORAGE CliValidateMessagesNs cli_validate_messages_internal EMBED_UNUSED = {
+    .barrier_get = cli_validate_barrier_get,
+};
+
+typedef struct
+{
+    unsigned long long (*copy_get)(const CliValidateTextSizeCtx *args);
+} CliValidateTextSizeNs;
+EMBED_TABLE_LAYOUT(CliValidateTextSizeNs, copy_get);
+EMBED_TABLE_STORAGE CliValidateTextSizeNs cli_validate_text_size_internal EMBED_UNUSED = {
+    .copy_get = cli_validate_copy_get,
+};
+
+typedef struct
+{
+    unsigned int (*grown_keys)(const CliValidateCtx *args);
+} CliValidateNsTable;
+EMBED_TABLE_LAYOUT(CliValidateNsTable, grown_keys);
+EMBED_TABLE_STORAGE CliValidateNsTable cli_validate_internal EMBED_UNUSED = {
+    .grown_keys = cli_validate_grown_keys,
+};
+
+typedef struct
+{
+    int (*command_for)(const CliValidateProgramCtx *args);
+} CliValidateProgramNs;
+EMBED_TABLE_LAYOUT(CliValidateProgramNs, command_for);
+EMBED_TABLE_STORAGE CliValidateProgramNs cli_validate_program_internal EMBED_UNUSED = {
+    .command_for = cli_validate_command_for,
+};
+
+typedef struct
+{
+    int (*check)(const CliValidateErrMsgCtx *args);
+} CliValidateErrMsgNs;
+EMBED_TABLE_LAYOUT(CliValidateErrMsgNs, check);
+EMBED_TABLE_STORAGE CliValidateErrMsgNs cli_validate_err_msg_internal EMBED_UNUSED = {
+    .check = cli_validate_check,
+};
+
+typedef struct
+{
+    void (*axioms_report)(const CliValidateAnswersCtx *args);
+} CliValidateAnswersNs;
+EMBED_TABLE_LAYOUT(CliValidateAnswersNs, axioms_report);
+EMBED_TABLE_STORAGE CliValidateAnswersNs cli_validate_answers_internal EMBED_UNUSED = {
+    .axioms_report = cli_validate_axioms_report,
+};
+
+typedef struct
+{
+    unsigned int (*key_get)(const CliValidateAtCtx *args);
+} CliValidateAtNs;
+EMBED_TABLE_LAYOUT(CliValidateAtNs, key_get);
+EMBED_TABLE_STORAGE CliValidateAtNs cli_validate_at_internal EMBED_UNUSED = {
+    .key_get = cli_validate_key_get,
+};
+
+typedef struct
+{
+    void (*finding_put)(const CliValidateLengthCtx *args);
+} CliValidateLengthNs;
+EMBED_TABLE_LAYOUT(CliValidateLengthNs, finding_put);
+EMBED_TABLE_STORAGE CliValidateLengthNs cli_validate_length_internal EMBED_UNUSED = {
+    .finding_put = cli_validate_finding_put,
+};
+
+typedef struct
+{
+    void (*report)(const CliValidateProjectCtx *args);
+} CliValidateProjectNs;
+EMBED_TABLE_LAYOUT(CliValidateProjectNs, report);
+EMBED_TABLE_STORAGE CliValidateProjectNs cli_validate_project_internal EMBED_UNUSED = {
+    .report = cli_validate_report,
+};
 
 #endif

@@ -7,6 +7,14 @@
 #include "../text/json_tree.h"
 #include "inspect_py.h"
 
+// A place a name is set that may go unread: the name's token, and the fix that takes it out and its span
+typedef struct
+{
+    CliInspectTok tok;
+    unsigned int fix;
+    CliInspectPlace from;
+    CliInspectPlace to;
+} PySet;
 // the most offsets of a statement's tokens that set a name, which are no reads
 #define CLI_PY_SKIPS 4096u
 
@@ -17,84 +25,110 @@
 #define CLI_PY_FIX_VALUE 2u
 #define CLI_PY_FIX_LINE 3u
 
-// A place a name is set that may go unread: the name's token, and the fix that takes it out and its span
-typedef struct
-{
-    CliInspectTok tok;
-    unsigned int fix;
-    CliInspectPlace from;
-    CliInspectPlace to;
-} PySet;
-
 static PySet *s_sets;
 static unsigned int s_set_count;
 static CliInspectSet s_read;
 static CliInspectSet s_declared;
 static unsigned int *s_equals;
 
-void cli_inspect_py_unread_laid(CliInspectCarve *carve)
+void cli_inspect_py_unread_layout(const CliInspectCarveCtx *args)
 {
-    s_sets = cli_inspect_carved(carve, (unsigned long long)CLI_INSPECT_LINES * sizeof(PySet));
-    cli_inspect_set_laid(&s_read, carve);
-    cli_inspect_set_laid(&s_declared, carve);
-    s_equals = cli_inspect_carved(carve, (unsigned long long)(CLI_INSPECT_TOKENS / 8u + 1u) * sizeof(unsigned int));
+    s_sets = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                        .bytes = (unsigned long long)CLI_INSPECT_LINES * sizeof(PySet));
+    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_read, .carve = args->carve);
+    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_declared,
+               .carve = args->carve);
+    s_equals = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                          .bytes = (unsigned long long)(CLI_INSPECT_TOKENS / 8u + 1u) * sizeof(unsigned int));
 }
 static unsigned int s_skip[CLI_PY_SKIPS];
 static unsigned int s_skips;
 
-int cli_py_depth_at(const char *src, const CliInspectTok *toks, unsigned int offset)
+int cli_py_depth_at(const CliInspectPySrcToksCfg *args)
 {
     int depth = 0;
-    for (unsigned int at = 0u; at < offset; at += 1u)
+    for (unsigned int at = 0u; at < args->offset; at += 1u)
     {
-        depth += (cli_py_is(src, &toks[at], "(") || cli_py_is(src, &toks[at], "[") || cli_py_is(src, &toks[at], "{"))
+        depth += (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
+                             .tok = &args->toks[at], .word = "(") ||
+                  EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
+                             .tok = &args->toks[at], .word = "[") ||
+                  EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
+                             .tok = &args->toks[at], .word = "{"))
                      ? 1
                      : 0;
-        depth -= (cli_py_is(src, &toks[at], ")") || cli_py_is(src, &toks[at], "]") || cli_py_is(src, &toks[at], "}"))
+        depth -= (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
+                             .tok = &args->toks[at], .word = ")") ||
+                  EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
+                             .tok = &args->toks[at], .word = "]") ||
+                  EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
+                             .tok = &args->toks[at], .word = "}"))
                      ? 1
                      : 0;
     }
     return depth;
 }
 
-void cli_py_whole_lines(const char *src, unsigned long long size, unsigned int from, unsigned int to,
-                        CliInspectPlace *start, CliInspectPlace *end)
+void cli_py_whole_lines(const CliInspectPySrcCfg *args)
 {
+    CliInspectPlace *start = args->start;
+    CliInspectPlace *end = args->end;
     unsigned int count = 1u;
     unsigned long long last_start = 0ull;
-    unsigned long long last_end = size;
-    for (unsigned long long at = 0ull; at < size; at += 1u)
+    unsigned long long last_end = args->size;
+    for (unsigned long long at = 0ull; at < args->size; at += 1u)
     {
-        if (src[at] == '\n')
+        if (args->src[at] == '\n')
         {
-            if (count - 1u == to)
+            if (count - 1u == args->to)
             {
                 last_end = at;
             }
             count += 1u;
-            last_start = (count - 1u == to) ? (at + 1u) : last_start;
+            last_start = (count - 1u == args->to) ? (at + 1u) : last_start;
         }
     }
-    *start = (CliInspectPlace){from, 0u};
-    if (to + 1u < count)
+    *start = (CliInspectPlace){args->from, 0u};
+    if (args->to + 1u < count)
     {
-        *end = (CliInspectPlace){to + 1u, 0u};
+        *end = (CliInspectPlace){args->to + 1u, 0u};
         return;
     }
     unsigned int units = 0u;
     for (unsigned long long at = last_start; at < last_end;)
     {
         unsigned int letter = 0u;
-        at += cli_lossy_letter((const unsigned char *)src, last_end, at, &letter);
+        at +=
+            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->src, .length = last_end, .at = at, .letter = &letter);
         units += (letter >= 0x10000u) ? 2u : 1u;
     }
-    *end = (CliInspectPlace){to, units};
+    *end = (CliInspectPlace){args->to, units};
 }
 
+typedef struct
+{
+    const char *src;
+    const CliInspectTok *toks;
+    unsigned int count;
+    unsigned int offset;
+    const CliInspectTok *tok;
+    unsigned int fix;
+    CliInspectPlace from;
+    CliInspectPlace to;
+    unsigned long long size;
+    int lone;
+    const CliPyLine *line;
+    const PySet *set;
+    CliFacts *facts;
+} InspectPyUnreadCtx;
 // whether the token at `offset` of `count` is a name read: a name that is no keyword, no attribute after a dot, and no
 // keyword argument's name
-static int unread_is_read(const char *src, const CliInspectTok *toks, unsigned int count, unsigned int offset)
+EMBED_INLINE int unread_is_read(const InspectPyUnreadCtx *args)
 {
+    const char *src = args->src;
+    const CliInspectTok *toks = args->toks;
+    unsigned int offset = args->offset;
     const CliInspectTok *const tok = &toks[offset];
     if (tok->kind != CLI_PY_NAME)
     {
@@ -104,82 +138,118 @@ static int unread_is_read(const char *src, const CliInspectTok *toks, unsigned i
     {
         return 1;
     }
-    if (cli_py_keyword(src, tok))
+    if (EMBED_CALL(cli_inspect_py_src_tok.py_keyword, CliInspectPySrcTokCfg, .src = src, .tok = tok))
     {
         return 0;
     }
     const CliInspectTok *const before = (offset > 0u) ? &toks[offset - 1u] : NULL;
-    if ((before != NULL) && cli_py_is(src, before, "."))
+    if ((before != NULL) &&
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word = "."))
     {
         return 0;
     }
-    const int equals = (offset + 1u < count) && cli_py_is(src, &toks[offset + 1u], "=");
-    const int opened = (before != NULL) && (cli_py_is(src, before, "(") || cli_py_is(src, before, ","));
-    return !(equals && opened && (cli_py_depth_at(src, toks, offset) > 0));
+    const int equals = (offset + 1u < args->count) && EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
+                                                                 .src = src, .tok = &toks[offset + 1u], .word = "=");
+    const int opened =
+        (before != NULL) &&
+        (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word = "(") ||
+         EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word = ","));
+    return !(equals && opened &&
+             (EMBED_CALL(cli_inspect_py_src_toks.py_depth_at, CliInspectPySrcToksCfg, .src = src, .toks = toks,
+                         .offset = offset) > 0));
 }
 
 // the names `count` tokens read put in the set of names read
-static void unread_reads_of(const char *src, const CliInspectTok *toks, unsigned int count)
+EMBED_INLINE void unread_reads_get(const InspectPyUnreadCtx *args)
 {
-    for (unsigned int offset = 0u; offset < count; offset += 1u)
+    for (unsigned int offset = 0u; offset < args->count; offset += 1u)
     {
-        if (unread_is_read(src, toks, count, offset))
+        if (EMBED_CALL(unread_is_read, InspectPyUnreadCtx, .src = args->src, .toks = args->toks, .count = args->count,
+                       .offset = offset))
         {
-            cli_inspect_set_put(&s_read, src + toks[offset].start, toks[offset].end - toks[offset].start);
+            EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_read,
+                       .at = args->src + args->toks[offset].start,
+                       .size_u32 = args->toks[offset].end - args->toks[offset].start);
         }
     }
 }
 
 // a name that may go unread noted
-static void unread_set(const CliInspectTok *tok, unsigned int fix, CliInspectPlace from, CliInspectPlace to)
+EMBED_INLINE void unread_set(const InspectPyUnreadCtx *args)
 {
     if (s_set_count < CLI_INSPECT_LINES)
     {
-        s_sets[s_set_count] = (PySet){*tok, fix, from, to};
+        s_sets[s_set_count] = (PySet){*args->tok, args->fix, args->from, args->to};
         s_set_count += 1u;
     }
 }
 
 // an offset that sets a name, and so is no read, recorded
-static void unread_skip(unsigned int offset)
+EMBED_INLINE void unread_skip(const InspectPyUnreadCtx *args)
 {
     if (s_skips < CLI_PY_SKIPS)
     {
-        s_skip[s_skips] = offset;
+        s_skip[s_skips] = args->offset;
         s_skips += 1u;
     }
 }
 
 // the names `with ... as name` and `except ... as name` set noted
-static void unread_as(const char *src, const CliInspectTok *toks, unsigned int count)
+EMBED_INLINE void unread_as(const InspectPyUnreadCtx *args)
 {
+    const char *src = args->src;
     int depth = 0;
-    for (unsigned int offset = 0u; offset < count; offset += 1u)
+    for (unsigned int offset = 0u; offset < args->count; offset += 1u)
     {
-        const CliInspectTok *const tok = &toks[offset];
-        depth += (cli_py_is(src, tok, "(") || cli_py_is(src, tok, "[") || cli_py_is(src, tok, "{")) ? 1 : 0;
-        depth -= (cli_py_is(src, tok, ")") || cli_py_is(src, tok, "]") || cli_py_is(src, tok, "}")) ? 1 : 0;
-        const int named = (offset + 1u < count) && (toks[offset + 1u].kind == CLI_PY_NAME);
-        const int ended = (offset + 2u < count) &&
-                          (cli_py_is(src, &toks[offset + 2u], ",") || cli_py_is(src, &toks[offset + 2u], ":"));
-        if ((depth == 0) && cli_py_is(src, tok, "as") && named && ended && (offset > 0u))
+        const CliInspectTok *const tok = &args->toks[offset];
+        depth +=
+            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "(") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "[") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "{"))
+                ? 1
+                : 0;
+        depth -=
+            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = ")") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "]") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "}"))
+                ? 1
+                : 0;
+        const int named = (offset + 1u < args->count) && (args->toks[offset + 1u].kind == CLI_PY_NAME);
+        const int ended =
+            (offset + 2u < args->count) && (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
+                                                       .tok = &args->toks[offset + 2u], .word = ",") ||
+                                            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
+                                                       .tok = &args->toks[offset + 2u], .word = ":"));
+        if ((depth == 0) &&
+            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "as") &&
+            named && ended && (offset > 0u))
         {
-            unread_skip(offset + 1u);
-            unread_set(&toks[offset + 1u], CLI_PY_FIX_AS, toks[offset - 1u].to, toks[offset + 1u].to);
+            EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = offset + 1u);
+            EMBED_CALL(unread_set, InspectPyUnreadCtx, .tok = &args->toks[offset + 1u], .fix = CLI_PY_FIX_AS,
+                       .from = args->toks[offset - 1u].to, .to = args->toks[offset + 1u].to);
         }
     }
 }
 
 // the names a statement of `count` tokens sets that may go unread noted, and the offsets of its tokens that set them,
 // which are no reads, recorded in s_skip
-static void unread_setting(const char *src, unsigned long long size, const CliInspectTok *toks, unsigned int count,
-                           int lone, const CliPyLine *line)
+EMBED_INLINE void unread_setting(const InspectPyUnreadCtx *args)
 {
+    const char *src = args->src;
+    unsigned long long size = args->size;
+    const CliInspectTok *toks = args->toks;
+    unsigned int count = args->count;
     s_skips = 0u;
-    const int async_with = cli_py_is(src, &toks[0], "async") && (count > 1u) && cli_py_is(src, &toks[1], "with");
-    if (cli_py_is(src, &toks[0], "with") || cli_py_is(src, &toks[0], "except") || async_with)
+    const int async_with =
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[0], .word = "async") &&
+        (count > 1u) &&
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[1], .word = "with");
+    if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[0], .word = "with") ||
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[0],
+                   .word = "except") ||
+        async_with)
     {
-        unread_as(src, toks, count);
+        EMBED_CALL(unread_as, InspectPyUnreadCtx, .src = src, .toks = toks, .count = count);
         return;
     }
     unsigned int equals = 0u;
@@ -187,9 +257,21 @@ static void unread_setting(const char *src, unsigned long long size, const CliIn
     for (unsigned int offset = 0u; offset < count; offset += 1u)
     {
         const CliInspectTok *const tok = &toks[offset];
-        depth += (cli_py_is(src, tok, "(") || cli_py_is(src, tok, "[") || cli_py_is(src, tok, "{")) ? 1 : 0;
-        depth -= (cli_py_is(src, tok, ")") || cli_py_is(src, tok, "]") || cli_py_is(src, tok, "}")) ? 1 : 0;
-        if ((depth == 0) && cli_py_is(src, tok, "=") && (tok->kind == CLI_PY_OP) && (equals < CLI_INSPECT_TOKENS / 8u))
+        depth +=
+            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "(") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "[") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "{"))
+                ? 1
+                : 0;
+        depth -=
+            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = ")") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "]") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "}"))
+                ? 1
+                : 0;
+        if ((depth == 0) &&
+            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "=") &&
+            (tok->kind == CLI_PY_OP) && (equals < CLI_INSPECT_TOKENS / 8u))
         {
             s_equals[equals] = offset;
             equals += 1u;
@@ -205,16 +287,20 @@ static void unread_setting(const char *src, unsigned long long size, const CliIn
     {
         const unsigned int equal = s_equals[index];
         const unsigned int targets = equal - start;
-        const int annotated = (targets > 2u) && (start == 0u) && (count > 1u) && cli_py_is(src, &toks[1], ":");
-        if (((targets == 1u) || annotated) && (toks[start].kind == CLI_PY_NAME) && !cli_py_keyword(src, &toks[start]))
+        const int annotated =
+            (targets > 2u) && (start == 0u) && (count > 1u) &&
+            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[1], .word = ":");
+        if (((targets == 1u) || annotated) && (toks[start].kind == CLI_PY_NAME) &&
+            !EMBED_CALL(cli_inspect_py_src_tok.py_keyword, CliInspectPySrcTokCfg, .src = src, .tok = &toks[start]))
         {
-            unread_skip(start);
+            EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = start);
             unsigned int fix = CLI_PY_FIX_NONE;
             CliInspectPlace from = toks[0].from;
             CliInspectPlace to = toks[0].from;
-            if ((equals == 1u) && lone && !annotated)
+            if ((equals == 1u) && args->lone && !annotated)
             {
-                const int calls = cli_py_contains(src, &toks[last + 1u], count - last - 1u, "(");
+                const int calls = EMBED_CALL(cli_inspect_py_src_word.py_contains, CliInspectPySrcWordCfg, .src = src,
+                                             .toks = &toks[last + 1u], .count = count - last - 1u, .word = "(");
                 fix = calls ? CLI_PY_FIX_VALUE : CLI_PY_FIX_LINE;
                 if (calls)
                 {
@@ -222,13 +308,14 @@ static void unread_setting(const char *src, unsigned long long size, const CliIn
                 }
                 else
                 {
-                    const unsigned int end_line = g_cli_inspect_tok[line->first + line->count - 1u].to.line;
-                    cli_py_whole_lines(src, size, toks[0].from.line, end_line, &from, &to);
+                    const unsigned int end_line = g_cli_inspect_tok[args->line->first + args->line->count - 1u].to.line;
+                    EMBED_CALL(cli_inspect_py_src.py_whole_lines, CliInspectPySrcCfg, .src = src, .size = size,
+                               .from = toks[0].from.line, .to = end_line, .start = &from, .end = &to);
                 }
             }
             if (last + 1u < count)
             {
-                unread_set(&toks[start], fix, from, to);
+                EMBED_CALL(unread_set, InspectPyUnreadCtx, .tok = &toks[start], .fix = fix, .from = from, .to = to);
             }
         }
         else
@@ -237,15 +324,18 @@ static void unread_setting(const char *src, unsigned long long size, const CliIn
             int comma = 0;
             for (unsigned int at = start; at < equal; at += 1u)
             {
-                names_only = names_only && ((toks[at].kind == CLI_PY_NAME) || cli_py_is(src, &toks[at], ","));
-                comma = comma || cli_py_is(src, &toks[at], ",");
+                names_only = names_only && ((toks[at].kind == CLI_PY_NAME) ||
+                                            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
+                                                       .tok = &toks[at], .word = ","));
+                comma = comma || EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
+                                            .tok = &toks[at], .word = ",");
             }
             // a tuple's names are set, and not reported
             for (unsigned int at = start; names_only && comma && (at < equal); at += 1u)
             {
                 if (toks[at].kind == CLI_PY_NAME)
                 {
-                    unread_skip(at);
+                    EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = at);
                 }
             }
         }
@@ -254,11 +344,11 @@ static void unread_setting(const char *src, unsigned long long size, const CliIn
 }
 
 // whether `offset` is among the offsets that set a name
-static int unread_skipped(unsigned int offset)
+EMBED_INLINE int unread_on_skip(const InspectPyUnreadCtx *args)
 {
     for (unsigned int at = 0u; at < s_skips; at += 1u)
     {
-        if (s_skip[at] == offset)
+        if (s_skip[at] == args->offset)
         {
             return 1;
         }
@@ -267,25 +357,36 @@ static int unread_skipped(unsigned int offset)
 }
 
 // each statement of a line read: the names it declares global or nonlocal, those it sets, and those it reads
-static void unread_line(const char *src, unsigned long long size, const CliPyLine *line)
+EMBED_INLINE void unread_line(const InspectPyUnreadCtx *args)
 {
-    const CliInspectTok *const toks = &g_cli_inspect_tok[line->first];
+    const char *src = args->src;
+    unsigned long long size = args->size;
+    const CliInspectTok *const toks = &g_cli_inspect_tok[args->line->first];
     unsigned int start = 0u;
     int depth = 0;
-    for (unsigned int at = 0u; at <= line->count; at += 1u)
+    for (unsigned int at = 0u; at <= args->line->count; at += 1u)
     {
-        const int ends =
-            (at == line->count) || ((toks[at].kind == CLI_PY_OP) && (depth == 0) && cli_py_is(src, &toks[at], ";"));
-        if ((at < line->count) && (toks[at].kind == CLI_PY_OP))
+        const int ends = (at == args->line->count) || ((toks[at].kind == CLI_PY_OP) && (depth == 0) &&
+                                                       EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
+                                                                  .src = src, .tok = &toks[at], .word = ";"));
+        if ((at < args->line->count) && (toks[at].kind == CLI_PY_OP))
         {
-            depth +=
-                (cli_py_is(src, &toks[at], "(") || cli_py_is(src, &toks[at], "[") || cli_py_is(src, &toks[at], "{"))
-                    ? 1
-                    : 0;
-            depth -=
-                (cli_py_is(src, &toks[at], ")") || cli_py_is(src, &toks[at], "]") || cli_py_is(src, &toks[at], "}"))
-                    ? 1
-                    : 0;
+            depth += (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
+                                 .word = "(") ||
+                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
+                                 .word = "[") ||
+                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
+                                 .word = "{"))
+                         ? 1
+                         : 0;
+            depth -= (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
+                                 .word = ")") ||
+                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
+                                 .word = "]") ||
+                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
+                                 .word = "}"))
+                         ? 1
+                         : 0;
         }
         if (!ends)
         {
@@ -298,89 +399,110 @@ static void unread_line(const char *src, unsigned long long size, const CliPyLin
         {
             continue;
         }
-        if (cli_py_is(src, &statement[0], "global") || cli_py_is(src, &statement[0], "nonlocal"))
+        if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &statement[0],
+                       .word = "global") ||
+            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &statement[0],
+                       .word = "nonlocal"))
         {
             for (unsigned int name = 1u; name < count; name += 1u)
             {
                 if (statement[name].kind == CLI_PY_NAME)
                 {
-                    cli_inspect_set_put(&s_declared, src + statement[name].start,
-                                        statement[name].end - statement[name].start);
+                    EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_declared,
+                               .at = src + statement[name].start,
+                               .size_u32 = statement[name].end - statement[name].start);
                 }
             }
             continue;
         }
-        unread_setting(src, size, statement, count, line->count == count, line);
+        EMBED_CALL(unread_setting, InspectPyUnreadCtx, .src = src, .size = size, .toks = statement, .count = count,
+                   .lone = args->line->count == count, .line = args->line);
         for (unsigned int offset = 0u; offset < count; offset += 1u)
         {
-            if (!unread_skipped(offset) && unread_is_read(src, statement, count, offset))
+            if (!EMBED_CALL(unread_on_skip, InspectPyUnreadCtx, .offset = offset) &&
+                EMBED_CALL(unread_is_read, InspectPyUnreadCtx, .src = src, .toks = statement, .count = count,
+                           .offset = offset))
             {
-                cli_inspect_set_put(&s_read, src + statement[offset].start,
-                                    statement[offset].end - statement[offset].start);
+                EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_read,
+                           .at = src + statement[offset].start,
+                           .size_u32 = statement[offset].end - statement[offset].start);
             }
         }
     }
 }
 
 // a set name that goes unread reported, with its fix
-static void unread_reported(const char *src, const PySet *set, CliFacts *facts)
+EMBED_INLINE void unread_report(const InspectPyUnreadCtx *args)
 {
-    const char *const name = src + set->tok.start;
-    const unsigned int length = set->tok.end - set->tok.start;
+    CliFacts *facts = args->facts;
+    const char *const name = args->src + args->set->tok.start;
+    const unsigned int length = args->set->tok.end - args->set->tok.start;
     char message[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea msg = {message, sizeof(message), 0ull};
     mmgr_line_ch(&msg, '`');
     mmgr_line_put_n(&msg, name, length);
     mmgr_line_put(&msg, "` is set and never read.");
-    cli_inspect_finding_put(facts, set->tok.from, set->tok.to, CLI_INSPECT_WARNING, &msg, "unread", NULL);
-    if (set->fix == CLI_PY_FIX_NONE)
+    EMBED_CALL(cli_inspect_from_internal.finding_put, CliInspectFromCtx, .facts = facts, .from = args->set->tok.from,
+               .to = args->set->tok.to, .severity = CLI_INSPECT_WARNING, .message = &msg, .code = "unread",
+               .href = NULL);
+    if (args->set->fix == CLI_PY_FIX_NONE)
     {
         return;
     }
     char title[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea titled = {title, sizeof(title), 0ull};
-    mmgr_line_put(&titled, (set->fix == CLI_PY_FIX_AS)      ? "Take out `as "
-                           : (set->fix == CLI_PY_FIX_VALUE) ? "Take out `"
-                                                            : "Take out the line that sets ");
+    mmgr_line_put(&titled, (args->set->fix == CLI_PY_FIX_AS)      ? "Take out `as "
+                           : (args->set->fix == CLI_PY_FIX_VALUE) ? "Take out `"
+                                                                  : "Take out the line that sets ");
     mmgr_line_put_n(&titled, name, length);
-    mmgr_line_put(&titled, (set->fix == CLI_PY_FIX_AS)      ? "`"
-                           : (set->fix == CLI_PY_FIX_VALUE) ? " =` and retain its value"
-                                                            : "");
-    cli_inspect_fix_put(facts, &titled);
-    cli_inspect_edit_put(facts, set->from, set->to, "", 0ull);
+    mmgr_line_put(&titled, (args->set->fix == CLI_PY_FIX_AS)      ? "`"
+                           : (args->set->fix == CLI_PY_FIX_VALUE) ? " =` and retain its value"
+                                                                  : "");
+    EMBED_CALL(cli_inspect_facts_internal.fix_put, CliInspectFactsCtx, .facts = facts, .title = &titled);
+    EMBED_CALL(cli_inspect_text_internal.edit_put, CliInspectTextCtx, .facts = facts, .from = args->set->from,
+               .to = args->set->to, .text_text = "", .size = 0ull);
 }
 
-void cli_py_unread(const char *src, unsigned long long size, unsigned int at, CliFacts *facts)
+void cli_py_unread(const CliInspectPySrcSizeCfg *args)
 {
-    const unsigned int end = cli_py_block_end(at);
+    const char *src = args->src;
+    unsigned long long size = args->size;
+    unsigned int at = args->at;
+    const unsigned int end = EMBED_CALL(cli_inspect_py.py_block_end, CliInspectPyCfg, .at = at);
     s_set_count = 0u;
-    cli_inspect_set_cleared(&s_read);
-    cli_inspect_set_cleared(&s_declared);
+    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_read);
+    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_declared);
     unsigned int nested_end = 0u;
     for (unsigned int index = at + 1u; index < end; index += 1u)
     {
         const CliPyLine *const line = &g_cli_py_line[index];
         const int nested = (index < nested_end);
-        if (!nested && (cli_py_head_is(src, line, "def") || cli_py_head_is(src, line, "class")) &&
-            cli_py_opens(src, line))
+        if (!nested &&
+            (EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = src, .line = line,
+                        .word = "def") ||
+             EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = src, .line = line,
+                        .word = "class")) &&
+            EMBED_CALL(cli_inspect_py_src_line.py_opens, CliInspectPySrcLineCfg, .src = src, .line = line))
         {
-            nested_end = cli_py_block_end(index);
-            unread_reads_of(src, &g_cli_inspect_tok[line->first], line->count);
+            nested_end = EMBED_CALL(cli_inspect_py.py_block_end, CliInspectPyCfg, .at = index);
+            EMBED_CALL(unread_reads_get, InspectPyUnreadCtx, .src = src, .toks = &g_cli_inspect_tok[line->first],
+                       .count = line->count);
             continue;
         }
         if (nested)
         {
-            unread_reads_of(src, &g_cli_inspect_tok[line->first], line->count);
+            EMBED_CALL(unread_reads_get, InspectPyUnreadCtx, .src = src, .toks = &g_cli_inspect_tok[line->first],
+                       .count = line->count);
             continue;
         }
-        unread_line(src, size, line);
+        EMBED_CALL(unread_line, InspectPyUnreadCtx, .src = src, .size = size, .line = line);
     }
     static const char *const s_whole[4] = {"locals", "vars", "eval", "exec"};
     for (unsigned int word = 0u; word < 4u; word += 1u)
     {
-        if (cli_inspect_set_has(
-                &s_read, s_whole[word],
-                (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = s_whole[word], .cap = CLI_CELLS_POOL})))
+        if (EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_read, .at = s_whole[word],
+                       .size_u32 =
+                           (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = s_whole[word], .cap = CLI_CELLS_POOL})))
         {
             return;
         }
@@ -390,11 +512,14 @@ void cli_py_unread(const char *src, unsigned long long size, unsigned int at, Cl
         const PySet *const set = &s_sets[index];
         const char *const name = src + set->tok.start;
         const unsigned int length = set->tok.end - set->tok.start;
-        if ((name[0] == '_') || cli_inspect_set_has(&s_read, name, length) ||
-            cli_inspect_set_has(&s_declared, name, length))
+        if ((name[0] == '_') ||
+            EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_read, .at = name,
+                       .size_u32 = length) ||
+            EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_declared, .at = name,
+                       .size_u32 = length))
         {
             continue;
         }
-        unread_reported(src, set, facts);
+        EMBED_CALL(unread_report, InspectPyUnreadCtx, .src = src, .set = set, .facts = args->facts);
     }
 }

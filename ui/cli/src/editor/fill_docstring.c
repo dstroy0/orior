@@ -14,11 +14,29 @@ typedef struct
     unsigned int end;
 } CliFillString;
 
-// the first string from the text's first line that contains the line `at`: 1, or 0 where none does
-static int docstring_around(const char *text, unsigned long long size, unsigned int at, CliFillString *found)
+typedef struct
 {
+    const char *text;
+    unsigned long long size;
+    unsigned int at;
+    CliFillString *found;
+    const CliFillLine *line;
+    const char *quote;
+    CliFilled *filled;
+    const char *lead;
+    unsigned long long lead_size;
+    unsigned long long start_of_words;
+    unsigned int width;
+} FillDocstringCtx;
+// the first string from the text's first line that contains the line `at`: 1, or 0 where none does
+EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
+{
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    unsigned int at = args->at;
     CliFillLine line = {0ull, 0ull, 0u};
-    (void)cli_fill_line_at(text, size, 0u, &line);
+    (void)EMBED_CALL(cli_fill_text_size_internal.line_at, CliFillTextSizeCtx, .text = text, .size = size, .index = 0u,
+                     .line = &line);
     const char *open = NULL;
     unsigned int open_start = 0u;
     for (;;)
@@ -33,15 +51,16 @@ static int docstring_around(const char *text, unsigned long long size, unsigned 
             unsigned long long place = 0ull;
             if (open != NULL)
             {
-                if (!cli_text_find(text + rest, line.end - rest, open, 3u, &place))
+                if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + rest,
+                                .length_value = line.end - rest, .wanted = open, .size = 3u, .at_pointer = &place))
                 {
                     break;
                 }
                 if ((open_start <= at) && (at <= line.index))
                 {
-                    found->quote = open;
-                    found->start = open_start;
-                    found->end = line.index;
+                    args->found->quote = open;
+                    args->found->start = open_start;
+                    args->found->end = line.index;
                     return 1;
                 }
                 open = NULL;
@@ -50,8 +69,12 @@ static int docstring_around(const char *text, unsigned long long size, unsigned 
             }
             unsigned long long double_at = 0ull;
             unsigned long long single_at = 0ull;
-            const int has_double = cli_text_find(text + rest, line.end - rest, "\"\"\"", 3u, &double_at);
-            const int has_single = cli_text_find(text + rest, line.end - rest, "'''", 3u, &single_at);
+            const int has_double =
+                EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + rest,
+                           .length_value = line.end - rest, .wanted = "\"\"\"", .size = 3u, .at_pointer = &double_at);
+            const int has_single =
+                EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + rest,
+                           .length_value = line.end - rest, .wanted = "'''", .size = 3u, .at_pointer = &single_at);
             if (!has_double && !has_single)
             {
                 break;
@@ -61,7 +84,8 @@ static int docstring_around(const char *text, unsigned long long size, unsigned 
             open_start = line.index;
             rest += (double_first ? double_at : single_at) + 3u;
         }
-        if (!cli_fill_after(text, size, &line))
+        if (!EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx, .text = text, .size = size,
+                        .line = &line))
         {
             return 0;
         }
@@ -69,76 +93,89 @@ static int docstring_around(const char *text, unsigned long long size, unsigned 
 }
 
 // whether a line is blank or the quotes alone
-static int docstring_blank(const char *text, const CliFillLine *line, const char *quote)
+EMBED_INLINE int docstring_blank(const FillDocstringCtx *args)
 {
+    const char *text = args->text;
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    cli_text_trimmed(text + line->start, line->end - line->start, &from, &to);
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + args->line->start,
+               .size = args->line->end - args->line->start, .from_u64s = &from, .to_u64s = &to);
     return (to == from) ||
            ((to - from == 3u) &&
-            (memor.cmp(&(MemoriaCfg){.src = text + line->start + from, .other = quote, .bytes = 3u}) == 0));
+            (memor.cmp(&(MemoriaCfg){.src = text + args->line->start + from, .other = args->quote, .bytes = 3u}) == 0));
 }
 
 // the last line written with its last word sent down a line under `lead` where the closing quotes would pass the
 // margin, its words starting at `start_of_words`
-static void docstring_closed(CliFilled *filled, const char *lead, unsigned long long lead_size,
-                             unsigned long long start_of_words, unsigned int width)
+EMBED_INLINE void docstring_close(const FillDocstringCtx *args)
 {
+    CliFilled *filled = args->filled;
     unsigned long long size = 0ull;
-    const char *const last = cli_filled_last(filled, &size);
+    const char *const last = EMBED_CALL(cli_fill_filled_size_internal.filled_last, CliFillFilledSizeCtx,
+                                        .filled_read = filled, .size_pointer = &size);
     unsigned long long space = 0ull;
-    if ((cli_text_letters(last, size) + 3u <= width) || (start_of_words > size) ||
-        !cli_text_find(last + start_of_words, size - start_of_words, " ", 1u, &space) ||
-        !cli_text_find_last(last, size, " ", 1u, &space))
+    if ((EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = last, .size = size) + 3u <= args->width) ||
+        (args->start_of_words > size) ||
+        !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = last + args->start_of_words,
+                    .length_value = size - args->start_of_words, .wanted = " ", .size = 1u, .at_pointer = &space) ||
+        !EMBED_CALL(cli_text_size_at.find_last, CliTextSizeAtCfg, .text = last, .length_value = size, .wanted = " ",
+                    .size = 1u, .at_pointer = &space))
     {
         return;
     }
     VerbaLinea *const out = filled->out;
     const unsigned long long cut = filled->line_start + space;
     const unsigned long long word = size - space - 1u;
-    const unsigned long long end = cut + 1u + lead_size + word;
+    const unsigned long long end = cut + 1u + args->lead_size + word;
     if (end >= out->capacity)
     {
         out->at = out->capacity;
         return;
     }
     memor.move_up(
-        &(MemoriaCfg){.dst = out->out + cut + 1u + lead_size, .src = out->out + cut + 1u, .bytes = (size_t)word});
-    memor.cpy(&(MemoriaCfg){.dst = out->out + cut + 1u, .src = lead, .bytes = (size_t)lead_size});
+        &(MemoriaCfg){.dst = out->out + cut + 1u + args->lead_size, .src = out->out + cut + 1u, .bytes = (size_t)word});
+    memor.cpy(&(MemoriaCfg){.dst = out->out + cut + 1u, .src = args->lead, .bytes = (size_t)args->lead_size});
     out->out[cut] = '\n';
     out->at = end;
     filled->line_start = cut + 1u;
     filled->lines += 1u;
 }
 
-int cli_fill_docstring(const char *text, unsigned long long size, const CliFillLine *at, unsigned int width,
-                       CliFilled *filled, CliTextEdit *edit)
+int cli_fill_docstring(const CliFillTextCtx *args)
 {
     CliFillString string = {NULL, 0u, 0u};
-    if (!docstring_around(text, size, at->index, &string) || docstring_blank(text, at, string.quote))
+    if (!EMBED_CALL(docstring_around, FillDocstringCtx, .text = args->text, .size = args->size, .at = args->at->index,
+                    .found = &string) ||
+        EMBED_CALL(docstring_blank, FillDocstringCtx, .text = args->text, .line = args->at, .quote = string.quote))
     {
         return 0;
     }
-    CliFillLine first = *at;
+    CliFillLine first = *args->at;
     CliFillLine before = first;
-    while ((first.index > string.start) && cli_fill_before(text, &before) &&
-           !docstring_blank(text, &before, string.quote))
+    while ((first.index > string.start) &&
+           EMBED_CALL(cli_fill_text_size_internal.before, CliFillTextSizeCtx, .text = args->text, .line = &before) &&
+           !EMBED_CALL(docstring_blank, FillDocstringCtx, .text = args->text, .line = &before, .quote = string.quote))
     {
         first = before;
     }
-    CliFillLine last = *at;
+    CliFillLine last = *args->at;
     CliFillLine after = last;
-    while ((last.index < string.end) && cli_fill_after(text, size, &after) &&
-           !docstring_blank(text, &after, string.quote))
+    while ((last.index < string.end) &&
+           EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx, .text = args->text, .size = args->size,
+                      .line = &after) &&
+           !EMBED_CALL(docstring_blank, FillDocstringCtx, .text = args->text, .line = &after, .quote = string.quote))
     {
         last = after;
     }
-    const char *const lead = text + first.start;
-    const unsigned long long lead_size = cli_text_lead(lead, first.end - first.start);
+    const char *const lead = args->text + first.start;
+    const unsigned long long lead_size = EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = lead,
+                                                    .size = first.end - first.start);
     unsigned long long opening = 0ull;
     if (first.index == string.start)
     {
-        if (!cli_text_find(lead + lead_size, first.end - first.start - lead_size, string.quote, 3u, &opening))
+        if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = lead + lead_size,
+                        .length_value = first.end - first.start - lead_size, .wanted = string.quote, .size = 3u,
+                        .at_pointer = &opening))
         {
             return 0;
         }
@@ -150,14 +187,16 @@ int cli_fill_docstring(const char *text, unsigned long long size, const CliFillL
     {
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
-        cli_text_trimmed(text + line.start, line.end - line.start, &from, &to);
-        const char *body = text + line.start + from;
+        EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = args->text + line.start,
+                   .size = line.end - line.start, .from_u64s = &from, .to_u64s = &to);
+        const char *body = args->text + line.start + from;
         unsigned long long body_size = to - from;
         if ((line.index == first.index) && (opening > 0u))
         {
             body += opening;
             body_size -= opening;
-            const unsigned long long skipped = cli_text_lead(body, body_size);
+            const unsigned long long skipped =
+                EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = body, .size = body_size);
             body += skipped;
             body_size -= skipped;
         }
@@ -168,23 +207,28 @@ int cli_fill_docstring(const char *text, unsigned long long size, const CliFillL
             {
                 body_size -= 3u;
             }
-            body_size = cli_text_trimmed_end(body, body_size);
+            body_size = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = body, .size = body_size);
         }
         g_cli_fill_slice[count] = body;
         g_cli_fill_slice_size[count] = body_size;
         count += 1u;
-        if ((line.index == last.index) || !cli_fill_after(text, size, &line))
+        if ((line.index == last.index) || !EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx,
+                                                      .text = args->text, .size = args->size, .line = &line))
         {
             break;
         }
     }
-    cli_fill_words(filled, 0u, count, lead, lead_size + opening, lead, lead_size, width);
+    EMBED_CALL(cli_fill_filled_internal.words, CliFillFilledCtx, .filled = args->filled, .slice = 0u, .count = count,
+               .first = lead, .first_size = lead_size + opening, .rest = lead, .rest_size = lead_size,
+               .width = args->width);
     if (closing)
     {
-        const unsigned long long start_of_words = (filled->lines == 1u) ? lead_size + opening : lead_size;
-        docstring_closed(filled, lead, lead_size, start_of_words, width);
-        mmgr_line_put_n(filled->out, string.quote, 3u);
+        const unsigned long long start_of_words = (args->filled->lines == 1u) ? lead_size + opening : lead_size;
+        EMBED_CALL(docstring_close, FillDocstringCtx, .filled = args->filled, .lead = lead, .lead_size = lead_size,
+                   .start_of_words = start_of_words, .width = args->width);
+        mmgr_line_put_n(args->filled->out, string.quote, 3u);
     }
-    cli_fill_edit_of(text, &first, &last, filled, edit);
+    EMBED_CALL(cli_fill_text_filled_internal.edit_get, CliFillTextFilledCtx, .text = args->text,
+               .first_fill_line_pointer = &first, .last = &last, .filled_read = args->filled, .edit = args->edit);
     return 1;
 }

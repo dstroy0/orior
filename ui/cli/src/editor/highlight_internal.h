@@ -3,8 +3,15 @@
 // highlight_internal.h: a grammar as highlight.c reads it and highlight_line.c colors by it
 #ifndef HIGHLIGHT_INTERNAL_H
 #define HIGHLIGHT_INTERNAL_H
+typedef struct CliHighlightRoomStateCtx CliHighlightRoomStateCtx;
+typedef struct CliHighlightRoomCtx CliHighlightRoomCtx;
+typedef struct CliHighlightJsonCtx CliHighlightJsonCtx;
+typedef struct CliHighlightLengthCtx CliHighlightLengthCtx;
+typedef struct CliHighlightCtx CliHighlightCtx;
+typedef struct CliHighlightNameCtx CliHighlightNameCtx;
 
 #include "../text/regexp.h"
+#include "embed_dispatch_layout.h"
 #include "highlight.h"
 
 // none: no token, no next, no state
@@ -142,7 +149,7 @@ typedef struct
     unsigned int skip;
 } CliGrammar;
 
-// The room a grammar is read into, its parts placed in one cell the keeper takes for one read at the sizes the
+// The room a grammar is read into, its parts placed in one cell the store takes for one read at the sizes the
 // grammar's JSON bounds, each no more than its CLI_GRAMMAR_ limit: the parts as a grammar contains them; each state's
 // own rules and includes before the includes are read in, a rule's place or an include's name marked; the room a
 // pattern is read into; and how many of each the room contains, the texts in bytes
@@ -182,7 +189,7 @@ typedef struct
 // endings take more leaves them cut
 #define CLI_HIGHLIGHT_ENDING 256ull
 
-// The coloring room, its parts placed in one cell the keeper takes once and retains, at twice the sizes the largest
+// The coloring room, its parts placed in one cell the store takes once and retains, at twice the sizes the largest
 // coloring requested so far, taken again only where a larger one comes: a line's letters, `most` of them for the
 // longest line; where each starts in UTF-16 units and the line's end last; its runs; the states stacked; the text a
 // case is picked by, four bytes a letter; and the state each of `count` lines ends in, the endings occupying
@@ -203,21 +210,124 @@ typedef struct
 } CliHighlightRoom;
 
 // the grammar at `def` in `json` read into `grammar`, its parts in `room` (highlight.c): 1, or 0 with why given
-int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *room, CliGrammar *grammar,
-                       VerbaLinea *err_msg);
+int cli_highlight_read(const CliHighlightJsonCtx *args);
 // a rule's pattern as the matcher reads it, its arrays the grammar's
-void cli_highlight_pattern(const CliGrammar *grammar, const CliHighlightRule *rule, CliRegexp *pattern);
+void cli_highlight_pattern(const CliHighlightCtx *args);
 // the state named `name`, `length` bytes, CLI_HIGHLIGHT_NONE where the grammar has none; whether a list of words
 // contains a word, `length` bytes
-unsigned int cli_highlight_state(const CliGrammar *grammar, const char *name, unsigned long long length);
-int cli_highlight_has_word(const CliGrammar *grammar, const CliHighlightList *list, const char *word,
-                           unsigned long long length);
+unsigned int cli_highlight_state(const CliHighlightNameCtx *args);
+int cli_highlight_has_word(const CliHighlightLengthCtx *args);
 // `count` lines colored with a grammar in `room`, written as cli_highlight_color writes them; and the same lines'
 // leaves handed to `each` as cli_highlight_leaves hands them (highlight_line.c)
-void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, const char *state, const char *const *lines,
-                         unsigned int count, VerbaLinea *out);
-void cli_highlight_leaves_of(const CliGrammar *grammar, CliHighlightRoom *room, const char *state,
-                             const char *const *lines, unsigned int count, int ends, CliLeavesEach each, void *context,
-                             VerbaLinea *ended);
+void cli_highlight_lines(const CliHighlightRoomCtx *args);
+void cli_highlight_leaves_get(const CliHighlightRoomStateCtx *args);
+
+struct CliHighlightRoomStateCtx
+{
+    const CliGrammar *grammar;
+    CliHighlightRoom *room;
+    const char *state;
+    const char *const *lines;
+    unsigned int count;
+    int ends;
+    CliLeavesEach each;
+    void *context;
+    VerbaLinea *ended;
+};
+
+struct CliHighlightRoomCtx
+{
+    const CliGrammar *grammar;
+    CliHighlightRoom *room;
+    const char *state;
+    const char *const *lines;
+    unsigned int count;
+    VerbaLinea *out;
+};
+
+struct CliHighlightJsonCtx
+{
+    const CliJson *json;
+    unsigned int def;
+    CliGrammarRoom *room_grammar_room_pointer;
+    CliGrammar *grammar_out;
+    VerbaLinea *err_msg;
+};
+
+struct CliHighlightLengthCtx
+{
+    const CliGrammar *grammar;
+    unsigned long long length;
+    const CliHighlightList *list;
+    const char *word;
+};
+
+struct CliHighlightCtx
+{
+    const CliGrammar *grammar;
+    const CliHighlightRule *rule;
+    CliRegexp *pattern;
+};
+
+struct CliHighlightNameCtx
+{
+    const CliGrammar *grammar;
+    const char *name;
+    unsigned long long length;
+};
+
+typedef struct
+{
+    int (*read)(const CliHighlightJsonCtx *args);
+} CliHighlightJsonNs;
+EMBED_TABLE_LAYOUT(CliHighlightJsonNs, read);
+EMBED_TABLE_STORAGE CliHighlightJsonNs cli_highlight_json_internal EMBED_UNUSED = {
+    .read = cli_highlight_read,
+};
+
+typedef struct
+{
+    void (*pattern)(const CliHighlightCtx *args);
+} CliHighlightNsTable;
+EMBED_TABLE_LAYOUT(CliHighlightNsTable, pattern);
+EMBED_TABLE_STORAGE CliHighlightNsTable cli_highlight_internal EMBED_UNUSED = {
+    .pattern = cli_highlight_pattern,
+};
+
+typedef struct
+{
+    unsigned int (*state)(const CliHighlightNameCtx *args);
+} CliHighlightNameNs;
+EMBED_TABLE_LAYOUT(CliHighlightNameNs, state);
+EMBED_TABLE_STORAGE CliHighlightNameNs cli_highlight_name_internal EMBED_UNUSED = {
+    .state = cli_highlight_state,
+};
+
+typedef struct
+{
+    int (*has_word)(const CliHighlightLengthCtx *args);
+} CliHighlightLengthNs;
+EMBED_TABLE_LAYOUT(CliHighlightLengthNs, has_word);
+EMBED_TABLE_STORAGE CliHighlightLengthNs cli_highlight_length_internal EMBED_UNUSED = {
+    .has_word = cli_highlight_has_word,
+};
+
+typedef struct
+{
+    void (*lines)(const CliHighlightRoomCtx *args);
+} CliHighlightRoomNs;
+EMBED_TABLE_LAYOUT(CliHighlightRoomNs, lines);
+EMBED_TABLE_STORAGE CliHighlightRoomNs cli_highlight_room_internal EMBED_UNUSED = {
+    .lines = cli_highlight_lines,
+};
+
+typedef struct
+{
+    void (*leaves_get)(const CliHighlightRoomStateCtx *args);
+} CliHighlightRoomStateNs;
+EMBED_TABLE_LAYOUT(CliHighlightRoomStateNs, leaves_get);
+EMBED_TABLE_STORAGE CliHighlightRoomStateNs cli_highlight_room_state_internal EMBED_UNUSED = {
+    .leaves_get = cli_highlight_leaves_get,
+};
 
 #endif

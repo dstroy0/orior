@@ -13,6 +13,15 @@
 #include <dlfcn.h>
 #include <errno.h>
 
+#if (!defined(_WIN32) && !defined(__APPLE__))
+struct CliTls
+{
+    int used;
+    CliSocket *socket;
+    void *context;
+    void *ssl;
+};
+#endif
 // the values of libssl's calls orior_cli hands it: load the library's error strings and ciphers, a host's name as the
 // SSL_ctrl that sets the name it is reached by, the option that reads an end with no close as an end, and what
 // SSL_get_error returns
@@ -55,14 +64,6 @@ typedef struct
     const char *(*verify_text)(long code);
 } CliSsl;
 
-struct CliTls
-{
-    int used;
-    CliSocket *socket;
-    void *context;
-    void *ssl;
-};
-
 static CliTls s_sessions[CLI_TLS_MOST];
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliSsl s_ssl;
@@ -70,21 +71,35 @@ static CliSsl s_ssl;
 static int s_loaded;
 static char s_missing[CLI_NAME_MAX_LEN];
 
-// a call found in the library, a function's address as the symbol gives it
-static void *cli_found(void *handle, const char *name, int needed)
+typedef struct
 {
-    void *const found = dlsym(handle, name);
-    if ((found == NULL) && needed && (s_missing[0] == '\0'))
+#if (!defined(_WIN32) && !defined(__APPLE__))
+    void *handle;
+    const char *name;
+    int needed;
+    const char *host;
+    const CliTls *tls;
+    int returned;
+    long long *result;
+    VerbaLinea *err_msg;
+#endif
+} TlsLibsslCtx;
+// a call found in the library, a function's address as the symbol gives it
+EMBED_INLINE void *cli_on_find(const TlsLibsslCtx *args)
+{
+    void *const found = dlsym(args->handle, args->name);
+    if ((found == NULL) && args->needed && (s_missing[0] == '\0'))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_missing,
-                                .src = name,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = s_missing,
+                          .src = args->name,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
     }
     return found;
 }
 
 // the library found and its calls read: 1, or 0 where it is not installed or lacks one. Called under the lock
-static int cli_loaded(void)
+static int cli_load(void)
 {
     if (s_loaded != 0)
     {
@@ -102,40 +117,57 @@ static int cli_loaded(void)
         return 0;
     }
     // a symbol's address is the function's: POSIX gives dlsym's object pointers as functions' where they are ones
-    *(void **)&s_ssl.init = cli_found(handle, "OPENSSL_init_ssl", 1);
-    *(void **)&s_ssl.client_method = cli_found(handle, "TLS_client_method", 1);
-    *(void **)&s_ssl.context_new = cli_found(handle, "SSL_CTX_new", 1);
-    *(void **)&s_ssl.context_free = cli_found(handle, "SSL_CTX_free", 1);
-    *(void **)&s_ssl.default_paths = cli_found(handle, "SSL_CTX_set_default_verify_paths", 1);
-    *(void **)&s_ssl.set_verify = cli_found(handle, "SSL_CTX_set_verify", 1);
-    *(void **)&s_ssl.set_options = cli_found(handle, "SSL_CTX_set_options", 0);
-    *(void **)&s_ssl.new_session = cli_found(handle, "SSL_new", 1);
-    *(void **)&s_ssl.free_session = cli_found(handle, "SSL_free", 1);
-    *(void **)&s_ssl.set_fd = cli_found(handle, "SSL_set_fd", 1);
-    *(void **)&s_ssl.control = cli_found(handle, "SSL_ctrl", 1);
-    *(void **)&s_ssl.set_host = cli_found(handle, "SSL_set1_host", 1);
-    *(void **)&s_ssl.connect = cli_found(handle, "SSL_connect", 1);
-    *(void **)&s_ssl.error = cli_found(handle, "SSL_get_error", 1);
-    *(void **)&s_ssl.read = cli_found(handle, "SSL_read", 1);
-    *(void **)&s_ssl.write = cli_found(handle, "SSL_write", 1);
-    *(void **)&s_ssl.shutdown = cli_found(handle, "SSL_shutdown", 1);
-    *(void **)&s_ssl.verify_result = cli_found(handle, "SSL_get_verify_result", 1);
-    *(void **)&s_ssl.verify_text = cli_found(handle, "X509_verify_cert_error_string", 0);
+    *(void **)&s_ssl.init =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "OPENSSL_init_ssl", .needed = 1);
+    *(void **)&s_ssl.client_method =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "TLS_client_method", .needed = 1);
+    *(void **)&s_ssl.context_new =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_CTX_new", .needed = 1);
+    *(void **)&s_ssl.context_free =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_CTX_free", .needed = 1);
+    *(void **)&s_ssl.default_paths = EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle,
+                                                .name = "SSL_CTX_set_default_verify_paths", .needed = 1);
+    *(void **)&s_ssl.set_verify =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_CTX_set_verify", .needed = 1);
+    *(void **)&s_ssl.set_options =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_CTX_set_options", .needed = 0);
+    *(void **)&s_ssl.new_session =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_new", .needed = 1);
+    *(void **)&s_ssl.free_session =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_free", .needed = 1);
+    *(void **)&s_ssl.set_fd =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_set_fd", .needed = 1);
+    *(void **)&s_ssl.control = EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_ctrl", .needed = 1);
+    *(void **)&s_ssl.set_host =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_set1_host", .needed = 1);
+    *(void **)&s_ssl.connect =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_connect", .needed = 1);
+    *(void **)&s_ssl.error =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_get_error", .needed = 1);
+    *(void **)&s_ssl.read = EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_read", .needed = 1);
+    *(void **)&s_ssl.write = EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_write", .needed = 1);
+    *(void **)&s_ssl.shutdown =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_shutdown", .needed = 1);
+    *(void **)&s_ssl.verify_result =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "SSL_get_verify_result", .needed = 1);
+    *(void **)&s_ssl.verify_text =
+        EMBED_CALL(cli_on_find, TlsLibsslCtx, .handle = handle, .name = "X509_verify_cert_error_string", .needed = 0);
     s_loaded = (s_missing[0] == '\0') ? 1 : -1;
     return s_loaded > 0;
 }
 
 // whether `host` is an address and not a name
-static int cli_address(const char *host)
+EMBED_INLINE int cli_address(const TlsLibsslCtx *args)
 {
     unsigned char bytes[16];
-    return (inet_pton(AF_INET, host, bytes) == 1) || (inet_pton(AF_INET6, host, bytes) == 1);
+    return (inet_pton(AF_INET, args->host, bytes) == 1) || (inet_pton(AF_INET6, args->host, bytes) == 1);
 }
 
-CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLinea *err_msg)
+CliTls *cli_tls_connect(const CliTlsCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const int loaded = cli_loaded();
+    CliSocket *socket = args->socket;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int loaded = cli_load();
     CliTls *tls = NULL;
     for (unsigned int at = 0u; loaded && (tls == NULL) && (at < CLI_TLS_MOST); at += 1u)
     {
@@ -145,18 +177,18 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLi
     {
         tls->used = 1;
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!loaded)
     {
-        mmgr_line_put(err_msg, (s_missing[0] != '\0')
-                                   ? "the system's libssl has no "
-                                   : "no libssl is installed, and TLS on this system goes through it");
-        mmgr_line_put(err_msg, s_missing);
+        mmgr_line_put(args->err_msg, (s_missing[0] != '\0')
+                                         ? "the system's libssl has no "
+                                         : "no libssl is installed, and TLS on this system goes through it");
+        mmgr_line_put(args->err_msg, s_missing);
         return NULL;
     }
     if (tls == NULL)
     {
-        mmgr_line_put(err_msg, "TLS: more sessions are open than orior_cli supports");
+        mmgr_line_put(args->err_msg, "TLS: more sessions are open than orior_cli supports");
         return NULL;
     }
     tls->socket = socket;
@@ -165,74 +197,76 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLi
     if (tls->context == NULL)
     {
         tls->used = 0;
-        mmgr_line_put(err_msg, "TLS: libssl made no context");
+        mmgr_line_put(args->err_msg, "TLS: libssl made no context");
         return NULL;
     }
     if (s_ssl.set_options != NULL)
     {
         s_ssl.set_options(tls->context, CLI_SSL_IGNORE_UNEXPECTED_EOF);
     }
-    if (verify)
+    if (args->verify)
     {
         s_ssl.default_paths(tls->context);
     }
-    s_ssl.set_verify(tls->context, verify ? 1 : 0, NULL);
+    s_ssl.set_verify(tls->context, args->verify ? 1 : 0, NULL);
     tls->ssl = s_ssl.new_session(tls->context);
     if (tls->ssl == NULL)
     {
         s_ssl.context_free(tls->context);
         tls->used = 0;
-        mmgr_line_put(err_msg, "TLS: libssl made no session");
+        mmgr_line_put(args->err_msg, "TLS: libssl made no session");
         return NULL;
     }
     // the socket's descriptor, which an int stores
     s_ssl.set_fd(tls->ssl, (int)(socket->handle - 1ull));
-    if (!cli_address(host))
+    if (!EMBED_CALL(cli_address, TlsLibsslCtx, .host = args->host))
     {
         // the name handed as SSL_ctrl takes it, in room of its own
         char name[CLI_PATH_MAX_LEN];
-        memor.cpy(&(MemoriaCfg){.dst = name,
-                                .src = host,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = host, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = name,
+                          .src = args->host,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->host, .cap = CLI_CELLS_POOL}) + 1u});
         s_ssl.control(tls->ssl, CLI_SSL_SET_HOST_NAME, 0l, name);
     }
-    if (verify)
+    if (args->verify)
     {
-        s_ssl.set_host(tls->ssl, host);
+        s_ssl.set_host(tls->ssl, args->host);
     }
     if (s_ssl.connect(tls->ssl) != 1)
     {
         const long code = s_ssl.verify_result(tls->ssl);
-        mmgr_line_put(err_msg, "TLS: ");
+        mmgr_line_put(args->err_msg, "TLS: ");
         if (code == 0l)
         {
-            mmgr_line_put(err_msg, "the handshake failed");
+            mmgr_line_put(args->err_msg, "the handshake failed");
         }
         else if (s_ssl.verify_text != NULL)
         {
-            mmgr_line_put(err_msg, s_ssl.verify_text(code));
+            mmgr_line_put(args->err_msg, s_ssl.verify_text(code));
         }
         else
         {
-            mmgr_line_put(err_msg, "the certificate did not check (");
-            mmgr_line_decimal_signed(err_msg, code);
-            mmgr_line_ch(err_msg, ')');
+            mmgr_line_put(args->err_msg, "the certificate did not check (");
+            mmgr_line_decimal_signed(args->err_msg, code);
+            mmgr_line_ch(args->err_msg, ')');
         }
-        cli_tls_closed(tls);
+        EMBED_CALL(cli_tls_out.close, CliTlsOutCfg, .tls = tls);
         return NULL;
     }
     return tls;
 }
 
 // what a call that took nothing returns: 1 to try again, else its answer into `result`
-static int cli_retried(const CliTls *tls, int returned, long long *result, VerbaLinea *err_msg)
+EMBED_INLINE int cli_retry(const TlsLibsslCtx *args)
 {
-    const int code = s_ssl.error(tls->ssl, returned);
+    long long *result = args->result;
+    const int code = s_ssl.error(args->tls->ssl, args->returned);
     if ((code == CLI_SSL_WANT_READ) || (code == CLI_SSL_WANT_WRITE))
     {
         return 1;
     }
-    if ((code == CLI_SSL_ZERO_RETURN) || ((code == CLI_SSL_SYSCALL) && (returned == 0)))
+    if ((code == CLI_SSL_ZERO_RETURN) || ((code == CLI_SSL_SYSCALL) && (args->returned == 0)))
     {
         *result = 0ll;
         return 0;
@@ -242,56 +276,58 @@ static int cli_retried(const CliTls *tls, int returned, long long *result, Verba
         *result = CLI_SOCKET_WAITED;
         return 0;
     }
-    mmgr_line_put(err_msg, "TLS: libssl reported ");
-    mmgr_line_decimal_signed(err_msg, code);
+    mmgr_line_put(args->err_msg, "TLS: libssl reported ");
+    mmgr_line_decimal_signed(args->err_msg, code);
     *result = CLI_SOCKET_FAILED;
     return 0;
 }
 
-long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, VerbaLinea *err_msg)
+long long cli_tls_read(const CliTlsOutCfg *args)
 {
     // a piece is at most what an int counts
-    const int piece = (int)((room < 0x7fffffffull) ? room : 0x7fffffffull);
+    const int piece = (int)((args->room < 0x7fffffffull) ? args->room : 0x7fffffffull);
     for (;;)
     {
-        const int read = s_ssl.read(tls->ssl, out, piece);
+        const int read = s_ssl.read(args->tls->ssl, args->out, piece);
         long long result = 0ll;
         if (read > 0)
         {
             return read;
         }
-        if (!cli_retried(tls, read, &result, err_msg))
+        if (!EMBED_CALL(cli_retry, TlsLibsslCtx, .tls = args->tls, .returned = read, .result = &result,
+                        .err_msg = args->err_msg))
         {
             return result;
         }
     }
 }
 
-long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, VerbaLinea *err_msg)
+long long cli_tls_write(const CliTlsDataCfg *args)
 {
-    const int piece = (int)((size < 0x7fffffffull) ? size : 0x7fffffffull);
+    const int piece = (int)((args->size < 0x7fffffffull) ? args->size : 0x7fffffffull);
     for (;;)
     {
-        const int written = s_ssl.write(tls->ssl, data, piece);
+        const int written = s_ssl.write(args->tls->ssl, args->data, piece);
         long long result = 0ll;
         if (written > 0)
         {
             return written;
         }
-        if (!cli_retried(tls, written, &result, err_msg))
+        if (!EMBED_CALL(cli_retry, TlsLibsslCtx, .tls = args->tls, .returned = written, .result = &result,
+                        .err_msg = args->err_msg))
         {
             return (result == 0ll) ? CLI_SOCKET_FAILED : result;
         }
     }
 }
 
-void cli_tls_closed(CliTls *tls)
+void cli_tls_close(const CliTlsOutCfg *args)
 {
-    s_ssl.shutdown(tls->ssl);
-    s_ssl.free_session(tls->ssl);
-    s_ssl.context_free(tls->context);
-    cli_lock_take(&s_lock);
-    tls->used = 0;
-    cli_lock_give(&s_lock);
+    s_ssl.shutdown(args->tls->ssl);
+    s_ssl.free_session(args->tls->ssl);
+    s_ssl.context_free(args->tls->context);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    args->tls->used = 0;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 #endif

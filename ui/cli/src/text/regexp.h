@@ -17,8 +17,16 @@
 // into a CliRegexp the caller owns; the text is its letters, each a code point (regexp_read.c, regexp_match.c)
 #ifndef REGEXP_H
 #define REGEXP_H
+typedef struct CliRegexpTextU32sCfg CliRegexpTextU32sCfg;
+typedef struct CliRegexpTextCfg CliRegexpTextCfg;
+typedef struct CliRegexpSourceCfg CliRegexpSourceCfg;
+typedef struct CliRegexpCfg CliRegexpCfg;
+typedef struct CliRegexpIndexCfg CliRegexpIndexCfg;
+typedef struct CliRegexpLetterCfg CliRegexpLetterCfg;
+typedef struct CliRegexpRoomCfg CliRegexpRoomCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most nodes, class items, child places and groups one pattern contains, and the most letters it is read from
 #define CLI_REGEXP_NODES 1024u
@@ -85,7 +93,7 @@ typedef struct
 // A pattern read and ready to match: its nodes, items and parts, the first characters of each alternative of an
 // alternation at its part's place, its root, its count of groups, `fold` under the `i` flag, and its first characters
 // The arrays are where a room or a store of patterns places them: a pattern is read into a room, which contains the
-// most any pattern takes, and a keeper copies what it took, so many patterns are stored in the room of one
+// most any pattern takes, and a store copies what it took, so many patterns are stored in the room of one
 typedef struct
 {
     CliRegexpNode *node;
@@ -113,7 +121,7 @@ typedef struct
 } CliRegexpRoom;
 
 // the pattern's arrays pointed at the room's, read into next
-void cli_regexp_roomed(CliRegexp *regexp, CliRegexpRoom *room);
+void cli_regexp_on_room(const CliRegexpRoomCfg *args);
 
 // one group's span in the text, from one letter up to another, and 1 in `set` where the group took part in the match
 typedef struct
@@ -159,24 +167,140 @@ enum
 };
 
 // `size` bytes of UTF-8 decoded into code points in `letters`, sized for `room`: their count
-unsigned long long cli_regexp_letters(const char *text, unsigned long long size, unsigned int *letters,
-                                      unsigned long long room);
+unsigned long long cli_regexp_letters(const CliRegexpTextCfg *args);
 // the pattern `source` with `flags` read into `regexp`, its arrays pointed at a room: 1, or 0 with why given,
 // `/<source>/: <why> at <place>`
-int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, VerbaLinea *err_msg);
+int cli_regexp_read(const CliRegexpSourceCfg *args);
 // whether a first set allows a match to start at `letter`: its ASCII bits, or `other` past them
-int cli_regexp_allows(const CliRegexpFirst *first, unsigned int letter);
+int cli_regexp_allows(const CliRegexpCfg *args);
 // whether a match starts at `at` in the text, `length` letters, each group's span written into `groups`, sized for
 // the regexp's groups and one, the whole match first: 1, or 0
-int cli_regexp_match_into(const CliRegexp *regexp, const unsigned int *text, unsigned long long length,
-                          unsigned long long at, CliRegexpSpan *groups);
+int cli_regexp_match_into(const CliRegexpTextU32sCfg *args);
 // the regexp's first characters and whether a pass of a node takes the text one way (regexp_match.c), which reading
 // a pattern fills in
-CliRegexpFirst cli_regexp_first_of(const CliRegexp *regexp, unsigned int node);
-int cli_regexp_one_way(const CliRegexp *regexp, unsigned int node);
+CliRegexpFirst cli_regexp_first_get(const CliRegexpIndexCfg *args);
+int cli_regexp_one_way(const CliRegexpIndexCfg *args);
 // the letter's properties and case as the matcher reads them (regexp_letters.c)
-int cli_regexp_property(unsigned int property, unsigned int letter);
-unsigned int cli_regexp_lower(unsigned int letter);
-unsigned int cli_regexp_upper(unsigned int letter);
+int cli_regexp_property(const CliRegexpLetterCfg *args);
+unsigned int cli_regexp_lower(const CliRegexpLetterCfg *args);
+unsigned int cli_regexp_upper(const CliRegexpLetterCfg *args);
+
+struct CliRegexpTextU32sCfg
+{
+    const CliRegexp *regexp;
+    const unsigned int *text_u32s;
+    unsigned long long length;
+    unsigned long long at;
+    CliRegexpSpan *groups;
+};
+
+struct CliRegexpTextCfg
+{
+    const char *text;
+    unsigned long long size;
+    unsigned int *letters;
+    unsigned long long room_u64;
+};
+
+struct CliRegexpSourceCfg
+{
+    CliRegexp *regexp_out;
+    const char *source;
+    const char *flags;
+    VerbaLinea *err_msg;
+};
+
+struct CliRegexpCfg
+{
+    const CliRegexpFirst *first;
+    unsigned int letter;
+};
+
+struct CliRegexpIndexCfg
+{
+    const CliRegexp *regexp;
+    unsigned int index;
+};
+
+struct CliRegexpLetterCfg
+{
+    unsigned int letter;
+    unsigned int property;
+};
+
+struct CliRegexpRoomCfg
+{
+    CliRegexp *regexp_out;
+    CliRegexpRoom *room;
+};
+
+typedef struct
+{
+    void (*room)(const CliRegexpRoomCfg *args);
+} CliRegexpRoomNs;
+EMBED_TABLE_LAYOUT(CliRegexpRoomNs, room);
+EMBED_TABLE_STORAGE CliRegexpRoomNs cli_regexp_room EMBED_UNUSED = {
+    .room = cli_regexp_on_room,
+};
+
+typedef struct
+{
+    unsigned long long (*letters)(const CliRegexpTextCfg *args);
+} CliRegexpTextNs;
+EMBED_TABLE_LAYOUT(CliRegexpTextNs, letters);
+EMBED_TABLE_STORAGE CliRegexpTextNs cli_regexp_text EMBED_UNUSED = {
+    .letters = cli_regexp_letters,
+};
+
+typedef struct
+{
+    int (*read)(const CliRegexpSourceCfg *args);
+} CliRegexpSourceNs;
+EMBED_TABLE_LAYOUT(CliRegexpSourceNs, read);
+EMBED_TABLE_STORAGE CliRegexpSourceNs cli_regexp_source EMBED_UNUSED = {
+    .read = cli_regexp_read,
+};
+
+typedef struct
+{
+    int (*allows)(const CliRegexpCfg *args);
+} CliRegexpNs;
+EMBED_TABLE_LAYOUT(CliRegexpNs, allows);
+EMBED_TABLE_STORAGE CliRegexpNs cli_regexp EMBED_UNUSED = {
+    .allows = cli_regexp_allows,
+};
+
+typedef struct
+{
+    int (*match_into)(const CliRegexpTextU32sCfg *args);
+} CliRegexpTextU32sNs;
+EMBED_TABLE_LAYOUT(CliRegexpTextU32sNs, match_into);
+EMBED_TABLE_STORAGE CliRegexpTextU32sNs cli_regexp_text_u_32s EMBED_UNUSED = {
+    .match_into = cli_regexp_match_into,
+};
+
+typedef struct
+{
+    CliRegexpFirst (*first_get)(const CliRegexpIndexCfg *args);
+    int (*one_way)(const CliRegexpIndexCfg *args);
+} CliRegexpIndexNs;
+EMBED_TABLE_LAYOUT(CliRegexpIndexNs, first_get, one_way);
+EMBED_TABLE_STORAGE CliRegexpIndexNs cli_regexp_index EMBED_UNUSED = {
+    .first_get = cli_regexp_first_get,
+    .one_way = cli_regexp_one_way,
+};
+
+typedef struct
+{
+    int (*property)(const CliRegexpLetterCfg *args);
+    unsigned int (*lower)(const CliRegexpLetterCfg *args);
+    unsigned int (*upper)(const CliRegexpLetterCfg *args);
+} CliRegexpLetterNs;
+EMBED_TABLE_LAYOUT(CliRegexpLetterNs, property, lower, upper);
+EMBED_TABLE_STORAGE CliRegexpLetterNs cli_regexp_letter EMBED_UNUSED = {
+    .property = cli_regexp_property,
+    .lower = cli_regexp_lower,
+    .upper = cli_regexp_upper,
+};
 
 #endif

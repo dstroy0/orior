@@ -5,48 +5,59 @@
 #include "../text/text.h"
 #include "archive_internal.h"
 
-// a tar member's size, in octal, or in base 256 where its first byte's top bit is set
-static unsigned long long cli_tar_size(const unsigned char *field, unsigned int length)
+typedef struct
 {
-    if ((length > 0u) && ((field[0] & 0x80u) != 0u))
+    const unsigned char *field;
+    unsigned int length;
+    VerbaLinea *out;
+} ArchiveTarCtx;
+
+// a tar member's size, in octal, or in base 256 where its first byte's top bit is set
+EMBED_INLINE unsigned long long cli_tar_size(const ArchiveTarCtx *args)
+{
+    if ((args->length > 0u) && ((args->field[0] & 0x80u) != 0u))
     {
         unsigned long long size = 0ull;
-        for (unsigned int at = 1u; at < length; at += 1u)
+        for (unsigned int at = 1u; at < args->length; at += 1u)
         {
-            size = (size << 8u) | field[at];
+            size = (size << 8u) | args->field[at];
         }
         return size;
     }
     unsigned long long size = 0ull;
     int digits = 0;
-    for (unsigned int at = 0u; (at < length) && (field[at] != 0u) && (field[at] != ' '); at += 1u)
+    for (unsigned int at = 0u; (at < args->length) && (args->field[at] != 0u) && (args->field[at] != ' '); at += 1u)
     {
-        if ((field[at] < '0') || (field[at] > '7'))
+        if ((args->field[at] < '0') || (args->field[at] > '7'))
         {
             return 0ull;
         }
-        size = (size << 3u) | (unsigned long long)(field[at] - '0');
+        size = (size << 3u) | (unsigned long long)(args->field[at] - '0');
         digits = 1;
     }
     return digits ? size : 0ull;
 }
 
 // a tar header's text field up to its first 0, read as UTF-8 with what is no letter as U+FFFD, after `out`
-static void cli_tar_text(const unsigned char *field, unsigned int length, VerbaLinea *out)
+EMBED_INLINE void cli_tar_text(const ArchiveTarCtx *args)
 {
+    unsigned int length = args->length;
+    VerbaLinea *out = args->out;
     unsigned int end = 0u;
-    const unsigned char *const zero = memor.chr(&(MemoriaCfg){.src = field, .val = 0, .bytes = length});
+    const unsigned char *const zero = memor.chr(&(MemoriaCfg){.src = args->field, .val = 0, .bytes = length});
     // a 0 found lies in the field, whose length an unsigned int stores
-    end = (zero != NULL) ? (unsigned int)(zero - field) : length;
-    cli_lossy(out, field, end);
+    end = (zero != NULL) ? (unsigned int)(zero - args->field) : length;
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = out, .text_bytes = args->field,
+               .length = end);
 }
 
-int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMembers *members, VerbaLinea *err_msg)
+int cli_tar_members(const CliArchiveBytesSizeErrMsgCtx *args)
 {
+    const unsigned char *bytes = args->bytes;
     static char s_long[CLI_PATH_MAX_LEN * 4u];
     unsigned long long at = 0ull;
     int has_long = 0;
-    while ((at + 512ull) <= size)
+    while ((at + 512ull) <= args->size)
     {
         const unsigned char *const header = bytes + at;
         int zeros = 1;
@@ -58,21 +69,23 @@ int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMemb
         {
             break;
         }
-        const unsigned long long length = cli_tar_size(header + 124, 12u);
+        const unsigned long long length = EMBED_CALL(cli_tar_size, ArchiveTarCtx, .field = header + 124, .length = 12u);
         const unsigned char kind = header[156];
         const unsigned long long data = at + 512ull;
         const unsigned long long next = data + (((length + 511ull) / 512ull) * 512ull);
         if ((kind == 'L') || (kind == 'x'))
         {
-            if ((data > size) || (length > (size - data)))
+            if ((data > args->size) || (length > (args->size - data)))
             {
-                mmgr_line_put(err_msg, (kind == 'L') ? "a tar's long name is cut" : "a tar's extended header is cut");
+                mmgr_line_put(args->err_msg,
+                              (kind == 'L') ? "a tar's long name is cut" : "a tar's extended header is cut");
                 return 0;
             }
             if (kind == 'L')
             {
                 VerbaLinea line = {s_long, sizeof(s_long), 0ull};
-                cli_tar_text(bytes + data, (length < 0xffffffffull) ? (unsigned int)length : 0xffffffffu, &line);
+                EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = bytes + data,
+                           .length = (length < 0xffffffffull) ? (unsigned int)length : 0xffffffffu, .out = &line);
                 mmgr_line_finish(&line);
                 has_long = 1;
             }
@@ -84,14 +97,19 @@ int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMemb
                 while (record < end)
                 {
                     const unsigned char *stop = record;
-                    stop += cli_text_to_any((const char *)stop, 0ull, (unsigned long long)(end - stop), "\n");
+                    stop +=
+                        EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)stop,
+                                   .at = 0ull, .size = (unsigned long long)(end - stop), .set = "\n");
                     const unsigned char *space = record;
-                    space += cli_text_to_any((const char *)space, 0ull, (unsigned long long)(stop - space), " ");
+                    space += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                        .text = (const char *)space, .at = 0ull,
+                                        .size = (unsigned long long)(stop - space), .set = " ");
                     if (((space + 6) <= stop) &&
                         (memor.cmp(&(MemoriaCfg){.src = space + 1, .other = "path=", .bytes = 5u}) == 0))
                     {
                         VerbaLinea line = {s_long, sizeof(s_long), 0ull};
-                        cli_lossy(&line, space + 6, (unsigned long long)(stop - (space + 6)));
+                        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
+                                   .text_bytes = space + 6, .length = (unsigned long long)(stop - (space + 6)));
                         mmgr_line_finish(&line);
                         has_long = 1;
                     }
@@ -112,7 +130,7 @@ int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMemb
             {
                 char prefix[CLI_PATH_MAX_LEN];
                 VerbaLinea prefixed = {prefix, sizeof(prefix), 0ull};
-                cli_tar_text(header + 345, 155u, &prefixed);
+                EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = header + 345, .length = 155u, .out = &prefixed);
                 mmgr_line_finish(&prefixed);
                 if ((memor.cmp(&(MemoriaCfg){.src = header + 257, .other = "ustar", .bytes = 5u}) == 0) &&
                     (prefix[0] != '\0'))
@@ -120,12 +138,14 @@ int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMemb
                     mmgr_line_put(&line, prefix);
                     mmgr_line_ch(&line, '/');
                 }
-                cli_tar_text(header, 100u, &line);
+                EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = header, .length = 100u, .out = &line);
             }
             const unsigned long long name_length = mmgr_line_finish(&line);
             const int dir = (kind == '5') || ((name_length > 0ull) && (name[name_length - 1ull] == '/'));
-            cli_archive_member_put(members, cli_archive_name_stored(members, name, name_length), 0u, 0, dir, length,
-                                   at);
+            EMBED_CALL(cli_archive_size_internal.member_put, CliArchiveSizeCtx, .members = args->members,
+                       .name_u32 = EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
+                                              .members = args->members, .name = name, .length = name_length),
+                       .raw = 0u, .has_raw = 0, .dir = dir, .size = length, .at = at);
         }
         else
         {
@@ -136,26 +156,26 @@ int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMemb
     return 1;
 }
 
-int cli_tar_with(const unsigned char *bytes, unsigned long long size, const CliMember *target,
-                 const unsigned char *data, unsigned long long data_size, unsigned char *out, unsigned long long room,
-                 unsigned long long *out_size, VerbaLinea *err_msg)
+int cli_tar_with(const CliArchiveBytesSizeCtx *args)
 {
-    const unsigned long long padded = ((data_size + 511ull) / 512ull) * 512ull;
-    const unsigned long long after = target->at + 512ull + (((target->size + 511ull) / 512ull) * 512ull);
-    const unsigned long long rest = (after < size) ? (size - after) : 0ull;
-    if (((target->at + 512ull) > size) || ((target->at + 512ull + padded + rest) > room))
+    const unsigned char *bytes = args->bytes;
+    unsigned long long *out_size = args->out_size;
+    const unsigned long long padded = ((args->data_size + 511ull) / 512ull) * 512ull;
+    const unsigned long long after = args->target->at + 512ull + (((args->target->size + 511ull) / 512ull) * 512ull);
+    const unsigned long long rest = (after < args->size) ? (args->size - after) : 0ull;
+    if (((args->target->at + 512ull) > args->size) || ((args->target->at + 512ull + padded + rest) > args->room))
     {
-        mmgr_line_put(err_msg, "the tar is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the tar is larger than orior_cli supports");
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = out, .src = bytes, .bytes = target->at});
-    unsigned char *const header = out + target->at;
-    memor.cpy(&(MemoriaCfg){.dst = header, .src = bytes + target->at, .bytes = 512u});
+    memor.cpy(&(MemoriaCfg){.dst = args->out, .src = bytes, .bytes = args->target->at});
+    unsigned char *const header = args->out + args->target->at;
+    memor.cpy(&(MemoriaCfg){.dst = header, .src = bytes + args->target->at, .bytes = 512u});
     // the size as eleven octal digits and a 0, and the check as six octal digits, a 0 and a space
     char field[16];
     VerbaLinea sized = {field, sizeof(field), 0ull};
     unsigned long long digits = 1ull;
-    for (unsigned long long probe = data_size >> 3u; probe != 0ull; probe >>= 3u)
+    for (unsigned long long probe = args->data_size >> 3u; probe != 0ull; probe >>= 3u)
     {
         digits += 1ull;
     }
@@ -165,7 +185,7 @@ int cli_tar_with(const unsigned char *bytes, unsigned long long size, const CliM
     }
     for (unsigned long long place = digits; place > 0ull; place -= 1ull)
     {
-        mmgr_line_ch(&sized, (char)('0' + ((data_size >> (3ull * (place - 1ull))) & 7ull)));
+        mmgr_line_ch(&sized, (char)('0' + ((args->data_size >> (3ull * (place - 1ull))) & 7ull)));
     }
     memor.cpy(&(MemoriaCfg){.dst = header + 124, .src = field, .bytes = (sized.at < 11ull) ? sized.at : 11ull});
     header[124 + 11] = 0u;
@@ -182,32 +202,34 @@ int cli_tar_with(const unsigned char *bytes, unsigned long long size, const CliM
     }
     header[154] = 0u;
     header[155] = ' ';
-    unsigned long long used = target->at + 512ull;
-    memor.cpy(&(MemoriaCfg){.dst = out + used, .src = data, .bytes = data_size});
-    memor.set(&(MemoriaCfg){.dst = out + used + data_size, .val = 0, .bytes = padded - data_size});
+    unsigned long long used = args->target->at + 512ull;
+    memor.cpy(&(MemoriaCfg){.dst = args->out + used, .src = args->data, .bytes = args->data_size});
+    memor.set(&(MemoriaCfg){.dst = args->out + used + args->data_size, .val = 0, .bytes = padded - args->data_size});
     used += padded;
-    memor.cpy(&(MemoriaCfg){.dst = out + used, .src = bytes + after, .bytes = rest});
+    memor.cpy(&(MemoriaCfg){.dst = args->out + used, .src = bytes + after, .bytes = rest});
     *out_size = used + rest;
     return 1;
 }
 
-int cli_gunzip(const unsigned char *bytes, unsigned long long size, unsigned char *out, unsigned long long room,
-               unsigned long long *out_size, VerbaLinea *err_msg)
+int cli_gunzip(const CliArchiveBytesCfg *args)
 {
-    if ((size < 3ull) || (bytes[0] != 0x1fu) || (bytes[1] != 0x8bu) || (bytes[2] != 8u))
+    const unsigned char *bytes = args->bytes;
+    if ((args->size < 3ull) || (bytes[0] != 0x1fu) || (bytes[1] != 0x8bu) || (bytes[2] != 8u))
     {
-        mmgr_line_put(err_msg, "not a gzip");
+        mmgr_line_put(args->err_msg, "not a gzip");
         return 0;
     }
-    if (size < 10ull)
+    if (args->size < 10ull)
     {
-        mmgr_line_put(err_msg, "the archive is cut");
+        mmgr_line_put(args->err_msg, "the archive is cut");
         return 0;
     }
     const unsigned char flags = bytes[3];
     unsigned long long at = 10ull;
     unsigned long long extra = 0ull;
-    if (((flags & 4u) != 0u) && !cli_archive_number(bytes, size, at, 2u, &extra, err_msg))
+    if (((flags & 4u) != 0u) &&
+        !EMBED_CALL(cli_archive_bytes_size_at_internal.number, CliArchiveBytesSizeAtCtx, .bytes = bytes,
+                    .size = args->size, .at = at, .width = 2u, .value = &extra, .err_msg = args->err_msg))
     {
         return 0;
     }
@@ -219,61 +241,67 @@ int cli_gunzip(const unsigned char *bytes, unsigned long long size, unsigned cha
         {
             continue;
         }
-        const unsigned char *const zero =
-            memor.chr(&(MemoriaCfg){.src = bytes + at, .val = 0, .bytes = (at < size) ? (size - at) : 0ull});
-        at = (zero != NULL) ? (unsigned long long)(zero - bytes) : size;
-        if (at >= size)
+        const unsigned char *const zero = memor.chr(
+            &(MemoriaCfg){.src = bytes + at, .val = 0, .bytes = (at < args->size) ? (args->size - at) : 0ull});
+        at = (zero != NULL) ? (unsigned long long)(zero - bytes) : args->size;
+        if (at >= args->size)
         {
-            mmgr_line_put(err_msg, "a gzip's header is cut");
+            mmgr_line_put(args->err_msg, "a gzip's header is cut");
             return 0;
         }
         at += 1ull;
     }
     at += ((flags & 2u) != 0u) ? 2ull : 0ull;
-    if (at > size)
+    if (at > args->size)
     {
-        mmgr_line_put(err_msg, "a gzip is cut");
+        mmgr_line_put(args->err_msg, "a gzip is cut");
         return 0;
     }
     unsigned long long used = 0ull;
-    if (!cli_inflate(bytes + at, size - at, out, room, out_size, &used, err_msg))
+    if (!EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = bytes + at, .size = args->size - at,
+                    .out = args->out, .room = args->room, .out_size = args->out_size, .used = &used,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
     unsigned long long check = 0ull;
-    if (!cli_archive_number(bytes, size, at + used, 4u, &check, err_msg))
+    if (!EMBED_CALL(cli_archive_bytes_size_at_internal.number, CliArchiveBytesSizeAtCtx, .bytes = bytes,
+                    .size = args->size, .at = at + used, .width = 4u, .value = &check, .err_msg = args->err_msg))
     {
         return 0;
     }
-    if (check != cli_crc32(out, *out_size))
+    if (check !=
+        EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg, .bytes = args->out, .size = *args->out_size))
     {
-        mmgr_line_put(err_msg, "the gzip does not check");
+        mmgr_line_put(args->err_msg, "the gzip does not check");
         return 0;
     }
     return 1;
 }
 
-unsigned long long cli_gzip(const unsigned char *data, unsigned long long size, unsigned char *out,
-                            unsigned long long room)
+unsigned long long cli_gzip(const CliArchiveSizeCfg *args)
 {
     static const unsigned char s_head[10] = {0x1fu, 0x8bu, 8u, 0u, 0u, 0u, 0u, 0u, 0u, 255u};
-    if (room < 18ull)
+    if (args->room < 18ull)
     {
         return 0ull;
     }
-    memor.cpy(&(MemoriaCfg){.dst = out, .src = s_head, .bytes = sizeof(s_head)});
-    const unsigned long long deflated = cli_deflate(data, size, out + 10, room - 18ull);
-    if ((deflated == 0ull) && (size != 0ull))
+    memor.cpy(&(MemoriaCfg){.dst = args->out, .src = s_head, .bytes = sizeof(s_head)});
+    const unsigned long long deflated =
+        EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = args->data, .size = args->size,
+                   .out = args->out + 10, .room = args->room - 18ull);
+    if ((deflated == 0ull) && (args->size != 0ull))
     {
         return 0ull;
     }
-    const unsigned int crc = cli_crc32(data, size);
+    const unsigned int crc =
+        EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg, .bytes = args->data, .size = args->size);
     unsigned long long at = 10ull + deflated;
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
     {
         // each byte of the check, and of the size's low 32 bits, its low eight bits
-        out[at + byte] = (unsigned char)(crc >> (8u * byte));
-        out[at + 4u + byte] = (unsigned char)(size >> (8u * byte));
+        args->out[at + byte] = (unsigned char)(crc >> (8u * byte));
+        args->out[at + 4u + byte] = (unsigned char)(args->size >> (8u * byte));
     }
     at += 8ull;
     return at;

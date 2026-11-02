@@ -46,23 +46,23 @@ static int same(const char *text, const char *wanted)
 
 int main(void)
 {
-    (void)cli_cells_made(CLI_CELLS_POOL);
+    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     char why_text[1024];
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     GuiGlyphs glyphs;
-    if (!gui_glyphs_made(&glyphs, &why))
+    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
     {
         mmgr_line_finish(&why);
         cli_check(0, why_text);
-        return cli_checked();
+        return cli_on_check();
     }
     GuiIcons icons;
-    gui_icons_made(&icons);
-    const GuiPalette *const palette = gui_palette(GUI_SCHEME_DARK);
+    EMBED_CALL(cli_icons.init, GuiIconsCfg, .icons = &icons);
+    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     char text[64];
-    gui_status_memory_text(12897484ull, text, sizeof(text));
+    EMBED_CALL(gui_statusbar_bytes.status_memory_text, GuiStatusbarBytesCfg, .bytes = 12897484ull, .text = text, .size = sizeof(text));
     cli_check(same(text, "12.3 MB"), "a reading under a hundred megabytes is written to a tenth");
-    gui_status_memory_text(157286400ull, text, sizeof(text));
+    EMBED_CALL(gui_statusbar_bytes.status_memory_text, GuiStatusbarBytesCfg, .bytes = 157286400ull, .text = text, .size = sizeof(text));
     cli_check(same(text, "150 MB"), "a reading past a hundred is written whole");
     GuiStatus status;
     memor.set(&(MemoriaCfg){.dst = &status, .val = 0, .bytes = sizeof(status)});
@@ -73,41 +73,41 @@ int main(void)
     status.anchor_line = 11ull;
     status.anchor_col = 2ull;
     status.indent_tabs = -1;
-    gui_status_cursor_text(&status, text, sizeof(text));
+    EMBED_CALL(gui_statusbar.status_cursor_text, GuiStatusbarCfg, .status = &status, .text = text, .size = sizeof(text));
     cli_check(same(text, "12:3"), "the cursor is written as its line and column from one");
-    gui_status_selection_text(&status, text, sizeof(text));
+    EMBED_CALL(gui_statusbar.status_selection_text, GuiStatusbarCfg, .status = &status, .text = text, .size = sizeof(text));
     cli_check(same(text, ""), "no selection is written as nothing");
     status.anchor_col = 7ull;
-    gui_status_selection_text(&status, text, sizeof(text));
+    EMBED_CALL(gui_statusbar.status_selection_text, GuiStatusbarCfg, .status = &status, .text = text, .size = sizeof(text));
     cli_check(same(text, "5 selected"), "a selection within a line is written as its letters");
     status.anchor_line = 9ull;
-    gui_status_selection_text(&status, text, sizeof(text));
+    EMBED_CALL(gui_statusbar.status_selection_text, GuiStatusbarCfg, .status = &status, .text = text, .size = sizeof(text));
     cli_check(same(text, "3 lines selected"), "a selection across lines is written as its lines");
-    gui_status_indent_text(&status, text, sizeof(text));
+    EMBED_CALL(gui_statusbar.status_indent_text, GuiStatusbarCfg, .status = &status, .text = text, .size = sizeof(text));
     cli_check(same(text, "4 spaces"), "an indentation nothing set is four spaces");
     status.indent_tabs = 1;
     status.indent_size = 4u;
-    gui_status_indent_text(&status, text, sizeof(text));
+    EMBED_CALL(gui_statusbar.status_indent_text, GuiStatusbarCfg, .status = &status, .text = text, .size = sizeof(text));
     cli_check(same(text, "Tab 4"), "an indentation of tabs is written as a tab and its step");
     status.indent_tabs = 0;
     status.indent_size = 2u;
-    gui_status_indent_text(&status, text, sizeof(text));
+    EMBED_CALL(gui_statusbar.status_indent_text, GuiStatusbarCfg, .status = &status, .text = text, .size = sizeof(text));
     cli_check(same(text, "2 spaces"), "an indentation of spaces is written as its step");
 
     GuiFrame frame;
-    gui_frame_laid(&frame, 900u, 300u, 1.0f);
+    EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 900u, .height = 300u, .scale = 100);
     GuiRaster raster;
     GuiRaster bare_base;
     GuiBase base;
-    cli_check(gui_raster_made(&raster, 900u, 300u) && gui_raster_made(&bare_base, 900u, 300u) && gui_base_made(&base, 900u, 300u),
+    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 900u, .height = 300u) && EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &bare_base, .width = 900u, .height = 300u) && EMBED_CALL(gui_base_width.init, GuiBaseWidthCfg, .base = &base, .width = 900u, .height = 300u),
               "a raster for the bar, one for the base alone and the base are made");
-    (void)gui_base_laid(&base, &frame, palette, 0);
-    gui_base_drawn(&base, &bare_base, NULL, palette->ground);
-    gui_base_drawn(&base, &raster, NULL, palette->ground);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
     status.memory = 157286400ull;
     status.anchor_line = 11ull;
     status.anchor_col = 2ull;
-    gui_statusbar_drawn(&raster, &glyphs, &icons, palette, &frame, &status);
+    EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .frame = &frame, .status = &status);
     const GuiColor tint = raster.pixels[((unsigned int)(frame.status.y + 2) * 900u) + 30u];
     cli_check(tint != palette->ground, "the bar is tinted over the ground");
     cli_check(painted(&raster, (GuiRect){frame.strip.width + 16, frame.status.y + 6, 120, 16}, tint), "the file's crumbs are drawn at the bar's left");
@@ -121,26 +121,26 @@ int main(void)
     numbers.reveal_bottom = GUI_WHOLE;
     numbers.room_bottom = GUI_WHOLE;
     GuiFrame claimed = frame;
-    gui_frame_claimed(&claimed, &numbers);
-    (void)gui_base_laid(&base, &claimed, palette, 0);
-    gui_base_drawn(&base, &bare_base, NULL, palette->ground);
-    gui_base_drawn(&base, &raster, NULL, palette->ground);
-    gui_statusbar_drawn(&raster, &glyphs, &icons, palette, &claimed, &status);
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &claimed, .numbers = &numbers);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &claimed, .palette = palette, .controls_steady = 0);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .frame = &claimed, .status = &status);
     cli_check(!bare(&raster, (GuiRect){claimed.status.x + 8, claimed.status.y + 6, 160, 16}, &bare_base), "the crumbs stand at the bar's left while the claim holds");
-    (void)gui_base_laid(&base, &frame, palette, 0);
-    gui_base_drawn(&base, &bare_base, NULL, palette->ground);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .ground = NULL, .color = palette->ground);
 
-    gui_base_drawn(&base, &raster, NULL, palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
     status.path = "";
     status.has_cursor = 0;
-    gui_statusbar_drawn(&raster, &glyphs, &icons, palette, &frame, &status);
+    EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .frame = &frame, .status = &status);
     cli_check(bare(&raster, (GuiRect){frame.strip.width + 16, frame.status.y + 6, 120, 16}, &bare_base), "with no file open the left is bare");
     cli_check(painted(&raster, (GuiRect){900 - 16 - 30, frame.status.y + 6, 30, 16}, tint), "the memory reading ends at the bar's right padding");
     cli_check(bare(&raster, (GuiRect){900 - 16 - 16 - 14 - 18 - 200, frame.status.y + 6, 180, 16}, &bare_base), "and the editor's line is away");
-    gui_raster_given(&raster);
-    gui_raster_given(&bare_base);
-    gui_base_given(&base);
-    gui_icons_given(&icons);
-    gui_glyphs_given(&glyphs);
-    return cli_checked();
+    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &bare_base);
+    EMBED_CALL(gui_base_width.free, GuiBaseWidthCfg, .base = &base);
+    EMBED_CALL(cli_icons.free, GuiIconsCfg, .icons = &icons);
+    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    return cli_on_check();
 }

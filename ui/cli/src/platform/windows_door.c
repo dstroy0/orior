@@ -16,21 +16,37 @@
 #define CLI_DOOR_PIPE_ROOM 65536u
 #define CLI_DOOR_BUSY_WAIT 5000ull
 
-// an instance of the listener's pipe made, the first where `first`: INVALID_HANDLE_VALUE where none was
-static HANDLE door_instance(const CliDoorListener *listener, int first)
+typedef struct
 {
-    const DWORD mode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | (first ? FILE_FLAG_FIRST_PIPE_INSTANCE : 0u);
-    return CreateNamedPipeW(listener->name, mode,
+#if (defined(_WIN32))
+    const CliDoorListener *listener;
+    int first;
+    HANDLE handle;
+    HANDLE shut;
+    int kind;
+    void *bytes;
+    DWORD size;
+    DWORD *moved;
+    CliDoorEnd *end;
+#endif
+} WindowsDoorCtx;
+// an instance of the listener's pipe made, the first where `first`: INVALID_HANDLE_VALUE where none was
+EMBED_INLINE HANDLE door_instance(const WindowsDoorCtx *args)
+{
+    const DWORD mode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | (args->first ? FILE_FLAG_FIRST_PIPE_INSTANCE : 0u);
+    return CreateNamedPipeW(args->listener->name, mode,
                             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
                             PIPE_UNLIMITED_INSTANCES, CLI_DOOR_PIPE_ROOM, CLI_DOOR_PIPE_ROOM, 0u, NULL);
 }
 
 // one overlapped operation on `handle`, begun by `kind` (0 a read, 1 a write, 2 a join waited for) and waited for: the
 // bytes it moved into `moved`: 1, or 0 where it failed
-static int door_overlapped(HANDLE handle, HANDLE shut, int kind, void *bytes, DWORD size, DWORD *moved)
+static int door_overlap(const WindowsDoorCtx *args)
 {
+    void *bytes = args->bytes;
+    DWORD *moved = args->moved;
     // an end shut takes no read or write, so one begun after the shut does not wait for what never comes
-    if ((shut != NULL) && (WaitForSingleObject(shut, 0u) == WAIT_OBJECT_0))
+    if ((args->shut != NULL) && (WaitForSingleObject(args->shut, 0u) == WAIT_OBJECT_0))
     {
         return 0;
     }
@@ -41,14 +57,14 @@ static int door_overlapped(HANDLE handle, HANDLE shut, int kind, void *bytes, DW
     {
         return 0;
     }
-    const BOOL started = (kind == 0)   ? ReadFile(handle, bytes, size, NULL, &work)
-                         : (kind == 1) ? WriteFile(handle, bytes, size, NULL, &work)
-                                       : ConnectNamedPipe(handle, &work);
+    const BOOL started = (args->kind == 0)   ? ReadFile(args->handle, bytes, args->size, NULL, &work)
+                         : (args->kind == 1) ? WriteFile(args->handle, bytes, args->size, NULL, &work)
+                                             : ConnectNamedPipe(args->handle, &work);
     if (!started)
     {
         const DWORD error = GetLastError();
         // a process that joined before the wait began needs no wait
-        if ((kind == 2) && (error == ERROR_PIPE_CONNECTED))
+        if ((args->kind == 2) && (error == ERROR_PIPE_CONNECTED))
         {
             CloseHandle(work.hEvent);
             *moved = 0u;
@@ -60,47 +76,48 @@ static int door_overlapped(HANDLE handle, HANDLE shut, int kind, void *bytes, DW
             return 0;
         }
     }
-    if (shut != NULL)
+    if (args->shut != NULL)
     {
-        const HANDLE either[2] = {work.hEvent, shut};
+        const HANDLE either[2] = {work.hEvent, args->shut};
         if (WaitForMultipleObjects(2u, either, FALSE, INFINITE) != WAIT_OBJECT_0)
         {
             // the end was shut while the work waited: the work is cancelled and seen through before its room goes
-            (void)CancelIoEx(handle, &work);
-            (void)GetOverlappedResult(handle, &work, moved, TRUE);
+            (void)CancelIoEx(args->handle, &work);
+            (void)GetOverlappedResult(args->handle, &work, moved, TRUE);
             CloseHandle(work.hEvent);
             return 0;
         }
     }
-    const BOOL waited = GetOverlappedResult(handle, &work, moved, TRUE);
+    const BOOL waited = GetOverlappedResult(args->handle, &work, moved, TRUE);
     CloseHandle(work.hEvent);
     return waited != FALSE;
 }
 
 // an end opened on `handle`, with the event it is shut by: 1, or 0 where Windows gave no event, the handle closed
-static int door_end_opened(CliDoorEnd *end, HANDLE handle)
+EMBED_INLINE int door_end_open(const WindowsDoorCtx *args)
 {
+    HANDLE handle = args->handle;
     const HANDLE shut = CreateEventW(NULL, TRUE, FALSE, NULL);
     if (shut == NULL)
     {
         CloseHandle(handle);
         return 0;
     }
-    end->handle = (unsigned long long)(uintptr_t)handle;
-    end->shut = (unsigned long long)(uintptr_t)shut;
-    end->open = 1;
+    args->end->handle = (unsigned long long)(uintptr_t)handle;
+    args->end->shut = (unsigned long long)(uintptr_t)shut;
+    args->end->open = 1;
     return 1;
 }
 
-int cli_door_listening(CliDoorListener *listener, char *address, VerbaLinea *err_msg)
+int cli_door_listening(const CliDoorListenerAddressCtx *args)
 {
     unsigned char secret[8];
-    if (!cli_random_bytes(secret, sizeof(secret)))
+    if (!EMBED_CALL(cli_size_bytes_internal.random_bytes, CliSizeBytesCtx, .bytes_out = secret, .size = sizeof(secret)))
     {
-        mmgr_line_put(err_msg, "the system gave no secret");
+        mmgr_line_put(args->err_msg, "the system gave no secret");
         return 0;
     }
-    VerbaLinea named = {address, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea named = {args->address, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&named, "\\\\.\\pipe\\orior-comms-");
     mmgr_line_decimal(&named, cli_process_own(), 1u);
     mmgr_line_ch(&named, '-');
@@ -110,56 +127,59 @@ int cli_door_listening(CliDoorListener *listener, char *address, VerbaLinea *err
         mmgr_line_ch(&named, "0123456789abcdef"[secret[at] & 15u]);
     }
     mmgr_line_finish(&named);
-    listener->lock = (CliLock)CLI_LOCK_INIT;
-    (void)MultiByteToWideChar(CP_UTF8, 0u, address, -1, listener->name, CLI_PATH_MAX_LEN);
-    const HANDLE waiting = door_instance(listener, 1);
+    args->listener->lock = (CliLock)CLI_LOCK_INIT;
+    (void)MultiByteToWideChar(CP_UTF8, 0u, args->address, -1, args->listener->name, CLI_PATH_MAX_LEN);
+    const HANDLE waiting = EMBED_CALL(door_instance, WindowsDoorCtx, .listener = args->listener, .first = 1);
     const DWORD error = GetLastError();
-    listener->waiting = (unsigned long long)(uintptr_t)waiting;
+    args->listener->waiting = (unsigned long long)(uintptr_t)waiting;
     if (waiting == INVALID_HANDLE_VALUE)
     {
-        mmgr_line_put(err_msg, "the door's pipe was not made: Windows reported ");
-        mmgr_line_decimal(err_msg, error, 1u);
+        mmgr_line_put(args->err_msg, "the door's pipe was not made: Windows reported ");
+        mmgr_line_decimal(args->err_msg, error, 1u);
         return 0;
     }
     return 1;
 }
 
-int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer, unsigned int *peer,
-                      VerbaLinea *err_msg)
+int cli_door_accept(const CliDoorListenerCtx *args)
 {
-    cli_lock_take(&listener->lock);
+    int *has_peer = args->has_peer;
+    unsigned int *peer = args->peer;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->listener->lock);
     // the waiting instance's handle was a pointer's width when it was stored
-    const HANDLE joined = (HANDLE)(uintptr_t)listener->waiting;
-    cli_lock_give(&listener->lock);
+    const HANDLE joined = (HANDLE)(uintptr_t)args->listener->waiting;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->listener->lock);
     DWORD moved = 0u;
-    const int joining = door_overlapped(joined, NULL, 2, NULL, 0u, &moved);
+    const int joining = EMBED_CALL(door_overlap, WindowsDoorCtx, .handle = joined, .shut = NULL, .kind = 2,
+                                   .bytes = NULL, .size = 0u, .moved = &moved);
     const DWORD error = GetLastError();
     // the next instance waits for the process after, whether this one was joined or not
-    cli_lock_take(&listener->lock);
-    listener->waiting = (unsigned long long)(uintptr_t)door_instance(listener, 0);
-    cli_lock_give(&listener->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->listener->lock);
+    args->listener->waiting = (unsigned long long)(uintptr_t)EMBED_CALL(door_instance, WindowsDoorCtx,
+                                                                        .listener = args->listener, .first = 0);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->listener->lock);
     if (!joining)
     {
         CloseHandle(joined);
-        mmgr_line_put(err_msg, "no process joined: Windows reported ");
-        mmgr_line_decimal(err_msg, error, 1u);
+        mmgr_line_put(args->err_msg, "no process joined: Windows reported ");
+        mmgr_line_decimal(args->err_msg, error, 1u);
         return 0;
     }
     ULONG id = 0u;
     *has_peer = (GetNamedPipeClientProcessId(joined, &id) != FALSE);
     *peer = (unsigned int)id;
-    if (!door_end_opened(end, joined))
+    if (!EMBED_CALL(door_end_open, WindowsDoorCtx, .end = args->end, .handle = joined))
     {
-        mmgr_line_put(err_msg, "Windows gave no event for the end");
+        mmgr_line_put(args->err_msg, "Windows gave no event for the end");
         return 0;
     }
     return 1;
 }
 
-int cli_door_connected(const char *address, CliDoorEnd *end, VerbaLinea *err_msg)
+int cli_door_connect(const CliDoorCtx *args)
 {
     wchar_t name[CLI_PATH_MAX_LEN];
-    (void)MultiByteToWideChar(CP_UTF8, 0u, address, -1, name, CLI_PATH_MAX_LEN);
+    (void)MultiByteToWideChar(CP_UTF8, 0u, args->address_read, -1, name, CLI_PATH_MAX_LEN);
     const unsigned long long until = cli_clock_milliseconds() + CLI_DOOR_BUSY_WAIT;
     for (;;)
     {
@@ -167,9 +187,9 @@ int cli_door_connected(const char *address, CliDoorEnd *end, VerbaLinea *err_msg
             CreateFileW(name, GENERIC_READ | GENERIC_WRITE, 0u, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
         if (handle != INVALID_HANDLE_VALUE)
         {
-            if (!door_end_opened(end, handle))
+            if (!EMBED_CALL(door_end_open, WindowsDoorCtx, .end = args->end, .handle = handle))
             {
-                mmgr_line_put(err_msg, "Windows gave no event for the end");
+                mmgr_line_put(args->err_msg, "Windows gave no event for the end");
                 return 0;
             }
             return 1;
@@ -177,26 +197,27 @@ int cli_door_connected(const char *address, CliDoorEnd *end, VerbaLinea *err_msg
         const DWORD error = GetLastError();
         if ((error != ERROR_PIPE_BUSY) || (cli_clock_milliseconds() >= until))
         {
-            mmgr_line_put(err_msg, address);
-            mmgr_line_put(err_msg, ": Windows reported ");
-            mmgr_line_decimal(err_msg, error, 1u);
+            mmgr_line_put(args->err_msg, args->address_read);
+            mmgr_line_put(args->err_msg, ": Windows reported ");
+            mmgr_line_decimal(args->err_msg, error, 1u);
             return 0;
         }
         (void)WaitNamedPipeW(name, 1000u);
     }
 }
 
-int cli_door_read(CliDoorEnd *end, void *bytes, unsigned long long size)
+int cli_door_read(const CliDoorEndBytesCtx *args)
 {
-    unsigned char *const into = (unsigned char *)bytes;
-    for (unsigned long long at = 0ull; at < size;)
+    unsigned char *const into = (unsigned char *)args->bytes;
+    for (unsigned long long at = 0ull; at < args->size;)
     {
         DWORD moved = 0u;
-        const unsigned long long left = size - at;
+        const unsigned long long left = args->size - at;
         // a piece is at most what a DWORD counts
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
-        if (!door_overlapped((HANDLE)(uintptr_t)end->handle, (HANDLE)(uintptr_t)end->shut, 0, into + at, piece,
-                             &moved) ||
+        if (!EMBED_CALL(door_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
+                        .shut = (HANDLE)(uintptr_t)args->end->shut, .kind = 0, .bytes = into + at, .size = piece,
+                        .moved = &moved) ||
             (moved == 0u))
         {
             return 0;
@@ -206,19 +227,19 @@ int cli_door_read(CliDoorEnd *end, void *bytes, unsigned long long size)
     return 1;
 }
 
-int cli_door_written(CliDoorEnd *end, const void *bytes, unsigned long long size, const CliRegion *region)
+int cli_door_write(const CliDoorEndSizeCtx *args)
 {
     // the region's handle is in the frame already: the pipe carries the frame alone
-    (void)region;
-    const unsigned char *const from = (const unsigned char *)bytes;
-    for (unsigned long long at = 0ull; at < size;)
+    const unsigned char *const from = (const unsigned char *)args->bytes_read;
+    for (unsigned long long at = 0ull; at < args->size;)
     {
         DWORD moved = 0u;
-        const unsigned long long left = size - at;
+        const unsigned long long left = args->size - at;
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
         // the bytes are only read, as WriteFile takes them
-        if (!door_overlapped((HANDLE)(uintptr_t)end->handle, (HANDLE)(uintptr_t)end->shut, 1,
-                             (void *)(uintptr_t)(from + at), piece, &moved) ||
+        if (!EMBED_CALL(door_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
+                        .shut = (HANDLE)(uintptr_t)args->end->shut, .kind = 1, .bytes = (void *)(uintptr_t)(from + at),
+                        .size = piece, .moved = &moved) ||
             (moved == 0u))
         {
             return 0;
@@ -228,30 +249,30 @@ int cli_door_written(CliDoorEnd *end, const void *bytes, unsigned long long size
     return 1;
 }
 
-int cli_door_descriptor(CliDoorEnd *end)
+int cli_door_descriptor(const CliDoorErrMsgCtx *args)
 {
-    (void)end;
+    (void)args;
     return -1;
 }
 
-void cli_door_shut(CliDoorEnd *end)
+void cli_door_shut(const CliDoorCtx *args)
 {
-    if (end->open)
+    if (args->end->open)
     {
-        (void)SetEvent((HANDLE)(uintptr_t)end->shut);
-        (void)CancelIoEx((HANDLE)(uintptr_t)end->handle, NULL);
+        (void)SetEvent((HANDLE)(uintptr_t)args->end->shut);
+        (void)CancelIoEx((HANDLE)(uintptr_t)args->end->handle, NULL);
     }
 }
 
-void cli_door_closed(CliDoorEnd *end)
+void cli_door_close(const CliDoorCtx *args)
 {
-    if (end->open)
+    if (args->end->open)
     {
-        CloseHandle((HANDLE)(uintptr_t)end->handle);
-        CloseHandle((HANDLE)(uintptr_t)end->shut);
+        CloseHandle((HANDLE)(uintptr_t)args->end->handle);
+        CloseHandle((HANDLE)(uintptr_t)args->end->shut);
     }
-    end->open = 0;
-    end->handle = 0ull;
-    end->shut = 0ull;
+    args->end->open = 0;
+    args->end->handle = 0ull;
+    args->end->shut = 0ull;
 }
 #endif

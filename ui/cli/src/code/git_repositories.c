@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_repositories.c: the repositories of the tree, the one it is in and each folder under it that contains its own
+#include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 #include "git_internal.h"
 
@@ -34,16 +35,16 @@ typedef struct
     unsigned int at_depth;
 } CliSearch;
 
-static void cli_search_each(void *context, const char *name, int is_folder)
+static void cli_search_each(const CliEachNameIsFolderCfg *args)
 {
-    CliSearch *const search = (CliSearch *)context;
-    if (!is_folder || (name[0] == '.'))
+    CliSearch *const search = (CliSearch *)args->context;
+    if (!args->is_folder || (args->name[0] == '.'))
     {
         return;
     }
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_not_searched[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_not_searched[at], .cap = CLI_CELLS_POOL}))
         {
             return;
         }
@@ -53,7 +54,7 @@ static void cli_search_each(void *context, const char *name, int is_folder)
     VerbaLinea line = {path, sizeof(path), 0ull};
     mmgr_line_put(&line, search->folder);
     mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
     // the folder's path ended before its .git is written from it
     if (mmgr_line_finish(&line) == 0ull)
     {
@@ -66,7 +67,8 @@ static void cli_search_each(void *context, const char *name, int is_folder)
     {
         return;
     }
-    const int is_repository = query_is_file(git) || query_is_folder(git);
+    const int is_repository = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = git) ||
+                              EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = git);
     if (is_repository)
     {
     }
@@ -88,40 +90,48 @@ static void cli_search_each(void *context, const char *name, int is_folder)
     }
 }
 
-// a repository put after those found, its path in the tree, its name and its branch stored
-static void cli_repository_put(CliRepositories *found, const char *relative, const char *folder)
+typedef struct
 {
-    if (found->count >= CLI_GIT_REPOSITORIES)
+    CliRepositories *found;
+    const char *relative;
+    const char *folder;
+} GitRepositoriesCtx;
+// a repository put after those found, its path in the tree, its name and its branch stored
+EMBED_INLINE void cli_repository_put(const GitRepositoriesCtx *args)
+{
+    if (args->found->count >= CLI_GIT_REPOSITORIES)
     {
         return;
     }
-    CliRepository *const one = &found->item[found->count];
-    found->count += 1u;
+    CliRepository *const one = &args->found->item[args->found->count];
+    args->found->count += 1u;
     char name[CLI_NAME_MAX_LEN];
     char branch[CLI_NAME_MAX_LEN];
-    cli_git_name(folder, name);
-    one->path = cli_git_text_put(&found->text, relative,
-                                 cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}));
-    one->name =
-        cli_git_text_put(&found->text, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    one->has_branch = cli_git_branch(folder, branch);
+    EMBED_CALL(cli_git_table.name, CliGitCfg, .root = args->folder, .name = name);
+    one->path = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = args->relative,
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = args->relative, .cap = CLI_CELLS_POOL}));
+    one->name = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = name,
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+    one->has_branch = EMBED_CALL(cli_git_table.branch, CliGitCfg, .root = args->folder, .name = branch);
     one->branch = one->has_branch
-                      ? cli_git_text_put(&found->text, branch,
-                                         cellul.len(&(CatenaFinitaCfg){.src = branch, .cap = CLI_CELLS_POOL}))
+                      ? EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = branch,
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = branch, .cap = CLI_CELLS_POOL}))
                       : 0u;
 }
 
-void cli_git_repositories(const char *root, CliRepositories *found)
+void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
 {
     static const char *const s_inside[2] = {"rev-parse", "--is-inside-work-tree"};
-    found->count = 0u;
-    cli_git_text_begun(&found->text);
-    CliGitGave *const gave = cli_git_taken();
-    const int inside = cli_git_query(root, s_inside, 2u, gave);
-    cli_git_given(gave);
+    args->found_repositories_pointer->count = 0u;
+    EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found_repositories_pointer->text);
+    CliGitGave *const gave = cli_git_take();
+    const int inside = EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root, .request = s_inside,
+                                  .count = 2u, .gave = gave);
+    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
     if (inside)
     {
-        cli_repository_put(found, "", root);
+        EMBED_CALL(cli_repository_put, GitRepositoriesCtx, .found = args->found_repositories_pointer, .relative = "",
+                   .folder = args->root);
     }
     CliSearch search_copy = {0};
     CliSearch *const search = &search_copy;
@@ -134,9 +144,10 @@ void cli_git_repositories(const char *root, CliRepositories *found)
         search->pending_room = CLI_GIT_PENDING;
         search->nested = (void *)(cell + pending_bytes);
         search->nested_room = CLI_GIT_REPOSITORIES;
-        memor.cpy(&(MemoriaCfg){.dst = search->pending[0].path,
-                                .src = root,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = search->pending[0].path,
+                          .src = args->root,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
         search->pending[0].depth = 0u;
         search->pending_count = 1u;
     }
@@ -151,7 +162,8 @@ void cli_git_repositories(const char *root, CliRepositories *found)
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = next->path, .cap = CLI_CELLS_POOL}) + 1u});
         search->folder = folder;
         search->at_depth = next->depth;
-        query_folder_each(folder, cli_search_each, search);
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
+                   .each = cli_search_each, .context_bytess = search);
     }
     // the repositories under the tree in the order of their paths
     for (unsigned int at = 1u; at < search->nested_count; at += 1u)
@@ -162,7 +174,8 @@ void cli_git_repositories(const char *root, CliRepositories *found)
             .src = search->nested[at],
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = search->nested[at], .cap = CLI_CELLS_POOL}) + 1u});
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(search->nested[place - 1u], swap_path) > 0))
+        while ((place > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                           .one = search->nested[place - 1u], .other_pointer = swap_path) > 0))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = search->nested[place],
@@ -178,8 +191,10 @@ void cli_git_repositories(const char *root, CliRepositories *found)
     for (unsigned int at = 0u; at < search->nested_count; at += 1u)
     {
         char relative[CLI_PATH_MAX_LEN];
-        cli_relative(root, search->nested[at], relative);
-        cli_repository_put(found, relative, search->nested[at]);
+        EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->root, .path = search->nested[at],
+                   .relative_out = relative);
+        EMBED_CALL(cli_repository_put, GitRepositoriesCtx, .found = args->found_repositories_pointer,
+                   .relative = relative, .folder = search->nested[at]);
     }
     g_cli_cells->persistent_buf_release(cell, &g_cli_git_cells);
 }

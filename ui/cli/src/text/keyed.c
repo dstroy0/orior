@@ -4,28 +4,40 @@
 // beside it and its text one after another in a cell of its own, each ended by a 0; an entry found by its key's hash
 // and then its key
 #include "keyed.h"
+#include "../command_line/callback_cfg.h"
 
 #include "../command_line/cells.h"
 
 // the hash of a key, FNV-1a over its bytes
-unsigned int cli_keyed_hash(const char *key)
+unsigned int cli_keyed_hash(const CliKeyedKeyBesideCfg *args)
 {
     unsigned int hash = 2166136261u;
-    for (const char *at = key; *at != '\0'; at += 1)
+    for (const char *at = args->key; *at != '\0'; at += 1)
     {
         hash = (hash ^ (unsigned char)*at) * 16777619u;
     }
     return hash;
 }
 
-// the entry stored under `key`, whose hash is `hash`, `entries` where none is
-static unsigned int keyed_find(const CliKeyed *keyed, const char *key, unsigned int hash)
+typedef struct
 {
+    const CliKeyed *keyed;
+    const char *key;
+    unsigned int hash;
+    unsigned long long size;
+    char *cell;
+    const char *why;
+    CliKeyed *keyed_out;
+} KeyedCtx;
+// the entry stored under `key`, whose hash is `hash`, `entries` where none is
+EMBED_INLINE unsigned int keyed_find(const KeyedCtx *args)
+{
+    const CliKeyed *keyed = args->keyed;
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
-        const CliKeyedEntry *const one = cli_keyed_entry(keyed, at);
-        if (one->used && (one->hash == hash) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = one->cell, .other = key, .cap = CLI_CELLS_POOL})))
+        const CliKeyedEntry *const one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = keyed, .at = at);
+        if (one->used && (one->hash == args->hash) &&
+            (cellul.eq(&(CatenaFinitaCfg){.src = one->cell, .other = args->key, .cap = CLI_CELLS_POOL})))
         {
             return at;
         }
@@ -34,178 +46,192 @@ static unsigned int keyed_find(const CliKeyed *keyed, const char *key, unsigned 
 }
 
 // a cell of `size` bytes for `keyed`'s entry, or NULL; and a cell given back
-static char *keyed_cell_taken(const CliKeyed *keyed, unsigned long long size)
+EMBED_INLINE char *keyed_cell_take(const KeyedCtx *args)
 {
-    return g_cli_cells->persistent_buf_alloc(size, &g_cli_text_cells);
+    return g_cli_cells->persistent_buf_alloc(args->size, &g_cli_text_cells);
 }
 
-static void keyed_cell_given(char *cell)
+EMBED_INLINE void keyed_cell_free(const KeyedCtx *args)
 {
-    g_cli_cells->persistent_buf_release(cell, &g_cli_text_cells);
+    g_cli_cells->persistent_buf_release(args->cell, &g_cli_text_cells);
 }
 
 // that `key` could not be stored by `keyed`, and why, reported on the standard error
-static void keyed_refused(const CliKeyed *keyed, const char *key, const char *why)
+EMBED_INLINE void keyed_reject(const KeyedCtx *args)
 {
     char msg_buf[CLI_PATH_MAX_LEN + 256u];
     VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
     mmgr_line_put(&line, "orior: ");
-    mmgr_line_put(&line, keyed->name);
+    mmgr_line_put(&line, args->keyed->name);
     mmgr_line_put(&line, ": ");
-    mmgr_line_put(&line, key);
+    mmgr_line_put(&line, args->key);
     mmgr_line_put(&line, " is not stored: ");
-    mmgr_line_put(&line, why);
+    mmgr_line_put(&line, args->why);
     mmgr_line_ch(&line, '\n');
-    query_terminal_written(1, msg_buf, line.at);
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = msg_buf, .length = line.at);
 }
 
-void cli_keyed_begun(CliKeyed *keyed, const char *name, unsigned int entries_most)
+void cli_keyed_begin(const CliKeyedNameCfg *args)
 {
-    memor.set(&(MemoriaCfg){.dst = keyed, .val = 0, .bytes = sizeof(*keyed)});
-    keyed->name = name;
-    keyed->entries_most =
+    const char *name = args->name;
+    unsigned int entries_most = args->entries_most;
+    memor.set(&(MemoriaCfg){.dst = args->keyed_out, .val = 0, .bytes = sizeof(*args->keyed_out)});
+    args->keyed_out->name = name;
+    args->keyed_out->entries_most =
         (entries_most < (CLI_KEYED_PAGE * CLI_KEYED_PAGES)) ? entries_most : (CLI_KEYED_PAGE * CLI_KEYED_PAGES);
 }
 
-CliKeyedEntry *cli_keyed_entry(const CliKeyed *keyed, unsigned int at)
+CliKeyedEntry *cli_keyed_entry(const CliKeyedCfg *args)
 {
-    return &keyed->page[at / CLI_KEYED_PAGE][at % CLI_KEYED_PAGE];
+    return &args->keyed->page[args->at / CLI_KEYED_PAGE][args->at % CLI_KEYED_PAGE];
 }
 
 // the pages past those the entries ever taken reach given back
-static void keyed_pages_given(CliKeyed *keyed)
+EMBED_INLINE void keyed_pages_free(const KeyedCtx *args)
 {
-    const unsigned int reached = (keyed->entries + CLI_KEYED_PAGE - 1u) / CLI_KEYED_PAGE;
+    const unsigned int reached = (args->keyed_out->entries + CLI_KEYED_PAGE - 1u) / CLI_KEYED_PAGE;
     for (unsigned int page = reached; page < CLI_KEYED_PAGES; page += 1u)
     {
-        keyed_cell_given((char *)keyed->page[page]);
-        keyed->page[page] = NULL;
+        EMBED_CALL(keyed_cell_free, KeyedCtx, .cell = (char *)args->keyed_out->page[page]);
+        args->keyed_out->page[page] = NULL;
     }
 }
 
 // the entries that contain one moved down together, in the order they stand, the pages they leave given back
-static void keyed_compacted(CliKeyed *keyed)
+EMBED_INLINE void keyed_compact(const KeyedCtx *args)
 {
+    CliKeyed *keyed = args->keyed_out;
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
-        if (cli_keyed_entry(keyed, at)->used)
+        if (EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = keyed, .at = at)->used)
         {
-            *cli_keyed_entry(keyed, count) = *cli_keyed_entry(keyed, at);
+            *EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = keyed, .at = count) =
+                *EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = keyed, .at = at);
             count += 1u;
         }
     }
     keyed->entries = count;
-    keyed_pages_given(keyed);
+    EMBED_CALL(keyed_pages_free, KeyedCtx, .keyed_out = keyed);
 }
 
-int cli_keyed_put(CliKeyed *keyed, const char *key, const char *beside, const char *text, unsigned long long size)
+int cli_keyed_put(const CliKeyedKeyBesideCfg *args)
 {
-    cli_keyed_remove(keyed, key);
-    const size_t key_size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
-    const size_t beside_size = cellul.len(&(CatenaFinitaCfg){.src = beside, .cap = CLI_CELLS_POOL});
-    const unsigned long long needed = key_size + 1u + beside_size + 1u + size + 1u;
-    if (keyed->entries == keyed->entries_most)
+    cli_keyed_key_beside.remove(args);
+    const size_t key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    const size_t beside_size = cellul.len(&(CatenaFinitaCfg){.src = args->beside_value, .cap = CLI_CELLS_POOL});
+    const unsigned long long needed = key_size + 1u + beside_size + 1u + args->size_value + 1u;
+    if (args->keyed_out->entries == args->keyed_out->entries_most)
     {
-        keyed_compacted(keyed);
+        EMBED_CALL(keyed_compact, KeyedCtx, .keyed_out = args->keyed_out);
     }
-    const unsigned int page = keyed->entries / CLI_KEYED_PAGE;
-    if ((keyed->entries < keyed->entries_most) && (keyed->page[page] == NULL))
+    const unsigned int page = args->keyed_out->entries / CLI_KEYED_PAGE;
+    if ((args->keyed_out->entries < args->keyed_out->entries_most) && (args->keyed_out->page[page] == NULL))
     {
-        keyed->page[page] = (CliKeyedEntry *)(void *)keyed_cell_taken(keyed, CLI_KEYED_PAGE * sizeof(CliKeyedEntry));
+        args->keyed_out->page[page] = (CliKeyedEntry *)(void *)EMBED_CALL(
+            keyed_cell_take, KeyedCtx, .keyed = args->keyed_out, .size = CLI_KEYED_PAGE * sizeof(CliKeyedEntry));
     }
-    if ((keyed->entries == keyed->entries_most) || (keyed->page[page] == NULL))
+    if ((args->keyed_out->entries == args->keyed_out->entries_most) || (args->keyed_out->page[page] == NULL))
     {
-        keyed_refused(keyed, key, "every entry is taken");
+        EMBED_CALL(keyed_reject, KeyedCtx, .keyed = args->keyed_out, .key = args->key, .why = "every entry is taken");
         return 0;
     }
-    char *const place = keyed_cell_taken(keyed, needed);
+    char *const place = EMBED_CALL(keyed_cell_take, KeyedCtx, .keyed = args->keyed_out, .size = needed);
     if (place == NULL)
     {
-        keyed_refused(keyed, key, "the cells have no room left for it");
+        EMBED_CALL(keyed_reject, KeyedCtx, .keyed = args->keyed_out, .key = args->key,
+                   .why = "the cells have no room left for it");
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = place, .src = key, .bytes = key_size + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = place + key_size + 1u, .src = beside, .bytes = beside_size + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = place, .src = args->key, .bytes = key_size + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = place + key_size + 1u, .src = args->beside_value, .bytes = beside_size + 1u});
     // a size the cell allocated fits a size_t
-    memor.cpy(&(MemoriaCfg){.dst = place + key_size + 1u + beside_size + 1u, .src = text, .bytes = (size_t)size});
-    place[key_size + 1u + beside_size + 1u + size] = '\0';
+    memor.cpy(&(MemoriaCfg){
+        .dst = place + key_size + 1u + beside_size + 1u, .src = args->text, .bytes = (size_t)args->size_value});
+    place[key_size + 1u + beside_size + 1u + args->size_value] = '\0';
     // a key's and a second text's sizes are a path's and a URI's, far inside what an unsigned int represents
-    *cli_keyed_entry(keyed, keyed->entries) =
-        (CliKeyedEntry){1, cli_keyed_hash(key), place, needed, (unsigned int)key_size, (unsigned int)beside_size};
-    keyed->entries += 1u;
+    *EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = args->keyed_out->entries) =
+        (CliKeyedEntry){1,      cli_keyed_key_beside.hash(args), place,
+                        needed, (unsigned int)key_size,          (unsigned int)beside_size};
+    args->keyed_out->entries += 1u;
     return 1;
 }
 
-const char *cli_keyed_get_hashed(const CliKeyed *keyed, const char *key, unsigned int hash, const char **beside,
-                                 unsigned long long *size)
+const char *cli_keyed_get_hash(const CliKeyedKeyCfg *args)
 {
-    const unsigned int at = keyed_find(keyed, key, hash);
-    if (at == keyed->entries)
+    const char **beside = args->beside;
+    unsigned long long *size = args->size;
+    const unsigned int at =
+        EMBED_CALL(keyed_find, KeyedCtx, .keyed = args->keyed, .key = args->key, .hash = args->hash);
+    if (at == args->keyed->entries)
     {
         *beside = "";
         *size = 0ull;
         return NULL;
     }
-    const CliKeyedEntry *const one = cli_keyed_entry(keyed, at);
+    const CliKeyedEntry *const one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed, .at = at);
     *beside = one->cell + one->key_size + 1u;
     *size = one->size - one->key_size - one->beside_size - 3u;
     return one->cell + one->key_size + 1u + one->beside_size + 1u;
 }
 
-const char *cli_keyed_get(const CliKeyed *keyed, const char *key, const char **beside, unsigned long long *size)
+const char *cli_keyed_get(const CliKeyedKeyBesideCfg *args)
 {
-    return cli_keyed_get_hashed(keyed, key, cli_keyed_hash(key), beside, size);
+    return EMBED_CALL(cli_keyed_key.get_hash, CliKeyedKeyCfg, .keyed = args->keyed, .key = args->key,
+                      .hash = cli_keyed_key_beside.hash(args), .beside = args->beside, .size = args->size);
 }
 
-void cli_keyed_remove(CliKeyed *keyed, const char *key)
+void cli_keyed_remove(const CliKeyedKeyBesideCfg *args)
 {
-    const unsigned int at = keyed_find(keyed, key, cli_keyed_hash(key));
-    if (at < keyed->entries)
+    const unsigned int at = EMBED_CALL(keyed_find, KeyedCtx, .keyed = args->keyed_out, .key = args->key,
+                                       .hash = cli_keyed_key_beside.hash(args));
+    if (at < args->keyed_out->entries)
     {
-        keyed_cell_given(cli_keyed_entry(keyed, at)->cell);
-        cli_keyed_entry(keyed, at)->used = 0;
-        cli_keyed_entry(keyed, at)->cell = NULL;
+        EMBED_CALL(keyed_cell_free, KeyedCtx,
+                   .cell = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell);
+        EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->used = 0;
+        EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell = NULL;
     }
 }
 
-void cli_keyed_clear(CliKeyed *keyed)
+void cli_keyed_clear(const CliKeyedNameCfg *args)
 {
-    for (unsigned int at = 0u; at < keyed->entries; at += 1u)
+    for (unsigned int at = 0u; at < args->keyed_out->entries; at += 1u)
     {
-        if (cli_keyed_entry(keyed, at)->used)
+        if (EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->used)
         {
-            keyed_cell_given(cli_keyed_entry(keyed, at)->cell);
+            EMBED_CALL(keyed_cell_free, KeyedCtx,
+                       .cell =
+                           EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed_out, .at = at)->cell);
         }
     }
-    keyed->entries = 0u;
-    keyed_pages_given(keyed);
+    args->keyed_out->entries = 0u;
+    EMBED_CALL(keyed_pages_free, KeyedCtx, .keyed_out = args->keyed_out);
 }
 
-void cli_keyed_each(const CliKeyed *keyed,
-                    void (*each)(void *context, const char *key, const char *beside, const char *text,
-                                 unsigned long long size),
-                    void *context)
+void cli_keyed_each(const CliKeyedEachCfg *args)
 {
+    const CliKeyed *keyed = args->keyed;
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
-        const CliKeyedEntry *const one = cli_keyed_entry(keyed, at);
+        const CliKeyedEntry *const one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = keyed, .at = at);
         if (one->used)
         {
             const char *const key = one->cell;
             const char *const beside = key + one->key_size + 1u;
-            each(context, key, beside, beside + one->beside_size + 1u,
-                 one->size - one->key_size - one->beside_size - 3u);
+            EMBED_CALL(args->each, CliEachKeyBesideTextSizeCfg, .context = args->context, .key = key, .beside = beside,
+                       .text = beside + one->beside_size + 1u,
+                       .size = one->size - one->key_size - one->beside_size - 3u);
         }
     }
 }
 
-unsigned long long cli_keyed_listed_size(const CliKeyed *keyed)
+unsigned long long cli_keyed_listed_size(const CliKeyedCfg *args)
 {
     unsigned long long size = 0ull;
-    for (unsigned int at = 0u; at < keyed->entries; at += 1u)
+    for (unsigned int at = 0u; at < args->keyed->entries; at += 1u)
     {
-        const CliKeyedEntry *const one = cli_keyed_entry(keyed, at);
+        const CliKeyedEntry *const one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = args->keyed, .at = at);
         size += one->used ? ((unsigned long long)one->key_size + one->beside_size + 2ull) : 0ull;
     }
     return size;

@@ -4,36 +4,45 @@
 #include "catalog.h"
 #include "../text/json_tree.h"
 
-void cli_catalog_begun(CliCatalog *catalog, CliJob *jobs, unsigned int jobs_most, CliParam *params,
-                       unsigned int params_most, CliStep *steps, unsigned int steps_most, CliArg *args,
-                       unsigned int args_most, unsigned int *lists, unsigned int lists_most, char *text,
-                       unsigned int text_most)
+void cli_catalog_begin(const CliCatalogJobsMostCfg *args)
 {
-    catalog->job = jobs;
-    catalog->jobs = 0u;
-    catalog->jobs_most = jobs_most;
-    catalog->param = params;
-    catalog->params = 0u;
-    catalog->params_most = params_most;
-    catalog->step = steps;
-    catalog->steps = 0u;
-    catalog->steps_most = steps_most;
-    catalog->arg = args;
-    catalog->args = 0u;
-    catalog->args_most = args_most;
-    catalog->list = lists;
-    catalog->lists = 0u;
-    catalog->lists_most = lists_most;
-    catalog->text = text;
-    catalog->used = 0u;
-    catalog->text_most = text_most;
-    catalog->full = 0;
-    catalog->cells = NULL;
+    CliJob *jobs = args->jobs;
+    unsigned int jobs_most = args->jobs_most;
+    CliParam *params = args->params;
+    unsigned int params_most = args->params_most;
+    CliStep *steps = args->steps;
+    unsigned int steps_most = args->steps_most;
+    CliArg *arguments = args->request;
+    unsigned int args_most = args->args_most;
+    unsigned int *lists = args->lists;
+    unsigned int lists_most = args->lists_most;
+    char *text = args->text_out;
+    unsigned int text_most = args->text_most;
+    args->catalog->job = jobs;
+    args->catalog->jobs = 0u;
+    args->catalog->jobs_most = jobs_most;
+    args->catalog->param = params;
+    args->catalog->params = 0u;
+    args->catalog->params_most = params_most;
+    args->catalog->step = steps;
+    args->catalog->steps = 0u;
+    args->catalog->steps_most = steps_most;
+    args->catalog->arg = arguments;
+    args->catalog->args = 0u;
+    args->catalog->args_most = args_most;
+    args->catalog->list = lists;
+    args->catalog->lists = 0u;
+    args->catalog->lists_most = lists_most;
+    args->catalog->text = text;
+    args->catalog->used = 0u;
+    args->catalog->text_most = text_most;
+    args->catalog->full = 0;
+    args->catalog->cells = NULL;
     // the text at 0 is the empty one
     if (text_most != 0u)
     {
         text[0] = '\0';
-        catalog->used = 1u;
+        args->catalog->used = 1u;
     }
 }
 
@@ -41,9 +50,13 @@ void cli_catalog_begun(CliCatalog *catalog, CliJob *jobs, unsigned int jobs_most
 #define CLI_CATALOG_LIST_MOST 16384u
 #define CLI_CATALOG_TEXT_MOST (4u << 20u)
 
-void cli_catalog_taken(CliCatalog *catalog, CellOwner *cells, unsigned int jobs_most)
+void cli_catalog_take(const CliCatalogCellsCfg *args)
 {
-    cli_catalog_begun(catalog, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u);
+    CellOwner *cells = args->cells;
+    unsigned int jobs_most = args->jobs_most;
+    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = args->catalog, .jobs = NULL,
+               .jobs_most = 0u, .params = NULL, .params_most = 0u, .steps = NULL, .steps_most = 0u, .request = NULL,
+               .args_most = 0u, .lists = NULL, .lists_most = 0u, .text_out = NULL, .text_most = 0u);
     const unsigned long long job_bytes = (unsigned long long)CLI_CATALOG_LIST_MOST * sizeof(CliJob);
     const unsigned long long param_bytes = (unsigned long long)CLI_CATALOG_LIST_MOST * sizeof(CliParam);
     const unsigned long long step_bytes = (unsigned long long)CLI_CATALOG_LIST_MOST * sizeof(CliStep);
@@ -51,192 +64,236 @@ void cli_catalog_taken(CliCatalog *catalog, CellOwner *cells, unsigned int jobs_
     const unsigned long long list_bytes = (unsigned long long)CLI_CATALOG_LIST_MOST * sizeof(unsigned int);
     char *const cell = g_cli_cells->persistent_buf_alloc(
         job_bytes + param_bytes + step_bytes + arg_bytes + list_bytes + CLI_CATALOG_TEXT_MOST, cells);
-    catalog->cells = cells;
-    catalog->full = cell == NULL;
+    args->catalog->cells = cells;
+    args->catalog->full = cell == NULL;
     if (cell == NULL)
     {
         return;
     }
-    catalog->job = (CliJob *)(void *)cell;
-    catalog->jobs_most = (jobs_most < CLI_CATALOG_LIST_MOST) ? jobs_most : CLI_CATALOG_LIST_MOST;
-    catalog->param = (CliParam *)(void *)(cell + job_bytes);
-    catalog->params_most = CLI_CATALOG_LIST_MOST;
-    catalog->step = (CliStep *)(void *)(cell + job_bytes + param_bytes);
-    catalog->steps_most = CLI_CATALOG_LIST_MOST;
-    catalog->arg = (CliArg *)(void *)(cell + job_bytes + param_bytes + step_bytes);
-    catalog->args_most = CLI_CATALOG_LIST_MOST;
-    catalog->list = (unsigned int *)(void *)(cell + job_bytes + param_bytes + step_bytes + arg_bytes);
-    catalog->lists_most = CLI_CATALOG_LIST_MOST;
-    catalog->text = cell + job_bytes + param_bytes + step_bytes + arg_bytes + list_bytes;
-    catalog->text_most = CLI_CATALOG_TEXT_MOST;
+    args->catalog->job = (CliJob *)(void *)cell;
+    args->catalog->jobs_most = (jobs_most < CLI_CATALOG_LIST_MOST) ? jobs_most : CLI_CATALOG_LIST_MOST;
+    args->catalog->param = (CliParam *)(void *)(cell + job_bytes);
+    args->catalog->params_most = CLI_CATALOG_LIST_MOST;
+    args->catalog->step = (CliStep *)(void *)(cell + job_bytes + param_bytes);
+    args->catalog->steps_most = CLI_CATALOG_LIST_MOST;
+    args->catalog->arg = (CliArg *)(void *)(cell + job_bytes + param_bytes + step_bytes);
+    args->catalog->args_most = CLI_CATALOG_LIST_MOST;
+    args->catalog->list = (unsigned int *)(void *)(cell + job_bytes + param_bytes + step_bytes + arg_bytes);
+    args->catalog->lists_most = CLI_CATALOG_LIST_MOST;
+    args->catalog->text = cell + job_bytes + param_bytes + step_bytes + arg_bytes + list_bytes;
+    args->catalog->text_most = CLI_CATALOG_TEXT_MOST;
     // the text at 0 is the empty one
-    catalog->text[0] = '\0';
-    catalog->used = 1u;
+    args->catalog->text[0] = '\0';
+    args->catalog->used = 1u;
 }
 
-void cli_catalog_given(CliCatalog *catalog)
+void cli_catalog_free(const CliCatalogChoiceCfg *args)
 {
-    CellOwner *const cells = catalog->cells;
+    CellOwner *const cells = args->catalog->cells;
     if (cells != NULL)
     {
-        g_cli_cells->persistent_buf_release(catalog->job, cells);
+        g_cli_cells->persistent_buf_release(args->catalog->job, cells);
     }
-    cli_catalog_begun(catalog, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u);
+    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = args->catalog, .jobs = NULL,
+               .jobs_most = 0u, .params = NULL, .params_most = 0u, .steps = NULL, .steps_most = 0u, .request = NULL,
+               .args_most = 0u, .lists = NULL, .lists_most = 0u, .text_out = NULL, .text_most = 0u);
 }
 
-unsigned int cli_catalog_text(CliCatalog *catalog, const char *text)
+unsigned int cli_catalog_text(const CliCatalogTextProgramCfg *args)
 {
-    if (text == NULL)
+    if (args->text == NULL)
     {
         return CLI_CATALOG_NONE;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    if ((catalog->used + size) > catalog->text_most)
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
+    if ((args->catalog->used + size) > args->catalog->text_most)
     {
-        catalog->full = 1;
+        args->catalog->full = 1;
         return 0u;
     }
-    const unsigned int at = catalog->used;
-    memor.cpy(&(MemoriaCfg){.dst = catalog->text + at, .src = text, .bytes = size});
+    const unsigned int at = args->catalog->used;
+    memor.cpy(&(MemoriaCfg){.dst = args->catalog->text + at, .src = args->text, .bytes = size});
     // the texts are below the room handed, which an unsigned int counts
-    catalog->used += (unsigned int)size;
+    args->catalog->used += (unsigned int)size;
     return at;
 }
 
-const char *cli_catalog_at(const CliCatalog *catalog, unsigned int text)
+const char *cli_catalog_at(const CliCatalogTextCfg *args)
 {
-    return ((text == CLI_CATALOG_NONE) || (text >= catalog->used)) ? "" : (catalog->text + text);
+    return ((args->text_u32 == CLI_CATALOG_NONE) || (args->text_u32 >= args->catalog_read->used))
+               ? ""
+               : (args->catalog_read->text + args->text_u32);
 }
 
-unsigned int cli_catalog_job(CliCatalog *catalog, const char *id, const char *group, const char *title,
-                             const char *file, const char *about, const char *opens)
+unsigned int cli_catalog_job(const CliCatalogIdGroupCfg *args)
 {
-    if (catalog->jobs >= catalog->jobs_most)
+    const char *id = args->id;
+    const char *group = args->group;
+    const char *title = args->title;
+    const char *file = args->file;
+    const char *about = args->about;
+    const char *opens = args->opens;
+    if (args->catalog->jobs >= args->catalog->jobs_most)
     {
-        catalog->full = 1;
+        args->catalog->full = 1;
         return CLI_CATALOG_NONE;
     }
-    CliJob *const job = &catalog->job[catalog->jobs];
-    job->id = cli_catalog_text(catalog, id);
+    CliJob *const job = &args->catalog->job[args->catalog->jobs];
+    job->id = EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = id);
     job->group = group;
-    job->title = cli_catalog_text(catalog, title);
-    job->file = cli_catalog_text(catalog, file);
-    job->about = cli_catalog_text(catalog, about);
-    job->param_first = catalog->params;
+    job->title =
+        EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = title);
+    job->file =
+        EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = file);
+    job->about =
+        EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = about);
+    job->param_first = args->catalog->params;
     job->params = 0u;
     job->opens = opens;
-    job->step_first = catalog->steps;
+    job->step_first = args->catalog->steps;
     job->steps = 0u;
-    catalog->jobs += 1u;
-    return catalog->jobs - 1u;
+    args->catalog->jobs += 1u;
+    return args->catalog->jobs - 1u;
 }
 
-void cli_catalog_param(CliCatalog *catalog, const char *key, const char *kind, int required)
+void cli_catalog_param(const CliCatalogKeyKindCfg *args)
 {
-    if ((catalog->jobs == 0u) || (catalog->params >= catalog->params_most))
+    if ((args->catalog->jobs == 0u) || (args->catalog->params >= args->catalog->params_most))
     {
-        catalog->full = 1;
+        args->catalog->full = 1;
         return;
     }
-    const CliParam param = {cli_catalog_text(catalog, key), kind, catalog->lists, 0u, 0u, required};
-    catalog->param[catalog->params] = param;
-    catalog->params += 1u;
-    catalog->job[catalog->jobs - 1u].params += 1u;
+    const CliParam param = {EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg,
+                                       .catalog = args->catalog, .text = args->key),
+                            args->kind,
+                            args->catalog->lists,
+                            0u,
+                            0u,
+                            args->required};
+    args->catalog->param[args->catalog->params] = param;
+    args->catalog->params += 1u;
+    args->catalog->job[args->catalog->jobs - 1u].params += 1u;
 }
 
+typedef struct
+{
+    CliCatalog *catalog;
+    unsigned int text;
+    const CliCatalog *from;
+    VerbaLinea *out;
+    const char *text_text;
+} CatalogCtx;
 // a text put after the lists
-static void cli_listed(CliCatalog *catalog, unsigned int text)
+EMBED_INLINE void cli_on_list(const CatalogCtx *args)
 {
-    if (catalog->lists >= catalog->lists_most)
+    if (args->catalog->lists >= args->catalog->lists_most)
     {
-        catalog->full = 1;
+        args->catalog->full = 1;
         return;
     }
-    catalog->list[catalog->lists] = text;
-    catalog->lists += 1u;
+    args->catalog->list[args->catalog->lists] = args->text;
+    args->catalog->lists += 1u;
 }
 
 // A choice of a choice's param is its default where it is the first
-void cli_catalog_choice(CliCatalog *catalog, const char *choice)
+void cli_catalog_choice(const CliCatalogChoiceCfg *args)
 {
-    if (catalog->params == 0u)
+    if (args->catalog->params == 0u)
     {
-        catalog->full = 1;
+        args->catalog->full = 1;
         return;
     }
-    CliParam *const param = &catalog->param[catalog->params - 1u];
-    const unsigned int text = cli_catalog_text(catalog, choice);
+    CliParam *const param = &args->catalog->param[args->catalog->params - 1u];
+    const unsigned int text = EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg,
+                                         .catalog = args->catalog, .text = args->choice);
     if ((param->choices == 0u) &&
         (cellul.starts(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_CELLS_POOL})))
     {
         param->fallback = text;
     }
-    cli_listed(catalog, text);
+    EMBED_CALL(cli_on_list, CatalogCtx, .catalog = args->catalog, .text = text);
     param->choices += 1u;
 }
 
-void cli_catalog_step(CliCatalog *catalog, unsigned int program, const char *text, const char *tool_program, int system)
+void cli_catalog_step(const CliCatalogTextProgramCfg *args)
 {
-    if ((catalog->jobs == 0u) || (catalog->steps >= catalog->steps_most))
+    if ((args->catalog->jobs == 0u) || (args->catalog->steps >= args->catalog->steps_most))
     {
-        catalog->full = 1;
+        args->catalog->full = 1;
         return;
     }
-    const CliStep step = {
-        program, cli_catalog_text(catalog, text), cli_catalog_text(catalog, tool_program), system, catalog->args, 0u};
-    catalog->step[catalog->steps] = step;
-    catalog->steps += 1u;
-    catalog->job[catalog->jobs - 1u].steps += 1u;
+    const CliStep step = {args->program,
+                          cli_catalog_text_program.text(args),
+                          EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog,
+                                     .text = args->tool_program),
+                          args->system,
+                          args->catalog->args,
+                          0u};
+    args->catalog->step[args->catalog->steps] = step;
+    args->catalog->steps += 1u;
+    args->catalog->job[args->catalog->jobs - 1u].steps += 1u;
 }
 
-void cli_catalog_arg(CliCatalog *catalog, unsigned int kind, const char *a, const char *b, const char *c, const char *d,
-                     int separated)
+void cli_catalog_arg(const CliCatalogKindCfg *args)
 {
-    if ((catalog->steps == 0u) || (catalog->args >= catalog->args_most))
+    if ((args->catalog->steps == 0u) || (args->catalog->args >= args->catalog->args_most))
     {
-        catalog->full = 1;
+        args->catalog->full = 1;
         return;
     }
-    const CliArg arg = {kind,
-                        {cli_catalog_text(catalog, a), cli_catalog_text(catalog, b), cli_catalog_text(catalog, c),
-                         cli_catalog_text(catalog, d)},
-                        separated,
-                        catalog->lists,
-                        0u};
-    catalog->arg[catalog->args] = arg;
-    catalog->args += 1u;
-    catalog->step[catalog->steps - 1u].args += 1u;
+    const CliArg arg = {
+        args->kind_u32,
+        {EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = args->a),
+         EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = args->b),
+         EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog, .text = args->c),
+         EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog,
+                    .text = args->d)},
+        args->separated,
+        args->catalog->lists,
+        0u};
+    args->catalog->arg[args->catalog->args] = arg;
+    args->catalog->args += 1u;
+    args->catalog->step[args->catalog->steps - 1u].args += 1u;
 }
 
-void cli_catalog_word(CliCatalog *catalog, const char *word)
+void cli_catalog_word(const CliCatalogWordCfg *args)
 {
-    if (catalog->args == 0u)
+    if (args->catalog->args == 0u)
     {
-        catalog->full = 1;
+        args->catalog->full = 1;
         return;
     }
-    cli_listed(catalog, cli_catalog_text(catalog, word));
-    catalog->arg[catalog->args - 1u].words += 1u;
+    EMBED_CALL(cli_on_list, CatalogCtx, .catalog = args->catalog,
+               .text = EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog,
+                                  .text = args->word));
+    args->catalog->arg[args->catalog->args - 1u].words += 1u;
 }
 
-void cli_catalog_words(CliCatalog *catalog)
+void cli_catalog_words(const CliCatalogChoiceCfg *args)
 {
-    cli_catalog_param(catalog, "arguments", "words", 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = args->catalog, .key = "arguments",
+               .kind = "words", .required = 0);
 }
 
-void cli_catalog_trace(CliCatalog *catalog)
+void cli_catalog_trace(const CliCatalogChoiceCfg *args)
 {
-    cli_catalog_param(catalog, CLI_TRACE, "choice", 1);
-    cli_catalog_choice(catalog, CLI_TRACE_VERBOSE);
-    cli_catalog_choice(catalog, CLI_TRACE_QUIET);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = args->catalog, .key = CLI_TRACE,
+               .kind = "choice", .required = 1);
+    EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = args->catalog,
+               .choice = CLI_TRACE_VERBOSE);
+    EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = args->catalog,
+               .choice = CLI_TRACE_QUIET);
 }
 
-unsigned int cli_catalog_find(const CliCatalog *catalog, const char *id)
+unsigned int cli_catalog_find(const CliCatalogIdCfg *args)
 {
-    for (unsigned int at = 0u; at < catalog->jobs; at += 1u)
+    for (unsigned int at = 0u; at < args->catalog_read->jobs; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){
-                .src = cli_catalog_at(catalog, catalog->job[at].id), .other = id, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
+                                                           .catalog_read = args->catalog_read,
+                                                           .text_u32 = args->catalog_read->job[at].id),
+                                         .other = args->id,
+                                         .cap = CLI_CELLS_POOL}))
         {
             return at;
         }
@@ -245,205 +302,259 @@ unsigned int cli_catalog_find(const CliCatalog *catalog, const char *id)
 }
 
 // a text of `from` stored in `to`
-static const char *cli_from(const CliCatalog *from, unsigned int text)
+EMBED_INLINE const char *cli_from(const CatalogCtx *args)
 {
-    return (text == CLI_CATALOG_NONE) ? NULL : cli_catalog_at(from, text);
+    unsigned int text = args->text;
+    return (text == CLI_CATALOG_NONE)
+               ? NULL
+               : EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->from, .text_u32 = text);
 }
 
-unsigned int cli_catalog_copy(const CliCatalog *from, unsigned int index, CliCatalog *to)
+unsigned int cli_catalog_copy(const CliCatalogFromCfg *args)
 {
-    const CliJob *const job = &from->job[index];
-    const unsigned int made = cli_catalog_job(to, cli_from(from, job->id), job->group, cli_from(from, job->title),
-                                              cli_from(from, job->file), cli_from(from, job->about), job->opens);
+    const CliJob *const job = &args->from->job[args->index];
+    const unsigned int made = EMBED_CALL(
+        cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->to,
+        .id = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = job->id), .group = job->group,
+        .title = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = job->title),
+        .file = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = job->file),
+        .about = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = job->about), .opens = job->opens);
     for (unsigned int at = 0u; (made != CLI_CATALOG_NONE) && (at < job->params); at += 1u)
     {
-        const CliParam *const param = &from->param[job->param_first + at];
-        cli_catalog_param(to, cli_from(from, param->key), param->kind, param->required);
+        const CliParam *const param = &args->from->param[job->param_first + at];
+        EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = args->to,
+                   .key = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = param->key), .kind = param->kind,
+                   .required = param->required);
         for (unsigned int each = 0u; each < param->choices; each += 1u)
         {
-            cli_catalog_choice(to, cli_from(from, from->list[param->first + each]));
+            EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = args->to,
+                       .choice = EMBED_CALL(cli_from, CatalogCtx, .from = args->from,
+                                            .text = args->from->list[param->first + each]));
         }
-        if (to->params != 0u)
+        if (args->to->params != 0u)
         {
-            to->param[to->params - 1u].fallback = cli_catalog_text(to, cli_from(from, param->fallback));
+            args->to->param[args->to->params - 1u].fallback =
+                EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->to,
+                           .text = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = param->fallback));
         }
     }
     for (unsigned int at = 0u; (made != CLI_CATALOG_NONE) && (at < job->steps); at += 1u)
     {
-        const CliStep *const step = &from->step[job->step_first + at];
-        cli_catalog_step(to, step->program, cli_from(from, step->text), cli_from(from, step->tool_program),
-                         step->system);
+        const CliStep *const step = &args->from->step[job->step_first + at];
+        EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = args->to,
+                   .program = step->program,
+                   .text = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = step->text),
+                   .tool_program = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = step->tool_program),
+                   .system = step->system);
         for (unsigned int each = 0u; each < step->args; each += 1u)
         {
-            const CliArg *const arg = &from->arg[step->first + each];
-            cli_catalog_arg(to, arg->kind, cli_from(from, arg->text[0]), cli_from(from, arg->text[1]),
-                            cli_from(from, arg->text[2]), cli_from(from, arg->text[3]), arg->separated);
+            const CliArg *const arg = &args->from->arg[step->first + each];
+            EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->to, .kind_u32 = arg->kind,
+                       .a = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[0]),
+                       .b = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[1]),
+                       .c = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[2]),
+                       .d = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[3]),
+                       .separated = arg->separated);
             for (unsigned int word = 0u; word < arg->words; word += 1u)
             {
-                cli_catalog_word(to, cli_from(from, from->list[arg->first + word]));
+                EMBED_CALL(cli_catalog_word_table.word, CliCatalogWordCfg, .catalog = args->to,
+                           .word = EMBED_CALL(cli_from, CatalogCtx, .from = args->from,
+                                              .text = args->from->list[arg->first + word]));
             }
         }
     }
-    return to->full ? CLI_CATALOG_NONE : made;
+    return args->to->full ? CLI_CATALOG_NONE : made;
 }
 
 // the bytes a text of `from` takes stored again, its 0 among them, none where it is none
-static unsigned long long cli_stored_size(const CliCatalog *from, unsigned int text)
+EMBED_INLINE unsigned long long cli_stored_size(const CatalogCtx *args)
 {
+    unsigned int text = args->text;
     return (text == CLI_CATALOG_NONE)
                ? 0ull
-               : (cellul.len(&(CatenaFinitaCfg){.src = cli_catalog_at(from, text), .cap = CLI_CELLS_POOL}) + 1ull);
+               : (cellul.len(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
+                                                                  .catalog_read = args->from, .text_u32 = text),
+                                                .cap = CLI_CELLS_POOL}) +
+                  1ull);
 }
 
-void cli_catalog_job_extent(const CliCatalog *from, unsigned int index, CliCatalogExtent *extent)
+void cli_catalog_job_extent(const CliCatalogFromIndexCfg *args)
 {
-    const CliJob *const job = &from->job[index];
+    CliCatalogExtent *extent = args->extent;
+    const CliJob *const job = &args->from->job[args->index];
     *extent = (CliCatalogExtent){job->params, job->steps, 0u, 0u, 16ull};
-    extent->text += cli_stored_size(from, job->id) + cli_stored_size(from, job->title) +
-                    cli_stored_size(from, job->file) + cli_stored_size(from, job->about);
+    extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = job->id) +
+                    EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = job->title) +
+                    EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = job->file) +
+                    EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = job->about);
     for (unsigned int at = 0u; at < job->params; at += 1u)
     {
-        const CliParam *const param = &from->param[job->param_first + at];
-        extent->text += cli_stored_size(from, param->key) + cli_stored_size(from, param->fallback);
+        const CliParam *const param = &args->from->param[job->param_first + at];
+        extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = param->key) +
+                        EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = param->fallback);
         extent->lists += param->choices;
         for (unsigned int each = 0u; each < param->choices; each += 1u)
         {
-            extent->text += cli_stored_size(from, from->list[param->first + each]);
+            extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from,
+                                       .text = args->from->list[param->first + each]);
         }
     }
     for (unsigned int at = 0u; at < job->steps; at += 1u)
     {
-        const CliStep *const step = &from->step[job->step_first + at];
-        extent->text += cli_stored_size(from, step->text) + cli_stored_size(from, step->tool_program);
+        const CliStep *const step = &args->from->step[job->step_first + at];
+        extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = step->text) +
+                        EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = step->tool_program);
         extent->args += step->args;
         for (unsigned int each = 0u; each < step->args; each += 1u)
         {
-            const CliArg *const arg = &from->arg[step->first + each];
+            const CliArg *const arg = &args->from->arg[step->first + each];
             for (unsigned int part = 0u; part < 4u; part += 1u)
             {
-                extent->text += cli_stored_size(from, arg->text[part]);
+                extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = arg->text[part]);
             }
             extent->lists += arg->words;
             for (unsigned int word = 0u; word < arg->words; word += 1u)
             {
-                extent->text += cli_stored_size(from, from->list[arg->first + word]);
+                extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from,
+                                           .text = args->from->list[arg->first + word]);
             }
         }
     }
 }
 
 // a text written as a JSON string
-static void cli_quoted(VerbaLinea *out, const char *text)
+EMBED_INLINE void cli_quote(const CatalogCtx *args)
 {
-    cli_json_quoted(out, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    VerbaLinea *out = args->out;
+    const char *text = args->text_text;
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = text,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-void cli_catalog_job_written(const CliCatalog *catalog, unsigned int index, VerbaLinea *out)
+void cli_catalog_job_write(const CliCatalogIndexCfg *args)
 {
-    const CliJob *const job = &catalog->job[index];
-    mmgr_line_put(out, "{\"id\":");
-    cli_quoted(out, cli_catalog_at(catalog, job->id));
-    mmgr_line_put(out, ",\"group\":");
-    cli_quoted(out, job->group);
-    mmgr_line_put(out, ",\"title\":");
-    cli_quoted(out, cli_catalog_at(catalog, job->title));
-    mmgr_line_put(out, ",\"file\":");
-    cli_quoted(out, cli_catalog_at(catalog, job->file));
-    mmgr_line_put(out, ",\"about\":");
-    cli_quoted(out, cli_catalog_at(catalog, job->about));
-    mmgr_line_put(out, ",\"params\":[");
+    const CliJob *const job = &args->catalog_read->job[args->index];
+    mmgr_line_put(args->out, "{\"id\":");
+    EMBED_CALL(cli_quote, CatalogCtx, .out = args->out,
+               .text_text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog_read,
+                                       .text_u32 = job->id));
+    mmgr_line_put(args->out, ",\"group\":");
+    EMBED_CALL(cli_quote, CatalogCtx, .out = args->out, .text_text = job->group);
+    mmgr_line_put(args->out, ",\"title\":");
+    EMBED_CALL(cli_quote, CatalogCtx, .out = args->out,
+               .text_text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog_read,
+                                       .text_u32 = job->title));
+    mmgr_line_put(args->out, ",\"file\":");
+    EMBED_CALL(cli_quote, CatalogCtx, .out = args->out,
+               .text_text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog_read,
+                                       .text_u32 = job->file));
+    mmgr_line_put(args->out, ",\"about\":");
+    EMBED_CALL(cli_quote, CatalogCtx, .out = args->out,
+               .text_text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog_read,
+                                       .text_u32 = job->about));
+    mmgr_line_put(args->out, ",\"params\":[");
     for (unsigned int at = 0u; at < job->params; at += 1u)
     {
-        const CliParam *const param = &catalog->param[job->param_first + at];
-        mmgr_line_put(out, (at != 0u) ? ",{\"key\":" : "{\"key\":");
-        cli_quoted(out, cli_catalog_at(catalog, param->key));
-        mmgr_line_put(out, ",\"kind\":");
-        cli_quoted(out, param->kind);
-        mmgr_line_put(out, ",\"choices\":[");
+        const CliParam *const param = &args->catalog_read->param[job->param_first + at];
+        mmgr_line_put(args->out, (at != 0u) ? ",{\"key\":" : "{\"key\":");
+        EMBED_CALL(cli_quote, CatalogCtx, .out = args->out,
+                   .text_text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
+                                           .catalog_read = args->catalog_read, .text_u32 = param->key));
+        mmgr_line_put(args->out, ",\"kind\":");
+        EMBED_CALL(cli_quote, CatalogCtx, .out = args->out, .text_text = param->kind);
+        mmgr_line_put(args->out, ",\"choices\":[");
         for (unsigned int each = 0u; each < param->choices; each += 1u)
         {
-            mmgr_line_put(out, (each != 0u) ? "," : "");
-            cli_quoted(out, cli_catalog_at(catalog, catalog->list[param->first + each]));
+            mmgr_line_put(args->out, (each != 0u) ? "," : "");
+            EMBED_CALL(cli_quote, CatalogCtx, .out = args->out,
+                       .text_text =
+                           EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog_read,
+                                      .text_u32 = args->catalog_read->list[param->first + each]));
         }
-        mmgr_line_put(out, "],\"default\":");
-        cli_quoted(out, cli_catalog_at(catalog, param->fallback));
-        mmgr_line_put(out, param->required ? ",\"required\":true}" : ",\"required\":false}");
+        mmgr_line_put(args->out, "],\"default\":");
+        EMBED_CALL(cli_quote, CatalogCtx, .out = args->out,
+                   .text_text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
+                                           .catalog_read = args->catalog_read, .text_u32 = param->fallback));
+        mmgr_line_put(args->out, param->required ? ",\"required\":true}" : ",\"required\":false}");
     }
-    mmgr_line_put(out, "],\"opens\":");
-    cli_quoted(out, job->opens);
-    mmgr_line_ch(out, '}');
+    mmgr_line_put(args->out, "],\"opens\":");
+    EMBED_CALL(cli_quote, CatalogCtx, .out = args->out, .text_text = job->opens);
+    mmgr_line_ch(args->out, '}');
 }
 
-void cli_values_begun(CliValues *values)
+void cli_values_begin(const CliCatalogKeyValuesCfg *args)
 {
-    values->keys = 0u;
-    values->items = 0u;
-    values->used = 0u;
+    args->values_out->keys = 0u;
+    args->values_out->items = 0u;
+    args->values_out->used = 0u;
 }
 
-void cli_values_put(CliValues *values, const char *key, const char *value)
+void cli_values_put(const CliCatalogKeyValuesCfg *args)
 {
     unsigned int at = 0u;
-    while ((at < values->keys) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = values->key[at], .other = key, .cap = CLI_CELLS_POOL})))
+    while (
+        (at < args->values_out->keys) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->values_out->key[at], .other = args->key, .cap = CLI_CELLS_POOL})))
     {
         at += 1u;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1ull;
-    if (((at == values->keys) && (values->keys >= CLI_VALUES_KEYS)) || (values->items >= CLI_VALUES_ITEMS) ||
-        ((values->used + size) > CLI_VALUES_TEXT))
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL}) + 1ull;
+    if (((at == args->values_out->keys) && (args->values_out->keys >= CLI_VALUES_KEYS)) ||
+        (args->values_out->items >= CLI_VALUES_ITEMS) || ((args->values_out->used + size) > CLI_VALUES_TEXT))
     {
         return;
     }
-    if (at == values->keys)
+    if (at == args->values_out->keys)
     {
-        memor.cpy(&(MemoriaCfg){.dst = values->key[at],
-                                .src = key,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
-        values->first[at] = values->items;
-        values->count[at] = 0u;
-        values->keys += 1u;
+        memor.cpy(&(MemoriaCfg){.dst = args->values_out->key[at],
+                                .src = args->key,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1u});
+        args->values_out->first[at] = args->values_out->items;
+        args->values_out->count[at] = 0u;
+        args->values_out->keys += 1u;
     }
     // a key's values stand together: those of the keys after it are moved one along
-    const unsigned int place = values->first[at] + values->count[at];
-    for (unsigned int item = values->items; item > place; item -= 1u)
+    const unsigned int place = args->values_out->first[at] + args->values_out->count[at];
+    for (unsigned int item = args->values_out->items; item > place; item -= 1u)
     {
-        values->item[item] = values->item[item - 1u];
+        args->values_out->item[item] = args->values_out->item[item - 1u];
     }
-    for (unsigned int other = 0u; other < values->keys; other += 1u)
+    for (unsigned int other = 0u; other < args->values_out->keys; other += 1u)
     {
-        values->first[other] += ((other != at) && (values->first[other] >= place)) ? 1u : 0u;
+        args->values_out->first[other] += ((other != at) && (args->values_out->first[other] >= place)) ? 1u : 0u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = values->text + values->used, .src = value, .bytes = size});
-    values->item[place] = values->used;
+    memor.cpy(&(MemoriaCfg){.dst = args->values_out->text + args->values_out->used, .src = args->value, .bytes = size});
+    args->values_out->item[place] = args->values_out->used;
     // the texts are below CLI_VALUES_TEXT
-    values->used += (unsigned int)size;
-    values->items += 1u;
-    values->count[at] += 1u;
+    args->values_out->used += (unsigned int)size;
+    args->values_out->items += 1u;
+    args->values_out->count[at] += 1u;
 }
 
-const unsigned int *cli_values_of(const CliValues *values, const char *key, unsigned int *count)
+const unsigned int *cli_values_get(const CliCatalogKeyCfg *args)
 {
-    for (unsigned int at = 0u; at < values->keys; at += 1u)
+    unsigned int *count = args->count;
+    for (unsigned int at = 0u; at < args->values->keys; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = values->key[at], .other = key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->values->key[at], .other = args->key, .cap = CLI_CELLS_POOL}))
         {
-            *count = values->count[at];
-            return values->item + values->first[at];
+            *count = args->values->count[at];
+            return args->values->item + args->values->first[at];
         }
     }
     *count = 0u;
     return NULL;
 }
 
-const char *cli_values_first(const CliValues *values, const char *key)
+const char *cli_values_first(const CliCatalogKeyCfg *args)
 {
     unsigned int count = 0u;
-    const unsigned int *const items = cli_values_of(values, key, &count);
-    return ((items != NULL) && (count != 0u)) ? (values->text + items[0]) : NULL;
+    const unsigned int *const items = EMBED_CALL(cli_catalog_key.values_get, CliCatalogKeyCfg, .values = args->values,
+                                                 .key = args->key, .count = &count);
+    return ((items != NULL) && (count != 0u)) ? (args->values->text + items[0]) : NULL;
 }
 
-const char *cli_values_at(const CliValues *values, unsigned int text)
+const char *cli_values_at(const CliCatalogTextValuesCfg *args)
 {
-    return values->text + text;
+    return args->values->text + args->text_u32;
 }

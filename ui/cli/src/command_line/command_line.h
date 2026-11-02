@@ -10,8 +10,13 @@
 // code (command_line*.c)
 #ifndef COMMAND_LINE_H
 #define COMMAND_LINE_H
+typedef struct CliCommandLineGivenCfg CliCommandLineGivenCfg;
+typedef struct CliCommandLineNamedCfg CliCommandLineNamedCfg;
+typedef struct CliCommandLineCfg CliCommandLineCfg;
+typedef struct CliCommandLineLaunchOutCfg CliCommandLineLaunchOutCfg;
 
 #include "cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most words a command the window runs is given, and the bytes they take
 #define CLI_LAUNCH_ARGS 256u
@@ -38,17 +43,79 @@ typedef struct
 
 // the words given on the command line, `count` of them, run: a command run here, with the code to exit with, or the
 // window to open for one that acts there, into `outcome`
-void cli_command_line_run(const char *const *given, unsigned int count, CliOutcome *outcome);
+void cli_command_line_run(const CliCommandLineGivenCfg *args);
 // the words that name a launch's command, as the command line takes them, written into `out`
-void cli_launch_words(const CliOutcome *launch, VerbaLinea *out);
+void cli_launch_words(const CliCommandLineLaunchOutCfg *args);
 // the word `at` of a launch's command
-const char *cli_launch_arg(const CliOutcome *launch, unsigned int at);
+const char *cli_launch_arg(const CliCommandLineCfg *args);
 // the tree a command works on: the folder `named` names, else the one the tree's marker is found above, made the
 // tree whose tools come first, into `root`, sized for CLI_PATH_MAX_LEN: 1, or 0 with why given
-int cli_command_line_tree(const char *named, char *root, VerbaLinea *err_msg);
+int cli_command_line_tree(const CliCommandLineNamedCfg *args);
 // the console let go where this process is the only one on it: the console Windows opens for a console program started
 // from outside a terminal; started from a terminal, the process retains the terminal's console; elsewhere nothing
 // (platform/windows.c, platform/posix.c)
 void cli_console_let_go(void);
+
+struct CliCommandLineGivenCfg
+{
+    const char *const *given;
+    unsigned int count;
+    CliOutcome *outcome;
+};
+
+struct CliCommandLineNamedCfg
+{
+    const char *named;
+    char *root;
+    VerbaLinea *err_msg;
+};
+
+struct CliCommandLineCfg
+{
+    const CliOutcome *launch;
+    unsigned int at;
+};
+
+struct CliCommandLineLaunchOutCfg
+{
+    const CliOutcome *launch;
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    void (*run)(const CliCommandLineGivenCfg *args);
+} CliCommandLineGivenNs;
+EMBED_TABLE_LAYOUT(CliCommandLineGivenNs, run);
+EMBED_TABLE_STORAGE CliCommandLineGivenNs cli_command_line_given EMBED_UNUSED = {
+    .run = cli_command_line_run,
+};
+
+typedef struct
+{
+    void (*launch_words)(const CliCommandLineLaunchOutCfg *args);
+} CliCommandLineLaunchOutNs;
+EMBED_TABLE_LAYOUT(CliCommandLineLaunchOutNs, launch_words);
+EMBED_TABLE_STORAGE CliCommandLineLaunchOutNs cli_command_line_launch_out EMBED_UNUSED = {
+    .launch_words = cli_launch_words,
+};
+
+typedef struct
+{
+    const char *(*launch_arg)(const CliCommandLineCfg *args);
+} CliCommandLineNs;
+EMBED_TABLE_LAYOUT(CliCommandLineNs, launch_arg);
+EMBED_TABLE_STORAGE CliCommandLineNs cli_command_line_table EMBED_UNUSED = {
+    .launch_arg = cli_launch_arg,
+};
+
+typedef struct
+{
+    int (*tree)(const CliCommandLineNamedCfg *args);
+} CliCommandLineNamedNs;
+EMBED_TABLE_LAYOUT(CliCommandLineNamedNs, tree);
+EMBED_TABLE_STORAGE CliCommandLineNamedNs cli_command_line_named EMBED_UNUSED = {
+    .tree = cli_command_line_tree,
+};
 
 #endif

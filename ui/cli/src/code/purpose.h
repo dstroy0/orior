@@ -14,9 +14,13 @@
 // files, each up to 512 KiB (purpose.c, purpose_comment.c)
 #ifndef PURPOSE_H
 #define PURPOSE_H
+typedef struct CliPurposeCfg CliPurposeCfg;
+typedef struct CliPurposePathTextCfg CliPurposePathTextCfg;
+typedef struct CliPurposeTextCfg CliPurposeTextCfg;
 
 #include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most bytes of a file read for its comment, and of each file read for its uses; the most letters of a comment
 // given, and the most users named
@@ -27,7 +31,7 @@
 
 // what the first comment of `size` bytes of `text`, the text of the file at `path`, states, past a license's comment,
 // written into `out`; and the cells the room it is read in occupies (purpose_comment.c)
-void cli_purpose_first_comment(const char *path, const char *text, unsigned long long size, VerbaLinea *out);
+void cli_purpose_first_comment(const CliPurposePathTextCfg *args);
 extern CellOwner g_cli_purpose_cells;
 
 // whether `size` bytes of `text` use the file named `name`, whose name without its extension is `stem`; what the first
@@ -35,9 +39,64 @@ extern CellOwner g_cli_purpose_cells;
 // the first CLI_PURPOSE_USERS of them by their paths, and how many there are in all, the tree's files read on the cores
 // orior's work may take, written as `{"users", "all"}`; and both, written as `{"comment", "users", "all"}`. Each of the
 // last three 1, or 0 with why given (purpose.c)
-int cli_purpose_uses(const char *text, unsigned long long size, const char *name, const char *stem);
-int cli_purpose_written(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_purpose_users(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_purpose(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_purpose_uses(const CliPurposeTextCfg *args);
+int cli_purpose_write(const CliPurposeCfg *args);
+int cli_purpose_users(const CliPurposeCfg *args);
+int cli_purpose(const CliPurposeCfg *args);
+
+struct CliPurposeCfg
+{
+    const char *path;
+    VerbaLinea *out;
+    const char *root;
+    VerbaLinea *err_msg;
+};
+
+struct CliPurposePathTextCfg
+{
+    const char *path;
+    const char *text;
+    unsigned long long size;
+    VerbaLinea *out;
+};
+
+struct CliPurposeTextCfg
+{
+    const char *text;
+    unsigned long long size;
+    const char *name;
+    const char *stem;
+};
+
+typedef struct
+{
+    void (*first_comment)(const CliPurposePathTextCfg *args);
+} CliPurposePathTextNs;
+EMBED_TABLE_LAYOUT(CliPurposePathTextNs, first_comment);
+EMBED_TABLE_STORAGE CliPurposePathTextNs cli_purpose_path_text EMBED_UNUSED = {
+    .first_comment = cli_purpose_first_comment,
+};
+
+typedef struct
+{
+    int (*uses)(const CliPurposeTextCfg *args);
+} CliPurposeTextNs;
+EMBED_TABLE_LAYOUT(CliPurposeTextNs, uses);
+EMBED_TABLE_STORAGE CliPurposeTextNs cli_purpose_text EMBED_UNUSED = {
+    .uses = cli_purpose_uses,
+};
+
+typedef struct
+{
+    int (*write)(const CliPurposeCfg *args);
+    int (*users)(const CliPurposeCfg *args);
+    int (*purpose)(const CliPurposeCfg *args);
+} CliPurposeNs;
+EMBED_TABLE_LAYOUT(CliPurposeNs, write, users, purpose);
+EMBED_TABLE_STORAGE CliPurposeNs cli_purpose_table EMBED_UNUSED = {
+    .write = cli_purpose_write,
+    .users = cli_purpose_users,
+    .purpose = cli_purpose,
+};
 
 #endif

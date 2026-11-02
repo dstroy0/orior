@@ -3,7 +3,8 @@
 """harness.py cli: the CLI built, its checks run and its common paths timed.
 
     harness.py cli build                  the CLI library and programs, ui/cli/build.sh
-    harness.py cli test [name...]         the CLI's checks, every one where none is named
+    harness.py cli test [name...]         the CLI's Unity suites, every one where none is named
+    harness.py cli coverage build|test|report  the suites built for gcov, run, and merged by gcovr into build/sonarqube/coverage.xml
     harness.py cli bench [--label L] [--repeat N]  the CLI's common paths timed over ui/cli/src, rows kept in build/harness/bench
 
 A child's output streams through the harness's own; the invocation's log under build/harness/log therefore holds it."""
@@ -18,9 +19,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from utils.tools import findroot  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import harness_unity  # noqa: E402
+
 ROOT = findroot.root()
 CLI_BUILD = "ui/cli/build.sh"
-CLI_TESTS = "utils/test/src/ui/cli/cli_test.sh"
 CLI_BENCH = "utils/test/src/ui/cli/cli_bench.sh"
 # the lines a suite's checks print as the harness reads them: "N checks, M failed" and "test exit N"
 CHECKS_LINE = re.compile(r"(\d+) checks, (\d+) failed")
@@ -170,15 +173,55 @@ def checks_env(a):
     return dict(os.environ, **env) if env else None
 
 
+def library_archive(folder):
+    """The path of orior_cli's archive in build/cli/<folder>."""
+    with open(os.path.join(ROOT, "bin_names.tsv"), encoding="utf-8") as names:
+        cli_name = next(line.split("\t")[1] for line in names if line.startswith("cli\t"))
+    return os.path.join(ROOT, "build", "cli", folder, "lib" + cli_name + ".a")
+
+
 def cmd_cli_test(a):
-    # cli_test.sh runs every file and ends 0; a file's failure is its "test exit" or its check line, read as `run` reads them
-    seen = []
-    code = streamed([bash(), CLI_TESTS, *a.names], seen=seen, env=checks_env(a))
-    checks, failed, exits = output_read("".join(seen))
-    # a file ended as stalled printed no exit of its own
-    failing = sum(1 for one in exits if one != 0) + (1 if code == 124 else 0)
-    print("cli test: %d checks, %d failed, %d of %d files failing" % (checks, failed, failing, len(exits)), flush=True)
-    return code or (1 if (failed or failing) else 0)
+    if a.cases:
+        return harness_unity.show_cases(ROOT, a.cases)
+    build_env = harness_unity.sanitize_env(a.sanitize, "build/sanitizer_build", dict(checks_env(a) or os.environ))
+    if a.owners:
+        os.environ["ORIOR_CELLS_OWNERS"] = "1"
+
+    def library_built(target):
+        """orior_cli's library built for `target` through ui/cli/build.sh: its archive, or None where the build failed."""
+        if streamed([bash(), CLI_BUILD, "library", target], env=build_env) != 0:
+            return None
+        return library_archive(target + (("-" + a.sanitize) if a.sanitize else ""))
+
+    return harness_unity.run_suites(ROOT, a.names, library_built, a.sanitize)
+
+
+def coverage_env():
+    """The environment that makes ui/cli/build.sh build for coverage."""
+    return dict(os.environ, ORIOR_COVERAGE="1")
+
+
+def coverage_library_built(target):
+    """orior_cli's library built for coverage for `target`: its archive, or None where the build failed."""
+    if streamed([bash(), CLI_BUILD, "library", target], env=coverage_env()) != 0:
+        return None
+    return library_archive(target + "-coverage")
+
+
+def cmd_cli_coverage_build(a):
+    # the program and the window are built too, their sources having no suite yet, for a build wrapper to record every source
+    code = harness_unity.coverage_built(ROOT, a.names, coverage_library_built)
+    for words in ((CLI_BUILD,), (CLI_BUILD, "window")):
+        code = code or streamed([bash(), *words], env=coverage_env())
+    return code
+
+
+def cmd_cli_coverage_test(a):
+    return harness_unity.coverage_ran(ROOT, a.names)
+
+
+def cmd_cli_coverage_report(a):
+    return harness_unity.coverage_report(ROOT)
 
 
 def cmd_cli_bench(a):
@@ -201,11 +244,22 @@ def register(sub):
     cli = group.add_subparsers(dest="command", required=True)
     p = cli.add_parser("build", help="the CLI library and programs, through ui/cli/build.sh")
     p.set_defaults(fn=cmd_cli_build)
-    p = cli.add_parser("test", help="the CLI's checks, every one where none is named")
-    p.add_argument("names", nargs="*", help="check names, as cli_test.sh takes them")
-    p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the checks built and run under this sanitizer, a report failing its check")
-    p.add_argument("--owners", action="store_true", help="each check's end prints MMgr's owner table, every owner's bytes now and its peak")
+    p = cli.add_parser("test", help="the CLI's Unity suites generated, built and run, every one where none is named")
+    p.add_argument("names", nargs="*", help="suite names, the module of utils/test/src/ui/cli/unit/<module>/test_<module>")
+    p.add_argument("--cases", default="", help="print what the generator registers in this suite and what it would skip")
+    p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the suites built and run under this sanitizer, a report failing its suite")
+    p.add_argument("--owners", action="store_true", help="each suite's end prints MMgr's owner table, every owner's bytes now and its peak")
     p.set_defaults(fn=cmd_cli_test)
+    p = cli.add_parser("coverage", help="the CLI's Unity suites built for gcov, run, and their counts merged through gcovr for the scanner")
+    coverage = p.add_subparsers(dest="step", required=True)
+    q = coverage.add_parser("build", help="the library, the suites, the program and the window built with --coverage under build/cli/<target>-coverage")
+    q.add_argument("names", nargs="*", help="suite names, every suite where none are named")
+    q.set_defaults(fn=cmd_cli_coverage_build)
+    q = coverage.add_parser("test", help="the suites built for coverage run, the .gcda of any earlier run removed first")
+    q.add_argument("names", nargs="*", help="suite names, every suite where none are named")
+    q.set_defaults(fn=cmd_cli_coverage_test)
+    q = coverage.add_parser("report", help="the .gcda merged through gcovr into build/sonarqube/coverage.xml")
+    q.set_defaults(fn=cmd_cli_coverage_report)
     p = cli.add_parser("bench", help="the CLI's common paths timed over ui/cli/src, rows kept in build/harness/bench/bench.tsv")
     p.add_argument("--label", default="", help="the run's label in the kept rows, such as before or after")
     p.add_argument("--repeat", type=int, default=5, help="how many times each pass runs, the least time kept")

@@ -12,7 +12,6 @@
 
 // the most words git is started with
 #define CLI_GIT_WORDS 8192u
-
 // A room a run of git takes: what it gave and the bytes it points into, the process, the threads that read its errors
 // and write its input and the count of them ended, and the words it is started with; its output stands after it in
 // its cell
@@ -35,50 +34,50 @@ typedef struct
 static char s_nothing[1];
 static CliGitGave s_refused = {s_nothing, 0ull, 1, s_nothing, 0ull, 0};
 
-void cli_git_text_begun(CliGitText *text)
+void cli_git_text_begin(const CliGitTextCfg *args)
 {
-    text->bytes = g_cli_cells->temporary_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells);
-    text->room = 0ull;
-    text->used = 0ull;
-    text->full = 0;
-    if (text->bytes != NULL)
+    args->text->bytes = g_cli_cells->temporary_buf_alloc(CLI_GIT_TEXT, &g_cli_git_cells);
+    args->text->room = 0ull;
+    args->text->used = 0ull;
+    args->text->full = 0;
+    if (args->text->bytes != NULL)
     {
-        text->room = CLI_GIT_TEXT;
-        text->used = 1ull;
-        text->bytes[0] = '\0';
+        args->text->room = CLI_GIT_TEXT;
+        args->text->used = 1ull;
+        args->text->bytes[0] = '\0';
     }
 }
 
-unsigned int cli_git_text_put(CliGitText *text, const char *from, unsigned long long length)
+unsigned int cli_git_text_put(const CliGitTextCfg *args)
 {
-    const unsigned long long most = text->used + length + 1ull;
-    if ((most > CLI_GIT_TEXT) || (text->bytes == NULL))
+    const unsigned long long most = args->text->used + args->length + 1ull;
+    if ((most > CLI_GIT_TEXT) || (args->text->bytes == NULL))
     {
-        text->full = 1;
+        args->text->full = 1;
         return 0u;
     }
     // a place is below CLI_GIT_TEXT, which an unsigned int stores
-    const unsigned int at = (unsigned int)text->used;
-    memor.cpy(&(MemoriaCfg){.dst = text->bytes + at, .src = from, .bytes = length});
-    text->bytes[at + length] = '\0';
-    text->used += length + 1ull;
+    const unsigned int at = (unsigned int)args->text->used;
+    memor.cpy(&(MemoriaCfg){.dst = args->text->bytes + at, .src = args->from, .bytes = args->length});
+    args->text->bytes[at + args->length] = '\0';
+    args->text->used += args->length + 1ull;
     return at;
 }
 
-const char *cli_git_text_of(const CliGitText *text, unsigned int at)
+const char *cli_git_text_get(const CliGitTextAtCfg *args)
 {
-    return (text->bytes != NULL) ? (text->bytes + at) : "";
+    return (args->text_read->bytes != NULL) ? (args->text_read->bytes + args->at) : "";
 }
 
-void cli_git_text_given(CliGitText *text)
+void cli_git_text_free(const CliGitTextCfg *args)
 {
-    g_cli_cells->persistent_buf_release(text->bytes, &g_cli_git_cells);
-    text->bytes = NULL;
-    text->used = 0ull;
-    text->room = 0ull;
+    g_cli_cells->persistent_buf_release(args->text->bytes, &g_cli_git_cells);
+    args->text->bytes = NULL;
+    args->text->used = 0ull;
+    args->text->room = 0ull;
 }
 
-CliGitGave *cli_git_taken(void)
+CliGitGave *cli_git_take(void)
 {
     CliGitRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room) + CLI_GIT_OUT, &g_cli_git_cells);
     if (room == NULL)
@@ -96,27 +95,32 @@ CliGitGave *cli_git_taken(void)
     return &room->gave;
 }
 
-// the room that contains `gave`, one cli_git_taken took from the cells
-static CliGitRoom *cli_room_of(CliGitGave *gave)
+typedef struct
 {
-    return (CliGitRoom *)(void *)((char *)gave - offsetof(CliGitRoom, gave));
+    CliGitGave *gave;
+    CliGitRoom *room;
+} GitRunCtx;
+// the room that contains `gave`, one cli_git_take took from the cells
+EMBED_INLINE CliGitRoom *cli_room_get(const GitRunCtx *args)
+{
+    return (CliGitRoom *)(void *)((char *)args->gave - offsetof(CliGitRoom, gave));
 }
 
-void cli_git_given(CliGitGave *gave)
+void cli_git_free(const CliGitGaveCtx *args)
 {
-    if (gave != &s_refused)
+    if (args->gave != &s_refused)
     {
-        g_cli_cells->persistent_buf_release(cli_room_of(gave), &g_cli_git_cells);
+        g_cli_cells->persistent_buf_release(EMBED_CALL(cli_room_get, GitRunCtx, .gave = args->gave), &g_cli_git_cells);
     }
 }
 
 // a thread of a run ended, reported to the run
-static void cli_ended(CliGitRoom *room)
+EMBED_INLINE void cli_end(const GitRunCtx *args)
 {
-    cli_lock_take(&room->lock);
-    room->ended += 1u;
-    cli_wake_all(&room->wake);
-    cli_lock_give(&room->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->room->lock);
+    args->room->ended += 1u;
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->room->wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->room->lock);
 }
 
 // what git reports went wrong read until it ends, the bytes past the room read and let go
@@ -130,7 +134,8 @@ static void cli_errors_read(void *context)
         const unsigned long long room_left = CLI_GIT_ERR - 1ull - gave->err_size;
         char *const into = (room_left != 0ull) ? (gave->err + gave->err_size) : spare;
         const unsigned long long got =
-            cli_spawn_read(room->spawned.err, into, (room_left != 0ull) ? room_left : sizeof(spare));
+            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = room->spawned.err,
+                       .piece = into, .room = (room_left != 0ull) ? room_left : sizeof(spare));
         if (got == 0ull)
         {
             break;
@@ -138,67 +143,75 @@ static void cli_errors_read(void *context)
         gave->err_size += (room_left != 0ull) ? got : 0ull;
     }
     gave->err[gave->err_size] = '\0';
-    cli_ended(room);
+    EMBED_CALL(cli_end, GitRunCtx, .room = room);
 }
 
 // the run's input written whole and its pipe closed, which git reads as its input's end
-static void cli_input_written(void *context)
+static void cli_input_write(void *context)
 {
     CliGitRoom *const room = (CliGitRoom *)context;
-    cli_spawn_written(room->spawned.in, room->input, room->length);
-    cli_spawn_input_closed(&room->spawned);
-    cli_ended(room);
+    EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = room->spawned.in,
+               .bytes = room->input, .size = room->length);
+    EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &room->spawned);
+    EMBED_CALL(cli_end, GitRunCtx, .room = room);
 }
 
-int cli_git_gave(const char *root, const char *const *args, unsigned int count, unsigned int how, const char *index,
-                 const char *input, unsigned long long length, CliGitGave *gave, VerbaLinea *err_msg)
+int cli_git_gave(const CliGitGaveCtx *args)
 {
-    if (gave == &s_refused)
+    const char *input = args->input;
+    unsigned long long length = args->length;
+    if (args->gave == &s_refused)
     {
-        mmgr_line_put(err_msg, "git: the cells cannot meet a run of git");
+        mmgr_line_put(args->err_msg, "git: the cells cannot meet a run of git");
         return 0;
     }
-    CliGitRoom *const room = cli_room_of(gave);
-    gave->out_size = 0ull;
-    gave->out_whole = 1;
-    gave->err_size = 0ull;
-    gave->out[0] = '\0';
-    gave->err[0] = '\0';
-    gave->ok = 0;
-    if ((count + 4u) > CLI_GIT_WORDS)
+    CliGitRoom *const room = EMBED_CALL(cli_room_get, GitRunCtx, .gave = args->gave);
+    args->gave->out_size = 0ull;
+    args->gave->out_whole = 1;
+    args->gave->err_size = 0ull;
+    args->gave->out[0] = '\0';
+    args->gave->err[0] = '\0';
+    args->gave->ok = 0;
+    if ((args->count + 4u) > CLI_GIT_WORDS)
     {
-        mmgr_line_put(err_msg, "git: too many words to start it with");
+        mmgr_line_put(args->err_msg, "git: too many words to start it with");
         return 0;
     }
     unsigned int words = 0u;
     room->words[words] = "git";
     words += 1u;
-    words += cli_trust_git_words(root, room->words + words);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    words += EMBED_CALL(cli_trust_tree_words.git_words, CliTrustTreeWordsCfg, .tree = args->root,
+                        .words = room->words + words);
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        room->words[words] = args[at];
+        room->words[words] = args->request[at];
         words += 1u;
     }
     room->words[words] = NULL;
     CliSetting settings[3];
     unsigned int set = 0u;
-    if ((how & CLI_GIT_LOCKS_OFF) != 0u)
+    if ((args->how & CLI_GIT_LOCKS_OFF) != 0u)
     {
         settings[set] = (CliSetting){"GIT_OPTIONAL_LOCKS", "0"};
         set += 1u;
     }
-    if ((how & CLI_GIT_PROMPT_OFF) != 0u)
+    if ((args->how & CLI_GIT_PROMPT_OFF) != 0u)
     {
         settings[set] = (CliSetting){"GIT_TERMINAL_PROMPT", "0"};
         set += 1u;
     }
-    if (index != NULL)
+    if (args->index != NULL)
     {
-        settings[set] = (CliSetting){"GIT_INDEX_FILE", index};
+        settings[set] = (CliSetting){"GIT_INDEX_FILE", args->index};
         set += 1u;
     }
-    const int started = (input != NULL) ? cli_spawn_fed(&room->spawned, room->words, root, settings, set, 1, err_msg)
-                                        : cli_spawn(&room->spawned, room->words, root, settings, set, 1, err_msg);
+    const int started = (input != NULL)
+                            ? EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx,
+                                         .spawned = &room->spawned, .words = room->words, .folder = args->root,
+                                         .settings = settings, .count = set, .detached = 1, .err_msg = args->err_msg)
+                            : EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &room->spawned,
+                                         .words = room->words, .folder = args->root, .settings = settings, .count = set,
+                                         .detached = 1, .err_msg = args->err_msg);
     if (!started)
     {
         return 0;
@@ -207,69 +220,77 @@ int cli_git_gave(const char *root, const char *const *args, unsigned int count, 
     room->input = input;
     room->length = length;
     room->reader = (CliThread){cli_errors_read, room};
-    room->writer = (CliThread){cli_input_written, room};
+    room->writer = (CliThread){cli_input_write, room};
     // the reader and the writer each report their end, on a thread of their own or, where none starts, here
     const unsigned int ending = (input != NULL) ? 2u : 1u;
-    const int reading = cli_thread_started(&room->reader);
-    if ((input != NULL) && !cli_thread_started(&room->writer))
+    const int reading = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &room->reader);
+    if ((input != NULL) && !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &room->writer))
     {
-        cli_input_written(room);
+        cli_input_write(room);
     }
     for (;;)
     {
         char spare[CLI_GIT_READ];
-        const unsigned long long room_left = CLI_GIT_OUT - 1ull - gave->out_size;
-        char *const into = (room_left != 0ull) ? (gave->out + gave->out_size) : spare;
+        const unsigned long long room_left = CLI_GIT_OUT - 1ull - args->gave->out_size;
+        char *const into = (room_left != 0ull) ? (args->gave->out + args->gave->out_size) : spare;
         const unsigned long long got =
-            cli_spawn_read(room->spawned.out, into, (room_left != 0ull) ? room_left : sizeof(spare));
+            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = room->spawned.out,
+                       .piece = into, .room = (room_left != 0ull) ? room_left : sizeof(spare));
         if (got == 0ull)
         {
             break;
         }
-        gave->out_size += (room_left != 0ull) ? got : 0ull;
-        gave->out_whole = gave->out_whole && (room_left != 0ull);
+        args->gave->out_size += (room_left != 0ull) ? got : 0ull;
+        args->gave->out_whole = args->gave->out_whole && (room_left != 0ull);
     }
-    gave->out[gave->out_size] = '\0';
+    args->gave->out[args->gave->out_size] = '\0';
     if (!reading)
     {
         cli_errors_read(room);
     }
-    cli_lock_take(&room->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     while (room->ended < ending)
     {
-        cli_wake_wait(&room->wake, &room->lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &room->wake, .lock = &room->lock);
     }
-    cli_lock_give(&room->lock);
-    gave->ok = cli_spawn_wait(&room->spawned) == 0ll;
-    cli_spawn_closed(&room->spawned);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
+    args->gave->ok = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &room->spawned) == 0ll;
+    EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &room->spawned);
     return 1;
 }
 
-int cli_git_query(const char *root, const char *const *args, unsigned int count, CliGitGave *gave)
+int cli_git_query(const CliGitGaveCtx *args)
 {
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    return cli_git_gave(root, args, count, CLI_GIT_LOCKS_OFF, NULL, NULL, 0ull, gave, &err_msg) && gave->ok &&
-           gave->out_whole;
+    return EMBED_CALL(cli_git_gave_internal.gave, CliGitGaveCtx, .root = args->root, .request = args->request,
+                      .count = args->count, .how = CLI_GIT_LOCKS_OFF, .index = NULL, .input = NULL, .length = 0ull,
+                      .gave = args->gave, .err_msg = &err_msg) &&
+           args->gave->ok && args->gave->out_whole;
 }
 
-void cli_git_trimmed(const char **from, const char **to)
+void cli_git_trim(const CliGitFromCtx *args)
 {
-    *from += cli_text_past_any(*from, 0ull, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
-    *to = *from + cli_text_back_past(*from, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
+    const char **from = args->from;
+    const char **to = args->to;
+    *from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
+                        .size = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
+    *to = *from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = *from,
+                             .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
 }
 
-int cli_git_ran(const char *root, const char *const *args, unsigned int count, const char *index, const char *input,
-                unsigned long long length, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_git_on_run(const CliGitRootCtx *args)
 {
-    CliGitGave *const gave = cli_git_taken();
+    CliGitGave *const gave = cli_git_take();
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea started = {why, sizeof(why), 0ull};
-    if (!cli_git_gave(root, args, count, CLI_GIT_PROMPT_OFF, index, input, length, gave, &started))
+    if (!EMBED_CALL(cli_git_gave_internal.gave, CliGitGaveCtx, .root = args->root, .request = args->request,
+                    .count = args->count, .how = CLI_GIT_PROMPT_OFF, .index = args->index, .input = args->input,
+                    .length = args->length, .gave = gave, .err_msg = &started))
     {
-        mmgr_line_put(err_msg, "git: ");
-        mmgr_line_put_n(err_msg, why, started.at);
-        cli_git_given(gave);
+        mmgr_line_put(args->err_msg, "git: ");
+        mmgr_line_put_n(args->err_msg, why, started.at);
+        EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
         return 0;
     }
     // what it wrote and reported joined, in a cell of their size
@@ -278,105 +299,117 @@ int cli_git_ran(const char *root, const char *const *args, unsigned int count, c
     VerbaLinea joined = mmgr_line_over(joined_cell, joined_room);
     if (joined.out == NULL)
     {
-        mmgr_line_put(err_msg, "git: what it wrote and reported could not be joined: the cells cannot meet it");
-        cli_git_given(gave);
+        mmgr_line_put(args->err_msg, "git: what it wrote and reported could not be joined: the cells cannot meet it");
+        EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
         return 0;
     }
     mmgr_line_put_n(&joined, gave->out, gave->out_size);
     mmgr_line_put_n(&joined, gave->err, gave->err_size);
     const char *from = joined.out;
     const char *to = joined.out + joined.at;
-    cli_git_trimmed(&from, &to);
+    EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
     const int ok = gave->ok;
     if (ok)
     {
-        mmgr_line_put_n(out, from, (unsigned long long)(to - from));
+        mmgr_line_put_n(args->out, from, (unsigned long long)(to - from));
     }
     else if (from == to)
     {
-        mmgr_line_put(err_msg, "git ");
-        mmgr_line_put(err_msg, (count != 0u) ? args[0] : "");
-        mmgr_line_put(err_msg, " failed");
+        mmgr_line_put(args->err_msg, "git ");
+        mmgr_line_put(args->err_msg, (args->count != 0u) ? args->request[0] : "");
+        mmgr_line_put(args->err_msg, " failed");
     }
     else
     {
-        mmgr_line_put_n(err_msg, from, (unsigned long long)(to - from));
+        mmgr_line_put_n(args->err_msg, from, (unsigned long long)(to - from));
     }
     g_cli_cells->persistent_buf_release(joined.out, &g_cli_git_cells);
-    cli_git_given(gave);
+    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
     return ok;
 }
 
-int cli_git_run(const char *root, const char *const *args, unsigned int count, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_git_run(const CliGitRootOutCountErrMsgCfg *args)
 {
-    return cli_git_ran(root, args, count, NULL, NULL, 0ull, out, err_msg);
+    return EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->root, .request = args->request,
+                      .count = args->count, .index = NULL, .input = NULL, .length = 0ull, .out = args->out,
+                      .err_msg = args->err_msg);
 }
 
-int cli_git_is_id(const char *id)
+int cli_git_is_id(const CliGitCtx *args)
 {
-    if (id[0] == '\0')
+    if (args->id[0] == '\0')
     {
         return 0;
     }
-    if (cli_text_past_class(id, 0ull, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), CLI_TEXT_DIGITS,
-                            "abcdefABCDEF") != cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}))
+    if (EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->id, .at = 0ull,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}),
+                   .classes = CLI_TEXT_DIGITS,
+                   .set = "abcdefABCDEF") != cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}))
     {
         return 0;
     }
     return 1;
 }
 
-int cli_git_beside(const char *root, const char *file, char *folder, char *shown, VerbaLinea *err_msg)
+int cli_git_beside(const CliGitRootErrMsgCtx *args)
 {
     char full[CLI_PATH_MAX_LEN];
-    if (!cli_inside(root, file, full, err_msg))
+    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->file, .joined = full,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
-    if (!cli_path_parent(full, folder))
+    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = full, .out = args->folder))
     {
-        memor.cpy(&(MemoriaCfg){.dst = folder,
-                                .src = root,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = args->folder,
+                          .src = args->root,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
-    while (!query_is_folder(folder) && cli_text_same(folder, root, root_length) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = root, .cap = CLI_CELLS_POOL})))
+    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    while (!EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->folder) &&
+           EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->folder, .other_pointer = args->root,
+                      .size = root_length) &&
+           (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = args->root, .cap = CLI_CELLS_POOL})))
     {
         char above[CLI_PATH_MAX_LEN];
-        if (!cli_path_parent(folder, above))
+        if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->folder, .out = above))
         {
-            memor.cpy(&(MemoriaCfg){.dst = above,
-                                    .src = root,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+            memor.cpy(
+                &(MemoriaCfg){.dst = above,
+                              .src = args->root,
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
         }
-        memor.cpy(&(MemoriaCfg){.dst = folder,
+        memor.cpy(&(MemoriaCfg){.dst = args->folder,
                                 .src = above,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}) + 1u});
     }
     char relative[CLI_PATH_MAX_LEN];
-    cli_relative(folder, full, relative);
-    VerbaLinea line = {shown, CLI_PATH_MAX_LEN, 0ull};
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->folder, .path = full,
+               .relative_out = relative);
+    VerbaLinea line = {args->shown, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, "./");
     mmgr_line_put(&line, relative);
     if (mmgr_line_finish(&line) == 0ull)
     {
-        mmgr_line_put(err_msg, file);
-        mmgr_line_put(err_msg, ": its path is too long");
+        mmgr_line_put(args->err_msg, args->file);
+        mmgr_line_put(args->err_msg, ": its path is too long");
         return 0;
     }
     return 1;
 }
 
-const char *cli_git_field(const char **at, const char *end, char stop, unsigned long long *length)
+const char *cli_git_field(const CliGitAtCtx *args)
 {
-    if (*at > end)
+    const char **at = args->at;
+    unsigned long long *length = args->length_pointer;
+    if (*at > args->end)
     {
         return NULL;
     }
     const char *const start = *at;
     const char *place = start;
-    while ((place < end) && (place[0] != stop))
+    while ((place < args->end) && (place[0] != args->stop))
     {
         place += 1;
     }
@@ -385,27 +418,28 @@ const char *cli_git_field(const char **at, const char *end, char stop, unsigned 
     return start;
 }
 
-int cli_git_seconds(const char *text, unsigned long long length, long long *value)
+int cli_git_seconds(const CliGitLengthTextCtx *args)
 {
+    long long *value = args->value;
     long long sign = 1ll;
     unsigned long long at = 0ull;
-    if ((length > 0ull) && ((text[0] == '-') || (text[0] == '+')))
+    if ((args->length > 0ull) && ((args->text[0] == '-') || (args->text[0] == '+')))
     {
-        sign = (text[0] == '-') ? -1ll : 1ll;
+        sign = (args->text[0] == '-') ? -1ll : 1ll;
         at = 1ull;
     }
-    if (at == length)
+    if (at == args->length)
     {
         return 0;
     }
     long long number = 0ll;
-    for (; at < length; at += 1ull)
+    for (; at < args->length; at += 1ull)
     {
-        if ((text[at] < '0') || (text[at] > '9'))
+        if ((args->text[at] < '0') || (args->text[at] > '9'))
         {
             return 0;
         }
-        number = (number * 10ll) + (long long)(text[at] - '0');
+        number = (number * 10ll) + (long long)(args->text[at] - '0');
     }
     *value = sign * number;
     return 1;

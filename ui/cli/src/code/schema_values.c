@@ -17,65 +17,82 @@
 #define CLI_SCHEMA_PATTERN (1u << 14u)
 #define CLI_SCHEMA_SHOWN_ROOM (1ull << 20u)
 
-const char *cli_schema_text(const CliSchemaRead *read, unsigned int at)
+const char *cli_schema_text(const CliSchemaReadAtCtx *args)
 {
-    return (at < read->used) ? read->pool + at : "";
+    return (args->at < args->read->used) ? args->read->pool + args->at : "";
 }
 
-const char *cli_schema_kind(const CliSchemaNode *node)
+const char *cli_schema_kind(const CliSchemaCtx *args)
 {
     static const char *const s_kinds[7] = {"", "object", "array", "string", "number", "boolean", "null"};
-    if ((node->kind == CLI_SCHEMA_NUMBER) && isfinite(node->number) && (floor(node->number) == node->number))
+    if ((args->node_schema_node_pointer->kind == CLI_SCHEMA_NUMBER) &&
+        isfinite(args->node_schema_node_pointer->number) &&
+        (floor(args->node_schema_node_pointer->number) == args->node_schema_node_pointer->number))
     {
         return "integer";
     }
-    return s_kinds[node->kind];
+    return s_kinds[args->node_schema_node_pointer->kind];
 }
 
-unsigned int cli_schema_get(const CliJson *json, unsigned int map, const char *name)
+unsigned int cli_schema_get(const CliSchemaJsonCtx *args)
 {
-    return ((map != CLI_JSON_NONE) && cli_json_is(json, map, CFG_JSON_OBJECT)) ? cli_json_member(json, map, name)
-                                                                               : CLI_JSON_NONE;
+    return ((args->map != CLI_JSON_NONE) &&
+            EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                       .node = args->map, .kind = CFG_JSON_OBJECT))
+               ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                            .object = args->map, .name = args->name)
+               : CLI_JSON_NONE;
 }
 
-const char *cli_schema_string(const CliJson *json, unsigned int map, const char *name, unsigned long long *size)
+const char *cli_schema_string(const CliSchemaJsonCtx *args)
 {
-    return cli_json_string(json, cli_schema_get(json, map, name), size);
+    return EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                      .node = cli_schema_json_internal.get(args), .length_pointer = args->size_pointer);
 }
 
-int cli_schema_true(const CliJson *json, unsigned int node)
+int cli_schema_true(const CliSchemaJsonNodeCtx *args)
 {
-    return (node != CLI_JSON_NONE) && cli_json_is(json, node, CFG_JSON_TRUE);
+    return (args->node != CLI_JSON_NONE) &&
+           EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                      .node = args->node, .kind = CFG_JSON_TRUE);
 }
 
-int cli_schema_false(const CliJson *json, unsigned int node)
+int cli_schema_false(const CliSchemaJsonNodeCtx *args)
 {
-    return (node != CLI_JSON_NONE) && cli_json_is(json, node, CFG_JSON_FALSE);
+    return (args->node != CLI_JSON_NONE) &&
+           EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                      .node = args->node, .kind = CFG_JSON_FALSE);
 }
 
-int cli_schema_number(const CliJson *json, unsigned int node, double *value)
+int cli_schema_number(const CliSchemaJsonNodeCtx *args)
 {
-    if ((node == CLI_JSON_NONE) || !cli_json_is(json, node, CFG_JSON_NUMBER))
+    double *value = args->value_f64s;
+    if ((args->node == CLI_JSON_NONE) ||
+        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                    .node = args->node, .kind = CFG_JSON_NUMBER))
     {
         return 0;
     }
     char raw[512];
-    const CliJsonNode *const one = &json->node[node];
+    const CliJsonNode *const one = &args->json->node[args->node];
     const unsigned long long size = (one->length < sizeof(raw)) ? one->length : sizeof(raw) - 1u;
-    memor.cpy(&(MemoriaCfg){.dst = raw, .src = json->text + one->text, .bytes = (size_t)size});
+    memor.cpy(&(MemoriaCfg){.dst = raw, .src = args->json->text + one->text, .bytes = (size_t)size});
     raw[size] = '\0';
     *value = strtod(raw, NULL);
     return 1;
 }
 
-int cli_schema_u64(const CliJson *json, unsigned int node, unsigned long long *value)
+int cli_schema_u64(const CliSchemaJsonNodeValueU64sCtx *args)
 {
-    if ((node == CLI_JSON_NONE) || !cli_json_is(json, node, CFG_JSON_NUMBER))
+    unsigned long long *value = args->value_u64s;
+    if ((args->node == CLI_JSON_NONE) ||
+        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                    .node = args->node, .kind = CFG_JSON_NUMBER))
     {
         return 0;
     }
-    const CliJsonNode *const one = &json->node[node];
-    const char *const text = json->text + one->text;
+    const CliJsonNode *const one = &args->json->node[args->node];
+    const char *const text = args->json->text + one->text;
     unsigned long long read = 0ull;
     for (unsigned long long at = 0ull; at < one->length; at += 1u)
     {
@@ -89,17 +106,30 @@ int cli_schema_u64(const CliJson *json, unsigned int node, unsigned long long *v
     return one->length > 0u;
 }
 
-// the last member of the file's object `object` keyed as `key` that contains a value, CLI_SCHEMA_NONE where none does
-static unsigned int values_member(const CliSchemaRead *read, unsigned int object, const char *key,
-                                  unsigned long long size)
+typedef struct
 {
+    const CliSchemaRead *read;
+    unsigned int object;
+    const char *key;
+    unsigned long long size;
+    const CliSchemaNode *node;
+    const char *text;
+    VerbaLinea *out;
+    unsigned int node_u32;
+} SchemaValuesCtx;
+// the last member of the file's object `object` keyed as `key` that contains a value, CLI_SCHEMA_NONE where none does
+EMBED_INLINE unsigned int values_member(const SchemaValuesCtx *args)
+{
+    const CliSchemaRead *read = args->read;
     unsigned int found = CLI_SCHEMA_NONE;
-    for (unsigned int at = read->node[object].first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
+    for (unsigned int at = read->node[args->object].first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
     {
         const CliSchemaMember *const member = &read->member[at];
-        if ((member->value != CLI_SCHEMA_NONE) && (member->key_size == size) &&
-            (memor.cmp(&(MemoriaCfg){
-                 .src = cli_schema_text(read, member->key_at), .other = key, .bytes = (size_t)size}) == 0))
+        if ((member->value != CLI_SCHEMA_NONE) && (member->key_size == args->size) &&
+            (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                                       .read = read, .at = member->key_at),
+                                     .other = args->key,
+                                     .bytes = (size_t)args->size}) == 0))
         {
             found = at;
         }
@@ -108,14 +138,18 @@ static unsigned int values_member(const CliSchemaRead *read, unsigned int object
 }
 
 // how many keys of the file's object `object` contain values, each counted once
-static unsigned int values_keys(const CliSchemaRead *read, unsigned int object)
+EMBED_INLINE unsigned int values_keys(const SchemaValuesCtx *args)
 {
+    const CliSchemaRead *read = args->read;
     unsigned int count = 0u;
-    for (unsigned int at = read->node[object].first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
+    for (unsigned int at = read->node[args->object].first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
     {
         const CliSchemaMember *const member = &read->member[at];
         count += ((member->value != CLI_SCHEMA_NONE) &&
-                  (values_member(read, object, cli_schema_text(read, member->key_at), member->key_size) == at))
+                  (EMBED_CALL(values_member, SchemaValuesCtx, .read = read, .object = args->object,
+                              .key = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = read,
+                                                .at = member->key_at),
+                              .size = member->key_size) == at))
                      ? 1u
                      : 0u;
     }
@@ -123,28 +157,34 @@ static unsigned int values_keys(const CliSchemaRead *read, unsigned int object)
 }
 
 // the kind of a file's value as JSON's values compare, a number that is not finite read as null
-static unsigned char values_kind(const CliSchemaNode *node)
+EMBED_INLINE unsigned char values_kind(const SchemaValuesCtx *args)
 {
-    return ((node->kind == CLI_SCHEMA_NUMBER) && !isfinite(node->number)) ? CLI_SCHEMA_NULL : node->kind;
+    return ((args->node->kind == CLI_SCHEMA_NUMBER) && !isfinite(args->node->number)) ? CLI_SCHEMA_NULL
+                                                                                      : args->node->kind;
 }
 
-int cli_schema_same(const CliSchemaRead *read, unsigned int node, const CliJson *json, unsigned int value)
+int cli_schema_same(const CliSchemaReadJsonCtx *args)
 {
-    const CliSchemaNode *const one = &read->node[node];
-    const CfgJsonKind kind = json->node[value].kind;
-    const unsigned char own = values_kind(one);
+    const CliSchemaNode *const one = &args->read->node[args->node];
+    const CfgJsonKind kind = args->json->node[args->value].kind;
+    const unsigned char own = EMBED_CALL(values_kind, SchemaValuesCtx, .node = one);
     if (own == CLI_SCHEMA_NUMBER)
     {
         double other = 0.0;
-        return cli_schema_number(json, value, &other) && (one->number == other);
+        return EMBED_CALL(cli_schema_json_node_internal.number, CliSchemaJsonNodeCtx, .json = args->json,
+                          .node = args->value, .value_f64s = &other) &&
+               (one->number == other);
     }
     if (own == CLI_SCHEMA_TEXT)
     {
         unsigned long long size = 0ull;
-        const char *const text = cli_json_string(json, value, &size);
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = args->json, .node = args->value, .length_pointer = &size);
         return (text != NULL) && (size == one->text_size) &&
-               (memor.cmp(&(MemoriaCfg){
-                    .src = text, .other = cli_schema_text(read, one->text_at), .bytes = (size_t)size}) == 0);
+               (memor.cmp(&(MemoriaCfg){.src = text,
+                                        .other = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                                            .read = args->read, .at = one->text_at),
+                                        .bytes = (size_t)size}) == 0);
     }
     if (own == CLI_SCHEMA_BOOL)
     {
@@ -156,31 +196,37 @@ int cli_schema_same(const CliSchemaRead *read, unsigned int node, const CliJson 
     }
     if (own == CLI_SCHEMA_ARRAY)
     {
-        if ((kind != CFG_JSON_ARRAY) || (json->node[value].count != one->count))
+        if ((kind != CFG_JSON_ARRAY) || (args->json->node[args->value].count != one->count))
         {
             return 0;
         }
-        unsigned int theirs = json->node[value].first;
-        for (unsigned int at = one->first; at != CLI_SCHEMA_NONE; at = read->node[at].next)
+        unsigned int theirs = args->json->node[args->value].first;
+        for (unsigned int at = one->first; at != CLI_SCHEMA_NONE; at = args->read->node[at].next)
         {
-            if ((theirs == CLI_JSON_NONE) || !cli_schema_same(read, at, json, theirs))
+            if ((theirs == CLI_JSON_NONE) ||
+                !EMBED_CALL(cli_schema_read_json_internal.same, CliSchemaReadJsonCtx, .read = args->read, .node = at,
+                            .json = args->json, .value = theirs))
             {
                 return 0;
             }
-            theirs = json->node[theirs].next;
+            theirs = args->json->node[theirs].next;
         }
         return 1;
     }
-    if ((kind != CFG_JSON_OBJECT) || (values_keys(read, node) != json->node[value].count))
+    if ((kind != CFG_JSON_OBJECT) || (EMBED_CALL(values_keys, SchemaValuesCtx, .read = args->read,
+                                                 .object = args->node) != args->json->node[args->value].count))
     {
         return 0;
     }
-    for (unsigned int at = json->node[value].first; at != CLI_JSON_NONE; at = json->node[at].next)
+    for (unsigned int at = args->json->node[args->value].first; at != CLI_JSON_NONE; at = args->json->node[at].next)
     {
-        const char *const name = json->text + json->node[at].key;
+        const char *const name = args->json->text + args->json->node[at].key;
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-        const unsigned int member = values_member(read, node, name, size);
-        if ((member == CLI_SCHEMA_NONE) || !cli_schema_same(read, read->member[member].value, json, at))
+        const unsigned int member = EMBED_CALL(values_member, SchemaValuesCtx, .read = args->read, .object = args->node,
+                                               .key = name, .size = size);
+        if ((member == CLI_SCHEMA_NONE) ||
+            !EMBED_CALL(cli_schema_read_json_internal.same, CliSchemaReadJsonCtx, .read = args->read,
+                        .node = args->read->member[member].value, .json = args->json, .value = at))
         {
             return 0;
         }
@@ -188,12 +234,13 @@ int cli_schema_same(const CliSchemaRead *read, unsigned int node, const CliJson 
     return 1;
 }
 
-int cli_schema_same_values(const CliSchemaRead *read, unsigned int one, unsigned int other)
+int cli_schema_same_values(const CliSchemaReadOneCtx *args)
 {
-    const CliSchemaNode *const left = &read->node[one];
-    const CliSchemaNode *const right = &read->node[other];
-    const unsigned char kind = values_kind(left);
-    if (kind != values_kind(right))
+    unsigned int other = args->other;
+    const CliSchemaNode *const left = &args->read->node[args->one];
+    const CliSchemaNode *const right = &args->read->node[other];
+    const unsigned char kind = EMBED_CALL(values_kind, SchemaValuesCtx, .node = left);
+    if (kind != EMBED_CALL(values_kind, SchemaValuesCtx, .node = right))
     {
         return 0;
     }
@@ -204,8 +251,10 @@ int cli_schema_same_values(const CliSchemaRead *read, unsigned int one, unsigned
     if (kind == CLI_SCHEMA_TEXT)
     {
         return (left->text_size == right->text_size) &&
-               (memor.cmp(&(MemoriaCfg){.src = cli_schema_text(read, left->text_at),
-                                        .other = cli_schema_text(read, right->text_at),
+               (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                                          .read = args->read, .at = left->text_at),
+                                        .other = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                                            .read = args->read, .at = right->text_at),
                                         .bytes = left->text_size}) == 0);
     }
     if (kind == CLI_SCHEMA_BOOL)
@@ -223,30 +272,39 @@ int cli_schema_same_values(const CliSchemaRead *read, unsigned int one, unsigned
             return 0;
         }
         unsigned int theirs = right->first;
-        for (unsigned int at = left->first; at != CLI_SCHEMA_NONE; at = read->node[at].next)
+        for (unsigned int at = left->first; at != CLI_SCHEMA_NONE; at = args->read->node[at].next)
         {
-            if ((theirs == CLI_SCHEMA_NONE) || !cli_schema_same_values(read, at, theirs))
+            if ((theirs == CLI_SCHEMA_NONE) ||
+                !EMBED_CALL(cli_schema_read_one_internal.same_values, CliSchemaReadOneCtx, .read = args->read,
+                            .one = at, .other = theirs))
             {
                 return 0;
             }
-            theirs = read->node[theirs].next;
+            theirs = args->read->node[theirs].next;
         }
         return 1;
     }
-    if (values_keys(read, one) != values_keys(read, other))
+    if (EMBED_CALL(values_keys, SchemaValuesCtx, .read = args->read, .object = args->one) !=
+        EMBED_CALL(values_keys, SchemaValuesCtx, .read = args->read, .object = other))
     {
         return 0;
     }
-    for (unsigned int at = left->first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
+    for (unsigned int at = left->first; at != CLI_SCHEMA_NONE; at = args->read->member[at].next)
     {
-        const CliSchemaMember *const member = &read->member[at];
-        const char *const key = cli_schema_text(read, member->key_at);
-        if ((member->value == CLI_SCHEMA_NONE) || (values_member(read, one, key, member->key_size) != at))
+        const CliSchemaMember *const member = &args->read->member[at];
+        const char *const key =
+            EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = args->read, .at = member->key_at);
+        if ((member->value == CLI_SCHEMA_NONE) ||
+            (EMBED_CALL(values_member, SchemaValuesCtx, .read = args->read, .object = args->one, .key = key,
+                        .size = member->key_size) != at))
         {
             continue;
         }
-        const unsigned int match = values_member(read, other, key, member->key_size);
-        if ((match == CLI_SCHEMA_NONE) || !cli_schema_same_values(read, member->value, read->member[match].value))
+        const unsigned int match = EMBED_CALL(values_member, SchemaValuesCtx, .read = args->read, .object = other,
+                                              .key = key, .size = member->key_size);
+        if ((match == CLI_SCHEMA_NONE) ||
+            !EMBED_CALL(cli_schema_read_one_internal.same_values, CliSchemaReadOneCtx, .read = args->read,
+                        .one = member->value, .other = args->read->member[match].value))
         {
             return 0;
         }
@@ -255,43 +313,52 @@ int cli_schema_same_values(const CliSchemaRead *read, unsigned int one, unsigned
 }
 
 // `size` bytes of a value written between backticks, cut short past forty letters
-static void values_cut(const char *text, unsigned long long size, VerbaLinea *out)
+EMBED_INLINE void values_cut(const SchemaValuesCtx *args)
 {
-    mmgr_line_ch(out, '`');
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    mmgr_line_ch(args->out, '`');
     unsigned long long letters = 0ull;
     unsigned long long at = 0ull;
     while ((at < size) && (letters < 40u))
     {
         unsigned long long length = 0ull;
-        (void)cli_text_letter(text, size, at, &length);
+        (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &length);
         at += length;
         letters += 1u;
     }
-    mmgr_line_put_n(out, text, at);
-    mmgr_line_put(out, (at < size) ? "\xe2\x80\xa6`" : "`");
+    mmgr_line_put_n(args->out, text, at);
+    mmgr_line_put(args->out, (at < size) ? "\xe2\x80\xa6`" : "`");
 }
 
-void cli_schema_shown(const CliJson *json, unsigned int value, VerbaLinea *out)
+void cli_schema_show(const CliSchemaJsonValueCtx *args)
 {
     char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_SCHEMA_SHOWN_ROOM, &g_cli_schema_cells);
     VerbaLinea written = mmgr_line_over(written_cell, CLI_SCHEMA_SHOWN_ROOM);
-    cli_json_write(json, value, &written, 0u, 1);
-    values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json, .node = args->value,
+               .out = &written, .indent = 0u, .sorted = 1);
+    EMBED_CALL(values_cut, SchemaValuesCtx, .text = written.out, .size = mmgr_line_ok(&written) ? written.at : 0u,
+               .out = args->out);
     g_cli_cells->persistent_buf_release(written.out, &g_cli_schema_cells);
 }
 
 // a file's value written as serde_json writes the value it reads it as, an object's keys in order, the last of a key
-static void values_written(const CliSchemaRead *read, unsigned int node, VerbaLinea *out)
+static void values_write(const SchemaValuesCtx *args)
 {
-    const CliSchemaNode *const one = &read->node[node];
-    const unsigned char kind = values_kind(one);
+    const CliSchemaRead *read = args->read;
+    VerbaLinea *out = args->out;
+    const CliSchemaNode *const one = &read->node[args->node_u32];
+    const unsigned char kind = EMBED_CALL(values_kind, SchemaValuesCtx, .node = one);
     if (kind == CLI_SCHEMA_NUMBER)
     {
-        cli_json_double(out, one->number);
+        EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = out, .value_f64 = one->number);
     }
     else if (kind == CLI_SCHEMA_TEXT)
     {
-        cli_json_quoted(out, cli_schema_text(read, one->text_at), one->text_size);
+        EMBED_CALL(
+            cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
+            .text = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = read, .at = one->text_at),
+            .length = one->text_size);
     }
     else if (kind == CLI_SCHEMA_BOOL)
     {
@@ -307,7 +374,7 @@ static void values_written(const CliSchemaRead *read, unsigned int node, VerbaLi
         for (unsigned int at = one->first; at != CLI_SCHEMA_NONE; at = read->node[at].next)
         {
             mmgr_line_put(out, (at != one->first) ? "," : "");
-            values_written(read, at, out);
+            EMBED_CALL(values_write, SchemaValuesCtx, .read = read, .node_u32 = at, .out = out);
         }
         mmgr_line_ch(out, ']');
     }
@@ -322,14 +389,21 @@ static void values_written(const CliSchemaRead *read, unsigned int node, VerbaLi
             for (unsigned int at = one->first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
             {
                 const CliSchemaMember *const member = &read->member[at];
-                const char *const key = cli_schema_text(read, member->key_at);
-                if ((member->value == CLI_SCHEMA_NONE) || (values_member(read, node, key, member->key_size) != at))
+                const char *const key = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = read,
+                                                   .at = member->key_at);
+                if ((member->value == CLI_SCHEMA_NONE) ||
+                    (EMBED_CALL(values_member, SchemaValuesCtx, .read = read, .object = args->node_u32, .key = key,
+                                .size = member->key_size) != at))
                 {
                     continue;
                 }
-                const int after = (previous == NULL) || (cli_text_order(key, previous) > 0);
-                const int before = (next == CLI_SCHEMA_NONE) ||
-                                   (cli_text_order(key, cli_schema_text(read, read->member[next].key_at)) < 0);
+                const int after = (previous == NULL) || (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                                                    .one = key, .other_pointer = previous) > 0);
+                const int before =
+                    (next == CLI_SCHEMA_NONE) ||
+                    (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = key,
+                                .other_pointer = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                                            .read = read, .at = read->member[next].key_at)) < 0);
                 next = (after && before) ? at : next;
             }
             if (next == CLI_SCHEMA_NONE)
@@ -337,87 +411,94 @@ static void values_written(const CliSchemaRead *read, unsigned int node, VerbaLi
                 break;
             }
             const CliSchemaMember *const member = &read->member[next];
-            previous = cli_schema_text(read, member->key_at);
+            previous =
+                EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = read, .at = member->key_at);
             previous_size = member->key_size;
             mmgr_line_put(out, first ? "" : ",");
-            cli_json_quoted(out, previous, previous_size);
+            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = previous,
+                       .length = previous_size);
             mmgr_line_ch(out, ':');
-            values_written(read, member->value, out);
+            EMBED_CALL(values_write, SchemaValuesCtx, .read = read, .node_u32 = member->value, .out = out);
         }
         mmgr_line_ch(out, '}');
     }
 }
 
-void cli_schema_shown_value(const CliSchemaRead *read, unsigned int node, VerbaLinea *out)
+void cli_schema_shown_value(const CliSchemaReadNodeCtx *args)
 {
     char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_SCHEMA_SHOWN_ROOM, &g_cli_schema_cells);
     VerbaLinea written = mmgr_line_over(written_cell, CLI_SCHEMA_SHOWN_ROOM);
-    values_written(read, node, &written);
-    values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
+    EMBED_CALL(values_write, SchemaValuesCtx, .read = args->read, .node_u32 = args->node, .out = &written);
+    EMBED_CALL(values_cut, SchemaValuesCtx, .text = written.out, .size = mmgr_line_ok(&written) ? written.at : 0u,
+               .out = args->out);
     g_cli_cells->persistent_buf_release(written.out, &g_cli_schema_cells);
 }
 
-void cli_schema_number_shown(double value, VerbaLinea *out)
+void cli_schema_number_show(const CliSchemaOutCtx *args)
 {
     char raw[64];
     VerbaLinea line = {raw, sizeof(raw), 0ull};
-    cli_json_double(&line, value);
+    EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = &line, .value_f64 = args->value_f64);
     unsigned long long size = line.at;
     while ((size >= 2u) && (memor.cmp(&(MemoriaCfg){.src = raw + size - 2u, .other = ".0", .bytes = 2u}) == 0))
     {
         size -= 2u;
     }
-    mmgr_line_put_n(out, raw, size);
+    mmgr_line_put_n(args->out, raw, size);
 }
 
-void cli_schema_kind_written(const char *kind, unsigned long long size, VerbaLinea *out)
+void cli_schema_kind_write(const CliSchemaSizeOutCtx *args)
 {
-    const int an = ((size == 6u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "object", .bytes = 6u}) == 0)) ||
-                   ((size == 5u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "array", .bytes = 5u}) == 0)) ||
-                   ((size == 7u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "integer", .bytes = 7u}) == 0));
-    if ((size == 4u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "null", .bytes = 4u}) == 0))
+    const int an =
+        ((args->size == 6u) && (memor.cmp(&(MemoriaCfg){.src = args->kind, .other = "object", .bytes = 6u}) == 0)) ||
+        ((args->size == 5u) && (memor.cmp(&(MemoriaCfg){.src = args->kind, .other = "array", .bytes = 5u}) == 0)) ||
+        ((args->size == 7u) && (memor.cmp(&(MemoriaCfg){.src = args->kind, .other = "integer", .bytes = 7u}) == 0));
+    if ((args->size == 4u) && (memor.cmp(&(MemoriaCfg){.src = args->kind, .other = "null", .bytes = 4u}) == 0))
     {
-        mmgr_line_put(out, "`null`");
+        mmgr_line_put(args->out, "`null`");
         return;
     }
-    mmgr_line_put(out, an ? "an " : "a ");
-    mmgr_line_put_n(out, kind, size);
+    mmgr_line_put(args->out, an ? "an " : "a ");
+    mmgr_line_put_n(args->out, args->kind, args->size);
 }
 
-int cli_schema_matches(const char *pattern, unsigned long long pattern_size, const char *text, unsigned long long size)
+int cli_schema_matches(const CliSchemaTextCtx *args)
 {
     static CliRegexp s_regexp;
     static CliRegexpRoom s_room;
     static CliRegexpSpan s_groups[CLI_REGEXP_GROUPS + 1u];
     static char s_err_buf[512];
     static CliLock s_matches_lock = CLI_LOCK_INIT;
-    if (pattern_size >= CLI_SCHEMA_PATTERN)
+    if (args->pattern_size >= CLI_SCHEMA_PATTERN)
     {
         return -1;
     }
     // the string's letters, each at least one of its bytes, and the pattern with a terminator after it
-    const unsigned long long room = (size < CLI_SCHEMA_MATCHED) ? size : CLI_SCHEMA_MATCHED;
+    const unsigned long long room = (args->size < CLI_SCHEMA_MATCHED) ? args->size : CLI_SCHEMA_MATCHED;
     unsigned int *const letters =
         g_cli_cells->temporary_buf_alloc((room + 1ull) * sizeof(*letters), &g_cli_schema_cells);
-    char *const source = g_cli_cells->persistent_buf_alloc(pattern_size + 1ull, &g_cli_schema_cells);
+    char *const source = g_cli_cells->persistent_buf_alloc(args->pattern_size + 1ull, &g_cli_schema_cells);
     int found = -1;
     if ((letters != NULL) && (source != NULL))
     {
-        cli_lock_take(&s_matches_lock);
-        memor.cpy(&(MemoriaCfg){.dst = source, .src = pattern, .bytes = (size_t)pattern_size});
-        source[pattern_size] = '\0';
-        cli_regexp_roomed(&s_regexp, &s_room);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_matches_lock);
+        memor.cpy(&(MemoriaCfg){.dst = source, .src = args->pattern, .bytes = (size_t)args->pattern_size});
+        source[args->pattern_size] = '\0';
+        EMBED_CALL(cli_regexp_room.room, CliRegexpRoomCfg, .regexp_out = &s_regexp, .room = &s_room);
         VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
-        if (cli_regexp_read(&s_regexp, source, "u", &err_msg))
+        if (EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &s_regexp, .source = source,
+                       .flags = "u", .err_msg = &err_msg))
         {
-            const unsigned long long length = cli_regexp_letters(text, size, letters, room);
+            const unsigned long long length = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->text,
+                                                         .size = args->size, .letters = letters, .room_u64 = room);
             found = 0;
             for (unsigned long long at = 0ull; !found && (at <= length); at += 1u)
             {
-                found = cli_regexp_match_into(&s_regexp, letters, length, at, s_groups);
+                found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp,
+                                   .text_u32s = letters, .length = length, .at = at, .groups = s_groups);
             }
         }
-        cli_lock_give(&s_matches_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_matches_lock);
     }
     g_cli_cells->persistent_buf_release(source, &g_cli_schema_cells);
     g_cli_cells->persistent_buf_release(letters, &g_cli_schema_cells);

@@ -38,13 +38,21 @@ static CliServersBatch *s_batch;
 static unsigned int s_languages;
 static CliLock s_lock = CLI_LOCK_INIT;
 
+typedef struct
+{
+    const char *root;
+    const char *id;
+    const CliServersSink *sink;
+} ServersCheckFilesCtx;
 // the language `id` of the batch, its server started at `root` where it is first met: its place, or
 // CLI_SERVERS_BATCH_LANGUAGES where the batch is of too many
-static unsigned int check_files_language(const char *root, const char *id, const CliServersSink *sink)
+EMBED_INLINE unsigned int check_files_language(const ServersCheckFilesCtx *args)
 {
+    const char *root = args->root;
+    const CliServersSink *sink = args->sink;
     for (unsigned int at = 0u; at < s_languages; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_batch->language[at].id, .other = id, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_batch->language[at].id, .other = args->id, .cap = CLI_CELLS_POOL}))
         {
             return at;
         }
@@ -54,30 +62,34 @@ static unsigned int check_files_language(const char *root, const char *id, const
         return CLI_SERVERS_BATCH_LANGUAGES;
     }
     CliServersBatchLanguage *const one = &s_batch->language[s_languages];
-    memor.cpy(&(MemoriaCfg){
-        .dst = one->id, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = one->id,
+                            .src = args->id,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1u});
     one->reported = 0;
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    one->server =
-        cli_servers_spec_for(id, &one->spec) ? cli_servers_server(root, id, sink, &one->spec, &err_msg) : NULL;
+    one->server = EMBED_CALL(cli_servers_language_internal.spec_for, CliServersLanguageCtx, .language = args->id,
+                             .spec = &one->spec)
+                      ? EMBED_CALL(cli_servers_language_internal.server, CliServersLanguageCtx, .root = root,
+                                   .language = args->id, .sink = sink, .spec = &one->spec, .err_msg = &err_msg)
+                      : NULL;
     one->served = (one->server != NULL);
     s_languages += 1u;
     return s_languages - 1u;
 }
 
-unsigned int cli_servers_check_files(const char *root, const char *const *files, unsigned int count,
-                                     const CliServersSink *sink)
+unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
 {
     // a file's full path is the tree's, a slash, and its own: the paths' text is no longer than those
-    const unsigned int most = (count < CLI_SERVERS_BATCH) ? count : CLI_SERVERS_BATCH;
-    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
+    const unsigned int most = (args->count < CLI_SERVERS_BATCH) ? args->count : CLI_SERVERS_BATCH;
+    const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
     unsigned long long text_bytes = 1ull;
-    for (unsigned int file = 0u; file < count; file += 1u)
+    for (unsigned int file = 0u; file < args->count; file += 1u)
     {
-        text_bytes += root_length + cellul.len(&(CatenaFinitaCfg){.src = files[file], .cap = CLI_CELLS_POOL}) + 2ull;
+        text_bytes +=
+            root_length + cellul.len(&(CatenaFinitaCfg){.src = args->files[file], .cap = CLI_CELLS_POOL}) + 2ull;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_batch = g_cli_cells->persistent_buf_alloc(sizeof(*s_batch), &g_cli_servers_check_cells);
     char *const text = g_cli_cells->temporary_buf_alloc(text_bytes, &g_cli_servers_check_cells);
     const char **const paths = g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*paths),
@@ -91,22 +103,24 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
         g_cli_cells->persistent_buf_release(text, &g_cli_servers_check_cells);
         g_cli_cells->persistent_buf_release(s_batch, &g_cli_servers_check_cells);
         s_batch = NULL;
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0u;
     }
-    cli_plugins_languages(&s_batch->known);
+    EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &s_batch->known);
     s_languages = 0u;
-    const int blocked = cli_trust_blocked(root);
+    const int blocked = EMBED_CALL(cli_trust_tree_words.block, CliTrustTreeWordsCfg, .tree = args->root);
     unsigned int waiting = 0u;
     unsigned long long used = 0ull;
-    for (unsigned int file = 0u; (file < count) && (waiting < most); file += 1u)
+    for (unsigned int file = 0u; (file < args->count) && (waiting < most); file += 1u)
     {
         char id[CLI_NAME_MAX_LEN];
-        if (!cli_plugins_language_for(&s_batch->known, files[file], id))
+        if (!EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                        .languages_read = &s_batch->known, .path = args->files[file], .id_out = id))
         {
             continue;
         }
-        const unsigned int at = check_files_language(root, id, sink);
+        const unsigned int at =
+            EMBED_CALL(check_files_language, ServersCheckFilesCtx, .root = args->root, .id = id, .sink = args->sink);
         if ((at == CLI_SERVERS_BATCH_LANGUAGES) || !s_batch->language[at].served)
         {
             continue;
@@ -120,42 +134,47 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
                 static const char s_params[] = "{\"textDocument\":null}";
                 char quiet[256];
                 VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-                (void)cli_lsp_notified(language->server, language->spec.checks, s_params, sizeof(s_params) - 1u,
-                                       &ignored);
+                (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = language->server,
+                                 .method = language->spec.checks, .params = s_params, .length = sizeof(s_params) - 1u,
+                                 .err_msg = &ignored);
                 language->reported = 1;
             }
             continue;
         }
         char full[CLI_PATH_MAX_LEN];
-        cli_full(root, files[file], full);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->files[file],
+                   .joined = full);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1ull;
         unsigned long long size = 0ull;
-        if (!cli_file_size(full, &size) || (size > CLI_SERVERS_LARGEST) || ((used + length) > text_bytes))
+        if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = full, .size_pointer = &size) ||
+            (size > CLI_SERVERS_LARGEST) || ((used + length) > text_bytes))
         {
             continue;
         }
         memor.cpy(&(MemoriaCfg){.dst = text + used, .src = full, .bytes = (size_t)length});
         paths[waiting] = text + used;
         used += length;
-        cli_servers_id_of(&language->spec, paths[waiting], id, waiting_on[waiting].id);
+        EMBED_CALL(cli_servers_path_language_internal.id_get, CliServersPathLanguageCtx, .spec_read = &language->spec,
+                   .path = paths[waiting], .language = id, .id_out = waiting_on[waiting].id);
         waiting_on[waiting].server = language->server;
-        cli_lsp_ref(language->server);
+        EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = language->server);
         waiting += 1u;
     }
     for (unsigned int at = 0u; at < s_languages; at += 1u)
     {
         if (s_batch->language[at].served)
         {
-            cli_lsp_unref(s_batch->language[at].server);
+            EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_batch->language[at].server);
         }
     }
-    cli_plugins_languages_given(&s_batch->known);
-    const unsigned int queued = cli_servers_check_queued(paths, waiting_on, waiting, sink);
+    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &s_batch->known);
+    const unsigned int queued = EMBED_CALL(cli_servers_count_internal.check_queue, CliServersCountCtx, .paths = paths,
+                                           .waiting = waiting_on, .count = waiting, .sink = args->sink);
     g_cli_cells->persistent_buf_release(waiting_on, &g_cli_servers_check_cells);
     g_cli_cells->persistent_buf_release(paths, &g_cli_servers_check_cells);
     g_cli_cells->persistent_buf_release(text, &g_cli_servers_check_cells);
     g_cli_cells->persistent_buf_release(s_batch, &g_cli_servers_check_cells);
     s_batch = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return queued;
 }

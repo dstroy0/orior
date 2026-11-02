@@ -7,7 +7,10 @@
 // toolchains.
 #ifndef QUERY_H
 #define QUERY_H
+typedef struct QueryCfg QueryCfg;
 
+#include "../../cli/src/command_line/callback_cfg.h"
+#include "embed_dispatch_layout.h"
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -44,12 +47,21 @@ extern "C"
         QUERY_ROLE_COUNT
     } QueryRole;
 
+    typedef struct
+    {
+        void *context;
+        QueryRole role;
+        char *path;
+        size_t room;
+        VerbaLinea *err_msg;
+    } QueryEachRolePathRoomErrMsgCfg;
+
     // Where the query's programs are found: the program of a role into `path`, sized for `room`, 1, or 0 with why
     // it is not found written into `err_msg` in words that explain what to do; and the PATH every program the query
     // starts runs with
     typedef struct
     {
-        int (*program)(void *context, QueryRole role, char *path, size_t room, VerbaLinea *err_msg);
+        int (*program)(const QueryEachRolePathRoomErrMsgCfg *args);
         const char *(*run_path)(void *context);
         void *context;
     } QueryPrograms;
@@ -57,7 +69,7 @@ extern "C"
     // what a line printed goes to: `length` bytes of `text`, one line without its end
     typedef struct
     {
-        void (*print)(void *context, const char *text, unsigned long long length);
+        void (*print)(const CliEachLineSizeCfg *args);
         void *context;
     } QuerySink;
 
@@ -81,7 +93,7 @@ extern "C"
     // whoever answers for a file: whether the file at `path` is left as the run leaves it, its difference shown
     typedef struct
     {
-        QueryAnswer (*prompt)(void *context, const char *path);
+        QueryAnswer (*prompt)(const CliEachPathCfg *args);
         void *context;
     } QueryPrompter;
 
@@ -131,10 +143,10 @@ extern "C"
 
     // the commands, each with its params and the words that run it, the languages and the parts the bridge's folder
     // under `root` contains whole offered as its choices: their count, the list at `commands`
-    unsigned int query_commands(const char *root, const QueryCommand **commands);
+    unsigned int query_commands(const QueryCfg *args);
 
     // the role as a person reads it in a message
-    const char *query_role_name(QueryRole role);
+    const char *query_role_name(const QueryCfg *args);
 
     // the programs as the PATH alone gives them
     QueryPrograms query_on_path(void);
@@ -145,8 +157,31 @@ extern "C"
     // The words `words`, `count` of them, run under the tree at `root`, every program found through `programs`, each
     // line printed through `sink`: the code to exit with, or -1 with why the words could not be run printed through
     // `sink`
-    int query_run(const char *root, const QueryPrograms *programs, const char *const *words, unsigned int count,
-                  QuerySink sink);
+    int query_run(const QueryCfg *args);
+
+    struct QueryCfg
+    {
+        const char *root;
+        const QueryCommand **commands;
+        QueryRole role;
+        const QueryPrograms *programs;
+        const char *const *words;
+        unsigned int count;
+        QuerySink sink;
+    };
+
+    typedef struct
+    {
+        unsigned int (*commands)(const QueryCfg *args);
+        const char *(*role_name)(const QueryCfg *args);
+        int (*run)(const QueryCfg *args);
+    } QueryNs;
+    EMBED_TABLE_LAYOUT(QueryNs, commands, role_name, run);
+    EMBED_TABLE_STORAGE QueryNs query_table EMBED_UNUSED = {
+        .commands = query_commands,
+        .role_name = query_role_name,
+        .run = query_run,
+    };
 
 #ifdef __cplusplus
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run_folder.c: a folder's runs: each numbered newest first, the next one's name stamped by the clock, a path named
 // under the top of the tree, a run read back out of its crystal, and only the newest QRY_RETAINED retained
+#include "../../../cli/src/command_line/callback_cfg.h"
 #include "../query_loops.h"
 
 #include "../../../cli/src/text/text.h"
@@ -19,23 +20,33 @@ typedef struct
     unsigned long long highest;
 } QueryRunsWalk;
 
-// a run's entry `query<n>-<datetime>.qry`, or the folder of its crystal: its number, or 0 where it is no run
-static unsigned long long query_run_number(const char *name, int is_folder)
+typedef struct
 {
-    if (!cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "query", .cap = CLI_CELLS_POOL}))
+    const char *name;
+    int is_folder;
+    unsigned long long days;
+    unsigned long long *year;
+    unsigned long long *month;
+    unsigned long long *day;
+} RunFolderCtx;
+// a run's entry `query<n>-<datetime>.qry`, or the folder of its crystal: its number, or 0 where it is no run
+EMBED_INLINE unsigned long long query_run_number(const RunFolderCtx *args)
+{
+    if (!cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "query", .cap = CLI_CELLS_POOL}))
     {
         return 0ull;
     }
-    const char *const rest = name + 5;
-    const size_t digits = cli_text_over(rest, "0123456789");
+    const char *const rest = args->name + 5;
+    const size_t digits = EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = rest, .set = "0123456789");
     if ((digits == 0u) || (rest[digits] != '-'))
     {
         return 0ull;
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    const int qry = (length > 4u) &&
-                    (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL}));
-    if (qry == is_folder)
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const int qry =
+        (length > 4u) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL}));
+    if (qry == args->is_folder)
     {
         return 0ull;
     }
@@ -47,10 +58,12 @@ static unsigned long long query_run_number(const char *name, int is_folder)
     return number;
 }
 
-static void query_run_walked(void *context, const char *name, int is_folder)
+static void query_run_walk(const CliEachNameIsFolderCfg *args)
 {
-    QueryRunsWalk *const walk = (QueryRunsWalk *)context;
-    const unsigned long long number = query_run_number(name, is_folder);
+    const char *name = args->name;
+    int is_folder = args->is_folder;
+    QueryRunsWalk *const walk = (QueryRunsWalk *)args->context;
+    const unsigned long long number = EMBED_CALL(query_run_number, RunFolderCtx, .name = name, .is_folder = is_folder);
     // a walk handed no storage counts the runs and finds the highest number
     if ((number != 0ull) && (walk->path == NULL))
     {
@@ -85,26 +98,29 @@ static void query_run_walked(void *context, const char *name, int is_folder)
     walk->count += 1u;
 }
 
-unsigned int query_runs_each(const char *folder, unsigned long long *number, char (*path)[QUERY_PATH_MAX_LEN],
-                             unsigned int room)
+unsigned int query_runs_each(const QueryFolderNumberCtx *args)
 {
-    QueryRunsWalk walk = {folder, number, path, 0u, room, 0ull};
-    query_folder_each(folder, query_run_walked, &walk);
+    QueryRunsWalk walk = {args->folder, args->number, args->path_callback, 0u, args->room_u32, 0ull};
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
+               .each = query_run_walk, .context_bytess = &walk);
     return walk.count;
 }
 
-unsigned int query_runs_counted(const char *folder)
+unsigned int query_runs_count(const QueryFolderMostCtx *args)
 {
-    QueryRunsWalk counting = {folder, NULL, NULL, 0u, 0u, 0ull};
-    query_folder_each(folder, query_run_walked, &counting);
+    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ull};
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
+               .each = query_run_walk, .context_bytess = &counting);
     return counting.count;
 }
 
-int query_runs_taken(const char *folder, QueryRuns *runs)
+int query_runs_take(const QueryFolderRunsCtx *args)
 {
+    QueryRuns *runs = args->runs;
     *runs = (QueryRuns){NULL, NULL, 0u};
-    QueryRunsWalk counting = {folder, NULL, NULL, 0u, 0u, 0ull};
-    query_folder_each(folder, query_run_walked, &counting);
+    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ull};
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
+               .each = query_run_walk, .context_bytess = &counting);
     if (counting.count == 0u)
     {
         return 1;
@@ -117,25 +133,29 @@ int query_runs_taken(const char *folder, QueryRuns *runs)
             : NULL;
     if (runs->path == NULL)
     {
-        query_runs_given(runs);
+        EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = runs);
         return 0;
     }
-    runs->count = query_runs_each(folder, runs->number, runs->path, counting.count);
+    runs->count = EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = args->folder,
+                             .number = runs->number, .path_callback = runs->path, .room_u32 = counting.count);
     return 1;
 }
 
-void query_runs_given(QueryRuns *runs)
+void query_runs_free(const QueryFolderRunsCtx *args)
 {
+    QueryRuns *runs = args->runs;
     g_cli_cells->persistent_buf_release(runs->number, &g_query_cells);
     g_cli_cells->persistent_buf_release(runs->path, &g_query_cells);
     *runs = (QueryRuns){NULL, NULL, 0u};
 }
 
 // the civil date of a count of days from 1970-01-01
-static void query_civil(unsigned long long days, unsigned long long *year, unsigned long long *month,
-                        unsigned long long *day)
+EMBED_INLINE void query_civil(const RunFolderCtx *args)
 {
-    const unsigned long long z = days + 719468ull;
+    unsigned long long *year = args->year;
+    unsigned long long *month = args->month;
+    unsigned long long *day = args->day;
+    const unsigned long long z = args->days + 719468ull;
     const unsigned long long era = z / 146097ull;
     const unsigned long long doe = z - (era * 146097ull);
     const unsigned long long yoe = (doe - (doe / 1460ull) + (doe / 36524ull) - (doe / 146096ull)) / 365ull;
@@ -146,19 +166,20 @@ static void query_civil(unsigned long long days, unsigned long long *year, unsig
     *year = yoe + (era * 400ull) + ((*month <= 2ull) ? 1ull : 0ull);
 }
 
-void query_next_name(const char *folder, char *name, size_t room)
+void query_next_name(const QueryFolderRoomCtx *args)
 {
     // the highest number of the folder's runs, found by a walk that counts
-    QueryRunsWalk counting = {folder, NULL, NULL, 0u, 0u, 0ull};
-    query_folder_each(folder, query_run_walked, &counting);
+    QueryRunsWalk counting = {args->folder, NULL, NULL, 0u, 0u, 0ull};
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
+               .each = query_run_walk, .context_bytess = &counting);
     const unsigned long long highest = counting.highest;
     const unsigned long long seconds = query_now();
     unsigned long long year = 0ull;
     unsigned long long month = 0ull;
     unsigned long long day = 0ull;
-    query_civil(seconds / 86400ull, &year, &month, &day);
+    EMBED_CALL(query_civil, RunFolderCtx, .days = seconds / 86400ull, .year = &year, .month = &month, .day = &day);
     const unsigned long long time = seconds % 86400ull;
-    VerbaLinea line = {name, room, 0ull};
+    VerbaLinea line = {args->name_out, args->room, 0ull};
     mmgr_line_put(&line, "query");
     mmgr_line_decimal(&line, highest + 1ull, 0u);
     mmgr_line_ch(&line, '-');
@@ -173,87 +194,101 @@ void query_next_name(const char *folder, char *name, size_t room)
     mmgr_line_finish(&line);
 }
 
-void query_named(const char *top, const char *path, char *name, size_t room)
+void query_by_name(const QueryRoomPathNameCtx *args)
 {
     char full_top[QUERY_PATH_MAX_LEN];
     char full_path[QUERY_PATH_MAX_LEN];
-    const int both =
-        query_path_full(top, full_top, sizeof(full_top)) && query_path_full(path, full_path, sizeof(full_path));
+    const int both = EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = args->top,
+                                .full = full_top, .room = sizeof(full_top)) &&
+                     EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = args->path,
+                                .full = full_path, .room = sizeof(full_path));
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = full_top, .cap = CLI_CELLS_POOL});
-    if (both && cli_text_same(full_path, full_top, length) &&
+    if (both &&
+        EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = full_path, .other_pointer = full_top,
+                   .size = length) &&
         ((full_path[length] == '/') || (full_path[length] == '\\')))
     {
-        VerbaLinea line = {name, room, 0ull};
-        (void)cli_text_put_swapped(&line, full_path + length + 1u, '\\', '/');
+        VerbaLinea line = {args->name_out, args->room, 0ull};
+        (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = full_path + length + 1u,
+                         .from = '\\', .to = '/');
         mmgr_line_finish(&line);
         return;
     }
-    const char *base = path;
+    const char *base = args->path;
     const unsigned long long base_past =
-        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
-    base = (base_past != 0ull) ? (path + base_past) : base;
-    memor.cpy(&(MemoriaCfg){
-        .dst = name, .src = base, .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) + 1u});
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+    base = (base_past != 0ull) ? (args->path + base_past) : base;
+    memor.cpy(&(MemoriaCfg){.dst = args->name_out,
+                            .src = base,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) + 1u});
 }
 
-int query_opened(const char *qry_path, const char *crystal, char *named, size_t room)
+int query_open(const QueryRoomQryPathCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = qry_path, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_CELLS_POOL});
     if ((length > 4u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = qry_path + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->qry_path + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
     {
-        memor.cpy(&(MemoriaCfg){.dst = named,
-                                .src = qry_path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = qry_path, .cap = CLI_CELLS_POOL}) + 1u});
-        return named[0] != '\0';
+        memor.cpy(
+            &(MemoriaCfg){.dst = args->named,
+                          .src = args->qry_path,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_CELLS_POOL}) + 1u});
+        return args->named[0] != '\0';
     }
-    if (crystal == NULL)
+    if (args->crystal == NULL)
     {
         return 0;
     }
     // the crystal read back into `restored/` beside it, as `<name>.qry`
-    const char *base = qry_path;
+    const char *base = args->qry_path;
     const unsigned long long base_past =
-        cli_text_back_any(qry_path, cellul.len(&(CatenaFinitaCfg){.src = qry_path, .cap = CLI_CELLS_POOL}), "/\\");
-    base = (base_past != 0ull) ? (qry_path + base_past) : base;
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->qry_path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->qry_path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+    base = (base_past != 0ull) ? (args->qry_path + base_past) : base;
     char restored[QUERY_PATH_MAX_LEN];
     VerbaLinea restored_line = {restored, sizeof(restored), 0ull};
-    mmgr_line_put_n(&restored_line, qry_path, (unsigned long long)(base - qry_path));
+    mmgr_line_put_n(&restored_line, args->qry_path, (unsigned long long)(base - args->qry_path));
     mmgr_line_put(&restored_line, "restored");
-    VerbaLinea named_line = {named, room, 0ull};
+    VerbaLinea named_line = {args->named, args->room, 0ull};
     mmgr_line_put(&named_line, restored);
     mmgr_line_ch(&named_line, '/');
     mmgr_line_put(&named_line, base);
     mmgr_line_put(&named_line, ".qry");
     if ((mmgr_line_finish(&restored_line) == 0ull) || (mmgr_line_finish(&named_line) == 0ull) ||
-        !query_folder_made(restored))
+        !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = restored))
     {
         return 0;
     }
-    if (query_is_file(named))
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->named))
     {
         return 1;
     }
-    const char *const words[5] = {crystal, "read", qry_path, named, NULL};
+    const char *const words[5] = {args->crystal, "read", args->qry_path, args->named, NULL};
     QueryProcess read;
-    return query_process_start(&read, words, NULL, QUERY_OUTPUT_NONE) && (query_process_wait(&read) == 0ll);
+    return EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &read, .words = words,
+                      .folder = NULL, .output = QUERY_OUTPUT_NONE) &&
+           (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &read) == 0ll);
 }
 
-int query_crystal(const char *root, char *program, size_t room)
+int query_crystal(const QueryRoomRootCtx *args)
 {
     char base[64];
-    query_binary_name("qry_crystal", base, sizeof(base));
-    VerbaLinea line = {program, room, 0ull};
-    mmgr_line_put(&line, root);
+    EMBED_CALL(query_name_room_internal.binary_name, QueryNameRoomCtx, .name = "qry_crystal", .binary = base,
+               .room = sizeof(base));
+    VerbaLinea line = {args->program, args->room, 0ull};
+    mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/qry_crystal/engine/");
     mmgr_line_put(&line, base);
-    return (mmgr_line_finish(&line) != 0ull) && query_is_file(program);
+    return (mmgr_line_finish(&line) != 0ull) &&
+           EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->program);
 }
 
 unsigned int query_retain_max(void)
 {
     char retain_text[32];
-    if (!query_environment_read("QRY_RETAINED", retain_text, sizeof(retain_text)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "QRY_RETAINED",
+                    .value_out = retain_text, .room = sizeof(retain_text)))
     {
         return QUERY_RETAIN_MAX;
     }
@@ -263,42 +298,50 @@ unsigned int query_retain_max(void)
     return ((end != retain_text) && (*end == '\0')) ? (unsigned int)most : QUERY_RETAIN_MAX;
 }
 
-void query_runs_pruned(const char *folder, unsigned int most)
+void query_runs_prune(const QueryFolderMostCtx *args)
 {
     char restored[QUERY_PATH_MAX_LEN];
     VerbaLinea line = {restored, sizeof(restored), 0ull};
-    mmgr_line_put(&line, folder);
+    mmgr_line_put(&line, args->folder);
     mmgr_line_put(&line, "/restored");
     if (mmgr_line_finish(&line) != 0ull)
     {
-        query_removed(restored);
+        EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = restored);
     }
     QueryRuns runs;
-    (void)query_runs_taken(folder, &runs);
-    for (unsigned int at = most; at < runs.count; at += 1u)
+    (void)EMBED_CALL(query_folder_runs_internal.runs_take, QueryFolderRunsCtx, .folder = args->folder, .runs = &runs);
+    for (unsigned int at = args->most; at < runs.count; at += 1u)
     {
-        query_removed(runs.path[at]);
+        EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = runs.path[at]);
     }
-    query_runs_given(&runs);
+    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
 }
 
-int query_latest_run(const char *folder, const char *name, const char *own, const QueryWriter *writer,
-                     const char *crystal, char *found, size_t room)
+int query_latest_run(const QueryLoopsFolderCfg *args)
 {
+    const char *folder = args->folder;
+    const char *name = args->name;
+    const QueryWriter *writer = args->writer;
+    const char *crystal = args->crystal;
+    size_t room = args->room;
     char own_full[QUERY_PATH_MAX_LEN] = "";
-    if (own != NULL)
+    if (args->own != NULL)
     {
-        query_path_full(own, own_full, sizeof(own_full));
+        EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = args->own, .full = own_full,
+                   .room = sizeof(own_full));
     }
     QueryRuns runs;
-    (void)query_runs_taken(folder, &runs);
+    (void)EMBED_CALL(query_folder_runs_internal.runs_take, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
     int latest = 0;
     for (unsigned int at = 0u; !latest && (at < runs.count); at += 1u)
     {
         char named[QUERY_PATH_MAX_LEN];
         char named_full[QUERY_PATH_MAX_LEN];
-        if (!query_opened(runs.path[at], crystal, named, sizeof(named)) ||
-            ((own != NULL) && query_path_full(named, named_full, sizeof(named_full)) &&
+        if (!EMBED_CALL(query_room_qry_path_internal.open, QueryRoomQryPathCtx, .qry_path = runs.path[at],
+                        .crystal = crystal, .named = named, .room = sizeof(named)) ||
+            ((args->own != NULL) &&
+             EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = named, .full = named_full,
+                        .room = sizeof(named_full)) &&
              (cellul.eq(&(CatenaFinitaCfg){.src = named_full, .other = own_full, .cap = CLI_CELLS_POOL}))))
         {
             continue;
@@ -311,14 +354,15 @@ int query_latest_run(const char *folder, const char *name, const char *own, cons
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
         const unsigned char *bytes = NULL;
         unsigned long long size = 0ull;
-        if (query_writer_latest(&s_other, name, &bytes, &size))
+        if (EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_other, .name = name,
+                       .bytes_u8s = &bytes, .size_pointer = &size))
         {
-            memor.cpy(&(MemoriaCfg){.dst = found,
+            memor.cpy(&(MemoriaCfg){.dst = args->found,
                                     .src = named,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
-            latest = (found[0] != '\0') ? 1 : -1;
+            latest = (args->found[0] != '\0') ? 1 : -1;
         }
     }
-    query_runs_given(&runs);
+    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
     return latest == 1;
 }

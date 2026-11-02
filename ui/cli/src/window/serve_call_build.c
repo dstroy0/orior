@@ -7,9 +7,6 @@
 #include "../command_line/cells.h"
 #include "serve_internal.h"
 
-// the bytes a setting's edits are taken with
-#define CLI_SERVE_SET_ROOM (1ull << 20u)
-
 // A POM's text as the calls read it: the argument `text` where the editor has it, else the file mapped, NULL where
 // it is not there, let go with tool_pom_let_go
 typedef struct
@@ -18,96 +15,135 @@ typedef struct
     unsigned long long size;
     const unsigned char *mapped;
 } CliServePom;
+// the bytes a setting's edits are taken with
+#define CLI_SERVE_SET_ROOM (1ull << 20u)
 
-static void tool_pom_let_go(const CliServePom *read)
+typedef struct
 {
-    cli_file_given(read->mapped, &g_cli_window_cells);
+    const CliServePom *read;
+    const CliServeArgs *request;
+    char *root;
+    char *pom;
+    CliServePom *read_out;
+    VerbaLinea *err_msg;
+} ServeCallBuildCtx;
+EMBED_INLINE void tool_pom_let_go(const ServeCallBuildCtx *args)
+{
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = args->read->mapped,
+               .owner = &g_cli_window_cells);
 }
 
 // the POM of the argument `path` of the tree, `pom.xml` at its top where none is given, into `pom`, and its text into
 // `read`: 1, or 0 with why given
-static int tool_pom_of(const CliServeArgs *args, char *root, char *pom, CliServePom *read, VerbaLinea *err_msg)
+EMBED_INLINE int tool_pom_get(const ServeCallBuildCtx *args)
 {
+    const CliServeArgs *arguments = args->request;
+    char *root = args->root;
+    CliServePom *read = args->read_out;
+    VerbaLinea *err_msg = args->err_msg;
     *read = (CliServePom){"", 0ull, NULL};
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    const char *const path = cli_serve_string_or(args, "path", NULL);
-    if ((path != NULL) && (cli_build_kind_of(path) == CLI_BUILD_MAVEN))
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .otherwise = NULL);
+    if ((path != NULL) &&
+        (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) == CLI_BUILD_MAVEN))
     {
-        cli_full(root, path, pom);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = args->pom);
     }
     else
     {
-        cli_full(root, "pom.xml", pom);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "pom.xml", .joined = args->pom);
     }
-    const unsigned int given = cli_serve_arg(args, "text");
+    const unsigned int given =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text");
     unsigned long long size = 0ull;
-    const char *const text = cli_json_string(args->json, given, &size);
+    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                        .json_read = arguments->json, .node = given, .length_pointer = &size);
     if (text != NULL)
     {
         *read = (CliServePom){text, size, NULL};
         return 1;
     }
-    const unsigned char *const mapped = cli_file_taken(pom, &size, &g_cli_window_cells);
+    const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->pom,
+                                                   .size_pointer = &size, .owner = &g_cli_window_cells);
     // the file's bytes are read as its text; a POM not there is read as empty
     *read = (mapped != NULL) ? (CliServePom){(const char *)mapped, size, mapped} : (CliServePom){"", 0ull, NULL};
     return 1;
 }
 
-static int maven_settings(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int maven_settings(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     char pom[CLI_PATH_MAX_LEN];
     CliServePom read;
-    cli_lock_take(&s_lock);
-    const int done = tool_pom_of(args, root, pom, &read, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int done = EMBED_CALL(tool_pom_get, ServeCallBuildCtx, .request = arguments, .root = root, .pom = pom,
+                                .read_out = &read, .err_msg = err_msg);
     if (done)
     {
-        cli_maven_settings(root, pom, read.text, read.size, out);
+        EMBED_CALL(cli_maven.settings, CliMavenCfg, .root = root, .pom = pom, .text = read.text, .size = read.size,
+                   .out = out);
     }
-    tool_pom_let_go(&read);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(tool_pom_let_go, ServeCallBuildCtx, .read = &read);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }
 
-static int maven_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int maven_set(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     char pom[CLI_PATH_MAX_LEN];
     CliServePom read;
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const value = (key != NULL) ? cli_serve_string(args, "value", err_msg) : NULL;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    const char *const value = (key != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "value", .err_msg = err_msg)
+                                            : NULL;
     if (value == NULL)
     {
         return 0;
     }
     static char s_head[CLI_PATH_MAX_LEN * 2u];
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     char *const set_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_SET_ROOM, &g_cli_window_cells);
     VerbaLinea set = mmgr_line_over(set_cell, CLI_SERVE_SET_ROOM);
     const int begun = set.out != NULL;
-    const int done = begun && tool_pom_of(args, root, pom, &read, err_msg) &&
-                     cli_maven_set(pom, read.text, read.size, key, value, &set, err_msg);
+    const int done = begun &&
+                     EMBED_CALL(tool_pom_get, ServeCallBuildCtx, .request = arguments, .root = root, .pom = pom,
+                                .read_out = &read, .err_msg = err_msg) &&
+                     EMBED_CALL(cli_maven_key.set, CliMavenKeyCfg, .pom = pom, .text = read.text, .size = read.size,
+                                .key = key, .value = value, .out = &set, .err_msg = err_msg);
     if (done)
     {
         // the POM's edits go by its path in the tree
         VerbaLinea head = {s_head, sizeof(s_head), 0ull};
         mmgr_line_put(&head, "[{\"path\":");
-        cli_json_quoted_lossy(&head, (const unsigned char *)pom,
-                              cellul.len(&(CatenaFinitaCfg){.src = pom, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &head,
+                   .text_bytes = (const unsigned char *)pom,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = pom, .cap = CLI_CELLS_POOL}));
         const int named = mmgr_line_ok(&head) && (set.at >= head.at) &&
                           (memor.cmp(&(MemoriaCfg){.src = set.out, .other = s_head, .bytes = head.at}) == 0);
         if (named)
         {
             char shown[CLI_PATH_MAX_LEN];
             VerbaLinea where = {shown, sizeof(shown), 0ull};
-            cli_servers_tree_path(root, pom, &where);
+            EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = root, .path = pom,
+                       .out = &where);
             mmgr_line_put(out, "[{\"path\":");
-            cli_json_quoted_lossy(out, (const unsigned char *)shown, mmgr_line_ok(&where) ? where.at : 0ull);
+            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                       .text_bytes = (const unsigned char *)shown, .length = mmgr_line_ok(&where) ? where.at : 0ull);
             mmgr_line_put_n(out, set.out + head.at, set.at - head.at);
         }
         else
@@ -117,38 +153,46 @@ static int maven_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     }
     if (begun)
     {
-        tool_pom_let_go(&read);
+        EMBED_CALL(tool_pom_let_go, ServeCallBuildCtx, .read = &read);
     }
     g_cli_cells->persistent_buf_release(set.out, &g_cli_window_cells);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }
 
-static int snapshots_line(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int snapshots_line(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char line[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    const char *const path = cli_serve_string_or(args, "path", NULL);
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .otherwise = NULL);
     if (path != NULL)
     {
-        cli_full(root, path, full);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
     }
-    if (!cli_build_snapshots_line(root, (path != NULL) ? full : NULL, folder, line, err_msg))
+    if (!EMBED_CALL(cli_builds_path_root.build_snapshots_line, CliBuildsPathRootCfg, .root = root,
+                    .path = (path != NULL) ? full : NULL, .folder_out = folder, .line_room = line, .err_msg = err_msg))
     {
         return 0;
     }
     mmgr_line_ch(out, '[');
-    cli_json_quoted_lossy(out, (const unsigned char *)folder,
-                          cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)folder,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
     mmgr_line_ch(out, ',');
-    cli_json_quoted_lossy(out, (const unsigned char *)line,
-                          cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)line,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
     mmgr_line_ch(out, ']');
     return 1;
 }

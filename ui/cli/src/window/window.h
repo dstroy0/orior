@@ -21,7 +21,7 @@ extern "C"
 #define CLI_WINDOW_ANSWER_ROOM (4ull << 20u)
 #define CLI_WINDOW_ERR_MSG_MAX_LEN (1ull << 16u)
 
-    // the command line run on the words the program was started with, as the system keeps them: the code to exit with,
+    // the command line run on the words the program was started with, as the system saves them: the code to exit with,
     // 1 in `window` where the words open the window instead, the window to open recorded for cli_window_begun
     int cli_window_command_line(int *window);
 
@@ -45,9 +45,9 @@ extern "C"
     // (window_call_memory.c)
     void cli_window_browser_known(unsigned int pid);
 
-    // the page's first script, which puts what orior's folder keeps into the page's storage before the page's own
-    // scripts run, on the first load of the main window's page in a run, in place of every entry the page kept before,
-    // and where the folder keeps nothing yet tells the page to write all it holds there: `size` bytes of it, NULL where
+    // the page's first script, which puts what orior's folder saves into the page's storage before the page's own
+    // scripts run, on the first load of the main window's page in a run, in place of every entry the page saved before,
+    // and where the folder saves nothing yet tells the page to write all it holds there: `size` bytes of it, NULL where
     // its cell could not be taken; its cell given back once it is read; and whether the reader asked for the system's
     // own title bar (window_call_home.c)
     const char *cli_window_kept_script(unsigned long long *size);
@@ -88,14 +88,14 @@ extern "C"
         unsigned int height;
     } CliWindowArea;
 
-    // the least size the window is dragged to, and a place kept is read back at, in pixels at a scale of one
+    // the least size the window is dragged to, and a place saved is read back at, in pixels at a scale of one
 #define CLI_PLACE_LEAST_WIDTH 960u
 #define CLI_PLACE_LEAST_HEIGHT 600u
 
-    // the place kept for the tree open, fitted to the monitors `areas`, `count` of them, the system's main one first,
-    // into `place`: 1, or 0 where none is kept, it is below the least size or there is no monitor; and `place` kept for
-    // the tree open, beside the places of the other trees, as its window closes, nothing kept where no tree is open, and
-    // why it could not be written on the errors (window_place.c)
+    // the place saved for the tree open, fitted to the monitors `areas`, `count` of them, the system's main one first,
+    // into `place`: 1, or 0 where none is saved, it is below the least size or there is no monitor; and `place` saved
+    // for the tree open, beside the places of the other trees, as its window closes, nothing saved where no tree is
+    // open, and why it could not be written on the errors (window_place.c)
     int cli_window_place_kept(const CliWindowArea *areas, unsigned int count, CliWindowPlace *place);
     void cli_window_place_keep(const CliWindowPlace *place);
 

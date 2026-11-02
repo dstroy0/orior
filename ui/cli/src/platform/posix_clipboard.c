@@ -11,6 +11,7 @@
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
 
@@ -25,84 +26,164 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-// the file URI a path is written in on the clipboard, and the characters of a path a URI keeps as they are
+#if (!defined(_WIN32)) && !((defined(__APPLE__)))
+#define CLI_X11_NAMED 8u
+#endif
+#if (!defined(_WIN32)) && !((defined(__APPLE__)))
+// One connection to the X server: its socket, the window it reads the clipboard into or owns it with, the most bytes
+// one request takes, and the atoms it interned
+typedef struct
+{
+    int socket;
+    unsigned int window;
+    unsigned long long request_most;
+    unsigned int atom[CLI_X11_NAMED];
+} CliX11;
+#endif
+// the file URI a path is written in on the clipboard, and the characters of a path a URI saves as they are
 #define CLI_CLIPBOARD_FILE_SCHEME "file://"
 
-// whether `letter` stands in a file URI as it is
-static int clipboard_unreserved(unsigned char letter)
+typedef struct
 {
-    return ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-           ((letter >= '0') && (letter <= '9')) || (letter == '-') || (letter == '.') || (letter == '_') ||
-           (letter == '~') || (letter == '/');
+#if (!defined(_WIN32))
+    unsigned char letter;
+    VerbaLinea *out;
+    const char *path;
+    char digit;
+    const char *list;
+    unsigned long long size;
+    void (*each)(const CliEachPathCfg *args);
+    void *context;
+#endif
+#if (!defined(_WIN32)) && !((defined(__APPLE__)))
+    unsigned char *at;
+    unsigned int value;
+    const unsigned char *at_read;
+    const CliX11 *x11;
+    const void *bytes;
+    void *bytes_out;
+    int wait;
+    unsigned char *room_bytes;
+    unsigned long long room_size;
+    unsigned char *packet;
+    unsigned char *extra;
+    unsigned long long room;
+    unsigned long long *size_pointer;
+    char *host_out;
+    size_t room_size_other;
+    unsigned int *number_pointer;
+    const char *host;
+    unsigned int number;
+    const unsigned char *file;
+    unsigned long long *at_u64s;
+    unsigned int *length;
+    const unsigned char *field;
+    unsigned int length_value;
+    const char *text;
+    unsigned char *cookie;
+    CliX11 *x11_out;
+    unsigned int *root;
+    unsigned int owner;
+    unsigned int window;
+    unsigned int property;
+    unsigned int type;
+    unsigned int format;
+    unsigned int kind;
+    unsigned int *type_pointer;
+    unsigned int target;
+    const unsigned char *request;
+    const unsigned char *event;
+    unsigned int place;
+    const char *bytes_text;
+    int *cut;
+#endif
+#if (!defined(_WIN32)) && (defined(__APPLE__))
+    const char *const *words;
+    const char *input;
+#endif
+} PosixClipboardCtx;
+// whether `letter` stands in a file URI as it is
+EMBED_INLINE int clipboard_unreserved(const PosixClipboardCtx *args)
+{
+    return ((args->letter >= 'a') && (args->letter <= 'z')) || ((args->letter >= 'A') && (args->letter <= 'Z')) ||
+           ((args->letter >= '0') && (args->letter <= '9')) || (args->letter == '-') || (args->letter == '.') ||
+           (args->letter == '_') || (args->letter == '~') || (args->letter == '/');
 }
 
-// `path` written as a file URI, each byte a URI does not keep written as `%XX`
-static void clipboard_uri_written(VerbaLinea *out, const char *path)
+// `path` written as a file URI, each byte a URI does not save written as `%XX`
+EMBED_INLINE void clipboard_uri_write(const PosixClipboardCtx *args)
 {
     static const char s_digits[] = "0123456789ABCDEF";
-    mmgr_line_put(out, CLI_CLIPBOARD_FILE_SCHEME);
-    for (const unsigned char *at = (const unsigned char *)path; *at != 0u; at += 1)
+    mmgr_line_put(args->out, CLI_CLIPBOARD_FILE_SCHEME);
+    for (const unsigned char *at = (const unsigned char *)args->path; *at != 0u; at += 1)
     {
-        if (clipboard_unreserved(*at))
+        if (EMBED_CALL(clipboard_unreserved, PosixClipboardCtx, .letter = *at))
         {
-            // a byte a URI keeps is an ASCII letter
-            mmgr_line_ch(out, (char)*at);
+            // a byte a URI saves is an ASCII letter
+            mmgr_line_ch(args->out, (char)*at);
         }
         else
         {
-            mmgr_line_ch(out, '%');
-            mmgr_line_ch(out, s_digits[*at >> 4u]);
-            mmgr_line_ch(out, s_digits[*at & 0x0fu]);
+            mmgr_line_ch(args->out, '%');
+            mmgr_line_ch(args->out, s_digits[*at >> 4u]);
+            mmgr_line_ch(args->out, s_digits[*at & 0x0fu]);
         }
     }
 }
 
 // the value of the hexadecimal digit `digit`, or 16 where it is none
-static unsigned int clipboard_hex_of(char digit)
+EMBED_INLINE unsigned int clipboard_hex_get(const PosixClipboardCtx *args)
 {
     // a digit's distance from the first of its run is below 16 where the digit is one
-    return ((digit >= '0') && (digit <= '9'))   ? (unsigned int)(digit - '0')
-           : ((digit >= 'a') && (digit <= 'f')) ? (unsigned int)(digit - 'a') + 10u
-           : ((digit >= 'A') && (digit <= 'F')) ? (unsigned int)(digit - 'A') + 10u
-                                                : 16u;
+    return ((args->digit >= '0') && (args->digit <= '9'))   ? (unsigned int)(args->digit - '0')
+           : ((args->digit >= 'a') && (args->digit <= 'f')) ? (unsigned int)(args->digit - 'a') + 10u
+           : ((args->digit >= 'A') && (args->digit <= 'F')) ? (unsigned int)(args->digit - 'A') + 10u
+                                                            : 16u;
 }
 
 // each file of a list of URIs, `size` bytes of `list`, one to a line, its comments passed over, handed to `each` as a
 // path, its host taken off and its escapes read: how many
-static unsigned int clipboard_uris_read(const char *list, unsigned long long size,
-                                        void (*each)(void *context, const char *path), void *context)
+static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
 {
+    unsigned long long size = args->size;
     unsigned int count = 0u;
     for (unsigned long long at = 0ull; at < size;)
     {
         unsigned long long end = at;
-        end = cli_text_to_any(list, end, size, "\n\r");
+        end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->list, .at = end,
+                         .size = size, .set = "\n\r");
         const unsigned long long scheme = sizeof(CLI_CLIPBOARD_FILE_SCHEME) - 1u;
         int file = (end - at > scheme);
         for (unsigned long long letter = 0ull; file && (letter < scheme); letter += 1ull)
         {
-            file = list[at + letter] == CLI_CLIPBOARD_FILE_SCHEME[letter];
+            file = args->list[at + letter] == CLI_CLIPBOARD_FILE_SCHEME[letter];
         }
         if (file)
         {
             unsigned long long from = at + scheme;
-            from = cli_text_to_any(list, from, end, "/");
+            from = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->list, .at = from,
+                              .size = end, .set = "/");
             char path[CLI_PATH_MAX_LEN];
             VerbaLinea decoded = {path, sizeof(path), 0ull};
             for (unsigned long long letter = from; letter < end; letter += 1ull)
             {
-                const int escaped = (list[letter] == '%') && (letter + 2ull < end) &&
-                                    (clipboard_hex_of(list[letter + 1ull]) < 16u) &&
-                                    (clipboard_hex_of(list[letter + 2ull]) < 16u);
+                const int escaped =
+                    (args->list[letter] == '%') && (letter + 2ull < end) &&
+                    (EMBED_CALL(clipboard_hex_get, PosixClipboardCtx, .digit = args->list[letter + 1ull]) < 16u) &&
+                    (EMBED_CALL(clipboard_hex_get, PosixClipboardCtx, .digit = args->list[letter + 2ull]) < 16u);
                 // two hexadecimal digits make a byte, below 256
-                mmgr_line_ch(&decoded, escaped ? (char)((clipboard_hex_of(list[letter + 1ull]) << 4u) |
-                                                        clipboard_hex_of(list[letter + 2ull]))
-                                               : list[letter]);
+                mmgr_line_ch(
+                    &decoded,
+                    escaped
+                        ? (char)((EMBED_CALL(clipboard_hex_get, PosixClipboardCtx, .digit = args->list[letter + 1ull])
+                                  << 4u) |
+                                 EMBED_CALL(clipboard_hex_get, PosixClipboardCtx, .digit = args->list[letter + 2ull]))
+                        : args->list[letter]);
                 letter += escaped ? 2ull : 0ull;
             }
             if (mmgr_line_finish(&decoded) != 0ull)
             {
-                each(context, path);
+                EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = path);
                 count += 1u;
             }
         }
@@ -130,36 +211,42 @@ static const CliSetting s_utf8[1] = {{"LANG", "en_US.UTF-8"}};
 
 // `words` run, `size` bytes of `input` fed to it, what it wrote handed to `out` where `out` is not NULL: 1, or 0 where
 // it did not run or ended with a code other than 0
-static int clipboard_ran(const char *const *words, const char *input, unsigned long long size, VerbaLinea *out)
+EMBED_INLINE int clipboard_run(const PosixClipboardCtx *args)
 {
+    const char *const *words = args->words;
+    const char *input = args->input;
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_taken();
-    const int done = cli_ran_fed(words, NULL, s_utf8, 1u, input, size, ran, &err_msg) && (ran->code == 0ll);
-    if (done && (out != NULL))
+    CliRan *const ran = cli_ran_take();
+    const int done =
+        EMBED_CALL(cli_words_internal.ran_feed, CliWordsCtx, .words = words, .folder = NULL, .settings = s_utf8,
+                   .count = 1u, .input = input, .length = args->size, .ran = ran, .err_msg = &err_msg) &&
+        (ran->code == 0ll);
+    if (done && (args->out != NULL))
     {
-        mmgr_line_put_n(out, ran->out, ran->out_size);
+        mmgr_line_put_n(args->out, ran->out, ran->out_size);
     }
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     return done;
 }
 
-int cli_clipboard_text_read(VerbaLinea *text)
+int cli_clipboard_text_read(const CliCtx *args)
 {
     static const char *const s_words[2] = {"pbpaste", NULL};
-    return clipboard_ran(s_words, "", 0ull, text);
+    return EMBED_CALL(clipboard_run, PosixClipboardCtx, .words = s_words, .input = "", .size = 0ull,
+                      .out = args->text_verba_linea_pointer);
 }
 
-int cli_clipboard_text_written(const char *text, unsigned long long size)
+int cli_clipboard_text_write(const CliSizeTextCtx *args)
 {
     static const char *const s_words[2] = {"pbcopy", NULL};
-    return clipboard_ran(s_words, text, size, NULL);
+    return EMBED_CALL(clipboard_run, PosixClipboardCtx, .words = s_words, .input = args->text, .size = args->size,
+                      .out = NULL);
 }
 
-int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cut)
+int cli_clipboard_files_put(const CliCountCtx *args)
 {
     // a cut is known to the window alone on macOS, whose pasteboard says no cut of files
-    (void)cut;
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_files_put_script, NULL};
     const unsigned long long input_room = 4096u;
     char *const input_cell = g_cli_cells->temporary_buf_alloc(input_room, &g_cli_platform_cells);
@@ -168,12 +255,13 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
     {
         return 0;
     }
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        mmgr_line_put(&input, paths[at]);
+        mmgr_line_put(&input, args->paths[at]);
         mmgr_line_ch(&input, '\n');
     }
-    const int put = mmgr_line_ok(&input) && clipboard_ran(s_words, input.out, input.at, NULL);
+    const int put = mmgr_line_ok(&input) && EMBED_CALL(clipboard_run, PosixClipboardCtx, .words = s_words,
+                                                       .input = input.out, .size = input.at, .out = NULL);
     g_cli_cells->persistent_buf_release(input.out, &g_cli_platform_cells);
     return put;
 }
@@ -181,12 +269,13 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
 // a path osascript wrote, one to a line, handed on
 typedef struct
 {
-    void (*each)(void *context, const char *path);
+    void (*each)(const CliEachPathCfg *args);
     void *context;
 } CliClipboardEach;
 
-unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *path), void *context, int *cut)
+unsigned int cli_clipboard_files_read(const CliEachCtx *args)
 {
+    int *cut = args->cut_pointer;
     *cut = -1;
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_files_held_script, NULL};
     const unsigned long long paths_room = 4096u;
@@ -197,12 +286,14 @@ unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *pa
         return 0u;
     }
     unsigned int count = 0u;
-    if (clipboard_ran(s_words, "", 0ull, &paths) && mmgr_line_ok(&paths))
+    if (EMBED_CALL(clipboard_run, PosixClipboardCtx, .words = s_words, .input = "", .size = 0ull, .out = &paths) &&
+        mmgr_line_ok(&paths))
     {
         for (unsigned long long at = 0ull; at < paths.at;)
         {
             unsigned long long end = at;
-            end = cli_text_to_any(paths.out, end, paths.at, "\n");
+            end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = paths.out, .at = end,
+                             .size = paths.at, .set = "\n");
             if (end > at)
             {
                 char path[CLI_PATH_MAX_LEN];
@@ -210,7 +301,7 @@ unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *pa
                 mmgr_line_put_n(&line, paths.out + at, end - at);
                 if (mmgr_line_finish(&line) != 0ull)
                 {
-                    each(context, path);
+                    EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = path);
                     count += 1u;
                 }
             }
@@ -221,10 +312,10 @@ unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *pa
     return count;
 }
 
-void cli_clipboard_emptied(void)
+void cli_clipboard_clear(void)
 {
     static const char *const s_words[6] = {"osascript", "-l", "JavaScript", "-e", s_emptied_script, NULL};
-    (void)clipboard_ran(s_words, "", 0ull, NULL);
+    (void)EMBED_CALL(clipboard_run, PosixClipboardCtx, .words = s_words, .input = "", .size = 0ull, .out = NULL);
 }
 #else
 // the core protocol's atoms this file names by number, the kinds of what the server sends, the events it reports and
@@ -269,53 +360,43 @@ void cli_clipboard_emptied(void)
 #define CLI_X11_COPIED 5u
 #define CLI_X11_PROPERTY 6u
 #define CLI_X11_TEXT 7u
-#define CLI_X11_NAMED 8u
 
 static const char *const s_atom_names[CLI_X11_NAMED] = {
     "CLIPBOARD",       "UTF8_STRING", "TARGETS", "INCR", "text/uri-list", "x-special/gnome-copied-files",
     "ORIOR_CLIPBOARD", "TEXT",
 };
 
-// One connection to the X server: its socket, the window it reads the clipboard into or owns it with, the most bytes
-// one request takes, and the atoms it interned
-typedef struct
-{
-    int socket;
-    unsigned int window;
-    unsigned long long request_most;
-    unsigned int atom[CLI_X11_NAMED];
-} CliX11;
-
 // `value`'s low 16 and 32 bits written least byte first, as the connection's order is; and read back
-static void x11_put16(unsigned char *at, unsigned int value)
+EMBED_INLINE void x11_put16(const PosixClipboardCtx *args)
 {
-    at[0] = (unsigned char)(value & 0xffu);
-    at[1] = (unsigned char)((value >> 8u) & 0xffu);
+    args->at[0] = (unsigned char)(args->value & 0xffu);
+    args->at[1] = (unsigned char)((args->value >> 8u) & 0xffu);
 }
 
-static void x11_put32(unsigned char *at, unsigned int value)
+EMBED_INLINE void x11_put32(const PosixClipboardCtx *args)
 {
-    x11_put16(at, value & 0xffffu);
-    x11_put16(at + 2, value >> 16u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = args->at, .value = args->value & 0xffffu);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = args->at + 2, .value = args->value >> 16u);
 }
 
-static unsigned int x11_get16(const unsigned char *at)
+EMBED_INLINE unsigned int x11_get16(const PosixClipboardCtx *args)
 {
-    return (unsigned int)at[0] | ((unsigned int)at[1] << 8u);
+    return (unsigned int)args->at_read[0] | ((unsigned int)args->at_read[1] << 8u);
 }
 
-static unsigned int x11_get32(const unsigned char *at)
+EMBED_INLINE unsigned int x11_get32(const PosixClipboardCtx *args)
 {
-    return x11_get16(at) | (x11_get16(at + 2) << 16u);
+    return x11_get16(args) | (EMBED_CALL(x11_get16, PosixClipboardCtx, .at_read = args->at_read + 2) << 16u);
 }
 
 // `size` bytes written whole to the server: 1, or 0 where the connection is gone
-static int x11_sent(const CliX11 *x11, const void *bytes, unsigned long long size)
+EMBED_INLINE int x11_send(const PosixClipboardCtx *args)
 {
-    const unsigned char *at = (const unsigned char *)bytes;
+    unsigned long long size = args->size;
+    const unsigned char *at = (const unsigned char *)args->bytes;
     while (size > 0ull)
     {
-        const ssize_t wrote = write(x11->socket, at, (size_t)size);
+        const ssize_t wrote = write(args->x11->socket, at, (size_t)size);
         if ((wrote < 0) && (errno == EINTR))
         {
             continue;
@@ -333,18 +414,19 @@ static int x11_sent(const CliX11 *x11, const void *bytes, unsigned long long siz
 
 // `size` bytes read whole from the server, each piece waited for `wait` milliseconds at the most, -1 for as long as it
 // takes: 1, or 0 where none came in time or the connection is gone
-static int x11_received(const CliX11 *x11, void *bytes, unsigned long long size, int wait)
+EMBED_INLINE int x11_receive(const PosixClipboardCtx *args)
 {
-    unsigned char *at = (unsigned char *)bytes;
+    unsigned long long size = args->size;
+    unsigned char *at = (unsigned char *)args->bytes_out;
     while (size > 0ull)
     {
-        struct pollfd ready = {x11->socket, POLLIN, 0};
-        const int polled = poll(&ready, 1u, wait);
+        struct pollfd ready = {args->x11->socket, POLLIN, 0};
+        const int polled = poll(&ready, 1u, args->wait);
         if ((polled < 0) && (errno == EINTR))
         {
             continue;
         }
-        const ssize_t got = (polled > 0) ? read(x11->socket, at, (size_t)size) : 0;
+        const ssize_t got = (polled > 0) ? read(args->x11->socket, at, (size_t)size) : 0;
         if ((got < 0) && (errno == EINTR))
         {
             continue;
@@ -362,12 +444,14 @@ static int x11_received(const CliX11 *x11, void *bytes, unsigned long long size,
 
 // `size` bytes the server sends passed over, read through `room`, sized for `room_size`: 1, or 0 where they did not
 // come
-static int x11_passed(const CliX11 *x11, unsigned long long size, unsigned char *room, unsigned long long room_size)
+EMBED_INLINE int x11_pass(const PosixClipboardCtx *args)
 {
+    unsigned long long size = args->size;
     while (size > 0ull)
     {
-        const unsigned long long piece = (size < room_size) ? size : room_size;
-        if (!x11_received(x11, room, piece, CLI_X11_WAIT))
+        const unsigned long long piece = (size < args->room_size) ? size : args->room_size;
+        if (!EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11, .bytes_out = args->room_bytes, .size = piece,
+                        .wait = CLI_X11_WAIT))
         {
             return 0;
         }
@@ -378,36 +462,41 @@ static int x11_passed(const CliX11 *x11, unsigned long long size, unsigned char 
 
 // the next thing the server sends, 32 bytes, read into `packet`; a reply's more bytes read into `extra`, sized for
 // `room`, their count into `size`, the rest passed over: 1, or 0 where nothing came within `wait` milliseconds
-static int x11_packet(const CliX11 *x11, unsigned char *packet, unsigned char *extra, unsigned long long room,
-                      unsigned long long *size, int wait)
+EMBED_INLINE int x11_packet(const PosixClipboardCtx *args)
 {
+    unsigned long long *size = args->size_pointer;
     *size = 0ull;
-    if (!x11_received(x11, packet, 32ull, wait))
+    if (!EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11, .bytes_out = args->packet, .size = 32ull,
+                    .wait = args->wait))
     {
         return 0;
     }
-    if ((packet[0] & 0x7fu) != CLI_X11_REPLY)
+    if ((args->packet[0] & 0x7fu) != CLI_X11_REPLY)
     {
         return 1;
     }
-    const unsigned long long more = (unsigned long long)x11_get32(packet + 4) * 4ull;
-    *size = (more < room) ? more : room;
+    const unsigned long long more =
+        (unsigned long long)EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->packet + 4) * 4ull;
+    *size = (more < args->room) ? more : args->room;
     unsigned char passed[64];
-    return x11_received(x11, extra, *size, CLI_X11_WAIT) && x11_passed(x11, more - *size, passed, sizeof(passed));
+    return EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11, .bytes_out = args->extra, .size = *size,
+                      .wait = CLI_X11_WAIT) &&
+           EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11, .size = more - *size, .room_bytes = passed,
+                      .room_size = sizeof(passed));
 }
 
 // the reply to the last request sent read into `packet` and `extra`, events before it passed over: 1, or 0 where an
 // error came in its place or nothing came in time
-static int x11_reply(const CliX11 *x11, unsigned char *packet, unsigned char *extra, unsigned long long room,
-                     unsigned long long *size)
+EMBED_INLINE int x11_reply(const PosixClipboardCtx *args)
 {
     for (;;)
     {
-        if (!x11_packet(x11, packet, extra, room, size, CLI_X11_WAIT))
+        if (!EMBED_CALL(x11_packet, PosixClipboardCtx, .x11 = args->x11, .packet = args->packet, .extra = args->extra,
+                        .room = args->room, .size_pointer = args->size_pointer, .wait = CLI_X11_WAIT))
         {
             return 0;
         }
-        const unsigned int kind = packet[0] & 0x7fu;
+        const unsigned int kind = args->packet[0] & 0x7fu;
         if ((kind == CLI_X11_REPLY) || (kind == CLI_X11_ERROR))
         {
             return kind == CLI_X11_REPLY;
@@ -417,38 +506,44 @@ static int x11_reply(const CliX11 *x11, unsigned char *packet, unsigned char *ex
 
 // the display DISPLAY names: its host into `host`, sized for `room`, empty for this machine's own socket, and its
 // number: 1, or 0 where DISPLAY names none
-static int x11_display(char *host, size_t room, unsigned int *number)
+EMBED_INLINE int x11_display(const PosixClipboardCtx *args)
 {
+    size_t room = args->room_size_other;
+    unsigned int *number = args->number_pointer;
     char display[256];
-    if (!query_environment_read("DISPLAY", display, sizeof(display)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "DISPLAY",
+                    .value_out = display, .room = sizeof(display)))
     {
         return 0;
     }
     size_t colon = 0u;
     int found = 0;
     const unsigned long long past =
-        cli_text_back_any(display, cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_CELLS_POOL}), ":");
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = display,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_CELLS_POOL}), .set = ":");
     found = past != 0ull;
     colon = found ? (size_t)(past - 1ull) : 0u;
     if (!found)
     {
         return 0;
     }
-    VerbaLinea named = {host, room, 0ull};
+    VerbaLinea named = {args->host_out, room, 0ull};
     mmgr_line_put_n(&named, display, colon);
     (void)mmgr_line_finish(&named);
     *number = 0u;
     // a display's number is no more than an unsigned int stores
-    *number = (unsigned int)cli_text_number(
-        display, colon + 1u, cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_CELLS_POOL}), NULL);
+    *number = (unsigned int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = display, .at = colon + 1u,
+                                       .size = cellul.len(&(CatenaFinitaCfg){.src = display, .cap = CLI_CELLS_POOL}),
+                                       .end = NULL);
     return 1;
 }
 
 // a connection made to the display: this machine's socket for it where `host` is empty or `unix`, the abstract one on
 // Linux where the file is not there, else the host's port 6000 and on: the socket, or -1
-static int x11_socket(const char *host, unsigned int number)
+EMBED_INLINE int x11_socket(const PosixClipboardCtx *args)
 {
-    const int local = (host[0] == '\0') || cellul.eq(&(CatenaFinitaCfg){.src = host, .other = "unix", .cap = 8u});
+    const int local =
+        (args->host[0] == '\0') || cellul.eq(&(CatenaFinitaCfg){.src = args->host, .other = "unix", .cap = 8u});
     if (local)
     {
         for (unsigned int abstract = 0u; abstract < 2u; abstract += 1u)
@@ -458,7 +553,7 @@ static int x11_socket(const char *host, unsigned int number)
             address.sun_family = AF_UNIX;
             VerbaLinea path = {address.sun_path + abstract, sizeof(address.sun_path) - abstract, 0ull};
             mmgr_line_put(&path, "/tmp/.X11-unix/X");
-            mmgr_line_decimal(&path, number, 1u);
+            mmgr_line_decimal(&path, args->number, 1u);
             const unsigned long long length = mmgr_line_finish(&path);
             const int made = socket(AF_UNIX, SOCK_STREAM, 0);
             // an address's length is far below what a socklen_t counts
@@ -477,13 +572,13 @@ static int x11_socket(const char *host, unsigned int number)
     }
     char port[16];
     VerbaLinea port_line = {port, sizeof(port), 0ull};
-    mmgr_line_decimal(&port_line, 6000u + number, 1u);
+    mmgr_line_decimal(&port_line, 6000u + args->number, 1u);
     (void)mmgr_line_finish(&port_line);
     struct addrinfo hints;
     memor.set(&(MemoriaCfg){.dst = &hints, .val = 0, .bytes = sizeof(hints)});
     hints.ai_socktype = SOCK_STREAM;
     struct addrinfo *found = NULL;
-    if (getaddrinfo(host, port, &hints, &found) != 0)
+    if (getaddrinfo(args->host, port, &hints, &found) != 0)
     {
         return -1;
     }
@@ -507,43 +602,51 @@ static int x11_socket(const char *host, unsigned int number)
 
 // a field of the Xauthority file at `at`, its length first, two bytes most first: its bytes and their count, the
 // place after it into `at`, or NULL where the file ends inside it
-static const unsigned char *x11_authority_field(const unsigned char *file, unsigned long long size,
-                                                unsigned long long *at, unsigned int *length)
+EMBED_INLINE const unsigned char *x11_authority_field(const PosixClipboardCtx *args)
 {
-    if (*at + 2ull > size)
+    unsigned long long *at = args->at_u64s;
+    unsigned int *length = args->length;
+    if (*at + 2ull > args->size)
     {
         return NULL;
     }
-    *length = ((unsigned int)file[*at] << 8u) | file[*at + 1ull];
-    const unsigned char *const field = file + *at + 2ull;
+    *length = ((unsigned int)args->file[*at] << 8u) | args->file[*at + 1ull];
+    const unsigned char *const field = args->file + *at + 2ull;
     *at += 2ull + *length;
-    return (*at <= size) ? field : NULL;
+    return (*at <= args->size) ? field : NULL;
 }
 
 // whether `length` bytes of `field` are the text `text`
-static int x11_field_is(const unsigned char *field, unsigned int length, const char *text)
+EMBED_INLINE int x11_field_is(const PosixClipboardCtx *args)
 {
-    const size_t text_length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    return (length == text_length) &&
-           ((length == 0u) || (memor.cmp(&(MemoriaCfg){.src = field, .other = text, .bytes = length}) == 0));
+    const size_t text_length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    return (args->length_value == text_length) &&
+           ((args->length_value == 0u) ||
+            (memor.cmp(&(MemoriaCfg){.src = args->field, .other = args->text, .bytes = args->length_value}) == 0));
 }
 
 // the MIT-MAGIC-COOKIE-1 the reader's Xauthority file holds for display `number`, for this machine where `host` is
 // empty, into `cookie`, 16 bytes: 1, or 0 where it holds none
-static int x11_cookie(const char *host, unsigned int number, unsigned char *cookie)
+EMBED_INLINE int x11_cookie(const PosixClipboardCtx *args)
 {
     static unsigned char s_file[CLI_X11_AUTHORITY_MOST];
     char path[CLI_PATH_MAX_LEN];
-    if (!query_environment_read("XAUTHORITY", path, sizeof(path)) || (path[0] == '\0'))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XAUTHORITY",
+                    .value_out = path, .room = sizeof(path)) ||
+        (path[0] == '\0'))
     {
         VerbaLinea home = {path, sizeof(path), 0ull};
         char folder[CLI_PATH_MAX_LEN];
-        mmgr_line_put(&home, query_environment_read("HOME", folder, sizeof(folder)) ? folder : "");
+        mmgr_line_put(&home, EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME",
+                                        .value_out = folder, .room = sizeof(folder))
+                                 ? folder
+                                 : "");
         mmgr_line_put(&home, "/.Xauthority");
         (void)mmgr_line_finish(&home);
     }
     unsigned long long size = 0ull;
-    if (!cli_file_read_at(path, 0ull, s_file, sizeof(s_file), &size))
+    if (!EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = path, .from = 0ull,
+                    .bytes_bytes = s_file, .count_u64 = sizeof(s_file), .got = &size))
     {
         return 0;
     }
@@ -553,7 +656,7 @@ static int x11_cookie(const char *host, unsigned int number, unsigned char *cook
     own[sizeof(own) - 1u] = '\0';
     char display[16];
     VerbaLinea display_line = {display, sizeof(display), 0ull};
-    mmgr_line_decimal(&display_line, number, 1u);
+    mmgr_line_decimal(&display_line, args->number, 1u);
     (void)mmgr_line_finish(&display_line);
     // the families of an address the file names: this machine by its name, and any machine
     static const unsigned int s_local = 256u;
@@ -566,18 +669,24 @@ static int x11_cookie(const char *host, unsigned int number, unsigned char *cook
         const unsigned char *fields[4] = {NULL, NULL, NULL, NULL};
         for (unsigned int field = 0u; field < 4u; field += 1u)
         {
-            fields[field] = x11_authority_field(s_file, size, &at, &lengths[field]);
+            fields[field] = EMBED_CALL(x11_authority_field, PosixClipboardCtx, .file = s_file, .size = size,
+                                       .at_u64s = &at, .length = &lengths[field]);
             if (fields[field] == NULL)
             {
                 return 0;
             }
         }
-        const int machine = (family == s_wild) || (host[0] != '\0') ||
-                            ((family == s_local) && x11_field_is(fields[0], lengths[0], own));
-        const int shown = (lengths[1] == 0u) || x11_field_is(fields[1], lengths[1], display);
-        if (machine && shown && x11_field_is(fields[2], lengths[2], "MIT-MAGIC-COOKIE-1") && (lengths[3] == 16u))
+        const int machine = (family == s_wild) || (args->host[0] != '\0') ||
+                            ((family == s_local) && EMBED_CALL(x11_field_is, PosixClipboardCtx, .field = fields[0],
+                                                               .length_value = lengths[0], .text = own));
+        const int shown = (lengths[1] == 0u) || EMBED_CALL(x11_field_is, PosixClipboardCtx, .field = fields[1],
+                                                           .length_value = lengths[1], .text = display);
+        if (machine && shown &&
+            EMBED_CALL(x11_field_is, PosixClipboardCtx, .field = fields[2], .length_value = lengths[2],
+                       .text = "MIT-MAGIC-COOKIE-1") &&
+            (lengths[3] == 16u))
         {
-            memor.cpy(&(MemoriaCfg){.dst = cookie, .src = fields[3], .bytes = 16u});
+            memor.cpy(&(MemoriaCfg){.dst = args->cookie, .src = fields[3], .bytes = 16u});
             return 1;
         }
     }
@@ -586,79 +695,95 @@ static int x11_cookie(const char *host, unsigned int number, unsigned char *cook
 
 // the server's answer to the connection's setup read: the window's id made from the ids it gives, the root window and
 // the most bytes one request takes: 1, or 0 where it refused the connection
-static int x11_set_up(CliX11 *x11, unsigned int *root)
+EMBED_INLINE int x11_set_up(const PosixClipboardCtx *args)
 {
+    unsigned int *root = args->root;
     unsigned char head[8];
     unsigned char fixed[32];
-    if (!x11_received(x11, head, sizeof(head), CLI_X11_WAIT) || (head[0] != 1u))
+    if (!EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11_out, .bytes_out = head, .size = sizeof(head),
+                    .wait = CLI_X11_WAIT) ||
+        (head[0] != 1u))
     {
         return 0;
     }
-    const unsigned long long length = (unsigned long long)x11_get16(head + 6) * 4ull;
-    if ((length < 40ull) || !x11_received(x11, fixed, sizeof(fixed), CLI_X11_WAIT))
+    const unsigned long long length =
+        (unsigned long long)EMBED_CALL(x11_get16, PosixClipboardCtx, .at_read = head + 6) * 4ull;
+    if ((length < 40ull) || !EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11_out, .bytes_out = fixed,
+                                        .size = sizeof(fixed), .wait = CLI_X11_WAIT))
     {
         return 0;
     }
-    const unsigned int base = x11_get32(fixed + 4);
-    const unsigned int mask = x11_get32(fixed + 8);
-    const unsigned long long vendor = ((unsigned long long)x11_get16(fixed + 16) + 3ull) & ~3ull;
-    x11->request_most = (unsigned long long)x11_get16(fixed + 18) * 4ull;
+    const unsigned int base = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = fixed + 4);
+    const unsigned int mask = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = fixed + 8);
+    const unsigned long long vendor =
+        ((unsigned long long)EMBED_CALL(x11_get16, PosixClipboardCtx, .at_read = fixed + 16) + 3ull) & ~3ull;
+    args->x11_out->request_most =
+        (unsigned long long)EMBED_CALL(x11_get16, PosixClipboardCtx, .at_read = fixed + 18) * 4ull;
     const unsigned long long formats = (unsigned long long)fixed[21] * 8ull;
     unsigned char room[256];
     unsigned char screen[4];
-    if (!x11_passed(x11, vendor + formats, room, sizeof(room)) ||
-        !x11_received(x11, screen, sizeof(screen), CLI_X11_WAIT))
+    if (!EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11_out, .size = vendor + formats, .room_bytes = room,
+                    .room_size = sizeof(room)) ||
+        !EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11_out, .bytes_out = screen, .size = sizeof(screen),
+                    .wait = CLI_X11_WAIT))
     {
         return 0;
     }
-    *root = x11_get32(screen);
+    *root = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = screen);
     const unsigned long long read = 32ull + vendor + formats + 4ull;
     // the window's id is the first the server gives this client
-    x11->window = base | (mask & (~mask + 1u));
-    return (read <= length) && x11_passed(x11, length - read, room, sizeof(room));
+    args->x11_out->window = base | (mask & (~mask + 1u));
+    return (read <= length) && EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11_out, .size = length - read,
+                                          .room_bytes = room, .room_size = sizeof(room));
 }
 
 // a connection made to the display, set up, a window of its own made that hears its own property changes, and the
 // atoms this file names interned: 1, or 0 where the display could not be reached or refused it
-static int x11_connected(CliX11 *x11)
+static int x11_connect(const PosixClipboardCtx *args)
 {
     char host[256];
     unsigned int number = 0u;
-    x11->socket = x11_display(host, sizeof(host), &number) ? x11_socket(host, number) : -1;
-    if (x11->socket < 0)
+    args->x11_out->socket = EMBED_CALL(x11_display, PosixClipboardCtx, .host_out = host,
+                                       .room_size_other = sizeof(host), .number_pointer = &number)
+                                ? EMBED_CALL(x11_socket, PosixClipboardCtx, .host = host, .number = number)
+                                : -1;
+    if (args->x11_out->socket < 0)
     {
         return 0;
     }
     unsigned char cookie[16];
-    const int authorized = x11_cookie(host, number, cookie);
+    const int authorized = EMBED_CALL(x11_cookie, PosixClipboardCtx, .host = host, .number = number, .cookie = cookie);
     unsigned char setup[48];
     memor.set(&(MemoriaCfg){.dst = setup, .val = 0, .bytes = sizeof(setup)});
     setup[0] = 'l';
-    x11_put16(setup + 2, 11u);
-    x11_put16(setup + 6, authorized ? 18u : 0u);
-    x11_put16(setup + 8, authorized ? 16u : 0u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = setup + 2, .value = 11u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = setup + 6, .value = authorized ? 18u : 0u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = setup + 8, .value = authorized ? 16u : 0u);
     if (authorized)
     {
         memor.cpy(&(MemoriaCfg){.dst = setup + 12, .src = "MIT-MAGIC-COOKIE-1", .bytes = 18u});
         memor.cpy(&(MemoriaCfg){.dst = setup + 32, .src = cookie, .bytes = 16u});
     }
     unsigned int root = 0u;
-    int made = x11_sent(x11, setup, authorized ? 48ull : 12ull) && x11_set_up(x11, &root);
+    int made = EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11_out, .bytes = setup,
+                          .size = authorized ? 48ull : 12ull) &&
+               EMBED_CALL(x11_set_up, PosixClipboardCtx, .x11_out = args->x11_out, .root = &root);
     unsigned char window[36];
     window[0] = (unsigned char)CLI_X11_CREATE_WINDOW;
     window[1] = 0u;
-    x11_put16(window + 2, 9u);
-    x11_put32(window + 4, x11->window);
-    x11_put32(window + 8, root);
-    x11_put32(window + 12, 0u);
-    x11_put16(window + 16, 1u);
-    x11_put16(window + 18, 1u);
-    x11_put16(window + 20, 0u);
-    x11_put16(window + 22, CLI_X11_INPUT_ONLY);
-    x11_put32(window + 24, 0u);
-    x11_put32(window + 28, CLI_X11_EVENT_MASK);
-    x11_put32(window + 32, CLI_X11_PROPERTY_CHANGES);
-    made = made && x11_sent(x11, window, sizeof(window));
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = window + 2, .value = 9u);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = window + 4, .value = args->x11_out->window);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = window + 8, .value = root);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = window + 12, .value = 0u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = window + 16, .value = 1u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = window + 18, .value = 1u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = window + 20, .value = 0u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = window + 22, .value = CLI_X11_INPUT_ONLY);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = window + 24, .value = 0u);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = window + 28, .value = CLI_X11_EVENT_MASK);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = window + 32, .value = CLI_X11_PROPERTY_CHANGES);
+    made =
+        made && EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11_out, .bytes = window, .size = sizeof(window));
     for (unsigned int at = 0u; made && (at < CLI_X11_NAMED); at += 1u)
     {
         unsigned char intern[8 + 32];
@@ -667,101 +792,109 @@ static int x11_connected(CliX11 *x11)
         memor.set(&(MemoriaCfg){.dst = intern, .val = 0, .bytes = sizeof(intern)});
         intern[0] = (unsigned char)CLI_X11_INTERN_ATOM;
         // a request's length in words is far below what 16 bits count
-        x11_put16(intern + 2, (unsigned int)(2u + (padded / 4u)));
-        x11_put16(intern + 4, (unsigned int)length);
+        EMBED_CALL(x11_put16, PosixClipboardCtx, .at = intern + 2, .value = (unsigned int)(2u + (padded / 4u)));
+        EMBED_CALL(x11_put16, PosixClipboardCtx, .at = intern + 4, .value = (unsigned int)length);
         memor.cpy(&(MemoriaCfg){.dst = intern + 8, .src = s_atom_names[at], .bytes = length});
-        made = x11_sent(x11, intern, 8u + padded);
+        made = EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11_out, .bytes = intern, .size = 8u + padded);
     }
     for (unsigned int at = 0u; made && (at < CLI_X11_NAMED); at += 1u)
     {
         unsigned char reply[32];
         unsigned long long size = 0ull;
-        made = x11_reply(x11, reply, NULL, 0ull, &size);
-        x11->atom[at] = made ? x11_get32(reply + 8) : 0u;
+        made = EMBED_CALL(x11_reply, PosixClipboardCtx, .x11 = args->x11_out, .packet = reply, .extra = NULL,
+                          .room = 0ull, .size_pointer = &size);
+        args->x11_out->atom[at] = made ? EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = reply + 8) : 0u;
     }
     if (!made)
     {
-        close(x11->socket);
-        x11->socket = -1;
+        close(args->x11_out->socket);
+        args->x11_out->socket = -1;
     }
     return made;
 }
 
 // the connection let go
-static void x11_closed(CliX11 *x11)
+EMBED_INLINE void x11_close(const PosixClipboardCtx *args)
 {
-    if (x11->socket >= 0)
+    if (args->x11_out->socket >= 0)
     {
-        close(x11->socket);
+        close(args->x11_out->socket);
     }
-    x11->socket = -1;
+    args->x11_out->socket = -1;
 }
 
 // `owner` made the owner of the clipboard, None where it is 0: 1, or 0 where the connection is gone
-static int x11_owner_set(const CliX11 *x11, unsigned int owner)
+EMBED_INLINE int x11_owner_set(const PosixClipboardCtx *args)
 {
     unsigned char request[16];
     request[0] = (unsigned char)CLI_X11_SET_OWNER;
     request[1] = 0u;
-    x11_put16(request + 2, 4u);
-    x11_put32(request + 4, owner);
-    x11_put32(request + 8, x11->atom[CLI_X11_CLIPBOARD]);
-    x11_put32(request + 12, 0u);
-    return x11_sent(x11, request, sizeof(request));
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = request + 2, .value = 4u);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 4, .value = args->owner);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 8, .value = args->x11->atom[CLI_X11_CLIPBOARD]);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 12, .value = 0u);
+    return EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request));
 }
 
 // `size` bytes of `bytes` put as the property `property` of `window`, of `type` in units of `format` bits, replacing
 // what it had: 1, or 0 where the connection is gone
-static int x11_property_put(const CliX11 *x11, unsigned int window, unsigned int property, unsigned int type,
-                            unsigned int format, const void *bytes, unsigned long long size)
+EMBED_INLINE int x11_property_put(const PosixClipboardCtx *args)
 {
     unsigned char request[24];
-    const unsigned long long padded = (size + 3ull) & ~3ull;
+    const unsigned long long padded = (args->size + 3ull) & ~3ull;
     static const unsigned char s_pad[4] = {0u, 0u, 0u, 0u};
     request[0] = (unsigned char)CLI_X11_CHANGE_PROPERTY;
     request[1] = 0u;
     // a piece sent is below CLI_X11_SENT_MOST, and its request's words are below what 16 bits count
-    x11_put16(request + 2, (unsigned int)(6ull + (padded / 4ull)));
-    x11_put32(request + 4, window);
-    x11_put32(request + 8, property);
-    x11_put32(request + 12, type);
-    request[16] = (unsigned char)format;
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = request + 2, .value = (unsigned int)(6ull + (padded / 4ull)));
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 4, .value = args->window);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 8, .value = args->property);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 12, .value = args->type);
+    request[16] = (unsigned char)args->format;
     request[17] = 0u;
     request[18] = 0u;
     request[19] = 0u;
     // the units of the bytes are below what 32 bits count, as a piece is
-    x11_put32(request + 20, (unsigned int)(size / (format / 8u)));
-    return x11_sent(x11, request, sizeof(request)) && x11_sent(x11, bytes, size) && x11_sent(x11, s_pad, padded - size);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 20,
+               .value = (unsigned int)(args->size / (args->format / 8u)));
+    return EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request)) &&
+           x11_send(args) &&
+           EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = s_pad, .size = padded - args->size);
 }
 
 // the property `property` of `window` deleted
-static int x11_property_deleted(const CliX11 *x11, unsigned int window, unsigned int property)
+EMBED_INLINE int x11_property_delete(const PosixClipboardCtx *args)
 {
     unsigned char request[12];
     request[0] = (unsigned char)CLI_X11_DELETE_PROPERTY;
     request[1] = 0u;
-    x11_put16(request + 2, 3u);
-    x11_put32(request + 4, window);
-    x11_put32(request + 8, property);
-    return x11_sent(x11, request, sizeof(request));
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = request + 2, .value = 3u);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 4, .value = args->window);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 8, .value = args->property);
+    return EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request));
 }
 
 // the next event of `kind` for this connection's window, `property` where it is a property's change, waited for, every
 // other event passed over: 1, or 0 where none came in time
-static int x11_event(const CliX11 *x11, unsigned int kind, unsigned int property, unsigned char *packet)
+EMBED_INLINE int x11_event(const PosixClipboardCtx *args)
 {
     for (;;)
     {
         unsigned long long size = 0ull;
-        if (!x11_packet(x11, packet, NULL, 0ull, &size, CLI_X11_WAIT))
+        if (!EMBED_CALL(x11_packet, PosixClipboardCtx, .x11 = args->x11, .packet = args->packet, .extra = NULL,
+                        .room = 0ull, .size_pointer = &size, .wait = CLI_X11_WAIT))
         {
             return 0;
         }
-        const unsigned int came = packet[0] & 0x7fu;
-        const int ours = (came == CLI_X11_SELECTION_NOTIFY) && (x11_get32(packet + 8) == x11->window);
-        const int changed = (came == CLI_X11_PROPERTY_NOTIFY) && (x11_get32(packet + 4) == x11->window) &&
-                            (x11_get32(packet + 8) == property) && (packet[16] == 0u);
-        if ((came == kind) && (ours || changed))
+        const unsigned int came = args->packet[0] & 0x7fu;
+        const int ours = (came == CLI_X11_SELECTION_NOTIFY) &&
+                         (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->packet + 8) == args->x11->window);
+        const int changed =
+            (came == CLI_X11_PROPERTY_NOTIFY) &&
+            (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->packet + 4) == args->x11->window) &&
+            (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->packet + 8) == args->property) &&
+            (args->packet[16] == 0u);
+        if ((came == args->kind) && (ours || changed))
         {
             return 1;
         }
@@ -770,8 +903,10 @@ static int x11_event(const CliX11 *x11, unsigned int kind, unsigned int property
 
 // the property this connection reads the clipboard into read whole and appended to `out`, then deleted: its type into
 // `type` and its bytes into `size`: 1, or 0 where it could not be read
-static int x11_property_taken(const CliX11 *x11, VerbaLinea *out, unsigned int *type, unsigned long long *size)
+EMBED_INLINE int x11_property_take(const PosixClipboardCtx *args)
 {
+    unsigned int *type = args->type_pointer;
+    unsigned long long *size = args->size_pointer;
     static unsigned char s_piece[CLI_X11_PIECE];
     *size = 0ull;
     for (unsigned long long offset = 0ull;;)
@@ -779,24 +914,27 @@ static int x11_property_taken(const CliX11 *x11, VerbaLinea *out, unsigned int *
         unsigned char request[24];
         request[0] = (unsigned char)CLI_X11_GET_PROPERTY;
         request[1] = 0u;
-        x11_put16(request + 2, 6u);
-        x11_put32(request + 4, x11->window);
-        x11_put32(request + 8, x11->atom[CLI_X11_PROPERTY]);
-        x11_put32(request + 12, 0u);
+        EMBED_CALL(x11_put16, PosixClipboardCtx, .at = request + 2, .value = 6u);
+        EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 4, .value = args->x11->window);
+        EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 8, .value = args->x11->atom[CLI_X11_PROPERTY]);
+        EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 12, .value = 0u);
         // an offset in words is below what 32 bits count for any property a server holds
-        x11_put32(request + 16, (unsigned int)offset);
-        x11_put32(request + 20, CLI_X11_PIECE / 4u);
+        EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 16, .value = (unsigned int)offset);
+        EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 20, .value = CLI_X11_PIECE / 4u);
         unsigned char reply[32];
         unsigned long long got = 0ull;
-        if (!x11_sent(x11, request, sizeof(request)) || !x11_reply(x11, reply, s_piece, sizeof(s_piece), &got))
+        if (!EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request)) ||
+            !EMBED_CALL(x11_reply, PosixClipboardCtx, .x11 = args->x11, .packet = reply, .extra = s_piece,
+                        .room = sizeof(s_piece), .size_pointer = &got))
         {
             return 0;
         }
-        *type = x11_get32(reply + 8);
-        const unsigned long long after = x11_get32(reply + 12);
+        *type = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = reply + 8);
+        const unsigned long long after = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = reply + 12);
         const unsigned long long bytes =
-            (unsigned long long)x11_get32(reply + 16) * ((reply[1] != 0u) ? reply[1] / 8u : 1u);
-        mmgr_line_put_n(out, (const char *)s_piece, (bytes < got) ? bytes : got);
+            (unsigned long long)EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = reply + 16) *
+            ((reply[1] != 0u) ? reply[1] / 8u : 1u);
+        mmgr_line_put_n(args->out, (const char *)s_piece, (bytes < got) ? bytes : got);
         *size += (bytes < got) ? bytes : got;
         if (after == 0ull)
         {
@@ -804,46 +942,52 @@ static int x11_property_taken(const CliX11 *x11, VerbaLinea *out, unsigned int *
         }
         offset += got / 4ull;
     }
-    return x11_property_deleted(x11, x11->window, x11->atom[CLI_X11_PROPERTY]);
+    return EMBED_CALL(x11_property_delete, PosixClipboardCtx, .x11 = args->x11, .window = args->x11->window,
+                      .property = args->x11->atom[CLI_X11_PROPERTY]);
 }
 
 // the clipboard's content as `target` read into `out`, a content sent in pieces read piece by piece as INCR sends it:
 // 1, or 0 where its owner has none as `target` or does not answer in time
-static int x11_converted(const CliX11 *x11, unsigned int target, VerbaLinea *out)
+static int x11_convert(const PosixClipboardCtx *args)
 {
     unsigned char request[24];
     request[0] = (unsigned char)CLI_X11_CONVERT;
     request[1] = 0u;
-    x11_put16(request + 2, 6u);
-    x11_put32(request + 4, x11->window);
-    x11_put32(request + 8, x11->atom[CLI_X11_CLIPBOARD]);
-    x11_put32(request + 12, target);
-    x11_put32(request + 16, x11->atom[CLI_X11_PROPERTY]);
-    x11_put32(request + 20, 0u);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = request + 2, .value = 6u);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 4, .value = args->x11->window);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 8, .value = args->x11->atom[CLI_X11_CLIPBOARD]);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 12, .value = args->target);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 16, .value = args->x11->atom[CLI_X11_PROPERTY]);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = request + 20, .value = 0u);
     unsigned char packet[32];
-    if (!x11_sent(x11, request, sizeof(request)) || !x11_event(x11, CLI_X11_SELECTION_NOTIFY, 0u, packet) ||
-        (x11_get32(packet + 20) == 0u))
+    if (!EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request)) ||
+        !EMBED_CALL(x11_event, PosixClipboardCtx, .x11 = args->x11, .kind = CLI_X11_SELECTION_NOTIFY, .property = 0u,
+                    .packet = packet) ||
+        (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = packet + 20) == 0u))
     {
         return 0;
     }
     unsigned int type = 0u;
     unsigned long long size = 0ull;
-    const unsigned long long before = out->at;
-    if (!x11_property_taken(x11, out, &type, &size))
+    const unsigned long long before = args->out->at;
+    if (!EMBED_CALL(x11_property_take, PosixClipboardCtx, .x11 = args->x11, .out = args->out, .type_pointer = &type,
+                    .size_pointer = &size))
     {
         return 0;
     }
-    if (type != x11->atom[CLI_X11_INCR])
+    if (type != args->x11->atom[CLI_X11_INCR])
     {
         return 1;
     }
     // the INCR property's own bytes, the content's size, taken back off; its deletion asked for the first piece, and
     // each piece is read as it is put, the content's end a piece of none
-    out->at = before;
+    args->out->at = before;
     for (size = 1ull; size > 0ull;)
     {
-        if (!x11_event(x11, CLI_X11_PROPERTY_NOTIFY, x11->atom[CLI_X11_PROPERTY], packet) ||
-            !x11_property_taken(x11, out, &type, &size))
+        if (!EMBED_CALL(x11_event, PosixClipboardCtx, .x11 = args->x11, .kind = CLI_X11_PROPERTY_NOTIFY,
+                        .property = args->x11->atom[CLI_X11_PROPERTY], .packet = packet) ||
+            !EMBED_CALL(x11_property_take, PosixClipboardCtx, .x11 = args->x11, .out = args->out, .type_pointer = &type,
+                        .size_pointer = &size))
         {
             return 0;
         }
@@ -884,44 +1028,51 @@ static CliLock s_read_lock = CLI_LOCK_INIT;
 static CliWake s_started = CLI_WAKE_INIT;
 
 // the place of the content `target` asks for, or 3 where the clipboard holds none as it; under the lock
-static unsigned int owner_content_of(unsigned int target)
+EMBED_INLINE unsigned int owner_content_get(const PosixClipboardCtx *args)
 {
     const unsigned int *const atom = s_owner.x11.atom;
-    const int text =
-        (target == atom[CLI_X11_UTF8]) || (target == atom[CLI_X11_TEXT]) || (target == CLI_X11_ATOM_STRING);
-    const unsigned int place = text                               ? CLI_X11_OWNED_TEXT
-                               : (target == atom[CLI_X11_URIS])   ? CLI_X11_OWNED_URIS
-                               : (target == atom[CLI_X11_COPIED]) ? CLI_X11_OWNED_COPIED
-                                                                  : 3u;
+    const int text = (args->target == atom[CLI_X11_UTF8]) || (args->target == atom[CLI_X11_TEXT]) ||
+                     (args->target == CLI_X11_ATOM_STRING);
+    const unsigned int place = text                                     ? CLI_X11_OWNED_TEXT
+                               : (args->target == atom[CLI_X11_URIS])   ? CLI_X11_OWNED_URIS
+                               : (args->target == atom[CLI_X11_COPIED]) ? CLI_X11_OWNED_COPIED
+                                                                        : 3u;
     return ((place < 3u) && (s_owner.content[place] != NULL)) ? place : 3u;
 }
 
 // the program that asked told what it was given: the property it was put in, or none where it was refused
-static void owner_notified(const unsigned char *request, unsigned int property)
+EMBED_INLINE void owner_notify(const PosixClipboardCtx *args)
 {
     unsigned char event[44];
     memor.set(&(MemoriaCfg){.dst = event, .val = 0, .bytes = sizeof(event)});
     event[0] = (unsigned char)CLI_X11_SEND_EVENT;
-    x11_put16(event + 2, 11u);
-    x11_put32(event + 4, x11_get32(request + 12));
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = event + 2, .value = 11u);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = event + 4,
+               .value = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 12));
     event[12] = (unsigned char)CLI_X11_SELECTION_NOTIFY;
-    x11_put32(event + 16, x11_get32(request + 4));
-    x11_put32(event + 20, x11_get32(request + 12));
-    x11_put32(event + 24, x11_get32(request + 16));
-    x11_put32(event + 28, x11_get32(request + 20));
-    x11_put32(event + 32, property);
-    (void)x11_sent(&s_owner.x11, event, sizeof(event));
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = event + 16,
+               .value = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 4));
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = event + 20,
+               .value = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 12));
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = event + 24,
+               .value = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 16));
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = event + 28,
+               .value = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 20));
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = event + 32, .value = args->property);
+    (void)EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = &s_owner.x11, .bytes = event, .size = sizeof(event));
 }
 
 // a program's request for the clipboard answered: the targets it holds, or its content as the target asked, put on the
 // requestor's property whole or, past one request's room, written in pieces as INCR sends them; under the lock
-static void owner_requested(const unsigned char *request)
+EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
 {
     const CliX11 *const x11 = &s_owner.x11;
-    const unsigned int requestor = x11_get32(request + 12);
-    const unsigned int target = x11_get32(request + 20);
+    const unsigned int requestor = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 12);
+    const unsigned int target = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 20);
     // an old program names no property, and is given its content in the property its target names
-    const unsigned int property = (x11_get32(request + 24) != 0u) ? x11_get32(request + 24) : target;
+    const unsigned int property = (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 24) != 0u)
+                                      ? EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 24)
+                                      : target;
     if (target == x11->atom[CLI_X11_TARGETS])
     {
         unsigned char targets[6 * 4];
@@ -930,20 +1081,21 @@ static void owner_requested(const unsigned char *request)
                                        x11->atom[CLI_X11_TEXT],    x11->atom[CLI_X11_URIS], x11->atom[CLI_X11_COPIED]};
         for (unsigned int at = 0u; at < 6u; at += 1u)
         {
-            if ((at == 0u) || (owner_content_of(named[at]) < 3u))
+            if ((at == 0u) || (EMBED_CALL(owner_content_get, PosixClipboardCtx, .target = named[at]) < 3u))
             {
-                x11_put32(targets + (count * 4u), named[at]);
+                EMBED_CALL(x11_put32, PosixClipboardCtx, .at = targets + (count * 4u), .value = named[at]);
                 count += 1u;
             }
         }
-        (void)x11_property_put(x11, requestor, property, CLI_X11_ATOM_ATOM, 32u, targets, count * 4ull);
-        owner_notified(request, property);
+        (void)EMBED_CALL(x11_property_put, PosixClipboardCtx, .x11 = x11, .window = requestor, .property = property,
+                         .type = CLI_X11_ATOM_ATOM, .format = 32u, .bytes = targets, .size = count * 4ull);
+        EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = property);
         return;
     }
-    const unsigned int place = owner_content_of(target);
+    const unsigned int place = EMBED_CALL(owner_content_get, PosixClipboardCtx, .target = target);
     if ((place == 3u) || (s_owner.sending && (place < 3u)))
     {
-        owner_notified(request, 0u);
+        EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = 0u);
         return;
     }
     const unsigned int type = (target == x11->atom[CLI_X11_TEXT]) ? x11->atom[CLI_X11_UTF8] : target;
@@ -951,24 +1103,27 @@ static void owner_requested(const unsigned char *request)
     const unsigned long long whole = (most < CLI_X11_SENT_MOST) ? most : CLI_X11_SENT_MOST;
     if (s_owner.size[place] <= whole)
     {
-        (void)x11_property_put(x11, requestor, property, type, 8u, s_owner.content[place], s_owner.size[place]);
-        owner_notified(request, property);
+        (void)EMBED_CALL(x11_property_put, PosixClipboardCtx, .x11 = x11, .window = requestor, .property = property,
+                         .type = type, .format = 8u, .bytes = s_owner.content[place], .size = s_owner.size[place]);
+        EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = property);
         return;
     }
     // the requestor's property changes heard, each deletion asking for the next piece
     unsigned char hear[16];
     hear[0] = (unsigned char)CLI_X11_CHANGE_WINDOW;
     hear[1] = 0u;
-    x11_put16(hear + 2, 4u);
-    x11_put32(hear + 4, requestor);
-    x11_put32(hear + 8, CLI_X11_EVENT_MASK);
-    x11_put32(hear + 12, CLI_X11_PROPERTY_CHANGES);
+    EMBED_CALL(x11_put16, PosixClipboardCtx, .at = hear + 2, .value = 4u);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = hear + 4, .value = requestor);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = hear + 8, .value = CLI_X11_EVENT_MASK);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = hear + 12, .value = CLI_X11_PROPERTY_CHANGES);
     unsigned char size[4];
     // a content's size is put as INCR's lower bound, cut to what 32 bits count
-    x11_put32(size, (s_owner.size[place] < 0xffffffffull) ? (unsigned int)s_owner.size[place] : 0xffffffffu);
-    (void)x11_sent(x11, hear, sizeof(hear));
-    (void)x11_property_put(x11, requestor, property, x11->atom[CLI_X11_INCR], 32u, size, sizeof(size));
-    owner_notified(request, property);
+    EMBED_CALL(x11_put32, PosixClipboardCtx, .at = size,
+               .value = (s_owner.size[place] < 0xffffffffull) ? (unsigned int)s_owner.size[place] : 0xffffffffu);
+    (void)EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = x11, .bytes = hear, .size = sizeof(hear));
+    (void)EMBED_CALL(x11_property_put, PosixClipboardCtx, .x11 = x11, .window = requestor, .property = property,
+                     .type = x11->atom[CLI_X11_INCR], .format = 32u, .bytes = size, .size = sizeof(size));
+    EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = property);
     s_owner.requestor = requestor;
     s_owner.property = property;
     s_owner.type = type;
@@ -979,10 +1134,11 @@ static void owner_requested(const unsigned char *request)
 
 // the next piece of a content sent in pieces put, as the requestor deleted the last: the end a piece of none; under the
 // lock
-static void owner_piece_sent(const unsigned char *event)
+EMBED_INLINE void owner_piece_send(const PosixClipboardCtx *args)
 {
-    const int deleted =
-        (event[16] == 1u) && (x11_get32(event + 4) == s_owner.requestor) && (x11_get32(event + 8) == s_owner.property);
+    const int deleted = (args->event[16] == 1u) &&
+                        (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->event + 4) == s_owner.requestor) &&
+                        (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->event + 8) == s_owner.property);
     if (!s_owner.sending || !deleted)
     {
         return;
@@ -990,14 +1146,15 @@ static void owner_piece_sent(const unsigned char *event)
     const char *const content = s_owner.content[s_owner.piece_of];
     const unsigned long long left = (content != NULL) ? s_owner.size[s_owner.piece_of] - s_owner.sent : 0ull;
     const unsigned long long piece = (left < CLI_X11_SENT_MOST) ? left : CLI_X11_SENT_MOST;
-    (void)x11_property_put(&s_owner.x11, s_owner.requestor, s_owner.property, s_owner.type, 8u,
-                           (content != NULL) ? content + s_owner.sent : "", piece);
+    (void)EMBED_CALL(x11_property_put, PosixClipboardCtx, .x11 = &s_owner.x11, .window = s_owner.requestor,
+                     .property = s_owner.property, .type = s_owner.type, .format = 8u,
+                     .bytes = (content != NULL) ? content + s_owner.sent : "", .size = piece);
     s_owner.sent += piece;
     s_owner.sending = piece > 0ull;
 }
 
 // every content the clipboard served let go; under the lock
-static void owner_contents_given(void)
+static void owner_contents_free(void)
 {
     for (unsigned int place = 0u; place < 3u; place += 1u)
     {
@@ -1014,18 +1171,20 @@ static void owner_run(void *context)
     (void)context;
     static unsigned char s_reply[CLI_X11_PIECE];
     CliX11 *const x11 = &s_owner.x11;
-    cli_lock_take(&s_lock);
-    s_owner.owning = x11_connected(x11) && x11_owner_set(x11, x11->window);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    s_owner.owning = EMBED_CALL(x11_connect, PosixClipboardCtx, .x11_out = x11) &&
+                     EMBED_CALL(x11_owner_set, PosixClipboardCtx, .x11 = x11, .owner = x11->window);
     s_owner.starting = 0;
-    cli_wake_all(&s_started);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_started);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     for (int serving = s_owner.owning; serving;)
     {
         unsigned char packet[32];
         unsigned long long size = 0ull;
-        serving = x11_packet(x11, packet, s_reply, sizeof(s_reply), &size, -1);
+        serving = EMBED_CALL(x11_packet, PosixClipboardCtx, .x11 = x11, .packet = packet, .extra = s_reply,
+                             .room = sizeof(s_reply), .size_pointer = &size, .wait = -1);
         const unsigned int kind = packet[0] & 0x7fu;
-        cli_lock_take(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         if (serving && (kind == CLI_X11_SELECTION_CLEAR))
         {
             // a clear that came before this window took the clipboard back is past
@@ -1034,119 +1193,130 @@ static void owner_run(void *context)
         }
         else if (serving && (kind == CLI_X11_SELECTION_REQUEST))
         {
-            owner_requested(packet);
+            EMBED_CALL(owner_request, PosixClipboardCtx, .request = packet);
         }
         else if (serving && (kind == CLI_X11_PROPERTY_NOTIFY))
         {
-            owner_piece_sent(packet);
+            EMBED_CALL(owner_piece_send, PosixClipboardCtx, .event = packet);
         }
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_owner.owning = 0;
-    owner_contents_given();
-    x11_closed(x11);
-    cli_lock_give(&s_lock);
+    owner_contents_free();
+    EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = x11);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // `size` bytes of `bytes` taken into a cell of their own as the content at `place`: 1, or 0 where no cell could be
 // taken; under the lock
-static int owner_content_put(unsigned int place, const char *bytes, unsigned long long size)
+EMBED_INLINE int owner_content_put(const PosixClipboardCtx *args)
 {
-    char *const cell = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_platform_cells);
+    const char *bytes = args->bytes_text;
+    char *const cell = g_cli_cells->persistent_buf_alloc(args->size + 1ull, &g_cli_platform_cells);
     if (cell == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = cell, .src = bytes, .bytes = size});
-    cell[size] = '\0';
-    s_owner.content[place] = cell;
-    s_owner.size[place] = size;
+    memor.cpy(&(MemoriaCfg){.dst = cell, .src = bytes, .bytes = args->size});
+    cell[args->size] = '\0';
+    s_owner.content[args->place] = cell;
+    s_owner.size[args->place] = args->size;
     return 1;
 }
 
 // the clipboard owned with the contents put since the last were let go, its thread started where it does not run:
 // 1, or 0 where the display could not be reached; under the lock
-static int owner_owned(void)
+static int owner_own(void)
 {
     if (s_owner.owning)
     {
         s_owner.reowned = 1;
-        return x11_owner_set(&s_owner.x11, s_owner.x11.window);
+        return EMBED_CALL(x11_owner_set, PosixClipboardCtx, .x11 = &s_owner.x11, .owner = s_owner.x11.window);
     }
     s_owner.starting = 1;
     s_owner.thread = (CliThread){owner_run, NULL, CLI_PRIORITY_WORK};
-    if (!cli_thread_started(&s_owner.thread))
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_owner.thread))
     {
         s_owner.starting = 0;
         return 0;
     }
     while (s_owner.starting)
     {
-        cli_wake_wait(&s_started, &s_lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_started, .lock = &s_lock);
     }
     return s_owner.owning;
 }
 
-int cli_clipboard_text_read(VerbaLinea *text)
+int cli_clipboard_text_read(const CliCtx *args)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int own = s_owner.owning && (s_owner.content[CLI_X11_OWNED_TEXT] != NULL);
     if (own)
     {
-        mmgr_line_put_n(text, s_owner.content[CLI_X11_OWNED_TEXT], s_owner.size[CLI_X11_OWNED_TEXT]);
+        mmgr_line_put_n(args->text_verba_linea_pointer, s_owner.content[CLI_X11_OWNED_TEXT],
+                        s_owner.size[CLI_X11_OWNED_TEXT]);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (own)
     {
         return 1;
     }
-    cli_lock_take(&s_read_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_read_lock);
     CliX11 x11;
-    const int read = x11_connected(&x11) && (x11_converted(&x11, x11.atom[CLI_X11_UTF8], text) ||
-                                             x11_converted(&x11, CLI_X11_ATOM_STRING, text));
-    x11_closed(&x11);
-    cli_lock_give(&s_read_lock);
+    const int read = EMBED_CALL(x11_connect, PosixClipboardCtx, .x11_out = &x11) &&
+                     (EMBED_CALL(x11_convert, PosixClipboardCtx, .x11 = &x11, .target = x11.atom[CLI_X11_UTF8],
+                                 .out = args->text_verba_linea_pointer) ||
+                      EMBED_CALL(x11_convert, PosixClipboardCtx, .x11 = &x11, .target = CLI_X11_ATOM_STRING,
+                                 .out = args->text_verba_linea_pointer));
+    EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = &x11);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_read_lock);
     return read;
 }
 
-int cli_clipboard_text_written(const char *text, unsigned long long size)
+int cli_clipboard_text_write(const CliSizeTextCtx *args)
 {
-    cli_lock_take(&s_lock);
-    owner_contents_given();
-    const int owned = owner_content_put(CLI_X11_OWNED_TEXT, text, size) && owner_owned();
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    owner_contents_free();
+    const int owned = EMBED_CALL(owner_content_put, PosixClipboardCtx, .place = CLI_X11_OWNED_TEXT,
+                                 .bytes_text = args->text, .size = args->size) &&
+                      owner_own();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return owned;
 }
 
-int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cut)
+int cli_clipboard_files_put(const CliCountCtx *args)
 {
     // a path's byte is written as at most 3 in a URI, and each path adds its scheme and a line's end
-    const unsigned long long uri_room = (unsigned long long)count * ((3ull * CLI_PATH_MAX_LEN) + 16ull);
-    const unsigned long long text_room = (unsigned long long)count * (CLI_PATH_MAX_LEN + 1ull);
+    const unsigned long long uri_room = (unsigned long long)args->count * ((3ull * CLI_PATH_MAX_LEN) + 16ull);
+    const unsigned long long text_room = (unsigned long long)args->count * (CLI_PATH_MAX_LEN + 1ull);
     char *const uris_cell = g_cli_cells->temporary_buf_alloc(uri_room + 1ull, &g_cli_platform_cells);
     char *const copied_cell = g_cli_cells->temporary_buf_alloc(uri_room + 8ull, &g_cli_platform_cells);
     char *const text_cell = g_cli_cells->temporary_buf_alloc(text_room + 1ull, &g_cli_platform_cells);
     VerbaLinea uris = mmgr_line_over(uris_cell, uri_room + 1ull);
     VerbaLinea copied = mmgr_line_over(copied_cell, uri_room + 8ull);
     VerbaLinea text = mmgr_line_over(text_cell, text_room + 1ull);
-    mmgr_line_put(&copied, cut ? "cut" : "copy");
-    for (unsigned int at = 0u; at < count; at += 1u)
+    mmgr_line_put(&copied, args->cut ? "cut" : "copy");
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        clipboard_uri_written(&uris, paths[at]);
+        EMBED_CALL(clipboard_uri_write, PosixClipboardCtx, .out = &uris, .path = args->paths[at]);
         mmgr_line_put(&uris, "\r\n");
         mmgr_line_ch(&copied, '\n');
-        clipboard_uri_written(&copied, paths[at]);
+        EMBED_CALL(clipboard_uri_write, PosixClipboardCtx, .out = &copied, .path = args->paths[at]);
         mmgr_line_put(&text, (at > 0u) ? "\n" : "");
-        mmgr_line_put(&text, paths[at]);
+        mmgr_line_put(&text, args->paths[at]);
     }
-    cli_lock_take(&s_lock);
-    owner_contents_given();
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    owner_contents_free();
     const int owned = mmgr_line_ok(&uris) && mmgr_line_ok(&copied) && mmgr_line_ok(&text) &&
-                      owner_content_put(CLI_X11_OWNED_URIS, uris.out, uris.at) &&
-                      owner_content_put(CLI_X11_OWNED_COPIED, copied.out, copied.at) &&
-                      owner_content_put(CLI_X11_OWNED_TEXT, text.out, text.at) && owner_owned();
-    cli_lock_give(&s_lock);
+                      EMBED_CALL(owner_content_put, PosixClipboardCtx, .place = CLI_X11_OWNED_URIS,
+                                 .bytes_text = uris.out, .size = uris.at) &&
+                      EMBED_CALL(owner_content_put, PosixClipboardCtx, .place = CLI_X11_OWNED_COPIED,
+                                 .bytes_text = copied.out, .size = copied.at) &&
+                      EMBED_CALL(owner_content_put, PosixClipboardCtx, .place = CLI_X11_OWNED_TEXT,
+                                 .bytes_text = text.out, .size = text.at) &&
+                      owner_own();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(uris.out, &g_cli_platform_cells);
     g_cli_cells->persistent_buf_release(copied.out, &g_cli_platform_cells);
     g_cli_cells->persistent_buf_release(text.out, &g_cli_platform_cells);
@@ -1155,28 +1325,35 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
 
 // the files GNOME's copied-files target holds, `size` bytes of `list`, its first line `cut` or `copy`, handed to
 // `each`, 1 in `cut` where they were cut: how many
-static unsigned int clipboard_copied_read(const char *list, unsigned long long size,
-                                          void (*each)(void *context, const char *path), void *context, int *cut)
+EMBED_INLINE unsigned int clipboard_copied_read(const PosixClipboardCtx *args)
 {
+    unsigned long long size = args->size;
+    int *cut = args->cut;
     unsigned long long first = 0ull;
-    first = cli_text_to_any(list, first, size, "\n");
-    *cut = (first == 3ull) && (list[0] == 'c') && (list[1] == 'u') && (list[2] == 't');
-    return (first < size) ? clipboard_uris_read(list + first + 1ull, size - first - 1ull, each, context) : 0u;
+    first = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->list, .at = first,
+                       .size = size, .set = "\n");
+    *cut = (first == 3ull) && (args->list[0] == 'c') && (args->list[1] == 'u') && (args->list[2] == 't');
+    return (first < size) ? EMBED_CALL(clipboard_uris_read, PosixClipboardCtx, .list = args->list + first + 1ull,
+                                       .size = size - first - 1ull, .each = args->each, .context = args->context)
+                          : 0u;
 }
 
-unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *path), void *context, int *cut)
+unsigned int cli_clipboard_files_read(const CliEachCtx *args)
 {
+    void (*each)(const CliEachPathCfg *args) = args->each;
+    void *context = args->context;
+    int *cut = args->cut_pointer;
     *cut = -1;
     unsigned int count = 0u;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     // a clipboard this window owns holds the files it put, or none where it put text
     const int own = s_owner.owning;
     if (own && (s_owner.content[CLI_X11_OWNED_COPIED] != NULL))
     {
-        count = clipboard_copied_read(s_owner.content[CLI_X11_OWNED_COPIED], s_owner.size[CLI_X11_OWNED_COPIED], each,
-                                      context, cut);
+        count = EMBED_CALL(clipboard_copied_read, PosixClipboardCtx, .list = s_owner.content[CLI_X11_OWNED_COPIED],
+                           .size = s_owner.size[CLI_X11_OWNED_COPIED], .each = each, .context = context, .cut = cut);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (own)
     {
         return count;
@@ -1188,47 +1365,52 @@ unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *pa
     {
         return 0u;
     }
-    cli_lock_take(&s_read_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_read_lock);
     CliX11 x11;
-    if (x11_connected(&x11))
+    if (EMBED_CALL(x11_connect, PosixClipboardCtx, .x11_out = &x11))
     {
-        if (x11_converted(&x11, x11.atom[CLI_X11_COPIED], &list) && mmgr_line_ok(&list))
+        if (EMBED_CALL(x11_convert, PosixClipboardCtx, .x11 = &x11, .target = x11.atom[CLI_X11_COPIED], .out = &list) &&
+            mmgr_line_ok(&list))
         {
-            count = clipboard_copied_read(list.out, list.at, each, context, cut);
+            count = EMBED_CALL(clipboard_copied_read, PosixClipboardCtx, .list = list.out, .size = list.at,
+                               .each = each, .context = context, .cut = cut);
         }
         else
         {
             list.at = 0ull;
-            count = (x11_converted(&x11, x11.atom[CLI_X11_URIS], &list) && mmgr_line_ok(&list))
-                        ? clipboard_uris_read(list.out, list.at, each, context)
+            count = (EMBED_CALL(x11_convert, PosixClipboardCtx, .x11 = &x11, .target = x11.atom[CLI_X11_URIS],
+                                .out = &list) &&
+                     mmgr_line_ok(&list))
+                        ? EMBED_CALL(clipboard_uris_read, PosixClipboardCtx, .list = list.out, .size = list.at,
+                                     .each = each, .context = context)
                         : 0u;
         }
     }
-    x11_closed(&x11);
-    cli_lock_give(&s_read_lock);
+    EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = &x11);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_read_lock);
     g_cli_cells->persistent_buf_release(list.out, &g_cli_platform_cells);
     return count;
 }
 
-void cli_clipboard_emptied(void)
+void cli_clipboard_clear(void)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int own = s_owner.owning;
     if (own)
     {
         // the server tells the owner its clipboard is cleared, which ends its thread
         s_owner.reowned = 0;
-        (void)x11_owner_set(&s_owner.x11, 0u);
+        (void)EMBED_CALL(x11_owner_set, PosixClipboardCtx, .x11 = &s_owner.x11, .owner = 0u);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!own)
     {
         CliX11 x11;
-        if (x11_connected(&x11))
+        if (EMBED_CALL(x11_connect, PosixClipboardCtx, .x11_out = &x11))
         {
-            (void)x11_owner_set(&x11, 0u);
+            (void)EMBED_CALL(x11_owner_set, PosixClipboardCtx, .x11 = &x11, .owner = 0u);
         }
-        x11_closed(&x11);
+        EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = &x11);
     }
 }
 #endif

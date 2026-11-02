@@ -13,19 +13,44 @@
 // the bytes an argument handed to a server is written in, and the most lines a view's openers name
 #define CLI_SERVE_LSP_OPENERS 64u
 
+typedef struct
+{
+    const CliServeArgs *request;
+    char *root;
+    char *full;
+    VerbaLinea *err_msg;
+    unsigned int *line;
+    unsigned int *col;
+    const char *key;
+    VerbaLinea *line_verba_linea_pointer;
+    VerbaLinea *json;
+    char *service;
+} ServeCallLspCtx;
 // the tree open into `root` and the file of the argument `path` joined to it into `full`, the servers informed where
 // what they send goes: 1, or 0 with why given
-static int lsp_file(const CliServeArgs *args, char *root, char *full, VerbaLinea *err_msg)
+EMBED_INLINE int lsp_file(const ServeCallLspCtx *args)
 {
-    return cli_serve_at(args, root, full, err_msg);
+    const CliServeArgs *arguments = args->request;
+    char *root = args->root;
+    char *full = args->full;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx, .request = arguments,
+                      .root = root, .full = full, .err_msg = err_msg);
 }
 
 // the arguments `line` and `col`: 1, or 0 with why given
-static int lsp_line_col(const CliServeArgs *args, unsigned int *line, unsigned int *col, VerbaLinea *err_msg)
+EMBED_INLINE int lsp_line_col(const ServeCallLspCtx *args)
 {
+    const CliServeArgs *arguments = args->request;
+    unsigned int *line = args->line;
+    unsigned int *col = args->col;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long read_line = 0ull;
     unsigned long long read_col = 0ull;
-    if (!cli_serve_whole(args, "line", &read_line, err_msg) || !cli_serve_whole(args, "col", &read_col, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "line",
+                    .value = &read_line, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "col",
+                    .value = &read_col, .err_msg = err_msg))
     {
         return 0;
     }
@@ -35,166 +60,267 @@ static int lsp_line_col(const CliServeArgs *args, unsigned int *line, unsigned i
     return 1;
 }
 
-static int lsp_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_open(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
-    const char *const language = cli_serve_string(args, "language", err_msg);
-    const char *const text = (language != NULL) ? cli_serve_string(args, "text", err_msg) : NULL;
-    if ((text == NULL) || !lsp_file(args, root, full, err_msg))
+    const char *const language = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                            .key = "language", .err_msg = err_msg);
+    const char *const text = (language != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                             .request = arguments, .key = "text", .err_msg = err_msg)
+                                                : NULL;
+    if ((text == NULL) ||
+        !EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full, .err_msg = err_msg))
     {
         return 0;
     }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &length);
-    const CliServersSink emit = cli_serve_emitter(root);
-    return cli_servers_open(root, full, language, text, length, &emit, out, err_msg);
+    (void)EMBED_CALL(
+        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text"),
+        .length_pointer = &length);
+    const CliServersSink emit = EMBED_CALL(cli_serve_internal.emitter, CliServeCtx, .tree = root);
+    return EMBED_CALL(cli_servers_root.open, CliServersRootCfg, .root = root, .path = full, .language = language,
+                      .text = text, .size = length, .sink = &emit, .out = out, .err_msg = err_msg);
 }
 
-static int lsp_change(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_change(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
-    const char *const text = cli_serve_string(args, "text", err_msg);
-    if ((text == NULL) || !lsp_file(args, root, full, err_msg))
+    const char *const text = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "text", .err_msg = err_msg);
+    if ((text == NULL) ||
+        !EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full, .err_msg = err_msg))
     {
         return 0;
     }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &length);
-    if (!cli_servers_change(full, text, length, err_msg))
+    (void)EMBED_CALL(
+        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text"),
+        .length_pointer = &length);
+    if (!EMBED_CALL(cli_servers_root.change, CliServersRootCfg, .path = full, .text = text, .size = length,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
 // the view the page rests on: its first and last lines, the lines opening the regions its first line stands inside,
 // outermost first, read off the branch under `key` as its lines were colored
-static int lsp_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_view(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned long long first = 0ull;
     unsigned long long last = 0ull;
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    if ((key == NULL) || !lsp_file(args, root, full, err_msg) || !cli_serve_whole(args, "first", &first, err_msg) ||
-        !cli_serve_whole(args, "last", &last, err_msg))
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    if ((key == NULL) ||
+        !EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "first",
+                    .value = &first, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "last",
+                    .value = &last, .err_msg = err_msg))
     {
         return 0;
     }
     unsigned int opener[CLI_SERVE_LSP_OPENERS];
     // a line of a text the page holds is below 2^32
-    const unsigned int openers = cli_document_openers(key, (unsigned int)first, opener, CLI_SERVE_LSP_OPENERS);
-    return cli_servers_view(full, (unsigned int)first, (unsigned int)last, opener, openers, out, err_msg);
+    const unsigned int openers =
+        EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = key, .line = (unsigned int)first,
+                   .opener = opener, .most_u32 = CLI_SERVE_LSP_OPENERS);
+    return EMBED_CALL(cli_servers_path_out_err_msg.view, CliServersPathOutErrMsgCfg, .path = full,
+                      .first = (unsigned int)first, .last = (unsigned int)last, .opener = opener, .openers = openers,
+                      .out = out, .err_msg = err_msg);
 }
 
-static int lsp_close(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_close(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
-    if (!lsp_file(args, root, full, err_msg) || !cli_servers_close(full, err_msg))
+    if (!EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_servers_path_out_err_msg_from_to.close, CliServersPathOutErrMsgFromToCfg, .path = full,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-static int lsp_hover_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_hover_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int line = 0u;
     unsigned int col = 0u;
-    return lsp_file(args, root, full, err_msg) && lsp_line_col(args, &line, &col, err_msg) &&
-           cli_servers_hover(full, line, col, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(lsp_line_col, ServeCallLspCtx, .request = arguments, .line = &line, .col = &col,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out.hover, CliServersPathOutCfg, .path = full, .line = line, .col = col,
+                      .out = out, .err_msg = err_msg);
 }
 
-static int lsp_definition_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_definition_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int line = 0u;
     unsigned int col = 0u;
-    return lsp_file(args, root, full, err_msg) && lsp_line_col(args, &line, &col, err_msg) &&
-           cli_servers_definition(root, full, line, col, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(lsp_line_col, ServeCallLspCtx, .request = arguments, .line = &line, .col = &col,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out.definition, CliServersPathOutCfg, .tree = root, .path = full, .line = line,
+                      .col = col, .out = out, .err_msg = err_msg);
 }
 
-static int lsp_complete_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_complete_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int line = 0u;
     unsigned int col = 0u;
-    return lsp_file(args, root, full, err_msg) && lsp_line_col(args, &line, &col, err_msg) &&
-           cli_servers_complete(full, line, col, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(lsp_line_col, ServeCallLspCtx, .request = arguments, .line = &line, .col = &col,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out.complete, CliServersPathOutCfg, .path = full, .line = line, .col = col,
+                      .out = out, .err_msg = err_msg);
 }
 
-static int lsp_references_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_references_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int line = 0u;
     unsigned int col = 0u;
-    return lsp_file(args, root, full, err_msg) && lsp_line_col(args, &line, &col, err_msg) &&
-           cli_servers_references(root, full, line, col, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(lsp_line_col, ServeCallLspCtx, .request = arguments, .line = &line, .col = &col,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out.references, CliServersPathOutCfg, .tree = root, .path = full, .line = line,
+                      .col = col, .out = out, .err_msg = err_msg);
 }
 
-static int lsp_renamable_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_renamable_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int line = 0u;
     unsigned int col = 0u;
-    return lsp_file(args, root, full, err_msg) && lsp_line_col(args, &line, &col, err_msg) &&
-           cli_servers_renamable(full, line, col, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(lsp_line_col, ServeCallLspCtx, .request = arguments, .line = &line, .col = &col,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out.renamable, CliServersPathOutCfg, .path = full, .line = line, .col = col,
+                      .out = out, .err_msg = err_msg);
 }
 
-static int lsp_rename_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_rename_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int line = 0u;
     unsigned int col = 0u;
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    return (name != NULL) && lsp_file(args, root, full, err_msg) && lsp_line_col(args, &line, &col, err_msg) &&
-           cli_servers_rename(root, full, line, col, name, out, err_msg);
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    return (name != NULL) &&
+           EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(lsp_line_col, ServeCallLspCtx, .request = arguments, .line = &line, .col = &col,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out.rename, CliServersPathOutCfg, .tree = root, .path = full, .line = line,
+                      .col = col, .name = name, .out = out, .err_msg = err_msg);
 }
 
-static int lsp_signature_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_signature_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int line = 0u;
     unsigned int col = 0u;
-    return lsp_file(args, root, full, err_msg) && lsp_line_col(args, &line, &col, err_msg) &&
-           cli_servers_signature(full, line, col, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(lsp_line_col, ServeCallLspCtx, .request = arguments, .line = &line, .col = &col,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out.signature, CliServersPathOutCfg, .path = full, .line = line, .col = col,
+                      .out = out, .err_msg = err_msg);
 }
 
-static int lsp_actions_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_actions_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     CliTextPlace from = {0u, 0u};
     CliTextPlace to = {0u, 0u};
-    return lsp_file(args, root, full, err_msg) && cli_serve_place(args, "from", &from, err_msg) &&
-           cli_serve_place(args, "to", &to, err_msg) && cli_servers_actions(full, from, to, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.place, CliServeErrMsgCtx, .request = arguments, .key = "from",
+                      .place = &from, .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.place, CliServeErrMsgCtx, .request = arguments, .key = "to",
+                      .place = &to, .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out_err_msg_from.actions, CliServersPathOutErrMsgFromCfg, .path = full,
+                      .from = from, .to = to, .out = out, .err_msg = err_msg);
 }
 
 // the argument `key` written as JSON into `line`, null where it is not given, the line given back with
 // g_cli_cells->persistent_buf_release(line->out, &g_cli_window_cells) either way: 1, or 0 with why given where the
 // cellblock could not meet it
-static int lsp_json_written(const CliServeArgs *args, const char *key, VerbaLinea *line, VerbaLinea *err_msg)
+EMBED_INLINE int lsp_json_write(const ServeCallLspCtx *args)
 {
-    const unsigned long long room = cli_json_written_room(args->json);
+    const CliServeArgs *arguments = args->request;
+    const char *key = args->key;
+    VerbaLinea *line = args->line_verba_linea_pointer;
+    const unsigned long long room =
+        EMBED_CALL(cli_json_tree_node_out.json_write_room, CliJsonTreeNodeOutCfg, .json_read = arguments->json);
     char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_window_cells);
     *line = mmgr_line_over(cell, room);
-    const unsigned int given = cli_serve_arg(args, key);
+    const unsigned int given =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = key);
     if (given != CLI_JSON_NONE)
     {
-        cli_json_write(args->json, given, line, 0u, 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = arguments->json,
+                   .node = given, .out = line, .indent = 0u, .sorted = 0);
     }
     else
     {
@@ -202,161 +328,225 @@ static int lsp_json_written(const CliServeArgs *args, const char *key, VerbaLine
     }
     if (!mmgr_line_ok(line))
     {
-        mmgr_line_put(err_msg, "the cells cannot meet the argument ");
-        mmgr_line_put(err_msg, key);
+        mmgr_line_put(args->err_msg, "the cells cannot meet the argument ");
+        mmgr_line_put(args->err_msg, key);
         return 0;
     }
     return 1;
 }
 
-static int lsp_act_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_act_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
-    if (!lsp_file(args, root, full, err_msg))
+    if (!EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full, .err_msg = err_msg))
     {
         return 0;
     }
     VerbaLinea raw = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    const int done =
-        lsp_json_written(args, "raw", &raw, err_msg) && cli_servers_act(root, full, raw.out, raw.at, out, err_msg);
+    const int done = EMBED_CALL(lsp_json_write, ServeCallLspCtx, .request = arguments, .key = "raw",
+                                .line_verba_linea_pointer = &raw, .err_msg = err_msg) &&
+                     EMBED_CALL(cli_servers_path_size.act, CliServersPathSizeCfg, .tree = root, .path = full,
+                                .raw = raw.out, .size = raw.at, .out = out, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(raw.out, &g_cli_window_cells);
     return done;
 }
 
-static int parse_colors_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int parse_colors_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
     // the lines are cut to their low words, as no file has more
-    return lsp_file(args, root, full, err_msg) && cli_serve_whole(args, "from", &from, err_msg) &&
-           cli_serve_whole(args, "to", &to, err_msg) &&
-           cli_servers_colors(full, (unsigned int)from, (unsigned int)to, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "from",
+                      .value = &from, .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "to",
+                      .value = &to, .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out_err_msg_from_to.colors, CliServersPathOutErrMsgFromToCfg, .path = full,
+                      .from_u32 = (unsigned int)from, .to_u32 = (unsigned int)to, .out = out, .err_msg = err_msg);
 }
 
-static int parse_spans_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int parse_spans_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     CliTextPlace from = {0u, 0u};
     CliTextPlace to = {0u, 0u};
-    const char *const key = cli_serve_string_or(args, "key", NULL);
-    return lsp_file(args, root, full, err_msg) && cli_serve_place(args, "from", &from, err_msg) &&
-           cli_serve_place(args, "to", &to, err_msg) && cli_servers_spans(full, key, from, to, out, err_msg);
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .otherwise = NULL);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.place, CliServeErrMsgCtx, .request = arguments, .key = "from",
+                      .place = &from, .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.place, CliServeErrMsgCtx, .request = arguments, .key = "to",
+                      .place = &to, .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out_err_msg_from.spans, CliServersPathOutErrMsgFromCfg, .path = full, .key = key,
+                      .from = from, .to = to, .out = out, .err_msg = err_msg);
 }
 
-static int lsp_hints_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int lsp_hints_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
     // the lines are cut to their low words, as no file has more
-    return lsp_file(args, root, full, err_msg) && cli_serve_whole(args, "from", &from, err_msg) &&
-           cli_serve_whole(args, "to", &to, err_msg) &&
-           cli_servers_hints(full, (unsigned int)from, (unsigned int)to, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "from",
+                      .value = &from, .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "to",
+                      .value = &to, .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out_err_msg_from_to.hints, CliServersPathOutErrMsgFromToCfg, .path = full,
+                      .from_u32 = (unsigned int)from, .to_u32 = (unsigned int)to, .out = out, .err_msg = err_msg);
 }
 
-static int calls_root_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int calls_root_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int line = 0u;
     unsigned int col = 0u;
-    return lsp_file(args, root, full, err_msg) && lsp_line_col(args, &line, &col, err_msg) &&
-           cli_servers_call_root(root, full, line, col, out, err_msg);
+    return EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(lsp_line_col, ServeCallLspCtx, .request = arguments, .line = &line, .col = &col,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_servers_path_out.call_root, CliServersPathOutCfg, .tree = root, .path = full, .line = line,
+                      .col = col, .out = out, .err_msg = err_msg);
 }
 
-static int calls_of_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int calls_of_now(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     int incoming = 0;
-    if (!lsp_file(args, root, full, err_msg) || !cli_serve_bool(args, "incoming", &incoming, err_msg))
+    if (!EMBED_CALL(lsp_file, ServeCallLspCtx, .request = arguments, .root = root, .full = full, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.serve_bool, CliServeErrMsgCtx, .request = arguments, .key = "incoming",
+                    .value_i32s = &incoming, .err_msg = err_msg))
     {
         return 0;
     }
     VerbaLinea item = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    const int done = lsp_json_written(args, "item", &item, err_msg) &&
-                     cli_servers_calls(root, full, item.out, item.at, incoming, out, err_msg);
+    const int done = EMBED_CALL(lsp_json_write, ServeCallLspCtx, .request = arguments, .key = "item",
+                                .line_verba_linea_pointer = &item, .err_msg = err_msg) &&
+                     EMBED_CALL(cli_servers_path.calls, CliServersPathCfg, .tree = root, .path = full, .item = item.out,
+                                .size = item.at, .incoming = incoming, .out = out, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(item.out, &g_cli_window_cells);
     return done;
 }
 
-static int problems_check(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int problems_check(const CliServeAnswerCfg *args)
 {
-    (void)args;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    CliServeFiles *const listed = cli_serve_files_listed(root, err_msg);
+    CliServeFiles *const listed = EMBED_CALL(cli_serve_err_msg_root_internal.files_list, CliServeErrMsgRootCtx,
+                                             .root_read = root, .err_msg = err_msg);
     if (listed == NULL)
     {
         return 0;
     }
-    const CliServersSink emit = cli_serve_emitter(root);
-    mmgr_line_decimal(out, cli_servers_check_tree(root, listed->paths, listed->count, &emit), 1u);
-    cli_serve_files_given(listed);
+    const CliServersSink emit = EMBED_CALL(cli_serve_internal.emitter, CliServeCtx, .tree = root);
+    mmgr_line_decimal(args->out,
+                      EMBED_CALL(cli_servers_root_sink_count.check_tree, CliServersRootSinkCountCfg, .root = root,
+                                 .files = listed->paths, .count = listed->count, .sink = &emit),
+                      1u);
+    EMBED_CALL(cli_serve_listed_internal.files_free, CliServeListedCtx, .listed = listed);
     return 1;
 }
 
-static int problems_check_stop(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int problems_check_stop(const CliServeAnswerCfg *args)
 {
-    (void)args;
-    (void)err_msg;
     cli_servers_stop_check();
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-static int checkers_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int checkers_set(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     static const char *s_names[CLI_SERVERS_CHECKERS];
     unsigned int count = 0u;
-    if (!cli_serve_strings(args, "names", s_names, CLI_SERVERS_CHECKERS, &count, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.strings, CliServeErrMsgCtx, .request = arguments, .key = "names",
+                    .items = s_names, .room = CLI_SERVERS_CHECKERS, .count = &count, .err_msg = err_msg))
     {
         return 0;
     }
     char root[CLI_PATH_MAX_LEN];
-    const int has_root = cli_serve_root_now(root);
+    const int has_root = EMBED_CALL(cli_serve_err_msg_root.root_now, CliServeErrMsgRootCfg, .root_out = root);
     // with no tree open what the checkers find goes nowhere
-    const CliServersSink emit = has_root ? cli_serve_emitter(root) : (CliServersSink){NULL, NULL, ""};
-    return cli_servers_set_checkers(s_names, count, has_root ? root : NULL, &emit, out, err_msg);
+    const CliServersSink emit =
+        has_root ? EMBED_CALL(cli_serve_internal.emitter, CliServeCtx, .tree = root) : (CliServersSink){NULL, NULL, ""};
+    return EMBED_CALL(cli_servers_root_sink_out.set_checkers, CliServersRootSinkOutCfg, .names = s_names,
+                      .count = count, .root = has_root ? root : NULL, .sink = &emit, .out = out, .err_msg = err_msg);
 }
 
 // the argument `key` written as JSON into `json`, a line given back by the caller, `null` where there is none: 1, or 0
 // with why given where the cells cannot meet it
-static int plugin_json_of(const CliServeArgs *args, const char *key, VerbaLinea *json, VerbaLinea *err_msg)
+EMBED_INLINE int plugin_json_get(const ServeCallLspCtx *args)
 {
-    const unsigned long long room = cli_json_written_room(args->json);
+    const CliServeArgs *arguments = args->request;
+    const char *key = args->key;
+    VerbaLinea *json = args->json;
+    const unsigned long long room =
+        EMBED_CALL(cli_json_tree_node_out.json_write_room, CliJsonTreeNodeOutCfg, .json_read = arguments->json);
     char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_window_cells);
     *json = mmgr_line_over(cell, room);
-    const unsigned int node = cli_serve_arg(args, key);
+    const unsigned int node =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = key);
     if (node == CLI_JSON_NONE)
     {
         mmgr_line_put(json, "null");
     }
     else
     {
-        cli_json_write(args->json, node, json, 0u, 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = arguments->json, .node = node,
+                   .out = json, .indent = 0u, .sorted = 0);
     }
     if (!mmgr_line_ok(json))
     {
-        mmgr_line_put(err_msg, "the cells cannot meet what the plugin hands its server");
+        mmgr_line_put(args->err_msg, "the cells cannot meet what the plugin hands its server");
         return 0;
     }
     return 1;
 }
 
-static int plugin_server_start(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int plugin_server_start(const CliServeAnswerCfg *args)
 {
-    const char *const id = cli_serve_string(args, "id", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
     char root[CLI_PATH_MAX_LEN];
-    if ((id == NULL) || !cli_serve_tree(root, err_msg))
+    if ((id == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx,
+                                    .root = root, .err_msg = err_msg))
     {
         return 0;
     }
@@ -364,102 +554,143 @@ static int plugin_server_start(const CliServeArgs *args, VerbaLinea *out, VerbaL
     const char *first[64];
     unsigned int firsts = 0u;
     VerbaLinea options;
-    const int read = plugin_json_of(args, "options", &options, err_msg) &&
-                     cli_serve_strings_or(args, "args", first, 64u, &firsts, err_msg);
-    const CliServersSink emit = cli_serve_emitter(root);
-    const int started =
-        read && cli_servers_plugin_start(root, id, options.out, options.at, first, firsts, &emit, err_msg);
+    const int read = EMBED_CALL(plugin_json_get, ServeCallLspCtx, .request = arguments, .key = "options",
+                                .json = &options, .err_msg = err_msg) &&
+                     EMBED_CALL(cli_serve_err_msg_internal.strings_or, CliServeErrMsgCtx, .request = arguments,
+                                .key = "args", .items = first, .room = 64u, .count = &firsts, .err_msg = err_msg);
+    const CliServersSink emit = EMBED_CALL(cli_serve_internal.emitter, CliServeCtx, .tree = root);
+    const int started = read && EMBED_CALL(cli_servers_root_sink.plugin_start, CliServersRootSinkCfg, .root = root,
+                                           .id = id, .options = options.out, .length = options.at,
+                                           .first_letters = first, .firsts = firsts, .sink = &emit, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(options.out, &g_cli_window_cells);
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return started;
 }
 
-static int plugin_server_stop(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int plugin_server_stop(const CliServeAnswerCfg *args)
 {
-    const char *const id = cli_serve_string(args, "id", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
     if (id == NULL)
     {
         return 0;
     }
-    cli_servers_plugin_stop(id);
-    mmgr_line_put(out, "null");
+    EMBED_CALL(cli_servers_root_sink.plugin_stop, CliServersRootSinkCfg, .id = id);
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-static int plugin_server_request_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int plugin_server_request_now(const CliServeAnswerCfg *args)
 {
-    const char *const id = cli_serve_string(args, "id", err_msg);
-    const char *const method = (id != NULL) ? cli_serve_string(args, "method", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
+    const char *const method = (id != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "method", .err_msg = err_msg)
+                                            : NULL;
     VerbaLinea params;
-    if ((method == NULL) || !plugin_json_of(args, "params", &params, err_msg))
+    if ((method == NULL) || !EMBED_CALL(plugin_json_get, ServeCallLspCtx, .request = arguments, .key = "params",
+                                        .json = &params, .err_msg = err_msg))
     {
         return 0;
     }
-    const int done = cli_servers_plugin_request(id, method, params.out, params.at,
-                                                cli_serve_whole_or(args, "wait", 30000ull), out, err_msg);
+    const int done = EMBED_CALL(cli_servers_err_msg.plugin_request, CliServersErrMsgCfg, .id = id, .method = method,
+                                .params = params.out, .length = params.at,
+                                .wait = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx,
+                                                   .request = arguments, .key = "wait", .otherwise_u64 = 30000ull),
+                                .result = args->out, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(params.out, &g_cli_window_cells);
     return done;
 }
 
-static int plugin_server_notify(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int plugin_server_notify(const CliServeAnswerCfg *args)
 {
-    const char *const id = cli_serve_string(args, "id", err_msg);
-    const char *const method = (id != NULL) ? cli_serve_string(args, "method", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
+    const char *const method = (id != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "method", .err_msg = err_msg)
+                                            : NULL;
     VerbaLinea params;
-    if ((method == NULL) || !plugin_json_of(args, "params", &params, err_msg))
+    if ((method == NULL) || !EMBED_CALL(plugin_json_get, ServeCallLspCtx, .request = arguments, .key = "params",
+                                        .json = &params, .err_msg = err_msg))
     {
         return 0;
     }
-    const int done = cli_servers_plugin_notify(id, method, params.out, params.at, err_msg);
+    const int done = EMBED_CALL(cli_servers_err_msg.plugin_notify, CliServersErrMsgCfg, .id = id, .method = method,
+                                .params = params.out, .length = params.at, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(params.out, &g_cli_window_cells);
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return done;
 }
 
-static int plugin_server_answer(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int plugin_server_answer(const CliServeAnswerCfg *args)
 {
-    const char *const id = cli_serve_string(args, "id", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
     VerbaLinea request;
     VerbaLinea result;
-    if ((id == NULL) || !plugin_json_of(args, "request", &request, err_msg))
+    if ((id == NULL) || !EMBED_CALL(plugin_json_get, ServeCallLspCtx, .request = arguments, .key = "request",
+                                    .json = &request, .err_msg = err_msg))
     {
         return 0;
     }
-    const int read = plugin_json_of(args, "result", &result, err_msg);
+    const int read = EMBED_CALL(plugin_json_get, ServeCallLspCtx, .request = arguments, .key = "result",
+                                .json = &result, .err_msg = err_msg);
     // the request's id as the server gave it, a number or a string, ended with a 0 to be written back as it came
     mmgr_line_ch(&request, '\0');
     const int done =
-        read && mmgr_line_ok(&request) && cli_servers_plugin_answer(id, request.out, result.out, result.at, err_msg);
+        read && mmgr_line_ok(&request) &&
+        EMBED_CALL(cli_servers_err_msg_id.plugin_answer, CliServersErrMsgIdCfg, .id = id, .request = request.out,
+                   .result_text = result.out, .length = result.at, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(result.out, &g_cli_window_cells);
     g_cli_cells->persistent_buf_release(request.out, &g_cli_window_cells);
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return done;
 }
 
 // the keychain's service for the plugin of the argument `id`, "plugin " and the id, into `service`, sized for
 // CLI_NAME_MAX_LEN: 1, or 0 with why given
-static int plugin_service(const CliServeArgs *args, char *service, VerbaLinea *err_msg)
+EMBED_INLINE int plugin_service(const ServeCallLspCtx *args)
 {
-    const char *const id = cli_serve_string(args, "id", err_msg);
-    VerbaLinea named = {service, CLI_NAME_MAX_LEN, 0ull};
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
+    VerbaLinea named = {args->service, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put(&named, "plugin ");
     mmgr_line_put(&named, (id != NULL) ? id : "");
     return (id != NULL) && (mmgr_line_finish(&named) != 0ull);
 }
 
-static int plugin_secret_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int plugin_secret_read(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char service[CLI_NAME_MAX_LEN];
-    const char *const key = plugin_service(args, service, err_msg) ? cli_serve_string(args, "key", err_msg) : NULL;
+    const char *const key =
+        EMBED_CALL(plugin_service, ServeCallLspCtx, .request = arguments, .service = service, .err_msg = err_msg)
+            ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments, .key = "key",
+                         .err_msg = err_msg)
+            : NULL;
     if (key == NULL)
     {
         return 0;
     }
     char secret[CLI_PATH_MAX_LEN];
-    if (cli_keychain_read(service, key, secret, sizeof(secret)))
+    if (EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = service, .account = key, .out = secret,
+                   .room = sizeof(secret)))
     {
-        cli_json_quoted_lossy(out, (const unsigned char *)secret,
-                              cellul.len(&(CatenaFinitaCfg){.src = secret, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)secret,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = secret, .cap = CLI_CELLS_POOL}));
     }
     else
     {
@@ -468,20 +699,30 @@ static int plugin_secret_read(const CliServeArgs *args, VerbaLinea *out, VerbaLi
     return 1;
 }
 
-static int plugin_secret_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int plugin_secret_write(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char service[CLI_NAME_MAX_LEN];
-    const char *const key = plugin_service(args, service, err_msg) ? cli_serve_string(args, "key", err_msg) : NULL;
+    const char *const key =
+        EMBED_CALL(plugin_service, ServeCallLspCtx, .request = arguments, .service = service, .err_msg = err_msg)
+            ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments, .key = "key",
+                         .err_msg = err_msg)
+            : NULL;
     if (key == NULL)
     {
         return 0;
     }
     // a value of null forgets the secret
-    const char *const value = cli_serve_string_or(args, "value", NULL);
-    const int done =
-        (value != NULL) ? cli_keychain_store(service, key, value, err_msg) : cli_keychain_forget(service, key, err_msg);
-    cli_serve_secret_wiped(args, "value");
-    mmgr_line_put(out, "null");
+    const char *const value = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                         .key = "value", .otherwise = NULL);
+    const int done = (value != NULL)
+                         ? EMBED_CALL(cli_err_msg_service_internal.keychain_store, CliErrMsgServiceCtx,
+                                      .service = service, .account = key, .secret = value, .err_msg = err_msg)
+                         : EMBED_CALL(cli_err_msg_service_internal.keychain_forget, CliErrMsgServiceCtx,
+                                      .service = service, .account = key, .err_msg = err_msg);
+    EMBED_CALL(cli_serve_err_msg_internal.secret_wiped, CliServeErrMsgCtx, .request = arguments, .key = "value");
+    mmgr_line_put(args->out, "null");
     return done;
 }
 
@@ -499,7 +740,7 @@ CLI_SERVE_DEFERRED(parse_colors, parse_colors_now)
 CLI_SERVE_DEFERRED(parse_spans, parse_spans_now)
 CLI_SERVE_DEFERRED(lsp_hints, lsp_hints_now)
 CLI_SERVE_DEFERRED(calls_root, calls_root_now)
-CLI_SERVE_DEFERRED(calls_of, calls_of_now)
+CLI_SERVE_DEFERRED(calls_get, calls_of_now)
 CLI_SERVE_DEFERRED(plugin_server_request, plugin_server_request_now)
 
 const CliServeCall g_cli_serve_lsp_calls[] = {
@@ -520,7 +761,7 @@ const CliServeCall g_cli_serve_lsp_calls[] = {
     {"parse_spans", parse_spans},
     {"lsp_hints", lsp_hints},
     {"calls_root", calls_root},
-    {"calls_of", calls_of},
+    {"calls_of", calls_get},
     {"problems_check", problems_check},
     {"problems_check_stop", problems_check_stop},
     {"checkers_set", checkers_set},

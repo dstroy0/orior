@@ -1,67 +1,82 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# SonarQube Cloud over the app in ui, on each push to main and each pull request that changes
-# it: its JavaScript, its stylesheet and page, and its Rust with Clippy's findings read in.
+# SonarQube Cloud analysis plus coverage, on each push to main and each pull request. Settings are in
+# sonar-project.properties.
 #
-# Three things are done by hand once. The project is made at sonarcloud.io from this repository, in
-# the organization dstroy0, its key dstroy0_orior. Its Automatic Analysis is turned off, since it and
-# this workflow cannot both run. Its token is kept as the repository's secret SONAR_TOKEN. Until all
-# three are done the scan fails, the failure to expect on the first run.
+# The scanner reads C through a compile database: the build wrapper wraps the real build and records every compiler
+# invocation. Without it the C files are skipped.
+#
+# Coverage comes from gcov. `cli coverage build` compiles with --coverage, each object writing .gcno as it compiles and
+# .gcda when a program linking it ends. `cli coverage test` runs every Unity suite to write the .gcda, and
+# `cli coverage report` merges them through gcovr. No .gcda exists until the tests have run.
+#
+# Three settings are made by hand once. The project at sonarcloud.io is created from this repository in the organization
+# dstroy0 with the key dstroy0_orior. Its Automatic Analysis is off, since it and this workflow cannot both run. Its token
+# is the repository's secret SONAR_TOKEN.
 
 name: sonarcloud
 
 on:
   push:
     branches: [main]
-    paths:
-      - "ui/**"
-      - ".github/workflows/sonarcloud.yml"
   pull_request:
-    paths:
-      - "ui/**"
-      - ".github/workflows/sonarcloud.yml"
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   scan:
+    name: Analyze
     runs-on: ubuntu-latest
-    # A pull request from a fork is given no secrets, and its scan would fail on the missing token.
+    timeout-minutes: 120
+    # A pull request from a fork has no secrets, and its scan would fail on the missing token.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      # The whole history, which the scan reads to tell new code from old and to name each line's commit.
+      # The whole history: a shallow clone breaks blame-based new-code detection.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Linux libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev build-essential
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev libx11-dev build-essential clang lld llvm cmake ninja-build ruby
 
-      # Clippy's findings as JSON, which the scan reads in as Rust's issues. The property that names
-      # the reports is given under both names SonarSource's pages give it.
+      # Clippy's findings as JSON, which the scan reads as Rust's issues.
       - name: Clippy
         run: |
-          for crate in gui/src-tauri test; do
-            cargo clippy --manifest-path "ui/$crate/Cargo.toml" --all-targets --message-format=json > "clippy-${crate##*/}.json" || true
-          done
+          mkdir -p build/sonarqube
+          cargo clippy --manifest-path ui/gui/src-tauri/Cargo.toml --all-targets --message-format=json > build/sonarqube/clippy.json || true
 
-      - uses: SonarSource/sonarqube-scan-action@v6
+      - name: Install gcovr
+        run: pip install --upgrade gcovr
+
+      - name: Install build wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8
+
+      - name: Build (wrapped)
+        run: build-wrapper-linux-x86-64 --out-dir build/sonarqube/bw-output python utils/test/harness.py cli coverage build
+
+      # The suites write the .gcda. A failing test fails this job, so no coverage of a broken build is reported.
+      - name: Test
+        run: python utils/test/harness.py cli coverage test
+
+      - name: Coverage report
+        run: python utils/test/harness.py cli coverage report
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=dstroy0
-            -Dsonar.projectKey=dstroy0_orior
-            -Dsonar.sources=ui
-            -Dsonar.tests=ui/test
-            -Dsonar.exclusions=ui/test/**,ui/**/target/**,ui/docs/**
-            -Dsonar.test.inclusions=ui/test/**
-            -Dsonar.test.exclusions=ui/test/target/**,ui/test/runs/**
-            -Dsonar.rust.clippy.reportPaths=clippy-src-tauri.json,clippy-test.json
-            -Dsonar.rust.clippyReport.reportPaths=clippy-src-tauri.json,clippy-test.json

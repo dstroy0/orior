@@ -59,7 +59,7 @@
     },
     "cli": {
       "desc": "orior's C side: the command line, the window's calls and every module under them.",
-      "script": "utils/test/src/ui/cli/cli_test.sh",
+      "harness": ["cli", "test"],
       "src": [
         "+<../ui/cli/*>",
         "+<../ui/query/*>"

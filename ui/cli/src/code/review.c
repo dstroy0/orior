@@ -30,12 +30,12 @@ static CliReviewRoom *s_room;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // the review's room and texts given back, and the lock with them
-static void review_released(void)
+static void review_release(void)
 {
     if (s_room != NULL)
     {
-        cli_git_text_given(&s_room->repositories.text);
-        cli_git_text_given(&s_room->touched.text);
+        EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_room->repositories.text);
+        EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_room->touched.text);
     }
     g_cli_cells->persistent_buf_release(s_room, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(g_cli_review.compared, &g_cli_code_cells);
@@ -48,14 +48,14 @@ static void review_released(void)
     g_cli_review.text_room = 0ull;
     g_cli_review.call = NULL;
     g_cli_review.calls = 0u;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the lock taken and the review's room and texts with it: 1, or 0 with the lock given back where the cells cannot
 // meet them
-static int review_locked(void)
+static int review_lock(void)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_code_cells);
     if (s_room != NULL)
     {
@@ -68,7 +68,7 @@ static int review_locked(void)
     g_cli_review.compared = g_cli_cells->persistent_buf_alloc(cli_review_compared_bytes(), &g_cli_code_cells);
     if ((s_room == NULL) || (g_cli_review.compared == NULL) || (g_cli_review.call == NULL))
     {
-        review_released();
+        review_release();
         return 0;
     }
     g_cli_review.text = (char *)(void *)(g_cli_review.call + CLI_REVIEW_CALLS);
@@ -78,9 +78,30 @@ static int review_locked(void)
     return 1;
 }
 
-// a file of the change put after the files: its path now and before
-static CliReviewFile *cli_review_file_begun(const char *at, const char *path, const char *was_path)
+typedef struct
 {
+    const char *at;
+    const char *path;
+    const char *was_path;
+    const char *root;
+    const char *id;
+    VerbaLinea *by;
+    VerbaLinea *subject;
+    int *made;
+    VerbaLinea *err_msg;
+    VerbaLinea *out;
+    unsigned int at_u32;
+    const char *by_text;
+    unsigned long long by_size;
+    const char *subject_text;
+    unsigned long long subject_size;
+} ReviewCtx;
+// a file of the change put after the files: its path now and before
+EMBED_INLINE CliReviewFile *cli_review_file_begin(const ReviewCtx *args)
+{
+    const char *at = args->at;
+    const char *path = args->path;
+    const char *was_path = args->was_path;
     if (g_cli_review.files >= CLI_REVIEW_FILES)
     {
         return NULL;
@@ -91,12 +112,14 @@ static CliReviewFile *cli_review_file_begun(const char *at, const char *path, co
     mmgr_line_put(&line, at);
     mmgr_line_put(&line, path);
     mmgr_line_finish(&line);
-    file->path = cli_review_text_put(joined, cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}));
+    file->path = EMBED_CALL(cli_review_text_length_internal.text_put, CliReviewTextLengthCtx, .text = joined,
+                            .length = cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}));
     line.at = 0ull;
     mmgr_line_put(&line, at);
     mmgr_line_put(&line, was_path);
     mmgr_line_finish(&line);
-    file->was_path = cli_review_text_put(joined, cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}));
+    file->was_path = EMBED_CALL(cli_review_text_length_internal.text_put, CliReviewTextLengthCtx, .text = joined,
+                                .length = cellul.len(&(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL}));
     file->has_was = 0;
     file->has_now = 0;
     g_cli_review.files += 1u;
@@ -105,19 +128,28 @@ static CliReviewFile *cli_review_file_begun(const char *at, const char *path, co
 
 // the files commit `id` changed against its first parent, in the first repository of the tree that contains it, and who
 // made it into `by` and `subject`: 1, or 0 with why given
-static int cli_commit_read(const char *root, const char *id, VerbaLinea *by, VerbaLinea *subject, int *made,
-                           VerbaLinea *err_msg)
+EMBED_INLINE int cli_commit_read(const ReviewCtx *args)
 {
-    cli_git_repositories(root, &s_room->repositories);
+    const char *root = args->root;
+    const char *id = args->id;
+    VerbaLinea *subject = args->subject;
+    int *made = args->made;
+    VerbaLinea *err_msg = args->err_msg;
+    EMBED_CALL(cli_git_root_found_repositories.repositories, CliGitRootFoundRepositoriesCfg, .root = root,
+               .found_repositories_pointer = &s_room->repositories);
     const char *repo = NULL;
     for (unsigned int at = 0u; (repo == NULL) && (at < s_room->repositories.count); at += 1u)
     {
-        const char *const path = cli_git_text_of(&s_room->repositories.text, s_room->repositories.item[at].path);
+        const char *const path =
+            EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_room->repositories.text,
+                       .at = s_room->repositories.item[at].path);
         char folder[CLI_PATH_MAX_LEN];
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea unread = {why, sizeof(why), 0ull};
-        cli_full(root, path, folder);
-        if (cli_git_touched(folder, id, &s_room->touched, &unread) && (s_room->touched.count > 0u))
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = folder);
+        if (EMBED_CALL(cli_git_root_err_msg.touch, CliGitRootErrMsgCfg, .root = folder, .id = id,
+                       .found_touched_list_pointer = &s_room->touched, .err_msg = &unread) &&
+            (s_room->touched.count > 0u))
         {
             repo = path;
         }
@@ -130,8 +162,9 @@ static int cli_commit_read(const char *root, const char *id, VerbaLinea *by, Ver
     }
     char folder[CLI_PATH_MAX_LEN];
     char at[CLI_PATH_MAX_LEN];
-    cli_full(root, repo, folder);
-    *made = cli_git_made_by(folder, id, by, subject);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = repo, .joined = folder);
+    *made = EMBED_CALL(cli_git_root_id.new_by, CliGitRootIdCfg, .root = folder, .id = id,
+                       .name_verba_linea_pointer = args->by, .subject = subject);
     VerbaLinea prefix = {at, sizeof(at), 0ull};
     if (repo[0] != '\0')
     {
@@ -142,9 +175,13 @@ static int cli_commit_read(const char *root, const char *id, VerbaLinea *by, Ver
     for (unsigned int index = 0u; index < s_room->touched.count; index += 1u)
     {
         const CliTouched *const one = &s_room->touched.item[index];
-        const char *const path = cli_git_text_of(&s_room->touched.text, one->path);
-        const char *const was = one->has_was ? cli_git_text_of(&s_room->touched.text, one->was) : path;
-        CliReviewFile *const file = cli_review_file_begun(at, path, was);
+        const char *const path = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                            .text_read = &s_room->touched.text, .at = one->path);
+        const char *const was = one->has_was ? EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                                          .text_read = &s_room->touched.text, .at = one->was)
+                                             : path;
+        CliReviewFile *const file =
+            EMBED_CALL(cli_review_file_begin, ReviewCtx, .at = at, .path = path, .was_path = was);
         if (file == NULL)
         {
             break;
@@ -153,61 +190,75 @@ static int cli_commit_read(const char *root, const char *id, VerbaLinea *by, Ver
         VerbaLinea unread = {why, sizeof(why), 0ull};
         VerbaLinea before = cli_review_text_line();
         const int read_before =
-            (one->state != 'A') && cli_git_text_before(root, g_cli_review.text + file->was_path, id, &before);
-        file->has_was = cli_review_text_added(&before, read_before, &file->was, &file->was_size);
+            (one->state != 'A') && EMBED_CALL(cli_git_root_file.text_before, CliGitRootFileCfg, .root = root,
+                                              .file = g_cli_review.text + file->was_path, .id = id, .out = &before);
+        file->has_was = EMBED_CALL(cli_review_line_internal.text_add, CliReviewLineCtx, .line = &before,
+                                   .written = read_before, .at = &file->was, .size = &file->was_size);
         VerbaLinea after = cli_review_text_line();
-        const int read_after =
-            (one->state != 'D') && cli_git_text_at(root, g_cli_review.text + file->path, id, &after, &unread);
-        file->has_now = cli_review_text_added(&after, read_after, &file->now, &file->now_size);
+        const int read_after = (one->state != 'D') && EMBED_CALL(cli_git_root_file.text_at, CliGitRootFileCfg,
+                                                                 .root = root, .file = g_cli_review.text + file->path,
+                                                                 .id = id, .out = &after, .err_msg = &unread);
+        file->has_now = EMBED_CALL(cli_review_line_internal.text_add, CliReviewLineCtx, .line = &after,
+                                   .written = read_after, .at = &file->now, .size = &file->now_size);
     }
     return 1;
 }
 
 // the files that differ from the last commit, each as the last commit stores it and as the disk does
-static void cli_tree_read(const char *root)
+EMBED_INLINE void cli_tree_read(const ReviewCtx *args)
 {
-    cli_git_changed(root, NULL, 0u, 0, &s_room->changed);
+    const char *root = args->root;
+    EMBED_CALL(cli_git_root_repos.change, CliGitRootReposCfg, .root = root, .repos = NULL, .count = 0u, .named = 0,
+               .found_changed_list_pointer = &s_room->changed);
     for (unsigned int index = 0u; index < s_room->changed.count; index += 1u)
     {
-        const char *const path = cli_git_text_of(&s_room->changed.text, s_room->changed.item[index].path);
+        const char *const path = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                            .text_read = &s_room->changed.text, .at = s_room->changed.item[index].path);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
         if ((length > 0ull) && (path[length - 1ull] == '/'))
         {
             continue;
         }
-        CliReviewFile *const file = cli_review_file_begun("", path, path);
+        CliReviewFile *const file =
+            EMBED_CALL(cli_review_file_begin, ReviewCtx, .at = "", .path = path, .was_path = path);
         if (file == NULL)
         {
             break;
         }
         VerbaLinea before = cli_review_text_line();
-        file->has_was =
-            cli_review_text_added(&before, cli_git_head_text(root, path, &before), &file->was, &file->was_size);
+        file->has_was = EMBED_CALL(cli_review_line_internal.text_add, CliReviewLineCtx, .line = &before,
+                                   .written = EMBED_CALL(cli_git_root_file_stage.head_text, CliGitRootFileStageCfg,
+                                                         .root = root, .file = path, .out = &before),
+                                   .at = &file->was, .size = &file->was_size);
         char full[CLI_PATH_MAX_LEN];
-        cli_full(root, path, full);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_code_cells);
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+                                                      .size_pointer = &size, .owner = &g_cli_code_cells);
         int text = bytes != NULL;
         for (unsigned long long at = 0ull; text && (at < size);)
         {
             unsigned int letter = 0u;
-            const unsigned long long step = cli_lossy_letter(bytes, size, at, &letter);
+            const unsigned long long step =
+                EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = bytes, .length = size,
+                           .at = at, .letter = &letter);
             text = !((step == 1ull) && (bytes[at] >= 0x80u));
             at += step;
         }
         if (text)
         {
-            file->now = cli_review_text_put((const char *)bytes, size);
+            file->now = EMBED_CALL(cli_review_text_length_internal.text_put, CliReviewTextLengthCtx,
+                                   .text = (const char *)bytes, .length = size);
             file->now_size = size;
             file->has_now = (file->now != 0u) || (size == 0ull);
         }
-        cli_file_given(bytes, &g_cli_code_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
     }
 }
 
 // the pieces in groups of those that call one another, each group in the order it is read: from each piece no other in
 // it calls, what it calls after it, depth first; written as a JSON array of arrays of places
-static void cli_groups_written(VerbaLinea *out)
+EMBED_INLINE void cli_groups_write(const ReviewCtx *args)
 {
     const unsigned int count = g_cli_review.pieces;
     const CliReviewPiece *const piece = g_cli_review.piece;
@@ -235,7 +286,7 @@ static void cli_groups_written(VerbaLinea *out)
     memor.set(&(MemoriaCfg){.dst = s_room->placed, .val = 0, .bytes = count});
     memor.set(&(MemoriaCfg){.dst = s_room->reached, .val = 0, .bytes = count});
     memor.set(&(MemoriaCfg){.dst = s_room->visited, .val = 0, .bytes = count});
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     unsigned int groups = 0u;
     for (unsigned int start = 0u; start < count; start += 1u)
     {
@@ -283,7 +334,7 @@ static void cli_groups_written(VerbaLinea *out)
             }
             s_room->members[place] = pivot;
         }
-        mmgr_line_put(out, (groups != 0u) ? ",[" : "[");
+        mmgr_line_put(args->out, (groups != 0u) ? ",[" : "[");
         unsigned int written = 0u;
         // from the pieces nothing calls, then from every piece, each visited before what it calls
         for (unsigned int pass = 0u; pass < 2u; pass += 1u)
@@ -308,8 +359,8 @@ static void cli_groups_written(VerbaLinea *out)
                     }
                     s_room->visited[at] = 1u;
                     s_room->placed[at] = 1u;
-                    mmgr_line_put(out, (written != 0u) ? "," : "");
-                    mmgr_line_decimal(out, at, 0u);
+                    mmgr_line_put(args->out, (written != 0u) ? "," : "");
+                    mmgr_line_decimal(args->out, at, 0u);
                     written += 1u;
                     for (unsigned int call = piece[at].count; (call > 0u) && (stacked < CLI_REVIEW_CALLS); call -= 1u)
                     {
@@ -319,41 +370,45 @@ static void cli_groups_written(VerbaLinea *out)
                 }
             }
         }
-        mmgr_line_ch(out, ']');
+        mmgr_line_ch(args->out, ']');
         groups += 1u;
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
 }
 
 // a text of the pieces written as a JSON string
-static void cli_piece_text_written(VerbaLinea *out, unsigned int at)
+EMBED_INLINE void cli_piece_text_write(const ReviewCtx *args)
 {
-    cli_json_quoted(out, g_cli_review.texts + at,
-                    cellul.len(&(CatenaFinitaCfg){.src = g_cli_review.texts + at, .cap = CLI_CELLS_POOL}));
+    VerbaLinea *out = args->out;
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
+               .text = g_cli_review.texts + args->at_u32,
+               .length =
+                   cellul.len(&(CatenaFinitaCfg){.src = g_cli_review.texts + args->at_u32, .cap = CLI_CELLS_POOL}));
 }
 
 // the files read compared and the review written, with who made it and its subject, `by_size` and `subject_size`
 // bytes of them, each NULL where none made it
-static void cli_review_written(const char *by, unsigned long long by_size, const char *subject,
-                               unsigned long long subject_size, VerbaLinea *out)
+static void cli_review_write(const ReviewCtx *args)
 {
+    VerbaLinea *out = args->out;
     cli_review_compare();
     mmgr_line_put(out, "{\"pieces\":[");
     for (unsigned int at = 0u; at < g_cli_review.pieces; at += 1u)
     {
         const CliReviewPiece *const piece = &g_cli_review.piece[at];
         mmgr_line_put(out, (at != 0u) ? ",{\"path\":" : "{\"path\":");
-        cli_piece_text_written(out, piece->path);
+        EMBED_CALL(cli_piece_text_write, ReviewCtx, .out = out, .at_u32 = piece->path);
         mmgr_line_put(out, ",\"name\":");
-        cli_piece_text_written(out, piece->name);
+        EMBED_CALL(cli_piece_text_write, ReviewCtx, .out = out, .at_u32 = piece->name);
         mmgr_line_put(out, ",\"kind\":");
-        cli_piece_text_written(out, piece->kind);
+        EMBED_CALL(cli_piece_text_write, ReviewCtx, .out = out, .at_u32 = piece->kind);
         mmgr_line_put(out, ",\"how\":");
-        cli_json_quoted(out, piece->how, cellul.len(&(CatenaFinitaCfg){.src = piece->how, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = piece->how,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = piece->how, .cap = CLI_CELLS_POOL}));
         mmgr_line_put(out, ",\"from\":");
         if (piece->has_from)
         {
-            cli_piece_text_written(out, piece->from);
+            EMBED_CALL(cli_piece_text_write, ReviewCtx, .out = out, .at_u32 = piece->from);
         }
         else
         {
@@ -362,9 +417,9 @@ static void cli_review_written(const char *by, unsigned long long by_size, const
         mmgr_line_put(out, ",\"line\":");
         mmgr_line_decimal(out, piece->line, 0u);
         mmgr_line_put(out, ",\"was\":");
-        cli_piece_text_written(out, piece->was);
+        EMBED_CALL(cli_piece_text_write, ReviewCtx, .out = out, .at_u32 = piece->was);
         mmgr_line_put(out, ",\"now\":");
-        cli_piece_text_written(out, piece->now);
+        EMBED_CALL(cli_piece_text_write, ReviewCtx, .out = out, .at_u32 = piece->now);
         mmgr_line_put(out, ",\"calls\":[");
         for (unsigned int call = 0u; call < piece->count; call += 1u)
         {
@@ -374,27 +429,30 @@ static void cli_review_written(const char *by, unsigned long long by_size, const
         mmgr_line_put(out, "]}");
     }
     mmgr_line_put(out, "],\"groups\":");
-    cli_groups_written(out);
+    EMBED_CALL(cli_groups_write, ReviewCtx, .out = out);
     mmgr_line_put(out, ",\"other\":[");
     for (unsigned int at = 0u; at < g_cli_review.others; at += 1u)
     {
         const char *const path = g_cli_review.text + g_cli_review.other[at];
         mmgr_line_put(out, (at != 0u) ? "," : "");
-        cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = path,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
     }
     mmgr_line_put(out, "],\"by\":");
-    if (by != NULL)
+    if (args->by_text != NULL)
     {
-        cli_json_quoted(out, by, by_size);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->by_text,
+                   .length = args->by_size);
     }
     else
     {
         mmgr_line_put(out, "null");
     }
     mmgr_line_put(out, ",\"subject\":");
-    if (subject != NULL)
+    if (args->subject_text != NULL)
     {
-        cli_json_quoted(out, subject, subject_size);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
+                   .text = args->subject_text, .length = args->subject_size);
     }
     else
     {
@@ -403,13 +461,13 @@ static void cli_review_written(const char *by, unsigned long long by_size, const
     mmgr_line_ch(out, '}');
 }
 
-int cli_review(const char *root, const char *commit, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_review(const CliReviewCfg *args)
 {
     static char s_by[CLI_NAME_MAX_LEN * 4u];
     static char s_subject[CLI_NAME_MAX_LEN * 16u];
-    if (!review_locked())
+    if (!review_lock())
     {
-        mmgr_line_put(err_msg, "the review's cells could not be taken");
+        mmgr_line_put(args->err_msg, "the review's cells could not be taken");
         return 0;
     }
     g_cli_review.files = 0u;
@@ -417,36 +475,40 @@ int cli_review(const char *root, const char *commit, VerbaLinea *out, VerbaLinea
     VerbaLinea by = {s_by, sizeof(s_by), 0ull};
     VerbaLinea subject = {s_subject, sizeof(s_subject), 0ull};
     int made = 0;
-    if (commit != NULL)
+    if (args->commit != NULL)
     {
-        if (!cli_commit_read(root, commit, &by, &subject, &made, err_msg))
+        if (!EMBED_CALL(cli_commit_read, ReviewCtx, .root = args->root, .id = args->commit, .by = &by,
+                        .subject = &subject, .made = &made, .err_msg = args->err_msg))
         {
-            review_released();
+            review_release();
             return 0;
         }
     }
     else
     {
-        cli_tree_read(root);
+        EMBED_CALL(cli_tree_read, ReviewCtx, .root = args->root);
     }
-    cli_review_written(made ? s_by : NULL, by.at, made ? s_subject : NULL, subject.at, out);
-    review_released();
+    EMBED_CALL(cli_review_write, ReviewCtx, .by_text = made ? s_by : NULL, .by_size = by.at,
+               .subject_text = made ? s_subject : NULL, .subject_size = subject.at, .out = args->out);
+    review_release();
     return 1;
 }
 
-void cli_review_files(const char *const *paths, const char *const *was, const char *const *now, unsigned int count,
-                      VerbaLinea *out)
+void cli_review_files(const CliReviewPathsCfg *args)
 {
-    if (!review_locked())
+    const char *const *was = args->was;
+    const char *const *now = args->now;
+    if (!review_lock())
     {
-        mmgr_line_put(out, "{\"files\":[],\"groups\":[]}");
+        mmgr_line_put(args->out, "{\"files\":[],\"groups\":[]}");
         return;
     }
     g_cli_review.files = 0u;
     g_cli_review.used = 0u;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        CliReviewFile *const file = cli_review_file_begun("", paths[at], paths[at]);
+        CliReviewFile *const file = EMBED_CALL(cli_review_file_begin, ReviewCtx, .at = "", .path = args->paths[at],
+                                               .was_path = args->paths[at]);
         if (file == NULL)
         {
             break;
@@ -454,16 +516,19 @@ void cli_review_files(const char *const *paths, const char *const *was, const ch
         if (was[at] != NULL)
         {
             file->was_size = cellul.len(&(CatenaFinitaCfg){.src = was[at], .cap = CLI_CELLS_POOL});
-            file->was = cli_review_text_put(was[at], file->was_size);
+            file->was = EMBED_CALL(cli_review_text_length_internal.text_put, CliReviewTextLengthCtx, .text = was[at],
+                                   .length = file->was_size);
             file->has_was = (file->was != 0u);
         }
         if (now[at] != NULL)
         {
             file->now_size = cellul.len(&(CatenaFinitaCfg){.src = now[at], .cap = CLI_CELLS_POOL});
-            file->now = cli_review_text_put(now[at], file->now_size);
+            file->now = EMBED_CALL(cli_review_text_length_internal.text_put, CliReviewTextLengthCtx, .text = now[at],
+                                   .length = file->now_size);
             file->has_now = (file->now != 0u);
         }
     }
-    cli_review_written(NULL, 0ull, NULL, 0ull, out);
-    review_released();
+    EMBED_CALL(cli_review_write, ReviewCtx, .by_text = NULL, .by_size = 0ull, .subject_text = NULL,
+               .subject_size = 0ull, .out = args->out);
+    review_release();
 }

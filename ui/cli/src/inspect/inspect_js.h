@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_js.h: JavaScript as the inspections read it: its tokens, a string, a template's text and a regular
 // expression each one token, and the code in a template's `${}` tokens of its own. A slash starts a regular
-// expression where a value is due, after an operator, an opening bracket or a word such as `return`, and divides
+// expression where a value is expected, after an operator, an opening bracket or a word such as `return`, and divides
 // elsewhere.
 //
 // Each brace is a function's body, a block, an object or a class's body, by what comes before it: `=>` or a parameter
@@ -10,7 +10,13 @@
 // object, and anything else a block (inspect_js_lex.c, inspect_js_*.c)
 #ifndef INSPECT_JS_H
 #define INSPECT_JS_H
+typedef struct CliInspectJsAtCfg CliInspectJsAtCfg;
+typedef struct CliInspectJsAtWordCfg CliInspectJsAtWordCfg;
+typedef struct CliInspectJsFromCfg CliInspectJsFromCfg;
+typedef struct CliInspectJsOpenCfg CliInspectJsOpenCfg;
+typedef struct CliInspectJsCfg CliInspectJsCfg;
 
+#include "embed_dispatch_layout.h"
 #include "inspect_internal.h"
 
 // a token's kind
@@ -45,18 +51,102 @@ extern const char *const g_cli_js_control[7];
 // spans of its comments; whether the token at `at` is `word`, CLI_JS_NO never; whether it is one of `count` words;
 // whether the name at `at` is read: no keyword, no property after a dot, no key of an object and no method's name in an
 // object or a class's body; and how many brackets the tokens from `from` up to `to` leave open (inspect_js_lex.c)
-void cli_js_read(const char *src, unsigned long long size);
-int cli_js_is(const char *src, unsigned int at, const char *word);
-int cli_js_one_of(const char *src, unsigned int at, const char *const *words, unsigned int count);
-int cli_js_is_read(const char *src, unsigned int at);
-int cli_js_pair_depth(const char *src, unsigned int from, unsigned int to);
+void cli_js_read(const CliInspectJsCfg *args);
+int cli_js_is(const CliInspectJsAtWordCfg *args);
+int cli_js_one_get(const CliInspectJsAtCfg *args);
+int cli_js_is_read(const CliInspectJsAtWordCfg *args);
+int cli_js_pair_depth(const CliInspectJsFromCfg *args);
 
 // the name of the function whose body opens at `open`, and the index of its token: `function name(`, a method's
 // `name(`, and `name = function (` or `name = (...) =>` and `name = x =>`; CLI_JS_NO where it has none
 // (inspect_js_facts.c)
-unsigned int cli_js_function_name(const char *src, unsigned int open);
+unsigned int cli_js_function_name(const CliInspectJsOpenCfg *args);
 // the names a function whose body opens at `open` takes as its parameters, plainly or with a default or a rest, put in
 // `names`, and the first token of its parameters (inspect_js_parse.c)
-unsigned int cli_js_parameters(const char *src, unsigned int open, CliInspectSet *names);
+unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args);
+
+struct CliInspectJsAtCfg
+{
+    const char *src;
+    unsigned int at;
+    const char *const *words;
+    unsigned int count;
+};
+
+struct CliInspectJsAtWordCfg
+{
+    const char *src;
+    unsigned int at;
+    const char *word;
+};
+
+struct CliInspectJsFromCfg
+{
+    const char *src;
+    unsigned int from;
+    unsigned int to;
+};
+
+struct CliInspectJsOpenCfg
+{
+    const char *src;
+    unsigned int open;
+    CliInspectSet *names;
+};
+
+struct CliInspectJsCfg
+{
+    const char *src;
+    unsigned long long size;
+};
+
+typedef struct
+{
+    void (*js_read)(const CliInspectJsCfg *args);
+} CliInspectJsNs;
+EMBED_TABLE_LAYOUT(CliInspectJsNs, js_read);
+EMBED_TABLE_STORAGE CliInspectJsNs cli_inspect_js EMBED_UNUSED = {
+    .js_read = cli_js_read,
+};
+
+typedef struct
+{
+    int (*js_is)(const CliInspectJsAtWordCfg *args);
+    int (*js_is_read)(const CliInspectJsAtWordCfg *args);
+} CliInspectJsAtWordNs;
+EMBED_TABLE_LAYOUT(CliInspectJsAtWordNs, js_is, js_is_read);
+EMBED_TABLE_STORAGE CliInspectJsAtWordNs cli_inspect_js_at_word EMBED_UNUSED = {
+    .js_is = cli_js_is,
+    .js_is_read = cli_js_is_read,
+};
+
+typedef struct
+{
+    int (*js_one_get)(const CliInspectJsAtCfg *args);
+} CliInspectJsAtNs;
+EMBED_TABLE_LAYOUT(CliInspectJsAtNs, js_one_get);
+EMBED_TABLE_STORAGE CliInspectJsAtNs cli_inspect_js_at EMBED_UNUSED = {
+    .js_one_get = cli_js_one_get,
+};
+
+typedef struct
+{
+    int (*js_pair_depth)(const CliInspectJsFromCfg *args);
+} CliInspectJsFromNs;
+EMBED_TABLE_LAYOUT(CliInspectJsFromNs, js_pair_depth);
+EMBED_TABLE_STORAGE CliInspectJsFromNs cli_inspect_js_from EMBED_UNUSED = {
+    .js_pair_depth = cli_js_pair_depth,
+};
+
+typedef struct
+{
+    unsigned int (*js_function_name)(const CliInspectJsOpenCfg *args);
+    unsigned int (*js_parameters)(const CliInspectJsOpenCfg *args);
+} CliInspectJsOpenNs;
+EMBED_TABLE_LAYOUT(CliInspectJsOpenNs, js_function_name, js_parameters);
+EMBED_TABLE_STORAGE CliInspectJsOpenNs cli_inspect_js_open EMBED_UNUSED = {
+    .js_function_name = cli_js_function_name,
+    .js_parameters = cli_js_parameters,
+};
 
 #endif

@@ -4,8 +4,37 @@
 // from, a request ready to go, and its answer
 #ifndef REQUESTS_INTERNAL_H
 #define REQUESTS_INTERNAL_H
+typedef struct CliRequestsTextCtx CliRequestsTextCtx;
+typedef struct CliRequestsErrMsgCtx CliRequestsErrMsgCtx;
+typedef struct CliRequestsTextSizeCtx CliRequestsTextSizeCtx;
+typedef struct CliRequestsTextSizeBaseCtx CliRequestsTextSizeBaseCtx;
+typedef struct CliRequestsNameCtx CliRequestsNameCtx;
+typedef struct CliRequestsErrMsgRootCtx CliRequestsErrMsgRootCtx;
+typedef struct CliRequestsOutCtx CliRequestsOutCtx;
+typedef struct CliRequestsTextSizeAnswerCtx CliRequestsTextSizeAnswerCtx;
+typedef struct CliRequestsRootCtx CliRequestsRootCtx;
+typedef struct CliRequestsSizeCtx CliRequestsSizeCtx;
+typedef struct CliRequestsErrMsgUrlCtx CliRequestsErrMsgUrlCtx;
+typedef struct CliRequestsTextSizeNeedleCtx CliRequestsTextSizeNeedleCtx;
+typedef struct CliRequestsSizeErrMsgCtx CliRequestsSizeErrMsgCtx;
+typedef struct CliRequestsSizeAnswerCtx CliRequestsSizeAnswerCtx;
+typedef struct CliRequestsOutHopCtx CliRequestsOutHopCtx;
+typedef struct CliRequestsOutBaseCtx CliRequestsOutBaseCtx;
+typedef struct CliRequestsParsedCtx CliRequestsParsedCtx;
+typedef struct CliRequestsErrMsgRoomCtx CliRequestsErrMsgRoomCtx;
+typedef struct CliRequestsTextSizeParsedCtx CliRequestsTextSizeParsedCtx;
+typedef struct CliRequestsSentCtx CliRequestsSentCtx;
+typedef struct CliRequestsTextStartCtx CliRequestsTextStartCtx;
+typedef struct CliRequestsSizeOutCtx CliRequestsSizeOutCtx;
+typedef struct CliRequestsSizeNameCtx CliRequestsSizeNameCtx;
+typedef struct CliRequestsTextAtCtx CliRequestsTextAtCtx;
+typedef struct CliRequestsCtx CliRequestsCtx;
+typedef struct CliRequestsNameAnswerCtx CliRequestsNameAnswerCtx;
+typedef struct CliRequestsOutSecondsCtx CliRequestsOutSecondsCtx;
+typedef struct CliRequestsPoolCtx CliRequestsPoolCtx;
 
 #include "../command_line/cells.h"
+#include "embed_dispatch_layout.h"
 #include "requests.h"
 
 // the cells the requests are read, filled and answered in (requests_values.c)
@@ -59,7 +88,7 @@ typedef struct
 
 // A file of requests read: its requests in order, the variables it sets, the pool of their texts, and 1 in `full`
 // where a line, a request, a header, a variable or a text did not fit. The requests are a cell of the count of the
-// file's parts and the pool a cell sized to the file, each given back with cli_requests_parsed_given
+// file's parts and the pool a cell sized to the file, each given back with cli_requests_parsed_free
 typedef struct
 {
     CliRequest *requests;
@@ -75,7 +104,7 @@ typedef struct
 } CliRequestsParsed;
 
 // The values a request's variables are filled from, a name to one value, and the pool of their texts, a cell at their
-// most, to CLI_REQUESTS_TEXT at the most, given back with cli_requests_values_given
+// most, to CLI_REQUESTS_TEXT at the most, given back with cli_requests_values_free
 typedef struct
 {
     CliRequestsText name[CLI_REQUESTS_VALUES];
@@ -186,16 +215,16 @@ extern CliRequestsParsed g_cli_requests_parsed;
 // text of the pool (requests_white.c); the part of a text from `start` to `end` with the white letters at its two ends
 // passed over, as Rust's str::trim trims it; and the bytes of the white letter at `at` of a text ending at `end`, 0
 // where the letter there is not white (requests_parse.c, requests_white.c)
-int cli_requests_parse(const char *text, unsigned long long size, CliRequestsParsed *parsed);
-void cli_requests_parsed_given(CliRequestsParsed *parsed);
-const CliRequest *cli_requests_at(const CliRequestsParsed *parsed, unsigned long long line);
-const char *cli_requests_text(const char *pool, CliRequestsText text);
-void cli_requests_trimmed(const char *text, unsigned long long *start, unsigned long long *end);
-unsigned long long cli_requests_white_at(const char *text, unsigned long long at, unsigned long long end);
+int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args);
+void cli_requests_parsed_free(const CliRequestsTextSizeParsedCtx *args);
+const CliRequest *cli_requests_at(const CliRequestsCtx *args);
+const char *cli_requests_text(const CliRequestsPoolCtx *args);
+void cli_requests_trim(const CliRequestsTextStartCtx *args);
+unsigned long long cli_requests_white_at(const CliRequestsTextAtCtx *args);
 // the key a request's answers are stored under, its name, else its method and address as written, into `out`; and the
 // reason a file of requests was not read whole (requests_written.c)
-void cli_requests_full_err(VerbaLinea *err_msg);
-void cli_requests_key(const CliRequestsParsed *parsed, const CliRequest *request, VerbaLinea *out);
+void cli_requests_full_err(const CliRequestsTextCtx *args);
+void cli_requests_key(const CliRequestsParsedCtx *args);
 
 // the nearest file `name` beside the file at `path` or in a folder above it within the tree, into `found`: 1, or 0
 // where there is none; the values of environment `env`, or of none, for the file at `path`: the shared file's then the
@@ -203,42 +232,36 @@ void cli_requests_key(const CliRequestsParsed *parsed, const CliRequest *request
 // values left empty; a value put, in place of one of its name: 1, or 0 where it does not fit or its room is refused; a
 // name's value, NULL where it has none; and whether the peer's certificate is checked for environment `env`
 // (requests_values.c)
-int cli_requests_nearest(const char *root, const char *path, const char *name, char *found);
-int cli_requests_values(const char *root, const char *path, const char *env, CliRequestsValues *values,
-                        VerbaLinea *err_msg);
-void cli_requests_values_given(CliRequestsValues *values);
-int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned long long name_size, const char *value,
-                           unsigned long long value_size);
-const CliRequestsText *cli_requests_value(const CliRequestsValues *values, const char *name, unsigned long long size);
-int cli_requests_verifies(const char *root, const char *path, const char *env);
+int cli_requests_nearest(const CliRequestsRootCtx *args);
+int cli_requests_values(const CliRequestsErrMsgRootCtx *args);
+void cli_requests_values_free(const CliRequestsErrMsgRootCtx *args);
+int cli_requests_value_put(const CliRequestsNameCtx *args);
+const CliRequestsText *cli_requests_value(const CliRequestsSizeNameCtx *args);
+int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args);
 // `size` bytes of `text` with each `{{name}}` given its value, a value that names others given theirs in turn, eight
 // deep, and one no variable sets given as `$uuid`, `$random.uuid`, `$timestamp`, `$isoTimestamp` and `$randomInt`
 // name it, into `out`: 1, or 0 with why given (requests_fill.c)
-int cli_requests_filled(const char *text, unsigned long long size, const CliRequestsValues *values, VerbaLinea *out,
-                        VerbaLinea *err_msg);
+int cli_requests_fill(const CliRequestsTextSizeCtx *args);
 // the date and time `seconds` after 1970 began, as ISO 8601 in UTC, written into `out` (requests_fill.c)
-void cli_requests_iso(unsigned long long seconds, VerbaLinea *out);
+void cli_requests_iso(const CliRequestsOutSecondsCtx *args);
 // the curl line that sends `sent`, written inside a JSON string into `out` (requests_curl_line.c)
-void cli_requests_curl_written(const CliRequestsSent *sent, VerbaLinea *out);
+void cli_requests_curl_write(const CliRequestsOutCtx *args);
 
 // the request at line `line` of the file at `path`, whose text is `size` bytes of `text`, made ready with the variables
 // of the file and of environment `env` into `sent`, its body read into `body`, a line the sent request's body then
 // points into, and its key into `key` where it is not NULL: 1, or 0 with why given (requests_ready.c)
-int cli_requests_ready(const char *root, const char *path, const char *text, unsigned long long size,
-                       unsigned long long line, const char *env, CliRequestsSent *sent, VerbaLinea *body,
-                       VerbaLinea *key, VerbaLinea *err_msg);
+int cli_requests_ready(const CliRequestsTextCtx *args);
 
 // `size` bytes of `text` read as Rust reads an unsigned integer of base `base`, 10 or 16, a `+` let before its digits,
 // into `value`: 1, or 0 where it is no such integer or is above `most`; whether `size` bytes of `text` contain
 // `needle`, written in lower case, ASCII case aside; an address taken apart into `address`: 1, or 0 with why given; the
 // address `location` names, read from the address `base` it was given at, into `out`; and a header of an answer by its
 // name, ASCII case aside, NULL where it has none (requests_url.c)
-int cli_requests_number(const char *text, unsigned long long size, unsigned int base, unsigned long long most,
-                        unsigned long long *value);
-int cli_requests_contains(const char *text, unsigned long long size, const char *needle);
-int cli_requests_address(const char *url, CliRequestsAddress *address, VerbaLinea *err_msg);
-void cli_requests_joined(const char *base, const char *location, VerbaLinea *out);
-const CliRequestsText *cli_requests_header(const CliRequestsAnswer *answer, const char *name);
+int cli_requests_number(const CliRequestsTextSizeBaseCtx *args);
+int cli_requests_contains(const CliRequestsTextSizeNeedleCtx *args);
+int cli_requests_address(const CliRequestsErrMsgUrlCtx *args);
+void cli_requests_join(const CliRequestsOutBaseCtx *args);
+const CliRequestsText *cli_requests_header(const CliRequestsNameAnswerCtx *args);
 
 // `size` bytes of `text` stored in the pool of the answer's head into `text_span`, and a line of the answer's head
 // stored as a header, its name and value trimmed, a line with no colon passed over: each 1, or 0 where the head is
@@ -246,33 +269,30 @@ const CliRequestsText *cli_requests_header(const CliRequestsAnswer *answer, cons
 // Content-Length and Connection given where the request gives none; the answer's body of `size` bytes in `raw` undone
 // where its Content-Encoding is gzip or deflate, the body and its size set: 1, or 0 with why given; and whether the
 // answer's body is text by its Content-Type, else by its bytes (requests_head.c)
-int cli_requests_head_stored(CliRequestsAnswer *answer, const char *text, unsigned long long size,
-                             CliRequestsText *text_span);
-int cli_requests_head_line(CliRequestsAnswer *answer, const char *line, unsigned long long size);
-void cli_requests_head_written(const CliRequestsSent *hop, const CliRequestsAddress *address, VerbaLinea *out);
-int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, VerbaLinea *err_msg);
-int cli_requests_is_text(const CliRequestsAnswer *answer);
+int cli_requests_head_store(const CliRequestsTextSizeAnswerCtx *args);
+int cli_requests_head_line(const CliRequestsSizeAnswerCtx *args);
+void cli_requests_head_write(const CliRequestsOutHopCtx *args);
+int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args);
+int cli_requests_is_text(const CliRequestsNameAnswerCtx *args);
 
 // the room's hop sent once, to its own address, the peer's certificate checked where `verify` is 1, and the whole
 // answer read into the room's answer, its body read into `raw`, undone into `unpacked`, a cell taken for it, where it
 // was packed: 1, or 0 with why given (requests_http.c)
-int cli_requests_once(CliRequestsRoom *room, int verify, VerbaLinea *err_msg);
+int cli_requests_once(const CliRequestsErrMsgRoomCtx *args);
 
 // a room of the two a request is sent in taken, waiting while both are in use, and given back; and `sent` sent and
 // its answer read into the room's, following redirects where it does, the peer's certificate checked where `verify`
 // is 1: an answer that reports what failed where nothing answered (requests_send.c)
-CliRequestsRoom *cli_requests_room_taken(void);
-void cli_requests_room_given(CliRequestsRoom *room);
-void cli_requests_send(const CliRequestsSent *sent, int verify, CliRequestsRoom *room);
+CliRequestsRoom *cli_requests_room_take(void);
+void cli_requests_room_free(const CliRequestsSizeErrMsgCtx *args);
+void cli_requests_send(const CliRequestsSentCtx *args);
 
 // an answer written as serde writes it, with what was sent, its body cut to `most` bytes of its text at a letter's
 // start, `cut` then true; and the answer stored first among the answers of the request named `key` of the file at
 // `path`, its body cut to CLI_REQUESTS_HISTORY_BODY_MAX, and the last CLI_REQUESTS_HISTORY_MAX of them only: 1, or 0
 // with why given (requests_history.c)
-void cli_requests_answer_written(const CliRequestsAnswer *answer, const CliRequestsSent *sent, unsigned long long most,
-                                 VerbaLinea *out);
-int cli_requests_history_save(const char *root, const char *path, const char *key, unsigned long long key_size,
-                              const CliRequestsAnswer *answer, const CliRequestsSent *sent, VerbaLinea *err_msg);
+void cli_requests_answer_write(const CliRequestsOutCtx *args);
+int cli_requests_history_save(const CliRequestsErrMsgCtx *args);
 
 // the bytes of a curl line read and the most words it contains
 #define CLI_REQUESTS_CURL_TEXT (1u << 22u)
@@ -290,7 +310,488 @@ typedef struct
 // the words of `size` bytes of a shell line as bash reads them into `words`: 1, or 0 with why given; and `size` bytes
 // of a line copied for cmd as bash reads it, each caret taking the letter after it as it is and a caret at the end of a
 // line joining it to the next, into `out` (requests_words.c)
-int cli_requests_words(const char *line, unsigned long long size, CliRequestsWords *words, VerbaLinea *err_msg);
-void cli_requests_uncareted(const char *line, unsigned long long size, VerbaLinea *out);
+int cli_requests_words(const CliRequestsSizeCtx *args);
+void cli_requests_uncareted(const CliRequestsSizeOutCtx *args);
+
+struct CliRequestsTextCtx
+{
+    const char *text;
+    unsigned long long size;
+    unsigned long long line_u64;
+    VerbaLinea *err_msg;
+    const char *root;
+    const char *path;
+    const char *env;
+    CliRequestsSent *sent_out;
+    VerbaLinea *body;
+    VerbaLinea *key;
+};
+
+struct CliRequestsErrMsgCtx
+{
+    VerbaLinea *err_msg;
+    const char *root;
+    const char *path;
+    const CliRequestsSent *sent;
+    const CliRequestsAnswer *answer;
+    const char *key_text;
+    unsigned long long key_size;
+};
+
+struct CliRequestsTextSizeCtx
+{
+    const char *text;
+    unsigned long long size;
+    VerbaLinea *err_msg;
+    VerbaLinea *out;
+    const CliRequestsValues *values_read;
+};
+
+struct CliRequestsTextSizeBaseCtx
+{
+    const char *text;
+    unsigned long long size;
+    unsigned int base;
+    unsigned long long most;
+    unsigned long long *value_u64s;
+};
+
+struct CliRequestsNameCtx
+{
+    const char *name;
+    CliRequestsValues *values;
+    unsigned long long name_size;
+    const char *value;
+    unsigned long long value_size;
+};
+
+struct CliRequestsErrMsgRootCtx
+{
+    VerbaLinea *err_msg;
+    const char *root;
+    const char *path;
+    const char *env;
+    CliRequestsValues *values;
+};
+
+struct CliRequestsOutCtx
+{
+    VerbaLinea *out;
+    const CliRequestsSent *sent;
+    unsigned long long most;
+    const CliRequestsAnswer *answer;
+};
+
+struct CliRequestsTextSizeAnswerCtx
+{
+    const char *text;
+    unsigned long long size;
+    CliRequestsAnswer *answer_out;
+    CliRequestsText *text_span;
+};
+
+struct CliRequestsRootCtx
+{
+    const char *root;
+    const char *path;
+    const char *name;
+    char *found;
+};
+
+struct CliRequestsSizeCtx
+{
+    unsigned long long size;
+    VerbaLinea *err_msg;
+    const char *line;
+    CliRequestsWords *words;
+};
+
+struct CliRequestsErrMsgUrlCtx
+{
+    VerbaLinea *err_msg;
+    const char *url;
+    CliRequestsAddress *address;
+};
+
+struct CliRequestsTextSizeNeedleCtx
+{
+    const char *text;
+    unsigned long long size;
+    const char *needle;
+};
+
+struct CliRequestsSizeErrMsgCtx
+{
+    unsigned long long size;
+    VerbaLinea *err_msg;
+    CliRequestsRoom *room;
+};
+
+struct CliRequestsSizeAnswerCtx
+{
+    unsigned long long size;
+    CliRequestsAnswer *answer_out;
+    const char *line;
+};
+
+struct CliRequestsOutHopCtx
+{
+    VerbaLinea *out;
+    const CliRequestsSent *hop;
+    const CliRequestsAddress *address_read;
+};
+
+struct CliRequestsOutBaseCtx
+{
+    VerbaLinea *out;
+    const char *base_text;
+    const char *location;
+};
+
+struct CliRequestsParsedCtx
+{
+    const CliRequestsParsed *parsed_read;
+    const CliRequest *request;
+    VerbaLinea *out;
+};
+
+struct CliRequestsErrMsgRoomCtx
+{
+    VerbaLinea *err_msg;
+    CliRequestsRoom *room;
+    int verify;
+};
+
+struct CliRequestsTextSizeParsedCtx
+{
+    const char *text;
+    unsigned long long size;
+    CliRequestsParsed *parsed;
+};
+
+struct CliRequestsSentCtx
+{
+    const CliRequestsSent *sent;
+    CliRequestsRoom *room;
+    int verify;
+};
+
+struct CliRequestsTextStartCtx
+{
+    const char *text;
+    unsigned long long *start;
+    unsigned long long *end;
+};
+
+struct CliRequestsSizeOutCtx
+{
+    unsigned long long size;
+    VerbaLinea *out;
+    const char *line;
+};
+
+struct CliRequestsSizeNameCtx
+{
+    unsigned long long size;
+    const char *name;
+    const CliRequestsValues *values_read;
+};
+
+struct CliRequestsTextAtCtx
+{
+    const char *text;
+    unsigned long long at;
+    unsigned long long end_value;
+};
+
+struct CliRequestsCtx
+{
+    const CliRequestsParsed *parsed_read;
+    unsigned long long line_u64;
+};
+
+struct CliRequestsNameAnswerCtx
+{
+    const char *name;
+    const CliRequestsAnswer *answer;
+};
+
+struct CliRequestsOutSecondsCtx
+{
+    VerbaLinea *out;
+    unsigned long long seconds;
+};
+
+struct CliRequestsPoolCtx
+{
+    const char *pool;
+    CliRequestsText text_requests_text;
+};
+
+typedef struct
+{
+    int (*parse)(const CliRequestsTextSizeParsedCtx *args);
+    void (*parsed_free)(const CliRequestsTextSizeParsedCtx *args);
+} CliRequestsTextSizeParsedNs;
+EMBED_TABLE_LAYOUT(CliRequestsTextSizeParsedNs, parse, parsed_free);
+EMBED_TABLE_STORAGE CliRequestsTextSizeParsedNs cli_requests_text_size_parsed_internal EMBED_UNUSED = {
+    .parse = cli_requests_parse,
+    .parsed_free = cli_requests_parsed_free,
+};
+
+typedef struct
+{
+    const CliRequest *(*at)(const CliRequestsCtx *args);
+} CliRequestsNsTable;
+EMBED_TABLE_LAYOUT(CliRequestsNsTable, at);
+EMBED_TABLE_STORAGE CliRequestsNsTable cli_requests_internal EMBED_UNUSED = {
+    .at = cli_requests_at,
+};
+
+typedef struct
+{
+    const char *(*text)(const CliRequestsPoolCtx *args);
+} CliRequestsPoolNs;
+EMBED_TABLE_LAYOUT(CliRequestsPoolNs, text);
+EMBED_TABLE_STORAGE CliRequestsPoolNs cli_requests_pool_internal EMBED_UNUSED = {
+    .text = cli_requests_text,
+};
+
+typedef struct
+{
+    void (*trim)(const CliRequestsTextStartCtx *args);
+} CliRequestsTextStartNs;
+EMBED_TABLE_LAYOUT(CliRequestsTextStartNs, trim);
+EMBED_TABLE_STORAGE CliRequestsTextStartNs cli_requests_text_start_internal EMBED_UNUSED = {
+    .trim = cli_requests_trim,
+};
+
+typedef struct
+{
+    unsigned long long (*white_at)(const CliRequestsTextAtCtx *args);
+} CliRequestsTextAtNs;
+EMBED_TABLE_LAYOUT(CliRequestsTextAtNs, white_at);
+EMBED_TABLE_STORAGE CliRequestsTextAtNs cli_requests_text_at_internal EMBED_UNUSED = {
+    .white_at = cli_requests_white_at,
+};
+
+typedef struct
+{
+    void (*full_err)(const CliRequestsTextCtx *args);
+    int (*ready)(const CliRequestsTextCtx *args);
+} CliRequestsTextNsTable;
+EMBED_TABLE_LAYOUT(CliRequestsTextNsTable, full_err, ready);
+EMBED_TABLE_STORAGE CliRequestsTextNsTable cli_requests_text_internal EMBED_UNUSED = {
+    .full_err = cli_requests_full_err,
+    .ready = cli_requests_ready,
+};
+
+typedef struct
+{
+    void (*key)(const CliRequestsParsedCtx *args);
+} CliRequestsParsedNs;
+EMBED_TABLE_LAYOUT(CliRequestsParsedNs, key);
+EMBED_TABLE_STORAGE CliRequestsParsedNs cli_requests_parsed_internal EMBED_UNUSED = {
+    .key = cli_requests_key,
+};
+
+typedef struct
+{
+    int (*nearest)(const CliRequestsRootCtx *args);
+} CliRequestsRootNs;
+EMBED_TABLE_LAYOUT(CliRequestsRootNs, nearest);
+EMBED_TABLE_STORAGE CliRequestsRootNs cli_requests_root_internal EMBED_UNUSED = {
+    .nearest = cli_requests_nearest,
+};
+
+typedef struct
+{
+    int (*values)(const CliRequestsErrMsgRootCtx *args);
+    void (*values_free)(const CliRequestsErrMsgRootCtx *args);
+    int (*verifies)(const CliRequestsErrMsgRootCtx *args);
+} CliRequestsErrMsgRootNs;
+EMBED_TABLE_LAYOUT(CliRequestsErrMsgRootNs, values, values_free, verifies);
+EMBED_TABLE_STORAGE CliRequestsErrMsgRootNs cli_requests_err_msg_root_internal EMBED_UNUSED = {
+    .values = cli_requests_values,
+    .values_free = cli_requests_values_free,
+    .verifies = cli_requests_verifies,
+};
+
+typedef struct
+{
+    int (*value_put)(const CliRequestsNameCtx *args);
+} CliRequestsNameNs;
+EMBED_TABLE_LAYOUT(CliRequestsNameNs, value_put);
+EMBED_TABLE_STORAGE CliRequestsNameNs cli_requests_name_internal EMBED_UNUSED = {
+    .value_put = cli_requests_value_put,
+};
+
+typedef struct
+{
+    const CliRequestsText *(*value)(const CliRequestsSizeNameCtx *args);
+} CliRequestsSizeNameNs;
+EMBED_TABLE_LAYOUT(CliRequestsSizeNameNs, value);
+EMBED_TABLE_STORAGE CliRequestsSizeNameNs cli_requests_size_name_internal EMBED_UNUSED = {
+    .value = cli_requests_value,
+};
+
+typedef struct
+{
+    int (*fill)(const CliRequestsTextSizeCtx *args);
+} CliRequestsTextSizeNs;
+EMBED_TABLE_LAYOUT(CliRequestsTextSizeNs, fill);
+EMBED_TABLE_STORAGE CliRequestsTextSizeNs cli_requests_text_size_internal EMBED_UNUSED = {
+    .fill = cli_requests_fill,
+};
+
+typedef struct
+{
+    void (*iso)(const CliRequestsOutSecondsCtx *args);
+} CliRequestsOutSecondsNs;
+EMBED_TABLE_LAYOUT(CliRequestsOutSecondsNs, iso);
+EMBED_TABLE_STORAGE CliRequestsOutSecondsNs cli_requests_out_seconds_internal EMBED_UNUSED = {
+    .iso = cli_requests_iso,
+};
+
+typedef struct
+{
+    void (*curl_write)(const CliRequestsOutCtx *args);
+    void (*answer_write)(const CliRequestsOutCtx *args);
+} CliRequestsOutNs;
+EMBED_TABLE_LAYOUT(CliRequestsOutNs, curl_write, answer_write);
+EMBED_TABLE_STORAGE CliRequestsOutNs cli_requests_out_internal EMBED_UNUSED = {
+    .curl_write = cli_requests_curl_write,
+    .answer_write = cli_requests_answer_write,
+};
+
+typedef struct
+{
+    int (*number)(const CliRequestsTextSizeBaseCtx *args);
+} CliRequestsTextSizeBaseNs;
+EMBED_TABLE_LAYOUT(CliRequestsTextSizeBaseNs, number);
+EMBED_TABLE_STORAGE CliRequestsTextSizeBaseNs cli_requests_text_size_base_internal EMBED_UNUSED = {
+    .number = cli_requests_number,
+};
+
+typedef struct
+{
+    int (*contains)(const CliRequestsTextSizeNeedleCtx *args);
+} CliRequestsTextSizeNeedleNs;
+EMBED_TABLE_LAYOUT(CliRequestsTextSizeNeedleNs, contains);
+EMBED_TABLE_STORAGE CliRequestsTextSizeNeedleNs cli_requests_text_size_needle_internal EMBED_UNUSED = {
+    .contains = cli_requests_contains,
+};
+
+typedef struct
+{
+    int (*address)(const CliRequestsErrMsgUrlCtx *args);
+} CliRequestsErrMsgUrlNs;
+EMBED_TABLE_LAYOUT(CliRequestsErrMsgUrlNs, address);
+EMBED_TABLE_STORAGE CliRequestsErrMsgUrlNs cli_requests_err_msg_url_internal EMBED_UNUSED = {
+    .address = cli_requests_address,
+};
+
+typedef struct
+{
+    void (*join)(const CliRequestsOutBaseCtx *args);
+} CliRequestsOutBaseNs;
+EMBED_TABLE_LAYOUT(CliRequestsOutBaseNs, join);
+EMBED_TABLE_STORAGE CliRequestsOutBaseNs cli_requests_out_base_internal EMBED_UNUSED = {
+    .join = cli_requests_join,
+};
+
+typedef struct
+{
+    const CliRequestsText *(*header)(const CliRequestsNameAnswerCtx *args);
+    int (*is_text)(const CliRequestsNameAnswerCtx *args);
+} CliRequestsNameAnswerNs;
+EMBED_TABLE_LAYOUT(CliRequestsNameAnswerNs, header, is_text);
+EMBED_TABLE_STORAGE CliRequestsNameAnswerNs cli_requests_name_answer_internal EMBED_UNUSED = {
+    .header = cli_requests_header,
+    .is_text = cli_requests_is_text,
+};
+
+typedef struct
+{
+    int (*head_store)(const CliRequestsTextSizeAnswerCtx *args);
+} CliRequestsTextSizeAnswerNs;
+EMBED_TABLE_LAYOUT(CliRequestsTextSizeAnswerNs, head_store);
+EMBED_TABLE_STORAGE CliRequestsTextSizeAnswerNs cli_requests_text_size_answer_internal EMBED_UNUSED = {
+    .head_store = cli_requests_head_store,
+};
+
+typedef struct
+{
+    int (*head_line)(const CliRequestsSizeAnswerCtx *args);
+} CliRequestsSizeAnswerNs;
+EMBED_TABLE_LAYOUT(CliRequestsSizeAnswerNs, head_line);
+EMBED_TABLE_STORAGE CliRequestsSizeAnswerNs cli_requests_size_answer_internal EMBED_UNUSED = {
+    .head_line = cli_requests_head_line,
+};
+
+typedef struct
+{
+    void (*head_write)(const CliRequestsOutHopCtx *args);
+} CliRequestsOutHopNs;
+EMBED_TABLE_LAYOUT(CliRequestsOutHopNs, head_write);
+EMBED_TABLE_STORAGE CliRequestsOutHopNs cli_requests_out_hop_internal EMBED_UNUSED = {
+    .head_write = cli_requests_head_write,
+};
+
+typedef struct
+{
+    int (*decode)(const CliRequestsSizeErrMsgCtx *args);
+    void (*room_free)(const CliRequestsSizeErrMsgCtx *args);
+} CliRequestsSizeErrMsgNs;
+EMBED_TABLE_LAYOUT(CliRequestsSizeErrMsgNs, decode, room_free);
+EMBED_TABLE_STORAGE CliRequestsSizeErrMsgNs cli_requests_size_err_msg_internal EMBED_UNUSED = {
+    .decode = cli_requests_decode,
+    .room_free = cli_requests_room_free,
+};
+
+typedef struct
+{
+    int (*once)(const CliRequestsErrMsgRoomCtx *args);
+} CliRequestsErrMsgRoomNs;
+EMBED_TABLE_LAYOUT(CliRequestsErrMsgRoomNs, once);
+EMBED_TABLE_STORAGE CliRequestsErrMsgRoomNs cli_requests_err_msg_room_internal EMBED_UNUSED = {
+    .once = cli_requests_once,
+};
+
+typedef struct
+{
+    void (*send)(const CliRequestsSentCtx *args);
+} CliRequestsSentNs;
+EMBED_TABLE_LAYOUT(CliRequestsSentNs, send);
+EMBED_TABLE_STORAGE CliRequestsSentNs cli_requests_sent_internal EMBED_UNUSED = {
+    .send = cli_requests_send,
+};
+
+typedef struct
+{
+    int (*history_save)(const CliRequestsErrMsgCtx *args);
+} CliRequestsErrMsgNs;
+EMBED_TABLE_LAYOUT(CliRequestsErrMsgNs, history_save);
+EMBED_TABLE_STORAGE CliRequestsErrMsgNs cli_requests_err_msg_internal EMBED_UNUSED = {
+    .history_save = cli_requests_history_save,
+};
+
+typedef struct
+{
+    int (*words)(const CliRequestsSizeCtx *args);
+} CliRequestsSizeNsTable;
+EMBED_TABLE_LAYOUT(CliRequestsSizeNsTable, words);
+EMBED_TABLE_STORAGE CliRequestsSizeNsTable cli_requests_size_internal EMBED_UNUSED = {
+    .words = cli_requests_words,
+};
+
+typedef struct
+{
+    void (*uncareted)(const CliRequestsSizeOutCtx *args);
+} CliRequestsSizeOutNs;
+EMBED_TABLE_LAYOUT(CliRequestsSizeOutNs, uncareted);
+EMBED_TABLE_STORAGE CliRequestsSizeOutNs cli_requests_size_out_internal EMBED_UNUSED = {
+    .uncareted = cli_requests_uncareted,
+};
 
 #endif

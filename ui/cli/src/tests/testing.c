@@ -8,129 +8,162 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-void cli_test_written(const CliTest *test, VerbaLinea *out)
+void cli_test_write(const CliTestingCfg *args)
 {
-    mmgr_line_put(out, "{\"id\":");
-    cli_json_quoted_lossy(out, (const unsigned char *)test->id,
-                          cellul.len(&(CatenaFinitaCfg){.src = test->id, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, ",\"file\":");
-    cli_json_quoted_lossy(out, (const unsigned char *)test->file,
-                          cellul.len(&(CatenaFinitaCfg){.src = test->file, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, ",\"class\":");
-    if (test->class_name == NULL)
+    mmgr_line_put(args->out, "{\"id\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+               .text_bytes = (const unsigned char *)args->test->id,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->id, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->out, ",\"file\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+               .text_bytes = (const unsigned char *)args->test->file,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->file, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->out, ",\"class\":");
+    if (args->test->class_name == NULL)
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
     }
     else
     {
-        cli_json_quoted_lossy(out, (const unsigned char *)test->class_name,
-                              cellul.len(&(CatenaFinitaCfg){.src = test->class_name, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+                   .text_bytes = (const unsigned char *)args->test->class_name,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->class_name, .cap = CLI_CELLS_POOL}));
     }
-    mmgr_line_put(out, ",\"name\":");
-    cli_json_quoted_lossy(out, (const unsigned char *)test->name,
-                          cellul.len(&(CatenaFinitaCfg){.src = test->name, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, ",\"line\":");
-    mmgr_line_decimal(out, test->line, 1u);
-    mmgr_line_ch(out, '}');
+    mmgr_line_put(args->out, ",\"name\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+               .text_bytes = (const unsigned char *)args->test->name,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->test->name, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->out, ",\"line\":");
+    mmgr_line_decimal(args->out, args->test->line, 1u);
+    mmgr_line_ch(args->out, '}');
 }
 
-// `size` bytes of `value` put on `rule`, where they fit
-static void testing_value_put(CliTestRules *rules, CliTestRule *rule, const char *value, unsigned long long size)
+typedef struct
 {
-    if ((rule->count == CLI_TEST_VALUES) || (size + 1u > CLI_TEST_RULES_TEXT - rules->used))
+    CliTestRules *rules;
+    CliTestRule *rule;
+    const char *value;
+    unsigned long long size;
+    char letter;
+    const char *raw;
+    const char *key;
+    unsigned long long key_size;
+    const char *text;
+    unsigned long long *from;
+    unsigned long long *to;
+} TestingCtx;
+// `size` bytes of `value` put on `rule`, where they fit
+EMBED_INLINE void testing_value_put(const TestingCtx *args)
+{
+    if ((args->rule->count == CLI_TEST_VALUES) || (args->size + 1u > CLI_TEST_RULES_TEXT - args->rules->used))
     {
         return;
     }
-    rule->value[rule->count] = rules->used;
-    rule->count += 1u;
-    memor.cpy(&(MemoriaCfg){.dst = rules->text + rules->used, .src = value, .bytes = (size_t)size});
-    rules->used += (unsigned int)size;
-    rules->text[rules->used] = '\0';
-    rules->used += 1u;
+    args->rule->value[args->rule->count] = args->rules->used;
+    args->rule->count += 1u;
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->rules->text + args->rules->used, .src = args->value, .bytes = (size_t)args->size});
+    args->rules->used += (unsigned int)args->size;
+    args->rules->text[args->rules->used] = '\0';
+    args->rules->used += 1u;
 }
 
-void cli_test_rules_own(CliTestRules *rules)
+void cli_test_rules_own(const CliTestingRulesCfg *args)
 {
-    memor.set(&(MemoriaCfg){.dst = rules, .val = 0, .bytes = sizeof(*rules)});
-    testing_value_put(rules, &rules->files, "test_*.py", 9u);
-    testing_value_put(rules, &rules->files, "*_test.py", 9u);
-    testing_value_put(rules, &rules->files, "test*.py", 8u);
-    testing_value_put(rules, &rules->classes, "Test", 4u);
-    testing_value_put(rules, &rules->functions, "test", 4u);
+    memor.set(&(MemoriaCfg){.dst = args->rules, .val = 0, .bytes = sizeof(*args->rules)});
+    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->files, .value = "test_*.py",
+               .size = 9u);
+    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->files, .value = "*_test.py",
+               .size = 9u);
+    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->files, .value = "test*.py",
+               .size = 8u);
+    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->classes, .value = "Test",
+               .size = 4u);
+    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->functions, .value = "test",
+               .size = 4u);
 }
 
-const char *cli_test_rule_value(const CliTestRules *rules, const CliTestRule *rule, unsigned int at)
+const char *cli_test_rule_value(const CliTestingRulesRuleCfg *args)
 {
-    return rules->text + rule->value[at];
+    return args->rules_read->text + args->rule->value[args->at];
 }
 
 // whether a byte is a space of a line
-static int testing_space(char letter)
+EMBED_INLINE int testing_space(const TestingCtx *args)
 {
-    return (letter == ' ') || (letter == '\t') || (letter == '\r') || (letter == '\n') || (letter == '\f') ||
-           (letter == '\v');
+    return (args->letter == ' ') || (args->letter == '\t') || (args->letter == '\r') || (args->letter == '\n') ||
+           (args->letter == '\f') || (args->letter == '\v');
 }
 
 // the values `size` bytes of a setting give put on `rule` in place of what it contained
-static void testing_values_of(CliTestRules *rules, CliTestRule *rule, const char *raw, unsigned long long size)
+EMBED_INLINE void testing_values_get(const TestingCtx *args)
 {
-    rule->count = 0u;
+    unsigned long long size = args->size;
+    args->rule->count = 0u;
     unsigned long long start = 0ull;
     unsigned long long end = size;
-    start = cli_text_past_any(raw, start, end, "[");
-    end = (start + cli_text_back_past(raw + start, end - start, "]"));
+    start = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->raw, .at = start,
+                       .size = end, .set = "[");
+    end = (start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->raw + start,
+                              .at = end - start, .set = "]"));
     for (unsigned long long at = start; at <= end; at += 1u)
     {
-        if ((at < end) && !testing_space(raw[at]) && (raw[at] != ','))
+        if ((at < end) && !EMBED_CALL(testing_space, TestingCtx, .letter = args->raw[at]) && (args->raw[at] != ','))
         {
             continue;
         }
         unsigned long long from = start;
         unsigned long long to = at;
-        from = cli_text_past_any(raw, from, to, CLI_TEXT_WHITE "\"'");
-        to = from + cli_text_back_past(raw + from, to - from, CLI_TEXT_WHITE "\"'");
+        from = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->raw, .at = from,
+                          .size = to, .set = CLI_TEXT_WHITE "\"'");
+        to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->raw + from,
+                               .at = to - from, .set = CLI_TEXT_WHITE "\"'");
         if (to > from)
         {
-            testing_value_put(rules, rule, raw + from, to - from);
+            EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = args->rule,
+                       .value = args->raw + from, .size = to - from);
         }
         start = at + 1u;
     }
 }
 
 // the setting `key` set from its value
-static void testing_set(CliTestRules *rules, const char *key, unsigned long long key_size, const char *value,
-                        unsigned long long size)
+EMBED_INLINE void testing_set(const TestingCtx *args)
 {
     static const char *const s_keys[4] = {"testpaths", "python_files", "python_classes", "python_functions"};
-    CliTestRule *const rule[4] = {&rules->paths, &rules->files, &rules->classes, &rules->functions};
+    CliTestRule *const rule[4] = {&args->rules->paths, &args->rules->files, &args->rules->classes,
+                                  &args->rules->functions};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = s_keys[at], .cap = CLI_CELLS_POOL}) == key_size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_keys[at], .other = key, .bytes = (size_t)key_size}) == 0))
+        if ((cellul.len(&(CatenaFinitaCfg){.src = s_keys[at], .cap = CLI_CELLS_POOL}) == args->key_size) &&
+            (memor.cmp(&(MemoriaCfg){.src = s_keys[at], .other = args->key, .bytes = (size_t)args->key_size}) == 0))
         {
-            testing_values_of(rules, rule[at], value, size);
+            EMBED_CALL(testing_values_get, TestingCtx, .rules = args->rules, .rule = rule[at], .raw = args->value,
+                       .size = args->size);
         }
     }
 }
 
 // the bounds of `size` bytes of `text` with the spaces at both ends taken off
-static void testing_trimmed(const char *text, unsigned long long size, unsigned long long *from, unsigned long long *to)
+EMBED_INLINE void testing_trim(const TestingCtx *args)
 {
+    unsigned long long *from = args->from;
+    unsigned long long *to = args->to;
     *from = 0ull;
-    *to = size;
-    while ((*from < *to) && testing_space(text[*from]))
+    *to = args->size;
+    while ((*from < *to) && EMBED_CALL(testing_space, TestingCtx, .letter = args->text[*from]))
     {
         *from += 1u;
     }
-    while ((*to > *from) && testing_space(text[*to - 1u]))
+    while ((*to > *from) && EMBED_CALL(testing_space, TestingCtx, .letter = args->text[*to - 1u]))
     {
         *to -= 1u;
     }
 }
 
-int cli_test_rules_in(const char *text, unsigned long long size, const char *section, CliTestRules *rules)
+int cli_test_rules_in(const CliTestingRulesCfg *args)
 {
-    cli_test_rules_own(rules);
+    cli_testing_rules.test_rules_own(args);
     static char s_key[256];
     static char s_value[8192];
     VerbaLinea value = {s_value, sizeof(s_value), 0ull};
@@ -138,17 +171,18 @@ int cli_test_rules_in(const char *text, unsigned long long size, const char *sec
     int keyed = 0;
     int inside = 0;
     int found = 0;
-    const unsigned long long section_size = cellul.len(&(CatenaFinitaCfg){.src = section, .cap = CLI_CELLS_POOL});
-    for (unsigned long long start = 0ull; start < size;)
+    const unsigned long long section_size = cellul.len(&(CatenaFinitaCfg){.src = args->section, .cap = CLI_CELLS_POOL});
+    for (unsigned long long start = 0ull; start < args->size;)
     {
-        const unsigned long long end = cli_text_line_at(text, start, size).stop;
-        const char *const line = text + start;
+        const unsigned long long end =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->text, .at = start, .size = args->size).stop;
+        const char *const line = args->text + start;
         const unsigned long long line_size =
-            ((end > start) && (text[end - 1u] == '\r')) ? end - start - 1u : end - start;
+            ((end > start) && (args->text[end - 1u] == '\r')) ? end - start - 1u : end - start;
         start = end + 1u;
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
-        testing_trimmed(line, line_size, &from, &to);
+        EMBED_CALL(testing_trim, TestingCtx, .text = line, .size = line_size, .from = &from, .to = &to);
         const char *const trimmed = line + from;
         const unsigned long long trimmed_size = to - from;
         const int indented = (line_size > 0u) && ((line[0] == ' ') || (line[0] == '\t'));
@@ -157,11 +191,13 @@ int cli_test_rules_in(const char *text, unsigned long long size, const char *sec
         {
             if (keyed)
             {
-                testing_set(rules, s_key, key_size, s_value, value.at);
+                EMBED_CALL(testing_set, TestingCtx, .rules = args->rules, .key = s_key, .key_size = key_size,
+                           .value = s_value, .size = value.at);
                 keyed = 0;
             }
-            inside = (trimmed_size == section_size) &&
-                     (memor.cmp(&(MemoriaCfg){.src = trimmed, .other = section, .bytes = (size_t)section_size}) == 0);
+            inside =
+                (trimmed_size == section_size) &&
+                (memor.cmp(&(MemoriaCfg){.src = trimmed, .other = args->section, .bytes = (size_t)section_size}) == 0);
             found |= inside;
             continue;
         }
@@ -177,7 +213,8 @@ int cli_test_rules_in(const char *text, unsigned long long size, const char *sec
         }
         if (keyed)
         {
-            testing_set(rules, s_key, key_size, s_value, value.at);
+            EMBED_CALL(testing_set, TestingCtx, .rules = args->rules, .key = s_key, .key_size = key_size,
+                       .value = s_value, .size = value.at);
             keyed = 0;
         }
         const char *const equals = memor.chr(&(MemoriaCfg){.src = trimmed, .val = '=', .bytes = (size_t)trimmed_size});
@@ -186,10 +223,12 @@ int cli_test_rules_in(const char *text, unsigned long long size, const char *sec
             const unsigned long long name_size = (unsigned long long)(equals - trimmed);
             unsigned long long name_from = 0ull;
             unsigned long long name_to = 0ull;
-            testing_trimmed(trimmed, name_size, &name_from, &name_to);
+            EMBED_CALL(testing_trim, TestingCtx, .text = trimmed, .size = name_size, .from = &name_from,
+                       .to = &name_to);
             unsigned long long rest_from = 0ull;
             unsigned long long rest_to = 0ull;
-            testing_trimmed(equals + 1, trimmed_size - name_size - 1u, &rest_from, &rest_to);
+            EMBED_CALL(testing_trim, TestingCtx, .text = equals + 1, .size = trimmed_size - name_size - 1u,
+                       .from = &rest_from, .to = &rest_to);
             key_size = (name_to - name_from < sizeof(s_key)) ? name_to - name_from : 0ull;
             memor.cpy(&(MemoriaCfg){.dst = s_key, .src = trimmed + name_from, .bytes = (size_t)key_size});
             value.at = 0ull;
@@ -199,64 +238,72 @@ int cli_test_rules_in(const char *text, unsigned long long size, const char *sec
     }
     if (keyed)
     {
-        testing_set(rules, s_key, key_size, s_value, value.at);
+        EMBED_CALL(testing_set, TestingCtx, .rules = args->rules, .key = s_key, .key_size = key_size, .value = s_value,
+                   .size = value.at);
     }
     return found;
 }
 
-void cli_test_rules_of(const char *root, CliTestRules *rules)
+void cli_test_rules_get(const CliTestingRulesCfg *args)
 {
     static const char *const s_files[4] = {"pytest.ini", "pyproject.toml", "tox.ini", "setup.cfg"};
     static const char *const s_sections[4] = {"[pytest]", "[tool.pytest.ini_options]", "[pytest]", "[tool:pytest]"};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        cli_full(root, s_files[at], path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = s_files[at], .joined = path);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_tests_cells);
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                      .size_pointer = &size, .owner = &g_cli_tests_cells);
         if (bytes == NULL)
         {
             continue;
         }
         const char *const text = (const char *)bytes;
-        const int read = cli_utf8_whole(text, size) && cli_test_rules_in(text, size, s_sections[at], rules);
-        cli_file_given(bytes, &g_cli_tests_cells);
+        const int read = EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = text, .size = size) &&
+                         EMBED_CALL(cli_testing_rules.test_rules_in, CliTestingRulesCfg, .text = text, .size = size,
+                                    .section = s_sections[at], .rules = args->rules);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_tests_cells);
         if (read)
         {
             return;
         }
     }
-    cli_test_rules_own(rules);
+    cli_testing_rules.test_rules_own(args);
 }
 
 // the bytes the letter of UTF-8 at `text` takes, of the `size` left
-static unsigned long long testing_letter(const char *text, unsigned long long size)
+EMBED_INLINE unsigned long long testing_letter(const TestingCtx *args)
 {
-    const unsigned char lead = (unsigned char)text[0];
+    const unsigned char lead = (unsigned char)args->text[0];
     const unsigned long long want = (lead < 0xc0u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
-    return (want < size) ? want : size;
+    return (want < args->size) ? want : args->size;
 }
 
-int cli_test_glob(const char *pattern, const char *name, unsigned long long size)
+int cli_test_glob(const CliTestingSizeCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->pattern, .cap = CLI_CELLS_POOL});
     unsigned long long matched = 0ull;
     unsigned long long at = 0ull;
     unsigned long long star = length;
     unsigned long long mark = 0ull;
-    while (at < size)
+    while (at < args->size)
     {
-        const unsigned long long letter = testing_letter(name + at, size - at);
-        const unsigned long long own = (matched < length) ? testing_letter(pattern + matched, length - matched) : 0ull;
-        if ((matched < length) &&
-            ((pattern[matched] == '?') ||
-             ((own == letter) &&
-              (memor.cmp(&(MemoriaCfg){.src = pattern + matched, .other = name + at, .bytes = (size_t)own}) == 0))))
+        const unsigned long long letter =
+            EMBED_CALL(testing_letter, TestingCtx, .text = args->name + at, .size = args->size - at);
+        const unsigned long long own =
+            (matched < length)
+                ? EMBED_CALL(testing_letter, TestingCtx, .text = args->pattern + matched, .size = length - matched)
+                : 0ull;
+        if ((matched < length) && ((args->pattern[matched] == '?') ||
+                                   ((own == letter) && (memor.cmp(&(MemoriaCfg){.src = args->pattern + matched,
+                                                                                .other = args->name + at,
+                                                                                .bytes = (size_t)own}) == 0))))
         {
-            matched += (pattern[matched] == '?') ? 1u : own;
+            matched += (args->pattern[matched] == '?') ? 1u : own;
             at += letter;
         }
-        else if ((matched < length) && (pattern[matched] == '*'))
+        else if ((matched < length) && (args->pattern[matched] == '*'))
         {
             star = matched;
             mark = at;
@@ -265,7 +312,7 @@ int cli_test_glob(const char *pattern, const char *name, unsigned long long size
         else if (star < length)
         {
             matched = star + 1u;
-            mark += testing_letter(name + mark, size - mark);
+            mark += EMBED_CALL(testing_letter, TestingCtx, .text = args->name + mark, .size = args->size - mark);
             at = mark;
         }
         else
@@ -273,22 +320,25 @@ int cli_test_glob(const char *pattern, const char *name, unsigned long long size
             return 0;
         }
     }
-    matched = cli_text_past_any(pattern, matched, length, "*");
+    matched = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->pattern,
+                         .at = matched, .size = length, .set = "*");
     return matched == length;
 }
 
-int cli_test_named(const CliTestRules *rules, const CliTestRule *rule, const char *name, unsigned long long size)
+int cli_test_by_name(const CliTestingRulesRuleSizeCfg *args)
 {
-    for (unsigned int at = 0u; at < rule->count; at += 1u)
+    for (unsigned int at = 0u; at < args->rule->count; at += 1u)
     {
-        const char *const value = cli_test_rule_value(rules, rule, at);
+        const char *const value = EMBED_CALL(cli_testing_rules_rule.test_rule_value, CliTestingRulesRuleCfg,
+                                             .rules_read = args->rules_read, .rule = args->rule, .at = at);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL});
         const int globbed =
             (cellul.chr(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL, .byte = '*'}) != NULL) ||
             (cellul.chr(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL, .byte = '?'}) != NULL);
-        if (globbed
-                ? cli_test_glob(value, name, size)
-                : ((length <= size) && (memor.cmp(&(MemoriaCfg){.src = value, .other = name, .bytes = length}) == 0)))
+        if (globbed ? EMBED_CALL(cli_testing_size.test_glob, CliTestingSizeCfg, .pattern = value, .name = args->name,
+                                 .size = args->size)
+                    : ((length <= args->size) &&
+                       (memor.cmp(&(MemoriaCfg){.src = value, .other = args->name, .bytes = length}) == 0)))
         {
             return 1;
         }

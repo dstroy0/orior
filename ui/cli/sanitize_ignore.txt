@@ -1,0 +1,7 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+# The sources the address sanitizer does not instrument, read by ui/cli/build.sh. MMgr's string scans read whole aligned words, and a
+# word that holds a string's terminator can extend past the string's last byte, inside one aligned word and so inside one page.
+src:*cellularum_laboro*
+src:*verbum_scrutor*
+src:*proximus_operor*

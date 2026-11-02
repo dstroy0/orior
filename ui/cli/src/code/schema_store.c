@@ -13,32 +13,46 @@
 #define CLI_SCHEMA_DOCUMENT_TEXT (1u << 22u)
 #define CLI_SCHEMA_TOKENS (1u << 18u)
 
-void cli_schema_store_begun(CliSchemaStore *store)
+void cli_schema_store_begin(const CliSchemaStoreCtx *args)
 {
-    cli_json_emptied(&store->json);
-    store->documents = 0u;
-    store->missings = 0u;
+    EMBED_CALL(cli_json_tree.json_clear, CliJsonTreeCfg, .json = &args->store->json);
+    args->store->documents = 0u;
+    args->store->missings = 0u;
 }
 
+typedef struct
+{
+    const char *url;
+    VerbaLinea *out;
+    const char *text;
+    unsigned long long size;
+    char *stripped;
+    const CliSchemaStore *store_read;
+    const char *key;
+    CliSchemaStore *store;
+    unsigned long long *size_pointer;
+    int *mapped;
+} SchemaStoreCtx;
 // a URL as a key among those orior_cli bundles, no scheme and no `#` and no `/` at its end, into `out`
-static void store_url_key(const char *url, VerbaLinea *out)
+EMBED_INLINE void store_url_key(const SchemaStoreCtx *args)
 {
-    const char *const scheme =
-        cellul.find(&(CatenaFinitaCfg){.src = url, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
-    const char *const rest = (scheme != NULL) ? scheme + 3 : url;
+    const char *const scheme = cellul.find(
+        &(CatenaFinitaCfg){.src = args->url, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
+    const char *const rest = (scheme != NULL) ? scheme + 3 : args->url;
     unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL});
-    size = cli_text_back_past(rest, size, "#/");
-    mmgr_line_put_n(out, rest, size);
+    size =
+        EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = rest, .at = size, .set = "#/");
+    mmgr_line_put_n(args->out, rest, size);
 }
 
-int cli_schema_cache_path(const char *url, char *out)
+int cli_schema_cache_path(const CliSchemaUrlCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     char schemas[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
     VerbaLinea line = {key, sizeof(key), 0ull};
-    store_url_key(url, &line);
-    if (!cli_home_folder(folder) || !mmgr_line_ok(&line))
+    EMBED_CALL(store_url_key, SchemaStoreCtx, .url = args->url, .out = &line);
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder) || !mmgr_line_ok(&line))
     {
         return 0;
     }
@@ -47,7 +61,8 @@ int cli_schema_cache_path(const char *url, char *out)
     for (unsigned long long at = 0ull; at < line.at;)
     {
         unsigned long long length = 0ull;
-        const unsigned int letter = cli_text_letter(key, line.at, at, &length);
+        const unsigned int letter =
+            EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = key, .size = line.at, .at = at, .length = &length);
         const int allowed = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
                             ((letter >= '0') && (letter <= '9')) || (letter == '.') || (letter == '-');
         mmgr_line_ch(&named, allowed ? (char)letter : '_');
@@ -58,24 +73,26 @@ int cli_schema_cache_path(const char *url, char *out)
     {
         return 0;
     }
-    cli_full(folder, "schemas", schemas);
-    cli_full(schemas, name, out);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "schemas", .joined = schemas);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = schemas, .relative = name, .joined = args->out_room);
     return 1;
 }
 
 // `size` bytes of JSON with their comments taken out, each by spaces and a block's lines preserved, into `stripped`,
 // which is sized for `size` bytes
-static void store_stripped(const char *text, unsigned long long size, char *stripped)
+EMBED_INLINE void store_strip(const SchemaStoreCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
     int quoted = 0;
     for (unsigned long long at = 0ull; at < size;)
     {
         if (quoted)
         {
-            stripped[at] = text[at];
+            args->stripped[at] = text[at];
             if ((text[at] == '\\') && (at + 1u < size))
             {
-                stripped[at + 1u] = text[at + 1u];
+                args->stripped[at + 1u] = text[at + 1u];
                 at += 2u;
                 continue;
             }
@@ -84,35 +101,44 @@ static void store_stripped(const char *text, unsigned long long size, char *stri
             continue;
         }
         unsigned long long end = 0ull;
-        if (cli_text_starts(text + at, size - at, "//"))
+        if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + at, .size = size - at,
+                       .prefix = "//"))
         {
-            end = cli_text_find(text + at, size - at, "\n", 1u, &end) ? at + end : size;
-            memor.set(&(MemoriaCfg){.dst = stripped + at, .val = ' ', .bytes = (size_t)(end - at)});
+            end = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + at, .length_value = size - at,
+                             .wanted = "\n", .size = 1u, .at_pointer = &end)
+                      ? at + end
+                      : size;
+            memor.set(&(MemoriaCfg){.dst = args->stripped + at, .val = ' ', .bytes = (size_t)(end - at)});
             at = end;
             continue;
         }
-        if (cli_text_starts(text + at, size - at, "/*"))
+        if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + at, .size = size - at,
+                       .prefix = "/*"))
         {
-            end = cli_text_find(text + at + 2u, size - at - 2u, "*/", 2u, &end) ? at + 2u + end + 2u : size;
+            end = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + at + 2u,
+                             .length_value = size - at - 2u, .wanted = "*/", .size = 2u, .at_pointer = &end)
+                      ? at + 2u + end + 2u
+                      : size;
             for (unsigned long long one = at; one < end; one += 1u)
             {
-                stripped[one] = (text[one] == '\n') ? '\n' : ' ';
+                args->stripped[one] = (text[one] == '\n') ? '\n' : ' ';
             }
             at = end;
             continue;
         }
         quoted = (text[at] == '"');
-        stripped[at] = text[at];
+        args->stripped[at] = text[at];
         at += 1u;
     }
 }
 
 // whether the store could not find `key` before
-static int store_missing(const CliSchemaStore *store, const char *key)
+EMBED_INLINE int store_missing(const SchemaStoreCtx *args)
 {
-    for (unsigned int at = 0u; at < store->missings; at += 1u)
+    for (unsigned int at = 0u; at < args->store_read->missings; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = store->missing[at], .other = key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(
+                &(CatenaFinitaCfg){.src = args->store_read->missing[at], .other = args->key, .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -121,30 +147,32 @@ static int store_missing(const CliSchemaStore *store, const char *key)
 }
 
 // `key` recorded among those the store could not find
-static void store_missed(CliSchemaStore *store, const char *key)
+EMBED_INLINE void store_missed(const SchemaStoreCtx *args)
 {
-    if (store->missings < CLI_SCHEMA_MISSING)
+    if (args->store->missings < CLI_SCHEMA_MISSING)
     {
-        VerbaLinea line = {store->missing[store->missings], CLI_PATH_MAX_LEN, 0ull};
-        mmgr_line_put(&line, key);
+        VerbaLinea line = {args->store->missing[args->store->missings], CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, args->key);
         (void)mmgr_line_finish(&line);
-        store->missings += 1u;
+        args->store->missings += 1u;
     }
 }
 
 // the text of the document at `key`, the bundled meta-schemas first for a URL, and otherwise its file mapped where it
 // lies, with 1 in `mapped`: its bytes and size, NULL where none is or its file is larger than CLI_SCHEMA_DOCUMENT_TEXT
-static const char *store_text_of(const char *key, unsigned long long *size, int *mapped)
+EMBED_INLINE const char *store_text_get(const SchemaStoreCtx *args)
 {
+    unsigned long long *size = args->size_pointer;
+    int *mapped = args->mapped;
     *mapped = 0;
-    const char *path = key;
+    const char *path = args->key;
     char path_buf[CLI_PATH_MAX_LEN];
-    if (cellul.find(
-            &(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL)
+    if (cellul.find(&(CatenaFinitaCfg){
+            .src = args->key, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL)
     {
         char wanted[CLI_PATH_MAX_LEN];
         VerbaLinea line = {wanted, sizeof(wanted), 0ull};
-        store_url_key(key, &line);
+        EMBED_CALL(store_url_key, SchemaStoreCtx, .url = args->key, .out = &line);
         for (unsigned int at = 0u; at < 5u; at += 1u)
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_schema_bundled[at][0], .cap = CLI_CELLS_POOL}) ==
@@ -156,16 +184,17 @@ static const char *store_text_of(const char *key, unsigned long long *size, int 
                 return g_cli_schema_bundled[at][1];
             }
         }
-        if (!cli_schema_cache_path(key, path_buf))
+        if (!EMBED_CALL(cli_schema_url_internal.cache_path, CliSchemaUrlCtx, .url = args->key, .out_room = path_buf))
         {
             return NULL;
         }
         path = path_buf;
     }
-    const unsigned char *const bytes = cli_file_taken(path, size, &g_cli_schema_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                  .size_pointer = size, .owner = &g_cli_schema_cells);
     if ((bytes != NULL) && (*size > CLI_SCHEMA_DOCUMENT_TEXT))
     {
-        cli_file_given(bytes, &g_cli_schema_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_schema_cells);
         return NULL;
     }
     *mapped = (bytes != NULL);
@@ -174,63 +203,74 @@ static const char *store_text_of(const char *key, unsigned long long *size, int 
 
 // `size` bytes of a schema's `text` read into the store's tree, its comments taken out in a cell of its size and its
 // tokens in a cell of their count, both given back after: its root, CLI_JSON_NONE where it could not be read
-static unsigned int store_read(CliSchemaStore *store, const char *text, unsigned long long size)
+EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
     char *const stripped = g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_schema_cells);
     if (stripped == NULL)
     {
         return CLI_JSON_NONE;
     }
-    store_stripped(text, size, stripped);
-    const unsigned int tokens_most = cli_json_tokens_counted(stripped, size) + 1u;
+    EMBED_CALL(store_strip, SchemaStoreCtx, .text = text, .size = size, .stripped = stripped);
+    const unsigned int tokens_most =
+        EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = stripped, .size = size) + 1u;
     CfgJsonToken *const tokens = (tokens_most <= CLI_SCHEMA_TOKENS)
                                      ? g_cli_cells->temporary_buf_alloc(
                                            (unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_schema_cells)
                                      : NULL;
     unsigned int root = CLI_JSON_NONE;
-    if ((tokens != NULL) && cli_json_room(&store->json, tokens_most, size))
+    if ((tokens != NULL) && EMBED_CALL(cli_json_tree_nodes.json_room, CliJsonTreeNodesCfg, .json = &args->store->json,
+                                       .nodes = tokens_most, .text_u64 = size))
     {
         char why[256];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        root = cli_json_read(&store->json, stripped, size, tokens, tokens_most, &err_msg);
-        root = store->json.full ? CLI_JSON_NONE : root;
+        root = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
+                          .json = &args->store->json, .text = stripped, .size = size, .tokens = tokens,
+                          .tokens_most = tokens_most, .err_msg = &err_msg);
+        root = args->store->json.full ? CLI_JSON_NONE : root;
     }
     g_cli_cells->persistent_buf_release(tokens, &g_cli_schema_cells);
     g_cli_cells->persistent_buf_release(stripped, &g_cli_schema_cells);
     return root;
 }
 
-unsigned int cli_schema_load(CliSchemaStore *store, const char *key)
+unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
 {
-    for (unsigned int at = 0u; at < store->documents; at += 1u)
+    for (unsigned int at = 0u; at < args->store->documents; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = store->key[at], .other = key, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->store->key[at], .other = args->key_read, .cap = CLI_CELLS_POOL}))
         {
-            return store->root[at];
+            return args->store->root[at];
         }
     }
-    if ((store->documents >= CLI_SCHEMA_DOCUMENTS) || store_missing(store, key))
+    if ((args->store->documents >= CLI_SCHEMA_DOCUMENTS) ||
+        EMBED_CALL(store_missing, SchemaStoreCtx, .store_read = args->store, .key = args->key_read))
     {
         return CLI_SCHEMA_NONE;
     }
     unsigned long long size = 0ull;
     int mapped = 0;
-    const char *const text = store_text_of(key, &size, &mapped);
+    const char *const text =
+        EMBED_CALL(store_text_get, SchemaStoreCtx, .key = args->key_read, .size_pointer = &size, .mapped = &mapped);
     const unsigned int root =
-        ((text != NULL) && cli_utf8_whole(text, size)) ? store_read(store, text, size) : CLI_JSON_NONE;
+        ((text != NULL) && EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = text, .size = size))
+            ? EMBED_CALL(store_read, SchemaStoreCtx, .store = args->store, .text = text, .size = size)
+            : CLI_JSON_NONE;
     if (mapped)
     {
-        cli_file_given((const unsigned char *)text, &g_cli_schema_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = (const unsigned char *)text,
+                   .owner = &g_cli_schema_cells);
     }
     if (root == CLI_JSON_NONE)
     {
-        store_missed(store, key);
+        EMBED_CALL(store_missed, SchemaStoreCtx, .store = args->store, .key = args->key_read);
         return CLI_SCHEMA_NONE;
     }
-    VerbaLinea line = {store->key[store->documents], CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, key);
+    VerbaLinea line = {args->store->key[args->store->documents], CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->key_read);
     (void)mmgr_line_finish(&line);
-    store->root[store->documents] = root;
-    store->documents += 1u;
+    args->store->root[args->store->documents] = root;
+    args->store->documents += 1u;
     return root;
 }

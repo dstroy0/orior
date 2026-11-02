@@ -4,60 +4,74 @@
 #include "../text/json_tree.h"
 #include "runner.h"
 
-// a text written as a JSON string, its bytes read as Rust's from_utf8_lossy reads them
-static void text_quoted(const char *text, VerbaLinea *out)
+typedef struct
 {
-    cli_json_quoted_lossy(out, (const unsigned char *)text,
-                          cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    const char *text;
+    VerbaLinea *out;
+} RunnerEventCtx;
+
+// a text written as a JSON string, its bytes read as Rust's from_utf8_lossy reads them
+EMBED_INLINE void text_quote(const RunnerEventCtx *args)
+{
+    const char *text = args->text;
+    VerbaLinea *out = args->out;
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)text,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-void cli_run_event_written(const CliRunEvent *event, VerbaLinea *out)
+void cli_run_event_write(const CliRunnerEventCfg *args)
 {
-    mmgr_line_put(out, "{\"run\":");
-    mmgr_line_decimal(out, event->run, 1u);
-    if (event->kind == CLI_RUN_EVENT_START)
+    mmgr_line_put(args->out, "{\"run\":");
+    mmgr_line_decimal(args->out, args->event->run, 1u);
+    if (args->event->kind == CLI_RUN_EVENT_START)
     {
-        mmgr_line_put(out, ",\"job\":");
-        text_quoted((event->job != NULL) ? event->job : "", out);
-        mmgr_line_ch(out, '}');
+        mmgr_line_put(args->out, ",\"job\":");
+        EMBED_CALL(text_quote, RunnerEventCtx, .text = (args->event->job != NULL) ? args->event->job : "",
+                   .out = args->out);
+        mmgr_line_ch(args->out, '}');
         return;
     }
-    if (event->kind == CLI_RUN_EVENT_LINE)
+    if (args->event->kind == CLI_RUN_EVENT_LINE)
     {
-        mmgr_line_put(out, ",\"stream\":");
-        text_quoted((event->stream != NULL) ? event->stream : "", out);
-        mmgr_line_put(out, ",\"text\":");
-        text_quoted((event->text != NULL) ? event->text : "", out);
-        mmgr_line_put(out, ",\"ms\":");
-        cli_json_double(out, event->ms);
-        mmgr_line_ch(out, '}');
+        mmgr_line_put(args->out, ",\"stream\":");
+        EMBED_CALL(text_quote, RunnerEventCtx, .text = (args->event->stream != NULL) ? args->event->stream : "",
+                   .out = args->out);
+        mmgr_line_put(args->out, ",\"text\":");
+        EMBED_CALL(text_quote, RunnerEventCtx, .text = (args->event->text != NULL) ? args->event->text : "",
+                   .out = args->out);
+        mmgr_line_put(args->out, ",\"ms\":");
+        EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = args->out,
+                   .value_f64 = args->event->ms);
+        mmgr_line_ch(args->out, '}');
         return;
     }
-    mmgr_line_put(out, ",\"code\":");
-    if (event->has_code)
+    mmgr_line_put(args->out, ",\"code\":");
+    if (args->event->has_code)
     {
-        mmgr_line_decimal_signed(out, event->code);
+        mmgr_line_decimal_signed(args->out, args->event->code);
     }
     else
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
     }
-    mmgr_line_put(out, event->stopped ? ",\"stopped\":true,\"views\":[" : ",\"stopped\":false,\"views\":[");
-    for (unsigned int at = 0u; at < event->view_count; at += 1u)
+    mmgr_line_put(args->out, args->event->stopped ? ",\"stopped\":true,\"views\":[" : ",\"stopped\":false,\"views\":[");
+    for (unsigned int at = 0u; at < args->event->view_count; at += 1u)
     {
-        mmgr_line_put(out, (at > 0u) ? "," : "");
-        text_quoted(event->views[at], out);
+        mmgr_line_put(args->out, (at > 0u) ? "," : "");
+        EMBED_CALL(text_quote, RunnerEventCtx, .text = args->event->views[at], .out = args->out);
     }
-    mmgr_line_put(out, "],\"made\":");
-    if (event->made != NULL)
+    mmgr_line_put(args->out, "],\"made\":");
+    if (args->event->made != NULL)
     {
-        text_quoted(event->made, out);
+        EMBED_CALL(text_quote, RunnerEventCtx, .text = args->event->made, .out = args->out);
     }
     else
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
     }
-    mmgr_line_put(out, ",\"ms\":");
-    cli_json_double(out, event->ms);
-    mmgr_line_ch(out, '}');
+    mmgr_line_put(args->out, ",\"ms\":");
+    EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = args->out,
+               .value_f64 = args->event->ms);
+    mmgr_line_ch(args->out, '}');
 }

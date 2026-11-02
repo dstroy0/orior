@@ -3,11 +3,13 @@
 // ipp.c: an IPP message made, encoded and decoded, and its groups and attributes read
 #include "ipp.h"
 
-void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int request_id)
+void cli_ipp_begin(const CliIppMessageCodeCfg *args)
 {
-    cli_ipp_given(message);
-    message->code = code;
-    message->request_id = request_id;
+    unsigned int code = args->code;
+    unsigned int request_id = args->request_id;
+    cli_ipp_message_code.free(args);
+    args->message->code = code;
+    args->message->request_id = request_id;
     const unsigned long long group_bytes = (unsigned long long)CLI_IPP_GROUPS * sizeof(CliIppGroup);
     const unsigned long long attribute_bytes = (unsigned long long)CLI_IPP_ATTRIBUTES * sizeof(CliIppAttribute);
     const unsigned long long value_bytes = (unsigned long long)CLI_IPP_VALUES * sizeof(CliIppValue);
@@ -15,219 +17,264 @@ void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int reque
                                                          &g_cli_ipp_cells);
     if (cell == NULL)
     {
-        message->full = 1;
+        args->message->full = 1;
         return;
     }
-    message->group = (CliIppGroup *)(void *)cell;
-    message->group_room = CLI_IPP_GROUPS;
-    message->attribute = (CliIppAttribute *)(void *)(cell + group_bytes);
-    message->attribute_room = CLI_IPP_ATTRIBUTES;
-    message->value = (CliIppValue *)(void *)(cell + group_bytes + attribute_bytes);
-    message->value_room = CLI_IPP_VALUES;
-    message->bytes = (unsigned char *)(cell + group_bytes + attribute_bytes + value_bytes);
-    message->byte_room = CLI_IPP_BYTES;
+    args->message->group = (CliIppGroup *)(void *)cell;
+    args->message->group_room = CLI_IPP_GROUPS;
+    args->message->attribute = (CliIppAttribute *)(void *)(cell + group_bytes);
+    args->message->attribute_room = CLI_IPP_ATTRIBUTES;
+    args->message->value = (CliIppValue *)(void *)(cell + group_bytes + attribute_bytes);
+    args->message->value_room = CLI_IPP_VALUES;
+    args->message->bytes = (unsigned char *)(cell + group_bytes + attribute_bytes + value_bytes);
+    args->message->byte_room = CLI_IPP_BYTES;
 }
 
-void cli_ipp_given(CliIppMessage *message)
+void cli_ipp_free(const CliIppMessageCodeCfg *args)
 {
+    CliIppMessage *message = args->message;
     g_cli_cells->persistent_buf_release(message->group, &g_cli_ipp_cells);
     *message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ull, 0};
 }
 
-// `length` bytes stored among the message's: where they start
-static unsigned int cli_bytes_stored(CliIppMessage *message, const void *bytes, unsigned long long length)
+typedef struct
 {
-    if ((message->used + length) > message->byte_room)
+    CliIppMessage *message;
+    const void *bytes;
+    unsigned long long length;
+    const void *name;
+    const CliIppValue *value;
+    unsigned long long value_u64;
+    unsigned int count;
+    VerbaLinea *out;
+    const unsigned char *bytes_bytes;
+    unsigned long long size;
+    unsigned long long *at;
+    unsigned long long count_u64;
+    const unsigned char *raw;
+} IppCtx;
+// `length` bytes stored among the message's: where they start
+EMBED_INLINE unsigned int cli_bytes_store(const IppCtx *args)
+{
+    const void *bytes = args->bytes;
+    if ((args->message->used + args->length) > args->message->byte_room)
     {
-        message->full = 1;
+        args->message->full = 1;
         return 0u;
     }
-    const unsigned int at = message->used;
-    memor.cpy(&(MemoriaCfg){.dst = message->bytes + at, .src = bytes, .bytes = length});
+    const unsigned int at = args->message->used;
+    memor.cpy(&(MemoriaCfg){.dst = args->message->bytes + at, .src = bytes, .bytes = args->length});
     // the bytes are below CLI_IPP_BYTES, which an unsigned int counts
-    message->used += (unsigned int)length;
+    args->message->used += (unsigned int)args->length;
     return at;
 }
 
-void cli_ipp_group(CliIppMessage *message, unsigned int tag)
+void cli_ipp_group(const CliIppMessageTagCfg *args)
 {
-    if (message->groups >= message->group_room)
+    if (args->message->groups >= args->message->group_room)
     {
-        message->full = 1;
+        args->message->full = 1;
         return;
     }
-    const CliIppGroup group = {tag, message->attributes, 0u};
-    message->group[message->groups] = group;
-    message->groups += 1u;
+    const CliIppGroup group = {args->tag, args->message->attributes, 0u};
+    args->message->group[args->message->groups] = group;
+    args->message->groups += 1u;
 }
 
 // an attribute of `length` bytes of `name` written in the last group
-static void cli_attribute_counted(CliIppMessage *message, const void *name, unsigned long long length)
+EMBED_INLINE void cli_attribute_count(const IppCtx *args)
 {
-    if ((message->groups == 0u) || (message->attributes >= message->attribute_room))
+    if ((args->message->groups == 0u) || (args->message->attributes >= args->message->attribute_room))
     {
-        message->full = 1;
+        args->message->full = 1;
         return;
     }
     // a name is at most what the encoding's 16 bits count
-    const CliIppAttribute attribute = {cli_bytes_stored(message, name, length), (unsigned int)length, message->values,
-                                       0u};
-    message->attribute[message->attributes] = attribute;
-    message->attributes += 1u;
-    message->group[message->groups - 1u].count += 1u;
+    const CliIppAttribute attribute = {
+        EMBED_CALL(cli_bytes_store, IppCtx, .message = args->message, .bytes = args->name, .length = args->length),
+        (unsigned int)args->length, args->message->values, 0u};
+    args->message->attribute[args->message->attributes] = attribute;
+    args->message->attributes += 1u;
+    args->message->group[args->message->groups - 1u].count += 1u;
 }
 
-void cli_ipp_attribute(CliIppMessage *message, const char *name)
+void cli_ipp_attribute(const CliIppCfg *args)
 {
-    cli_attribute_counted(message, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_attribute_count, IppCtx, .message = args->message, .name = args->name,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}));
 }
 
 // a value put after the last attribute's
-static void cli_value(CliIppMessage *message, const CliIppValue *value)
+EMBED_INLINE void cli_value(const IppCtx *args)
 {
-    if ((message->attributes == 0u) || (message->values >= message->value_room))
+    if ((args->message->attributes == 0u) || (args->message->values >= args->message->value_room))
     {
-        message->full = 1;
+        args->message->full = 1;
         return;
     }
-    message->value[message->values] = *value;
-    message->values += 1u;
-    message->attribute[message->attributes - 1u].count += 1u;
+    args->message->value[args->message->values] = *args->value;
+    args->message->values += 1u;
+    args->message->attribute[args->message->attributes - 1u].count += 1u;
 }
 
-void cli_ipp_number(CliIppMessage *message, unsigned int kind, int value)
+void cli_ipp_number(const CliIppMessageKindCfg *args)
 {
-    const CliIppValue made = {kind, (kind == CLI_IPP_ENUM) ? 0x23u : 0x21u, value, 0, 0u, 0u};
-    cli_value(message, &made);
+    const CliIppValue made = {args->kind, (args->kind == CLI_IPP_ENUM) ? 0x23u : 0x21u, args->value, 0, 0u, 0u};
+    EMBED_CALL(cli_value, IppCtx, .message = args->message, .value = &made);
 }
 
-void cli_ipp_truth(CliIppMessage *message, int value)
+void cli_ipp_truth(const CliIppMessageKindCfg *args)
 {
-    const CliIppValue made = {CLI_IPP_BOOLEAN, 0x22u, value ? 1 : 0, 0, 0u, 0u};
-    cli_value(message, &made);
+    const CliIppValue made = {CLI_IPP_BOOLEAN, 0x22u, args->value ? 1 : 0, 0, 0u, 0u};
+    EMBED_CALL(cli_value, IppCtx, .message = args->message, .value = &made);
 }
 
-void cli_ipp_range(CliIppMessage *message, int low, int high)
+void cli_ipp_range(const CliIppMessageLowCfg *args)
 {
-    const CliIppValue made = {CLI_IPP_RANGE, 0x33u, low, high, 0u, 0u};
-    cli_value(message, &made);
+    const CliIppValue made = {CLI_IPP_RANGE, 0x33u, args->low, args->high, 0u, 0u};
+    EMBED_CALL(cli_value, IppCtx, .message = args->message, .value = &made);
 }
 
-void cli_ipp_text(CliIppMessage *message, unsigned int tag, const char *text)
+void cli_ipp_text(const CliIppMessageTagCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
     // a text is at most what the encoding's 16 bits count
-    const CliIppValue made = {CLI_IPP_TEXT, tag, 0, 0, cli_bytes_stored(message, text, length), (unsigned int)length};
-    cli_value(message, &made);
+    const CliIppValue made = {
+        CLI_IPP_TEXT,
+        args->tag,
+        0,
+        0,
+        EMBED_CALL(cli_bytes_store, IppCtx, .message = args->message, .bytes = args->text, .length = length),
+        (unsigned int)length};
+    EMBED_CALL(cli_value, IppCtx, .message = args->message, .value = &made);
 }
 
 // a number's bytes, the high first
-static void cli_bytes_of(unsigned long long value, unsigned int count, VerbaLinea *out)
+EMBED_INLINE void cli_bytes_get(const IppCtx *args)
 {
-    for (unsigned int byte = count; byte > 0u; byte -= 1u)
+    for (unsigned int byte = args->count; byte > 0u; byte -= 1u)
     {
         // each byte of the number in turn
-        mmgr_line_ch(out, (char)(unsigned char)((value >> (8u * (byte - 1u))) & 0xffu));
+        mmgr_line_ch(args->out, (char)(unsigned char)((args->value_u64 >> (8u * (byte - 1u))) & 0xffu));
     }
 }
 
-void cli_ipp_encode(const CliIppMessage *message, VerbaLinea *out)
+void cli_ipp_encode(const CliIppMessageOutVerbaLineaCfg *args)
 {
-    mmgr_line_ch(out, 2);
-    mmgr_line_ch(out, 0);
-    cli_bytes_of(message->code, 2u, out);
-    cli_bytes_of(message->request_id, 4u, out);
-    for (unsigned int group_at = 0u; group_at < message->groups; group_at += 1u)
+    mmgr_line_ch(args->out_verba_linea_pointer, 2);
+    mmgr_line_ch(args->out_verba_linea_pointer, 0);
+    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = args->message_read->code, .count = 2u,
+               .out = args->out_verba_linea_pointer);
+    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = args->message_read->request_id, .count = 4u,
+               .out = args->out_verba_linea_pointer);
+    for (unsigned int group_at = 0u; group_at < args->message_read->groups; group_at += 1u)
     {
-        const CliIppGroup *const group = &message->group[group_at];
+        const CliIppGroup *const group = &args->message_read->group[group_at];
         // a tag is a byte
-        mmgr_line_ch(out, (char)(unsigned char)group->tag);
+        mmgr_line_ch(args->out_verba_linea_pointer, (char)(unsigned char)group->tag);
         for (unsigned int each = 0u; each < group->count; each += 1u)
         {
-            const CliIppAttribute *const attribute = &message->attribute[group->first + each];
+            const CliIppAttribute *const attribute = &args->message_read->attribute[group->first + each];
             for (unsigned int index = 0u; index < attribute->count; index += 1u)
             {
-                const CliIppValue *const value = &message->value[attribute->first + index];
-                mmgr_line_ch(out, (char)(unsigned char)value->tag);
+                const CliIppValue *const value = &args->message_read->value[attribute->first + index];
+                mmgr_line_ch(args->out_verba_linea_pointer, (char)(unsigned char)value->tag);
                 const unsigned int named = (index == 0u) ? attribute->name_length : 0u;
-                cli_bytes_of(named, 2u, out);
-                mmgr_line_put_n(out, (const char *)(message->bytes + attribute->name), named);
+                EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = named, .count = 2u,
+                           .out = args->out_verba_linea_pointer);
+                mmgr_line_put_n(args->out_verba_linea_pointer,
+                                (const char *)(args->message_read->bytes + attribute->name), named);
                 // a number's bits are written as the 32 bits they are
                 switch (value->kind)
                 {
                 case CLI_IPP_INTEGER:
                 case CLI_IPP_ENUM:
-                    cli_bytes_of(4u, 2u, out);
-                    cli_bytes_of((unsigned int)value->low, 4u, out);
+                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 4u, .count = 2u,
+                               .out = args->out_verba_linea_pointer);
+                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->low, .count = 4u,
+                               .out = args->out_verba_linea_pointer);
                     break;
                 case CLI_IPP_BOOLEAN:
-                    cli_bytes_of(1u, 2u, out);
-                    mmgr_line_ch(out, (char)(value->low ? 1 : 0));
+                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 1u, .count = 2u,
+                               .out = args->out_verba_linea_pointer);
+                    mmgr_line_ch(args->out_verba_linea_pointer, (char)(value->low ? 1 : 0));
                     break;
                 case CLI_IPP_RANGE:
-                    cli_bytes_of(8u, 2u, out);
-                    cli_bytes_of((unsigned int)value->low, 4u, out);
-                    cli_bytes_of((unsigned int)value->high, 4u, out);
+                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 8u, .count = 2u,
+                               .out = args->out_verba_linea_pointer);
+                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->low, .count = 4u,
+                               .out = args->out_verba_linea_pointer);
+                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->high, .count = 4u,
+                               .out = args->out_verba_linea_pointer);
                     break;
                 default:
-                    cli_bytes_of(value->length, 2u, out);
-                    mmgr_line_put_n(out, (const char *)(message->bytes + value->bytes), value->length);
+                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = value->length, .count = 2u,
+                               .out = args->out_verba_linea_pointer);
+                    mmgr_line_put_n(args->out_verba_linea_pointer,
+                                    (const char *)(args->message_read->bytes + value->bytes), value->length);
                     break;
                 }
             }
         }
     }
-    mmgr_line_ch(out, (char)CLI_IPP_END);
+    mmgr_line_ch(args->out_verba_linea_pointer, (char)CLI_IPP_END);
 }
 
 // `count` bytes taken from `at`: where they start, or NULL where the answer is cut short
-static const unsigned char *cli_take(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
-                                     unsigned long long count)
+EMBED_INLINE const unsigned char *cli_take(const IppCtx *args)
 {
-    if ((*at + count) > size)
+    unsigned long long *at = args->at;
+    if ((*at + args->count_u64) > args->size)
     {
         return NULL;
     }
-    const unsigned char *const taken = bytes + *at;
-    *at += count;
+    const unsigned char *const taken = args->bytes_bytes + *at;
+    *at += args->count_u64;
     return taken;
 }
 
-static unsigned long long cli_number(const unsigned char *raw, unsigned int count)
+EMBED_INLINE unsigned long long cli_number(const IppCtx *args)
 {
     unsigned long long value = 0ull;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        value = (value << 8u) | raw[at];
+        value = (value << 8u) | args->raw[at];
     }
     return value;
 }
 
 // four bytes read as the signed number they write, 0 where they are fewer
-static int cli_signed(const unsigned char *raw, unsigned long long length)
+EMBED_INLINE int cli_sign(const IppCtx *args)
 {
     // the 32 bits read as the signed number they write
-    return (length >= 4ull) ? (int)(unsigned int)cli_number(raw, 4u) : 0;
+    return (args->length >= 4ull) ? (int)(unsigned int)EMBED_CALL(cli_number, IppCtx, .raw = args->raw, .count = 4u)
+                                  : 0;
 }
 
-int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMessage *message, VerbaLinea *err_msg)
+int cli_ipp_decode(const CliIppMessageCfg *args)
 {
+    const unsigned char *bytes = args->bytes;
     unsigned long long at = 2ull;
-    const unsigned char *const code = cli_take(bytes, size, &at, 2ull);
-    const unsigned char *const request = cli_take(bytes, size, &at, 4ull);
+    const unsigned char *const code =
+        EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull);
+    const unsigned char *const request =
+        EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 4ull);
     if ((code == NULL) || (request == NULL))
     {
-        mmgr_line_put(err_msg, "the printer's answer is cut short");
+        mmgr_line_put(args->err_msg, "the printer's answer is cut short");
         return 0;
     }
     // a status is 16 bits and an id 32
-    cli_ipp_begun(message, (unsigned int)cli_number(code, 2u), (unsigned int)cli_number(request, 4u));
+    EMBED_CALL(cli_ipp_message_code.begin, CliIppMessageCodeCfg, .message = args->message,
+               .code = (unsigned int)EMBED_CALL(cli_number, IppCtx, .raw = code, .count = 2u),
+               .request_id = (unsigned int)EMBED_CALL(cli_number, IppCtx, .raw = request, .count = 4u));
     for (;;)
     {
-        const unsigned char *const tag = cli_take(bytes, size, &at, 1ull);
+        const unsigned char *const tag =
+            EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 1ull);
         if (tag == NULL)
         {
-            mmgr_line_put(err_msg, "the printer's answer is cut short");
+            mmgr_line_put(args->err_msg, "the printer's answer is cut short");
             return 0;
         }
         if (tag[0] == CLI_IPP_END)
@@ -236,32 +283,42 @@ int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMe
         }
         if (tag[0] < 0x10u)
         {
-            cli_ipp_group(message, tag[0]);
+            EMBED_CALL(cli_ipp_message_tag.group, CliIppMessageTagCfg, .message = args->message, .tag = tag[0]);
             continue;
         }
-        const unsigned char *const name_size = cli_take(bytes, size, &at, 2ull);
+        const unsigned char *const name_size =
+            EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull);
         const unsigned char *const name =
-            (name_size != NULL) ? cli_take(bytes, size, &at, cli_number(name_size, 2u)) : NULL;
-        const unsigned char *const value_size = (name != NULL) ? cli_take(bytes, size, &at, 2ull) : NULL;
-        const unsigned long long length = (value_size != NULL) ? cli_number(value_size, 2u) : 0ull;
-        const unsigned char *const raw = (value_size != NULL) ? cli_take(bytes, size, &at, length) : NULL;
+            (name_size != NULL) ? EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at,
+                                             .count_u64 = EMBED_CALL(cli_number, IppCtx, .raw = name_size, .count = 2u))
+                                : NULL;
+        const unsigned char *const value_size =
+            (name != NULL)
+                ? EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull)
+                : NULL;
+        const unsigned long long length =
+            (value_size != NULL) ? EMBED_CALL(cli_number, IppCtx, .raw = value_size, .count = 2u) : 0ull;
+        const unsigned char *const raw =
+            (value_size != NULL)
+                ? EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = length)
+                : NULL;
         if (raw == NULL)
         {
-            mmgr_line_put(err_msg, "the printer's answer is cut short");
+            mmgr_line_put(args->err_msg, "the printer's answer is cut short");
             return 0;
         }
-        if (message->groups == 0u)
+        if (args->message->groups == 0u)
         {
-            mmgr_line_put(err_msg, "the printer's answer has an attribute in no group");
+            mmgr_line_put(args->err_msg, "the printer's answer has an attribute in no group");
             return 0;
         }
         // a value with no name is one more of the attribute before it, and passed over where its group has none
-        const unsigned long long name_length = cli_number(name_size, 2u);
+        const unsigned long long name_length = EMBED_CALL(cli_number, IppCtx, .raw = name_size, .count = 2u);
         if (name_length != 0ull)
         {
-            cli_attribute_counted(message, name, name_length);
+            EMBED_CALL(cli_attribute_count, IppCtx, .message = args->message, .name = name, .length = name_length);
         }
-        else if (message->group[message->groups - 1u].count == 0u)
+        else if (args->message->group[args->message->groups - 1u].count == 0u)
         {
             continue;
         }
@@ -270,7 +327,7 @@ int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMe
         {
         case 0x21u:
             value.kind = CLI_IPP_INTEGER;
-            value.low = cli_signed(raw, length);
+            value.low = EMBED_CALL(cli_sign, IppCtx, .raw = raw, .length = length);
             break;
         case 0x22u:
             value.kind = CLI_IPP_BOOLEAN;
@@ -278,52 +335,53 @@ int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMe
             break;
         case 0x23u:
             value.kind = CLI_IPP_ENUM;
-            value.low = cli_signed(raw, length);
+            value.low = EMBED_CALL(cli_sign, IppCtx, .raw = raw, .length = length);
             break;
         case 0x33u:
             value.kind = CLI_IPP_RANGE;
-            value.low = cli_signed(raw, length);
-            value.high = (length >= 8ull) ? cli_signed(raw + 4u, 4u) : 0;
+            value.low = EMBED_CALL(cli_sign, IppCtx, .raw = raw, .length = length);
+            value.high = (length >= 8ull) ? EMBED_CALL(cli_sign, IppCtx, .raw = raw + 4u, .length = 4u) : 0;
             break;
         default:
             value.kind = ((tag[0] >= 0x41u) && (tag[0] <= 0x49u)) ? CLI_IPP_TEXT : CLI_IPP_OTHER;
-            value.bytes = cli_bytes_stored(message, raw, length);
+            value.bytes = EMBED_CALL(cli_bytes_store, IppCtx, .message = args->message, .bytes = raw, .length = length);
             // a value is at most what the encoding's 16 bits count
             value.length = (unsigned int)length;
             break;
         }
-        cli_value(message, &value);
+        EMBED_CALL(cli_value, IppCtx, .message = args->message, .value = &value);
     }
-    message->data = bytes + at;
-    message->data_length = size - at;
-    if (message->full)
+    args->message->data = bytes + at;
+    args->message->data_length = args->size - at;
+    if (args->message->full)
     {
-        mmgr_line_put(err_msg, "the printer's answer contains more than orior_cli reads");
+        mmgr_line_put(args->err_msg, "the printer's answer contains more than orior_cli reads");
         return 0;
     }
     return 1;
 }
 
-const CliIppGroup *cli_ipp_group_of(const CliIppMessage *message, unsigned int tag, unsigned int after)
+const CliIppGroup *cli_ipp_group_get(const CliIppTagCfg *args)
 {
-    for (unsigned int at = after; at < message->groups; at += 1u)
+    for (unsigned int at = args->after; at < args->message_read->groups; at += 1u)
     {
-        if (message->group[at].tag == tag)
+        if (args->message_read->group[at].tag == args->tag)
         {
-            return &message->group[at];
+            return &args->message_read->group[at];
         }
     }
     return NULL;
 }
 
-const CliIppAttribute *cli_ipp_get(const CliIppMessage *message, const CliIppGroup *group, const char *name)
+const CliIppAttribute *cli_ipp_get(const CliIppNameCfg *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    for (unsigned int each = 0u; (group != NULL) && (each < group->count); each += 1u)
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    for (unsigned int each = 0u; (args->group != NULL) && (each < args->group->count); each += 1u)
     {
-        const CliIppAttribute *const attribute = &message->attribute[group->first + each];
+        const CliIppAttribute *const attribute = &args->message_read->attribute[args->group->first + each];
         if ((attribute->name_length == length) &&
-            (memor.cmp(&(MemoriaCfg){.src = message->bytes + attribute->name, .other = name, .bytes = length}) == 0))
+            (memor.cmp(&(MemoriaCfg){
+                 .src = args->message_read->bytes + attribute->name, .other = args->name, .bytes = length}) == 0))
         {
             return attribute;
         }
@@ -331,34 +389,37 @@ const CliIppAttribute *cli_ipp_get(const CliIppMessage *message, const CliIppGro
     return NULL;
 }
 
-int cli_ipp_value_text(const CliIppMessage *message, const CliIppValue *value, char *out, unsigned long long room)
+int cli_ipp_value_text(const CliIppMessageValueCfg *args)
 {
-    if (value->kind != CLI_IPP_TEXT)
+    if (args->value_ipp_value_pointer->kind != CLI_IPP_TEXT)
     {
         return 0;
     }
-    VerbaLinea line = {out, room, 0ull};
-    mmgr_line_put_n(&line, (const char *)(message->bytes + value->bytes), value->length);
+    VerbaLinea line = {args->out, args->room, 0ull};
+    mmgr_line_put_n(&line, (const char *)(args->message_read->bytes + args->value_ipp_value_pointer->bytes),
+                    args->value_ipp_value_pointer->length);
     mmgr_line_finish(&line);
     return 1;
 }
 
-int cli_ipp_first_text(const CliIppMessage *message, const CliIppGroup *group, const char *name, char *out,
-                       unsigned long long room)
+int cli_ipp_first_text(const CliIppNameCfg *args)
 {
-    const CliIppAttribute *const attribute = cli_ipp_get(message, group, name);
+    const CliIppAttribute *const attribute = cli_ipp_name.get(args);
     return (attribute != NULL) && (attribute->count != 0u) &&
-           cli_ipp_value_text(message, &message->value[attribute->first], out, room);
+           EMBED_CALL(cli_ipp_message_value.value_text, CliIppMessageValueCfg, .message_read = args->message_read,
+                      .value_ipp_value_pointer = &args->message_read->value[attribute->first], .out = args->out,
+                      .room = args->room);
 }
 
-int cli_ipp_first_number(const CliIppMessage *message, const CliIppGroup *group, const char *name, int *number)
+int cli_ipp_first_number(const CliIppNameCfg *args)
 {
-    const CliIppAttribute *const attribute = cli_ipp_get(message, group, name);
+    int *number = args->number;
+    const CliIppAttribute *const attribute = cli_ipp_name.get(args);
     if ((attribute == NULL) || (attribute->count == 0u))
     {
         return 0;
     }
-    const CliIppValue *const value = &message->value[attribute->first];
+    const CliIppValue *const value = &args->message_read->value[attribute->first];
     *number = value->low;
     return (value->kind == CLI_IPP_INTEGER) || (value->kind == CLI_IPP_ENUM);
 }

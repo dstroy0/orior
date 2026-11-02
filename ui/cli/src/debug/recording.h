@@ -16,13 +16,38 @@
 // recording_shim.c)
 #ifndef RECORDING_H
 #define RECORDING_H
+typedef struct CliRecordingCfg CliRecordingCfg;
 
 #include "dap.h"
+#include "embed_dispatch_layout.h"
 
 // the adapter that records a Python program's run in the tree at `root` and steps through it, begun: its context, for
 // cli_dap_within to hand `cli_recording_serve`, or NULL where no room for the replay is left; and a request served
 // (recording_request.c)
-void *cli_recording_begun(const char *root);
-int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigned long long size);
+void *cli_recording_begin(const CliRecordingCfg *args);
+int cli_recording_serve(const CliDapServeCfg *args);
+
+struct CliRecordingCfg
+{
+    const char *root;
+};
+
+typedef struct
+{
+    void *(*begin)(const CliRecordingCfg *args);
+} CliRecordingNs;
+EMBED_TABLE_LAYOUT(CliRecordingNs, begin);
+EMBED_TABLE_STORAGE CliRecordingNs cli_recording EMBED_UNUSED = {
+    .begin = cli_recording_begin,
+};
+
+typedef struct
+{
+    int (*serve)(const CliDapServeCfg *args);
+} CliDapServeNs;
+EMBED_TABLE_LAYOUT(CliDapServeNs, serve);
+EMBED_TABLE_STORAGE CliDapServeNs cli_dap_serve EMBED_UNUSED = {
+    .serve = cli_recording_serve,
+};
 
 #endif

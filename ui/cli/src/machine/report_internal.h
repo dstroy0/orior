@@ -3,12 +3,33 @@
 // report_internal.h: what report_file.c and report_page.c share
 #ifndef REPORT_INTERNAL_H
 #define REPORT_INTERNAL_H
+typedef struct CliReportCtx CliReportCtx;
 
+#include "embed_dispatch_layout.h"
 #include "report.h"
 
 // a report's category as the template's dropdown names it, "unknown" for any other; and the issue's body, laid out
 // as the template's form lays out what is entered in it, its fingerprint `print` last, into `out` (report_page.c)
-const char *cli_report_category_of(const CliReport *report);
-void cli_report_body(const CliReport *report, const char *root, const char *print, VerbaLinea *out);
+const char *cli_report_category_get(const CliReportCtx *args);
+void cli_report_body(const CliReportCtx *args);
+
+struct CliReportCtx
+{
+    const CliReport *report;
+    const char *root;
+    const char *print;
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    const char *(*category_get)(const CliReportCtx *args);
+    void (*body)(const CliReportCtx *args);
+} CliReportNs;
+EMBED_TABLE_LAYOUT(CliReportNs, category_get, body);
+EMBED_TABLE_STORAGE CliReportNs cli_report_internal EMBED_UNUSED = {
+    .category_get = cli_report_category_get,
+    .body = cli_report_body,
+};
 
 #endif

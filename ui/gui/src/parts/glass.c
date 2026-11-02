@@ -12,12 +12,23 @@
 static unsigned char s_grain[GUI_GRAIN_TILE * GUI_GRAIN_TILE];
 static int s_grain_made;
 
+typedef struct
+{
+    unsigned int octave;
+    unsigned int row;
+    unsigned int column;
+    double part;
+    unsigned int cells;
+    unsigned int x;
+    unsigned int y;
+} GlassCtx;
 // the noise's value at the grid corner `row`, `column` of the octave `octave`, 0 to 1, drawn from the seed, the
 // corner and the octave mixed, the same every time
-static double grain_corner(unsigned int octave, unsigned int row, unsigned int column)
+EMBED_INLINE double grain_corner(const GlassCtx *args)
 {
     // the row, the column and the octave mixed into the seed, each by an odd constant
-    unsigned int state = GUI_GRAIN_SEED ^ (row * 0x9e3779b1u) ^ (column * 0x85ebca77u) ^ (octave * 0xc2b2ae3du);
+    unsigned int state =
+        GUI_GRAIN_SEED ^ (args->row * 0x9e3779b1u) ^ (args->column * 0x85ebca77u) ^ (args->octave * 0xc2b2ae3du);
     state += 0x6d2b79f5u;
     unsigned int mixed = state;
     mixed = (mixed ^ (mixed >> 15)) * (mixed | 1u);
@@ -25,27 +36,33 @@ static double grain_corner(unsigned int octave, unsigned int row, unsigned int c
     return (double)(mixed ^ (mixed >> 14)) / 4294967296.0;
 }
 
-static double grain_ease(double part)
+EMBED_INLINE double grain_ease(const GlassCtx *args)
 {
-    return part * part * (3.0 - 2.0 * part);
+    return args->part * args->part * (3.0 - 2.0 * args->part);
 }
 
 // the noise of `octave` at the tile's pixel x, y, 0 to 1: the pixel's cell on a grid of `cells` across the tile,
 // its four corners blended by where the pixel stands in the cell, the grid wrapping at the tile's edges
-static double grain_noise(unsigned int octave, unsigned int cells, unsigned int x, unsigned int y)
+EMBED_INLINE double grain_noise(const GlassCtx *args)
 {
-    const double across = ((double)x + 0.5) * (double)cells / (double)GUI_GRAIN_TILE;
-    const double down = ((double)y + 0.5) * (double)cells / (double)GUI_GRAIN_TILE;
+    const double across = ((double)args->x + 0.5) * (double)args->cells / (double)GUI_GRAIN_TILE;
+    const double down = ((double)args->y + 0.5) * (double)args->cells / (double)GUI_GRAIN_TILE;
     // a cell's corner is a whole count below the cells
     const unsigned int column = (unsigned int)floor(across);
     const unsigned int row = (unsigned int)floor(down);
-    const double part_x = grain_ease(across - (double)column);
-    const double part_y = grain_ease(down - (double)row);
-    const unsigned int next_column = (column + 1u) % cells;
-    const unsigned int next_row = (row + 1u) % cells;
-    const double top = grain_corner(octave, row, column) + (grain_corner(octave, row, next_column) - grain_corner(octave, row, column)) * part_x;
-    const double bottom = grain_corner(octave, next_row, column) +
-                          (grain_corner(octave, next_row, next_column) - grain_corner(octave, next_row, column)) * part_x;
+    const double part_x = EMBED_CALL(grain_ease, GlassCtx, .part = across - (double)column);
+    const double part_y = EMBED_CALL(grain_ease, GlassCtx, .part = down - (double)row);
+    const unsigned int next_column = (column + 1u) % args->cells;
+    const unsigned int next_row = (row + 1u) % args->cells;
+    const double top = EMBED_CALL(grain_corner, GlassCtx, .octave = args->octave, .row = row, .column = column) +
+                       (EMBED_CALL(grain_corner, GlassCtx, .octave = args->octave, .row = row, .column = next_column) -
+                        EMBED_CALL(grain_corner, GlassCtx, .octave = args->octave, .row = row, .column = column)) *
+                           part_x;
+    const double bottom =
+        EMBED_CALL(grain_corner, GlassCtx, .octave = args->octave, .row = next_row, .column = column) +
+        (EMBED_CALL(grain_corner, GlassCtx, .octave = args->octave, .row = next_row, .column = next_column) -
+         EMBED_CALL(grain_corner, GlassCtx, .octave = args->octave, .row = next_row, .column = column)) *
+            part_x;
     return top + (bottom - top) * part_y;
 }
 
@@ -69,7 +86,8 @@ const unsigned char *gui_grain(void)
             double summed = 0.0;
             for (unsigned int octave = 0u; octave < GUI_GRAIN_OCTAVES; octave += 1u)
             {
-                summed += grain_noise(octave, base << octave, x, y) / (double)(1u << octave);
+                summed += EMBED_CALL(grain_noise, GlassCtx, .octave = octave, .cells = base << octave, .x = x, .y = y) /
+                          (double)(1u << octave);
             }
             // a share from 0 to 1 of the grain's alpha, rounded, is a byte
             s_grain[(y * GUI_GRAIN_TILE) + x] = (unsigned char)((summed / weights) * GUI_GRAIN_ALPHA * 255.0 + 0.5);
@@ -79,21 +97,23 @@ const unsigned char *gui_grain(void)
     return s_grain;
 }
 
-void gui_glass_drawn(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor tint)
+void gui_glass_draw(const GuiGlassRasterCfg *args)
 {
-    gui_raster_rounded(raster, rect, radius, tint);
-    gui_raster_grained(raster, rect, radius, gui_grain(), GUI_GRAIN_TILE);
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = args->rect,
+               .radius = args->radius, .color = args->tint);
+    EMBED_CALL(gui_raster_rect_radius.grain, GuiRasterRectRadiusCfg, .raster = args->raster, .rect = args->rect,
+               .radius = args->radius, .alpha = gui_grain(), .tile = GUI_GRAIN_TILE);
 }
 
-GuiColor gui_glass_pane_tint(GuiColor glass)
+GuiColor gui_glass_pane_tint(const GuiGlassCfg *args)
 {
     // an alpha by a share from 0 to 1, rounded, is a byte
-    const GuiColor alpha = (GuiColor)(((float)GUI_ALPHA_OF(glass) * GUI_PANE_SHARE) + 0.5f);
-    return (glass & 0x00ffffffu) | (alpha << 24u);
+    const GuiColor alpha = (GuiColor)(((float)GUI_ALPHA_OF(args->glass) * GUI_PANE_SHARE) + 0.5f);
+    return (args->glass & 0x00ffffffu) | (alpha << 24u);
 }
 
-GuiUnder gui_glass_table(const GuiRaster *ground, GuiColor color, GuiColor glass)
+GuiUnder gui_glass_table(const GuiGlassCfg *args)
 {
-    const GuiUnder table = {ground, glass, gui_grain(), GUI_GRAIN_TILE, color};
+    const GuiUnder table = {args->ground, args->glass, gui_grain(), GUI_GRAIN_TILE, args->color};
     return table;
 }

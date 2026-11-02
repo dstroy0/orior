@@ -10,24 +10,43 @@
 #define CLI_SERVE_WORDS_ROOM (1ull << 20u)
 #define CLI_SERVE_TEXT_AT_ROOM (64ull << 20u)
 
-// a line begun of `first` bytes for git's words or a file's text: 1, or 0 with why given where its cell is refused
-static int git_line_begun(VerbaLinea *line, unsigned long long room, VerbaLinea *err_msg)
+typedef struct
 {
-    char *const cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_serve_git_cells);
-    *line = mmgr_line_over(cell, room);
+    VerbaLinea *line;
+    unsigned long long room;
+    VerbaLinea *err_msg;
+    const CliJson *json;
+    unsigned int node;
+    int done;
+    VerbaLinea *words;
+    VerbaLinea *out;
+    const CliServeArgs *request;
+    int push;
+} ServeCallGitActsCtx;
+// a line begun of `first` bytes for git's words or a file's text: 1, or 0 with why given where its cell is refused
+EMBED_INLINE int git_line_begin(const ServeCallGitActsCtx *args)
+{
+    VerbaLinea *line = args->line;
+    char *const cell = g_cli_cells->temporary_buf_alloc(args->room, &g_cli_serve_git_cells);
+    *line = mmgr_line_over(cell, args->room);
     const int begun = cell != NULL;
     if (!begun)
     {
-        mmgr_line_put(err_msg, "git's words could not be given a cell");
+        mmgr_line_put(args->err_msg, "git's words could not be given a cell");
     }
     return begun;
 }
 
 // the items of the array `node`, 0 where it is not one
-static unsigned int git_items(const CliJson *json, unsigned int node)
+EMBED_INLINE unsigned int git_items(const ServeCallGitActsCtx *args)
 {
+    const CliJson *json = args->json;
+    unsigned int node = args->node;
     unsigned int count = 0u;
-    const unsigned int first = cli_json_is(json, node, CFG_JSON_ARRAY) ? json->node[node].first : CLI_JSON_NONE;
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                          .node = node, .kind = CFG_JSON_ARRAY)
+                                   ? json->node[node].first
+                                   : CLI_JSON_NONE;
     for (unsigned int item = first; item != CLI_JSON_NONE; item = json->node[item].next)
     {
         count += 1u;
@@ -36,48 +55,78 @@ static unsigned int git_items(const CliJson *json, unsigned int node)
 }
 
 // git's words written as a JSON string, where `done`, and their cell given back
-static int git_words_given(int done, VerbaLinea *words, VerbaLinea *out)
+EMBED_INLINE int git_words_free(const ServeCallGitActsCtx *args)
 {
-    if (done)
+    VerbaLinea *out = args->out;
+    if (args->done)
     {
-        cli_json_quoted_lossy(out, (const unsigned char *)words->out, mmgr_line_ok(words) ? words->at : 0ull);
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)args->words->out,
+                   .length = mmgr_line_ok(args->words) ? args->words->at : 0ull);
     }
-    g_cli_cells->persistent_buf_release(words->out, &g_cli_serve_git_cells);
-    return done;
+    g_cli_cells->persistent_buf_release(args->words->out, &g_cli_serve_git_cells);
+    return args->done;
 }
 
-static int git_branch(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_branch(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char folder[CLI_PATH_MAX_LEN];
-    const char *const act = cli_serve_string(args, "act", err_msg);
-    const char *const name = (act != NULL) ? cli_serve_string(args, "name", err_msg) : NULL;
+    const char *const act = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "act", .err_msg = err_msg);
+    const char *const name = (act != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                        .request = arguments, .key = "name", .err_msg = err_msg)
+                                           : NULL;
     VerbaLinea words;
-    if ((name == NULL) || !cli_serve_git_repo_of(args, folder, err_msg) ||
-        !git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
+    if ((name == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_folder_internal.git_repo_get, CliServeErrMsgRequestFolderCtx,
+                    .request = arguments, .folder = folder, .err_msg = err_msg) ||
+        !EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &words, .room = CLI_SERVE_WORDS_ROOM,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    return git_words_given(cli_git_branch_act(folder, act, name, cli_serve_string_or(args, "to", ""), &words, err_msg),
-                           &words, out);
+    return EMBED_CALL(git_words_free, ServeCallGitActsCtx,
+                      .done = EMBED_CALL(cli_git_root_out.branch_act, CliGitRootOutCfg, .root = folder, .act = act,
+                                         .name_read = name,
+                                         .to = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                                          .request = arguments, .key = "to", .otherwise = ""),
+                                         .out = &words, .err_msg = err_msg),
+                      .words = &words, .out = out);
 }
 
-static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_commit_parts(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     unsigned int whole = 0u;
-    const unsigned int parts = cli_serve_arg(args, "parts");
-    const CliJson *const json = args->json;
-    const unsigned int first = cli_json_is(json, parts, CFG_JSON_ARRAY) ? json->node[parts].first : CLI_JSON_NONE;
-    const unsigned int whole_most = git_items(json, cli_serve_arg(args, "whole"));
-    const unsigned int parts_most = git_items(json, parts);
+    const unsigned int parts =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "parts");
+    const CliJson *const json = arguments->json;
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                          .node = parts, .kind = CFG_JSON_ARRAY)
+                                   ? json->node[parts].first
+                                   : CLI_JSON_NONE;
+    const unsigned int whole_most = EMBED_CALL(
+        git_items, ServeCallGitActsCtx, .json = json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "whole"));
+    const unsigned int parts_most = EMBED_CALL(git_items, ServeCallGitActsCtx, .json = json, .node = parts);
     const char **const whole_of =
         g_cli_cells->temporary_buf_alloc((whole_most + 1ull) * sizeof(*whole_of), &g_cli_serve_git_cells);
     CliGitPart *const part_of =
         g_cli_cells->temporary_buf_alloc((parts_most + 1ull) * sizeof(*part_of), &g_cli_serve_git_cells);
-    const char *const message = cli_serve_string(args, "message", err_msg);
+    const char *const message = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                           .key = "message", .err_msg = err_msg);
     VerbaLinea words = {NULL, 0ull, 0ull};
     int done = (whole_of != NULL) && (part_of != NULL) && (message != NULL) &&
-               cli_serve_strings(args, "whole", whole_of, whole_most, &whole, err_msg) && cli_serve_tree(root, err_msg);
+               EMBED_CALL(cli_serve_err_msg_internal.strings, CliServeErrMsgCtx, .request = arguments, .key = "whole",
+                          .items = whole_of, .room = whole_most, .count = &whole, .err_msg = err_msg) &&
+               EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                          .err_msg = err_msg);
     if ((whole_of == NULL) || (part_of == NULL))
     {
         mmgr_line_put(err_msg, "a commit's files could not be given cells");
@@ -86,8 +135,16 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     for (unsigned int one = done ? first : CLI_JSON_NONE; one != CLI_JSON_NONE; one = json->node[one].next)
     {
         unsigned long long length = 0ull;
-        const char *const path = cli_json_string(json, cli_json_member(json, one, "path"), NULL);
-        const char *const text = cli_json_string(json, cli_json_member(json, one, "text"), &length);
+        const char *const path =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = one, .name = "path"),
+                       .length_pointer = NULL);
+        const char *const text =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = one, .name = "text"),
+                       .length_pointer = &length);
         if ((path == NULL) || (text == NULL))
         {
             mmgr_line_put(err_msg, "parts: missing field `");
@@ -99,10 +156,14 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
         part_of[count] = (CliGitPart){path, text, length};
         count += 1u;
     }
-    if (done && git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
+    if (done && EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &words, .room = CLI_SERVE_WORDS_ROOM,
+                           .err_msg = err_msg))
     {
-        done = git_words_given(cli_git_commit_parts(root, message, whole_of, whole, part_of, count, &words, err_msg),
-                               &words, out);
+        done = EMBED_CALL(git_words_free, ServeCallGitActsCtx,
+                          .done = EMBED_CALL(cli_git_root.commit_parts, CliGitRootCfg, .root = root, .message = message,
+                                             .whole = whole_of, .whole_count = whole, .parts = part_of,
+                                             .part_count = count, .out = &words, .err_msg = err_msg),
+                          .words = &words, .out = out);
     }
     else
     {
@@ -113,30 +174,48 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     return done;
 }
 
-static int git_resolve(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_resolve(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    if ((path == NULL) || !cli_serve_tree(root, err_msg) || !cli_git_resolve(root, path, err_msg))
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    if ((path == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg) ||
+        !EMBED_CALL(cli_git_root_err_msg_path.resolve, CliGitRootErrMsgPathCfg, .root = root, .path = path,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-static int file_head(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int file_head(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
     VerbaLinea text;
-    if ((path == NULL) || !cli_serve_tree(root, err_msg) || !git_line_begun(&text, CLI_SERVE_TEXT_AT_ROOM, err_msg))
+    if ((path == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg) ||
+        !EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &text, .room = CLI_SERVE_TEXT_AT_ROOM,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    if (cli_git_head_text(root, path, &text) && mmgr_line_ok(&text))
+    if (EMBED_CALL(cli_git_root_file_stage.head_text, CliGitRootFileStageCfg, .root = root, .file = path,
+                   .out = &text) &&
+        mmgr_line_ok(&text))
     {
-        cli_json_quoted_lossy(out, (const unsigned char *)text.out, text.at);
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)text.out, .length = text.at);
     }
     else
     {
@@ -146,129 +225,214 @@ static int file_head(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     return 1;
 }
 
-static int git_commit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_commit(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
-    const unsigned int most = git_items(args->json, cli_serve_arg(args, "paths"));
+    const unsigned int most = EMBED_CALL(
+        git_items, ServeCallGitActsCtx, .json = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "paths"));
     const char **const paths = g_cli_cells->temporary_buf_alloc((most + 1ull) * sizeof(*paths), &g_cli_serve_git_cells);
-    const char *const message = (paths != NULL) ? cli_serve_string(args, "message", err_msg) : NULL;
+    const char *const message = (paths != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                             .request = arguments, .key = "message", .err_msg = err_msg)
+                                                : NULL;
     VerbaLinea words;
     int done = 0;
     if (paths == NULL)
     {
         mmgr_line_put(err_msg, "a commit's files could not be given a cell");
     }
-    else if ((message != NULL) && cli_serve_strings(args, "paths", paths, most, &count, err_msg) &&
-             cli_serve_tree(root, err_msg) && git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
+    else if ((message != NULL) &&
+             EMBED_CALL(cli_serve_err_msg_internal.strings, CliServeErrMsgCtx, .request = arguments, .key = "paths",
+                        .items = paths, .room = most, .count = &count, .err_msg = err_msg) &&
+             EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                        .err_msg = err_msg) &&
+             EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &words, .room = CLI_SERVE_WORDS_ROOM,
+                        .err_msg = err_msg))
     {
-        done = git_words_given(cli_git_commit(root, message, paths, count, &words, err_msg), &words, out);
+        done = EMBED_CALL(git_words_free, ServeCallGitActsCtx,
+                          .done = EMBED_CALL(cli_git_root_out_count.commit, CliGitRootOutCountCfg, .root = root,
+                                             .message = message, .paths = paths, .count = count, .out = &words,
+                                             .err_msg = err_msg),
+                          .words = &words, .out = out);
     }
     g_cli_cells->persistent_buf_release(paths, &g_cli_serve_git_cells);
     return done;
 }
 
 // git pushed or pulled at the repository of the arguments: its words written
-static int git_pushed_or_pulled(const CliServeArgs *args, int push, VerbaLinea *out, VerbaLinea *err_msg)
+EMBED_INLINE int git_pushed_or_pull(const ServeCallGitActsCtx *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char folder[CLI_PATH_MAX_LEN];
     VerbaLinea words;
-    if (!cli_serve_git_repo_of(args, folder, err_msg) || !git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_folder_internal.git_repo_get, CliServeErrMsgRequestFolderCtx,
+                    .request = arguments, .folder = folder, .err_msg = err_msg) ||
+        !EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &words, .room = CLI_SERVE_WORDS_ROOM,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    return git_words_given(push ? cli_git_push(folder, &words, err_msg) : cli_git_pull(folder, &words, err_msg), &words,
-                           out);
+    return EMBED_CALL(git_words_free, ServeCallGitActsCtx,
+                      .done = args->push ? EMBED_CALL(cli_git_root_out_count_err_msg.push, CliGitRootOutCountErrMsgCfg,
+                                                      .root = folder, .out = &words, .err_msg = err_msg)
+                                         : EMBED_CALL(cli_git_root_out_count_err_msg.pull, CliGitRootOutCountErrMsgCfg,
+                                                      .root = folder, .out = &words, .err_msg = err_msg),
+                      .words = &words, .out = out);
 }
 
-static int git_push(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_push(const CliServeAnswerCfg *args)
 {
-    return git_pushed_or_pulled(args, 1, out, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(git_pushed_or_pull, ServeCallGitActsCtx, .request = arguments, .push = 1, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int git_pull(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_pull(const CliServeAnswerCfg *args)
 {
-    return git_pushed_or_pulled(args, 0, out, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(git_pushed_or_pull, ServeCallGitActsCtx, .request = arguments, .push = 0, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int git_rollback(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_rollback(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    if ((path == NULL) || !cli_serve_tree(root, err_msg) || !cli_git_rollback(root, path, err_msg))
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    if ((path == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg) ||
+        !EMBED_CALL(cli_git_root_err_msg_path.rollback, CliGitRootErrMsgPathCfg, .root = root, .path = path,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-static int git_stash(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_stash(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char folder[CLI_PATH_MAX_LEN];
-    const char *const act = cli_serve_string(args, "act", err_msg);
+    const char *const act = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "act", .err_msg = err_msg);
     VerbaLinea words;
-    if ((act == NULL) || !cli_serve_git_repo_of(args, folder, err_msg) ||
-        !git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
+    if ((act == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_folder_internal.git_repo_get, CliServeErrMsgRequestFolderCtx,
+                    .request = arguments, .folder = folder, .err_msg = err_msg) ||
+        !EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &words, .room = CLI_SERVE_WORDS_ROOM,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    return git_words_given(cli_git_stash_act(folder, act, cli_serve_string_or(args, "name", ""),
-                                             cli_serve_string_or(args, "message", ""), &words, err_msg),
-                           &words, out);
+    return EMBED_CALL(
+        git_words_free, ServeCallGitActsCtx,
+        .done = EMBED_CALL(cli_git_root_out_message.stash_act, CliGitRootOutMessageCfg, .root = folder, .act = act,
+                           .name_read = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                                   .request = arguments, .key = "name", .otherwise = ""),
+                           .message = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                                 .request = arguments, .key = "message", .otherwise = ""),
+                           .out = &words, .err_msg = err_msg),
+        .words = &words, .out = out);
 }
 
-static int git_cherry_pick(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int git_cherry_pick(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char folder[CLI_PATH_MAX_LEN];
-    const char *const id = cli_serve_string(args, "id", err_msg);
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
     VerbaLinea words;
-    if ((id == NULL) || !cli_serve_git_repo_of(args, folder, err_msg) ||
-        !git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
+    if ((id == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_folder_internal.git_repo_get, CliServeErrMsgRequestFolderCtx,
+                    .request = arguments, .folder = folder, .err_msg = err_msg) ||
+        !EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &words, .room = CLI_SERVE_WORDS_ROOM,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    return git_words_given(cli_git_cherry_pick(folder, id, &words, err_msg), &words, out);
+    return EMBED_CALL(git_words_free, ServeCallGitActsCtx,
+                      .done = EMBED_CALL(cli_git_root_file.cherry_pick, CliGitRootFileCfg, .root = folder, .id = id,
+                                         .out = &words, .err_msg = err_msg),
+                      .words = &words, .out = out);
 }
 
-static int file_at(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int file_at(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    const char *const id = (path != NULL) ? cli_serve_string(args, "id", err_msg) : NULL;
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    const char *const id = (path != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                       .request = arguments, .key = "id", .err_msg = err_msg)
+                                          : NULL;
     VerbaLinea text;
-    if ((id == NULL) || !cli_serve_tree(root, err_msg) || !git_line_begun(&text, CLI_SERVE_TEXT_AT_ROOM, err_msg))
+    if ((id == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg) ||
+        !EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &text, .room = CLI_SERVE_TEXT_AT_ROOM,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    return git_words_given(cli_git_text_at(root, path, id, &text, err_msg), &text, out);
+    return EMBED_CALL(git_words_free, ServeCallGitActsCtx,
+                      .done = EMBED_CALL(cli_git_root_file.text_at, CliGitRootFileCfg, .root = root, .file = path,
+                                         .id = id, .out = &text, .err_msg = err_msg),
+                      .words = &text, .out = out);
 }
 
-static int repo_init(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int repo_init(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char folder[CLI_PATH_MAX_LEN];
-    const char *const named = cli_serve_string_or(args, "folder", NULL);
+    const char *const named = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                         .key = "folder", .otherwise = NULL);
     if (named != NULL)
     {
         VerbaLinea line = {folder, sizeof(folder), 0ull};
         mmgr_line_put(&line, named);
         (void)mmgr_line_finish(&line);
     }
-    else if (!cli_serve_tree(folder, err_msg))
+    else if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = folder,
+                         .err_msg = err_msg))
     {
         return 0;
     }
     VerbaLinea words;
-    if (!git_line_begun(&words, CLI_SERVE_WORDS_ROOM, err_msg))
+    if (!EMBED_CALL(git_line_begin, ServeCallGitActsCtx, .line = &words, .room = CLI_SERVE_WORDS_ROOM,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    const int done = cli_git_init(folder, &words, err_msg);
+    const int done =
+        EMBED_CALL(cli_git_out.init, CliGitOutCfg, .folder_read = folder, .out = &words, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(words.out, &g_cli_serve_git_cells);
     if (done)
     {
-        cli_json_quoted_lossy(out, (const unsigned char *)folder,
-                              cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)folder,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
     }
     return done;
 }

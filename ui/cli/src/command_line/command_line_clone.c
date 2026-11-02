@@ -4,6 +4,7 @@
 // line as git writes it
 #include "../code/git.h"
 #include "../text/text.h"
+#include "callback_cfg.h"
 #include "command_line_internal.h"
 
 // the line written to the terminal
@@ -17,56 +18,63 @@ typedef struct
 } CliCloneShown;
 
 // a line of git's progress written over the one before it, ended where git ended it
-static void files_clone_line(void *context, const char *line, int ended)
+static void files_clone_line(const CliEachLineEndedCfg *args)
 {
-    CliCloneShown *const shown = context;
+    CliCloneShown *const shown = args->context;
     shown->wrote = 1;
     const unsigned long long width =
-        cli_text_letters(line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->line,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_CELLS_POOL}));
     VerbaLinea over = {s_line, sizeof(s_line), 0ull};
     mmgr_line_ch(&over, '\r');
-    mmgr_line_put(&over, line);
+    mmgr_line_put(&over, args->line);
     for (unsigned long long at = width; at < shown->shown; at += 1ull)
     {
         mmgr_line_ch(&over, ' ');
     }
-    if (ended)
+    if (args->ended)
     {
         mmgr_line_ch(&over, '\n');
     }
-    query_terminal_written(1, s_line, mmgr_line_ok(&over) ? over.at : 0ull);
-    shown->shown = ended ? 0ull : width;
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = s_line,
+               .length = mmgr_line_ok(&over) ? over.at : 0ull);
+    shown->shown = args->ended ? 0ull : width;
 }
 
-int cli_clone_words(const char *const *words, unsigned int count)
+int cli_clone_words(const CliCommandLineWordsCountCtx *args)
 {
-    const char *const url = (count > 0u) ? words[0] : CLI_GIT_ORIOR;
+    const char *const url = (args->count > 0u) ? args->words[0] : CLI_GIT_ORIOR;
     char parent[CLI_PATH_MAX_LEN] = "";
-    if (count > 1u)
+    if (args->count > 1u)
     {
         VerbaLinea given = {parent, sizeof(parent), 0ull};
-        mmgr_line_put(&given, words[1]);
+        mmgr_line_put(&given, args->words[1]);
         (void)mmgr_line_finish(&given);
     }
     else
     {
-        (void)cli_folder_current(parent, sizeof(parent));
+        (void)EMBED_CALL(cli_path_room_internal.folder_current, CliPathRoomCtx, .path_out = parent,
+                         .room_size = sizeof(parent));
     }
     char target[CLI_PATH_MAX_LEN];
     static char s_err_buf[4096];
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
-    if (!cli_git_clone_folder(url, parent, target, &err_msg))
+    if (!EMBED_CALL(cli_git_err_msg_folder.clone_folder, CliGitErrMsgFolderCfg, .url = url, .parent = parent,
+                    .folder = target, .err_msg = &err_msg))
     {
-        cli_err_line(s_err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+        EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_err_buf,
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_WRONG;
     }
     CliCloneShown shown = {0ull, 0};
-    if (!cli_git_clone(url, target, files_clone_line, &shown, &err_msg))
+    if (!EMBED_CALL(cli_git_err_msg.clone, CliGitErrMsgCfg, .url = url, .target = target,
+                    .progress_line = files_clone_line, .context = &shown, .err_msg = &err_msg))
     {
         // where git wrote why, it is on the screen already
         if (!shown.wrote)
         {
-            cli_err_line(s_err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+            EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_err_buf,
+                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         }
         return CLI_NO_CODE;
     }
@@ -74,11 +82,13 @@ int cli_clone_words(const char *const *words, unsigned int count)
     mmgr_line_put(&line, "Cloned into ");
     mmgr_line_put(&line, target);
     mmgr_line_ch(&line, '.');
-    cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
+               .size = mmgr_line_ok(&line) ? line.at : 0ull);
     line.at = 0ull;
     mmgr_line_put(&line, "orior_cli --root \"");
     mmgr_line_put(&line, target);
     mmgr_line_put(&line, "\" opens it in the window.");
-    cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
+               .size = mmgr_line_ok(&line) ? line.at : 0ull);
     return 0;
 }

@@ -11,96 +11,139 @@
 CliLatexRoom *g_cli_latex;
 CliLock g_cli_latex_lock = CLI_LOCK_INIT;
 
-int cli_latex_locked(void)
+int cli_latex_lock(void)
 {
-    cli_lock_take(&g_cli_latex_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_latex_lock);
     g_cli_latex = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_latex), &g_cli_editor_cells);
     if (g_cli_latex == NULL)
     {
-        cli_lock_give(&g_cli_latex_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_latex_lock);
     }
     return g_cli_latex != NULL;
 }
 
-void cli_latex_released(void)
+void cli_latex_release(void)
 {
     g_cli_cells->persistent_buf_release(g_cli_latex, &g_cli_editor_cells);
     g_cli_latex = NULL;
-    cli_lock_give(&g_cli_latex_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_latex_lock);
 }
 
-// the stem of the file at `path`, its name without its last extension, as its start and its size
-static void latex_stem(const char *path, unsigned long long *start, unsigned long long *size)
+typedef struct
 {
-    unsigned long long from = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+    const char *path;
+    unsigned long long *start;
+    unsigned long long *size;
+    const char *name;
+    char *program;
+    const char *program_read;
+    const char *const *request;
+    unsigned int count;
+    const char *dir;
+    int *ended;
+    VerbaLinea *err_msg;
+    const char *log;
+    unsigned long long size_value;
+    const char *engine;
+    VerbaLinea *out;
+    const char *job;
+    const char *extension;
+    char *path_out;
+    const char *root;
+    const char *text;
+    unsigned long long length;
+    const char *file;
+    const char *folder;
+} LatexCtx;
+// the stem of the file at `path`, its name without its last extension, as its start and its size
+EMBED_INLINE void latex_stem(const LatexCtx *args)
+{
+    unsigned long long *start = args->start;
+    unsigned long long *size = args->size;
+    unsigned long long from = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     const unsigned long long end = from;
 #if defined(_WIN32)
-    from = cli_text_back_any(path, from, "/\\");
+    from = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path, .at = from,
+                      .set = "/\\");
 #else
-    from = cli_text_back_any(path, from, "/");
+    from = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path, .at = from,
+                      .set = "/");
 #endif
     unsigned long long dot = end;
-    dot = (from + cli_text_back_any(path + from, dot - from, "."));
+    dot = (from + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path + from,
+                             .at = dot - from, .set = "."));
     // a name with no dot, or whose only dot opens it, is its own stem
     *start = from;
     *size = ((dot > from + 1ull) ? dot - 1ull : end) - from;
 }
 
-void cli_latex_job_of(const char *file, char *job)
+void cli_latex_job_get(const CliLatexFileCtx *args)
 {
     unsigned long long start = 0ull;
     unsigned long long size = 0ull;
-    latex_stem(file, &start, &size);
+    EMBED_CALL(latex_stem, LatexCtx, .path = args->file_read, .start = &start, .size = &size);
     int plain = (size > 0ull);
     for (unsigned long long at = start; plain && (at < start + size); at += 1ull)
     {
-        const char letter = file[at];
+        const char letter = args->file_read[at];
         plain = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
                 ((letter >= '0') && (letter <= '9')) || (letter == '-') || (letter == '_');
     }
     if (!plain)
     {
-        memor.cpy(&(MemoriaCfg){.dst = job, .src = "preview", .bytes = 8u});
+        memor.cpy(&(MemoriaCfg){.dst = args->job_out, .src = "preview", .bytes = 8u});
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = job, .src = file + start, .bytes = size});
-    job[size] = '\0';
+    memor.cpy(&(MemoriaCfg){.dst = args->job_out, .src = args->file_read + start, .bytes = size});
+    args->job_out[size] = '\0';
 }
 
 // the program `name` as orior_cli finds it into `program`, sized for CLI_PATH_MAX_LEN: in TeX's folder or Poppler's
 // as File, Toolchains finds them, then on the PATH orior's runs get. 1, or 0 where it is in none
-static int latex_program(const char *name, char *program)
+static int latex_program(const LatexCtx *args)
 {
+    const char *name = args->name;
     CliJson manifest_json;
     CliJson *const json = &manifest_json;
     unsigned int count = 0u;
     char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_editor_cells);
     const char (*const folders)[CLI_PATH_MAX_LEN] = (const char (*)[CLI_PATH_MAX_LEN])path;
     const char *const names[1] = {name};
-    const unsigned int manifest = cli_toolchains_manifest(json, 0u, 0ull);
-    for (unsigned int index = 0u; cli_json_item(json, manifest, index) != CLI_JSON_NONE; index += 1u)
+    const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                             .json_out = json, .nodes_more = 0u, .text_more = 0ull);
+    for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = json, .array = manifest, .index = index) != CLI_JSON_NONE;
+         index += 1u)
     {
-        const unsigned int tool = cli_json_item(json, manifest, index);
-        const char *const id = cli_json_string(json, cli_json_member(json, tool, "id"), NULL);
+        const unsigned int tool = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = json, .array = manifest, .index = index);
+        const char *const id =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = tool, .name = "id"),
+                       .length_pointer = NULL);
         if ((id == NULL) || ((!cellul.eq(&(CatenaFinitaCfg){.src = id, .other = "tex", .cap = CLI_CELLS_POOL})) &&
                              (!cellul.eq(&(CatenaFinitaCfg){.src = id, .other = "poppler", .cap = CLI_CELLS_POOL}))))
         {
             continue;
         }
-        cli_toolchains_find(json, tool, folders, count, &g_cli_latex->found);
+        EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = json, .tool = tool, .path_callback = folders,
+                   .count = count, .found = &g_cli_latex->found);
         if ((g_cli_latex->found.folder[0] != '\0') &&
-            cli_toolchains_program_in(g_cli_latex->found.folder, names, 1u, program))
+            EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = g_cli_latex->found.folder,
+                       .names = names, .count = 1u, .path = args->program))
         {
-            cli_json_given(json);
+            EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
             g_cli_cells->persistent_buf_release(path, &g_cli_editor_cells);
             return 1;
         }
     }
-    cli_json_given(json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < count); at += 1u)
     {
-        found = cli_toolchains_program_in(folders[at], names, 1u, program);
+        found = EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folders[at], .names = names,
+                           .count = 1u, .path = args->program);
     }
     g_cli_cells->persistent_buf_release(path, &g_cli_editor_cells);
     return found;
@@ -109,29 +152,34 @@ static int latex_program(const char *name, char *program)
 // `program` run in `dir` with `args`, `count` of them, with the PATH orior's runs get and the room's TEXINPUTS, its
 // output let go, 1 into `ended` where it ended well: 1, or 0 with why given where it did not start or ran past
 // CLI_LATEX_PATIENCE and was stopped
-static int latex_ran(const char *program, const char *const *args, unsigned int count, const char *dir, int *ended,
-                     VerbaLinea *err_msg)
+EMBED_INLINE int latex_run(const LatexCtx *args)
 {
+    unsigned int count = args->count;
+    int *ended = args->ended;
+    VerbaLinea *err_msg = args->err_msg;
     const char *words[8];
-    words[0] = program;
+    words[0] = args->program_read;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        words[at + 1u] = args[at];
+        words[at + 1u] = args->request[at];
     }
     words[count + 1u] = NULL;
-    cli_toolchains_run_path(g_cli_latex->path, CLI_PATH_TEXT);
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = g_cli_latex->path,
+               .size = CLI_PATH_TEXT);
     const CliSetting settings[2] = {{"PATH", g_cli_latex->path}, {"TEXINPUTS", g_cli_latex->inputs}};
-    CliRan *const ran = cli_ran_taken();
-    const int started = cli_ran_within(words, dir, settings, 2u, NULL, 0ull, CLI_LATEX_PATIENCE, ran, err_msg);
+    CliRan *const ran = cli_ran_take();
+    const int started = EMBED_CALL(cli_words_internal.ran_within, CliWordsCtx, .words = words, .folder = args->dir,
+                                   .settings = settings, .count = 2u, .input = NULL, .length = 0ull,
+                                   .milliseconds_u64 = CLI_LATEX_PATIENCE, .ran = ran, .err_msg = err_msg);
     const int stopped = started && ran->stopped;
     *ended = started && !stopped && (ran->code == 0ll);
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     if (stopped)
     {
         unsigned long long start = 0ull;
         unsigned long long size = 0ull;
-        latex_stem(program, &start, &size);
-        mmgr_line_put_n(err_msg, program + start, size);
+        EMBED_CALL(latex_stem, LatexCtx, .path = args->program_read, .start = &start, .size = &size);
+        mmgr_line_put_n(err_msg, args->program_read + start, size);
         mmgr_line_put(err_msg, " took longer than ");
         mmgr_line_decimal(err_msg, CLI_LATEX_PATIENCE / 1000ull, 1u);
         mmgr_line_put(err_msg, " s and was stopped");
@@ -142,19 +190,22 @@ static int latex_ran(const char *program, const char *const *args, unsigned int 
 
 // the last four lines of a log that are not blank, joined by "\n", written as the one error of a make that failed and
 // named none, the file made its file, or that the engine made no pages and wrote no log
-static void latex_tail_written(const char *log, unsigned long long size, const char *path, const char *engine,
-                               VerbaLinea *out)
+EMBED_INLINE void latex_tail_write(const LatexCtx *args)
 {
+    unsigned long long size = args->size_value;
+    VerbaLinea *out = args->out;
     unsigned long long starts[4];
     unsigned long long sizes[4];
     unsigned long long count = 0ull;
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
     unsigned long long length = 0ull;
-    while (cli_tex_line(log, size, &at, &start, &length))
+    while (EMBED_CALL(cli_latex_text_internal.tex_line, CliLatexTextCtx, .text = args->log, .length = size, .at = &at,
+                      .start = &start, .size_pointer = &length))
     {
         unsigned long long letter = 0ull;
-        while ((letter < length) && cli_tex_white(log[start + letter]))
+        while ((letter < length) &&
+               EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->log[start + letter]))
         {
             letter += 1ull;
         }
@@ -167,12 +218,14 @@ static void latex_tail_written(const char *log, unsigned long long size, const c
         count += 1ull;
     }
     mmgr_line_put(out, "{\"file\":");
-    cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->path,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"line\":null,\"text\":\"");
     if (count == 0ull)
     {
-        cli_json_escaped_lossy(out, (const unsigned char *)engine,
-                               cellul.len(&(CatenaFinitaCfg){.src = engine, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)args->engine,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->engine, .cap = CLI_CELLS_POOL}));
         mmgr_line_put(out, " made no pages and wrote no log");
     }
     for (unsigned long long line = (count > 4ull) ? count - 4ull : 0ull; line < count; line += 1ull)
@@ -181,61 +234,71 @@ static void latex_tail_written(const char *log, unsigned long long size, const c
         {
             mmgr_line_put(out, "\\n");
         }
-        cli_json_escaped_lossy(out, (const unsigned char *)log + starts[line % 4ull], sizes[line % 4ull]);
+        EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)args->log + starts[line % 4ull], .length = sizes[line % 4ull]);
     }
     mmgr_line_put(out, "\"}");
 }
 
 // the file `name` of the make's folder `dir` into `path`, sized for CLI_PATH_MAX_LEN
-static void latex_file(const char *dir, const char *job, const char *extension, char *path)
+EMBED_INLINE void latex_file(const LatexCtx *args)
 {
     char name[CLI_PATH_MAX_LEN];
     VerbaLinea line = {name, sizeof(name), 0ull};
-    mmgr_line_put(&line, job);
-    mmgr_line_put(&line, extension);
+    mmgr_line_put(&line, args->job);
+    mmgr_line_put(&line, args->extension);
     mmgr_line_finish(&line);
-    cli_full(dir, name, path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->dir, .relative = name, .joined = args->path_out);
 }
 
 // the make in `dir` under the room's lock, as cli_latex_make_in specifies
-static int latex_made(const char *root, const char *path, const char *text, unsigned long long length, const char *file,
-                      const char *folder, const char *dir, VerbaLinea *out, VerbaLinea *err_msg)
+EMBED_INLINE int latex_init(const LatexCtx *args)
 {
+    const char *root = args->root;
+    const char *path = args->path;
+    const char *text = args->text;
+    unsigned long long length = args->length;
+    const char *file = args->file;
+    const char *folder = args->folder;
+    const char *dir = args->dir;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     const unsigned long long began = cli_clock_milliseconds();
-    const char *const engine = cli_latex_engine_of(text, length);
+    const char *const engine = EMBED_CALL(cli_latex.engine_get, CliLatexCfg, .text = text, .length = length);
     char tex[CLI_PATH_MAX_LEN];
     char cairo[CLI_PATH_MAX_LEN];
-    if (!latex_program(engine, tex))
+    if (!EMBED_CALL(latex_program, LatexCtx, .name = engine, .program = tex))
     {
         mmgr_line_put(err_msg, engine);
         mmgr_line_put(err_msg, " is not found: File, Toolchains opens TeX's install page or takes its folder");
         return 0;
     }
-    if (!latex_program("pdftocairo", cairo))
+    if (!EMBED_CALL(latex_program, LatexCtx, .name = "pdftocairo", .program = cairo))
     {
         mmgr_line_put(err_msg,
                       "pdftocairo is not found: File, Toolchains opens Poppler's install page or takes its folder");
         return 0;
     }
-    if (!query_folder_made(dir))
+    if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = dir))
     {
         mmgr_line_put(err_msg, dir);
         mmgr_line_put(err_msg, ": it could not be made");
         return 0;
     }
     char job[CLI_PATH_MAX_LEN];
-    cli_latex_job_of(file, job);
+    EMBED_CALL(cli_latex_file_internal.job_get, CliLatexFileCtx, .file_read = file, .job_out = job);
     char made[CLI_PATH_MAX_LEN];
     char pdf[CLI_PATH_MAX_LEN];
-    latex_file(dir, job, ".tex", made);
-    latex_file(dir, job, ".pdf", pdf);
-    if (!query_file_written(made, text, length))
+    EMBED_CALL(latex_file, LatexCtx, .dir = dir, .job = job, .extension = ".tex", .path_out = made);
+    EMBED_CALL(latex_file, LatexCtx, .dir = dir, .job = job, .extension = ".pdf", .path_out = pdf);
+    if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = made, .bytes = text,
+                    .size = length))
     {
         mmgr_line_put(err_msg, dir);
         mmgr_line_put(err_msg, ": it could not be written");
         return 0;
     }
-    (void)query_removed(pdf);
+    (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = pdf);
 #if defined(_WIN32)
     const char *const between = ";";
 #else
@@ -248,12 +311,14 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     mmgr_line_put(&inputs, between);
     mmgr_line_finish(&inputs);
     if ((inputs.at >= CLI_PATH_TEXT) ||
-        !query_environment_read("TEXINPUTS", g_cli_latex->inputs + inputs.at, CLI_PATH_TEXT - inputs.at))
+        !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TEXINPUTS",
+                    .value_out = g_cli_latex->inputs + inputs.at, .room = CLI_PATH_TEXT - inputs.at))
     {
         g_cli_latex->inputs[(inputs.at < CLI_PATH_TEXT) ? inputs.at : CLI_PATH_TEXT - 1ull] = '\0';
     }
     CliTexNames names;
-    cli_tex_names_made(&names, root, dir, job, path);
+    EMBED_CALL(cli_latex_names_root_internal.tex_names_init, CliLatexNamesRootCtx, .names_out = &names, .root = root,
+               .dir = dir, .job = job, .path = path);
     // The text is named by its path from the make's folder, which no search on TEXINPUTS takes: the file saved in the
     // tree under the same name is never made in its place
     char own[CLI_PATH_MAX_LEN];
@@ -262,29 +327,35 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     mmgr_line_put(&own_line, job);
     mmgr_line_put(&own_line, ".tex");
     mmgr_line_finish(&own_line);
-    const char *const args[5] = {"-interaction=nonstopmode", "-halt-on-error", "-file-line-error", "-synctex=1", own};
+    const char *const arguments[5] = {"-interaction=nonstopmode", "-halt-on-error", "-file-line-error", "-synctex=1",
+                                      own};
     int ended = 0;
-    if (!latex_ran(tex, args, 5u, dir, &ended, err_msg))
+    if (!EMBED_CALL(latex_run, LatexCtx, .program_read = tex, .request = arguments, .count = 5u, .dir = dir,
+                    .ended = &ended, .err_msg = err_msg))
     {
         return 0;
     }
     const unsigned long long from = out->at;
     mmgr_line_put(out, "{\"engine\":");
-    cli_json_quoted(out, engine, cellul.len(&(CatenaFinitaCfg){.src = engine, .cap = CLI_CELLS_POOL}));
-    if (!ended || !query_is_file(pdf))
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = engine,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = engine, .cap = CLI_CELLS_POOL}));
+    if (!ended || !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = pdf))
     {
         mmgr_line_put(out, ",\"defs\":\"\",\"pages\":[],\"boxes\":[],\"errors\":[");
         char log_path[CLI_PATH_MAX_LEN];
-        latex_file(dir, job, ".log", log_path);
+        EMBED_CALL(latex_file, LatexCtx, .dir = dir, .job = job, .extension = ".log", .path_out = log_path);
         unsigned long long size = 0ull;
-        const unsigned char *const log = cli_file_taken(log_path, &size, &g_cli_editor_cells);
+        const unsigned char *const log = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = log_path,
+                                                    .size_pointer = &size, .owner = &g_cli_editor_cells);
         const char *const read = (log != NULL) ? (const char *)log : "";
         const unsigned long long read_size = size;
-        if (cli_tex_errors_written(read, read_size, &names, out) == 0u)
+        if (EMBED_CALL(cli_latex_names_log_internal.tex_errors_write, CliLatexNamesLogCtx, .log = read,
+                       .size = read_size, .names = &names, .out = out) == 0u)
         {
-            latex_tail_written(read, read_size, path, engine, out);
+            EMBED_CALL(latex_tail_write, LatexCtx, .log = read, .size_value = read_size, .path = path, .engine = engine,
+                       .out = out);
         }
-        cli_file_given(log, &g_cli_editor_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = log, .owner = &g_cli_editor_cells);
         mmgr_line_put(out, "],\"ms\":");
         mmgr_line_decimal(out, cli_clock_milliseconds() - began, 1u);
         mmgr_line_ch(out, '}');
@@ -301,7 +372,8 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     mmgr_line_put(&svg_line, ".svg");
     mmgr_line_finish(&svg_line);
     const char *const drawing[3] = {"-svg", pdf_name, svg_name};
-    if (!latex_ran(cairo, drawing, 3u, dir, &ended, err_msg))
+    if (!EMBED_CALL(latex_run, LatexCtx, .program_read = cairo, .request = drawing, .count = 3u, .dir = dir,
+                    .ended = &ended, .err_msg = err_msg))
     {
         out->at = from;
         return 0;
@@ -315,13 +387,16 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
         return 0;
     }
     char drawn[CLI_PATH_MAX_LEN];
-    latex_file(dir, job, ".svg", drawn);
+    EMBED_CALL(latex_file, LatexCtx, .dir = dir, .job = job, .extension = ".svg", .path_out = drawn);
     unsigned long long svg_size = 0ull;
-    const unsigned char *const svg = cli_file_taken(drawn, &svg_size, &g_cli_editor_cells);
-    const int whole = (svg != NULL) && cli_utf8_whole((const char *)svg, svg_size);
+    const unsigned char *const svg = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = drawn,
+                                                .size_pointer = &svg_size, .owner = &g_cli_editor_cells);
+    const int whole = (svg != NULL) && EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg,
+                                                  .bytes = (const char *)svg, .size = svg_size);
     mmgr_line_ch(out, ',');
-    const int fits = whole && cli_tex_pages_written((const char *)svg, svg_size, out);
-    cli_file_given(svg, &g_cli_editor_cells);
+    const int fits = whole && EMBED_CALL(cli_latex_size_internal.tex_pages_write, CliLatexSizeCtx,
+                                         .svg = (const char *)svg, .size = svg_size, .out = out);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = svg, .owner = &g_cli_editor_cells);
     if (!fits)
     {
         mmgr_line_put(err_msg, drawn);
@@ -331,68 +406,75 @@ static int latex_made(const char *root, const char *path, const char *text, unsi
     }
     mmgr_line_put(out, ",\"boxes\":");
     char sync_path[CLI_PATH_MAX_LEN];
-    latex_file(dir, job, ".synctex.gz", sync_path);
+    EMBED_CALL(latex_file, LatexCtx, .dir = dir, .job = job, .extension = ".synctex.gz", .path_out = sync_path);
     unsigned long long zipped_size = 0ull;
-    const unsigned char *const zipped = cli_file_taken(sync_path, &zipped_size, &g_cli_editor_cells);
+    const unsigned char *const zipped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = sync_path,
+                                                   .size_pointer = &zipped_size, .owner = &g_cli_editor_cells);
     unsigned long long sync_size = 0ull;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unzipped = {why, sizeof(why), 0ull};
-    if ((zipped != NULL) && cli_gunzip(zipped, zipped_size, g_cli_latex->sync, CLI_LATEX_SYNC, &sync_size, &unzipped))
+    if ((zipped != NULL) &&
+        EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = zipped, .size = zipped_size,
+                   .out = g_cli_latex->sync, .room = CLI_LATEX_SYNC, .out_size = &sync_size, .err_msg = &unzipped))
     {
-        cli_tex_boxes_written((const char *)g_cli_latex->sync, sync_size, &names, out);
+        EMBED_CALL(cli_latex_names_internal.tex_boxes_write, CliLatexNamesCtx, .sync = (const char *)g_cli_latex->sync,
+                   .size = sync_size, .names = &names, .out = out);
     }
     else
     {
         mmgr_line_put(out, "[]");
     }
-    cli_file_given(zipped, &g_cli_editor_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = zipped, .owner = &g_cli_editor_cells);
     mmgr_line_put(out, ",\"errors\":[],\"ms\":");
     mmgr_line_decimal(out, cli_clock_milliseconds() - began, 1u);
     mmgr_line_ch(out, '}');
     return 1;
 }
 
-int cli_latex_make_in(const char *root, const char *path, const char *text, unsigned long long length,
-                      const char *out_dir, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_latex_make_in(const CliLatexCfg *args)
 {
     char file[CLI_PATH_MAX_LEN];
-    if (!cli_inside(root, path, file, err_msg))
+    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->path, .joined = file,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
     char folder[CLI_PATH_MAX_LEN];
-    if (!cli_path_parent(file, folder))
+    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = file, .out = folder))
     {
-        mmgr_line_put(err_msg, path);
-        mmgr_line_put(err_msg, " has no folder");
+        mmgr_line_put(args->err_msg, args->path);
+        mmgr_line_put(args->err_msg, " has no folder");
         return 0;
     }
     char digest[80];
     VerbaLinea hex = {digest, sizeof(digest), 0ull};
-    cli_sha256_text(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), &hex);
+    EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = file,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), .text = &hex);
     digest[16] = '\0';
     char dir[CLI_PATH_MAX_LEN];
-    cli_full(out_dir, digest, dir);
-    if (!cli_latex_locked())
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->out_dir, .relative = digest, .joined = dir);
+    if (!cli_latex_lock())
     {
-        mmgr_line_put(err_msg, "the make could not be read: the cells cannot meet it");
+        mmgr_line_put(args->err_msg, "the make could not be read: the cells cannot meet it");
         return 0;
     }
-    const int made = latex_made(root, path, text, length, file, folder, dir, out, err_msg);
-    cli_latex_released();
+    const int made = EMBED_CALL(latex_init, LatexCtx, .root = args->root, .path = args->path, .text = args->text,
+                                .length = args->length, .file = file, .folder = folder, .dir = dir, .out = args->out,
+                                .err_msg = args->err_msg);
+    cli_latex_release();
     return made;
 }
 
-int cli_latex_make(const char *root, const char *path, const char *text, unsigned long long length, VerbaLinea *out,
-                   VerbaLinea *err_msg)
+int cli_latex_make(const CliLatexCfg *args)
 {
     char home[CLI_PATH_MAX_LEN];
-    if (!cli_home_folder(home))
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home))
     {
-        mmgr_line_put(err_msg, "orior's own folder is not known");
+        mmgr_line_put(args->err_msg, "orior's own folder is not known");
         return 0;
     }
     char out_dir[CLI_PATH_MAX_LEN];
-    cli_full(home, "previews", out_dir);
-    return cli_latex_make_in(root, path, text, length, out_dir, out, err_msg);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = "previews", .joined = out_dir);
+    return EMBED_CALL(cli_latex.make_in, CliLatexCfg, .root = args->root, .path = args->path, .text = args->text,
+                      .length = args->length, .out_dir = out_dir, .out = args->out, .err_msg = args->err_msg);
 }

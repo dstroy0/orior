@@ -10,14 +10,12 @@
 
 // the most headers and pieces of data a curl line gives that are read
 #define CLI_REQUESTS_CURL_MOST 4096u
-
 // A text of a curl line read: where it is and its length
 typedef struct
 {
     const char *at;
     unsigned long long size;
 } CurlText;
-
 // A curl line read: its method and address where it gives them, its headers, its data joined by `&`, its forms, and
 // whether its data goes in the address
 typedef struct
@@ -51,20 +49,43 @@ typedef struct
 static CliCurlRoom *s_curl;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// whether `size` bytes of `text` are `word`
-static int curl_is(const char *text, unsigned long long size, const char *word)
+typedef struct
 {
-    return (cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}) == size) &&
-           (memor.cmp(&(MemoriaCfg){.src = text, .other = word, .bytes = (size_t)size}) == 0);
+    const char *text;
+    unsigned long long size;
+    const char *word;
+    const CurlRead *read;
+    const char *lower;
+    CurlRead *read_out;
+    const char *name;
+    unsigned long long name_size;
+    const char *value;
+    unsigned long long value_size;
+    const char *bytes;
+    VerbaLinea *out;
+    CurlText flag;
+    CurlText joined;
+    unsigned int *at;
+    VerbaLinea *err_msg;
+    const char *path;
+    unsigned long long *start;
+    unsigned long long *length;
+} RequestsCurlCtx;
+// whether `size` bytes of `text` are `word`
+EMBED_INLINE int curl_is(const RequestsCurlCtx *args)
+{
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) == args->size) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->text, .other = args->word, .bytes = (size_t)args->size}) == 0);
 }
 
 // whether the line's headers name `lower`, ASCII case aside
-static int curl_has(const CurlRead *read, const char *lower)
+EMBED_INLINE int curl_has(const RequestsCurlCtx *args)
 {
-    for (unsigned int at = 0u; at < read->headers; at += 1u)
+    for (unsigned int at = 0u; at < args->read->headers; at += 1u)
     {
-        if ((read->name[at].size == cellul.len(&(CatenaFinitaCfg){.src = lower, .cap = CLI_CELLS_POOL})) &&
-            cli_requests_contains(read->name[at].at, read->name[at].size, lower))
+        if ((args->read->name[at].size == cellul.len(&(CatenaFinitaCfg){.src = args->lower, .cap = CLI_CELLS_POOL})) &&
+            EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                       .text = args->read->name[at].at, .size = args->read->name[at].size, .needle = args->lower))
         {
             return 1;
         }
@@ -73,62 +94,62 @@ static int curl_has(const CurlRead *read, const char *lower)
 }
 
 // a header put on the line read: 1, or 0 where it contains the most
-static int curl_header(CurlRead *read, const char *name, unsigned long long name_size, const char *value,
-                       unsigned long long value_size)
+EMBED_INLINE int curl_header(const RequestsCurlCtx *args)
 {
-    if (read->headers == CLI_REQUESTS_CURL_MOST)
+    if (args->read_out->headers == CLI_REQUESTS_CURL_MOST)
     {
         return 0;
     }
-    read->name[read->headers] = (CurlText){name, name_size};
-    read->value[read->headers] = (CurlText){value, value_size};
-    read->headers += 1u;
+    args->read_out->name[args->read_out->headers] = (CurlText){args->name, args->name_size};
+    args->read_out->value[args->read_out->headers] = (CurlText){args->value, args->value_size};
+    args->read_out->headers += 1u;
     return 1;
 }
 
 // `size` bytes made into the pool of texts made: where they stand
-static CurlText curl_made(const char *bytes, unsigned long long size)
+EMBED_INLINE CurlText curl_init(const RequestsCurlCtx *args)
 {
-    const CurlText made = {s_curl->made + s_curl->made_line.at, size};
-    mmgr_line_put_n(&s_curl->made_line, bytes, size);
+    const CurlText made = {s_curl->made + s_curl->made_line.at, args->size};
+    mmgr_line_put_n(&s_curl->made_line, args->bytes, args->size);
     return made;
 }
 
 // `size` bytes written as a form encodes them, each byte but a letter, a digit and `-_.~` as `%XX`
-static void curl_encoded(const char *text, unsigned long long size, VerbaLinea *out)
+EMBED_INLINE void curl_encode(const RequestsCurlCtx *args)
 {
     static const char s_hex[] = "0123456789ABCDEF";
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
     {
-        const unsigned char byte = (unsigned char)text[at];
+        const unsigned char byte = (unsigned char)args->text[at];
         const int plain = ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) ||
                           ((byte >= '0') && (byte <= '9')) || (byte == '-') || (byte == '_') || (byte == '.') ||
                           (byte == '~');
         if (plain)
         {
-            mmgr_line_ch(out, (char)byte);
+            mmgr_line_ch(args->out, (char)byte);
         }
         else
         {
-            mmgr_line_ch(out, '%');
-            mmgr_line_ch(out, s_hex[byte >> 4u]);
-            mmgr_line_ch(out, s_hex[byte & 0x0fu]);
+            mmgr_line_ch(args->out, '%');
+            mmgr_line_ch(args->out, s_hex[byte >> 4u]);
+            mmgr_line_ch(args->out, s_hex[byte & 0x0fu]);
         }
     }
 }
 
 // a piece of data put after those before it, joined by `&`
-static void curl_data_begun(CurlRead *read)
+EMBED_INLINE void curl_data_begin(const RequestsCurlCtx *args)
 {
-    mmgr_line_put(&s_curl->body_line, (read->data > 0u) ? "&" : "");
-    read->data += 1u;
+    mmgr_line_put(&s_curl->body_line, (args->read_out->data > 0u) ? "&" : "");
+    args->read_out->data += 1u;
 }
 
 // the flag `flag` of the word at `*at` read, its value `value` where it is joined to it by `=`, else the word after
 // it: 1, or 0 with why given
-static int curl_flag(CurlRead *read, CurlText flag, CurlText joined, unsigned int *at, VerbaLinea *err_msg)
+EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
 {
-    CurlText value = joined;
+    unsigned int *at = args->at;
+    CurlText value = args->joined;
     static const char *const valued[] = {"-X",
                                          "--request",
                                          "-H",
@@ -169,15 +190,16 @@ static int curl_flag(CurlRead *read, CurlText flag, CurlText joined, unsigned in
     int takes = 0;
     for (unsigned int index = 0u; !takes && (index < sizeof(valued) / sizeof(valued[0])); index += 1u)
     {
-        takes = curl_is(flag.at, flag.size, valued[index]);
+        takes =
+            EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = valued[index]);
     }
     if (takes && (value.at == NULL))
     {
         *at += 1u;
         if (*at >= s_curl->words.count)
         {
-            mmgr_line_put_n(err_msg, flag.at, flag.size);
-            mmgr_line_put(err_msg, " wants a value");
+            mmgr_line_put_n(args->err_msg, args->flag.at, args->flag.size);
+            mmgr_line_put(args->err_msg, " wants a value");
             return 0;
         }
         value = (CurlText){s_curl->words.text + s_curl->words.word[*at].at, s_curl->words.word[*at].size};
@@ -187,120 +209,153 @@ static int curl_flag(CurlRead *read, CurlText flag, CurlText joined, unsigned in
     const char *const colon =
         (value.at != NULL) ? memor.chr(&(MemoriaCfg){.src = value.at, .val = ':', .bytes = (size_t)value.size}) : NULL;
     int fits = 1;
-    if (curl_is(flag.at, flag.size, "-X") || curl_is(flag.at, flag.size, "--request"))
+    if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-X") ||
+        EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--request"))
     {
-        read->method = value;
+        args->read_out->method = value;
     }
-    else if ((curl_is(flag.at, flag.size, "-H") || curl_is(flag.at, flag.size, "--header")) && (colon != NULL))
+    else if ((EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-H") ||
+              EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
+                         .word = "--header")) &&
+             (colon != NULL))
     {
         unsigned long long name_start = 0ull;
         unsigned long long name_end = (unsigned long long)(colon - value.at);
         unsigned long long text_start = name_end + 1u;
         unsigned long long text_end = value.size;
-        cli_requests_trimmed(value.at, &name_start, &name_end);
-        cli_requests_trimmed(value.at, &text_start, &text_end);
-        fits = curl_header(read, value.at + name_start, name_end - name_start, value.at + text_start,
-                           text_end - text_start);
+        EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = value.at,
+                   .start = &name_start, .end = &name_end);
+        EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = value.at,
+                   .start = &text_start, .end = &text_end);
+        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = value.at + name_start,
+                          .name_size = name_end - name_start, .value = value.at + text_start,
+                          .value_size = text_end - text_start);
     }
-    else if (curl_is(flag.at, flag.size, "-d") || curl_is(flag.at, flag.size, "--data") ||
-             curl_is(flag.at, flag.size, "--data-raw") || curl_is(flag.at, flag.size, "--data-binary") ||
-             curl_is(flag.at, flag.size, "--data-ascii") || curl_is(flag.at, flag.size, "--json"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-d") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--data") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
+                        .word = "--data-raw") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
+                        .word = "--data-binary") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
+                        .word = "--data-ascii") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--json"))
     {
-        curl_data_begun(read);
+        curl_data_begin(args);
         mmgr_line_put_n(&s_curl->body_line, value.at, value.size);
         static const char *const json[2] = {"Content-Type", "Accept"};
         static const char *const json_lower[2] = {"content-type", "accept"};
-        for (unsigned int index = 0u; fits && curl_is(flag.at, flag.size, "--json") && (index < 2u); index += 1u)
+        for (unsigned int index = 0u;
+             fits &&
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--json") &&
+             (index < 2u);
+             index += 1u)
         {
-            fits = curl_has(read, json_lower[index]) ||
-                   curl_header(read, json[index],
-                               cellul.len(&(CatenaFinitaCfg){.src = json[index], .cap = CLI_CELLS_POOL}),
-                               "application/json", 16u);
+            fits = EMBED_CALL(curl_has, RequestsCurlCtx, .read = args->read_out, .lower = json_lower[index]) ||
+                   EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = json[index],
+                              .name_size = cellul.len(&(CatenaFinitaCfg){.src = json[index], .cap = CLI_CELLS_POOL}),
+                              .value = "application/json", .value_size = 16u);
         }
     }
-    else if (curl_is(flag.at, flag.size, "--data-urlencode"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
+                        .word = "--data-urlencode"))
     {
-        curl_data_begun(read);
+        curl_data_begin(args);
         const unsigned long long name = (equals != NULL) ? (unsigned long long)(equals - value.at) : 0ull;
         mmgr_line_put_n(&s_curl->body_line, value.at, (equals != NULL) ? (name + 1u) : 0u);
-        curl_encoded(value.at + ((equals != NULL) ? (name + 1u) : 0u),
-                     value.size - ((equals != NULL) ? (name + 1u) : 0u), &s_curl->body_line);
+        EMBED_CALL(curl_encode, RequestsCurlCtx, .text = value.at + ((equals != NULL) ? (name + 1u) : 0u),
+                   .size = value.size - ((equals != NULL) ? (name + 1u) : 0u), .out = &s_curl->body_line);
     }
-    else if ((curl_is(flag.at, flag.size, "-F") || curl_is(flag.at, flag.size, "--form")) && (equals != NULL))
+    else if ((EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-F") ||
+              EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--form")) &&
+             (equals != NULL))
     {
-        fits = (read->forms < CLI_REQUESTS_CURL_MOST);
+        fits = (args->read_out->forms < CLI_REQUESTS_CURL_MOST);
         if (fits)
         {
             const unsigned long long name = (unsigned long long)(equals - value.at);
-            read->form_name[read->forms] = (CurlText){value.at, name};
-            read->form_value[read->forms] = (CurlText){equals + 1, value.size - name - 1u};
-            read->forms += 1u;
+            args->read_out->form_name[args->read_out->forms] = (CurlText){value.at, name};
+            args->read_out->form_value[args->read_out->forms] = (CurlText){equals + 1, value.size - name - 1u};
+            args->read_out->forms += 1u;
         }
     }
-    else if (curl_is(flag.at, flag.size, "-u") || curl_is(flag.at, flag.size, "--user"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-u") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--user"))
     {
         const unsigned long long start = s_curl->made_line.at;
         mmgr_line_put(&s_curl->made_line, "Basic ");
-        cli_base64(&s_curl->made_line, (const unsigned char *)value.at, value.size);
-        fits = curl_header(read, "Authorization", 13u, s_curl->made + start, s_curl->made_line.at - start);
+        EMBED_CALL(cli_base64_table.base64, CliBase64Cfg, .out = &s_curl->made_line,
+                   .bytes = (const unsigned char *)value.at, .size = value.size);
+        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Authorization",
+                          .name_size = 13u, .value = s_curl->made + start, .value_size = s_curl->made_line.at - start);
     }
-    else if (curl_is(flag.at, flag.size, "-A") || curl_is(flag.at, flag.size, "--user-agent"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-A") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
+                        .word = "--user-agent"))
     {
-        fits = curl_header(read, "User-Agent", 10u, value.at, value.size);
+        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "User-Agent",
+                          .name_size = 10u, .value = value.at, .value_size = value.size);
     }
-    else if (curl_is(flag.at, flag.size, "-e") || curl_is(flag.at, flag.size, "--referer"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-e") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--referer"))
     {
-        fits = curl_header(read, "Referer", 7u, value.at, value.size);
+        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Referer", .name_size = 7u,
+                          .value = value.at, .value_size = value.size);
     }
-    else if (curl_is(flag.at, flag.size, "-b") || curl_is(flag.at, flag.size, "--cookie"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-b") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--cookie"))
     {
-        fits = curl_header(read, "Cookie", 6u, value.at, value.size);
+        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Cookie", .name_size = 6u,
+                          .value = value.at, .value_size = value.size);
     }
-    else if (curl_is(flag.at, flag.size, "-G") || curl_is(flag.at, flag.size, "--get"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-G") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--get"))
     {
-        read->get = 1;
+        args->read_out->get = 1;
     }
-    else if (curl_is(flag.at, flag.size, "-I") || curl_is(flag.at, flag.size, "--head"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-I") ||
+             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--head"))
     {
-        read->method = curl_made("HEAD", 4u);
+        args->read_out->method = EMBED_CALL(curl_init, RequestsCurlCtx, .bytes = "HEAD", .size = 4u);
     }
-    else if (curl_is(flag.at, flag.size, "--url"))
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--url"))
     {
-        read->url = value;
+        args->read_out->url = value;
     }
-    else if (!takes && ((flag.size == 0u) || (flag.at[0] != '-')))
+    else if (!takes && ((args->flag.size == 0u) || (args->flag.at[0] != '-')))
     {
-        read->url = flag;
+        args->read_out->url = args->flag;
     }
     if (!fits)
     {
-        mmgr_line_put(err_msg, "the curl line is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
     }
     return fits;
 }
 
 // the name of the file at the end of `size` bytes of a path, as Rust's Path::file_name reads it: its start and length
 // into `start` and `length`, none where the path ends in `..` or has no name
-static void curl_file_name(const char *path, unsigned long long size, unsigned long long *start,
-                           unsigned long long *length)
+EMBED_INLINE void curl_file_name(const RequestsCurlCtx *args)
 {
+    unsigned long long *start = args->start;
+    unsigned long long *length = args->length;
 #if defined(_WIN32)
     static const char s_separators[] = "/\\";
 #else
     static const char s_separators[] = "/";
 #endif
-    unsigned long long end = size;
+    unsigned long long end = args->size;
     for (;;)
     {
         while ((end > 0u) && (cellul.chr(&(CatenaFinitaCfg){
-                                  .src = s_separators, .cap = CLI_CELLS_POOL, .byte = path[end - 1u]}) != NULL))
+                                  .src = s_separators, .cap = CLI_CELLS_POOL, .byte = args->path[end - 1u]}) != NULL))
         {
             end -= 1u;
         }
         const int dot =
-            (end > 0u) && (path[end - 1u] == '.') &&
+            (end > 0u) && (args->path[end - 1u] == '.') &&
             ((end == 1u) || (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_separators, .cap = CLI_CELLS_POOL, .byte = path[end - 2u]}) != NULL));
+                                 .src = s_separators, .cap = CLI_CELLS_POOL, .byte = args->path[end - 2u]}) != NULL));
         if (!dot || (end == 1u))
         {
             break;
@@ -309,107 +364,112 @@ static void curl_file_name(const char *path, unsigned long long size, unsigned l
     }
     unsigned long long begin = end;
     while ((begin > 0u) && (cellul.chr(&(CatenaFinitaCfg){
-                                .src = s_separators, .cap = CLI_CELLS_POOL, .byte = path[begin - 1u]}) == NULL))
+                                .src = s_separators, .cap = CLI_CELLS_POOL, .byte = args->path[begin - 1u]}) == NULL))
     {
         begin -= 1u;
     }
-    const int none = (begin == end) || ((end - begin == 2u) && (path[begin] == '.') && (path[begin + 1u] == '.')) ||
-                     ((end - begin == 1u) && (path[begin] == '.'));
+    const int none = (begin == end) ||
+                     ((end - begin == 2u) && (args->path[begin] == '.') && (args->path[begin + 1u] == '.')) ||
+                     ((end - begin == 1u) && (args->path[begin] == '.'));
     *start = begin;
     *length = none ? 0ull : (end - begin);
 }
 
 // the forms of the line written as a multipart body into `out`
-static void curl_forms(const CurlRead *read, VerbaLinea *out)
+EMBED_INLINE void curl_forms(const RequestsCurlCtx *args)
 {
-    for (unsigned int at = 0u; at < read->forms; at += 1u)
+    for (unsigned int at = 0u; at < args->read->forms; at += 1u)
     {
-        const CurlText name = read->form_name[at];
-        const CurlText value = read->form_value[at];
-        mmgr_line_put(out, "--WebAppBoundary\nContent-Disposition: form-data; name=\"");
-        mmgr_line_put_n(out, name.at, name.size);
+        const CurlText name = args->read->form_name[at];
+        const CurlText value = args->read->form_value[at];
+        mmgr_line_put(args->out, "--WebAppBoundary\nContent-Disposition: form-data; name=\"");
+        mmgr_line_put_n(args->out, name.at, name.size);
         if ((value.size > 0u) && (value.at[0] == '@'))
         {
             unsigned long long start = 0ull;
             unsigned long long length = 0ull;
-            curl_file_name(value.at + 1, value.size - 1u, &start, &length);
-            mmgr_line_put(out, "\"; filename=\"");
-            mmgr_line_put_n(out, value.at + 1 + start, length);
-            mmgr_line_put(out, "\"\n\n< ");
-            mmgr_line_put_n(out, value.at + 1, value.size - 1u);
+            EMBED_CALL(curl_file_name, RequestsCurlCtx, .path = value.at + 1, .size = value.size - 1u, .start = &start,
+                       .length = &length);
+            mmgr_line_put(args->out, "\"; filename=\"");
+            mmgr_line_put_n(args->out, value.at + 1 + start, length);
+            mmgr_line_put(args->out, "\"\n\n< ");
+            mmgr_line_put_n(args->out, value.at + 1, value.size - 1u);
         }
         else
         {
-            mmgr_line_put(out, "\"\n\n");
-            mmgr_line_put_n(out, value.at, value.size);
+            mmgr_line_put(args->out, "\"\n\n");
+            mmgr_line_put_n(args->out, value.at, value.size);
         }
-        mmgr_line_ch(out, '\n');
+        mmgr_line_ch(args->out, '\n');
     }
-    mmgr_line_put(out, "--WebAppBoundary--");
+    mmgr_line_put(args->out, "--WebAppBoundary--");
 }
 
 // the line read written as a request of a file into `out`
-static void curl_written(const CurlRead *read, VerbaLinea *out)
+EMBED_INLINE void curl_write(const RequestsCurlCtx *args)
 {
-    const int moved = read->get && (s_curl->body_line.at > 0u);
-    const int forms = (read->forms > 0u);
+    const int moved = args->read->get && (s_curl->body_line.at > 0u);
+    const int forms = (args->read->forms > 0u);
     const int body = forms || (!moved && (s_curl->body_line.at > 0u));
-    if (read->method.at != NULL)
+    if (args->read->method.at != NULL)
     {
-        mmgr_line_put_n(out, read->method.at, read->method.size);
+        mmgr_line_put_n(args->out, args->read->method.at, args->read->method.size);
     }
     else
     {
-        mmgr_line_put(out, body ? "POST" : "GET");
+        mmgr_line_put(args->out, body ? "POST" : "GET");
     }
-    mmgr_line_ch(out, ' ');
-    mmgr_line_put_n(out, read->url.at, read->url.size);
+    mmgr_line_ch(args->out, ' ');
+    mmgr_line_put_n(args->out, args->read->url.at, args->read->url.size);
     if (moved)
     {
-        mmgr_line_ch(
-            out, (memor.chr(&(MemoriaCfg){.src = read->url.at, .val = '?', .bytes = (size_t)read->url.size}) != NULL)
-                     ? '&'
-                     : '?');
-        mmgr_line_put_n(out, s_curl->body, s_curl->body_line.at);
+        mmgr_line_ch(args->out,
+                     (memor.chr(&(MemoriaCfg){
+                          .src = args->read->url.at, .val = '?', .bytes = (size_t)args->read->url.size}) != NULL)
+                         ? '&'
+                         : '?');
+        mmgr_line_put_n(args->out, s_curl->body, s_curl->body_line.at);
     }
-    mmgr_line_ch(out, '\n');
-    for (unsigned int at = 0u; at < read->headers; at += 1u)
+    mmgr_line_ch(args->out, '\n');
+    for (unsigned int at = 0u; at < args->read->headers; at += 1u)
     {
-        const int typed = (read->name[at].size == 12u) && cli_requests_contains(read->name[at].at, 12u, "content-type");
+        const int typed = (args->read->name[at].size == 12u) &&
+                          EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                                     .text = args->read->name[at].at, .size = 12u, .needle = "content-type");
         if (!(forms && typed))
         {
-            mmgr_line_put_n(out, read->name[at].at, read->name[at].size);
-            mmgr_line_put(out, ": ");
-            mmgr_line_put_n(out, read->value[at].at, read->value[at].size);
-            mmgr_line_ch(out, '\n');
+            mmgr_line_put_n(args->out, args->read->name[at].at, args->read->name[at].size);
+            mmgr_line_put(args->out, ": ");
+            mmgr_line_put_n(args->out, args->read->value[at].at, args->read->value[at].size);
+            mmgr_line_ch(args->out, '\n');
         }
     }
     if (forms)
     {
-        mmgr_line_put(out, "Content-Type: multipart/form-data; boundary=WebAppBoundary\n\n");
-        curl_forms(read, out);
-        mmgr_line_ch(out, '\n');
+        mmgr_line_put(args->out, "Content-Type: multipart/form-data; boundary=WebAppBoundary\n\n");
+        curl_forms(args);
+        mmgr_line_ch(args->out, '\n');
         return;
     }
     if (!body)
     {
         return;
     }
-    if (!curl_has(read, "content-type"))
+    if (!EMBED_CALL(curl_has, RequestsCurlCtx, .read = args->read, .lower = "content-type"))
     {
-        mmgr_line_put(out, "Content-Type: application/x-www-form-urlencoded\n");
+        mmgr_line_put(args->out, "Content-Type: application/x-www-form-urlencoded\n");
     }
-    mmgr_line_ch(out, '\n');
+    mmgr_line_ch(args->out, '\n');
     const int file =
         (s_curl->body[0] == '@') &&
         (memor.chr(&(MemoriaCfg){.src = s_curl->body, .val = '\n', .bytes = (size_t)s_curl->body_line.at}) == NULL);
-    mmgr_line_put(out, file ? "< " : "");
-    mmgr_line_put_n(out, s_curl->body + (file ? 1u : 0u), s_curl->body_line.at - (file ? 1u : 0u));
-    mmgr_line_ch(out, '\n');
+    mmgr_line_put(args->out, file ? "< " : "");
+    mmgr_line_put_n(args->out, s_curl->body + (file ? 1u : 0u), s_curl->body_line.at - (file ? 1u : 0u));
+    mmgr_line_ch(args->out, '\n');
 }
 
 // the words of the line read into the line read: 1, or 0 with why given
-static int curl_read(VerbaLinea *err_msg)
+EMBED_INLINE int curl_read(const RequestsCurlCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = &s_curl->read, .val = 0, .bytes = sizeof(s_curl->read)});
     s_curl->made_line = (VerbaLinea){s_curl->made, sizeof(s_curl->made), 0ull};
@@ -422,78 +482,89 @@ static int curl_read(VerbaLinea *err_msg)
         const CurlText flag = split ? (CurlText){word.at, (unsigned long long)(equals - word.at)} : word;
         const CurlText joined = split ? (CurlText){equals + 1, word.size - (unsigned long long)(equals - word.at) - 1u}
                                       : (CurlText){NULL, 0ull};
-        if (!curl_flag(&s_curl->read, flag, joined, &at, err_msg))
+        if (!EMBED_CALL(curl_flag, RequestsCurlCtx, .read_out = &s_curl->read, .flag = flag, .joined = joined,
+                        .at = &at, .err_msg = args->err_msg))
         {
             return 0;
         }
     }
     if (!mmgr_line_ok(&s_curl->made_line) || !mmgr_line_ok(&s_curl->body_line))
     {
-        mmgr_line_put(err_msg, "the curl line is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
         return 0;
     }
     if (s_curl->read.url.at == NULL)
     {
-        mmgr_line_put(err_msg, "the curl line names no address");
+        mmgr_line_put(args->err_msg, "the curl line names no address");
         return 0;
     }
     return 1;
 }
 
-int cli_requests_from_curl(const char *line, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_requests_from_curl(const CliRequestsCfg *args)
 {
     unsigned long long start = 0ull;
-    unsigned long long end = size;
-    cli_requests_trimmed(line, &start, &end);
-    const char *text = line + start;
+    unsigned long long end = args->size;
+    EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = args->line_text, .start = &start,
+               .end = &end);
+    const char *text = args->line_text + start;
     unsigned long long length = end - start;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_curl = g_cli_cells->persistent_buf_alloc(sizeof(*s_curl), &g_cli_requests_cells);
     if (s_curl == NULL)
     {
-        cli_lock_give(&s_lock);
-        mmgr_line_put(err_msg, "a curl line's reading could not be taken");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        mmgr_line_put(args->err_msg, "a curl line's reading could not be taken");
         return 0;
     }
-    const int cmd = cli_requests_contains(text, length, "^\n") || cli_requests_contains(text, length, "^\r\n") ||
-                    cli_requests_contains(text, length, "^\"");
+    const int cmd = EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                               .text = text, .size = length, .needle = "^\n") ||
+                    EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                               .text = text, .size = length, .needle = "^\r\n") ||
+                    EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                               .text = text, .size = length, .needle = "^\"");
     VerbaLinea uncareted = {s_curl->uncareted, sizeof(s_curl->uncareted), 0ull};
     if (cmd)
     {
-        cli_requests_uncareted(text, length, &uncareted);
+        EMBED_CALL(cli_requests_size_out_internal.uncareted, CliRequestsSizeOutCtx, .line = text, .size = length,
+                   .out = &uncareted);
         text = s_curl->uncareted;
         length = uncareted.at;
     }
-    int read = (!cmd || mmgr_line_ok(&uncareted)) && cli_requests_words(text, length, &s_curl->words, err_msg);
+    int read = (!cmd || mmgr_line_ok(&uncareted)) &&
+               EMBED_CALL(cli_requests_size_internal.words, CliRequestsSizeCtx, .line = text, .size = length,
+                          .words = &s_curl->words, .err_msg = args->err_msg);
     if (cmd && !mmgr_line_ok(&uncareted))
     {
-        mmgr_line_put(err_msg, "the curl line is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
     }
     if (read && ((s_curl->words.count == 0u) ||
-                 !curl_is(s_curl->words.text + s_curl->words.word[0].at, s_curl->words.word[0].size, "curl")))
+                 !EMBED_CALL(curl_is, RequestsCurlCtx, .text = s_curl->words.text + s_curl->words.word[0].at,
+                             .size = s_curl->words.word[0].size, .word = "curl")))
     {
-        mmgr_line_put(err_msg, "the text is no curl line");
+        mmgr_line_put(args->err_msg, "the text is no curl line");
         read = 0;
     }
-    read = read && curl_read(err_msg);
+    read = read && EMBED_CALL(curl_read, RequestsCurlCtx, .err_msg = args->err_msg);
     VerbaLinea written = {s_curl->written, sizeof(s_curl->written), 0ull};
     if (read)
     {
-        curl_written(&s_curl->read, &written);
+        EMBED_CALL(curl_write, RequestsCurlCtx, .read = &s_curl->read, .out = &written);
         read = mmgr_line_ok(&written);
         if (!read)
         {
-            mmgr_line_put(err_msg, "the curl line is larger than orior_cli supports");
+            mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
         }
     }
     if (read)
     {
-        cli_json_quoted(out, s_curl->written, written.at);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = s_curl->written, .length = written.at);
     }
     // a request's headers may carry a secret, and the pool leaves a cell as it is
     mmgr_zero_buf(s_curl, sizeof(*s_curl));
     g_cli_cells->persistent_buf_release(s_curl, &g_cli_requests_cells);
     s_curl = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return read;
 }

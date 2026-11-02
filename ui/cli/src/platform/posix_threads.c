@@ -21,46 +21,46 @@
 #include <pthread/qos.h>
 #endif
 
-void cli_lock_take(CliLock *lock)
+void cli_lock_take(const CliLockCtx *args)
 {
-    pthread_mutex_lock(&lock->mutex);
+    pthread_mutex_lock(&args->lock->mutex);
 }
 
-void cli_lock_give(CliLock *lock)
+void cli_lock_give(const CliLockCtx *args)
 {
-    pthread_mutex_unlock(&lock->mutex);
+    pthread_mutex_unlock(&args->lock->mutex);
 }
 
-void cli_wake_wait(CliWake *wake, CliLock *lock)
+void cli_wake_wait(const CliLockCtx *args)
 {
-    pthread_cond_wait(&wake->condition, &lock->mutex);
+    pthread_cond_wait(&args->wake->condition, &args->lock->mutex);
 }
 
-int cli_wake_wait_for(CliWake *wake, CliLock *lock, unsigned long long milliseconds)
+int cli_wake_wait_for(const CliLockCtx *args)
 {
     struct timespec until;
     clock_gettime(CLOCK_REALTIME, &until);
     // the seconds and nanoseconds to wait, each within what a time_t and a long represent
-    until.tv_sec += (time_t)(milliseconds / 1000ull);
-    until.tv_nsec += (long)((milliseconds % 1000ull) * 1000000ull);
+    until.tv_sec += (time_t)(args->milliseconds_u64 / 1000ull);
+    until.tv_nsec += (long)((args->milliseconds_u64 % 1000ull) * 1000000ull);
     if (until.tv_nsec >= 1000000000l)
     {
         until.tv_sec += 1;
         until.tv_nsec -= 1000000000l;
     }
-    return pthread_cond_timedwait(&wake->condition, &lock->mutex, &until) == 0;
+    return pthread_cond_timedwait(&args->wake->condition, &args->lock->mutex, &until) == 0;
 }
 
-void cli_wake_all(CliWake *wake)
+void cli_wake_all(const CliLockCtx *args)
 {
-    pthread_cond_broadcast(&wake->condition);
+    pthread_cond_broadcast(&args->wake->condition);
 }
 
 static void *cli_thread_entry(void *given)
 {
     // the thread is handed what it runs, which its starter retains for as long as the thread lives
     const CliThread *const thread = (const CliThread *)given;
-    cli_priority_own(thread->priority);
+    EMBED_CALL(cli_words_err_msg_internal.priority_own, CliWordsErrMsgCtx, .priority = thread->priority);
     thread->run(thread->context);
     return NULL;
 }
@@ -68,25 +68,25 @@ static void *cli_thread_entry(void *given)
 // On Linux a thread has a nice value of its own, and an idle one the idle policy; on macOS a thread has a quality of
 // service. A thread of the run class retains the level it was started at: raising one takes a privilege orior does not
 // request
-void cli_priority_own(unsigned int priority)
+void cli_priority_own(const CliWordsErrMsgCtx *args)
 {
-    if ((priority != CLI_PRIORITY_GUEST) && (priority != CLI_PRIORITY_IDLE))
+    if ((args->priority != CLI_PRIORITY_GUEST) && (args->priority != CLI_PRIORITY_IDLE))
     {
         return;
     }
 #if defined(__APPLE__)
-    pthread_set_qos_class_self_np((priority == CLI_PRIORITY_IDLE) ? QOS_CLASS_BACKGROUND : QOS_CLASS_UTILITY, 0);
+    pthread_set_qos_class_self_np((args->priority == CLI_PRIORITY_IDLE) ? QOS_CLASS_BACKGROUND : QOS_CLASS_UTILITY, 0);
 #elif defined(__linux__)
     // the thread's own id, which setpriority takes as a process's on Linux
     const int self = (int)syscall(SYS_gettid);
-    setpriority(PRIO_PROCESS, (id_t)self, (priority == CLI_PRIORITY_IDLE) ? 19 : 9);
-    if (priority == CLI_PRIORITY_IDLE)
+    setpriority(PRIO_PROCESS, (id_t)self, (args->priority == CLI_PRIORITY_IDLE) ? 19 : 9);
+    if (args->priority == CLI_PRIORITY_IDLE)
     {
         const struct sched_param none = {0};
         sched_setscheduler(0, SCHED_IDLE, &none);
     }
 #else
-    setpriority(PRIO_PROCESS, 0, (priority == CLI_PRIORITY_IDLE) ? 19 : 9);
+    setpriority(PRIO_PROCESS, 0, (args->priority == CLI_PRIORITY_IDLE) ? 19 : 9);
 #endif
 }
 
@@ -105,10 +105,10 @@ void cli_thread_yield(void)
     (void)sched_yield();
 }
 
-int cli_thread_started(CliThread *thread)
+int cli_thread_start(const CliThreadCtx *args)
 {
     pthread_t started;
-    if (pthread_create(&started, NULL, cli_thread_entry, thread) != 0)
+    if (pthread_create(&started, NULL, cli_thread_entry, args->thread) != 0)
     {
         return 0;
     }

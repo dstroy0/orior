@@ -12,84 +12,113 @@
 
 #include <stdlib.h>
 
-int gui_problems_made(GuiProblems *problems)
+int gui_problems_init(const GuiProblemsCfg *args)
 {
-    memor.set(&(MemoriaCfg){.dst = problems, .val = 0, .bytes = sizeof(*problems)});
-    problems->pointed = GUI_PROBLEMS_NONE;
-    problems->file =
+    memor.set(&(MemoriaCfg){.dst = args->problems_out, .val = 0, .bytes = sizeof(*args->problems_out)});
+    args->problems_out->pointed = GUI_PROBLEMS_NONE;
+    args->problems_out->file =
         g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_FILES * sizeof(GuiProblemFile), &g_gui_problems_cells);
-    problems->item = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_ITEMS * sizeof(GuiProblem), &g_gui_problems_cells);
-    if ((problems->file == NULL) || (problems->item == NULL))
+    args->problems_out->item =
+        g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_ITEMS * sizeof(GuiProblem), &g_gui_problems_cells);
+    if ((args->problems_out->file == NULL) || (args->problems_out->item == NULL))
     {
-        gui_problems_given(problems);
+        cli_problems.free(args);
         return 0;
     }
     return 1;
 }
 
-void gui_problems_given(GuiProblems *problems)
+void gui_problems_free(const GuiProblemsCfg *args)
 {
-    g_cli_cells->persistent_buf_release(problems->file, &g_gui_problems_cells);
-    g_cli_cells->persistent_buf_release(problems->item, &g_gui_problems_cells);
-    g_cli_cells->persistent_buf_release(problems->texts.out, &g_gui_problems_cells);
-    problems->file = NULL;
-    problems->item = NULL;
-    memor.set(&(MemoriaCfg){.dst = &problems->texts, .val = 0, .bytes = sizeof(problems->texts)});
-    problems->files = 0u;
-    problems->items = 0u;
-    problems->dead = 0ull;
+    g_cli_cells->persistent_buf_release(args->problems_out->file, &g_gui_problems_cells);
+    g_cli_cells->persistent_buf_release(args->problems_out->item, &g_gui_problems_cells);
+    g_cli_cells->persistent_buf_release(args->problems_out->texts.out, &g_gui_problems_cells);
+    args->problems_out->file = NULL;
+    args->problems_out->item = NULL;
+    memor.set(&(MemoriaCfg){.dst = &args->problems_out->texts, .val = 0, .bytes = sizeof(args->problems_out->texts)});
+    args->problems_out->files = 0u;
+    args->problems_out->items = 0u;
+    args->problems_out->dead = 0ull;
 }
 
+typedef struct
+{
+    GuiProblems *problems;
+    const char *text;
+    unsigned long long length;
+    unsigned long long *at;
+    const GuiProblems *problems_read;
+    const char *path;
+    unsigned int at_u32;
+    const GuiFrame *frame;
+    unsigned int row;
+    GuiGlyphs *glyphs;
+    unsigned int face;
+    unsigned int size;
+    int top;
+    int tall;
+    GuiRaster *raster;
+    int x;
+    int y;
+    int side;
+    int open;
+    GuiColor color;
+    const GuiPalette *palette;
+    unsigned int severity;
+    GuiRect inside;
+} ProblemsCtx;
 // the texts packed again: each file's path and each diagnostic's message copied into a fresh line, the bytes no
 // longer read left behind
-static void problems_packed(GuiProblems *problems)
+EMBED_INLINE void problems_pack(const ProblemsCtx *args)
 {
-    const VerbaLinea old = problems->texts;
+    const VerbaLinea old = args->problems->texts;
     char *const cell = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_TEXT_ROOM, &g_gui_problems_cells);
     if (cell == NULL)
     {
         return;
     }
-    problems->texts = (VerbaLinea){cell, GUI_PROBLEMS_TEXT_ROOM, 0ull};
-    for (unsigned int at = 0u; at < problems->files; at += 1u)
+    args->problems->texts = (VerbaLinea){cell, GUI_PROBLEMS_TEXT_ROOM, 0ull};
+    for (unsigned int at = 0u; at < args->problems->files; at += 1u)
     {
-        GuiProblemFile *const file = &problems->file[at];
-        const unsigned long long start = problems->texts.at;
-        mmgr_line_put_n(&problems->texts, old.out + file->path, file->length);
+        GuiProblemFile *const file = &args->problems->file[at];
+        const unsigned long long start = args->problems->texts.at;
+        mmgr_line_put_n(&args->problems->texts, old.out + file->path, file->length);
         file->path = start;
     }
-    for (unsigned int at = 0u; at < problems->items; at += 1u)
+    for (unsigned int at = 0u; at < args->problems->items; at += 1u)
     {
-        GuiProblem *const item = &problems->item[at];
-        const unsigned long long start = problems->texts.at;
-        mmgr_line_put_n(&problems->texts, old.out + item->message, item->message_length);
+        GuiProblem *const item = &args->problems->item[at];
+        const unsigned long long start = args->problems->texts.at;
+        mmgr_line_put_n(&args->problems->texts, old.out + item->message, item->message_length);
         item->message = start;
     }
     g_cli_cells->persistent_buf_release(old.out, &g_gui_problems_cells);
-    problems->dead = 0ull;
+    args->problems->dead = 0ull;
 }
 
 // `length` bytes of `text` stored among the texts: where they start into `at`: 1, or 0 where the line is full
-static int problems_stored(GuiProblems *problems, const char *text, unsigned long long length, unsigned long long *at)
+EMBED_INLINE int problems_store(const ProblemsCtx *args)
 {
-    if (problems->texts.out == NULL)
+    unsigned long long *at = args->at;
+    if (args->problems->texts.out == NULL)
     {
         char *const cell = g_cli_cells->persistent_buf_alloc(GUI_PROBLEMS_TEXT_ROOM, &g_gui_problems_cells);
-        problems->texts = mmgr_line_over(cell, GUI_PROBLEMS_TEXT_ROOM);
+        args->problems->texts = mmgr_line_over(cell, GUI_PROBLEMS_TEXT_ROOM);
     }
-    *at = problems->texts.at;
-    mmgr_line_put_n(&problems->texts, text, length);
-    return mmgr_line_ok(&problems->texts);
+    *at = args->problems->texts.at;
+    mmgr_line_put_n(&args->problems->texts, args->text, args->length);
+    return mmgr_line_ok(&args->problems->texts);
 }
 
 // the file whose path is `length` bytes of `path`, or -1
-static int problems_file_of(const GuiProblems *problems, const char *path, unsigned long long length)
+EMBED_INLINE int problems_file_get(const ProblemsCtx *args)
 {
-    for (unsigned int at = 0u; at < problems->files; at += 1u)
+    for (unsigned int at = 0u; at < args->problems_read->files; at += 1u)
     {
-        const GuiProblemFile *const file = &problems->file[at];
-        if ((file->length == length) &&
-            (memor.cmp(&(MemoriaCfg){.src = problems->texts.out + file->path, .other = path, .bytes = length}) == 0))
+        const GuiProblemFile *const file = &args->problems_read->file[at];
+        if ((file->length == args->length) &&
+            (memor.cmp(&(MemoriaCfg){
+                 .src = args->problems_read->texts.out + file->path, .other = args->path, .bytes = args->length}) == 0))
         {
             // the files are fewer than an int counts
             return (int)at;
@@ -99,26 +128,26 @@ static int problems_file_of(const GuiProblems *problems, const char *path, unsig
 }
 
 // the file `at` taken out with its diagnostics, the files and diagnostics after it moved down
-static void problems_file_removed(GuiProblems *problems, unsigned int at)
+EMBED_INLINE void problems_file_remove(const ProblemsCtx *args)
 {
-    const GuiProblemFile file = problems->file[at];
-    problems->dead += file.length;
+    const GuiProblemFile file = args->problems->file[args->at_u32];
+    args->problems->dead += file.length;
     for (unsigned int each = file.first; each < file.first + file.count; each += 1u)
     {
-        problems->dead += problems->item[each].message_length;
+        args->problems->dead += args->problems->item[each].message_length;
     }
-    for (unsigned int each = file.first + file.count; each < problems->items; each += 1u)
+    for (unsigned int each = file.first + file.count; each < args->problems->items; each += 1u)
     {
-        problems->item[each - file.count] = problems->item[each];
-        problems->item[each - file.count].file -= (problems->item[each].file > at) ? 1u : 0u;
+        args->problems->item[each - file.count] = args->problems->item[each];
+        args->problems->item[each - file.count].file -= (args->problems->item[each].file > args->at_u32) ? 1u : 0u;
     }
-    problems->items -= file.count;
-    for (unsigned int each = at + 1u; each < problems->files; each += 1u)
+    args->problems->items -= file.count;
+    for (unsigned int each = args->at_u32 + 1u; each < args->problems->files; each += 1u)
     {
-        problems->file[each - 1u] = problems->file[each];
-        problems->file[each - 1u].first -= (problems->file[each].first > file.first) ? file.count : 0u;
+        args->problems->file[each - 1u] = args->problems->file[each];
+        args->problems->file[each - 1u].first -= (args->problems->file[each].first > file.first) ? file.count : 0u;
     }
-    problems->files -= 1u;
+    args->problems->files -= 1u;
 }
 
 // two diagnostics in the order shown: the worse first, then the earlier
@@ -142,49 +171,59 @@ static int problems_order(const void *one, const void *other)
 }
 
 // the errors counted again
-static void problems_counted(GuiProblems *problems)
+EMBED_INLINE void problems_count(const ProblemsCtx *args)
 {
-    problems->errors = 0u;
-    for (unsigned int at = 0u; at < problems->items; at += 1u)
+    args->problems->errors = 0u;
+    for (unsigned int at = 0u; at < args->problems->items; at += 1u)
     {
-        problems->errors += (problems->item[at].severity == GUI_PROBLEMS_ERROR) ? 1u : 0u;
+        args->problems->errors += (args->problems->item[at].severity == GUI_PROBLEMS_ERROR) ? 1u : 0u;
     }
 }
 
-int gui_problems_put(GuiProblems *problems, const CliJson *json, unsigned int root)
+int gui_problems_put(const GuiProblemsJsonCfg *args)
 {
+    const CliJson *json = args->json;
     unsigned long long length = 0ull;
-    const char *const path = cli_json_string(json, cli_json_member(json, root, "path"), &length);
-    const unsigned int items = cli_json_member(json, root, "items");
-    if ((path == NULL) || (length == 0ull) || !cli_json_is(json, items, CFG_JSON_ARRAY))
+    const char *const path =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->root, .name = "path"),
+                   .length_pointer = &length);
+    const unsigned int items = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->root, .name = "items");
+    if ((path == NULL) || (length == 0ull) ||
+        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = items,
+                    .kind = CFG_JSON_ARRAY))
     {
         return 0;
     }
-    const int had = problems_file_of(problems, path, length);
+    const int had =
+        EMBED_CALL(problems_file_get, ProblemsCtx, .problems_read = args->problems_out, .path = path, .length = length);
     if (had >= 0)
     {
         // the file is among the files
-        problems_file_removed(problems, (unsigned int)had);
+        EMBED_CALL(problems_file_remove, ProblemsCtx, .problems = args->problems_out, .at_u32 = (unsigned int)had);
     }
     const unsigned int count = json->node[items].count;
     if (count == 0u)
     {
-        problems_counted(problems);
+        EMBED_CALL(problems_count, ProblemsCtx, .problems = args->problems_out);
         return 1;
     }
-    if ((problems->files >= GUI_PROBLEMS_FILES) || (problems->items + count > GUI_PROBLEMS_ITEMS))
+    if ((args->problems_out->files >= GUI_PROBLEMS_FILES) || (args->problems_out->items + count > GUI_PROBLEMS_ITEMS))
     {
-        problems_counted(problems);
+        EMBED_CALL(problems_count, ProblemsCtx, .problems = args->problems_out);
         return 0;
     }
-    if ((problems->texts.out != NULL) && (problems->dead > GUI_PROBLEMS_DEAD_MOST) &&
-        (problems->dead * 2ull > problems->texts.at))
+    if ((args->problems_out->texts.out != NULL) && (args->problems_out->dead > GUI_PROBLEMS_DEAD_MOST) &&
+        (args->problems_out->dead * 2ull > args->problems_out->texts.at))
     {
-        problems_packed(problems);
+        EMBED_CALL(problems_pack, ProblemsCtx, .problems = args->problems_out);
     }
-    GuiProblemFile *const file = &problems->file[problems->files];
+    GuiProblemFile *const file = &args->problems_out->file[args->problems_out->files];
     memor.set(&(MemoriaCfg){.dst = file, .val = 0, .bytes = sizeof(*file)});
-    if (!problems_stored(problems, path, length, &file->path))
+    if (!EMBED_CALL(problems_store, ProblemsCtx, .problems = args->problems_out, .text = path, .length = length,
+                    .at = &file->path))
     {
         return 0;
     }
@@ -195,96 +234,115 @@ int gui_problems_put(GuiProblems *problems, const CliJson *json, unsigned int ro
     {
         file->name = ((path[at] == '/') || (path[at] == '\\')) ? at + 1u : file->name;
     }
-    file->first = problems->items;
+    file->first = args->problems_out->items;
     file->count = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const unsigned int one = cli_json_item(json, items, at);
-        const unsigned int from = cli_json_member(json, one, "from");
-        const unsigned int to = cli_json_member(json, one, "to");
+        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                            .json_read = json, .array = items, .index = at);
+        const unsigned int from = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                             .object = one, .name = "from");
+        const unsigned int to = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = one, .name = "to");
         unsigned long long message_length = 0ull;
-        const char *const message = cli_json_string(json, cli_json_member(json, one, "message"), &message_length);
+        const char *const message =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = one, .name = "message"),
+                       .length_pointer = &message_length);
         unsigned long long first_line = 0ull;
         if (message != NULL)
         {
-            first_line = cli_text_to_any(message, 0ull, message_length, "\n");
+            first_line = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = message,
+                                    .at = 0ull, .size = message_length, .set = "\n");
         }
-        GuiProblem *const item = &problems->item[problems->items];
+        GuiProblem *const item = &args->problems_out->item[args->problems_out->items];
         memor.set(&(MemoriaCfg){.dst = item, .val = 0, .bytes = sizeof(*item)});
-        item->file = problems->files;
-        item->from_line = gui_answer_member_whole(json, from, "line", 0ull);
-        item->from_col = gui_answer_member_whole(json, from, "col", 0ull);
-        item->to_line = gui_answer_member_whole(json, to, "line", item->from_line);
-        item->to_col = gui_answer_member_whole(json, to, "col", item->from_col);
+        item->file = args->problems_out->files;
+        item->from_line = EMBED_CALL(gui_answer_object.member_whole, GuiAnswerObjectCfg, .json = json, .object = from,
+                                     .name = "line", .otherwise = 0ull);
+        item->from_col = EMBED_CALL(gui_answer_object.member_whole, GuiAnswerObjectCfg, .json = json, .object = from,
+                                    .name = "col", .otherwise = 0ull);
+        item->to_line = EMBED_CALL(gui_answer_object.member_whole, GuiAnswerObjectCfg, .json = json, .object = to,
+                                   .name = "line", .otherwise = item->from_line);
+        item->to_col = EMBED_CALL(gui_answer_object.member_whole, GuiAnswerObjectCfg, .json = json, .object = to,
+                                  .name = "col", .otherwise = item->from_col);
         // a severity is 1 to 4
-        item->severity = (unsigned int)gui_answer_member_whole(json, one, "severity", 1ull);
-        if (!problems_stored(problems, (message != NULL) ? message : "", first_line, &item->message))
+        item->severity = (unsigned int)EMBED_CALL(gui_answer_object.member_whole, GuiAnswerObjectCfg, .json = json,
+                                                  .object = one, .name = "severity", .otherwise = 1ull);
+        if (!EMBED_CALL(problems_store, ProblemsCtx, .problems = args->problems_out,
+                        .text = (message != NULL) ? message : "", .length = first_line, .at = &item->message))
         {
             return 0;
         }
         // a message's first line is far inside what an unsigned int represents
         item->message_length = (unsigned int)first_line;
-        problems->items += 1u;
+        args->problems_out->items += 1u;
         file->count += 1u;
     }
-    qsort(problems->item + file->first, file->count, sizeof(GuiProblem), problems_order);
-    problems->files += 1u;
-    problems_counted(problems);
+    qsort(args->problems_out->item + file->first, file->count, sizeof(GuiProblem), problems_order);
+    args->problems_out->files += 1u;
+    EMBED_CALL(problems_count, ProblemsCtx, .problems = args->problems_out);
     return 1;
 }
 
-void gui_problems_checking(GuiProblems *problems, unsigned long long done, unsigned long long total)
+void gui_problems_checking(const GuiProblemsCfg *args)
 {
-    problems->done = done;
-    problems->total = total;
+    unsigned long long done = args->done;
+    unsigned long long total = args->total;
+    args->problems_out->done = done;
+    args->problems_out->total = total;
 }
 
-int gui_problems_running(const GuiProblems *problems)
+int gui_problems_running(const GuiProblemsPathCfg *args)
 {
-    return (problems->total != 0ull) && (problems->done < problems->total);
+    return (args->problems->total != 0ull) && (args->problems->done < args->problems->total);
 }
 
-unsigned int gui_problems_of(const GuiProblems *problems, const char *path, unsigned int *first)
+unsigned int gui_problems_get(const GuiProblemsPathCfg *args)
 {
-    const int at =
-        problems_file_of(problems, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}));
+    unsigned int *first = args->first;
+    const int at = EMBED_CALL(problems_file_get, ProblemsCtx, .problems_read = args->problems, .path = args->path,
+                              .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN}));
     if (at < 0)
     {
         return 0u;
     }
     // the file is among the files
-    *first = problems->file[(unsigned int)at].first;
-    return problems->file[(unsigned int)at].count;
+    *first = args->problems->file[(unsigned int)at].first;
+    return args->problems->file[(unsigned int)at].count;
 }
 
-unsigned int gui_problems_rows(const GuiProblems *problems)
+unsigned int gui_problems_rows(const GuiProblemsRowFrameCfg *args)
 {
     unsigned int rows = 0u;
-    for (unsigned int at = 0u; at < problems->files; at += 1u)
+    for (unsigned int at = 0u; at < args->problems->files; at += 1u)
     {
-        rows += 1u + (problems->file[at].closed ? 0u : problems->file[at].count);
+        rows += 1u + (args->problems->file[at].closed ? 0u : args->problems->file[at].count);
     }
     return rows;
 }
 
-int gui_problems_row(const GuiProblems *problems, unsigned int row, unsigned int *file, int *item)
+int gui_problems_row(const GuiProblemsRowCfg *args)
 {
+    unsigned int *file = args->file;
+    int *item = args->item;
     unsigned int at = 0u;
-    for (unsigned int each = 0u; each < problems->files; each += 1u)
+    for (unsigned int each = 0u; each < args->problems->files; each += 1u)
     {
-        const GuiProblemFile *const one = &problems->file[each];
-        if (row == at)
+        const GuiProblemFile *const one = &args->problems->file[each];
+        if (args->row == at)
         {
             *file = each;
             *item = GUI_PROBLEMS_NONE;
             return 1;
         }
         const unsigned int under = one->closed ? 0u : one->count;
-        if (row < at + 1u + under)
+        if (args->row < at + 1u + under)
         {
             *file = each;
             // the diagnostics are fewer than an int counts
-            *item = (int)(one->first + (row - at - 1u));
+            *item = (int)(one->first + (args->row - at - 1u));
             return 1;
         }
         at += 1u + under;
@@ -292,47 +350,63 @@ int gui_problems_row(const GuiProblems *problems, unsigned int row, unsigned int
     return 0;
 }
 
-int gui_problems_rows_top(const GuiFrame *frame)
+int gui_problems_rows_top(const GuiProblemsRowFrameCfg *args)
 {
-    return frame->side.y + gui_scaled(GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE + GUI_PROBLEMS_HEAD, frame->scale);
+    return args->frame->side.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                            .pixels = GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE + GUI_PROBLEMS_HEAD,
+                                            .scale = args->frame->scale);
 }
 
 // the height of the row `row`: a file's or a diagnostic's
-static int problems_row_tall(const GuiProblems *problems, const GuiFrame *frame, unsigned int row)
+EMBED_INLINE int problems_row_tall(const ProblemsCtx *args)
 {
+    const GuiProblems *problems = args->problems_read;
+    unsigned int row = args->row;
     unsigned int file = 0u;
     int item = GUI_PROBLEMS_NONE;
-    const int is_file = gui_problems_row(problems, row, &file, &item) && (item == GUI_PROBLEMS_NONE);
-    return gui_scaled(is_file ? GUI_PROBLEMS_FILE_ROW : GUI_PROBLEMS_ROW, frame->scale);
+    const int is_file = EMBED_CALL(cli_problems_row.row, GuiProblemsRowCfg, .problems = problems, .row = row,
+                                   .file = &file, .item = &item) &&
+                        (item == GUI_PROBLEMS_NONE);
+    return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                      .pixels = is_file ? GUI_PROBLEMS_FILE_ROW : GUI_PROBLEMS_ROW, .scale = args->frame->scale);
 }
 
-GuiRect gui_problems_row_rect(const GuiProblems *problems, const GuiFrame *frame, unsigned int row)
+GuiRect gui_problems_row_rect(const GuiProblemsRowFrameCfg *args)
 {
-    int y = gui_problems_rows_top(frame);
-    for (unsigned int each = problems->scroll; each < row; each += 1u)
+    int y = gui_problems_row_frame.rows_top(args);
+    for (unsigned int each = args->problems->scroll; each < args->row; each += 1u)
     {
-        y += problems_row_tall(problems, frame, each);
+        y += EMBED_CALL(problems_row_tall, ProblemsCtx, .problems_read = args->problems, .frame = args->frame,
+                        .row = each);
     }
-    for (unsigned int each = row; each < problems->scroll; each += 1u)
+    for (unsigned int each = args->row; each < args->problems->scroll; each += 1u)
     {
-        y -= problems_row_tall(problems, frame, each);
+        y -= EMBED_CALL(problems_row_tall, ProblemsCtx, .problems_read = args->problems, .frame = args->frame,
+                        .row = each);
     }
-    return (GuiRect){frame->side.x, y, frame->side.width - gui_scaled(1, frame->scale),
-                     problems_row_tall(problems, frame, row)};
+    return (GuiRect){args->frame->side.x, y,
+                     args->frame->side.width - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
+                                                          .scale = args->frame->scale),
+                     EMBED_CALL(problems_row_tall, ProblemsCtx, .problems_read = args->problems, .frame = args->frame,
+                                .row = args->row)};
 }
 
-int gui_problems_hit(const GuiProblems *problems, const GuiFrame *frame, int x, int y, unsigned int *row)
+int gui_problems_hit(const GuiProblemsRowFrameCfg *args)
 {
-    if (!gui_rect_holds(frame->side, x, y) || (y < gui_problems_rows_top(frame)))
+    unsigned int *row = args->row_pointer;
+    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->frame->side, .x = args->x,
+                    .y = args->y) ||
+        (args->y < gui_problems_row_frame.rows_top(args)))
     {
         return 0;
     }
-    const unsigned int rows = gui_problems_rows(problems);
-    int top = gui_problems_rows_top(frame);
-    for (unsigned int at = problems->scroll; at < rows; at += 1u)
+    const unsigned int rows = gui_problems_row_frame.rows(args);
+    int top = gui_problems_row_frame.rows_top(args);
+    for (unsigned int at = args->problems->scroll; at < rows; at += 1u)
     {
-        const int tall = problems_row_tall(problems, frame, at);
-        if (y < top + tall)
+        const int tall = EMBED_CALL(problems_row_tall, ProblemsCtx, .problems_read = args->problems,
+                                    .frame = args->frame, .row = at);
+        if (args->y < top + tall)
         {
             *row = at;
             return 1;
@@ -342,128 +416,163 @@ int gui_problems_hit(const GuiProblems *problems, const GuiFrame *frame, int x, 
     return 0;
 }
 
-int gui_problems_moved(GuiProblems *problems, const GuiFrame *frame, int x, int y)
+int gui_problems_move(const GuiProblemsFrameCfg *args)
 {
     unsigned int row = 0u;
     // the rows are fewer than an int counts
-    const int pointed = gui_problems_hit(problems, frame, x, y, &row) ? (int)row : GUI_PROBLEMS_NONE;
-    const int changed = pointed != problems->pointed;
-    problems->pointed = pointed;
+    const int pointed = EMBED_CALL(gui_problems_row_frame.hit, GuiProblemsRowFrameCfg, .problems = args->problems_out,
+                                   .frame = args->frame, .x = args->x, .y = args->y, .row_pointer = &row)
+                            ? (int)row
+                            : GUI_PROBLEMS_NONE;
+    const int changed = pointed != args->problems_out->pointed;
+    args->problems_out->pointed = pointed;
     return changed;
 }
 
 // the pane's head rectangle in the frame's side
-static GuiRect problems_head_rect(const GuiFrame *frame)
+EMBED_INLINE GuiRect problems_head_rect(const ProblemsCtx *args)
 {
-    const int top = frame->side.y + gui_scaled(GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE, frame->scale);
-    return (GuiRect){frame->side.x, top, frame->side.width - gui_scaled(1, frame->scale),
-                     gui_scaled(GUI_PROBLEMS_HEAD, frame->scale)};
+    const int top = args->frame->side.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                     .pixels = GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE,
+                                                     .scale = args->frame->scale);
+    return (GuiRect){args->frame->side.x, top,
+                     args->frame->side.width - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
+                                                          .scale = args->frame->scale),
+                     EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_HEAD,
+                                .scale = args->frame->scale)};
 }
 
-int gui_problems_pressed(GuiProblems *problems, const GuiFrame *frame, int x, int y, GuiProblemPick *pick)
+int gui_problems_press(const GuiProblemsFrameCfg *args)
 {
-    pick->kind = GUI_PROBLEMS_PICK_NONE;
-    pick->path[0] = '\0';
-    pick->line = 0ull;
-    pick->col = 0ull;
-    if (!gui_rect_holds(frame->side, x, y))
+    args->pick->kind = GUI_PROBLEMS_PICK_NONE;
+    args->pick->path[0] = '\0';
+    args->pick->line = 0ull;
+    args->pick->col = 0ull;
+    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->frame->side, .x = args->x,
+                    .y = args->y))
     {
         return 0;
     }
-    if (gui_rect_holds(problems_head_rect(frame), x, y))
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                   .rect = EMBED_CALL(problems_head_rect, ProblemsCtx, .frame = args->frame), .x = args->x,
+                   .y = args->y))
     {
-        pick->kind = gui_problems_running(problems) ? GUI_PROBLEMS_PICK_STOP : GUI_PROBLEMS_PICK_CHECK;
+        args->pick->kind = EMBED_CALL(gui_problems_path.running, GuiProblemsPathCfg, .problems = args->problems_out)
+                               ? GUI_PROBLEMS_PICK_STOP
+                               : GUI_PROBLEMS_PICK_CHECK;
         return 1;
     }
     unsigned int row = 0u;
     unsigned int file = 0u;
     int item = GUI_PROBLEMS_NONE;
-    if (!gui_problems_hit(problems, frame, x, y, &row) || !gui_problems_row(problems, row, &file, &item))
+    if (!EMBED_CALL(gui_problems_row_frame.hit, GuiProblemsRowFrameCfg, .problems = args->problems_out,
+                    .frame = args->frame, .x = args->x, .y = args->y, .row_pointer = &row) ||
+        !EMBED_CALL(cli_problems_row.row, GuiProblemsRowCfg, .problems = args->problems_out, .row = row, .file = &file,
+                    .item = &item))
     {
         return 1;
     }
     if (item == GUI_PROBLEMS_NONE)
     {
-        problems->file[file].closed = !problems->file[file].closed;
+        args->problems_out->file[file].closed = !args->problems_out->file[file].closed;
         return 1;
     }
     // the diagnostic is among the diagnostics
-    const GuiProblem *const one = &problems->item[(unsigned int)item];
-    VerbaLinea path = {pick->path, sizeof(pick->path), 0ull};
-    mmgr_line_put_n(&path, problems->texts.out + problems->file[file].path, problems->file[file].length);
+    const GuiProblem *const one = &args->problems_out->item[(unsigned int)item];
+    VerbaLinea path = {args->pick->path, sizeof(args->pick->path), 0ull};
+    mmgr_line_put_n(&path, args->problems_out->texts.out + args->problems_out->file[file].path,
+                    args->problems_out->file[file].length);
     (void)mmgr_line_finish(&path);
-    pick->kind = GUI_PROBLEMS_PICK_OPEN;
-    pick->line = one->from_line;
-    pick->col = one->from_col;
+    args->pick->kind = GUI_PROBLEMS_PICK_OPEN;
+    args->pick->line = one->from_line;
+    args->pick->col = one->from_col;
     return 1;
 }
 
-int gui_problems_wheeled(GuiProblems *problems, const GuiFrame *frame, int rows)
+int gui_problems_wheel(const GuiProblemsRowFrameCfg *args)
 {
-    const int tall = gui_scaled(GUI_PROBLEMS_ROW, frame->scale);
-    const int room = frame->side.y + frame->side.height - gui_problems_rows_top(frame);
+    const int tall =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_ROW, .scale = args->frame->scale);
+    const int room = args->frame->side.y + args->frame->side.height - gui_problems_row_frame.rows_top(args);
     const int shown = (tall > 0) ? room / tall : 0;
     // the rows are far fewer than an int counts
-    const int count = (int)gui_problems_rows(problems);
+    const int count =
+        (int)EMBED_CALL(gui_problems_row_frame.rows, GuiProblemsRowFrameCfg, .problems = args->problems_out);
     const int most = (count > shown) ? count - shown : 0;
-    const int wanted = (int)problems->scroll + rows;
+    const int wanted = (int)args->problems_out->scroll + args->rows;
     const int clamped = (wanted < 0) ? 0 : ((wanted > most) ? most : wanted);
     // the scroll clamped is not negative
-    if ((unsigned int)clamped == problems->scroll)
+    if ((unsigned int)clamped == args->problems_out->scroll)
     {
         return 0;
     }
-    problems->scroll = (unsigned int)clamped;
+    args->problems_out->scroll = (unsigned int)clamped;
     return 1;
 }
 
 // the baseline of text in `face` at `size` centered in a row of `tall` from `top`
-static int problems_baseline(GuiGlyphs *glyphs, unsigned int face, unsigned int size, int top, int tall)
+EMBED_INLINE int problems_baseline(const ProblemsCtx *args)
 {
-    const float ascent = gui_glyphs_ascent(glyphs, face, size);
-    const float descent = gui_glyphs_descent(glyphs, face, size);
-    return top + (int)((((float)tall - ascent - descent) / 2.0f) + ascent + 0.5f);
+    GuiGlyphs *glyphs = args->glyphs;
+    unsigned int face = args->face;
+    unsigned int size = args->size;
+    const float ascent =
+        EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face, .size = size);
+    const float descent =
+        EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face, .size = size);
+    return args->top + (int)((((float)args->tall - ascent - descent) / 2.0f) + ascent + 0.5f);
 }
 
 // a file row's arrow, pointing down where its rows are open and right where closed, `side` pixels across at x, y
-static void problems_arrow_drawn(GuiRaster *raster, int x, int y, int side, int open, GuiColor color)
+EMBED_INLINE void problems_arrow_draw(const ProblemsCtx *args)
 {
-    const int half = side / 2;
-    if (open)
+    GuiRaster *raster = args->raster;
+    GuiColor color = args->color;
+    const int half = args->side / 2;
+    if (args->open)
     {
-        gui_raster_line(raster, x, y + 1, x + half, y + half + 1, color);
-        gui_raster_line(raster, x + half, y + half + 1, x + side - 1, y + 1, color);
+        EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x, .y0 = args->y + 1,
+                   .x1 = args->x + half, .y1 = args->y + half + 1, .color = color);
+        EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x + half,
+                   .y0 = args->y + half + 1, .x1 = args->x + args->side - 1, .y1 = args->y + 1, .color = color);
     }
     else
     {
-        gui_raster_line(raster, x + 1, y, x + half + 1, y + half, color);
-        gui_raster_line(raster, x + half + 1, y + half, x + 1, y + side - 1, color);
+        EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x + 1, .y0 = args->y,
+                   .x1 = args->x + half + 1, .y1 = args->y + half, .color = color);
+        EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = args->x + half + 1,
+                   .y0 = args->y + half, .x1 = args->x + 1, .y1 = args->y + args->side - 1, .color = color);
     }
 }
 
 // the color of a severity's mark
-static GuiColor problems_color(const GuiPalette *palette, unsigned int severity)
+EMBED_INLINE GuiColor problems_color(const ProblemsCtx *args)
 {
-    if (severity == GUI_PROBLEMS_ERROR)
+    if (args->severity == GUI_PROBLEMS_ERROR)
     {
-        return palette->error;
+        return args->palette->error;
     }
-    return (severity == GUI_PROBLEMS_WARNING) ? palette->warning : palette->hover;
+    return (args->severity == GUI_PROBLEMS_WARNING) ? args->palette->warning : args->palette->hover;
 }
 
 // the pane's head drawn: the check's progress and Stop while it runs, else the problems and files counted and the
 // check offered
-static void problems_head_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyphs *glyphs,
-                                const GuiPalette *palette, const GuiFrame *frame, GuiRect inside)
+EMBED_INLINE void problems_head_draw(const ProblemsCtx *args)
 {
-    const float scale = frame->scale;
-    const GuiRect head = problems_head_rect(frame);
-    const unsigned int size = (unsigned int)gui_scaled((int)GUI_PROBLEMS_HEAD_SIZE, scale);
-    const int baseline = problems_baseline(glyphs, GUI_FACE_HEAD, size, head.y, head.height);
-    const int pad = gui_scaled(GUI_PROBLEMS_PAD_LEFT, scale);
+    const GuiProblems *problems = args->problems_read;
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    const int scale = args->frame->scale;
+    const GuiRect head = problems_head_rect(args);
+    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                       .pixels = (int)GUI_PROBLEMS_HEAD_SIZE, .scale = scale);
+    const int baseline = EMBED_CALL(problems_baseline, ProblemsCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
+                                    .size = size, .top = head.y, .tall = head.height);
+    const int pad =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_PAD_LEFT, .scale = scale);
     char text[160];
     VerbaLinea line = {text, sizeof(text), 0ull};
-    const int running = gui_problems_running(problems);
+    const int running = EMBED_CALL(gui_problems_path.running, GuiProblemsPathCfg, .problems = problems);
     if (running)
     {
         mmgr_line_put(&line, "Checking the tree: ");
@@ -484,150 +593,216 @@ static void problems_head_drawn(const GuiProblems *problems, GuiRaster *raster, 
         mmgr_line_put(&line, "No problems in the tree");
     }
     (void)mmgr_line_finish(&line);
-    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(head.x + pad), baseline, text, line.at,
-                         palette->text_2, inside);
+    (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                     .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(head.x + pad), .y = baseline, .text = text,
+                     .length = line.at, .color = args->palette->text_2, .clip = args->inside);
     const char *const action = running ? "Stop" : "Check the tree";
     const unsigned long long action_length = cellul.len(&(CatenaFinitaCfg){.src = action, .cap = 32ull});
-    const float action_wide = gui_text_width(glyphs, GUI_FACE_HEAD, size, action, action_length);
-    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(head.x + head.width - pad) - action_wide,
-                         baseline, action, action_length, palette->link, inside);
+    const float action_wide = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                         .face = GUI_FACE_HEAD, .size = size, .text = action, .length = action_length);
+    (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                     .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(head.x + head.width - pad) - action_wide,
+                     .y = baseline, .text = action, .length = action_length, .color = args->palette->link,
+                     .clip = args->inside);
 }
 
-void gui_problems_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette,
-                        const GuiFrame *frame)
+void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
 {
-    const float scale = frame->scale;
-    const GuiRect side = frame->side;
-    if (gui_rect_empty(side))
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    const int scale = args->frame->scale;
+    const GuiRect side = args->frame->side;
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = side))
     {
         return;
     }
-    const int one = gui_scaled(1, scale);
+    const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
     const GuiRect inside = {side.x, side.y, side.width - one, side.height};
-    const int line_y = side.y + gui_scaled(GUI_EXPLORER_HEAD, scale);
-    gui_raster_filled(raster, gui_rect_met((GuiRect){side.x, line_y, inside.width, one}, inside), palette->line);
-    problems_head_drawn(problems, raster, glyphs, palette, frame, inside);
-    const int rows_top = gui_problems_rows_top(frame);
+    const int line_y =
+        side.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_HEAD, .scale = scale);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                  .one = (GuiRect){side.x, line_y, inside.width, one}, .other = inside),
+               .color = args->palette->line);
+    EMBED_CALL(problems_head_draw, ProblemsCtx, .problems_read = args->problems, .raster = raster, .glyphs = glyphs,
+               .palette = args->palette, .frame = args->frame, .inside = inside);
+    const int rows_top = gui_problems_row_frame.rows_top(args);
     const GuiRect body =
-        gui_rect_met((GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, inside);
-    if (gui_rect_empty(body))
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = (GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, .other = inside);
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = body))
     {
         return;
     }
-    gui_raster_filled(raster, body, palette->editor_ground);
-    const unsigned int name_size = (unsigned int)gui_scaled((int)GUI_PROBLEMS_NAME_SIZE, scale);
-    const unsigned int where_size = (unsigned int)gui_scaled((int)GUI_PROBLEMS_WHERE_SIZE, scale);
-    const unsigned int message_size = (unsigned int)gui_scaled((int)GUI_PROBLEMS_MESSAGE_SIZE, scale);
-    const unsigned int count_size = (unsigned int)gui_scaled((int)GUI_PROBLEMS_COUNT_SIZE, scale);
-    const int pad = gui_scaled(GUI_PROBLEMS_PAD_LEFT, scale);
-    const int gap = gui_scaled(GUI_PROBLEMS_GAP, scale);
-    const int guide = gui_scaled(GUI_PROBLEMS_GUIDE, scale);
-    const int mark = gui_scaled(GUI_PROBLEMS_MARK, scale);
-    const int arrow = gui_scaled(GUI_EXPLORER_ARROW, scale);
-    const unsigned int rows = gui_problems_rows(problems);
-    for (unsigned int row = problems->scroll; row < rows; row += 1u)
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = body,
+               .color = args->palette->editor_ground);
+    const unsigned int name_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                            .pixels = (int)GUI_PROBLEMS_NAME_SIZE, .scale = scale);
+    const unsigned int where_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                             .pixels = (int)GUI_PROBLEMS_WHERE_SIZE, .scale = scale);
+    const unsigned int message_size = (unsigned int)EMBED_CALL(
+        gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = (int)GUI_PROBLEMS_MESSAGE_SIZE, .scale = scale);
+    const unsigned int count_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                             .pixels = (int)GUI_PROBLEMS_COUNT_SIZE, .scale = scale);
+    const int pad =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_PAD_LEFT, .scale = scale);
+    const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_GAP, .scale = scale);
+    const int guide =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_GUIDE, .scale = scale);
+    const int mark = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_MARK, .scale = scale);
+    const int arrow =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ARROW, .scale = scale);
+    const unsigned int rows = gui_problems_row_frame.rows(args);
+    for (unsigned int row = args->problems->scroll; row < rows; row += 1u)
     {
-        const GuiRect rect = gui_problems_row_rect(problems, frame, row);
+        const GuiRect rect = EMBED_CALL(gui_problems_row_frame.row_rect, GuiProblemsRowFrameCfg,
+                                        .problems = args->problems, .frame = args->frame, .row = row);
         if (rect.y >= body.y + body.height)
         {
             break;
         }
-        const GuiRect on = gui_rect_met(rect, body);
+        const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = body);
         // the rows are fewer than an int counts
-        if (problems->pointed == (int)row)
+        if (args->problems->pointed == (int)row)
         {
-            gui_raster_filled(raster, on, palette->bar_title_hover);
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = on,
+                       .color = args->palette->bar_title_hover);
         }
         unsigned int at = 0u;
         int item = GUI_PROBLEMS_NONE;
-        if (!gui_problems_row(problems, row, &at, &item))
+        if (!EMBED_CALL(cli_problems_row.row, GuiProblemsRowCfg, .problems = args->problems, .row = row, .file = &at,
+                        .item = &item))
         {
             break;
         }
-        const GuiProblemFile *const file = &problems->file[at];
+        const GuiProblemFile *const file = &args->problems->file[at];
         if (item == GUI_PROBLEMS_NONE)
         {
             // a file's row: the arrow, the name, the folder after it quieter, and the count at the right
-            problems_arrow_drawn(raster, rect.x + pad, rect.y + ((rect.height - arrow) / 2), arrow, !file->closed,
-                                 palette->text);
-            const int baseline = problems_baseline(glyphs, GUI_FACE_HEAD, name_size, rect.y, rect.height);
+            EMBED_CALL(problems_arrow_draw, ProblemsCtx, .raster = raster, .x = rect.x + pad,
+                       .y = rect.y + ((rect.height - arrow) / 2), .side = arrow, .open = !file->closed,
+                       .color = args->palette->text);
+            const int baseline = EMBED_CALL(problems_baseline, ProblemsCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
+                                            .size = name_size, .top = rect.y, .tall = rect.height);
             char digits[24];
             VerbaLinea count = {digits, sizeof(digits), 0ull};
             mmgr_line_decimal(&count, file->count, 1u);
-            const int count_pad = gui_scaled(GUI_PROBLEMS_COUNT_PAD, scale);
+            const int count_pad =
+                EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PROBLEMS_COUNT_PAD, .scale = scale);
             const int count_wide =
-                (int)(gui_text_width(glyphs, GUI_FACE_CODE, count_size, digits, count.at) + 0.5f) + (2 * count_pad);
-            const int count_tall = gui_scaled(GUI_PROBLEMS_FILE_ROW - 8, scale);
+                (int)(EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                 .face = GUI_FACE_CODE, .size = count_size, .text = digits, .length = count.at) +
+                      0.5f) +
+                (2 * count_pad);
+            const int count_tall = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                              .pixels = GUI_PROBLEMS_FILE_ROW - 8, .scale = scale);
             const GuiRect badge = {rect.x + rect.width - pad - count_wide, rect.y + ((rect.height - count_tall) / 2),
                                    count_wide, count_tall};
-            gui_raster_rounded(raster, gui_rect_met(badge, on),
-                               (unsigned int)gui_scaled(GUI_PROBLEMS_COUNT_RADIUS, scale), palette->line);
-            (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, count_size, (float)(badge.x + count_pad),
-                                 problems_baseline(glyphs, GUI_FACE_CODE, count_size, badge.y, badge.height), digits,
-                                 count.at, palette->text_2, on);
-            const GuiRect text_clip = gui_rect_met((GuiRect){rect.x, rect.y, badge.x - gap - rect.x, rect.height}, on);
-            const char *const path = problems->texts.out + file->path;
+            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
+                       .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = badge, .other = on),
+                       .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                          .pixels = GUI_PROBLEMS_COUNT_RADIUS, .scale = scale),
+                       .color = args->palette->line);
+            (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                             .face = GUI_FACE_CODE, .size = count_size, .x_f32 = (float)(badge.x + count_pad),
+                             .y = EMBED_CALL(problems_baseline, ProblemsCtx, .glyphs = glyphs, .face = GUI_FACE_CODE,
+                                             .size = count_size, .top = badge.y, .tall = badge.height),
+                             .text = digits, .length = count.at, .color = args->palette->text_2, .clip = on);
+            const GuiRect text_clip =
+                EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                           .one = (GuiRect){rect.x, rect.y, badge.x - gap - rect.x, rect.height}, .other = on);
+            const char *const path = args->problems->texts.out + file->path;
             float x = (float)(rect.x + pad + arrow + gap);
-            x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, name_size, x, baseline, path + file->name,
-                               file->length - file->name, palette->text, text_clip);
+            x = EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                           .face = GUI_FACE_HEAD, .size = name_size, .x_f32 = x, .y = baseline,
+                           .text = path + file->name, .length = file->length - file->name, .color = args->palette->text,
+                           .clip = text_clip);
             if (file->name > 1u)
             {
-                (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, where_size, x + (float)gap, baseline, path,
-                                     file->name - 1u, palette->text_3, text_clip);
+                (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster,
+                                 .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = where_size, .x_f32 = x + (float)gap,
+                                 .y = baseline, .text = path, .length = file->name - 1u, .color = args->palette->text_3,
+                                 .clip = text_clip);
             }
             continue;
         }
         // a diagnostic's row: the guide, the mark in its severity's color, the message and its place at the right
         // the diagnostic is among the diagnostics
-        const GuiProblem *const one = &problems->item[(unsigned int)item];
-        gui_raster_filled(
-            raster, gui_rect_met((GuiRect){rect.x + pad + (arrow / 2), rect.y, gui_scaled(1, scale), rect.height}, on),
-            palette->line);
+        const GuiProblem *const one = &args->problems->item[(unsigned int)item];
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){rect.x + pad + (arrow / 2), rect.y,
+                                                       EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                                  .pixels = 1, .scale = scale),
+                                                       rect.height},
+                                      .other = on),
+                   .color = args->palette->line);
         const int mark_x = rect.x + pad + guide;
-        gui_raster_rounded(raster, gui_rect_met((GuiRect){mark_x, rect.y + ((rect.height - mark) / 2), mark, mark}, on),
-                           (unsigned int)(mark / 2), problems_color(palette, one->severity));
+        EMBED_CALL(
+            gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
+            .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                               .one = (GuiRect){mark_x, rect.y + ((rect.height - mark) / 2), mark, mark}, .other = on),
+            .radius = (unsigned int)(mark / 2),
+            .color = EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette, .severity = one->severity));
         char where_text[48];
         VerbaLinea where = {where_text, sizeof(where_text), 0ull};
         mmgr_line_decimal(&where, one->from_line + 1ull, 1u);
         mmgr_line_ch(&where, ':');
         mmgr_line_decimal(&where, one->from_col + 1ull, 1u);
-        const float where_wide = gui_text_width(glyphs, GUI_FACE_CODE, where_size, where_text, where.at);
-        const int baseline = problems_baseline(glyphs, GUI_FACE_HEAD, message_size, rect.y, rect.height);
+        const float where_wide =
+            EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
+                       .size = where_size, .text = where_text, .length = where.at);
+        const int baseline = EMBED_CALL(problems_baseline, ProblemsCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
+                                        .size = message_size, .top = rect.y, .tall = rect.height);
         const float where_x = (float)(rect.x + rect.width - pad) - where_wide;
-        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, where_size, where_x, baseline, where_text, where.at,
-                             palette->text_3, on);
-        const GuiRect text_clip = gui_rect_met((GuiRect){rect.x, rect.y, (int)where_x - gap - rect.x, rect.height}, on);
-        (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, message_size, (float)(mark_x + mark + gap), baseline,
-                             problems->texts.out + one->message, one->message_length, palette->text, text_clip);
+        (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                         .face = GUI_FACE_CODE, .size = where_size, .x_f32 = where_x, .y = baseline, .text = where_text,
+                         .length = where.at, .color = args->palette->text_3, .clip = on);
+        const GuiRect text_clip =
+            EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                       .one = (GuiRect){rect.x, rect.y, (int)where_x - gap - rect.x, rect.height}, .other = on);
+        (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                         .face = GUI_FACE_HEAD, .size = message_size, .x_f32 = (float)(mark_x + mark + gap),
+                         .y = baseline, .text = args->problems->texts.out + one->message, .length = one->message_length,
+                         .color = args->palette->text, .clip = text_clip);
     }
 }
 
-void gui_problems_underlined(const GuiProblems *problems, const char *path, const GuiEditor *editor, GuiRaster *raster,
-                             const GuiPalette *palette, GuiRect place, float cell, float scale)
+void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
 {
+    const GuiEditor *editor = args->editor;
+    GuiRect place = args->place;
+    float cell = args->cell;
+    int scale = args->scale;
     unsigned int first = 0u;
-    const unsigned int count = gui_problems_of(problems, path, &first);
-    const int thick = gui_scaled(1, scale);
-    const int up = gui_scaled(2, scale);
+    const unsigned int count = EMBED_CALL(gui_problems_path.get, GuiProblemsPathCfg, .problems = args->problems,
+                                          .path = args->path, .first = &first);
+    const int thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
+    const int up = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale);
     for (unsigned int at = first; at < first + count; at += 1u)
     {
-        const GuiProblem *const one = &problems->item[at];
-        const GuiColor color = problems_color(palette, one->severity);
+        const GuiProblem *const one = &args->problems->item[at];
+        const GuiColor color =
+            EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette, .severity = one->severity);
         for (unsigned long long line = one->from_line; line <= one->to_line; line += 1ull)
         {
             const unsigned long long from = (line == one->from_line) ? one->from_col : 0ull;
             const unsigned long long to = (line == one->to_line) ? one->to_col : ~0ull;
             GuiRect start;
             GuiRect end;
-            if (!gui_editor_place_rect(editor, place, cell, scale, line, from, &start) ||
-                !gui_editor_place_rect(editor, place, cell, scale, line, to, &end))
+            if (!EMBED_CALL(gui_editor_place_cell.place_rect, GuiEditorPlaceCellCfg, .editor_read = editor,
+                            .place = place, .cell = cell, .scale = scale, .line = line, .col = from, .rect = &start) ||
+                !EMBED_CALL(gui_editor_place_cell.place_rect, GuiEditorPlaceCellCfg, .editor_read = editor,
+                            .place = place, .cell = cell, .scale = scale, .line = line, .col = to, .rect = &end))
             {
                 continue;
             }
             // a span of no width underlines its one cell
             const int right = (end.x > start.x) ? end.x : start.x + start.width;
             const GuiRect under = {start.x, start.y + start.height - up, right - start.x, thick};
-            gui_raster_filled(raster, gui_rect_met(under, place), color);
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+                       .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = under, .other = place),
+                       .color = color);
         }
     }
 }

@@ -6,23 +6,26 @@
 // its steps, a step across into the tree's own C, a watch of data, a recorded run's history and a step of it gone to;
 // memory and instructions; a Python line's bytecode; the processes; and a session or every one stopped. A path an
 // adapter names is written as it stands in the tree
+#include "../command_line/callback_cfg.h"
 #include "../debug/debug.h"
 #include "serve_internal.h"
 
 // what a session sends unprompted sent to the page as debug-event, a session's end and its process recorded first
-static void debug_event(void *context, unsigned long long session, const char *event, const char *body,
-                        unsigned long long size)
+static void debug_event(const CliDebugEventCfg *args)
 {
-    (void)context;
+    const char *event = args->event;
+    const char *body = args->body;
+    unsigned long long size = args->size;
     if ((cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "terminated", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_CELLS_POOL})))
     {
-        cli_debug_ended(session);
+        EMBED_CALL(cli_debug_table.end, CliDebugCfg, .id = args->session);
     }
     unsigned long long at = 0ull;
     unsigned long long length = 0ull;
     if ((cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "process", .cap = CLI_CELLS_POOL})) &&
-        cli_lsp_member(body, size, "systemProcessId", &at, &length))
+        EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = body, .size_value = size, .name = "systemProcessId",
+                   .start = &at, .length_pointer = &length))
     {
         unsigned long long pid = 0ull;
         int number = (length > 0ull);
@@ -33,7 +36,7 @@ static void debug_event(void *context, unsigned long long session, const char *e
         }
         if (number && (pid <= 0xffffffffull))
         {
-            cli_debug_process(session, (unsigned int)pid);
+            EMBED_CALL(cli_debug_table.process, CliDebugCfg, .id = args->session, .pid = (unsigned int)pid);
         }
     }
     // the event's line in a cell of its body and the words about it, the event's name quoted on top
@@ -42,250 +45,418 @@ static void debug_event(void *context, unsigned long long session, const char *e
     char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_window_cells);
     VerbaLinea line = mmgr_line_over(line_cell, line_room);
     mmgr_line_put(&line, "{\"session\":");
-    mmgr_line_decimal(&line, session, 1u);
+    mmgr_line_decimal(&line, args->session, 1u);
     mmgr_line_put(&line, ",\"event\":");
-    cli_json_quoted(&line, event, named);
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = event,
+               .length = named);
     mmgr_line_put(&line, ",\"body\":");
     mmgr_line_put_n(&line, (size > 0ull) ? body : "null", (size > 0ull) ? size : 4ull);
     mmgr_line_ch(&line, '}');
     if (mmgr_line_ok(&line))
     {
-        cli_serve_emitted("debug-event", line.out, line.at);
+        EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "debug-event", .body = line.out,
+                   .size = line.at);
     }
     g_cli_cells->persistent_buf_release(line.out, &g_cli_window_cells);
 }
 
 // a path an adapter named written as it stands in the tree, the tree its context
-static void debug_path_written(void *context, const char *path, VerbaLinea *out)
+static void debug_path_write(const CliDebugPathWrittenCfg *args)
 {
-    const char *const root = context;
+    const char *path = args->path;
+    VerbaLinea *out = args->out;
+    const char *const root = args->context;
     char shown[CLI_PATH_MAX_LEN];
     VerbaLinea line = {shown, sizeof(shown), 0ull};
-    cli_servers_tree_path(root, path, &line);
-    cli_json_quoted_lossy(out, (const unsigned char *)shown, mmgr_line_ok(&line) ? line.at : 0ull);
+    EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = root, .path = path,
+               .out = &line);
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)shown, .length = mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
+typedef struct
+{
+    const CliServeArgs *request;
+    unsigned long long *session;
+    VerbaLinea *err_msg;
+} ServeCallDebugCtx;
 // the argument `session`: 1, or 0 with why given
-static int debug_session(const CliServeArgs *args, unsigned long long *session, VerbaLinea *err_msg)
+EMBED_INLINE int debug_session(const ServeCallDebugCtx *args)
 {
-    return cli_serve_whole(args, "session", session, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "session",
+                      .value = args->session, .err_msg = err_msg);
 }
 
-static int debug_start(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_start(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
     const CliDebugSink sink = {debug_event, NULL};
-    return cli_debug_start(root, args->json, cli_serve_arg(args, "start"), cli_serve_arg(args, "options"), sink, out,
-                           err_msg);
+    return EMBED_CALL(
+        cli_debug_root.start, CliDebugRootCfg, .root = root, .json = arguments->json,
+        .start = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "start"),
+        .options =
+            EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "options"),
+        .sink = sink, .out = out, .err_msg = err_msg);
 }
 
-static int debug_sessions(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_sessions(const CliServeAnswerCfg *args)
 {
-    (void)args;
-    (void)err_msg;
-    cli_debug_sessions(out);
+    VerbaLinea *out = args->out;
+    EMBED_CALL(cli_debug_out_err_msg_id_step.sessions, CliDebugOutErrMsgIdStepCfg, .out = out);
     return 1;
 }
 
-static int debug_breakpoints(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_breakpoints(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    if ((path == NULL) || !cli_serve_tree(root, err_msg))
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    if ((path == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx,
+                                      .root = root, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_debug_breakpoints(root, path, args->json, cli_serve_arg(args, "breakpoints"), out);
+    EMBED_CALL(cli_debug_root_json.breakpoints, CliDebugRootJsonCfg, .root = root, .path = path,
+               .json = arguments->json,
+               .breakpoints = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments,
+                                         .key = "breakpoints"),
+               .out = out);
     return 1;
 }
 
-static int debug_exceptions(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_exceptions(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
-    return debug_session(args, &session, err_msg) &&
-           cli_debug_exceptions(session, args->json, cli_serve_arg(args, "on"), out, err_msg);
+    return EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(
+               cli_debug_json.exceptions, CliDebugJsonCfg, .id = session, .json = arguments->json,
+               .on = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "on"),
+               .out = out, .err_msg = err_msg);
 }
 
-static int debug_raised(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_raise(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     long long thread = 0ll;
-    return debug_session(args, &session, err_msg) && cli_serve_signed(args, "thread", &thread, err_msg) &&
-           cli_debug_raised(session, thread, out, err_msg);
+    return EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "thread",
+                      .value_i64s = &thread, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg_id_thread_how.raise, CliDebugOutErrMsgIdThreadHowCfg, .id = session,
+                      .thread = thread, .out = out, .err_msg = err_msg);
 }
 
-static int debug_threads(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_threads(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
-    return debug_session(args, &session, err_msg) && cli_debug_threads(session, out, err_msg);
+    return EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg_id_step.threads, CliDebugOutErrMsgIdStepCfg, .id = session, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int debug_stack(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_stack(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     unsigned long long session = 0ull;
     long long thread = 0ll;
-    return cli_serve_tree(root, err_msg) && debug_session(args, &session, err_msg) &&
-           cli_serve_signed(args, "thread", &thread, err_msg) &&
-           cli_debug_stack(session, thread, debug_path_written, root, out, err_msg);
+    return EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "thread",
+                      .value_i64s = &thread, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg_id_thread.stack, CliDebugOutErrMsgIdThreadCfg, .id = session,
+                      .thread = thread, .named = debug_path_write, .context = root, .out = out, .err_msg = err_msg);
 }
 
-static int debug_scopes(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_scopes(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     long long frame = 0ll;
-    return debug_session(args, &session, err_msg) && cli_serve_signed(args, "frame", &frame, err_msg) &&
-           cli_debug_scopes(session, frame, out, err_msg);
+    return EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "frame",
+                      .value_i64s = &frame, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg.scopes, CliDebugOutErrMsgCfg, .id = session, .frame = frame, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int debug_variables(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_variables(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     long long reference = 0ll;
-    return debug_session(args, &session, err_msg) && cli_serve_signed(args, "reference", &reference, err_msg) &&
-           cli_debug_variables(session, reference, out, err_msg);
+    return EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments,
+                      .key = "reference", .value_i64s = &reference, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out.variables, CliDebugOutCfg, .id = session, .reference = reference, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int debug_evaluate(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_evaluate(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     long long frame = 0ll;
-    const char *const expression = cli_serve_string(args, "expression", err_msg);
-    const char *const context = (expression != NULL) ? cli_serve_string(args, "context", err_msg) : NULL;
-    if ((context == NULL) || !debug_session(args, &session, err_msg))
+    const char *const expression = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                              .request = arguments, .key = "expression", .err_msg = err_msg);
+    const char *const context = (expression != NULL)
+                                    ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                 .request = arguments, .key = "context", .err_msg = err_msg)
+                                    : NULL;
+    if ((context == NULL) ||
+        !EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session, .err_msg = err_msg))
     {
         return 0;
     }
-    const unsigned int given = cli_serve_arg(args, "frame");
-    const int has_frame = (given != CLI_JSON_NONE) && !cli_json_is(args->json, given, CFG_JSON_NULL);
-    if (has_frame && !cli_serve_signed(args, "frame", &frame, err_msg))
+    const unsigned int given =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "frame");
+    const int has_frame =
+        (given != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                .json_read = arguments->json, .node = given, .kind = CFG_JSON_NULL);
+    if (has_frame && !EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments,
+                                 .key = "frame", .value_i64s = &frame, .err_msg = err_msg))
     {
         return 0;
     }
-    return cli_debug_evaluate(session, expression, has_frame, frame, context, out, err_msg);
+    return EMBED_CALL(cli_debug_out_err_msg.evaluate, CliDebugOutErrMsgCfg, .id = session, .expression = expression,
+                      .has_frame = has_frame, .frame = frame, .context_text = context, .out = out, .err_msg = err_msg);
 }
 
-static int debug_step(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_step(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     long long thread = 0ll;
-    const char *const how = cli_serve_string(args, "how", err_msg);
-    return (how != NULL) && debug_session(args, &session, err_msg) &&
-           cli_serve_signed(args, "thread", &thread, err_msg) && cli_debug_step(session, how, thread, out, err_msg);
+    const char *const how = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "how", .err_msg = err_msg);
+    return (how != NULL) &&
+           EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "thread",
+                      .value_i64s = &thread, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg_id_thread_how.step, CliDebugOutErrMsgIdThreadHowCfg, .id = session,
+                      .how = how, .thread = thread, .out = out, .err_msg = err_msg);
 }
 
-static int debug_memory(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_memory(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     long long offset = 0ll;
     unsigned long long count = 0ull;
-    const char *const reference = cli_serve_string(args, "reference", err_msg);
-    return (reference != NULL) && debug_session(args, &session, err_msg) &&
-           cli_serve_signed(args, "offset", &offset, err_msg) && cli_serve_whole(args, "count", &count, err_msg) &&
-           cli_debug_memory(session, reference, offset, count, out, err_msg);
+    const char *const reference = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                             .key = "reference", .err_msg = err_msg);
+    return (reference != NULL) &&
+           EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "offset",
+                      .value_i64s = &offset, .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "count",
+                      .value = &count, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg_id_reference_offset.memory, CliDebugOutErrMsgIdReferenceOffsetCfg,
+                      .id = session, .reference_text = reference, .offset = offset, .count = count, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int debug_instructions(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_instructions(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     long long offset = 0ll;
     long long count = 0ll;
-    const char *const reference = cli_serve_string(args, "reference", err_msg);
-    return (reference != NULL) && debug_session(args, &session, err_msg) &&
-           cli_serve_signed(args, "offset", &offset, err_msg) && cli_serve_signed(args, "count", &count, err_msg) &&
-           cli_debug_instructions(session, reference, offset, count, out, err_msg);
+    const char *const reference = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                             .key = "reference", .err_msg = err_msg);
+    return (reference != NULL) &&
+           EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "offset",
+                      .value_i64s = &offset, .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "count",
+                      .value_i64s = &count, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg_id_reference.instructions, CliDebugOutErrMsgIdReferenceCfg, .id = session,
+                      .reference_text = reference, .offset = offset, .count_i64 = count, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int debug_bytecode(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_bytecode(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned long long line = 0ull;
     // the line is cut to its low word, as no file has more
-    return cli_serve_at(args, root, full, err_msg) && cli_serve_whole(args, "line", &line, err_msg) &&
-           cli_debug_bytecode(root, full, (unsigned int)line, out, err_msg);
+    return EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx, .request = arguments,
+                      .root = root, .full = full, .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "line",
+                      .value = &line, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_root_out.bytecode, CliDebugRootOutCfg, .root = root, .path = full,
+                      .line = (unsigned int)line, .out = out, .err_msg = err_msg);
 }
 
-static int debug_watch_data(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_watch_data(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     long long reference = 0ll;
     unsigned long long bytes = 0ull;
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    if ((name == NULL) || !debug_session(args, &session, err_msg))
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    if ((name == NULL) ||
+        !EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session, .err_msg = err_msg))
     {
         return 0;
     }
-    const unsigned int referenced = cli_serve_arg(args, "reference");
-    const unsigned int sized = cli_serve_arg(args, "bytes");
-    const int has_reference = (referenced != CLI_JSON_NONE) && !cli_json_is(args->json, referenced, CFG_JSON_NULL);
-    const int has_bytes = (sized != CLI_JSON_NONE) && !cli_json_is(args->json, sized, CFG_JSON_NULL);
-    if ((has_reference && !cli_serve_signed(args, "reference", &reference, err_msg)) ||
-        (has_bytes && !cli_serve_whole(args, "bytes", &bytes, err_msg)))
+    const unsigned int referenced =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "reference");
+    const unsigned int sized =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "bytes");
+    const int has_reference = (referenced != CLI_JSON_NONE) &&
+                              !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                          .json_read = arguments->json, .node = referenced, .kind = CFG_JSON_NULL);
+    const int has_bytes =
+        (sized != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                .json_read = arguments->json, .node = sized, .kind = CFG_JSON_NULL);
+    if ((has_reference && !EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "reference", .value_i64s = &reference, .err_msg = err_msg)) ||
+        (has_bytes && !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments,
+                                  .key = "bytes", .value = &bytes, .err_msg = err_msg)))
     {
         return 0;
     }
-    return cli_debug_watch_data(session, name, has_reference, reference, has_bytes, bytes, out, err_msg);
+    return EMBED_CALL(cli_debug_out.watch_data, CliDebugOutCfg, .id = session, .name = name,
+                      .has_reference = has_reference, .reference = reference, .has_bytes = has_bytes, .bytes = bytes,
+                      .out = out, .err_msg = err_msg);
 }
 
-static int debug_history(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_history(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     unsigned long long session = 0ull;
     long long frame = 0ll;
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    return (name != NULL) && cli_serve_tree(root, err_msg) && debug_session(args, &session, err_msg) &&
-           cli_serve_signed(args, "frame", &frame, err_msg) &&
-           cli_debug_history(session, frame, name, debug_path_written, root, out, err_msg);
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    return (name != NULL) &&
+           EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "frame",
+                      .value_i64s = &frame, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg_id.history, CliDebugOutErrMsgIdCfg, .id = session, .frame = frame,
+                      .name = name, .named = debug_path_write, .context = root, .out = out, .err_msg = err_msg);
 }
 
-static int debug_step_across(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_step_across(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     unsigned long long session = 0ull;
     long long thread = 0ll;
-    return cli_serve_tree(root, err_msg) && debug_session(args, &session, err_msg) &&
-           cli_serve_signed(args, "thread", &thread, err_msg) &&
-           cli_debug_step_across(root, session, thread, out, err_msg);
+    return EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.serve_sign, CliServeErrMsgCtx, .request = arguments, .key = "thread",
+                      .value_i64s = &thread, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_root_out_err_msg.step_across, CliDebugRootOutErrMsgCfg, .root = root, .id = session,
+                      .thread = thread, .out = out, .err_msg = err_msg);
 }
 
-static int debug_goto(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_goto(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long session = 0ull;
     unsigned long long step = 0ull;
-    return debug_session(args, &session, err_msg) && cli_serve_whole(args, "step", &step, err_msg) &&
-           cli_debug_goto(session, step, out, err_msg);
+    return EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "step",
+                      .value = &step, .err_msg = err_msg) &&
+           EMBED_CALL(cli_debug_out_err_msg_id_step.debug_goto, CliDebugOutErrMsgIdStepCfg, .id = session, .step = step,
+                      .out = out, .err_msg = err_msg);
 }
 
-static int debug_processes(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_processes(const CliServeAnswerCfg *args)
 {
-    (void)args;
-    (void)err_msg;
-    cli_debug_processes(out);
+    VerbaLinea *out = args->out;
+    EMBED_CALL(cli_debug_out_err_msg_id_step.processes, CliDebugOutErrMsgIdStepCfg, .out = out);
     return 1;
 }
 
-static int debug_stop(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int debug_stop(const CliServeAnswerCfg *args)
 {
-    const unsigned int given = cli_serve_arg(args, "session");
-    if ((given == CLI_JSON_NONE) || cli_json_is(args->json, given, CFG_JSON_NULL))
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const unsigned int given =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "session");
+    if ((given == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                               .json_read = arguments->json, .node = given, .kind = CFG_JSON_NULL))
     {
         cli_debug_stop_all();
     }
     else
     {
         unsigned long long session = 0ull;
-        if (!debug_session(args, &session, err_msg))
+        if (!EMBED_CALL(debug_session, ServeCallDebugCtx, .request = arguments, .session = &session,
+                        .err_msg = err_msg))
         {
             return 0;
         }
-        cli_debug_stop(session);
+        EMBED_CALL(cli_debug_table.stop, CliDebugCfg, .id = session);
     }
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
@@ -294,7 +465,7 @@ const CliServeCall g_cli_serve_debug_calls[] = {
     {"debug_sessions", debug_sessions},
     {"debug_breakpoints", debug_breakpoints},
     {"debug_exceptions", debug_exceptions},
-    {"debug_raised", debug_raised},
+    {"debug_raised", debug_raise},
     {"debug_threads", debug_threads},
     {"debug_stack", debug_stack},
     {"debug_scopes", debug_scopes},

@@ -9,11 +9,6 @@
 #include "../text/text.h"
 #include "symbols_internal.h"
 
-// the most arguments of one call read, the most leaves one call's value is made of, and the bytes of its joined texts
-#define CLI_EFFECT_ARGUMENTS 64u
-#define CLI_EFFECT_CALLED_MOST 4096u
-#define CLI_EFFECT_JOINED_ROOM (64ull << 10u)
-
 // A condition being read: the walk, its leaves, how many, the one at hand, and how many macros deep the reading is
 typedef struct
 {
@@ -23,51 +18,6 @@ typedef struct
     unsigned int at;
     unsigned int through;
 } CliEffectReading;
-
-static long long cli_effect_condition(CliEffectReading *reading);
-
-// whether the leaf at hand plays every role of `roles`, CLI_LEAF_ bits its grammar names
-static int cli_effect_at(const CliEffectReading *reading, unsigned long long roles)
-{
-    return (reading->at < reading->count) && ((reading->token[reading->at].is & roles) == roles);
-}
-
-// the number a leaf's digits write in the base its leaf names, a letter that is no digit of that base passed over
-static long long cli_effect_number(const CliEffectToken *token)
-{
-    unsigned long long value = 0ull;
-    for (unsigned long long at = 0ull; at < token->length; at += 1ull)
-    {
-        const char letter = token->text[at];
-        const unsigned long long digit =
-            ((letter >= '0') && (letter <= '9'))   ? (unsigned long long)(letter - '0')
-            : ((letter >= 'a') && (letter <= 'z')) ? (unsigned long long)(letter - 'a' + 10)
-            : ((letter >= 'A') && (letter <= 'Z')) ? (unsigned long long)(letter - 'A' + 10)
-                                                   : 64ull;
-        if (digit < token->base)
-        {
-            value = (value * token->base) + digit;
-        }
-    }
-    // a condition's integer is read as the widest signed one, its high bit its sign
-    return (long long)value;
-}
-
-// a cell of `count` leaves read from the walk's value leaves from `first`, their texts the walk's; NULL where the cells
-// cannot meet it
-static CliEffectToken *cli_effect_tokens_of(const CliEffect *effect, unsigned int first, unsigned int count)
-{
-    CliEffectToken *const tokens =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)(count + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
-    for (unsigned int at = 0u; (tokens != NULL) && (at < count); at += 1u)
-    {
-        const CliEffectValueLeaf *const leaf = &effect->value_leaf[first + at];
-        tokens[at] = (CliEffectToken){
-            cli_effect_text(effect, leaf->text), leaf->length, leaf->is, leaf->binds, leaf->base, leaf->does};
-    }
-    return tokens;
-}
-
 // The leaves a call's value is made of as it is expanded, how many and the room; and the texts of leaves joined, whose
 // places a joined leaf's text is read from once every leaf is put; all in one cell
 typedef struct
@@ -79,69 +29,147 @@ typedef struct
     unsigned int *joined_at;
     int refused;
 } CliEffectCalled;
+// the most arguments of one call read, the most leaves one call's value is made of, and the bytes of its joined texts
+#define CLI_EFFECT_ARGUMENTS 64u
+#define CLI_EFFECT_CALLED_MOST 4096u
+#define CLI_EFFECT_JOINED_ROOM (64ull << 10u)
+
+typedef struct
+{
+    CliEffectReading *reading;
+    const CliEffectReading *reading_read;
+    unsigned long long roles;
+    const CliEffectToken *token;
+    const CliEffect *effect;
+    unsigned int first;
+    unsigned int count;
+    CliEffectCalled *called;
+    unsigned int joined_at;
+    unsigned int *first_pointer;
+    unsigned int *end;
+    const CliEffectMacro *macro;
+    unsigned int macro_at;
+    unsigned int least;
+} SymbolsEffectValueCtx;
+static long long cli_effect_condition(const SymbolsEffectValueCtx *args);
+
+// whether the leaf at hand plays every role of `roles`, CLI_LEAF_ bits its grammar names
+EMBED_INLINE int cli_effect_at(const SymbolsEffectValueCtx *args)
+{
+    unsigned long long roles = args->roles;
+    return (args->reading_read->at < args->reading_read->count) &&
+           ((args->reading_read->token[args->reading_read->at].is & roles) == roles);
+}
+
+// the number a leaf's digits write in the base its leaf names, a letter that is no digit of that base passed over
+EMBED_INLINE long long cli_effect_number(const SymbolsEffectValueCtx *args)
+{
+    unsigned long long value = 0ull;
+    for (unsigned long long at = 0ull; at < args->token->length; at += 1ull)
+    {
+        const char letter = args->token->text[at];
+        const unsigned long long digit =
+            ((letter >= '0') && (letter <= '9'))   ? (unsigned long long)(letter - '0')
+            : ((letter >= 'a') && (letter <= 'z')) ? (unsigned long long)(letter - 'a' + 10)
+            : ((letter >= 'A') && (letter <= 'Z')) ? (unsigned long long)(letter - 'A' + 10)
+                                                   : 64ull;
+        if (digit < args->token->base)
+        {
+            value = (value * args->token->base) + digit;
+        }
+    }
+    // a condition's integer is read as the widest signed one, its high bit its sign
+    return (long long)value;
+}
+
+// a cell of `count` leaves read from the walk's value leaves from `first`, their texts the walk's; NULL where the cells
+// cannot meet it
+EMBED_INLINE CliEffectToken *cli_effect_tokens_get(const SymbolsEffectValueCtx *args)
+{
+    const CliEffect *effect = args->effect;
+    CliEffectToken *const tokens = g_cli_cells->persistent_buf_alloc(
+        (unsigned long long)(args->count + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
+    for (unsigned int at = 0u; (tokens != NULL) && (at < args->count); at += 1u)
+    {
+        const CliEffectValueLeaf *const leaf = &effect->value_leaf[args->first + at];
+        tokens[at] = (CliEffectToken){
+            EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect, .at_value = leaf->text),
+            leaf->length,
+            leaf->is,
+            leaf->binds,
+            leaf->base,
+            leaf->does};
+    }
+    return tokens;
+}
 
 // `token` put after the call's leaves; `joined_at` its joined text's place, or 0xffffffff for a text of its own
-static void cli_effect_called_put(CliEffectCalled *called, const CliEffectToken *token, unsigned int joined_at)
+EMBED_INLINE void cli_effect_called_put(const SymbolsEffectValueCtx *args)
 {
-    if (called->count >= called->room)
+    if (args->called->count >= args->called->room)
     {
-        called->refused = 1;
+        args->called->refused = 1;
         return;
     }
-    called->token[called->count] = *token;
-    called->joined_at[called->count] = joined_at;
-    called->count += 1u;
+    args->called->token[args->called->count] = *args->token;
+    args->called->joined_at[args->called->count] = args->joined_at;
+    args->called->count += 1u;
 }
 
 // the leaf `token` joined to the call's last leaf: their texts one after the other made a text of its own, with the
 // last leaf's role
-static void cli_effect_called_joined(CliEffectCalled *called, const CliEffectToken *token)
+EMBED_INLINE void cli_effect_called_join(const SymbolsEffectValueCtx *args)
 {
-    if (called->count == 0u)
+    if (args->called->count == 0u)
     {
-        cli_effect_called_put(called, token, 0xffffffffu);
+        EMBED_CALL(cli_effect_called_put, SymbolsEffectValueCtx, .called = args->called, .token = args->token,
+                   .joined_at = 0xffffffffu);
         return;
     }
-    CliEffectToken *const last = &called->token[called->count - 1u];
-    const unsigned int was = called->joined_at[called->count - 1u];
-    const char *const before = (was == 0xffffffffu) ? last->text : (called->joined.out + was);
+    CliEffectToken *const last = &args->called->token[args->called->count - 1u];
+    const unsigned int was = args->called->joined_at[args->called->count - 1u];
+    const char *const before = (was == 0xffffffffu) ? last->text : (args->called->joined.out + was);
     // a call's joined texts are far under 4 GiB
-    const unsigned int at = (unsigned int)called->joined.at;
+    const unsigned int at = (unsigned int)args->called->joined.at;
     const unsigned long long length = last->length;
-    mmgr_line_put_n(&called->joined, before, length);
-    mmgr_line_put_n(&called->joined, token->text, token->length);
-    called->refused |= !mmgr_line_ok(&called->joined);
-    last->length = length + token->length;
-    called->joined_at[called->count - 1u] = at;
+    mmgr_line_put_n(&args->called->joined, before, length);
+    mmgr_line_put_n(&args->called->joined, args->token->text, args->token->length);
+    args->called->refused |= !mmgr_line_ok(&args->called->joined);
+    last->length = length + args->token->length;
+    args->called->joined_at[args->called->count - 1u] = at;
 }
 
 // the arguments of a call, its bracket the leaf at hand: each the leaves between separators at its depth, up to the
 // bracket that closes it, `first` and `end` each argument's first leaf and the one after its last; how many, the
 // reading moved past the closing bracket, or CLI_EFFECT_ARGUMENTS + 1 where the bracket is not closed
-static unsigned int cli_effect_arguments(CliEffectReading *reading, unsigned int *first, unsigned int *end)
+EMBED_INLINE unsigned int cli_effect_arguments(const SymbolsEffectValueCtx *args)
 {
-    reading->at += 1u;
+    args->reading->at += 1u;
     unsigned int arguments = 0u;
     unsigned int depth = 0u;
-    unsigned int from = reading->at;
-    for (; reading->at < reading->count; reading->at += 1u)
+    unsigned int from = args->reading->at;
+    for (; args->reading->at < args->reading->count; args->reading->at += 1u)
     {
-        const int opens = cli_effect_at(reading, CLI_LEAF_OPEN);
-        const int closes = cli_effect_at(reading, CLI_LEAF_CLOSE);
-        if ((closes && (depth == 0u)) || ((depth == 0u) && cli_effect_at(reading, CLI_LEAF_SEPARATOR)))
+        const int opens =
+            EMBED_CALL(cli_effect_at, SymbolsEffectValueCtx, .reading_read = args->reading, .roles = CLI_LEAF_OPEN);
+        const int closes =
+            EMBED_CALL(cli_effect_at, SymbolsEffectValueCtx, .reading_read = args->reading, .roles = CLI_LEAF_CLOSE);
+        if ((closes && (depth == 0u)) ||
+            ((depth == 0u) && EMBED_CALL(cli_effect_at, SymbolsEffectValueCtx, .reading_read = args->reading,
+                                         .roles = CLI_LEAF_SEPARATOR)))
         {
             if (arguments < CLI_EFFECT_ARGUMENTS)
             {
-                first[arguments] = from;
-                end[arguments] = reading->at;
+                args->first_pointer[arguments] = from;
+                args->end[arguments] = args->reading->at;
                 arguments += 1u;
             }
-            from = reading->at + 1u;
+            from = args->reading->at + 1u;
             if (closes)
             {
-                reading->at += 1u;
+                args->reading->at += 1u;
                 // a call with no leaf between its brackets has no argument
-                return ((arguments == 1u) && (first[0] == end[0])) ? 0u : arguments;
+                return ((arguments == 1u) && (args->first_pointer[0] == args->end[0])) ? 0u : arguments;
             }
             continue;
         }
@@ -152,14 +180,16 @@ static unsigned int cli_effect_arguments(CliEffectReading *reading, unsigned int
 
 // the parameter of the macro `macro` whose name is `token`'s text: its place among the parameters, or
 // CLI_EFFECT_ARGUMENTS where it names none
-static unsigned int cli_effect_parameter(const CliEffect *effect, const CliEffectMacro *macro,
-                                         const CliEffectToken *token)
+EMBED_INLINE unsigned int cli_effect_parameter(const SymbolsEffectValueCtx *args)
 {
-    const char *name = cli_effect_text(effect, macro->params);
-    for (unsigned int at = 0u; at < macro->param_count; at += 1u)
+    const CliEffect *effect = args->effect;
+    const char *name = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                                  .at_value = args->macro->params);
+    for (unsigned int at = 0u; at < args->macro->param_count; at += 1u)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-        if ((length == token->length) && cli_text_same(name, token->text, length))
+        if ((length == args->token->length) && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = name,
+                                                          .other_pointer = args->token->text, .size = length))
         {
             return at;
         }
@@ -172,18 +202,20 @@ static unsigned int cli_effect_parameter(const CliEffect *effect, const CliEffec
 // parameter made the leaves of the argument at its place, a leaf named `rest` made the arguments past the parameters
 // with the leaves between them, a leaf named `join` joining the leaves about it into one, and one named `quote` making
 // the leaf after it a string; read as a condition one macro deeper
-static long long cli_effect_called(CliEffectReading *reading, unsigned int macro_at)
+EMBED_INLINE long long cli_effect_call(const SymbolsEffectValueCtx *args)
 {
-    CliEffect *const effect = reading->effect;
+    CliEffect *const effect = args->reading->effect;
     unsigned int first[CLI_EFFECT_ARGUMENTS];
     unsigned int end[CLI_EFFECT_ARGUMENTS];
-    const unsigned int arguments = cli_effect_arguments(reading, first, end);
+    const unsigned int arguments = EMBED_CALL(cli_effect_arguments, SymbolsEffectValueCtx, .reading = args->reading,
+                                              .first_pointer = first, .end = end);
     if (arguments > CLI_EFFECT_ARGUMENTS)
     {
         return 0ll;
     }
-    const CliEffectMacro macro = effect->macro[macro_at];
-    CliEffectToken *const value = cli_effect_tokens_of(effect, macro.first, macro.count);
+    const CliEffectMacro macro = effect->macro[args->macro_at];
+    CliEffectToken *const value = EMBED_CALL(cli_effect_tokens_get, SymbolsEffectValueCtx, .effect = effect,
+                                             .first = macro.first, .count = macro.count);
     // each leaf of the macro's value stands for itself or for no more leaves than the arguments span
     const unsigned long long span = (arguments != 0u) ? (unsigned long long)(end[arguments - 1u] - first[0]) : 0ull;
     const unsigned long long wanted = ((unsigned long long)macro.count * (span + 1ull)) + 1ull;
@@ -220,8 +252,10 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
             quoting = 1;
             continue;
         }
-        const unsigned int param =
-            ((leaf->is & CLI_LEAF_NAME) != 0u) ? cli_effect_parameter(effect, &macro, leaf) : CLI_EFFECT_ARGUMENTS;
+        const unsigned int param = ((leaf->is & CLI_LEAF_NAME) != 0u)
+                                       ? EMBED_CALL(cli_effect_parameter, SymbolsEffectValueCtx, .effect = effect,
+                                                    .macro = &macro, .token = leaf)
+                                       : CLI_EFFECT_ARGUMENTS;
         const int rest = macro.rest && ((leaf->is & CLI_LEAF_REST) != 0u);
         // the leaves this one stands for: the argument at the parameter's place, the arguments past them with the
         // commas between, or itself
@@ -230,7 +264,7 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
         const CliEffectToken *source = leaf;
         if ((param < arguments) || (rest && (macro.param_count < arguments)))
         {
-            source = reading->token;
+            source = args->reading->token;
             from = first[rest ? macro.param_count : param];
             to = end[rest ? (arguments - 1u) : param];
         }
@@ -244,7 +278,8 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
         {
             // a quoted argument is a string, whose value in a condition is none
             const CliEffectToken string = {"", 0ull, CLI_LEAF_STRING, 0u, 10u, 0u};
-            cli_effect_called_put(&called, &string, 0xffffffffu);
+            EMBED_CALL(cli_effect_called_put, SymbolsEffectValueCtx, .called = &called, .token = &string,
+                       .joined_at = 0xffffffffu);
             quoting = 0;
             joining = 0;
             continue;
@@ -253,11 +288,12 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
         {
             if (joining && (each == from))
             {
-                cli_effect_called_joined(&called, &source[each]);
+                EMBED_CALL(cli_effect_called_join, SymbolsEffectValueCtx, .called = &called, .token = &source[each]);
                 joining = 0;
                 continue;
             }
-            cli_effect_called_put(&called, &source[each], 0xffffffffu);
+            EMBED_CALL(cli_effect_called_put, SymbolsEffectValueCtx, .called = &called, .token = &source[each],
+                       .joined_at = 0xffffffffu);
         }
     }
     // each joined leaf's text read from the line
@@ -266,8 +302,10 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
         called.token[at].text =
             (called.joined_at[at] == 0xffffffffu) ? called.token[at].text : (called.joined.out + called.joined_at[at]);
     }
-    const long long result =
-        called.refused ? 0ll : cli_effect_value(effect, called.token, called.count, reading->through + 1u);
+    const long long result = called.refused ? 0ll
+                                            : EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx,
+                                                         .effect = effect, .token = called.token, .count = called.count,
+                                                         .through = args->reading->through + 1u);
     g_cli_cells->persistent_buf_release(cell, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
     return result;
@@ -276,42 +314,51 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
 // the value of the macro the name at `token` names: its value's leaves read as a condition one macro deeper, a macro
 // called with arguments expanded where a bracket follows it and 0 where none does; 0 for a name of no macro, or where
 // the reading is CLI_EFFECT_THROUGH macros deep
-static long long cli_effect_named(CliEffectReading *reading, const CliEffectToken *token)
+EMBED_INLINE long long cli_effect_by_name(const SymbolsEffectValueCtx *args)
 {
-    CliEffect *const effect = reading->effect;
-    const unsigned int macro = cli_effect_macro(effect, token->text, token->length);
-    if ((macro == CLI_JSON_NONE) || (reading->through >= CLI_EFFECT_THROUGH))
+    const CliEffectToken *token = args->token;
+    CliEffect *const effect = args->reading->effect;
+    const unsigned int macro = EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx,
+                                          .effect_read = effect, .name = token->text, .length = token->length);
+    if ((macro == CLI_JSON_NONE) || (args->reading->through >= CLI_EFFECT_THROUGH))
     {
         return 0ll;
     }
     if (effect->macro[macro].called)
     {
-        return cli_effect_at(reading, CLI_LEAF_OPEN) ? cli_effect_called(reading, macro) : 0ll;
+        return EMBED_CALL(cli_effect_at, SymbolsEffectValueCtx, .reading_read = args->reading, .roles = CLI_LEAF_OPEN)
+                   ? EMBED_CALL(cli_effect_call, SymbolsEffectValueCtx, .reading = args->reading, .macro_at = macro)
+                   : 0ll;
     }
-    CliEffectToken *const value = cli_effect_tokens_of(effect, effect->macro[macro].first, effect->macro[macro].count);
+    CliEffectToken *const value = EMBED_CALL(cli_effect_tokens_get, SymbolsEffectValueCtx, .effect = effect,
+                                             .first = effect->macro[macro].first, .count = effect->macro[macro].count);
     const long long result =
-        (value != NULL) ? cli_effect_value(effect, value, effect->macro[macro].count, reading->through + 1u) : 0ll;
+        (value != NULL)
+            ? EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx, .effect = effect,
+                         .token = value, .count = effect->macro[macro].count, .through = args->reading->through + 1u)
+            : 0ll;
     g_cli_cells->persistent_buf_release(value, &g_cli_code_cells);
     return result;
 }
 
 // one value and the operators before it: a bracketed condition, `defined` with a name or a bracketed name, a number,
 // or a name; an operator before a value applied to it as its symbol writes
-static long long cli_effect_unary(CliEffectReading *reading)
+static long long cli_effect_unary(const SymbolsEffectValueCtx *args)
 {
-    while ((reading->at < reading->count) && ((reading->token[reading->at].is & CLI_LEAF_PREFIX) != 0u))
+    while ((args->reading->at < args->reading->count) &&
+           ((args->reading->token[args->reading->at].is & CLI_LEAF_PREFIX) != 0u))
     {
-        reading->at += 1u;
+        args->reading->at += 1u;
     }
-    if (reading->at >= reading->count)
+    if (args->reading->at >= args->reading->count)
     {
         return 0ll;
     }
-    const CliEffectToken *const token = &reading->token[reading->at];
+    const CliEffectToken *const token = &args->reading->token[args->reading->at];
     if (((token->is & CLI_LEAF_UNARY) != 0u) || (token->binds != 0u))
     {
-        reading->at += 1u;
-        const long long value = cli_effect_unary(reading);
+        args->reading->at += 1u;
+        const long long value = cli_effect_unary(args);
         // before a value, an operator that subtracts negates it
         return (token->does == CLI_DOES_NOT)          ? (long long)(value == 0ll)
                : (token->does == CLI_DOES_COMPLEMENT) ? ~value
@@ -320,45 +367,59 @@ static long long cli_effect_unary(CliEffectReading *reading)
     }
     if ((token->is & CLI_LEAF_OPEN) != 0u)
     {
-        reading->at += 1u;
-        const long long value = cli_effect_condition(reading);
-        reading->at += cli_effect_at(reading, CLI_LEAF_CLOSE) ? 1u : 0u;
+        args->reading->at += 1u;
+        const long long value = cli_effect_condition(args);
+        args->reading->at +=
+            EMBED_CALL(cli_effect_at, SymbolsEffectValueCtx, .reading_read = args->reading, .roles = CLI_LEAF_CLOSE)
+                ? 1u
+                : 0u;
         return value;
     }
-    reading->at += 1u;
+    args->reading->at += 1u;
     if ((token->is & CLI_LEAF_DEFINED) != 0u)
     {
-        const int bracketed = cli_effect_at(reading, CLI_LEAF_OPEN);
-        reading->at += bracketed ? 1u : 0u;
-        const CliEffectToken *const name = (reading->at < reading->count) ? &reading->token[reading->at] : NULL;
-        reading->at += (name != NULL) ? 1u : 0u;
-        reading->at += (bracketed && cli_effect_at(reading, CLI_LEAF_CLOSE)) ? 1u : 0u;
-        return (name != NULL) && (cli_effect_macro(reading->effect, name->text, name->length) != CLI_JSON_NONE);
+        const int bracketed =
+            EMBED_CALL(cli_effect_at, SymbolsEffectValueCtx, .reading_read = args->reading, .roles = CLI_LEAF_OPEN);
+        args->reading->at += bracketed ? 1u : 0u;
+        const CliEffectToken *const name =
+            (args->reading->at < args->reading->count) ? &args->reading->token[args->reading->at] : NULL;
+        args->reading->at += (name != NULL) ? 1u : 0u;
+        args->reading->at += (bracketed && EMBED_CALL(cli_effect_at, SymbolsEffectValueCtx,
+                                                      .reading_read = args->reading, .roles = CLI_LEAF_CLOSE))
+                                 ? 1u
+                                 : 0u;
+        return (name != NULL) && (EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx,
+                                             .effect_read = args->reading->effect, .name = name->text,
+                                             .length = name->length) != CLI_JSON_NONE);
     }
     if ((token->is & CLI_LEAF_NUMBER) != 0u)
     {
         // a number's suffix is a leaf of its own after it
-        while ((reading->at < reading->count) && ((reading->token[reading->at].is & CLI_LEAF_NUMBER) != 0u))
+        while ((args->reading->at < args->reading->count) &&
+               ((args->reading->token[args->reading->at].is & CLI_LEAF_NUMBER) != 0u))
         {
-            reading->at += 1u;
+            args->reading->at += 1u;
         }
-        return cli_effect_number(token);
+        return EMBED_CALL(cli_effect_number, SymbolsEffectValueCtx, .token = token);
     }
-    return ((token->is & (CLI_LEAF_NAME | CLI_LEAF_KEYWORD | CLI_LEAF_TYPE)) != 0u) ? cli_effect_named(reading, token)
-                                                                                    : 0ll;
+    return ((token->is & (CLI_LEAF_NAME | CLI_LEAF_KEYWORD | CLI_LEAF_TYPE)) != 0u)
+               ? EMBED_CALL(cli_effect_by_name, SymbolsEffectValueCtx, .reading = args->reading, .token = token)
+               : 0ll;
 }
 
 // the values joined by the operators that bind at least as tightly as `least`, each read with those that bind more
 // tightly first, each operator doing the operation its grammar names, 0 for one it names none of
-static long long cli_effect_binary(CliEffectReading *reading, unsigned int least)
+static long long cli_effect_binary(const SymbolsEffectValueCtx *args)
 {
-    long long left = cli_effect_unary(reading);
-    while ((reading->at < reading->count) && (reading->token[reading->at].binds >= least) &&
-           (reading->token[reading->at].binds != 0u))
+    long long left = cli_effect_unary(args);
+    while ((args->reading->at < args->reading->count) &&
+           (args->reading->token[args->reading->at].binds >= args->least) &&
+           (args->reading->token[args->reading->at].binds != 0u))
     {
-        const CliEffectToken *const joined = &reading->token[reading->at];
-        reading->at += 1u;
-        const long long right = cli_effect_binary(reading, joined->binds + 1u);
+        const CliEffectToken *const joined = &args->reading->token[args->reading->at];
+        args->reading->at += 1u;
+        const long long right =
+            EMBED_CALL(cli_effect_binary, SymbolsEffectValueCtx, .reading = args->reading, .least = joined->binds + 1u);
         // a shift past a long long's bits gives 0
         const int shifts = (right >= 0ll) && (right < 63ll);
         const unsigned char does = joined->does;
@@ -387,24 +448,28 @@ static long long cli_effect_binary(CliEffectReading *reading, unsigned int least
 
 // a whole condition: the values and operators, and a leaf named `choice` after them choosing between the condition
 // after it, to the leaf named `otherwise` that closes it, and the condition after that one
-static long long cli_effect_condition(CliEffectReading *reading)
+static long long cli_effect_condition(const SymbolsEffectValueCtx *args)
 {
-    const long long chosen = cli_effect_binary(reading, 1u);
-    const unsigned long long is = (reading->at < reading->count) ? reading->token[reading->at].is : 0ull;
+    const long long chosen =
+        EMBED_CALL(cli_effect_binary, SymbolsEffectValueCtx, .reading = args->reading, .least = 1u);
+    const unsigned long long is =
+        (args->reading->at < args->reading->count) ? args->reading->token[args->reading->at].is : 0ull;
     if (((is & CLI_LEAF_CHOICE) == 0u) || ((is & CLI_LEAF_OTHERWISE) != 0u))
     {
         return chosen;
     }
-    reading->at += 1u;
-    const long long then = cli_effect_condition(reading);
-    reading->at +=
-        ((reading->at < reading->count) && ((reading->token[reading->at].is & CLI_LEAF_OTHERWISE) != 0u)) ? 1u : 0u;
-    const long long otherwise = cli_effect_condition(reading);
+    args->reading->at += 1u;
+    const long long then = cli_effect_condition(args);
+    args->reading->at += ((args->reading->at < args->reading->count) &&
+                          ((args->reading->token[args->reading->at].is & CLI_LEAF_OTHERWISE) != 0u))
+                             ? 1u
+                             : 0u;
+    const long long otherwise = cli_effect_condition(args);
     return (chosen != 0ll) ? then : otherwise;
 }
 
-long long cli_effect_value(CliEffect *effect, const CliEffectToken *token, unsigned int count, unsigned int through)
+long long cli_effect_value(const CliSymbolsEffectCtx *args)
 {
-    CliEffectReading reading = {effect, token, count, 0u, through};
-    return cli_effect_condition(&reading);
+    CliEffectReading reading = {args->effect, args->token, args->count, 0u, args->through};
+    return EMBED_CALL(cli_effect_condition, SymbolsEffectValueCtx, .reading = &reading);
 }

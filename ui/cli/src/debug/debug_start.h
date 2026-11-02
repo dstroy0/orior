@@ -4,8 +4,10 @@
 // request it is started with (debug_start.c, debug_launch.c)
 #ifndef DEBUG_START_H
 #define DEBUG_START_H
+typedef struct CliDebugStartCfg CliDebugStartCfg;
 
 #include "debug_internal.h"
+#include "embed_dispatch_layout.h"
 
 // A session's plan: the kind of its start, the test it runs, its language, whether it is a recorded run, the program a
 // CMake or Meson build makes from its file, the adapter's spec in the session's start room, the toolchain's name and
@@ -39,7 +41,26 @@ typedef struct
 
 // the start `start` of `json` planned in the session's place, with `options`, into `plan`: 1, or 0 with why given
 // (debug_start.c)
-int cli_debug_planned(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                      unsigned int options, CliDebugPlan *plan, VerbaLinea *err_msg);
+int cli_debug_plan(const CliDebugStartCfg *args);
+
+struct CliDebugStartCfg
+{
+    CliDebugSession *place;
+    const char *root;
+    const CliJson *json;
+    unsigned int start;
+    unsigned int options;
+    CliDebugPlan *plan;
+    VerbaLinea *err_msg;
+};
+
+typedef struct
+{
+    int (*debug_plan)(const CliDebugStartCfg *args);
+} CliDebugStartNs;
+EMBED_TABLE_LAYOUT(CliDebugStartNs, debug_plan);
+EMBED_TABLE_STORAGE CliDebugStartNs cli_debug_start_table EMBED_UNUSED = {
+    .debug_plan = cli_debug_plan,
+};
 
 #endif

@@ -2,27 +2,33 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // devcontainer.c: a description's JSON made plain, the description found in the tree, and the container's name
 #include "devcontainer.h"
+#include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 
-// whether a byte is one of ASCII's spaces
-static int cli_is_space(char letter)
+typedef struct
 {
-    return (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
+    char letter;
+} DevcontainerCtx;
+
+// whether a byte is one of ASCII's spaces
+EMBED_INLINE int cli_is_space(const DevcontainerCtx *args)
+{
+    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
 }
 
-void cli_plain_json(const char *text, unsigned long long size, VerbaLinea *plain)
+void cli_plain_json(const CliDevcontainerTextCfg *args)
 {
     unsigned long long at = 0ull;
     int in_string = 0;
-    while (at < size)
+    while (at < args->size)
     {
-        const char letter = text[at];
+        const char letter = args->text[at];
         if (in_string)
         {
-            mmgr_line_ch(plain, letter);
-            if ((letter == '\\') && ((at + 1ull) < size))
+            mmgr_line_ch(args->plain, letter);
+            if ((letter == '\\') && ((at + 1ull) < args->size))
             {
-                mmgr_line_ch(plain, text[at + 1u]);
+                mmgr_line_ch(args->plain, args->text[at + 1u]);
                 at += 2ull;
                 continue;
             }
@@ -32,36 +38,39 @@ void cli_plain_json(const char *text, unsigned long long size, VerbaLinea *plain
         else if (letter == '"')
         {
             in_string = 1;
-            mmgr_line_ch(plain, letter);
+            mmgr_line_ch(args->plain, letter);
             at += 1ull;
         }
-        else if ((letter == '/') && ((at + 1ull) < size) && (text[at + 1u] == '/'))
+        else if ((letter == '/') && ((at + 1ull) < args->size) && (args->text[at + 1u] == '/'))
         {
-            at = cli_text_to_any(text, at, size, "\n");
+            at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = at,
+                            .size = args->size, .set = "\n");
         }
-        else if ((letter == '/') && ((at + 1ull) < size) && (text[at + 1u] == '*'))
+        else if ((letter == '/') && ((at + 1ull) < args->size) && (args->text[at + 1u] == '*'))
         {
             at += 2ull;
-            const unsigned long long closed = cli_text_to_pair(text, at, size, '*', '/');
-            at = (closed < size) ? closed : ((at > (size - 1ull)) ? at : (size - 1ull));
+            const unsigned long long closed =
+                EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = args->text, .at = at,
+                           .size = args->size, .first = '*', .second = '/');
+            at = (closed < args->size) ? closed : ((at > (args->size - 1ull)) ? at : (args->size - 1ull));
             at += 2ull;
         }
         else if (letter == ',')
         {
             unsigned long long next = at + 1ull;
-            while ((next < size) && cli_is_space(text[next]))
+            while ((next < args->size) && EMBED_CALL(cli_is_space, DevcontainerCtx, .letter = args->text[next]))
             {
                 next += 1ull;
             }
-            if ((next >= size) || ((text[next] != ']') && (text[next] != '}')))
+            if ((next >= args->size) || ((args->text[next] != ']') && (args->text[next] != '}')))
             {
-                mmgr_line_ch(plain, letter);
+                mmgr_line_ch(args->plain, letter);
             }
             at += 1ull;
         }
         else
         {
-            mmgr_line_ch(plain, letter);
+            mmgr_line_ch(args->plain, letter);
             at += 1ull;
         }
     }
@@ -75,20 +84,22 @@ typedef struct
     int found;
 } CliDescriptionFound;
 
-static void cli_description_each(void *context, const char *name, int is_folder)
+static void cli_description_each(const CliEachNameIsFolderCfg *args)
 {
-    CliDescriptionFound *const found = (CliDescriptionFound *)context;
+    CliDescriptionFound *const found = (CliDescriptionFound *)args->context;
     char path[CLI_PATH_MAX_LEN];
     VerbaLinea line = {path, sizeof(path), 0ull};
     mmgr_line_put(&line, found->folder);
     mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
     mmgr_line_put(&line, "/devcontainer.json");
-    if (!is_folder || (mmgr_line_finish(&line) == 0ull) || !query_is_file(path))
+    if (!args->is_folder || (mmgr_line_finish(&line) == 0ull) ||
+        !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
     {
         return;
     }
-    if (!found->found || (cli_text_order(path, found->least) < 0))
+    if (!found->found ||
+        (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = path, .other_pointer = found->least) < 0))
     {
         memor.cpy(&(MemoriaCfg){.dst = found->least,
                                 .src = path,
@@ -97,47 +108,51 @@ static void cli_description_each(void *context, const char *name, int is_folder)
     }
 }
 
-int cli_devcontainer_find(const char *root, char *file)
+int cli_devcontainer_find(const CliDevcontainerCfg *args)
 {
     static const char *const s_named[2] = {"/.devcontainer/devcontainer.json", "/.devcontainer.json"};
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
-        VerbaLinea line = {file, CLI_PATH_MAX_LEN, 0ull};
-        mmgr_line_put(&line, root);
+        VerbaLinea line = {args->file, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, args->root);
         mmgr_line_put(&line, s_named[at]);
-        if ((mmgr_line_finish(&line) != 0ull) && query_is_file(file))
+        if ((mmgr_line_finish(&line) != 0ull) &&
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->file))
         {
             return 1;
         }
     }
     static CliDescriptionFound s_found;
-    VerbaLinea line = {file, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, root);
+    VerbaLinea line = {args->file, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/.devcontainer");
     if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
-    s_found.folder = file;
+    s_found.folder = args->file;
     s_found.found = 0;
-    query_folder_each(file, cli_description_each, &s_found);
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->file,
+               .each = cli_description_each, .context_bytess = &s_found);
     if (s_found.found)
     {
         memor.cpy(
-            &(MemoriaCfg){.dst = file,
+            &(MemoriaCfg){.dst = args->file,
                           .src = s_found.least,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.least, .cap = CLI_CELLS_POOL}) + 1u});
     }
     return s_found.found;
 }
 
-void cli_devcontainer_name(const char *root, char *name)
+void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args)
 {
     // the tree's folder: its path's last part, the separators after it left off
-    const char *end = root + cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
-    end = root + cli_text_back_past(root, (unsigned long long)(end - root), "/\\");
+    const char *end = args->root + cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    end = args->root + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->root,
+                                  .at = (unsigned long long)(end - args->root), .set = "/\\");
     const char *base = end;
-    base = root + cli_text_back_any(root, (unsigned long long)(base - root), "/\\");
+    base = args->root + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->root,
+                                   .at = (unsigned long long)(base - args->root), .set = "/\\");
     base += ((base < end) && (base[0] != '\0') && (end - base == 2) && (base[1] == ':')) ? 2 : 0;
     // each letter in lower case, retained where docker takes it in a name and a '-' where not, one for each letter past
     // ASCII; the '-' at each end left off
@@ -157,15 +172,17 @@ void cli_devcontainer_name(const char *root, char *name)
         length += 1ull;
     }
     unsigned long long from = 0ull;
-    from = cli_text_past_any(docker_name, from, length, "-");
-    length = (from + cli_text_back_past(docker_name + from, length - from, "-"));
+    from = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = docker_name, .at = from,
+                      .size = length, .set = "-");
+    length = (from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = docker_name + from,
+                                .at = length - from, .set = "-"));
     // FNV-1a over the path's bytes: a name the same tree is given again from one run to the next
     unsigned long long hash = 0xcbf29ce484222325ull;
-    for (const char *at = root; at[0] != '\0'; at += 1)
+    for (const char *at = args->root; at[0] != '\0'; at += 1)
     {
         hash = (hash ^ (unsigned char)at[0]) * 0x100000001b3ull;
     }
-    VerbaLinea line = {name, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->name, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, "orior-");
     mmgr_line_put_n(&line, docker_name + from, length - from);
     mmgr_line_ch(&line, '-');
@@ -173,7 +190,7 @@ void cli_devcontainer_name(const char *root, char *name)
     mmgr_line_finish(&line);
 }
 
-const char *cli_plan_text(const CliPlan *plan, unsigned int at)
+const char *cli_plan_text(const CliDevcontainerPlanAtCfg *args)
 {
-    return plan->text + at;
+    return args->plan->text + args->at;
 }

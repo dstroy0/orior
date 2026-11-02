@@ -5,16 +5,40 @@
 #include "../text/regexp.h"
 #include "structure_internal.h"
 
-// the letter of UTF-8 at `at` before `end`, its bytes into `bytes`: a byte that starts no letter is U+FFFD, one byte
-static unsigned int cli_letter(const char *at, const char *end, unsigned int *bytes)
+typedef struct
 {
-    const unsigned char lead = (unsigned char)at[0];
+    const char *at;
+    const char *end;
+    unsigned int *bytes;
+    unsigned int letter;
+    const unsigned int *a;
+    int n;
+    const unsigned int *b;
+    int m;
+    CliStep *steps;
+    unsigned int room;
+    const CliSide *one;
+    unsigned int at_u32;
+    const CliSide *other;
+    unsigned int other_at;
+    unsigned int line;
+    unsigned int other_line;
+    CliSide *side;
+    unsigned int *names;
+    unsigned int *line_names;
+} StructureCtx;
+
+// the letter of UTF-8 at `at` before `end`, its bytes into `bytes`: a byte that starts no letter is U+FFFD, one byte
+EMBED_INLINE unsigned int cli_letter(const StructureCtx *args)
+{
+    unsigned int *bytes = args->bytes;
+    const unsigned char lead = (unsigned char)args->at[0];
     const unsigned int length = (lead < 0x80u)          ? 1u
                                 : ((lead >> 5u) == 6u)  ? 2u
                                 : ((lead >> 4u) == 14u) ? 3u
                                 : ((lead >> 3u) == 30u) ? 4u
                                                         : 0u;
-    if ((length == 0u) || ((unsigned long long)(end - at) < length))
+    if ((length == 0u) || ((unsigned long long)(args->end - args->at) < length))
     {
         *bytes = 1u;
         return (length == 1u) ? lead : 0xfffdu;
@@ -23,7 +47,7 @@ static unsigned int cli_letter(const char *at, const char *end, unsigned int *by
     unsigned int letter = lead & s_lead_bits[length];
     for (unsigned int step = 1u; step < length; step += 1u)
     {
-        const unsigned char next = (unsigned char)at[step];
+        const unsigned char next = (unsigned char)args->at[step];
         if ((next >> 6u) != 2u)
         {
             *bytes = 1u;
@@ -36,26 +60,34 @@ static unsigned int cli_letter(const char *at, const char *end, unsigned int *by
 }
 
 // how many UTF-16 units a letter takes
-static unsigned int cli_units(unsigned int letter)
+EMBED_INLINE unsigned int cli_units(const StructureCtx *args)
 {
-    return (letter >= 0x10000u) ? 2u : 1u;
+    return (args->letter >= 0x10000u) ? 2u : 1u;
 }
 
-static int cli_is_whitespace(unsigned int letter)
+EMBED_INLINE int cli_is_whitespace(const StructureCtx *args)
 {
-    return ((letter >= 0x09u) && (letter <= 0x0du)) || (letter == 0x20u) || (letter == 0x85u) || (letter == 0xa0u) ||
-           (letter == 0x1680u) || ((letter >= 0x2000u) && (letter <= 0x200au)) || (letter == 0x2028u) ||
-           (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u);
+    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
+           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
+           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
+           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
+           (args->letter == 0x3000u);
 }
 
-static int cli_starts_name_letter(unsigned int letter)
+EMBED_INLINE int cli_starts_name_letter(const StructureCtx *args)
 {
-    return cli_regexp_property(CLI_REGEXP_LETTER, letter) || (letter == '_') || (letter == '$');
+    unsigned int letter = args->letter;
+    return EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER,
+                      .letter = letter) ||
+           (letter == '_') || (letter == '$');
 }
 
-static int cli_alphanumeric(unsigned int letter)
+EMBED_INLINE int cli_alphanumeric(const StructureCtx *args)
 {
-    return cli_regexp_property(CLI_REGEXP_LETTER, letter) || cli_regexp_property(CLI_REGEXP_NUMBER, letter);
+    unsigned int letter = args->letter;
+    return EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER,
+                      .letter = letter) ||
+           EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .letter = letter);
 }
 
 // what a token continues taking after its first letter: a name's letters, a number's, or a string's to its closing
@@ -68,66 +100,69 @@ enum
     CLI_TAKE_SIGN
 };
 
-int cli_structure_lex(const char *text, unsigned long long size, CliSide *side)
+int cli_structure_lex(const CliStructureTextCtx *args)
 {
-    const char *const end = text + size;
+    const char *text = args->text;
+    const char *const end = text + args->size;
     const char *at = text;
     unsigned int line = 0u;
     unsigned int column = 0u;
-    side->text = text;
-    side->tokens = 0u;
-    side->lines = 1u;
-    side->line_first[0] = 0u;
+    args->side->text = text;
+    args->side->tokens = 0u;
+    args->side->lines = 1u;
+    args->side->line_first[0] = 0u;
     while (at < end)
     {
         unsigned int bytes = 0u;
-        const unsigned int letter = cli_letter(at, end, &bytes);
+        const unsigned int letter = EMBED_CALL(cli_letter, StructureCtx, .at = at, .end = end, .bytes = &bytes);
         if (letter == '\n')
         {
             line += 1u;
             column = 0u;
-            if (side->lines >= CLI_STRUCTURE_LINES)
+            if (args->side->lines >= CLI_STRUCTURE_LINES)
             {
                 return 0;
             }
-            side->line_first[side->lines] = side->tokens;
-            side->lines += 1u;
+            args->side->line_first[args->side->lines] = args->side->tokens;
+            args->side->lines += 1u;
             at += bytes;
             continue;
         }
-        if (cli_is_whitespace(letter))
+        if (EMBED_CALL(cli_is_whitespace, StructureCtx, .letter = letter))
         {
-            column += cli_units(letter);
+            column += EMBED_CALL(cli_units, StructureCtx, .letter = letter);
             at += bytes;
             continue;
         }
-        if (side->tokens >= CLI_STRUCTURE_TOKENS)
+        if (args->side->tokens >= CLI_STRUCTURE_TOKENS)
         {
             return 0;
         }
         const unsigned int from = column;
         // a place in the text below what a side contains, which an unsigned int counts
         const unsigned int start = (unsigned int)(at - text);
-        column += cli_units(letter);
+        column += EMBED_CALL(cli_units, StructureCtx, .letter = letter);
         at += bytes;
-        const unsigned int take = cli_starts_name_letter(letter)                             ? CLI_TAKE_NAME
-                                  : ((letter >= '0') && (letter <= '9'))                     ? CLI_TAKE_NUMBER
-                                  : ((letter == '"') || (letter == '\'') || (letter == '`')) ? CLI_TAKE_STRING
-                                                                                             : CLI_TAKE_SIGN;
+        const unsigned int take = EMBED_CALL(cli_starts_name_letter, StructureCtx, .letter = letter) ? CLI_TAKE_NAME
+                                  : ((letter >= '0') && (letter <= '9'))                             ? CLI_TAKE_NUMBER
+                                  : ((letter == '"') || (letter == '\'') || (letter == '`'))         ? CLI_TAKE_STRING
+                                                                                                     : CLI_TAKE_SIGN;
         int escaped = 0;
         int closed = 0;
         while ((take != CLI_TAKE_SIGN) && (at < end))
         {
             unsigned int next_bytes = 0u;
-            const unsigned int next = cli_letter(at, end, &next_bytes);
+            const unsigned int next = EMBED_CALL(cli_letter, StructureCtx, .at = at, .end = end, .bytes = &next_bytes);
             int continues = next != '\n';
             if (continues && (take == CLI_TAKE_NAME))
             {
-                continues = cli_alphanumeric(next) || (next == '_') || (next == '$');
+                continues =
+                    EMBED_CALL(cli_alphanumeric, StructureCtx, .letter = next) || (next == '_') || (next == '$');
             }
             else if (continues && (take == CLI_TAKE_NUMBER))
             {
-                continues = cli_alphanumeric(next) || (next == '.') || (next == '_');
+                continues =
+                    EMBED_CALL(cli_alphanumeric, StructureCtx, .letter = next) || (next == '.') || (next == '_');
             }
             else if (continues)
             {
@@ -139,25 +174,24 @@ int cli_structure_lex(const char *text, unsigned long long size, CliSide *side)
             {
                 break;
             }
-            column += cli_units(next);
+            column += EMBED_CALL(cli_units, StructureCtx, .letter = next);
             at += next_bytes;
         }
         // as above, a place in the text a side contains
         const CliToken token = {line, from, column, start, (unsigned int)(at - text)};
-        side->token[side->tokens] = token;
-        side->tokens += 1u;
+        args->side->token[args->side->tokens] = token;
+        args->side->tokens += 1u;
     }
-    side->line_first[side->lines] = side->tokens;
+    args->side->line_first[args->side->lines] = args->side->tokens;
     return 1;
 }
 
 // Myers' shortest edit. It stores one band of its frontier for each edit, and what it stores grows with the edits and
 // not with the sequences, in the compare's room
 
-static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *b, int m, CliStep *steps,
-                              unsigned int room)
+EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
 {
-    const int most = ((n + m) < (int)CLI_MOST_EDITS) ? (n + m) : (int)CLI_MOST_EDITS;
+    const int most = ((args->n + args->m) < (int)CLI_MOST_EDITS) ? (args->n + args->m) : (int)CLI_MOST_EDITS;
     const int middle = most + 1;
     memor.set(&(MemoriaCfg){.dst = g_cli_structure->frontier,
                             .val = 0,
@@ -176,13 +210,13 @@ static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *
                         ? g_cli_structure->frontier[at + 1]
                         : (g_cli_structure->frontier[at - 1] + 1);
             int y = x - k;
-            while ((x < n) && (y < m) && (a[x] == b[y]))
+            while ((x < args->n) && (y < args->m) && (args->a[x] == args->b[y]))
             {
                 x += 1;
                 y += 1;
             }
             g_cli_structure->frontier[at] = x;
-            if ((x >= n) && (y >= m))
+            if ((x >= args->n) && (y >= args->m))
             {
                 found = d;
             }
@@ -194,8 +228,8 @@ static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *
     }
     // the steps taken backward from the end, then turned about
     unsigned int count = 0u;
-    int x = n;
-    int y = m;
+    int x = args->n;
+    int y = args->m;
     for (int d = found; d >= 1; d -= 1)
     {
         const int *const before = g_cli_structure->trace + (d * d);
@@ -204,16 +238,16 @@ static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *
         const int back_k = down ? (k + 1) : (k - 1);
         const int back_x = before[back_k + d];
         const int back_y = back_x - back_k;
-        while ((x > back_x) && (y > back_y) && (count < room))
+        while ((x > back_x) && (y > back_y) && (count < args->room))
         {
             x -= 1;
             y -= 1;
             // the places are inside the sequences, which an unsigned int counts
             const CliStep step = {CLI_STEP_EQUAL, (unsigned int)x, (unsigned int)y};
-            steps[count] = step;
+            args->steps[count] = step;
             count += 1u;
         }
-        if (count >= room)
+        if (count >= args->room)
         {
             return CLI_STRUCTURE_NONE;
         }
@@ -221,47 +255,47 @@ static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *
         {
             y -= 1;
             const CliStep step = {CLI_STEP_IN, 0u, (unsigned int)y};
-            steps[count] = step;
+            args->steps[count] = step;
         }
         else
         {
             x -= 1;
             const CliStep step = {CLI_STEP_OUT, (unsigned int)x, 0u};
-            steps[count] = step;
+            args->steps[count] = step;
         }
         count += 1u;
     }
-    while ((x > 0) && (y > 0) && (count < room))
+    while ((x > 0) && (y > 0) && (count < args->room))
     {
         x -= 1;
         y -= 1;
         const CliStep step = {CLI_STEP_EQUAL, (unsigned int)x, (unsigned int)y};
-        steps[count] = step;
+        args->steps[count] = step;
         count += 1u;
     }
     for (unsigned int low = 0u; (count != 0u) && (low < (count - 1u - low)); low += 1u)
     {
-        const CliStep pivot = steps[low];
-        steps[low] = steps[count - 1u - low];
-        steps[count - 1u - low] = pivot;
+        const CliStep pivot = args->steps[low];
+        args->steps[low] = args->steps[count - 1u - low];
+        args->steps[count - 1u - low] = pivot;
     }
     return count;
 }
 
-unsigned int cli_structure_shortest(const unsigned int *a, unsigned int n, const unsigned int *b, unsigned int m,
-                                    CliStep *steps, unsigned int room)
+unsigned int cli_structure_shortest(const CliStructureACtx *args)
 {
     unsigned int head = 0u;
-    while ((head < n) && (head < m) && (a[head] == b[head]))
+    while ((head < args->n) && (head < args->m) && (args->a[head] == args->b[head]))
     {
         head += 1u;
     }
     unsigned int tail = 0u;
-    while (((head + tail) < n) && ((head + tail) < m) && (a[n - 1u - tail] == b[m - 1u - tail]))
+    while (((head + tail) < args->n) && ((head + tail) < args->m) &&
+           (args->a[args->n - 1u - tail] == args->b[args->m - 1u - tail]))
     {
         tail += 1u;
     }
-    if ((n + m) > room)
+    if ((args->n + args->m) > args->room)
     {
         return CLI_STRUCTURE_NONE;
     }
@@ -269,53 +303,56 @@ unsigned int cli_structure_shortest(const unsigned int *a, unsigned int n, const
     for (unsigned int at = 0u; at < head; at += 1u)
     {
         const CliStep step = {CLI_STEP_EQUAL, at, at};
-        steps[count] = step;
+        args->steps[count] = step;
         count += 1u;
     }
     // the sequences are below what a side contains, which an int counts
     const unsigned int core =
-        cli_myers(a + head, (int)(n - head - tail), b + head, (int)(m - head - tail), steps + count, room - count);
+        EMBED_CALL(cli_myers, StructureCtx, .a = args->a + head, .n = (int)(args->n - head - tail), .b = args->b + head,
+                   .m = (int)(args->m - head - tail), .steps = args->steps + count, .room = args->room - count);
     if (core == CLI_STRUCTURE_NONE)
     {
         return core;
     }
     for (unsigned int at = count; at < (count + core); at += 1u)
     {
-        steps[at].x += head;
-        steps[at].y += head;
+        args->steps[at].x += head;
+        args->steps[at].y += head;
     }
     count += core;
     for (unsigned int back = 0u; back < tail; back += 1u)
     {
-        const CliStep step = {CLI_STEP_EQUAL, n - tail + back, m - tail + back};
-        steps[count] = step;
+        const CliStep step = {CLI_STEP_EQUAL, args->n - tail + back, args->m - tail + back};
+        args->steps[count] = step;
         count += 1u;
     }
     return count;
 }
 
 // whether two tokens' texts are the same
-static int cli_token_same(const CliSide *one, unsigned int at, const CliSide *other, unsigned int other_at)
+EMBED_INLINE int cli_token_same(const StructureCtx *args)
 {
-    const CliToken *const left = &one->token[at];
-    const CliToken *const right = &other->token[other_at];
+    const CliSide *other = args->other;
+    const CliToken *const left = &args->one->token[args->at_u32];
+    const CliToken *const right = &other->token[args->other_at];
     return ((left->end - left->start) == (right->end - right->start)) &&
-           (memor.cmp(&(MemoriaCfg){.src = one->text + left->start,
+           (memor.cmp(&(MemoriaCfg){.src = args->one->text + left->start,
                                     .other = other->text + right->start,
                                     .bytes = left->end - left->start}) == 0);
 }
 
 // whether two lines contain tokens of the same texts, one for one
-static int cli_line_same(const CliSide *one, unsigned int line, const CliSide *other, unsigned int other_line)
+EMBED_INLINE int cli_line_same(const StructureCtx *args)
 {
-    const unsigned int count = one->line_first[line + 1u] - one->line_first[line];
-    if ((other->line_first[other_line + 1u] - other->line_first[other_line]) != count)
+    const unsigned int count = args->one->line_first[args->line + 1u] - args->one->line_first[args->line];
+    if ((args->other->line_first[args->other_line + 1u] - args->other->line_first[args->other_line]) != count)
     {
         return 0;
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (one->token_name[one->line_first[line] + at] != other->token_name[other->line_first[other_line] + at])
+        if (args->one->token_name[args->one->line_first[args->line] + at] !=
+            args->other->token_name[args->other->line_first[args->other_line] + at])
         {
             return 0;
         }
@@ -324,20 +361,22 @@ static int cli_line_same(const CliSide *one, unsigned int line, const CliSide *o
 }
 
 // a side's tokens, then its lines, each given the number of its text, a new one where the text is new
-static int cli_side_named(CliSide *side, unsigned int *names, unsigned int *line_names)
+static int cli_side_by_name(const StructureCtx *args)
 {
-    for (unsigned int at = 0u; at < side->tokens; at += 1u)
+    unsigned int *names = args->names;
+    unsigned int *line_names = args->line_names;
+    for (unsigned int at = 0u; at < args->side->tokens; at += 1u)
     {
-        const CliToken *const token = &side->token[at];
+        const CliToken *const token = &args->side->token[at];
         unsigned long long hash = 0xcbf29ce484222325ull;
         for (unsigned int byte = token->start; byte < token->end; byte += 1u)
         {
-            hash = (hash ^ (unsigned char)side->text[byte]) * 0x100000001b3ull;
+            hash = (hash ^ (unsigned char)args->side->text[byte]) * 0x100000001b3ull;
         }
         unsigned long long bucket = hash & (CLI_STRUCTURE_NAMES - 1u);
         while ((g_cli_structure->token_names[bucket].name != 0u) &&
-               !cli_token_same(g_cli_structure->token_names[bucket].side, g_cli_structure->token_names[bucket].at, side,
-                               at))
+               !EMBED_CALL(cli_token_same, StructureCtx, .one = g_cli_structure->token_names[bucket].side,
+                           .at_u32 = g_cli_structure->token_names[bucket].at, .other = args->side, .other_at = at))
         {
             bucket = (bucket + 1u) & (CLI_STRUCTURE_NAMES - 1u);
         }
@@ -348,22 +387,22 @@ static int cli_side_named(CliSide *side, unsigned int *names, unsigned int *line
                 return 0;
             }
             *names += 1u;
-            const CliNameBucket made = {side, at, *names};
+            const CliNameBucket made = {args->side, at, *names};
             g_cli_structure->token_names[bucket] = made;
         }
-        side->token_name[at] = g_cli_structure->token_names[bucket].name;
+        args->side->token_name[at] = g_cli_structure->token_names[bucket].name;
     }
-    for (unsigned int line = 0u; line < side->lines; line += 1u)
+    for (unsigned int line = 0u; line < args->side->lines; line += 1u)
     {
         unsigned long long hash = 0xcbf29ce484222325ull;
-        for (unsigned int at = side->line_first[line]; at < side->line_first[line + 1u]; at += 1u)
+        for (unsigned int at = args->side->line_first[line]; at < args->side->line_first[line + 1u]; at += 1u)
         {
-            hash = (hash ^ side->token_name[at]) * 0x100000001b3ull;
+            hash = (hash ^ args->side->token_name[at]) * 0x100000001b3ull;
         }
         unsigned long long bucket = hash & (CLI_STRUCTURE_NAMES - 1u);
         while ((g_cli_structure->line_names[bucket].name != 0u) &&
-               !cli_line_same(g_cli_structure->line_names[bucket].side, g_cli_structure->line_names[bucket].at, side,
-                              line))
+               !EMBED_CALL(cli_line_same, StructureCtx, .one = g_cli_structure->line_names[bucket].side,
+                           .line = g_cli_structure->line_names[bucket].at, .other = args->side, .other_line = line))
         {
             bucket = (bucket + 1u) & (CLI_STRUCTURE_NAMES - 1u);
         }
@@ -374,15 +413,15 @@ static int cli_side_named(CliSide *side, unsigned int *names, unsigned int *line
                 return 0;
             }
             *line_names += 1u;
-            const CliNameBucket made = {side, line, *line_names};
+            const CliNameBucket made = {args->side, line, *line_names};
             g_cli_structure->line_names[bucket] = made;
         }
-        side->line_name[line] = g_cli_structure->line_names[bucket].name;
+        args->side->line_name[line] = g_cli_structure->line_names[bucket].name;
     }
     return 1;
 }
 
-int cli_structure_named(CliSide *old, CliSide *now)
+int cli_structure_by_name(const CliStructureOldCtx *args)
 {
     memor.set(
         &(MemoriaCfg){.dst = g_cli_structure->token_names, .val = 0, .bytes = sizeof(g_cli_structure->token_names)});
@@ -390,12 +429,16 @@ int cli_structure_named(CliSide *old, CliSide *now)
         &(MemoriaCfg){.dst = g_cli_structure->line_names, .val = 0, .bytes = sizeof(g_cli_structure->line_names)});
     unsigned int names = 0u;
     unsigned int line_names = 0u;
-    return cli_side_named(old, &names, &line_names) && cli_side_named(now, &names, &line_names);
+    return EMBED_CALL(cli_side_by_name, StructureCtx, .side = args->old, .names = &names, .line_names = &line_names) &&
+           EMBED_CALL(cli_side_by_name, StructureCtx, .side = args->now, .names = &names, .line_names = &line_names);
 }
 
-int cli_structure_starts_name(const CliSide *side, unsigned int token)
+int cli_structure_starts_name(const CliStructureSideCtx *args)
 {
-    const char *const at = side->text + side->token[token].start;
+    const char *const at = args->side_read->text + args->side_read->token[args->token].start;
     unsigned int bytes = 0u;
-    return cli_starts_name_letter(cli_letter(at, side->text + side->token[token].end, &bytes));
+    return EMBED_CALL(cli_starts_name_letter, StructureCtx,
+                      .letter = EMBED_CALL(cli_letter, StructureCtx, .at = at,
+                                           .end = args->side_read->text + args->side_read->token[args->token].end,
+                                           .bytes = &bytes));
 }

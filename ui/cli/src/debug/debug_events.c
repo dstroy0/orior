@@ -3,87 +3,123 @@
 // debug_events.c: an adapter's events as a session receives them: its readiness, the process it debugs, a stop, which
 // ends a step across, and a stop at a breakpoint the reader did not place reported as the stop of a data breakpoint,
 // which it is; then each event handed on with the session's number
+#include "../command_line/callback_cfg.h"
 #include "debug_internal.h"
 
 // the breakpoints a step across set on the native session taken away, on a thread of their own
-static void step_across_cleared(void *context)
+static void step_across_clear(void *context)
 {
     CliDebugSession *const session = (CliDebugSession *)context;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliDebugSession *const native = cli_debug_taken(session->cleared, &err_msg);
+    CliDebugSession *const native = EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx,
+                                               .id = session->cleared, .err_msg = &err_msg);
     if (native != NULL)
     {
-        CliDebugAnswer *const answer = cli_debug_answer_taken();
+        CliDebugAnswer *const answer = cli_debug_answer_take();
         mmgr_line_put(&answer->args,
                       "{\"expression\":\"`breakpoint delete --force " CLI_DEBUG_ACROSS "\",\"context\":\"repl\"}");
-        (void)cli_debug_request(native, "evaluate", answer, CLI_DEBUG_REQUEST_TIMEOUT_MS, &err_msg);
-        cli_debug_answer_given(answer);
-        cli_debug_let_go(native);
+        (void)EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = native,
+                         .command = "evaluate", .answer = answer, .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS,
+                         .err_msg = &err_msg);
+        EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
+        EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = native);
     }
-    cli_lock_take(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     session->clearing = 0;
     session->users -= 1u;
     if (!session->listed && session->adapter_ended && (session->users == 0u))
     {
-        cli_debug_place_freed(session);
+        EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = session);
     }
-    cli_lock_give(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
 }
 
+typedef struct
+{
+    CliDebugSession *session;
+    CliJson *json;
+    unsigned int root;
+    VerbaLinea *out;
+    const char *body;
+    unsigned long long size;
+} DebugEventsCtx;
 // a stop read into `json` at `root` reported as a data breakpoint's where the session's data breakpoints are lldb's
 // watchpoints and the stop is at a breakpoint none of whose numbers the reader placed: 1 with it written into `out`,
 // or 0 where it is reported as it came
-static int stop_rewritten(CliDebugSession *session, CliJson *json, unsigned int root, VerbaLinea *out)
+EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
 {
-    const char *const reason = cli_json_string(json, cli_json_member(json, root, "reason"), NULL);
-    cli_lock_take(&g_cli_debug.lock);
-    const int watching = session->watching;
-    cli_lock_give(&g_cli_debug.lock);
-    if ((root == CLI_JSON_NONE) || (reason == NULL) ||
+    CliJson *json = args->json;
+    VerbaLinea *out = args->out;
+    const char *const reason =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->root, .name = "reason"),
+                   .length_pointer = NULL);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
+    const int watching = args->session->watching;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
+    if ((args->root == CLI_JSON_NONE) || (reason == NULL) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "breakpoint", .cap = CLI_CELLS_POOL})) || !watching)
     {
         return 0;
     }
-    const unsigned int hit = cli_json_member(json, root, "hitBreakpointIds");
+    const unsigned int hit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = args->root, .name = "hitBreakpointIds");
     int any = 0;
     int placed = 0;
-    cli_lock_take(&g_cli_debug.lock);
-    for (unsigned int at = 0u; cli_json_item(json, hit, at) != CLI_JSON_NONE; at += 1u)
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = hit, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
         long long number = 0ll;
-        if (!cli_debug_signed(json, cli_json_item(json, hit, at), &number))
+        if (!EMBED_CALL(cli_debug_json_node_internal.debug_sign, CliDebugJsonNodeCtx, .json = json,
+                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                           .json_read = json, .array = hit, .index = at),
+                        .value = &number))
         {
             continue;
         }
         any = 1;
-        for (unsigned int one = 0u; one < session->placed_count; one += 1u)
+        for (unsigned int one = 0u; one < args->session->placed_count; one += 1u)
         {
-            placed = placed || (session->placed[one] == number);
+            placed = placed || (args->session->placed[one] == number);
         }
     }
-    cli_lock_give(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     if (!any || placed)
     {
         return 0;
     }
-    cli_json_set(json, root, "reason", cli_json_string_made(json, "data breakpoint", 15ull));
-    cli_json_set(json, root, "description", cli_json_string_made(json, "data changed", 12ull));
-    cli_json_write(json, root, out, 0u, 0);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = args->root,
+               .name = "reason",
+               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                   .json = json, .text = "data breakpoint", .length = 15ull));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = args->root,
+               .name = "description",
+               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                   .json = json, .text = "data changed", .length = 12ull));
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = args->root,
+               .out = out, .indent = 0u, .sorted = 0);
     return !json->full && mmgr_line_ok(out);
 }
 
 // a stop's body reported as a data breakpoint's, as stop_rewritten reports it, the body read into a tree taken to its
 // size and given back: 1 with the body written into `out`, or 0 where it is reported as it came
-static int data_stop_rewritten(CliDebugSession *session, const char *body, unsigned long long size, VerbaLinea *out)
+EMBED_INLINE int data_stop_rewritten(const DebugEventsCtx *args)
 {
+    unsigned long long size = args->size;
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, body, size, CLI_DEBUG_EVENT_MORE_NODES, CLI_DEBUG_EVENT_MORE_TEXT,
-                                             &err_msg, &g_cli_debug_cells);
-    const int written = stop_rewritten(session, &json, root, out);
-    cli_json_given(&json);
+    const unsigned int root =
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                   .text = args->body, .size = size, .nodes_more = CLI_DEBUG_EVENT_MORE_NODES,
+                   .text_more = CLI_DEBUG_EVENT_MORE_TEXT, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
+    const int written = EMBED_CALL(stop_rewritten, DebugEventsCtx, .session = args->session, .json = &json,
+                                   .root = root, .out = args->out);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     return written;
 }
 
@@ -92,10 +128,10 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     CliDebugSession *const session = (CliDebugSession *)context;
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "initialized", .cap = CLI_CELLS_POOL}))
     {
-        cli_lock_take(&g_cli_debug.lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         session->initialized = 1;
-        cli_wake_all(&g_cli_debug.wake);
-        cli_lock_give(&g_cli_debug.lock);
+        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_debug.wake);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "process", .cap = CLI_CELLS_POOL}))
     {
@@ -103,19 +139,25 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         unsigned long long pid = 0ull;
-        const unsigned int root = cli_json_taken(&json, body, size, 0u, 0ull, &err_msg, &g_cli_debug_cells);
-        if (cli_debug_unsigned(&json, cli_json_member(&json, root, "systemProcessId"), &pid))
+        const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+                                             .json = &json, .text = body, .size = size, .nodes_more = 0u,
+                                             .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
+        if (EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
+                       .json = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = root, .name = "systemProcessId"),
+                       .value_u64s = &pid))
         {
-            cli_lock_take(&g_cli_debug.lock);
+            EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
             session->pid = pid;
-            cli_lock_give(&g_cli_debug.lock);
+            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
         }
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL}))
     {
         // a stop ends a step across, and its breakpoints go
-        cli_lock_take(&g_cli_debug.lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         const int clears = session->has_across && !session->clearing;
         if (clears)
         {
@@ -123,12 +165,12 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
             session->cleared = session->across;
             session->clearing = 1;
             session->users += 1u;
-            session->clearer = (CliThread){step_across_cleared, session};
+            session->clearer = (CliThread){step_across_clear, session};
         }
-        cli_lock_give(&g_cli_debug.lock);
-        if (clears && !cli_thread_started(&session->clearer))
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
+        if (clears && !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &session->clearer))
         {
-            step_across_cleared(session);
+            step_across_clear(session);
         }
     }
     // a stop rewritten is the body with two members written again, in a cell of the body's size and some over
@@ -136,19 +178,21 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     const unsigned long long rewritten_room = stopped ? (size + CLI_DEBUG_EVENT_MORE_TEXT) : 0ull;
     char *const rewritten_cell = stopped ? g_cli_cells->temporary_buf_alloc(rewritten_room, &g_cli_debug_cells) : NULL;
     VerbaLinea rewritten_body = mmgr_line_over(rewritten_cell, rewritten_room);
-    const int rewritten = stopped && data_stop_rewritten(session, body, size, &rewritten_body);
-    session->sink.emit(session->sink.context, session->info.id, event, rewritten ? rewritten_body.out : body,
-                       rewritten ? rewritten_body.at : size);
+    const int rewritten = stopped && EMBED_CALL(data_stop_rewritten, DebugEventsCtx, .session = session, .body = body,
+                                                .size = size, .out = &rewritten_body);
+    EMBED_CALL(session->sink.emit, CliDebugEventCfg, .context = session->sink.context, .session = session->info.id,
+               .event = event, .body = rewritten ? rewritten_body.out : body,
+               .size = rewritten ? rewritten_body.at : size);
     g_cli_cells->persistent_buf_release(rewritten_body.out, &g_cli_debug_cells);
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_CELLS_POOL}))
     {
         // the adapter's last event: its place may be freed once nothing else uses it
-        cli_lock_take(&g_cli_debug.lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         session->adapter_ended = 1;
         if (!session->listed && (session->users == 0u))
         {
-            cli_debug_place_freed(session);
+            EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = session);
         }
-        cli_lock_give(&g_cli_debug.lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     }
 }

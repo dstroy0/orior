@@ -2,32 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pages_edit.c: a paged text's edits written over its pieces, its lines written since the file was read, its matches,
 // and the text saved to its file
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "files.h"
 #include "pages_internal.h"
-
-// the most bytes of an edit's lines, the most bytes of the matches find writes, and the bytes a reading's cell takes
-// for an edit, find and a save
-#define CLI_PAGE_EDIT (1u << 25u)
-#define CLI_PAGE_FOUND (1u << 24u)
-// the bytes a save stages before each write to the file beside the text
-#define CLI_PAGE_SAVE_STAGE (1ull << 20u)
-
-// the stage's bytes appended to the file at `beside` and the stage emptied: 1, or 0 with why given where the stage
-// overflowed or the write failed
-static int save_staged(const char *beside, VerbaLinea *block, VerbaLinea *err_msg)
-{
-    const int written = mmgr_line_ok(block) && cli_file_appended(beside, block->out, block->at, 0);
-    if (!written)
-    {
-        mmgr_line_put(err_msg, beside);
-        mmgr_line_put(err_msg, mmgr_line_ok(block) ? ": the stage could not be written to it"
-                                                   : ": the stage a save writes through overflowed");
-    }
-    block->at = 0ull;
-    return written;
-}
 
 // The pieces a replace retains as it builds them: a cell of `most`, the text's pieces and the two a cut piece's parts
 // about the lines written add
@@ -37,83 +16,143 @@ typedef struct
     unsigned int most;
     unsigned int count;
 } CliPagePieces;
+// the most bytes of an edit's lines, the most bytes of the matches find writes, and the bytes a reading's cell takes
+// for an edit, find and a save
+#define CLI_PAGE_EDIT (1u << 25u)
+#define CLI_PAGE_FOUND (1u << 24u)
+// the bytes a save stages before each write to the file beside the text
+#define CLI_PAGE_SAVE_STAGE (1ull << 20u)
+
+typedef struct
+{
+    const char *beside;
+    VerbaLinea *block;
+    VerbaLinea *err_msg;
+    CliPagePieces *pieces;
+    CliPagePiece piece;
+    const CliPaged *one_read;
+    const CliPagePiece *piece_pointer;
+    unsigned long long a;
+    unsigned long long b;
+    unsigned long long count;
+    CliPaged *one;
+    unsigned long long from;
+    unsigned long long to;
+    CliPagePiece lines_page_piece;
+    const char *line;
+    unsigned long long length;
+    unsigned long long col;
+    const char *text;
+    unsigned long long size;
+    const CliEdit *edit;
+    CliPageLines *lines_out;
+    const CliPageLines *lines;
+    unsigned char *storage;
+} PagesEditCtx;
+// the stage's bytes appended to the file at `beside` and the stage emptied: 1, or 0 with why given where the stage
+// overflowed or the write failed
+EMBED_INLINE int save_stage(const PagesEditCtx *args)
+{
+    const int written = mmgr_line_ok(args->block) &&
+                        EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->beside,
+                                   .bytes = args->block->out, .size = args->block->at, .fresh = 0);
+    if (!written)
+    {
+        mmgr_line_put(args->err_msg, args->beside);
+        mmgr_line_put(args->err_msg, mmgr_line_ok(args->block) ? ": the stage could not be written to it"
+                                                               : ": the stage a save writes through overflowed");
+    }
+    args->block->at = 0ull;
+    return written;
+}
 
 // a piece put after the pieces retained, one of written lines left out where it contains none
-static void cli_piece_put(CliPagePieces *pieces, CliPagePiece piece)
+EMBED_INLINE void cli_piece_put(const PagesEditCtx *args)
 {
-    if ((piece.written && (piece.lines == 0ull)) || (pieces->count >= pieces->most))
+    if ((args->piece.written && (args->piece.lines == 0ull)) || (args->pieces->count >= args->pieces->most))
     {
         return;
     }
-    pieces->piece[pieces->count] = piece;
-    pieces->count += 1u;
+    args->pieces->piece[args->pieces->count] = args->piece;
+    args->pieces->count += 1u;
 }
 
 // the part of a piece of `one` from `a` to before `b` of its `count` lines
-static CliPagePiece cli_cut(const CliPaged *one, const CliPagePiece *piece, unsigned long long a, unsigned long long b,
-                            unsigned long long count)
+EMBED_INLINE CliPagePiece cli_cut(const PagesEditCtx *args)
 {
+    const CliPaged *one = args->one_read;
+    const CliPagePiece *piece = args->piece_pointer;
     if (piece->written)
     {
-        return (CliPagePiece){1, cli_page_written_at(one, piece, a), cli_page_written_at(one, piece, b), 0, b - a};
+        return (CliPagePiece){1,
+                              EMBED_CALL(cli_pages_piece_internal.page_write_at, CliPagesPieceCtx, .one_read = one,
+                                         .piece = piece, .line = args->a),
+                              EMBED_CALL(cli_pages_piece_internal.page_write_at, CliPagesPieceCtx, .one_read = one,
+                                         .piece = piece, .line = args->b),
+                              0, args->b - args->a};
     }
-    const int open = (b == count) && piece->open;
-    return (CliPagePiece){0, piece->from + a, open ? 0ull : (piece->from + b), open, 0ull};
+    const int open = (args->b == args->count) && piece->open;
+    return (CliPagePiece){0, piece->from + args->a, open ? 0ull : (piece->from + args->b), open, 0ull};
 }
 
 // the written lines `lines` put in place of the text's lines from `from` to before `to`, the pieces built in a cell
 // sized to the text's pieces and the two more a cut adds: 1, or 0 with why given where the cell is refused
-static int cli_replaced(CliPaged *one, unsigned long long from, unsigned long long to, CliPagePiece lines,
-                        VerbaLinea *err_msg)
+EMBED_INLINE int cli_on_replace(const PagesEditCtx *args)
 {
+    CliPaged *one = args->one;
     const unsigned int most = ((one->pieces + 2u) < CLI_PAGE_PIECES) ? (one->pieces + 2u) : CLI_PAGE_PIECES;
     CliPagePieces pieces = {
         g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CliPagePiece), &g_cli_editor_cells), most,
         0u};
     if (pieces.piece == NULL)
     {
-        mmgr_line_put(err_msg, "the pieces a replace retains could not be taken");
+        mmgr_line_put(args->err_msg, "the pieces a replace retains could not be taken");
         return 0;
     }
-    const unsigned long long indexed = cli_page_indexed(one);
+    const unsigned long long indexed = EMBED_CALL(cli_pages_one_internal.page_index, CliPagesOneCtx, .one = one);
     unsigned long long at = 0ull;
     int placed = 0;
     for (unsigned int index = 0u; index < one->pieces; index += 1u)
     {
         const CliPagePiece *const piece = &one->piece[index];
-        const unsigned long long count = cli_page_length(piece, indexed);
+        const unsigned long long count =
+            EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = piece, .indexed = indexed);
         const unsigned long long end = at + count;
-        if ((end <= from) || (at >= to))
+        if ((end <= args->from) || (at >= args->to))
         {
-            if ((at >= to) && !placed)
+            if ((at >= args->to) && !placed)
             {
-                cli_piece_put(&pieces, lines);
+                EMBED_CALL(cli_piece_put, PagesEditCtx, .pieces = &pieces, .piece = args->lines_page_piece);
                 placed = 1;
             }
-            cli_piece_put(&pieces, *piece);
+            EMBED_CALL(cli_piece_put, PagesEditCtx, .pieces = &pieces, .piece = *piece);
         }
         else
         {
             // the piece's part before `from` stays, then the lines written, then its part from `to`
-            if (from > at)
+            if (args->from > at)
             {
-                cli_piece_put(&pieces, cli_cut(one, piece, 0ull, from - at, count));
+                EMBED_CALL(cli_piece_put, PagesEditCtx, .pieces = &pieces,
+                           .piece = EMBED_CALL(cli_cut, PagesEditCtx, .one_read = one, .piece_pointer = piece,
+                                               .a = 0ull, .b = args->from - at, .count = count));
             }
             if (!placed)
             {
-                cli_piece_put(&pieces, lines);
+                EMBED_CALL(cli_piece_put, PagesEditCtx, .pieces = &pieces, .piece = args->lines_page_piece);
                 placed = 1;
             }
-            if (to < end)
+            if (args->to < end)
             {
-                cli_piece_put(&pieces, cli_cut(one, piece, to - at, count, count));
+                EMBED_CALL(cli_piece_put, PagesEditCtx, .pieces = &pieces,
+                           .piece = EMBED_CALL(cli_cut, PagesEditCtx, .one_read = one, .piece_pointer = piece,
+                                               .a = args->to - at, .b = count, .count = count));
             }
         }
         at = end;
     }
     if (!placed)
     {
-        cli_piece_put(&pieces, lines);
+        EMBED_CALL(cli_piece_put, PagesEditCtx, .pieces = &pieces, .piece = args->lines_page_piece);
     }
     memor.cpy(&(MemoriaCfg){.dst = one->piece, .src = pieces.piece, .bytes = pieces.count * sizeof(CliPagePiece)});
     one->pieces = pieces.count;
@@ -122,17 +161,20 @@ static int cli_replaced(CliPaged *one, unsigned long long from, unsigned long lo
 }
 
 // the byte a col counted in UTF-16 units falls at in `length` bytes of `line`, past its end for a col past it
-static unsigned long long cli_byte_at(const char *line, unsigned long long length, unsigned long long col)
+EMBED_INLINE unsigned long long cli_byte_at(const PagesEditCtx *args)
 {
+    unsigned long long length = args->length;
     unsigned long long units = 0ull;
     for (unsigned long long at = 0ull; at < length;)
     {
-        if (units >= col)
+        if (units >= args->col)
         {
             return at;
         }
         unsigned int letter = 0u;
-        at += cli_lossy_letter((const unsigned char *)line, length, at, &letter);
+        at +=
+            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->line, .length = length, .at = at, .letter = &letter);
         units += (letter > 0xffffu) ? 2ull : 1ull;
     }
     return length;
@@ -140,33 +182,41 @@ static unsigned long long cli_byte_at(const char *line, unsigned long long lengt
 
 // `size` bytes of an edit's lines, each ended by "\n", put after the shadow's, the shadow started where it contains
 // none: the piece of them, or one of no lines with why given where the shadow could not be written
-static CliPagePiece cli_written_put(CliPaged *one, const char *text, unsigned long long size, VerbaLinea *err_msg)
+EMBED_INLINE CliPagePiece cli_write_put(const PagesEditCtx *args)
 {
-    const unsigned long long from = one->shadow_used;
-    if (!cli_file_appended(one->shadow, text, size, from == 0ull))
+    unsigned long long size = args->size;
+    const unsigned long long from = args->one->shadow_used;
+    if (!EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->one->shadow,
+                    .bytes = args->text, .size = size, .fresh = from == 0ull))
     {
         // a write cut short leaves the shadow its bytes, and the next lines go after them
-        (void)cli_file_size(one->shadow, &one->shadow_used);
-        mmgr_line_put(err_msg, one->shadow);
-        mmgr_line_put(err_msg, ": it could not be written");
+        (void)EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->one->shadow,
+                         .size_pointer = &args->one->shadow_used);
+        mmgr_line_put(args->err_msg, args->one->shadow);
+        mmgr_line_put(args->err_msg, ": it could not be written");
         return (CliPagePiece){1, from, from, 0, 0ull};
     }
     unsigned long long lines = 0ull;
-    for (const char *at = memor.chr(&(MemoriaCfg){.src = text, .val = '\n', .bytes = size}); at != NULL;
-         at = memor.chr(&(MemoriaCfg){.src = at + 1, .val = '\n', .bytes = size - (unsigned long long)(at + 1 - text)}))
+    for (const char *at = memor.chr(&(MemoriaCfg){.src = args->text, .val = '\n', .bytes = size}); at != NULL;
+         at = memor.chr(
+             &(MemoriaCfg){.src = at + 1, .val = '\n', .bytes = size - (unsigned long long)(at + 1 - args->text)}))
     {
         lines += 1ull;
     }
-    one->shadow_used = from + size;
-    return (CliPagePiece){1, from, one->shadow_used, 0, lines};
+    args->one->shadow_used = from + size;
+    return (CliPagePiece){1, from, args->one->shadow_used, 0, lines};
 }
 
 // one edit written over the text: the lines it reaches read into `lines`, the head of the first and the tail of the
 // last retained about its text in a cell of their size, and those lines put in their place: 1, or 0 with why given
-static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *lines, VerbaLinea *err_msg)
+EMBED_INLINE int cli_edit_write(const PagesEditCtx *args)
 {
-    const unsigned long long reach = edit->to.line + 1ull;
-    if (!cli_page_lines_of(one, edit->from.line, reach, lines, err_msg))
+    CliPaged *one = args->one;
+    CliPageLines *lines = args->lines_out;
+    VerbaLinea *err_msg = args->err_msg;
+    const unsigned long long reach = args->edit->to.line + 1ull;
+    if (!EMBED_CALL(cli_pages_lines_err_msg_internal.page_lines_get, CliPagesLinesErrMsgCtx, .one = one,
+                    .from = args->edit->from.line, .to_value = reach, .lines = lines, .err_msg = err_msg))
     {
         return 0;
     }
@@ -175,21 +225,23 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
         mmgr_line_put(err_msg, "the lines an edit reaches are more than a reading of the text contains");
         return 0;
     }
-    if ((lines->count == 0ull) || (lines->count != (reach - edit->from.line)))
+    if ((lines->count == 0ull) || (lines->count != (reach - args->edit->from.line)))
     {
         mmgr_line_put(err_msg, "an edit reaches past the text, to line ");
-        mmgr_line_decimal(err_msg, edit->to.line, 0u);
+        mmgr_line_decimal(err_msg, args->edit->to.line, 0u);
         return 0;
     }
     const char *const first = lines->text + lines->start[0];
     const unsigned long long first_length = lines->length[0];
     const char *const last = lines->text + lines->start[lines->count - 1ull];
     const unsigned long long last_length = lines->length[lines->count - 1ull];
-    const unsigned long long head = cli_byte_at(first, first_length, edit->from.col);
-    const unsigned long long tail = cli_byte_at(last, last_length, edit->to.col);
+    const unsigned long long head =
+        EMBED_CALL(cli_byte_at, PagesEditCtx, .line = first, .length = first_length, .col = args->edit->from.col);
+    const unsigned long long tail =
+        EMBED_CALL(cli_byte_at, PagesEditCtx, .line = last, .length = last_length, .col = args->edit->to.col);
     // the head, the edit's text, the tail, the newline that ends the last line, and the byte a line reserves back for
     // its terminator
-    const unsigned long long size = head + edit->length + (last_length - tail) + 2ull;
+    const unsigned long long size = head + args->edit->length + (last_length - tail) + 2ull;
     if (size > CLI_PAGE_EDIT)
     {
         mmgr_line_put(err_msg, "the lines written over ");
@@ -205,7 +257,7 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
     }
     VerbaLinea written = {text, size, 0ull};
     mmgr_line_put_n(&written, first, head);
-    mmgr_line_put_n(&written, edit->text, edit->length);
+    mmgr_line_put_n(&written, args->edit->text, args->edit->length);
     mmgr_line_put_n(&written, last + tail, last_length - tail);
     mmgr_line_ch(&written, '\n');
     if (!mmgr_line_ok(&written))
@@ -214,82 +266,89 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
         mmgr_line_put(err_msg, "an edit's lines as written do not fit the cell sized to them");
         return 0;
     }
-    const CliPagePiece put = cli_written_put(one, text, written.at, err_msg);
+    const CliPagePiece put =
+        EMBED_CALL(cli_write_put, PagesEditCtx, .one = one, .text = text, .size = written.at, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(text, &g_cli_editor_cells);
-    return (put.lines != 0ull) && cli_replaced(one, edit->from.line, reach, put, err_msg);
+    return (put.lines != 0ull) && EMBED_CALL(cli_on_replace, PagesEditCtx, .one = one, .from = args->edit->from.line,
+                                             .to = reach, .lines_page_piece = put, .err_msg = err_msg);
 }
 
-int cli_pages_edit(const char *key, const CliEdit *const *changes, const unsigned int *edits, unsigned int count,
-                   VerbaLinea *out, VerbaLinea *err_msg)
+int cli_pages_edit(const CliPagesOutErrMsgCfg *args)
 {
-    cli_lock_take(&g_cli_pages_lock);
-    CliPaged *const one = cli_paged_of(key, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
+    CliPaged *const one =
+        EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = args->err_msg);
     CliPageLines lines = {0};
     int written = one != NULL;
     const int done = written;
-    for (unsigned int change = 0u; written && (change < count); change += 1u)
+    for (unsigned int change = 0u; written && (change < args->count_u32); change += 1u)
     {
-        for (unsigned int at = edits[change]; written && (at > 0u); at -= 1u)
+        for (unsigned int at = args->edits[change]; written && (at > 0u); at -= 1u)
         {
-            written = cli_edit_written(one, &changes[change][at - 1u], &lines, err_msg);
+            written = EMBED_CALL(cli_edit_write, PagesEditCtx, .one = one, .edit = &args->changes[change][at - 1u],
+                                 .lines_out = &lines, .err_msg = args->err_msg);
         }
     }
     if (written)
     {
-        cli_page_shape_written(one, out);
+        EMBED_CALL(cli_pages_one_internal.page_shape_write, CliPagesOneCtx, .one = one, .out = args->out);
     }
     if (done)
     {
-        cli_page_lines_given(&lines);
+        EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     }
-    cli_lock_give(&g_cli_pages_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return written;
 }
 
-int cli_pages_changed(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_pages_change(const CliPagesPathCfg *args)
 {
-    cli_lock_take(&g_cli_pages_lock);
-    CliPaged *const one = cli_paged_of(key, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
+    CliPaged *const one =
+        EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = args->err_msg);
     if (one != NULL)
     {
-        const unsigned long long indexed = cli_page_indexed(one);
+        const unsigned long long indexed = EMBED_CALL(cli_pages_one_internal.page_index, CliPagesOneCtx, .one = one);
         unsigned long long at = 0ull;
         unsigned int runs = 0u;
-        mmgr_line_ch(out, '[');
+        mmgr_line_ch(args->out, '[');
         for (unsigned int index = 0u; index < one->pieces; index += 1u)
         {
-            const unsigned long long count = cli_page_length(&one->piece[index], indexed);
+            const unsigned long long count = EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx,
+                                                        .piece = &one->piece[index], .indexed = indexed);
             if (one->piece[index].written)
             {
-                mmgr_line_put(out, (runs != 0u) ? ",[" : "[");
-                mmgr_line_decimal(out, at, 0u);
-                mmgr_line_ch(out, ',');
-                mmgr_line_decimal(out, at + count, 0u);
-                mmgr_line_ch(out, ']');
+                mmgr_line_put(args->out, (runs != 0u) ? ",[" : "[");
+                mmgr_line_decimal(args->out, at, 0u);
+                mmgr_line_ch(args->out, ',');
+                mmgr_line_decimal(args->out, at + count, 0u);
+                mmgr_line_ch(args->out, ']');
                 runs += 1u;
             }
             at += count;
         }
-        mmgr_line_ch(out, ']');
+        mmgr_line_ch(args->out, ']');
     }
-    cli_lock_give(&g_cli_pages_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return one != NULL;
 }
 
 // the bytes a block of UTF-16 lines for find takes over the lines read: a unit for each byte at the most, since a
 // letter of one to three bytes is one unit and one of four bytes two, and each line's start and length
-static unsigned long long cli_block_bytes(const CliPageLines *lines)
+EMBED_INLINE unsigned long long cli_block_bytes(const PagesEditCtx *args)
 {
-    const unsigned long long count = (lines->count < CLI_PAGE_BLOCK) ? lines->count : CLI_PAGE_BLOCK;
-    return (lines->used * sizeof(unsigned short)) + (2ull * count * sizeof(unsigned long long));
+    const unsigned long long count = (args->lines->count < CLI_PAGE_BLOCK) ? args->lines->count : CLI_PAGE_BLOCK;
+    return (args->lines->used * sizeof(unsigned short)) + (2ull * count * sizeof(unsigned long long));
 }
 
 // the lines read made a block of UTF-16 lines for find, in `storage` of cli_block_bytes
-static CliLines cli_block_of(const CliPageLines *lines, unsigned char *storage)
+EMBED_INLINE CliLines cli_block_get(const PagesEditCtx *args)
 {
+    const CliPageLines *lines = args->lines;
     const unsigned long long count = (lines->count < CLI_PAGE_BLOCK) ? lines->count : CLI_PAGE_BLOCK;
-    unsigned long long *const start = (unsigned long long *)(storage + (lines->used * sizeof(unsigned short)));
-    CliLines block = {(unsigned short *)storage, lines->used, 0ull, start, start + count, (unsigned int)count, 0u, 0};
+    unsigned long long *const start = (unsigned long long *)(args->storage + (lines->used * sizeof(unsigned short)));
+    CliLines block = {
+        (unsigned short *)args->storage, lines->used, 0ull, start, start + count, (unsigned int)count, 0u, 0};
     for (unsigned long long line = 0ull; line < count; line += 1ull)
     {
         const char *const text = lines->text + lines->start[line];
@@ -298,7 +357,8 @@ static CliLines cli_block_of(const CliPageLines *lines, unsigned char *storage)
         for (unsigned long long at = 0ull; at < size;)
         {
             unsigned int letter = 0u;
-            at += cli_lossy_letter((const unsigned char *)text, size, at, &letter);
+            at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                             .text_bytes = (const unsigned char *)text, .length = size, .at = at, .letter = &letter);
             const unsigned long long need = (letter > 0xffffu) ? 2ull : 1ull;
             if ((block.used + need) > block.units_most)
             {
@@ -308,11 +368,12 @@ static CliLines cli_block_of(const CliPageLines *lines, unsigned char *storage)
             // each unit of a letter is below 2^16
             block.unit[block.used] =
                 (unsigned short)((letter > 0xffffu) ? (0xd800u + ((letter - 0x10000u) >> 10u)) : letter);
-            cli_lines_census_put(&block, block.unit[block.used]);
+            EMBED_CALL(cli_lines_census_put, CliLinesCensusPutCfg, .lines = &block, .unit = block.unit[block.used]);
             if (need == 2ull)
             {
                 block.unit[block.used + 1ull] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
-                cli_lines_census_put(&block, block.unit[block.used + 1ull]);
+                EMBED_CALL(cli_lines_census_put, CliLinesCensusPutCfg, .lines = &block,
+                           .unit = block.unit[block.used + 1ull]);
             }
             block.used += need;
         }
@@ -330,36 +391,40 @@ typedef struct
     unsigned long long found;
 } CliPageFound;
 
-static void cli_page_match(void *context, unsigned long long line, unsigned long long from, unsigned long long to)
+static void cli_page_match(const CliFound3Cfg *args)
 {
-    CliPageFound *const found = (CliPageFound *)context;
+    CliPageFound *const found = (CliPageFound *)args->context;
     mmgr_line_put(found->out, (found->found != 0ull) ? ",[" : "[");
-    mmgr_line_decimal(found->out, found->from + line, 0u);
+    mmgr_line_decimal(found->out, found->from + args->line, 0u);
     mmgr_line_ch(found->out, ',');
-    mmgr_line_decimal(found->out, from, 0u);
+    mmgr_line_decimal(found->out, args->from, 0u);
     mmgr_line_ch(found->out, ',');
-    mmgr_line_decimal(found->out, to, 0u);
+    mmgr_line_decimal(found->out, args->to, 0u);
     mmgr_line_ch(found->out, ']');
     found->found += 1ull;
 }
 
 // the text's lines in all, as far as the index has read
-static unsigned long long cli_total(CliPaged *one)
+EMBED_INLINE unsigned long long cli_total(const PagesEditCtx *args)
 {
-    const unsigned long long indexed = cli_page_indexed(one);
+    CliPaged *one = args->one;
+    const unsigned long long indexed = EMBED_CALL(cli_pages_one_internal.page_index, CliPagesOneCtx, .one = one);
     unsigned long long total = 0ull;
     for (unsigned int at = 0u; at < one->pieces; at += 1u)
     {
-        total += cli_page_length(&one->piece[at], indexed);
+        total += EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = &one->piece[at], .indexed = indexed);
     }
     return total;
 }
 
-int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long long most, VerbaLinea *out,
-                   VerbaLinea *err_msg)
+int cli_pages_find(const CliPagesOutErrMsgSoughtCfg *args)
 {
-    cli_lock_take(&g_cli_pages_lock);
-    CliPaged *const one = cli_paged_of(key, err_msg);
+    const CliDocSought *sought = args->sought;
+    unsigned long long most = args->most;
+    VerbaLinea *err_msg = args->err_msg;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
+    CliPaged *const one =
+        EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = err_msg);
     char *const found_text =
         (one != NULL) ? g_cli_cells->temporary_buf_alloc(CLI_PAGE_FOUND, &g_cli_editor_cells) : NULL;
     if ((one != NULL) && (found_text == NULL))
@@ -369,14 +434,15 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
     CliPageLines lines = {0};
     int read = found_text != NULL;
     const int done = read;
-    const unsigned long long total = read ? cli_total(one) : 0ull;
+    const unsigned long long total = read ? EMBED_CALL(cli_total, PagesEditCtx, .one = one) : 0ull;
     VerbaLinea written = {found_text, CLI_PAGE_FOUND, 0ull};
     CliPageFound found = {&written, 0ull, 0ull};
     unsigned long long block_most = CLI_PAGE_BLOCK;
     for (unsigned long long from = 0ull; read && (from < total) && (found.found < most);)
     {
         unsigned long long to = from;
-        read = cli_page_block_read(one, from, total, &block_most, &to, &lines, err_msg);
+        read = EMBED_CALL(cli_pages_lines_internal.page_block_read, CliPagesLinesCtx, .one = one, .from = from,
+                          .total = total, .block_most = &block_most, .to = &to, .lines = &lines, .err_msg = err_msg);
         // a block of more than CLI_PAGE_FIND_TEXT bytes is read again as half as many lines
         if (read && (lines.used > CLI_PAGE_FIND_TEXT) && (block_most > 1ull))
         {
@@ -386,7 +452,9 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
         // the block's units and lines a cell sized to the lines read, given back as the block is searched; a block
         // whose units the cells cannot meet is read again as half as many lines
         unsigned char *const storage =
-            read ? g_cli_cells->temporary_buf_alloc(cli_block_bytes(&lines), &g_cli_editor_cells) : NULL;
+            read ? g_cli_cells->temporary_buf_alloc(EMBED_CALL(cli_block_bytes, PagesEditCtx, .lines = &lines),
+                                                    &g_cli_editor_cells)
+                 : NULL;
         if (read && (storage == NULL))
         {
             if (block_most > 1ull)
@@ -399,60 +467,66 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
         }
         if (read)
         {
-            const CliLines block = cli_block_of(&lines, storage);
+            const CliLines block = EMBED_CALL(cli_block_get, PagesEditCtx, .lines = &lines, .storage = storage);
             found.from = from;
-            read = cli_document_find_each(&block, sought, most - found.found, cli_page_match, &found, err_msg);
+            read =
+                EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = &block, .sought = sought,
+                           .most = most - found.found, .each = cli_page_match, .context = &found, .err_msg = err_msg);
         }
         g_cli_cells->persistent_buf_release(storage, &g_cli_editor_cells);
         from = to;
     }
     if (read)
     {
-        mmgr_line_ch(out, '[');
-        mmgr_line_put_n(out, found_text, written.at);
-        mmgr_line_ch(out, ']');
+        mmgr_line_ch(args->out, '[');
+        mmgr_line_put_n(args->out, found_text, written.at);
+        mmgr_line_ch(args->out, ']');
     }
     if (done)
     {
-        cli_page_lines_given(&lines);
+        EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     }
     g_cli_cells->persistent_buf_release(found_text, &g_cli_editor_cells);
-    cli_lock_give(&g_cli_pages_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return read;
 }
 
-int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_pages_save(const CliPagesPathCfg *args)
 {
-    cli_lock_take(&g_cli_pages_lock);
-    CliPaged *const one = cli_paged_of(key, err_msg);
+    VerbaLinea *err_msg = args->err_msg;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
+    CliPaged *const one =
+        EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = err_msg);
     if (one == NULL)
     {
-        cli_lock_give(&g_cli_pages_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
-    cli_lock_take(&g_cli_index_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
     const int done = one->index.done;
-    cli_lock_give(&g_cli_index_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
     if (!done)
     {
         mmgr_line_put(err_msg, "the file is still being read: it saves once it is read whole");
-        cli_lock_give(&g_cli_pages_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
     CliPageLines lines = {0};
     // the text goes to the file as the tree writes every file: beside it, then moved over it once whole
-    const unsigned long long total = cli_total(one);
+    const unsigned long long total = EMBED_CALL(cli_total, PagesEditCtx, .one = one);
     char beside[CLI_PATH_MAX_LEN];
-    if (!cli_files_saving_beside(one->path, one->path, beside, err_msg))
+    if (!EMBED_CALL(cli_files_path_err_msg.saving_beside, CliFilesPathErrMsgCfg, .path = one->path, .file = one->path,
+                    .beside = beside, .err_msg = err_msg))
     {
-        cli_page_lines_given(&lines);
-        cli_lock_give(&g_cli_pages_lock);
+        EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
     // the lines go to the file through a stage of CLI_PAGE_SAVE_STAGE bytes, written whenever the next line would
     // not fit, and a line wider than the stage is written as it lies in the reading
     char *const stage = g_cli_cells->temporary_buf_alloc(CLI_PAGE_SAVE_STAGE, &g_cli_editor_cells);
-    int written = (stage != NULL) && cli_file_appended(beside, "", 0ull, 1);
+    int written = (stage != NULL) && EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = beside,
+                                                .bytes = "", .size = 0ull, .fresh = 1);
     if (stage == NULL)
     {
         mmgr_line_put(err_msg, "the stage a save writes through could not be taken");
@@ -463,19 +537,23 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
     for (unsigned long long from = 0ull; written && (from < total);)
     {
         unsigned long long to = from;
-        written = cli_page_block_read(one, from, total, &block_most, &to, &lines, err_msg);
+        written = EMBED_CALL(cli_pages_lines_internal.page_block_read, CliPagesLinesCtx, .one = one, .from = from,
+                             .total = total, .block_most = &block_most, .to = &to, .lines = &lines, .err_msg = err_msg);
         for (unsigned long long at = 0ull; written && (at < lines.count); at += 1ull)
         {
             const unsigned long long ending = ((from + at) > 0ull) ? eol_size : 0ull;
             const char *const line = lines.text + lines.start[at];
             if ((block.at + ending + lines.length[at]) >= block.capacity)
             {
-                written = save_staged(beside, &block, err_msg);
+                written = EMBED_CALL(save_stage, PagesEditCtx, .beside = beside, .block = &block, .err_msg = err_msg);
             }
             if ((ending + lines.length[at]) >= block.capacity)
             {
-                written = written && cli_file_appended(beside, one->eol, ending, 0) &&
-                          cli_file_appended(beside, line, lines.length[at], 0);
+                written = written &&
+                          EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = beside,
+                                     .bytes = one->eol, .size = ending, .fresh = 0) &&
+                          EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = beside,
+                                     .bytes = line, .size = lines.length[at], .fresh = 0);
             }
             else
             {
@@ -485,30 +563,32 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
         }
         from = to;
     }
-    written = written && save_staged(beside, &block, err_msg);
+    written = written && EMBED_CALL(save_stage, PagesEditCtx, .beside = beside, .block = &block, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(stage, &g_cli_editor_cells);
-    cli_page_lines_given(&lines);
+    EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     if (!written)
     {
-        query_removed(beside);
+        EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = beside);
         if (err_msg->at == 0ull)
         {
             mmgr_line_put(err_msg, beside);
             mmgr_line_put(err_msg, ": it could not be written");
         }
-        cli_lock_give(&g_cli_pages_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
-    if (!cli_files_saved(beside, one->path, one->path, err_msg))
+    if (!EMBED_CALL(cli_files_path.save, CliFilesPathCfg, .beside_read = beside, .path = one->path, .file = one->path,
+                    .err_msg = err_msg))
     {
-        cli_lock_give(&g_cli_pages_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
     char path[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = path,
                             .src = one->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_CELLS_POOL}) + 1u});
-    const int opened = cli_page_open_reading(key, path, 0, out, err_msg);
-    cli_lock_give(&g_cli_pages_lock);
+    const int opened = EMBED_CALL(cli_pages_err_msg_internal.page_open_reading, CliPagesErrMsgCtx, .key = args->key,
+                                  .path = path, .behind = 0, .out = args->out, .err_msg = err_msg);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return opened;
 }

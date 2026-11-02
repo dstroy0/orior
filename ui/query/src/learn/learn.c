@@ -14,83 +14,87 @@
 #include "../../../cli/src/text/text.h"
 #include <stdlib.h>
 
-int query_learn_step_read(const char *const *words, unsigned int count, QueryLearnStep *step, VerbaLinea *err_msg)
+int query_learn_step_read(const QueryLearnWordsCtx *args)
 {
     static const char *const s_usage = "learn takes discover|turns|registers|costs [--base <cu>], seed <listing.sass>, "
                                        "rounds [<n>], dry [<n>], enumerate <place> or clock [<from> [<words>]]";
-    memor.set(&(MemoriaCfg){.dst = step, .val = 0, .bytes = sizeof(*step)});
-    if (count == 0u)
+    memor.set(&(MemoriaCfg){.dst = args->step, .val = 0, .bytes = sizeof(*args->step)});
+    if (args->count == 0u)
     {
-        mmgr_line_put(err_msg, s_usage);
+        mmgr_line_put(args->err_msg, s_usage);
         return 0;
     }
-    const char *const first = words[0];
+    const char *const first = args->words[0];
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "discover", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "turns", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "registers", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "costs", .cap = CLI_CELLS_POOL})))
     {
-        step->kind = QUERY_LEARN_PASS;
-        step->word = first;
-        if (count == 1u)
+        args->step->kind = QUERY_LEARN_PASS;
+        args->step->word = first;
+        if (args->count == 1u)
         {
             return 1;
         }
-        if ((count == 3u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[1], .other = "--base", .cap = CLI_CELLS_POOL})))
+        if ((args->count == 3u) &&
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->words[1], .other = "--base", .cap = CLI_CELLS_POOL})))
         {
-            step->base = words[2];
+            args->step->base = args->words[2];
             return 1;
         }
-        mmgr_line_put(err_msg, s_usage);
+        mmgr_line_put(args->err_msg, s_usage);
         return 0;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "seed", .cap = CLI_CELLS_POOL})) && (count >= 2u))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "seed", .cap = CLI_CELLS_POOL})) && (args->count >= 2u))
     {
-        step->kind = QUERY_LEARN_SEED;
-        step->word = words[1];
+        args->step->kind = QUERY_LEARN_SEED;
+        args->step->word = args->words[1];
         return 1;
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "rounds", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "dry", .cap = CLI_CELLS_POOL})))
     {
-        step->kind = (first[0] == 'r') ? QUERY_LEARN_ROUNDS : QUERY_LEARN_DRY;
-        step->rounds = 1u;
-        if (count >= 2u)
+        args->step->kind = (first[0] == 'r') ? QUERY_LEARN_ROUNDS : QUERY_LEARN_DRY;
+        args->step->rounds = 1u;
+        if (args->count >= 2u)
         {
             char *end = NULL;
-            const unsigned long rounds = strtoul(words[1], &end, 10);
-            if ((end == words[1]) || (*end != '\0') || (rounds > 0xffffffffull))
+            const unsigned long rounds = strtoul(args->words[1], &end, 10);
+            if ((end == args->words[1]) || (*end != '\0') || (rounds > 0xffffffffull))
             {
-                mmgr_line_put(err_msg, s_usage);
+                mmgr_line_put(args->err_msg, s_usage);
                 return 0;
             }
             // a count of rounds read under what an unsigned int represents
-            step->rounds = (unsigned int)rounds;
+            args->step->rounds = (unsigned int)rounds;
         }
         return 1;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "enumerate", .cap = CLI_CELLS_POOL})) && (count >= 2u))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "enumerate", .cap = CLI_CELLS_POOL})) &&
+        (args->count >= 2u))
     {
-        step->kind = QUERY_LEARN_ENUMERATE;
-        step->word = words[1];
+        args->step->kind = QUERY_LEARN_ENUMERATE;
+        args->step->word = args->words[1];
         return 1;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "clock", .cap = CLI_CELLS_POOL}))
     {
-        step->kind = QUERY_LEARN_CLOCK;
-        step->word = (count >= 2u) ? words[1] : QUERY_CLOCK_FROM;
-        step->base = (count >= 3u) ? words[2] : QUERY_CLOCK_WORDS;
+        args->step->kind = QUERY_LEARN_CLOCK;
+        args->step->word = (args->count >= 2u) ? args->words[1] : QUERY_CLOCK_FROM;
+        args->step->base = (args->count >= 3u) ? args->words[2] : QUERY_CLOCK_WORDS;
         return 1;
     }
-    mmgr_line_put(err_msg, s_usage);
+    mmgr_line_put(args->err_msg, s_usage);
     return 0;
 }
 
-unsigned int query_learn_lines(const QueryRun *run, const char *name)
+unsigned int query_learn_lines(const QueryLearnCtx *args)
 {
+    const char *name = args->name;
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    if (!query_writer_latest(&run->writer, name, &bytes, &size))
+    if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &args->run->writer,
+                    .name = name, .bytes_u8s = &bytes, .size_pointer = &size))
     {
         return 0u;
     }
@@ -112,14 +116,19 @@ unsigned int query_learn_lines(const QueryRun *run, const char *name)
     return lines;
 }
 
-int query_learn_carried(QueryContext *context, QueryRun *run, int lessons, VerbaLinea *err_msg)
+int query_learn_carry(const QueryLearnErrMsgCtx *args)
 {
+    QueryContext *context = args->context;
+    QueryRun *run = args->run_out;
+    VerbaLinea *err_msg = args->err_msg;
     char work[QUERY_PATH_MAX_LEN];
     char folder[QUERY_PATH_MAX_LEN];
     char forms_work[QUERY_PATH_MAX_LEN];
     char forms[QUERY_PATH_MAX_LEN];
-    query_at(context, QUERY_LEARN_WORK, work);
-    query_at(context, QUERY_LEARN_FOLDER, folder);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_LEARN_WORK, .path_out = work);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_LEARN_FOLDER, .path_out = folder);
     VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ull};
     mmgr_line_put(&forms_work_line, work);
     mmgr_line_put(&forms_work_line, "/forms_work.txt");
@@ -130,24 +139,36 @@ int query_learn_carried(QueryContext *context, QueryRun *run, int lessons, Verba
     mmgr_line_finish(&forms_line);
     const char *const files[4] = {forms_work, forms, "faulted.txt", "overseer.txt"};
     char crystal[QUERY_PATH_MAX_LEN];
-    const int has_crystal = query_crystal(context->root, crystal, sizeof(crystal));
-    return query_run_carried(run, folder, files, lessons ? 4u : 3u, has_crystal ? crystal : NULL, err_msg);
+    const int has_crystal = EMBED_CALL(query_room_root_internal.crystal, QueryRoomRootCtx, .root = context->root,
+                                       .program = crystal, .room = sizeof(crystal));
+    return EMBED_CALL(query_count_folder_internal.run_carry, QueryCountFolderCtx, .run = run, .folder = folder,
+                      .files = files, .count = args->lessons ? 4u : 3u, .crystal = has_crystal ? crystal : NULL,
+                      .err_msg = err_msg);
 }
 
-void query_teacher_words(QueryWords *words, const char *machine, const QueryFiles *files, const char *writer)
+void query_teacher_words(const QueryLearnWordsWordsCtx *args)
 {
-    query_words_add(words, "sm_86");
-    query_words_add(words, machine);
-    query_words_add(words, files->layout);
-    query_words_add(words, files->mnemonics);
-    query_words_add(words, files->fields);
-    query_words_add(words, writer);
+    QueryWords *words = args->words_words_pointer;
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = "sm_86");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->machine);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->files->layout);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->files->mnemonics);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->files->fields);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word = args->writer);
 }
 
-void query_verdicts_print(QueryContext *context, const QueryRun *run)
+void query_verdicts_print(const QueryLearnRunCtx *args)
 {
+    QueryContext *context = args->context;
     unsigned long long dry_size = 0ull;
-    char *const dry = query_writer_read_taken(&run->writer, "dry.txt", &dry_size);
+    char *const dry = EMBED_CALL(query_count_name_internal.writer_read_take, QueryCountNameCtx,
+                                 .writer = &args->run->writer, .name = "dry.txt", .size_pointer = &dry_size);
     if (dry == NULL)
     {
         return;
@@ -178,13 +199,16 @@ void query_verdicts_print(QueryContext *context, const QueryRun *run)
         // the verdict: its lower-case letters, spaces, commas and colons, its end trimmed
         unsigned long long taken = 0ull;
         const unsigned long long room = length - (unsigned long long)(found - line);
-        taken = cli_text_past_class(found, 0ull, (room < 127ull) ? room : 127ull, CLI_TEXT_LOWER, " ,:");
-        taken = cli_text_back_past(found, taken, " ");
+        taken = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = found, .at = 0ull,
+                           .size = (room < 127ull) ? room : 127ull, .classes = CLI_TEXT_LOWER, .set = " ,:");
+        taken = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = found, .at = taken,
+                           .set = " ");
         char verdict[128];
         memor.cpy(&(MemoriaCfg){.dst = verdict, .src = found, .bytes = (size_t)taken});
         verdict[taken] = '\0';
         unsigned int place = 0u;
-        while ((place < verdicts) && (cli_text_order(s_verdicts[place], verdict) < 0))
+        while ((place < verdicts) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = s_verdicts[place],
+                                                 .other_pointer = verdict) < 0))
         {
             place += 1u;
         }
@@ -218,7 +242,7 @@ void query_verdicts_print(QueryContext *context, const QueryRun *run)
         mmgr_line_put(&line, s_verdicts[place]);
         if (mmgr_line_finish(&line) != 0ull)
         {
-            query_print(context, text);
+            EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
         }
     }
 }
@@ -227,7 +251,8 @@ int query_bar0_driver_runs(void)
 {
     const char *const words[4] = {"sc.exe", "query", QUERY_LISTENER, NULL};
     QueryProcess child;
-    if (!query_process_start(&child, words, NULL, QUERY_OUTPUT_PIPED))
+    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &child, .words = words,
+                    .folder = NULL, .output = QUERY_OUTPUT_PIPED))
     {
         return 0;
     }
@@ -235,14 +260,16 @@ int query_bar0_driver_runs(void)
     unsigned long long length = 0ull;
     for (;;)
     {
-        const unsigned long long got = query_process_read(&child, s_output + length, sizeof(s_output) - 1u - length);
+        const unsigned long long got =
+            EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &child,
+                       .piece = s_output + length, .room_u64 = sizeof(s_output) - 1u - length);
         if (got == 0ull)
         {
             break;
         }
         length += got;
     }
-    query_process_wait(&child);
+    EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &child);
     s_output[length] = '\0';
     return cellul.find(&(CatenaFinitaCfg){
                .src = s_output, .cap = CLI_CELLS_POOL, .other = "RUNNING", .other_cap = CLI_CELLS_POOL}) != NULL;

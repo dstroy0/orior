@@ -8,39 +8,69 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
+#define CLI_PURPOSE_TEXT ((CLI_PURPOSE_READ * 3u) + 1u)
+// One reader of the tree's files: the files it reads, from `from` to `to`, and the room a file's text is read into
+typedef struct
+{
+    unsigned int from;
+    unsigned int to;
+    char text[CLI_PURPOSE_TEXT];
+    CliThread thread;
+} CliPurposePart;
 // the most threads the tree's files are read on, and the bytes a file's text takes once read as UTF-8
 #define CLI_PURPOSE_THREADS 16u
-#define CLI_PURPOSE_TEXT ((CLI_PURPOSE_READ * 3u) + 1u)
 
-// whether a letter joins a word: a letter, a number or `_`
-static int cli_joins(unsigned int letter)
+typedef struct
 {
-    return cli_hit_wordy(letter);
+    unsigned int letter;
+    const char *within;
+    unsigned long long size;
+    unsigned long long at;
+    unsigned long long length;
+    const char *name;
+    const unsigned char *bytes;
+    char *text;
+    CliPurposePart *part;
+    VerbaLinea *out;
+    const char *root;
+    const char *path;
+    VerbaLinea *err_msg;
+} PurposeCtx;
+// whether a letter joins a word: a letter, a number or `_`
+EMBED_INLINE int cli_joins(const PurposeCtx *args)
+{
+    unsigned int letter = args->letter;
+    return EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = letter);
 }
 
 // whether the span of `length` bytes at `at` of `size` bytes of `within` is a whole word: no letter, number, `_` or
 // `-` before it, and no letter, number or `_` after it
-static int cli_word(const char *within, unsigned long long size, unsigned long long at, unsigned long long length)
+EMBED_INLINE int cli_word(const PurposeCtx *args)
 {
+    unsigned long long at = args->at;
+    unsigned long long length = args->length;
     if (at > 0ull)
     {
         unsigned long long start = at - 1ull;
-        while ((start > 0ull) && ((((unsigned char)within[start]) & 0xc0u) == 0x80u))
+        while ((start > 0ull) && ((((unsigned char)args->within[start]) & 0xc0u) == 0x80u))
         {
             start -= 1ull;
         }
         unsigned int before = 0u;
-        cli_lossy_letter((const unsigned char *)within, at, start, &before);
-        if (cli_joins(before) || (before == '-'))
+        EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                   .text_bytes = (const unsigned char *)args->within, .length = at, .at = start, .letter = &before);
+        if (EMBED_CALL(cli_joins, PurposeCtx, .letter = before) || (before == '-'))
         {
             return 0;
         }
     }
-    if ((at + length) < size)
+    if ((at + length) < args->size)
     {
         unsigned int after = 0u;
-        cli_lossy_letter((const unsigned char *)within, size, at + length, &after);
-        if (cli_joins(after))
+        EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                   .text_bytes = (const unsigned char *)args->within, .length = args->size, .at = at + length,
+                   .letter = &after);
+        if (EMBED_CALL(cli_joins, PurposeCtx, .letter = after))
         {
             return 0;
         }
@@ -49,21 +79,21 @@ static int cli_word(const char *within, unsigned long long size, unsigned long l
 }
 
 // whether `name` is a whole word in `size` bytes of `within`, its matches read without overlapping
-static int cli_named_in(const char *within, unsigned long long size, const char *name)
+EMBED_INLINE int cli_name_in(const PurposeCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     if (length == 0ull)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; (at + length) <= size;)
+    for (unsigned long long at = 0ull; (at + length) <= args->size;)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = within + at, .other = name, .bytes = length}) != 0)
+        if (memor.cmp(&(MemoriaCfg){.src = args->within + at, .other = args->name, .bytes = length}) != 0)
         {
             at += 1ull;
             continue;
         }
-        if (cli_word(within, size, at, length))
+        if (EMBED_CALL(cli_word, PurposeCtx, .within = args->within, .size = args->size, .at = at, .length = length))
         {
             return 1;
         }
@@ -72,32 +102,35 @@ static int cli_named_in(const char *within, unsigned long long size, const char 
     return 0;
 }
 
-int cli_purpose_uses(const char *text, unsigned long long size, const char *name, const char *stem)
+int cli_purpose_uses(const CliPurposeTextCfg *args)
 {
     static const char *const s_imports[12] = {"import ", "from ",    "use ",    "mod ",      "pub use ", "pub mod ",
                                               "require", "#include", "\\input", "\\include", "source ",  "load("};
-    if (cli_named_in(text, size, name))
+    if (EMBED_CALL(cli_name_in, PurposeCtx, .within = args->text, .size = args->size, .name = args->name))
     {
         return 1;
     }
-    if (cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}) < 2ull)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->stem, .cap = CLI_CELLS_POOL}) < 2ull)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ull; at < args->size;)
     {
-        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        const CliTextLine bounds =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->text, .at = at, .size = args->size);
         const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
         length -= bounds.stop - bounds.cut;
-        const char *const line = text + at;
+        const char *const line = args->text + at;
         at = end + 1ull;
         unsigned long long lead = 0ull;
         while (lead < length)
         {
             unsigned int letter = 0u;
-            const unsigned long long step = cli_lossy_letter((const unsigned char *)line, length, lead, &letter);
-            if (!cli_fuzzy_white(letter))
+            const unsigned long long step =
+                EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                           .text_bytes = (const unsigned char *)line, .length = length, .at = lead, .letter = &letter);
+            if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
             {
                 break;
             }
@@ -112,7 +145,7 @@ int cli_purpose_uses(const char *text, unsigned long long size, const char *name
                 ((length - lead) >= size_of) &&
                 (memor.cmp(&(MemoriaCfg){.src = line + lead, .other = s_imports[keyword], .bytes = size_of}) == 0);
         }
-        if (imports && cli_named_in(line, length, stem))
+        if (imports && EMBED_CALL(cli_name_in, PurposeCtx, .within = line, .size = length, .name = args->stem))
         {
             return 1;
         }
@@ -122,56 +155,54 @@ int cli_purpose_uses(const char *text, unsigned long long size, const char *name
 
 // `size` bytes read as UTF-8 into `text`, sized for CLI_PURPOSE_TEXT, each byte that starts no whole letter read as
 // U+FFFD, a 0 after them: their length
-static unsigned long long cli_text_of(const unsigned char *bytes, unsigned long long size, char *text)
+EMBED_INLINE unsigned long long cli_text_get(const PurposeCtx *args)
 {
+    char *text = args->text;
     VerbaLinea line = {text, CLI_PURPOSE_TEXT, 0ull};
-    cli_lossy(&line, bytes, size);
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line, .text_bytes = args->bytes,
+               .length = args->size);
     mmgr_line_finish(&line);
     return line.at;
 }
 
-int cli_purpose_written(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_purpose_write(const CliPurposeCfg *args)
 {
     static char s_text[(CLI_PURPOSE_HEAD * 3u) + 1u];
     static char s_comment_buf[1u << 16u];
     static CliLock s_lock = CLI_LOCK_INIT;
     char file[CLI_PATH_MAX_LEN];
-    if (!cli_inside(root, path, file, err_msg))
+    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->path, .joined = file,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(file, &size, &g_cli_code_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = file,
+                                                  .size_pointer = &size, .owner = &g_cli_code_cells);
     if (bytes == NULL)
     {
-        mmgr_line_put(err_msg, path);
-        mmgr_line_put(err_msg, ": it could not be read");
+        mmgr_line_put(args->err_msg, args->path);
+        mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
     }
     const unsigned long long head = (size < CLI_PURPOSE_HEAD) ? size : CLI_PURPOSE_HEAD;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea comment = {s_comment_buf, sizeof(s_comment_buf), 0ull};
     if ((head == 0ull) || (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = head}) == NULL))
     {
         VerbaLinea text = {s_text, sizeof(s_text), 0ull};
-        cli_lossy(&text, bytes, head);
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text, .text_bytes = bytes,
+                   .length = head);
         mmgr_line_finish(&text);
-        cli_purpose_first_comment(file, s_text, text.at, &comment);
+        EMBED_CALL(cli_purpose_path_text.first_comment, CliPurposePathTextCfg, .path = file, .text = s_text,
+                   .size = text.at, .out = &comment);
     }
-    cli_file_given(bytes, &g_cli_code_cells);
-    cli_json_quoted(out, s_comment_buf, comment.at);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = s_comment_buf,
+               .length = comment.at);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
-
-// One reader of the tree's files: the files it reads, from `from` to `to`, and the room a file's text is read into
-typedef struct
-{
-    unsigned int from;
-    unsigned int to;
-    char text[CLI_PURPOSE_TEXT];
-    CliThread thread;
-} CliPurposePart;
 
 // The search for users: the tree's files, the file used, its name and stem, the files that use it, the readers, and
 // how many have ended, and what the file declares about itself; a cell taken with the users' lock and given back with
@@ -195,20 +226,21 @@ static CliLock s_ending = CLI_LOCK_INIT;
 static CliLock s_users_lock = CLI_LOCK_INIT;
 
 // a reader's files read, each marked where it uses the file
-static void cli_part_read(CliPurposePart *part)
+EMBED_INLINE void cli_part_read(const PurposeCtx *args)
 {
-    for (unsigned int index = part->from; index < part->to; index += 1u)
+    for (unsigned int index = args->part->from; index < args->part->to; index += 1u)
     {
-        const char *const other = cli_files_at(s_users->files, index);
+        const char *const other = EMBED_CALL(cli_files.at, CliFilesCfg, .files = s_users->files, .index = index);
         s_users->used[index] = 0u;
         if (cellul.eq(&(CatenaFinitaCfg){.src = other, .other = s_users->path, .cap = CLI_CELLS_POOL}))
         {
             continue;
         }
         char full[CLI_PATH_MAX_LEN];
-        cli_full(s_users->root, other, full);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_users->root, .relative = other, .joined = full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_code_cells);
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+                                                      .size_pointer = &size, .owner = &g_cli_code_cells);
         if (bytes == NULL)
         {
             continue;
@@ -216,25 +248,29 @@ static void cli_part_read(CliPurposePart *part)
         const unsigned long long read = (size < CLI_PURPOSE_READ) ? size : CLI_PURPOSE_READ;
         if ((read == 0ull) || (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = read}) == NULL))
         {
-            const unsigned long long length = cli_text_of(bytes, read, part->text);
-            s_users->used[index] = (unsigned char)cli_purpose_uses(part->text, length, s_users->name, s_users->stem);
+            const unsigned long long length =
+                EMBED_CALL(cli_text_get, PurposeCtx, .bytes = bytes, .size = read, .text = args->part->text);
+            s_users->used[index] =
+                (unsigned char)EMBED_CALL(cli_purpose_text.uses, CliPurposeTextCfg, .text = args->part->text,
+                                          .size = length, .name = s_users->name, .stem = s_users->stem);
         }
-        cli_file_given(bytes, &g_cli_code_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
     }
 }
 
 static void cli_part_thread(void *context)
 {
-    cli_part_read((CliPurposePart *)context);
-    cli_lock_take(&s_ending);
+    EMBED_CALL(cli_part_read, PurposeCtx, .part = (CliPurposePart *)context);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_ending);
     s_users->ended += 1u;
-    cli_wake_all(&s_users->wake);
-    cli_lock_give(&s_ending);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_users->wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_ending);
 }
 
 // the users found written: the first CLI_PURPOSE_USERS by path, and how many in all
-static void cli_users_written(VerbaLinea *out)
+EMBED_INLINE void cli_users_write(const PurposeCtx *args)
 {
+    VerbaLinea *out = args->out;
     mmgr_line_put(out, "\"users\":[");
     unsigned int all = 0u;
     for (unsigned int index = 0u; (s_users->files != NULL) && (index < s_users->files->count); index += 1u)
@@ -245,9 +281,10 @@ static void cli_users_written(VerbaLinea *out)
         }
         if (all < CLI_PURPOSE_USERS)
         {
-            const char *const path = cli_files_at(s_users->files, index);
+            const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = s_users->files, .index = index);
             mmgr_line_put(out, (all != 0u) ? "," : "");
-            cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = path,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
         }
         all += 1u;
     }
@@ -256,16 +293,21 @@ static void cli_users_written(VerbaLinea *out)
 }
 
 // the files of the tree that use the file at `path` found: 1, or 0 with why given
-static int cli_users_found(const char *root, const char *path, VerbaLinea *err_msg)
+static int cli_users_find(const PurposeCtx *args)
 {
+    const char *root = args->root;
+    const char *path = args->path;
+    VerbaLinea *err_msg = args->err_msg;
     char file[CLI_PATH_MAX_LEN];
-    if (!cli_inside(root, path, file, err_msg))
+    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = root, .relative = path, .joined = file,
+                    .err_msg = err_msg))
     {
         return 0;
     }
     const char *name = file;
     const unsigned long long name_past =
-        cli_text_back_any(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), "/\\");
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = file,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), .set = "/\\");
     name = (name_past != 0ull) ? (file + name_past) : name;
     memor.cpy(&(MemoriaCfg){.dst = s_users->name,
                             .src = name,
@@ -273,15 +315,16 @@ static int cli_users_found(const char *root, const char *path, VerbaLinea *err_m
     memor.cpy(&(MemoriaCfg){.dst = s_users->stem,
                             .src = name,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-    char *const dot =
-        cli_text_last(s_users->stem, cellul.len(&(CatenaFinitaCfg){.src = s_users->stem, .cap = CLI_CELLS_POOL}), '.');
+    char *const dot = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = s_users->stem,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_users->stem, .cap = CLI_CELLS_POOL}), .byte = '.');
     if ((dot != NULL) && (dot != s_users->stem))
     {
         dot[0] = '\0';
     }
     s_users->root = root;
     s_users->path = path;
-    s_users->files = cli_files_view(root);
+    s_users->files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
     const unsigned int count = (s_users->files != NULL) ? s_users->files->count : 0u;
     const unsigned int cores = cli_cores_for_work();
     const unsigned int parts = (cores < 1u) ? 1u : ((cores > CLI_PURPOSE_THREADS) ? CLI_PURPOSE_THREADS : cores);
@@ -296,33 +339,33 @@ static int cli_users_found(const char *root, const char *path, VerbaLinea *err_m
         part->to = ((from + share) < count) ? (from + share) : count;
         part->thread = (CliThread){cli_part_thread, part};
         used_parts += 1u;
-        if (cli_thread_started(&part->thread))
+        if (EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &part->thread))
         {
             started += 1u;
         }
         else
         {
-            cli_part_read(part);
+            EMBED_CALL(cli_part_read, PurposeCtx, .part = part);
         }
     }
-    cli_lock_take(&s_ending);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_ending);
     while (s_users->ended < started)
     {
-        cli_wake_wait(&s_users->wake, &s_ending);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_users->wake, .lock = &s_ending);
     }
-    cli_lock_give(&s_ending);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_ending);
     return 1;
 }
 
 // the users' lock taken and the search a cell under it: 1, or 0 with why given and the lock given back
-static int cli_users_locked(VerbaLinea *err_msg)
+EMBED_INLINE int cli_users_lock(const PurposeCtx *args)
 {
-    cli_lock_take(&s_users_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_users_lock);
     s_users = g_cli_cells->persistent_buf_alloc(sizeof(*s_users), &g_cli_code_cells);
     if (s_users == NULL)
     {
-        cli_lock_give(&s_users_lock);
-        mmgr_line_put(err_msg, "a search for users could not be taken");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_users_lock);
+        mmgr_line_put(args->err_msg, "a search for users could not be taken");
         return 0;
     }
     const CliWake woken = CLI_WAKE_INIT;
@@ -332,47 +375,51 @@ static int cli_users_locked(VerbaLinea *err_msg)
 }
 
 // the search given back with the list of the tree's files it laid flat, and the users' lock with it
-static void cli_users_released(void)
+static void cli_users_release(void)
 {
-    cli_files_let(s_users->files);
+    EMBED_CALL(cli_files.let, CliFilesCfg, .files = s_users->files);
     g_cli_cells->persistent_buf_release(s_users, &g_cli_code_cells);
     s_users = NULL;
-    cli_lock_give(&s_users_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_users_lock);
 }
 
-int cli_purpose_users(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_purpose_users(const CliPurposeCfg *args)
 {
-    if (!cli_users_locked(err_msg))
+    if (!EMBED_CALL(cli_users_lock, PurposeCtx, .err_msg = args->err_msg))
     {
         return 0;
     }
-    const int found = cli_users_found(root, path, err_msg);
+    const int found =
+        EMBED_CALL(cli_users_find, PurposeCtx, .root = args->root, .path = args->path, .err_msg = args->err_msg);
     if (found)
     {
-        mmgr_line_ch(out, '{');
-        cli_users_written(out);
-        mmgr_line_ch(out, '}');
+        mmgr_line_ch(args->out, '{');
+        EMBED_CALL(cli_users_write, PurposeCtx, .out = args->out);
+        mmgr_line_ch(args->out, '}');
     }
-    cli_users_released();
+    cli_users_release();
     return found;
 }
 
-int cli_purpose(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_purpose(const CliPurposeCfg *args)
 {
-    if (!cli_users_locked(err_msg))
+    if (!EMBED_CALL(cli_users_lock, PurposeCtx, .err_msg = args->err_msg))
     {
         return 0;
     }
     VerbaLinea comment = {s_users->comment_buf, sizeof(s_users->comment_buf), 0ull};
-    const int found = cli_purpose_written(root, path, &comment, err_msg) && cli_users_found(root, path, err_msg);
+    const int found =
+        EMBED_CALL(cli_purpose_table.write, CliPurposeCfg, .root = args->root, .path = args->path, .out = &comment,
+                   .err_msg = args->err_msg) &&
+        EMBED_CALL(cli_users_find, PurposeCtx, .root = args->root, .path = args->path, .err_msg = args->err_msg);
     if (found)
     {
-        mmgr_line_put(out, "{\"comment\":");
-        mmgr_line_put_n(out, s_users->comment_buf, comment.at);
-        mmgr_line_ch(out, ',');
-        cli_users_written(out);
-        mmgr_line_ch(out, '}');
+        mmgr_line_put(args->out, "{\"comment\":");
+        mmgr_line_put_n(args->out, s_users->comment_buf, comment.at);
+        mmgr_line_ch(args->out, ',');
+        EMBED_CALL(cli_users_write, PurposeCtx, .out = args->out);
+        mmgr_line_ch(args->out, '}');
     }
-    cli_users_released();
+    cli_users_release();
     return found;
 }

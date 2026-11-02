@@ -4,34 +4,34 @@
 // let go of, its place among those waiting freed and its answer passed over when it comes
 #include "dap_internal.h"
 
-int cli_dap_answered(CliDap *dap, unsigned long long seq, VerbaLinea *err_msg)
+int cli_dap_answer(const CliDapErrMsgCommandSeqCfg *args)
 {
     int answered = -1;
-    cli_lock_take(&dap->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
-        const CliDapWaiter *const waiter = &dap->waiters[at];
-        if (waiter->waiting && (waiter->seq == seq) && waiter->answered)
+        const CliDapWaiter *const waiter = &args->dap->waiters[at];
+        if (waiter->waiting && (waiter->seq == args->seq) && waiter->answered)
         {
             answered = (waiter->error[0] == '\0') ? 1 : 0;
-            mmgr_line_put(err_msg, waiter->error);
+            mmgr_line_put(args->err_msg, waiter->error);
         }
     }
-    cli_lock_give(&dap->lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
     return answered;
 }
 
-void cli_dap_forgotten(CliDap *dap, unsigned long long seq)
+void cli_dap_forgotten(const CliDapErrMsgCommandSeqCfg *args)
 {
-    cli_lock_take(&dap->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
-        if (dap->waiters[at].waiting && (dap->waiters[at].seq == seq))
+        if (args->dap->waiters[at].waiting && (args->dap->waiters[at].seq == args->seq))
         {
-            dap->waiters[at].waiting = 0;
-            g_cli_cells->persistent_buf_release(dap->waiters[at].answer.message, &g_cli_debug_cells);
-            dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ull};
+            args->dap->waiters[at].waiting = 0;
+            g_cli_cells->persistent_buf_release(args->dap->waiters[at].answer.message, &g_cli_debug_cells);
+            args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ull};
         }
     }
-    cli_lock_give(&dap->lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
 }

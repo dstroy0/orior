@@ -1,30 +1,36 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // executables_go.c: the main packages of a Go module, and the programs that can build a package.json's bin
+#include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 #include "executables_internal.h"
 #include "sea.h"
 
 // an entry of a folder of a Go module: a folder to look in after, where it is no module of its own, or a Go file other
 // than a test that declares `package main`
-static void cli_go_each(void *context, const char *name, int is_folder)
+static void cli_go_each(const CliEachNameIsFolderCfg *args)
 {
-    CliWalk *const walk = (CliWalk *)context;
+    const char *name = args->name;
+    CliWalk *const walk = (CliWalk *)args->context;
     char path[CLI_PATH_MAX_LEN];
-    if (!cli_executables_joined(walk->folder, name, path))
+    if (!EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx,
+                    .folder = walk->folder, .name = name, .out = path))
     {
         return;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    if (is_folder)
+    if (args->is_folder)
     {
         char module[CLI_PATH_MAX_LEN];
-        const int own_module = cli_executables_joined(path, "go.mod", module) && query_is_file(module);
+        const int own_module = EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx,
+                                          .folder = path, .name = "go.mod", .out = module) &&
+                               EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = module);
         if (((walk->at_depth + 1u) < CLI_EXECUTABLES_DEEP) && !own_module && (name[0] != '.') && (name[0] != '_') &&
             (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "testdata", .cap = CLI_CELLS_POOL})) &&
-            !cli_executables_passed(name))
+            !EMBED_CALL(cli_executables_name_out_folder_internal.pass, CliExecutablesNameOutFolderCtx, .name = name))
         {
-            (void)cli_executables_pending_put(walk, path, walk->at_depth + 1u);
+            (void)EMBED_CALL(cli_executables_walk_internal.pending_put, CliExecutablesWalkCtx, .walk = walk,
+                             .path = path, .depth = walk->at_depth + 1u);
         }
     }
     else if (!walk->main && (length > 3ull) &&
@@ -33,8 +39,10 @@ static void cli_go_each(void *context, const char *name, int is_folder)
                                       .src = name + length - 8ull, .other = "_test.go", .cap = CLI_CELLS_POOL}))))
     {
         char package[CLI_NAME_MAX_LEN];
-        char *const text = cli_text_taken(path);
-        walk->main = (text != NULL) && cli_go_package(text, package) &&
+        char *const text = EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx, .path = path);
+        walk->main = (text != NULL) &&
+                     EMBED_CALL(cli_executables_text_out_internal.go_package, CliExecutablesTextOutCtx, .text = text,
+                                .out = package) &&
                      (cellul.eq(&(CatenaFinitaCfg){.src = package, .other = "main", .cap = CLI_CELLS_POOL}));
         g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
     }
@@ -42,34 +50,38 @@ static void cli_go_each(void *context, const char *name, int is_folder)
 
 // the main packages of the Go module whose go.mod is `module`: each named by its folder, and the module's own folder by
 // the last part of the module's path, with the package's folder as `go build` takes it
-void cli_go_mains(const char *module, const char *text, CliNames *mains)
+void cli_go_mains(const CliExecutablesTextModuleCtx *args)
 {
-    mains->count = 0u;
+    args->mains->count = 0u;
     char path[CLI_PATH_MAX_LEN] = "";
-    for (const char *line = text; line[0] != '\0';)
+    for (const char *line = args->text; line[0] != '\0';)
     {
         const char *stop = line;
-        stop += cli_text_to_any(stop, 0ull, cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), "\n");
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
         const char *from = line;
         unsigned long long length = (unsigned long long)(stop - line);
-        cli_scan_trim(&from, &length);
+        EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
+                   .length_pointer = &length);
         if ((length >= 7ull) && (memor.cmp(&(MemoriaCfg){.src = from, .other = "module ", .bytes = 7u}) == 0))
         {
-            cli_toml_value(from + 7, length - 7ull, path, sizeof(path));
+            EMBED_CALL(cli_executables_length_value_internal.toml_value, CliExecutablesLengthValueCtx,
+                       .value = from + 7, .length = length - 7ull, .out = path, .room = sizeof(path));
             break;
         }
         line = (stop[0] != '\0') ? (stop + 1) : stop;
     }
     char top[CLI_PATH_MAX_LEN];
-    if (!cli_path_parent(module, top))
+    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->module_text, .out = top))
     {
         memor.cpy(&(MemoriaCfg){
             .dst = top, .src = ".", .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
     CliWalk go_walk;
     CliWalk *const walk = &go_walk;
-    cli_executables_walk_taken(walk);
-    cli_executables_walked(walk, top, cli_go_each);
+    EMBED_CALL(cli_executables_walk_internal.walk_take, CliExecutablesWalkCtx, .walk = walk);
+    EMBED_CALL(cli_executables_walk_top_internal.walk, CliExecutablesWalkTopCtx, .walk = walk, .top = top,
+               .each = cli_go_each);
     const unsigned long long top_length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
     for (unsigned int at = 0u; at < walk->found_count; at += 1u)
     {
@@ -79,36 +91,47 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
         memor.cpy(&(MemoriaCfg){.dst = package,
                                 .src = inner,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL}) + 1u});
-        cli_text_swapped(package, cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}), '\\', '/');
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = package,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}), .from = '\\',
+                   .to = '/');
         const char *const named = (package[0] == '\0') ? path : package;
         const char *const name =
-            (cli_text_last(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), '/') != NULL)
-                ? (cli_text_last(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), '/') + 1)
+            (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named,
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}),
+                        .byte = '/') != NULL)
+                ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named,
+                              .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}),
+                              .byte = '/') +
+                   1)
                 : named;
         char shown[CLI_PATH_MAX_LEN];
         VerbaLinea line = {shown, sizeof(shown), 0ull};
         mmgr_line_put(&line, (package[0] == '\0') ? "." : "./");
         mmgr_line_put(&line, package);
         mmgr_line_finish(&line);
-        if ((name[0] != '\0') && (mains->count < CLI_EXECUTABLES_NAMES))
+        if ((name[0] != '\0') && (args->mains->count < CLI_EXECUTABLES_NAMES))
         {
-            memor.cpy(&(MemoriaCfg){.dst = mains->name[mains->count],
+            memor.cpy(&(MemoriaCfg){.dst = args->mains->name[args->mains->count],
                                     .src = name,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-            memor.cpy(&(MemoriaCfg){.dst = mains->value[mains->count],
+            memor.cpy(&(MemoriaCfg){.dst = args->mains->value[args->mains->count],
                                     .src = shown,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = shown, .cap = CLI_CELLS_POOL}) + 1u});
-            mains->count += 1u;
+            args->mains->count += 1u;
         }
     }
-    cli_executables_walk_given(walk);
+    EMBED_CALL(cli_executables_walk_internal.walk_free, CliExecutablesWalkCtx, .walk = walk);
     // the mains in the order of their names, then their folders
-    for (unsigned int at = 1u; at < mains->count; at += 1u)
+    for (unsigned int at = 1u; at < args->mains->count; at += 1u)
     {
         for (unsigned int place = at; place > 0u; place -= 1u)
         {
-            const int order = cli_text_order(mains->name[place - 1u], mains->name[place]);
-            if ((order < 0) || ((order == 0) && (cli_text_order(mains->value[place - 1u], mains->value[place]) <= 0)))
+            const int order =
+                EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = args->mains->name[place - 1u],
+                           .other_pointer = args->mains->name[place]);
+            if ((order < 0) || ((order == 0) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                                            .one = args->mains->value[place - 1u],
+                                                            .other_pointer = args->mains->value[place]) <= 0)))
             {
                 break;
             }
@@ -116,20 +139,20 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
             char value[CLI_PATH_MAX_LEN];
             memor.cpy(&(MemoriaCfg){
                 .dst = name,
-                .src = mains->name[place],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = mains->name[place], .cap = CLI_CELLS_POOL}) + 1u});
+                .src = args->mains->name[place],
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->mains->name[place], .cap = CLI_CELLS_POOL}) + 1u});
             memor.cpy(&(MemoriaCfg){
                 .dst = value,
-                .src = mains->value[place],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = mains->value[place], .cap = CLI_CELLS_POOL}) + 1u});
-            memor.cpy(
-                &(MemoriaCfg){.dst = mains->name[place], .bytes = CLI_NAME_MAX_LEN, .src = mains->name[place - 1u]});
-            memor.cpy(
-                &(MemoriaCfg){.dst = mains->value[place], .bytes = CLI_PATH_MAX_LEN, .src = mains->value[place - 1u]});
-            memor.cpy(&(MemoriaCfg){.dst = mains->name[place - 1u],
+                .src = args->mains->value[place],
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->mains->value[place], .cap = CLI_CELLS_POOL}) + 1u});
+            memor.cpy(&(MemoriaCfg){
+                .dst = args->mains->name[place], .bytes = CLI_NAME_MAX_LEN, .src = args->mains->name[place - 1u]});
+            memor.cpy(&(MemoriaCfg){
+                .dst = args->mains->value[place], .bytes = CLI_PATH_MAX_LEN, .src = args->mains->value[place - 1u]});
+            memor.cpy(&(MemoriaCfg){.dst = args->mains->name[place - 1u],
                                     .src = name,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-            memor.cpy(&(MemoriaCfg){.dst = mains->value[place - 1u],
+            memor.cpy(&(MemoriaCfg){.dst = args->mains->value[place - 1u],
                                     .src = value,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
         }
@@ -140,7 +163,7 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
 // contains Bun's lock and Deno where it contains Deno's settings; else Node itself where the script requires no module
 // outside Node, which a single executable of Node's cannot contain, and else the bundlers, those the machine has before
 // those it lacks
-void cli_npm_builders(const char *folder, const char *script, CliExecutable *one)
+void cli_npm_builders(const CliExecutablesFolderCtx *args)
 {
     static char s_outside[4][CLI_NAME_MAX_LEN];
     static const char *const s_bun[3] = {"bun", "deno", "node"};
@@ -148,37 +171,47 @@ void cli_npm_builders(const char *folder, const char *script, CliExecutable *one
     static const char *const s_node[3] = {"node", "bun", "deno"};
     const char *const *order = NULL;
     char path[CLI_PATH_MAX_LEN];
-    if ((cli_executables_joined(folder, "bun.lock", path) && query_is_file(path)) ||
-        (cli_executables_joined(folder, "bun.lockb", path) && query_is_file(path)))
+    if ((EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx,
+                    .folder = args->folder, .name = "bun.lock", .out = path) &&
+         EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path)) ||
+        (EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx,
+                    .folder = args->folder, .name = "bun.lockb", .out = path) &&
+         EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path)))
     {
         order = s_bun;
     }
-    else if ((cli_executables_joined(folder, "deno.json", path) && query_is_file(path)) ||
-             (cli_executables_joined(folder, "deno.jsonc", path) && query_is_file(path)))
+    else if ((EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx,
+                         .folder = args->folder, .name = "deno.json", .out = path) &&
+              EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path)) ||
+             (EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx,
+                         .folder = args->folder, .name = "deno.jsonc", .out = path) &&
+              EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path)))
     {
         order = s_deno;
     }
-    else if (cli_sea_outside(script, s_outside, 4u) == 0u)
+    else if (EMBED_CALL(cli_sea_table.outside, CliSeaCfg, .text = args->script, .found = s_outside, .room = 4u) == 0u)
     {
         order = s_node;
     }
     if (order != NULL)
     {
-        one->with[0] = order[0];
-        one->with[1] = order[1];
-        one->with[2] = order[2];
-        one->withs = 3u;
+        args->one->with[0] = order[0];
+        args->one->with[1] = order[1];
+        args->one->with[2] = order[2];
+        args->one->withs = 3u;
         return;
     }
     char found[CLI_PATH_MAX_LEN];
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int has_bun = cli_executables_program("bun", "bun", found, &err_msg);
+    const int has_bun = EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "bun", .name = "bun",
+                                   .path = found, .err_msg = &err_msg);
     err_msg.at = 0ull;
-    const int has_deno = cli_executables_program("deno", "deno", found, &err_msg);
+    const int has_deno = EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "deno", .name = "deno",
+                                    .path = found, .err_msg = &err_msg);
     // the bundlers the machine has first, Bun before Deno where it has both or neither
-    one->with[0] = (!has_bun && has_deno) ? "deno" : "bun";
-    one->with[1] = (!has_bun && has_deno) ? "bun" : "deno";
-    one->with[2] = "node";
-    one->withs = 3u;
+    args->one->with[0] = (!has_bun && has_deno) ? "deno" : "bun";
+    args->one->with[1] = (!has_bun && has_deno) ? "bun" : "deno";
+    args->one->with[2] = "node";
+    args->one->withs = 3u;
 }

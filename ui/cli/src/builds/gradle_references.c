@@ -3,6 +3,7 @@
 // gradle_references.c: each name a catalog's accessor leads in a Gradle script read, checked against the catalog's
 // aliases: the chain of words after the accessor, less the call it ends in, names an alias of the section its first
 // word names, and a chain that names none is a finding with the aliases near it as its fixes
+#include "../command_line/callback_cfg.h"
 #include "gradle_internal.h"
 #include "version_catalog_internal.h"
 
@@ -13,14 +14,37 @@
 static const char *const s_getters[9] = {"get",       "asProvider", "orNull", "getOrNull", "orElse",
                                          "isPresent", "present",    "map",    "flatMap"};
 
-// the run of word letters from `at`: its size
-static unsigned long long references_word(unsigned long long at)
+typedef struct
 {
+    unsigned long long at;
+    unsigned long long start;
+    unsigned long long *from;
+    unsigned long long *to;
+    const char *word;
+    unsigned long long size;
+    unsigned int *section;
+    const char **kind;
+    unsigned int *path_from;
+    const CliBuildLines *lines;
+    CliBuildFindings *found;
+    const char *name;
+    const char *shown;
+    const CliVersionsAliases *aliases;
+    const unsigned long long *from_read;
+    const unsigned long long *to_read;
+    unsigned int count;
+} GradleReferencesCtx;
+// the run of word letters from `at`: its size
+EMBED_INLINE unsigned long long references_word(const GradleReferencesCtx *args)
+{
+    unsigned long long at = args->at;
     unsigned long long end = at;
     while (end < g_cli_gradle.size)
     {
         unsigned long long length = 0ull;
-        if (!cli_build_word_letter(cli_text_letter(g_cli_gradle.text, g_cli_gradle.size, end, &length)))
+        if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
+                        .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = g_cli_gradle.text,
+                                             .size = g_cli_gradle.size, .at = end, .length = &length)))
         {
             break;
         }
@@ -30,19 +54,20 @@ static unsigned long long references_word(unsigned long long at)
 }
 
 // the words of the chain a catalog's accessor leads from `start`, each one's span: their count
-static unsigned int references_chain(unsigned long long start, unsigned long long *from, unsigned long long *to)
+EMBED_INLINE unsigned int references_chain(const GradleReferencesCtx *args)
 {
+    unsigned long long start = args->start;
     const char *const text = g_cli_gradle.text;
     unsigned int count = 0u;
     for (;;)
     {
-        const unsigned long long length = references_word(start);
+        const unsigned long long length = EMBED_CALL(references_word, GradleReferencesCtx, .at = start);
         if ((length == 0u) || (count == CLI_GRADLE_SEGMENTS))
         {
             break;
         }
-        from[count] = start;
-        to[count] = start + length;
+        args->from[count] = start;
+        args->to[count] = start + length;
         count += 1u;
         if ((start + length < g_cli_gradle.size) && (text[start + length] == '.'))
         {
@@ -53,8 +78,9 @@ static unsigned int references_chain(unsigned long long start, unsigned long lon
     }
     if (count > 0u)
     {
-        const unsigned long long end = to[count - 1u];
-        const unsigned long long lead = end + cli_text_lead(text + end, g_cli_gradle.size - end);
+        const unsigned long long end = args->to[count - 1u];
+        const unsigned long long lead = end + EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg,
+                                                         .text = text + end, .size = g_cli_gradle.size - end);
         count -= ((lead < g_cli_gradle.size) && (text[lead] == '(')) ? 1u : 0u;
     }
     for (int popped = 1; popped && (count > 0u);)
@@ -63,10 +89,10 @@ static unsigned int references_chain(unsigned long long start, unsigned long lon
         for (unsigned int at = 0u; at < 9u; at += 1u)
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = s_getters[at], .cap = CLI_CELLS_POOL}) ==
-                 to[count - 1u] - from[count - 1u]) &&
+                 args->to[count - 1u] - args->from[count - 1u]) &&
                 (memor.cmp(&(MemoriaCfg){.src = s_getters[at],
-                                         .other = text + from[count - 1u],
-                                         .bytes = (size_t)(to[count - 1u] - from[count - 1u])}) == 0))
+                                         .other = text + args->from[count - 1u],
+                                         .bytes = (size_t)(args->to[count - 1u] - args->from[count - 1u])}) == 0))
             {
                 popped = 1;
             }
@@ -77,9 +103,11 @@ static unsigned int references_chain(unsigned long long start, unsigned long lon
 }
 
 // the alias sections of a chain's first word: the section, the kind it names, and where the alias's path starts
-static void references_section_of(const char *word, unsigned long long size, unsigned int *section, const char **kind,
-                                  unsigned int *path_from)
+EMBED_INLINE void references_section_get(const GradleReferencesCtx *args)
 {
+    unsigned int *section = args->section;
+    const char **kind = args->kind;
+    unsigned int *path_from = args->path_from;
     static const char *const s_names[3] = {"versions", "plugins", "bundles"};
     static const char *const s_kinds[3] = {"version", "plugin", "bundle"};
     static const unsigned int s_sections[3] = {CLI_VERSIONS_VERSIONS, CLI_VERSIONS_PLUGINS, CLI_VERSIONS_BUNDLES};
@@ -88,8 +116,8 @@ static void references_section_of(const char *word, unsigned long long size, uns
     *path_from = 0u;
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL}) == size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_names[at], .other = word, .bytes = (size_t)size}) == 0))
+        if ((cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL}) == args->size) &&
+            (memor.cmp(&(MemoriaCfg){.src = s_names[at], .other = args->word, .bytes = (size_t)args->size}) == 0))
         {
             *section = s_sections[at];
             *kind = s_kinds[at];
@@ -100,73 +128,81 @@ static void references_section_of(const char *word, unsigned long long size, uns
 
 // a chain of words of the catalog `name`, at `shown` in the tree, checked against the aliases of the section its first
 // word names
-static void references_one(const CliBuildLines *lines, CliBuildFindings *found, const char *name, const char *shown,
-                           const CliVersionsAliases *aliases, const unsigned long long *from,
-                           const unsigned long long *to, unsigned int count)
+EMBED_INLINE void references_one(const GradleReferencesCtx *args)
 {
+    const CliBuildLines *lines = args->lines;
+    CliBuildFindings *found = args->found;
+    const char *name = args->name;
+    const unsigned long long *from = args->from_read;
+    const unsigned long long *to = args->to_read;
     const char *const text = g_cli_gradle.text;
     unsigned int section = 0u;
     const char *kind = NULL;
     unsigned int path_from = 0u;
-    references_section_of(text + from[0], to[0] - from[0], &section, &kind, &path_from);
-    if (path_from >= count)
+    EMBED_CALL(references_section_get, GradleReferencesCtx, .word = text + from[0], .size = to[0] - from[0],
+               .section = &section, .kind = &kind, .path_from = &path_from);
+    if (path_from >= args->count)
     {
         return;
     }
     const char *const path = text + from[path_from];
-    const unsigned long long path_size = to[count - 1u] - from[path_from];
+    const unsigned long long path_size = to[args->count - 1u] - from[path_from];
     CliBuildNear near;
-    cli_build_near_begun(&near, path, path_size);
+    EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near, .name = path, .size = path_size);
     static char s_known[1u << 12u];
-    for (unsigned int at = 0u; at < aliases->count; at += 1u)
+    for (unsigned int at = 0u; at < args->aliases->count; at += 1u)
     {
-        const CliVersionsAlias *const alias = &aliases->alias[at];
+        const CliVersionsAlias *const alias = &args->aliases->alias[at];
         if (alias->section != section)
         {
             continue;
         }
         VerbaLinea known = {s_known, sizeof(s_known), 0ull};
-        cli_versions_accessor(aliases->text + alias->alias_at, alias->alias_size, &known);
+        EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
+                   .alias = args->aliases->text + alias->alias_at, .size = alias->alias_size, .out = &known);
         if ((known.at == path_size) &&
             (memor.cmp(&(MemoriaCfg){.src = s_known, .other = path, .bytes = (size_t)path_size}) == 0))
         {
             return;
         }
     }
-    VerbaLinea msg = cli_build_msg_line(found);
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = found);
     mmgr_line_ch(&msg, '`');
     mmgr_line_put(&msg, name);
     mmgr_line_ch(&msg, '.');
-    mmgr_line_put_n(&msg, text + from[0], to[count - 1u] - from[0]);
+    mmgr_line_put_n(&msg, text + from[0], to[args->count - 1u] - from[0]);
     mmgr_line_put(&msg, "` names no ");
     mmgr_line_put(&msg, kind);
     mmgr_line_put(&msg, " of `");
-    mmgr_line_put(&msg, shown);
+    mmgr_line_put(&msg, args->shown);
     mmgr_line_ch(&msg, '`');
-    const unsigned int finding =
-        cli_build_finding(found, &msg, lines, from[path_from], to[count - 1u], CLI_BUILD_ERROR, "gradle-catalog");
+    const unsigned int finding = EMBED_CALL(
+        cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = found, .message = &msg, .lines = lines,
+        .from = from[path_from], .to = to[args->count - 1u], .severity = CLI_BUILD_ERROR, .code = "gradle-catalog");
     // each accessor is as long as its alias, so a cell of the aliases' texts contains those the nearest are chosen from
-    const unsigned long long room = aliases->used + 1ull;
+    const unsigned long long room = args->aliases->used + 1ull;
     char *const accessors = g_cli_cells->temporary_buf_alloc(room, &g_cli_gradle_cells);
     unsigned long long used = 0ull;
-    for (unsigned int at = 0u; (accessors != NULL) && (at < aliases->count); at += 1u)
+    for (unsigned int at = 0u; (accessors != NULL) && (at < args->aliases->count); at += 1u)
     {
-        const CliVersionsAlias *const alias = &aliases->alias[at];
+        const CliVersionsAlias *const alias = &args->aliases->alias[at];
         VerbaLinea known = {accessors + used, room - used, 0ull};
         if (alias->section != section)
         {
             continue;
         }
-        cli_versions_accessor(aliases->text + alias->alias_at, alias->alias_size, &known);
+        EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
+                   .alias = args->aliases->text + alias->alias_at, .size = alias->alias_size, .out = &known);
         if (mmgr_line_ok(&known))
         {
-            cli_build_near_offered(&near, accessors + used, known.at);
+            EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near,
+                       .one = accessors + used, .size = known.at);
             used += known.at;
         }
     }
     for (unsigned int at = 0u; at < near.count; at += 1u)
     {
-        VerbaLinea title = cli_build_msg_line(found);
+        VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = found);
         mmgr_line_put(&title, "Change to ");
         mmgr_line_put(&title, name);
         mmgr_line_ch(&title, '.');
@@ -176,37 +212,42 @@ static void references_one(const CliBuildLines *lines, CliBuildFindings *found, 
             mmgr_line_ch(&title, '.');
         }
         mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
-        cli_build_edit_fix(found, finding, &title, lines, from[path_from], to[count - 1u], near.near[at],
-                           near.near_size[at]);
+        EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = found, .finding = finding,
+                   .title = &title, .lines = lines, .from = from[path_from], .to = to[args->count - 1u],
+                   .text = near.near[at], .size = near.near_size[at]);
     }
     g_cli_cells->persistent_buf_release(accessors, &g_cli_gradle_cells);
 }
 
-void cli_gradle_references(const CliBuildLines *lines, CliBuildFindings *found, const char *name, const char *shown,
-                           const CliVersionsAliases *aliases)
+void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
 {
     const char *const text = g_cli_gradle.text;
     const unsigned long long size = g_cli_gradle.size;
-    const unsigned long long name_size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const unsigned long long name_size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at + name_size + 1u <= size; at += 1u)
     {
-        if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = name, .bytes = (size_t)name_size}) != 0) ||
+        if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = args->name, .bytes = (size_t)name_size}) != 0) ||
             (text[at + name_size] != '.') || (g_cli_gradle.class_of[at] != CLI_GRADLE_CODE))
         {
             continue;
         }
         unsigned long long length = 0ull;
-        const unsigned int before = (at > 0u) ? cli_text_letter_before(text, at, &length) : ' ';
-        if (cli_build_word_letter(before) || (before == '.'))
+        const unsigned int before = (at > 0u) ? EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg,
+                                                           .text = text, .end_value = at, .length = &length)
+                                              : ' ';
+        if (EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg, .letter = before) || (before == '.'))
         {
             continue;
         }
         unsigned long long from[CLI_GRADLE_SEGMENTS];
         unsigned long long to[CLI_GRADLE_SEGMENTS];
-        const unsigned int count = references_chain(at + name_size + 1u, from, to);
+        const unsigned int count =
+            EMBED_CALL(references_chain, GradleReferencesCtx, .start = at + name_size + 1u, .from = from, .to = to);
         if (count > 0u)
         {
-            references_one(lines, found, name, shown, aliases, from, to, count);
+            EMBED_CALL(references_one, GradleReferencesCtx, .lines = args->lines, .found = args->found,
+                       .name = args->name, .shown = args->shown, .aliases = args->aliases_read, .from_read = from,
+                       .to_read = to, .count = count);
         }
         at += name_size;
     }

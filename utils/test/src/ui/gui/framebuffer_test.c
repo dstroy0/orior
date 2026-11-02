@@ -30,14 +30,14 @@ static unsigned long long owner_bytes(void)
 // the bytes a window `width` by `height` draws in one raster
 static unsigned long long window_bytes(unsigned int width, unsigned int height)
 {
-    return (unsigned long long)gui_raster_pitch(width) * height * sizeof(GuiColor);
+    return (unsigned long long)EMBED_CALL(gui_raster_width.pitch, GuiRasterWidthCfg, .width = width) * height * sizeof(GuiColor);
 }
 
 int main(void)
 {
-    (void)cli_cells_made(CLI_CELLS_POOL);
+    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     GuiFramebuffer framebuffer;
-    cli_check(gui_framebuffer_made(&framebuffer, 1920u, 1080u, MONITOR_WIDTH, MONITOR_HEIGHT),
+    cli_check(EMBED_CALL(gui_framebuffer_most_width.init, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer, .width = 1920u, .height = 1080u, .most_width = MONITOR_WIDTH, .most_height = MONITOR_HEIGHT),
               "the rasters are made for a window with room for the largest monitor");
     const unsigned long long room = framebuffer.room;
     const unsigned long long monitor = window_bytes(MONITOR_WIDTH, MONITOR_HEIGHT);
@@ -47,7 +47,7 @@ int main(void)
     for (unsigned int at = 0u; at < GUI_FRAMEBUFFER_RASTERS; at += 1u)
     {
         const GuiRaster *const raster = &framebuffer.raster[at];
-        cli_check((raster->width == gui_raster_pitch(1920u)) && (raster->height == 1080u), "each is the window's size");
+        cli_check((raster->width == EMBED_CALL(gui_raster_width.pitch, GuiRasterWidthCfg, .width = 1920u)) && (raster->height == 1080u), "each is the window's size");
         cli_check((raster->placed % GUI_FRAMEBUFFER_PLACE) == 0ull, "each starts on a place boundary of its pages");
         cli_check((raster->pixels[0] == 0u) && (((const unsigned char *)raster->pixels)[room - 1ull] == 0u),
                   "and all of its room is clear");
@@ -61,45 +61,45 @@ int main(void)
 
     GuiRaster *const first = &framebuffer.raster[0];
     GuiRaster *const second = &framebuffer.raster[1];
-    GuiRaster *drawn = gui_framebuffer_flipped(&framebuffer);
+    GuiRaster *drawn = EMBED_CALL(gui_framebuffer_most_width.flip, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer);
     cli_check(drawn == second, "the first flip draws the second framebuffer");
     for (unsigned int round = 0u; round < 8u; round += 1u)
     {
-        GuiRaster *const next = gui_framebuffer_flipped(&framebuffer);
+        GuiRaster *const next = EMBED_CALL(gui_framebuffer_most_width.flip, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer);
         cli_check(next != drawn, "each flip draws the framebuffer that is not being shown");
         cli_check((next == first) || (next == second), "and it is one of the two, never the ground");
         drawn = next;
     }
 
     GuiColor *const pixels = framebuffer.raster[0].pixels;
-    cli_check(gui_framebuffer_fitted(&framebuffer, 1280u, 720u), "a smaller window fits");
+    cli_check(EMBED_CALL(gui_framebuffer_most_width.fit, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer, .width = 1280u, .height = 720u), "a smaller window fits");
     cli_check((framebuffer.raster[0].pixels == pixels) && (framebuffer.raster[0].height == 720u),
               "and is sized where the raster stands");
-    cli_check(gui_framebuffer_fitted(&framebuffer, MONITOR_WIDTH, MONITOR_HEIGHT), "a window the monitor's size fits");
+    cli_check(EMBED_CALL(gui_framebuffer_most_width.fit, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer, .width = MONITOR_WIDTH, .height = MONITOR_HEIGHT), "a window the monitor's size fits");
     cli_check(framebuffer.raster[0].pixels == pixels, "where the raster stands");
-    cli_check(!gui_framebuffer_fits(&framebuffer, MONITOR_WIDTH, MONITOR_HEIGHT + ROWS_PAST),
+    cli_check(!EMBED_CALL(cli_framebuffer.fits, GuiFramebufferCfg, .framebuffer_read = &framebuffer, .width = MONITOR_WIDTH, .height = MONITOR_HEIGHT + ROWS_PAST),
               "a window past the room does not");
-    cli_check(!gui_framebuffer_fitted(&framebuffer, MONITOR_WIDTH, MONITOR_HEIGHT + ROWS_PAST), "and is refused");
+    cli_check(!EMBED_CALL(gui_framebuffer_most_width.fit, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer, .width = MONITOR_WIDTH, .height = MONITOR_HEIGHT + ROWS_PAST), "and is refused");
     cli_check(framebuffer.raster[0].height == MONITOR_HEIGHT, "with nothing changed");
 
-    gui_framebuffer_given(&framebuffer);
+    EMBED_CALL(gui_framebuffer_most_width.free, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer);
     cli_check((framebuffer.pages == NULL) && (framebuffer.ground_pages == NULL), "the pages are given back");
     cli_check(owner_bytes() == 0ull, "and come off the owner");
-    cli_check(!gui_framebuffer_fits(&framebuffer, 8u, 8u), "with no pages nothing fits");
+    cli_check(!EMBED_CALL(cli_framebuffer.fits, GuiFramebufferCfg, .framebuffer_read = &framebuffer, .width = 8u, .height = 8u), "with no pages nothing fits");
 
-    cli_check(gui_framebuffer_made(&framebuffer, 1000u, 1000u, 800u, 600u), "a window larger than the monitor is made");
-    cli_check(gui_framebuffer_fits(&framebuffer, 1000u, 1000u), "the room following the window");
+    cli_check(EMBED_CALL(gui_framebuffer_most_width.init, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer, .width = 1000u, .height = 1000u, .most_width = 800u, .most_height = 600u), "a window larger than the monitor is made");
+    cli_check(EMBED_CALL(cli_framebuffer.fits, GuiFramebufferCfg, .framebuffer_read = &framebuffer, .width = 1000u, .height = 1000u), "the room following the window");
     cli_check(framebuffer.room < (window_bytes(1000u, 1000u) + GUI_FRAMEBUFFER_PLACE), "and no further");
-    gui_framebuffer_given(&framebuffer);
+    EMBED_CALL(gui_framebuffer_most_width.free, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer);
 
-    cli_check(gui_framebuffer_made(&framebuffer, 800u, 600u, 0u, 0u),
+    cli_check(EMBED_CALL(gui_framebuffer_most_width.init, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer, .width = 800u, .height = 600u, .most_width = 0u, .most_height = 0u),
               "with no monitor known the window's size is the room");
-    cli_check(gui_framebuffer_flipped(&framebuffer) == &framebuffer.raster[1], "the rings starting anew");
-    gui_framebuffer_given(&framebuffer);
+    cli_check(EMBED_CALL(gui_framebuffer_most_width.flip, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer) == &framebuffer.raster[1], "the rings starting anew");
+    EMBED_CALL(gui_framebuffer_most_width.free, GuiFramebufferMostWidthCfg, .framebuffer = &framebuffer);
     cli_check(owner_bytes() == 0ull, "and come off the owner again");
 
     GuiFramebuffer none;
-    cli_check(!gui_framebuffer_made(&none, 0u, 0u, 0u, 0u), "no size at all makes nothing");
+    cli_check(!EMBED_CALL(gui_framebuffer_most_width.init, GuiFramebufferMostWidthCfg, .framebuffer = &none, .width = 0u, .height = 0u, .most_width = 0u, .most_height = 0u), "no size at all makes nothing");
     cli_check((none.pages == NULL) && (owner_bytes() == 0ull), "and nothing is kept or counted");
-    return cli_checked();
+    return cli_on_check();
 }

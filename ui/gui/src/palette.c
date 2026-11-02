@@ -5,7 +5,10 @@
 // what they serve; a translucent color carries the stylesheet's alpha as a byte of 255
 #include "palette.h"
 
+#include "../../cli/src/command_line/cli_internal.h"
 #include "../../cli/src/text/text.h"
+
+#include <stddef.h>
 
 // the dark scheme's tokens, --t-<name>
 static const GuiTokenColor s_dark_tokens[] = {
@@ -101,22 +104,366 @@ static const GuiPalette s_dark = {
     sizeof(s_dark_tokens) / sizeof(s_dark_tokens[0]),
 };
 
-const GuiPalette *gui_palette(unsigned int scheme)
+const GuiPalette *gui_palette(const GuiPaletteCfg *args)
 {
-    (void)scheme;
+    (void)args;
     return &s_dark;
 }
 
-GuiColor gui_palette_token(const GuiPalette *palette, const char *name, unsigned long long length)
+_Static_assert((sizeof(s_dark_tokens) / sizeof(s_dark_tokens[0])) <= GUI_PALETTE_TOKENS,
+               "GUI_PALETTE_TOKENS holds the scheme's tokens");
+
+void gui_palette_own_init(const GuiPaletteCfg *args)
 {
-    for (unsigned int at = 0u; at < palette->token_count; at += 1u)
+    const GuiPalette *const from = cli_palette.palette(args);
+    args->own->colors = *from;
+    memor.cpy(&(MemoriaCfg){.dst = args->own->token,
+                            .src = from->token,
+                            .bytes = (unsigned long long)from->token_count * sizeof(GuiTokenColor)});
+    args->own->colors.token = args->own->token;
+}
+
+void gui_palette_opacity_layout(const GuiPaletteOwnBarPercentCfg *args)
+{
+    // a percent of 255, rounded, is a byte
+    args->own->colors.glass =
+        (args->own->colors.ink & 0x00ffffffu) | ((((args->bar_percent * 255u) + 50u) / 100u) << 24u);
+    args->own->colors.editor_ground =
+        (args->own->colors.editor_ground & 0x00ffffffu) | ((((args->editor_percent * 255u) + 50u) / 100u) << 24u);
+}
+
+// A color of the palette by name: its name, where it lies in the palette, and where a second field that is the same
+// color lies, 0 for none, the ground lying first and never being a second field
+typedef struct
+{
+    const char *name;
+    unsigned long long offset;
+    unsigned long long also;
+} PaletteNamed;
+
+// each color named for what it colors, in the form an editor's theme names a color: the fuse's fire also lines the
+// shown tab, and a file icon's color goes by its hue, as a terminal's does
+#define PALETTE_NAMED(name_, field_) {name_, offsetof(GuiPalette, field_), 0ull}
+#define PALETTE_NAMED_AT(name_, field_, at_) {name_, offsetof(GuiPalette, field_) + ((at_) * sizeof(GuiColor)), 0ull}
+static const PaletteNamed s_named[] = {
+    PALETTE_NAMED("window.background", ground),
+    PALETTE_NAMED("widget.background", surface),
+    PALETTE_NAMED("widget.border", widget_line),
+    PALETTE_NAMED("widget.shadow", lifted),
+    PALETTE_NAMED("input.background", well),
+    PALETTE_NAMED("text.primary", text),
+    PALETTE_NAMED("text.secondary", text_2),
+    PALETTE_NAMED("text.tertiary", text_3),
+    PALETTE_NAMED("divider", line),
+    PALETTE_NAMED("accent", signal),
+    PALETTE_NAMED("link.foreground", link),
+    PALETTE_NAMED("hover.foreground", hover),
+    PALETTE_NAMED("failure.foreground", fail),
+    PALETTE_NAMED("glass.tint", ink),
+    PALETTE_NAMED("titleBar.foreground", bar_text),
+    PALETTE_NAMED("menubar.foreground", bar_title),
+    PALETTE_NAMED("toolbar.hoverBackground", bar_title_hover),
+    PALETTE_NAMED("toolbar.hoverForeground", bar_bright),
+    PALETTE_NAMED("statusBar.foreground", status_text),
+    PALETTE_NAMED("breadcrumb.separator", bar_path),
+    PALETTE_NAMED("wordmark.foreground", open_text),
+    PALETTE_NAMED("wordmark.eye", bar_mark),
+    PALETTE_NAMED("tab.activeBackground", tab_ground),
+    PALETTE_NAMED("editor.background", editor_ground),
+    PALETTE_NAMED("editor.foreground", editor_text),
+    PALETTE_NAMED("editor.lineNumber", number),
+    PALETTE_NAMED("editor.lineHighlight", current),
+    PALETTE_NAMED("editor.selection", selection),
+    PALETTE_NAMED("editor.inactiveSelection", selection_idle),
+    PALETTE_NAMED("editor.cursor", caret),
+    PALETTE_NAMED("editor.indentGuide", guide),
+    PALETTE_NAMED("editor.foldBackground", same),
+    PALETTE_NAMED("editor.findMatch", match_on),
+    PALETTE_NAMED("editor.findMatchHighlight", match),
+    PALETTE_NAMED("minimap.selection", map_selection),
+    PALETTE_NAMED("minimap.findMatch", map_match),
+    PALETTE_NAMED("minimap.slider", map_slider),
+    PALETTE_NAMED("minimap.sliderActive", map_slider_on),
+    PALETTE_NAMED("diagnostic.error", error),
+    PALETTE_NAMED("diagnostic.warning", warning),
+    PALETTE_NAMED("diagnostic.information", note),
+    PALETTE_NAMED("fuse.ash", fuse_ash),
+    PALETTE_NAMED("fuse.burn", fuse_burn),
+    {"fuse.fire", offsetof(GuiPalette, fuse_fire), offsetof(GuiPalette, tab_line)},
+    PALETTE_NAMED("lattice.background", deep),
+    PALETTE_NAMED_AT("lattice.inPlace", lattice, 0ull),
+    PALETTE_NAMED_AT("lattice.moving", lattice, 1ull),
+    PALETTE_NAMED_AT("lattice.displaced", lattice, 2ull),
+    PALETTE_NAMED_AT("fileIcon.red", mark, 0ull),
+    PALETTE_NAMED_AT("fileIcon.green", mark, 1ull),
+    PALETTE_NAMED_AT("fileIcon.yellow", mark, 2ull),
+    PALETTE_NAMED_AT("fileIcon.blue", mark, 3ull),
+    PALETTE_NAMED_AT("fileIcon.violet", mark, 4ull),
+    PALETTE_NAMED_AT("fileIcon.cyan", mark, 5ull),
+    PALETTE_NAMED_AT("fileIcon.white", mark, 6ull),
+    PALETTE_NAMED_AT("fileIcon.gray", mark, 7ull),
+};
+#define PALETTE_NAMED_COUNT ((unsigned int)(sizeof(s_named) / sizeof(s_named[0])))
+
+unsigned int gui_palette_color_count(const GuiPaletteLengthCfg *args)
+{
+    return PALETTE_NAMED_COUNT + args->palette->token_count;
+}
+
+void gui_palette_color_name(const GuiPaletteAtCfg *args)
+{
+    VerbaLinea line = {args->name, args->size, 0ull};
+    if (args->at < PALETTE_NAMED_COUNT)
     {
-        const char *const known = palette->token[at].name;
-        if ((cellul.len(&(CatenaFinitaCfg){.src = known, .cap = CLI_CELLS_POOL}) == length) &&
-            (memor.cmp(&(MemoriaCfg){.src = known, .other = name, .bytes = length}) == 0))
+        mmgr_line_put(&line, s_named[args->at].name);
+    }
+    else
+    {
+        mmgr_line_put(&line, "token.");
+        mmgr_line_put(&line, args->palette->token[args->at - PALETTE_NAMED_COUNT].name);
+    }
+    (void)mmgr_line_finish(&line);
+}
+
+typedef struct
+{
+    const GuiPalette *palette;
+    unsigned long long offset;
+    unsigned int value;
+    GuiColor color;
+    GuiColor fore;
+    unsigned long long back;
+    unsigned int *tenths;
+    char *under;
+    unsigned long long size;
+} PaletteCtx;
+// the color lying at `offset` of the palette
+EMBED_INLINE GuiColor palette_at(const PaletteCtx *args)
+{
+    return *(const GuiColor *)(const void *)((const unsigned char *)args->palette + args->offset);
+}
+
+GuiColor gui_palette_color_get(const GuiPaletteAtCfg *args)
+{
+    if (args->at < PALETTE_NAMED_COUNT)
+    {
+        return EMBED_CALL(palette_at, PaletteCtx, .palette = args->palette, .offset = s_named[args->at].offset);
+    }
+    return args->palette->token[args->at - PALETTE_NAMED_COUNT].color;
+}
+
+void gui_palette_color_set(const GuiPaletteOwnCfg *args)
+{
+    GuiColor color = args->color;
+    if (args->at >= PALETTE_NAMED_COUNT)
+    {
+        args->own->token[args->at - PALETTE_NAMED_COUNT].color = color;
+        return;
+    }
+    *(GuiColor *)(void *)((unsigned char *)&args->own->colors + s_named[args->at].offset) = color;
+    if (s_named[args->at].also != 0ull)
+    {
+        *(GuiColor *)(void *)((unsigned char *)&args->own->colors + s_named[args->at].also) = color;
+    }
+    // the ink's tint is the ink at the bar's opacity
+    if (s_named[args->at].offset == offsetof(GuiPalette, ink))
+    {
+        args->own->colors.glass = (color & 0x00ffffffu) | (args->own->colors.glass & 0xff000000u);
+    }
+}
+
+// the hex digit of a value from 0 to 15
+EMBED_INLINE char palette_digit(const PaletteCtx *args)
+{
+    return "0123456789abcdef"[args->value & 0xfu];
+}
+
+void gui_palette_value_text(const GuiPaletteSizeColorCfg *args)
+{
+    VerbaLinea line = {args->text, args->size, 0ull};
+    mmgr_line_ch(&line, '#');
+    const unsigned int opaque = GUI_ALPHA_OF(args->color) == 0xffu;
+    // red, green and blue, and the alpha where it is not opaque, the high digit of each first
+    const unsigned int shifts[4] = {16u, 8u, 0u, 24u};
+    for (unsigned int part = 0u; part < (opaque ? 3u : 4u); part += 1u)
+    {
+        const unsigned int byte = (args->color >> shifts[part]) & 0xffu;
+        mmgr_line_ch(&line, EMBED_CALL(palette_digit, PaletteCtx, .value = byte >> 4u));
+        mmgr_line_ch(&line, EMBED_CALL(palette_digit, PaletteCtx, .value = byte));
+    }
+    (void)mmgr_line_finish(&line);
+}
+
+int gui_palette_value_read(const GuiPaletteTextCfg *args)
+{
+    GuiColor *color = args->color_pointer;
+    const unsigned long long skip = ((args->length != 0ull) && (args->text_read[0] == '#')) ? 1ull : 0ull;
+    const unsigned long long digits = args->length - skip;
+    if ((digits != 6ull) && (digits != 8ull))
+    {
+        return 0;
+    }
+    unsigned int value = 0u;
+    for (unsigned long long at = 0ull; at < digits; at += 1ull)
+    {
+        const char digit = args->text_read[skip + at];
+        unsigned int read = 16u;
+        if ((digit >= '0') && (digit <= '9'))
         {
-            return palette->token[at].color;
+            // the difference of two digits is far inside what an unsigned int represents
+            read = (unsigned int)(digit - '0');
+        }
+        else if ((digit >= 'a') && (digit <= 'f'))
+        {
+            read = 10u + (unsigned int)(digit - 'a');
+        }
+        else if ((digit >= 'A') && (digit <= 'F'))
+        {
+            read = 10u + (unsigned int)(digit - 'A');
+        }
+        if (read == 16u)
+        {
+            return 0;
+        }
+        value = (value << 4u) | read;
+    }
+    // six digits are red, green and blue under the current alpha; eight end in their own alpha
+    *color = (digits == 6ull) ? (value | (args->current & 0xff000000u)) : ((value >> 8u) | (value << 24u));
+    return 1;
+}
+
+// a channel of sRGB from 0 to 255 as its linear light from 0 to 65535, as WCAG 2 takes it
+static const unsigned short s_linear[256] = {
+    0u,     20u,    40u,    60u,    80u,    99u,    119u,   139u,   159u,   179u,   199u,   219u,   241u,   264u,
+    288u,   313u,   340u,   367u,   396u,   427u,   458u,   491u,   526u,   562u,   599u,   637u,   677u,   718u,
+    761u,   805u,   851u,   898u,   947u,   997u,   1048u,  1101u,  1156u,  1212u,  1270u,  1330u,  1391u,  1453u,
+    1517u,  1583u,  1651u,  1720u,  1790u,  1863u,  1937u,  2013u,  2090u,  2170u,  2250u,  2333u,  2418u,  2504u,
+    2592u,  2681u,  2773u,  2866u,  2961u,  3058u,  3157u,  3258u,  3360u,  3464u,  3570u,  3678u,  3788u,  3900u,
+    4014u,  4129u,  4247u,  4366u,  4488u,  4611u,  4736u,  4864u,  4993u,  5124u,  5257u,  5392u,  5530u,  5669u,
+    5810u,  5953u,  6099u,  6246u,  6395u,  6547u,  6700u,  6856u,  7014u,  7174u,  7335u,  7500u,  7666u,  7834u,
+    8004u,  8177u,  8352u,  8528u,  8708u,  8889u,  9072u,  9258u,  9445u,  9635u,  9828u,  10022u, 10219u, 10417u,
+    10619u, 10822u, 11028u, 11235u, 11446u, 11658u, 11873u, 12090u, 12309u, 12530u, 12754u, 12980u, 13209u, 13440u,
+    13673u, 13909u, 14146u, 14387u, 14629u, 14874u, 15122u, 15371u, 15623u, 15878u, 16135u, 16394u, 16656u, 16920u,
+    17187u, 17456u, 17727u, 18001u, 18277u, 18556u, 18837u, 19121u, 19407u, 19696u, 19987u, 20281u, 20577u, 20876u,
+    21177u, 21481u, 21787u, 22096u, 22407u, 22721u, 23038u, 23357u, 23678u, 24002u, 24329u, 24658u, 24990u, 25325u,
+    25662u, 26001u, 26344u, 26688u, 27036u, 27386u, 27739u, 28094u, 28452u, 28813u, 29176u, 29542u, 29911u, 30282u,
+    30656u, 31033u, 31412u, 31794u, 32179u, 32567u, 32957u, 33350u, 33745u, 34143u, 34544u, 34948u, 35355u, 35764u,
+    36176u, 36591u, 37008u, 37429u, 37852u, 38278u, 38706u, 39138u, 39572u, 40009u, 40449u, 40891u, 41337u, 41785u,
+    42236u, 42690u, 43147u, 43606u, 44069u, 44534u, 45002u, 45473u, 45947u, 46423u, 46903u, 47385u, 47871u, 48359u,
+    48850u, 49344u, 49841u, 50341u, 50844u, 51349u, 51858u, 52369u, 52884u, 53401u, 53921u, 54445u, 54971u, 55500u,
+    56032u, 56567u, 57105u, 57646u, 58190u, 58737u, 59287u, 59840u, 60396u, 60955u, 61517u, 62082u, 62650u, 63221u,
+    63795u, 64372u, 64952u, 65535u,
+};
+
+// a color's light as WCAG 2 weighs it and adds its flare of a twentieth, on a scale of twenty times the linear table's:
+// red, green and blue by their weights in ten-thousandths, the flare whole at that scale, the alpha passed over
+EMBED_INLINE unsigned int palette_light(const PaletteCtx *args)
+{
+    const unsigned int weighed = (2126u * s_linear[GUI_RED_OF(args->color)]) +
+                                 (7152u * s_linear[GUI_GREEN_OF(args->color)]) +
+                                 (722u * s_linear[GUI_BLUE_OF(args->color)]);
+    return ((weighed / 10000u) * 20u) + 65535u;
+}
+
+unsigned int gui_palette_contrast(const GuiPaletteForeCfg *args)
+{
+    const GuiColor under =
+        EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .ground_color = args->ground, .color = args->back);
+    const unsigned int fore_light = EMBED_CALL(
+        palette_light, PaletteCtx,
+        .color = EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .ground_color = under, .color = args->fore));
+    const unsigned int under_light = EMBED_CALL(palette_light, PaletteCtx, .color = under);
+    return (fore_light > under_light) ? ((fore_light * 10u) / under_light) : ((under_light * 10u) / fore_light);
+}
+
+// A color of text whose contrast is checked and a color it is drawn on, each where it lies in the palette: a token is
+// drawn on the editor's background
+typedef struct
+{
+    unsigned long long fore;
+    unsigned long long back;
+} PaletteContrast;
+
+static const PaletteContrast s_contrasts[] = {
+    {offsetof(GuiPalette, editor_text), offsetof(GuiPalette, editor_ground)},
+    {offsetof(GuiPalette, number), offsetof(GuiPalette, editor_ground)},
+    {offsetof(GuiPalette, text), offsetof(GuiPalette, ground)},
+    {offsetof(GuiPalette, text_2), offsetof(GuiPalette, ground)},
+    {offsetof(GuiPalette, text), offsetof(GuiPalette, surface)},
+    {offsetof(GuiPalette, link), offsetof(GuiPalette, ground)},
+};
+
+// whether `fore` is under the least over the color lying at `back`: 1, with its contrast and that color's name
+EMBED_INLINE int palette_low(const PaletteCtx *args)
+{
+    GuiColor fore = args->fore;
+    unsigned long long back = args->back;
+    unsigned int *tenths = args->tenths;
+    const unsigned int contrast =
+        EMBED_CALL(gui_palette_fore.contrast, GuiPaletteForeCfg, .fore = fore,
+                   .back = EMBED_CALL(palette_at, PaletteCtx, .palette = args->palette, .offset = back),
+                   .ground = args->palette->ground);
+    if (contrast >= GUI_PALETTE_CONTRAST_LEAST)
+    {
+        return 0;
+    }
+    *tenths = contrast;
+    for (unsigned int at = 0u; at < PALETTE_NAMED_COUNT; at += 1u)
+    {
+        if (s_named[at].offset == back)
+        {
+            VerbaLinea line = {args->under, args->size, 0ull};
+            mmgr_line_put(&line, s_named[at].name);
+            (void)mmgr_line_finish(&line);
         }
     }
-    return palette->editor_text;
+    return 1;
+}
+
+int gui_palette_color_low(const GuiPaletteAtSizeCfg *args)
+{
+    if (args->at >= PALETTE_NAMED_COUNT)
+    {
+        return EMBED_CALL(palette_low, PaletteCtx, .palette = args->palette,
+                          .fore = args->palette->token[args->at - PALETTE_NAMED_COUNT].color,
+                          .back = offsetof(GuiPalette, editor_ground), .tenths = args->tenths, .under = args->under,
+                          .size = args->size);
+    }
+    for (unsigned int pair = 0u; pair < (unsigned int)(sizeof(s_contrasts) / sizeof(s_contrasts[0])); pair += 1u)
+    {
+        if ((s_contrasts[pair].fore == s_named[args->at].offset) &&
+            EMBED_CALL(palette_low, PaletteCtx, .palette = args->palette,
+                       .fore = EMBED_CALL(palette_at, PaletteCtx, .palette = args->palette,
+                                          .offset = s_named[args->at].offset),
+                       .back = s_contrasts[pair].back, .tenths = args->tenths, .under = args->under,
+                       .size = args->size))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void gui_palette_contrast_text(const GuiPaletteSizeCfg *args)
+{
+    VerbaLinea line = {args->text, args->size, 0ull};
+    mmgr_line_decimal(&line, args->tenths_value / 10u, 1u);
+    mmgr_line_ch(&line, '.');
+    mmgr_line_decimal(&line, args->tenths_value % 10u, 1u);
+    mmgr_line_put(&line, ":1");
+    (void)mmgr_line_finish(&line);
+}
+
+GuiColor gui_palette_token(const GuiPaletteLengthCfg *args)
+{
+    for (unsigned int at = 0u; at < args->palette->token_count; at += 1u)
+    {
+        const char *const known = args->palette->token[at].name;
+        if ((cellul.len(&(CatenaFinitaCfg){.src = known, .cap = CLI_CELLS_POOL}) == args->length) &&
+            (memor.cmp(&(MemoriaCfg){.src = known, .other = args->name_read, .bytes = args->length}) == 0))
+        {
+            return args->palette->token[at].color;
+        }
+    }
+    return args->palette->editor_text;
 }

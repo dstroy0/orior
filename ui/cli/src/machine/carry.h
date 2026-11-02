@@ -12,8 +12,14 @@
 // takes out the files it made (carry.c, carry_send.c, carry_take.c, carry_undo.c)
 #ifndef CARRY_H
 #define CARRY_H
+typedef struct CliCarryHomeCfg CliCarryHomeCfg;
+typedef struct CliCarryHomeToCfg CliCarryHomeToCfg;
+typedef struct CliCarryHomeOutCfg CliCarryHomeOutCfg;
+typedef struct CliCarryCfg CliCarryCfg;
+typedef struct CliCarryFromCfg CliCarryFromCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most files carried, and the most bytes of one's text
 #define CLI_CARRIED_MOST 4096u
@@ -33,12 +39,12 @@ typedef struct
 // settings of this machine alone: 1, or 0 with why given; and what travels from `home` written to `to`, as one file
 // where `to` is not a folder, or laid out in the folder `to`, the files it no longer carries taken out of it,
 // committed and pushed where it is a repository: 1 with what it did reported into `out`, or 0 with why given
-int cli_carry_pack(const char *home, CliCarried *packed, VerbaLinea *err_msg);
-int cli_carry_send(const char *home, const char *to, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_carry_pack(const CliCarryCfg *args);
+int cli_carry_send(const CliCarryHomeToCfg *args);
 
 // what the file or the folder `from` carries into `there`, by place, a repository with a remote pulled first: 1, or 0
 // with why given (carry.c)
-int cli_carry_read(const char *from, CliCarried *there, VerbaLinea *err_msg);
+int cli_carry_read(const CliCarryFromCfg *args);
 
 // how what `there` carries differs from orior's own folder `home`, the files alike left out, written as
 // `[{"place", "how", "settings": [{"key", "here", "there"}]}]`; what `there`, read from `from`, carries taken in:
@@ -48,11 +54,101 @@ int cli_carry_read(const char *from, CliCarried *there, VerbaLinea *err_msg);
 // why given; every taking saved, the last first, written as a JSON array of them; and the taking `id` undone, each file
 // it wrote over written back as it was, each it made taken out, and the taking forgotten, the taking written: 1, or 0
 // with why given (carry_take.c)
-void cli_carry_differences(const char *home, const CliCarried *there, VerbaLinea *out);
-int cli_carry_take(const char *home, const char *from, const CliCarried *there, const char *const *places,
-                   unsigned int count, const char *const *keys, unsigned int key_count, VerbaLinea *out,
-                   VerbaLinea *err_msg);
-void cli_carry_takings(const char *home, VerbaLinea *out);
-int cli_carry_undo(const char *home, const char *id, VerbaLinea *out, VerbaLinea *err_msg);
+void cli_carry_differences(const CliCarryHomeCfg *args);
+int cli_carry_take(const CliCarryHomeCfg *args);
+void cli_carry_takings(const CliCarryHomeToCfg *args);
+int cli_carry_undo(const CliCarryHomeOutCfg *args);
+
+struct CliCarryHomeCfg
+{
+    const char *home;
+    VerbaLinea *err_msg;
+    VerbaLinea *out;
+    const char *from;
+    const CliCarried *there;
+    const char *const *places;
+    unsigned int count;
+    const char *const *keys;
+    unsigned int key_count;
+};
+
+struct CliCarryHomeToCfg
+{
+    const char *home;
+    VerbaLinea *err_msg;
+    const char *to;
+    VerbaLinea *out;
+};
+
+struct CliCarryHomeOutCfg
+{
+    const char *home;
+    VerbaLinea *err_msg;
+    VerbaLinea *out;
+    const char *id;
+};
+
+struct CliCarryCfg
+{
+    const char *home;
+    CliCarried *packed;
+    VerbaLinea *err_msg;
+};
+
+struct CliCarryFromCfg
+{
+    VerbaLinea *err_msg;
+    const char *from;
+    CliCarried *there_out;
+};
+
+typedef struct
+{
+    int (*pack)(const CliCarryCfg *args);
+} CliCarryNs;
+EMBED_TABLE_LAYOUT(CliCarryNs, pack);
+EMBED_TABLE_STORAGE CliCarryNs cli_carry EMBED_UNUSED = {
+    .pack = cli_carry_pack,
+};
+
+typedef struct
+{
+    int (*send)(const CliCarryHomeToCfg *args);
+    void (*takings)(const CliCarryHomeToCfg *args);
+} CliCarryHomeToNs;
+EMBED_TABLE_LAYOUT(CliCarryHomeToNs, send, takings);
+EMBED_TABLE_STORAGE CliCarryHomeToNs cli_carry_home_to EMBED_UNUSED = {
+    .send = cli_carry_send,
+    .takings = cli_carry_takings,
+};
+
+typedef struct
+{
+    int (*read)(const CliCarryFromCfg *args);
+} CliCarryFromNs;
+EMBED_TABLE_LAYOUT(CliCarryFromNs, read);
+EMBED_TABLE_STORAGE CliCarryFromNs cli_carry_from EMBED_UNUSED = {
+    .read = cli_carry_read,
+};
+
+typedef struct
+{
+    void (*differences)(const CliCarryHomeCfg *args);
+    int (*take)(const CliCarryHomeCfg *args);
+} CliCarryHomeNs;
+EMBED_TABLE_LAYOUT(CliCarryHomeNs, differences, take);
+EMBED_TABLE_STORAGE CliCarryHomeNs cli_carry_home EMBED_UNUSED = {
+    .differences = cli_carry_differences,
+    .take = cli_carry_take,
+};
+
+typedef struct
+{
+    int (*undo)(const CliCarryHomeOutCfg *args);
+} CliCarryHomeOutNs;
+EMBED_TABLE_LAYOUT(CliCarryHomeOutNs, undo);
+EMBED_TABLE_STORAGE CliCarryHomeOutNs cli_carry_home_out EMBED_UNUSED = {
+    .undo = cli_carry_undo,
+};
 
 #endif

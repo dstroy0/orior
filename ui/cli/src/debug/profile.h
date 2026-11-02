@@ -16,8 +16,10 @@
 // profile_shim.c)
 #ifndef PROFILE_H
 #define PROFILE_H
+typedef struct CliProfileCfg CliProfileCfg;
 
 #include "../tests/test_runs.h"
+#include "embed_dispatch_layout.h"
 
 // the shim the program runs under (profile_shim.c)
 extern const char g_cli_profile_shim[];
@@ -27,7 +29,25 @@ extern const char g_cli_profile_shim[];
 // goes comes by `sink`, written as JSON, `{"kind": "output", "text", "error"}` for a line the program wrote, `{"kind":
 // "counts", "counts"}` for the counts so far, and `{"kind": "done", "code", "message"}` at its end: 1, or 0 with why
 // given. And the profile running stopped, where one is (profile.c)
-int cli_profile_start(const char *root, const char *file, const char *remote, CliJsonSink sink, VerbaLinea *err_msg);
+int cli_profile_start(const CliProfileCfg *args);
 void cli_profile_stop(void);
+
+struct CliProfileCfg
+{
+    const char *root;
+    const char *file;
+    const char *remote;
+    CliJsonSink sink;
+    VerbaLinea *err_msg;
+};
+
+typedef struct
+{
+    int (*start)(const CliProfileCfg *args);
+} CliProfileNs;
+EMBED_TABLE_LAYOUT(CliProfileNs, start);
+EMBED_TABLE_STORAGE CliProfileNs cli_profile EMBED_UNUSED = {
+    .start = cli_profile_start,
+};
 
 #endif

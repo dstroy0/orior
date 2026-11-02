@@ -8,7 +8,7 @@
 
 int main(void)
 {
-    (void)cli_cells_made(CLI_CELLS_POOL);
+    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     const unsigned char *const grain = gui_grain();
     cli_check(grain == gui_grain(), "the grain is made once");
     unsigned int most = 0u;
@@ -23,16 +23,16 @@ int main(void)
     cli_check(most <= (unsigned int)(GUI_GRAIN_ALPHA * 255.0 + 0.5), "no pixel of the grain is more than the grain's share of white");
     cli_check((most > least) && (summed > 0ull), "the grain varies across the tile");
 
-    const GuiPalette *const palette = gui_palette(GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiRaster raster;
-    cli_check(gui_raster_made(&raster, 200u, 100u), "a raster is made");
+    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 200u, .height = 100u), "a raster is made");
     const GuiRect whole = {0, 0, 200, 100};
-    gui_raster_filled(&raster, whole, palette->ground);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = palette->ground);
     GuiRaster plain;
-    cli_check(gui_raster_made(&plain, 200u, 100u), "a raster for the tint alone is made");
-    gui_raster_filled(&plain, whole, palette->ground);
-    gui_raster_rounded(&plain, (GuiRect){10, 10, 100, 40}, 7u, palette->glass);
-    gui_glass_drawn(&raster, (GuiRect){10, 10, 100, 40}, 7u, palette->glass);
+    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &plain, .width = 200u, .height = 100u), "a raster for the tint alone is made");
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &plain, .rect = whole, .color = palette->ground);
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = &plain, .rect = (GuiRect){10, 10, 100, 40}, .radius = 7u, .color = palette->glass);
+    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &raster, .rect = (GuiRect){10, 10, 100, 40}, .radius = 7u, .tint = palette->glass);
     cli_check(raster.pixels[(30u * 200u) + 60u] != palette->ground, "the pane is tinted over the ground");
     unsigned int grained = 0u;
     for (unsigned int x = 20u; x < 100u; x += 1u)
@@ -45,19 +45,19 @@ int main(void)
 
     // the grain is anchored to the window: a second pane over the first lays the same tile at each pixel, which a
     // pane drawn once over twice the tint shows as the pane drawn twice
-    gui_raster_filled(&raster, whole, palette->ground);
-    gui_raster_rounded(&raster, (GuiRect){10, 10, 100, 40}, 0u, palette->glass);
-    gui_glass_drawn(&raster, (GuiRect){10, 10, 100, 40}, 0u, palette->glass);
-    gui_raster_filled(&plain, whole, palette->ground);
-    gui_glass_drawn(&plain, (GuiRect){10, 10, 100, 40}, 0u, palette->glass);
-    gui_raster_rounded(&plain, (GuiRect){10, 10, 100, 40}, 0u, palette->glass);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = palette->ground);
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .color = palette->glass);
+    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &raster, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .tint = palette->glass);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &plain, .rect = whole, .color = palette->ground);
+    EMBED_CALL(gui_glass_raster.draw, GuiGlassRasterCfg, .raster = &plain, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .tint = palette->glass);
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = &plain, .rect = (GuiRect){10, 10, 100, 40}, .radius = 0u, .color = palette->glass);
     unsigned int alike = 0u;
     for (unsigned int x = 20u; x < 100u; x += 1u)
     {
         alike += (raster.pixels[(30u * 200u) + x] == plain.pixels[(30u * 200u) + x]) ? 1u : 0u;
     }
     cli_check(alike < 80u, "the grain over the tint and the tint over the grain differ, the grain lying where it lies");
-    gui_raster_given(&plain);
-    gui_raster_given(&raster);
-    return cli_checked();
+    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &plain);
+    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    return cli_on_check();
 }

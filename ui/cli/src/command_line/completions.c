@@ -5,88 +5,100 @@
 #include "../text/edits.h"
 #include "../text/json_tree.h"
 
-void cli_completions_begun(CliCompletions *items)
+void cli_completions_begin(const CliEditsItemsCfg *args)
 {
-    items->count = 0u;
-    items->used = 0u;
-    items->full = 0;
+    args->items->count = 0u;
+    args->items->used = 0u;
+    args->items->full = 0;
 }
 
-// `size` bytes of `bytes` stored in the items' room: where they start, or CLI_COMPLETIONS_TEXT where they do not fit
-static unsigned int completions_text_stored(CliCompletions *items, const char *bytes, unsigned long long size)
+typedef struct
 {
-    if (size + 1u > CLI_COMPLETIONS_TEXT - items->used)
+    CliCompletions *items;
+    const char *bytes;
+    unsigned long long size;
+} CompletionsCtx;
+// `size` bytes of `bytes` stored in the items' room: where they start, or CLI_COMPLETIONS_TEXT where they do not fit
+EMBED_INLINE unsigned int completions_text_store(const CompletionsCtx *args)
+{
+    const char *bytes = args->bytes;
+    if (args->size + 1u > CLI_COMPLETIONS_TEXT - args->items->used)
     {
         return CLI_COMPLETIONS_TEXT;
     }
-    const unsigned int at = items->used;
-    memor.cpy(&(MemoriaCfg){.dst = items->text + at, .src = bytes, .bytes = (size_t)size});
-    items->text[at + size] = '\0';
-    items->used += (unsigned int)size + 1u;
+    const unsigned int at = args->items->used;
+    memor.cpy(&(MemoriaCfg){.dst = args->items->text + at, .src = bytes, .bytes = (size_t)args->size});
+    args->items->text[at + args->size] = '\0';
+    args->items->used += (unsigned int)args->size + 1u;
     return at;
 }
 
-int cli_completion_put(CliCompletions *items, const char *label, unsigned long long label_size, const char *kind,
-                       const char *detail, unsigned long long detail_size, const char *insert,
-                       unsigned long long insert_size, int snippet)
+int cli_completion_put(const CliEditsItemsCfg *args)
 {
-    if (items->count == CLI_COMPLETIONS_MOST)
+    if (args->items->count == CLI_COMPLETIONS_MOST)
     {
-        items->full = 1;
+        args->items->full = 1;
         return 0;
     }
-    const unsigned int used = items->used;
-    const unsigned int label_at = completions_text_stored(items, label, label_size);
-    const unsigned int detail_at = completions_text_stored(items, detail, detail_size);
-    const unsigned int insert_at = completions_text_stored(items, insert, insert_size);
+    const unsigned int used = args->items->used;
+    const unsigned int label_at = EMBED_CALL(completions_text_store, CompletionsCtx, .items = args->items,
+                                             .bytes = args->label, .size = args->label_size);
+    const unsigned int detail_at = EMBED_CALL(completions_text_store, CompletionsCtx, .items = args->items,
+                                              .bytes = args->detail, .size = args->detail_size);
+    const unsigned int insert_at = EMBED_CALL(completions_text_store, CompletionsCtx, .items = args->items,
+                                              .bytes = args->insert, .size = args->insert_size);
     if ((label_at == CLI_COMPLETIONS_TEXT) || (detail_at == CLI_COMPLETIONS_TEXT) ||
         (insert_at == CLI_COMPLETIONS_TEXT))
     {
-        items->used = used;
-        items->full = 1;
+        args->items->used = used;
+        args->items->full = 1;
         return 0;
     }
-    items->item[items->count] =
-        (CliCompletion){label_at,  (unsigned int)label_size,  kind,   detail_at, (unsigned int)detail_size,
-                        insert_at, (unsigned int)insert_size, snippet};
-    items->count += 1u;
+    args->items->item[args->items->count] = (CliCompletion){
+        label_at,  (unsigned int)args->label_size,  args->kind,   detail_at, (unsigned int)args->detail_size,
+        insert_at, (unsigned int)args->insert_size, args->snippet};
+    args->items->count += 1u;
     return 1;
 }
 
-void cli_completions_unique(CliCompletions *items)
+void cli_completions_unique(const CliEditsItemsCfg *args)
 {
     unsigned int count = 0u;
-    for (unsigned int at = 0u; at < items->count; at += 1u)
+    for (unsigned int at = 0u; at < args->items->count; at += 1u)
     {
-        const CliCompletion *const one = &items->item[at];
+        const CliCompletion *const one = &args->items->item[at];
         int seen = 0;
         for (unsigned int before = 0u; !seen && (before < count); before += 1u)
         {
-            const CliCompletion *const other = &items->item[before];
-            seen =
-                (other->label_size == one->label_size) && (memor.cmp(&(MemoriaCfg){.src = items->text + other->label_at,
-                                                                                   .other = items->text + one->label_at,
-                                                                                   .bytes = one->label_size}) == 0);
+            const CliCompletion *const other = &args->items->item[before];
+            seen = (other->label_size == one->label_size) &&
+                   (memor.cmp(&(MemoriaCfg){.src = args->items->text + other->label_at,
+                                            .other = args->items->text + one->label_at,
+                                            .bytes = one->label_size}) == 0);
         }
         if (!seen)
         {
-            items->item[count] = *one;
+            args->items->item[count] = *one;
             count += 1u;
         }
     }
-    items->count = count;
+    args->items->count = count;
 }
 
-void cli_completion_written(const CliCompletions *items, unsigned int at, VerbaLinea *out)
+void cli_completion_write(const CliEditsOutItemsCfg *args)
 {
-    const CliCompletion *const one = &items->item[at];
-    mmgr_line_put(out, "{\"label\":");
-    cli_json_quoted(out, items->text + one->label_at, one->label_size);
-    mmgr_line_put(out, ",\"kind\":");
-    cli_json_quoted(out, one->kind, cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, ",\"detail\":");
-    cli_json_quoted(out, items->text + one->detail_at, one->detail_size);
-    mmgr_line_put(out, ",\"insert\":");
-    cli_json_quoted(out, items->text + one->insert_at, one->insert_size);
-    mmgr_line_put(out, one->snippet ? ",\"snippet\":true}" : "}");
+    const CliCompletion *const one = &args->items_read->item[args->at];
+    mmgr_line_put(args->out, "{\"label\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+               .text = args->items_read->text + one->label_at, .length = one->label_size);
+    mmgr_line_put(args->out, ",\"kind\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = one->kind,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->out, ",\"detail\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+               .text = args->items_read->text + one->detail_at, .length = one->detail_size);
+    mmgr_line_put(args->out, ",\"insert\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+               .text = args->items_read->text + one->insert_at, .length = one->insert_size);
+    mmgr_line_put(args->out, one->snippet ? ",\"snippet\":true}" : "}");
 }

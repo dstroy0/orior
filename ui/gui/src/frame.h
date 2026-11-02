@@ -7,6 +7,12 @@
 // right under the tabs row and the editor filling the rest; every size the page's pixels times the scale (frame.c)
 #ifndef GUI_FRAME_H
 #define GUI_FRAME_H
+typedef struct GuiFrameScaleCfg GuiFrameScaleCfg;
+typedef struct GuiFrameCfg GuiFrameCfg;
+typedef struct GuiFrameHolesCfg GuiFrameHolesCfg;
+typedef struct GuiFrameShownCfg GuiFrameShownCfg;
+typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
+#include "embed_dispatch_layout.h"
 #include "raster.h"
 
 // the parts' sizes in the page's pixels: the bar's height, --bar-height; the status bar's; the strip's width,
@@ -38,10 +44,10 @@
 // a number of 1 in the frame's arithmetic: every share the parts move on is a whole word, 16 bits of it a fraction
 #define GUI_WHOLE 65536
 
-// The claim's numbers, each 0 to GUI_WHOLE as the page's claim runs them: the claim, GUI_WHOLE while the work has taken the edges'
-// parts' room; each edge's reveal, 1 while its part is back; the controls' way down from the bar's place while the
-// bar is away; each edge's room, 1 once the work has given the part its room; each slat's grown share along its edge;
-// the controls' opacity; and the point along each edge its slat is pulled from, in pixels, -1 for the middle
+// The claim's numbers, each 0 to GUI_WHOLE as the page's claim runs them: the claim, GUI_WHOLE while the work has taken
+// the edges' parts' room; each edge's reveal, 1 while its part is back; the controls' way down from the bar's place
+// while the bar is away; each edge's room, 1 once the work has given the part its room; each slat's grown share along
+// its edge; the controls' opacity; and the point along each edge its slat is pulled from, in pixels, -1 for the middle
 typedef struct
 {
     int claim;
@@ -111,20 +117,97 @@ typedef struct
     unsigned int radius;
 } GuiFrame;
 
-// a size in the page's pixels at `scale`, rounded to a whole pixel
-int gui_scaled(int pixels, float scale);
+// a size in the page's pixels at `scale`, a percent, rounded to a whole pixel
+int gui_scale(const GuiFramePixelsCfg *args);
 // the parts laid out for a window `width` by `height` at `scale`, with no side shown and no claim
-void gui_frame_laid(GuiFrame *frame, unsigned int width, unsigned int height, float scale);
+void gui_frame_layout(const GuiFrameScaleCfg *args);
 // the work's inside laid again with a side shown at its left where `shown` is 1, the tabs row and the editor past it,
 // or with no side where it is 0
-void gui_frame_sided(GuiFrame *frame, int shown);
+void gui_frame_side(const GuiFrameShownCfg *args);
 // the parts laid again for the claim's `numbers`: the work grown to the window less the gap on every side as the
 // claim runs, the bar, the strip and the status bar slid off and back as their reveals run, each a pane standing in
 // from the window's edges by the gap, the work giving each its room as its room runs, the tabs row and the map away
 // inside the work until their edges' reveals, and the controls moved down from the bar's place as their way down runs
-void gui_frame_claimed(GuiFrame *frame, const GuiClaimNumbers *numbers);
+void gui_frame_claim(const GuiFrameCfg *args);
 // the holes the parts shown make in the work while the claim holds, each a slat's rectangle grown by the claim's
 // share of the gap, cut to the work and snapped to the work's edges it comes within two gaps of, into `holes`, sized
 // for four: their count
-unsigned int gui_frame_holes(const GuiFrame *frame, GuiRect *holes);
+unsigned int gui_frame_holes(const GuiFrameHolesCfg *args);
+struct GuiFrameScaleCfg
+{
+    int scale;
+    GuiFrame *frame;
+    unsigned int width;
+    unsigned int height;
+};
+
+struct GuiFrameCfg
+{
+    GuiFrame *frame;
+    const GuiClaimNumbers *numbers;
+};
+
+struct GuiFrameHolesCfg
+{
+    const GuiFrame *frame_read;
+    GuiRect *holes;
+};
+
+struct GuiFrameShownCfg
+{
+    GuiFrame *frame;
+    int shown;
+};
+
+struct GuiFramePixelsCfg
+{
+    int pixels;
+    int scale;
+};
+
+typedef struct
+{
+    int (*scale)(const GuiFramePixelsCfg *args);
+} GuiFramePixelsNs;
+EMBED_TABLE_LAYOUT(GuiFramePixelsNs, scale);
+EMBED_TABLE_STORAGE GuiFramePixelsNs gui_frame_pixels EMBED_UNUSED = {
+    .scale = gui_scale,
+};
+
+typedef struct
+{
+    void (*layout)(const GuiFrameScaleCfg *args);
+} GuiFrameScaleNs;
+EMBED_TABLE_LAYOUT(GuiFrameScaleNs, layout);
+EMBED_TABLE_STORAGE GuiFrameScaleNs gui_frame_scale EMBED_UNUSED = {
+    .layout = gui_frame_layout,
+};
+
+typedef struct
+{
+    void (*side)(const GuiFrameShownCfg *args);
+} GuiFrameShownNs;
+EMBED_TABLE_LAYOUT(GuiFrameShownNs, side);
+EMBED_TABLE_STORAGE GuiFrameShownNs gui_frame_shown EMBED_UNUSED = {
+    .side = gui_frame_side,
+};
+
+typedef struct
+{
+    void (*claim)(const GuiFrameCfg *args);
+} GuiFrameNs;
+EMBED_TABLE_LAYOUT(GuiFrameNs, claim);
+EMBED_TABLE_STORAGE GuiFrameNs gui_frame EMBED_UNUSED = {
+    .claim = gui_frame_claim,
+};
+
+typedef struct
+{
+    unsigned int (*holes)(const GuiFrameHolesCfg *args);
+} CliFrameHolesNs;
+EMBED_TABLE_LAYOUT(CliFrameHolesNs, holes);
+EMBED_TABLE_STORAGE CliFrameHolesNs cli_frame_holes EMBED_UNUSED = {
+    .holes = gui_frame_holes,
+};
+
 #endif

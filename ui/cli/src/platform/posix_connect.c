@@ -30,24 +30,31 @@ unsigned long long cli_clock_microseconds(void)
     return ((unsigned long long)now.tv_sec * 1000000ull) + ((unsigned long long)now.tv_nsec / 1000ull);
 }
 
+typedef struct
+{
+#if (!defined(_WIN32))
+    const struct addrinfo *address;
+    unsigned int milliseconds;
+#endif
+} PosixConnectCtx;
 // a connection made to one address within `milliseconds`, nonblocking for the wait alone: the descriptor, or -1
 // where it was refused or took too long
-static int cli_connect_one(const struct addrinfo *address, unsigned int milliseconds)
+EMBED_INLINE int cli_connect_one(const PosixConnectCtx *args)
 {
-    const int made = socket(address->ai_family, address->ai_socktype, address->ai_protocol);
+    const int made = socket(args->address->ai_family, args->address->ai_socktype, args->address->ai_protocol);
     if (made < 0)
     {
         return -1;
     }
     const int flags = fcntl(made, F_GETFL, 0);
     (void)fcntl(made, F_SETFL, flags | O_NONBLOCK);
-    int connected = (connect(made, address->ai_addr, address->ai_addrlen) == 0);
+    int connected = (connect(made, args->address->ai_addr, args->address->ai_addrlen) == 0);
     if (!connected && (errno == EINPROGRESS))
     {
         struct pollfd waited = {made, POLLOUT, 0};
         int error = 0;
         socklen_t size = (socklen_t)sizeof(error);
-        connected = (poll(&waited, 1, (int)milliseconds) == 1) &&
+        connected = (poll(&waited, 1, (int)args->milliseconds) == 1) &&
                     (getsockopt(made, SOL_SOCKET, SO_ERROR, &error, &size) == 0) && (error == 0);
     }
     (void)fcntl(made, F_SETFL, flags);
@@ -59,13 +66,13 @@ static int cli_connect_one(const struct addrinfo *address, unsigned int millisec
     return made;
 }
 
-int cli_socket_connected_timed(CliSocket *sock, const char *host, unsigned int port, unsigned int milliseconds,
-                               unsigned long long *resolved, VerbaLinea *err_msg)
+int cli_socket_connected_time(const CliErrMsgCtx *args)
 {
-    sock->handle = 0ull;
+    unsigned long long *resolved = args->resolved;
+    args->sock_out->handle = 0ull;
     char service[16];
     VerbaLinea service_line = {service, sizeof(service), 0ull};
-    mmgr_line_decimal(&service_line, port, 0u);
+    mmgr_line_decimal(&service_line, args->port, 0u);
     mmgr_line_finish(&service_line);
     struct addrinfo hints;
     memor.set(&(MemoriaCfg){.dst = &hints, .val = 0, .bytes = sizeof(hints)});
@@ -73,49 +80,51 @@ int cli_socket_connected_timed(CliSocket *sock, const char *host, unsigned int p
     hints.ai_socktype = SOCK_STREAM;
     struct addrinfo *found = NULL;
     const unsigned long long began = cli_clock_microseconds();
-    const int named = (getaddrinfo(host, service, &hints, &found) == 0) && (found != NULL);
+    const int named = (getaddrinfo(args->host, service, &hints, &found) == 0) && (found != NULL);
     if (resolved != NULL)
     {
         *resolved = cli_clock_microseconds() - began;
     }
     if (!named)
     {
-        mmgr_line_put(err_msg, host);
-        mmgr_line_ch(err_msg, ':');
-        mmgr_line_put(err_msg, service);
-        mmgr_line_put(err_msg, " names no address");
+        mmgr_line_put(args->err_msg, args->host);
+        mmgr_line_ch(args->err_msg, ':');
+        mmgr_line_put(args->err_msg, service);
+        mmgr_line_put(args->err_msg, " names no address");
         return 0;
     }
     int made = -1;
     for (const struct addrinfo *address = found; (made < 0) && (address != NULL); address = address->ai_next)
     {
-        made = cli_connect_one(address, milliseconds);
+        made = EMBED_CALL(cli_connect_one, PosixConnectCtx, .address = address, .milliseconds = args->milliseconds);
     }
     freeaddrinfo(found);
     if (made < 0)
     {
-        mmgr_line_put(err_msg, host);
-        mmgr_line_ch(err_msg, ':');
-        mmgr_line_put(err_msg, service);
-        mmgr_line_put(err_msg, ": the connection was refused or took too long");
+        mmgr_line_put(args->err_msg, args->host);
+        mmgr_line_ch(args->err_msg, ':');
+        mmgr_line_put(args->err_msg, service);
+        mmgr_line_put(args->err_msg, ": the connection was refused or took too long");
         return 0;
     }
     const int no_delay = 1;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof(no_delay));
     // a descriptor is not negative; one past it so that 0 stands for none
-    sock->handle = (unsigned long long)made + 1ull;
+    args->sock_out->handle = (unsigned long long)made + 1ull;
     return 1;
 }
 
-int cli_socket_connected_within(CliSocket *sock, const char *host, unsigned int port, unsigned int milliseconds,
-                                VerbaLinea *err_msg)
+int cli_socket_connected_within(const CliErrMsgCtx *args)
 {
-    return cli_socket_connected_timed(sock, host, port, milliseconds, NULL, err_msg);
+    return EMBED_CALL(cli_err_msg_internal.socket_connected_time, CliErrMsgCtx, .sock_out = args->sock_out,
+                      .host = args->host, .port = args->port, .milliseconds = args->milliseconds, .resolved = NULL,
+                      .err_msg = args->err_msg);
 }
 
-int cli_socket_listening(CliSocket *listener, unsigned int *port, VerbaLinea *err_msg)
+int cli_socket_listening(const CliErrMsgPortCtx *args)
 {
-    listener->handle = 0ull;
+    unsigned int *port = args->port_pointer;
+    args->listener->handle = 0ull;
     const int made = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in address;
     memor.set(&(MemoriaCfg){.dst = &address, .val = 0, .bytes = sizeof(address)});
@@ -130,26 +139,27 @@ int cli_socket_listening(CliSocket *listener, unsigned int *port, VerbaLinea *er
         {
             close(made);
         }
-        mmgr_line_put(err_msg, "127.0.0.1: no port could be listened on");
+        mmgr_line_put(args->err_msg, "127.0.0.1: no port could be listened on");
         return 0;
     }
     *port = ntohs(address.sin_port);
     // a descriptor is not negative; one past it so that 0 stands for none
-    listener->handle = (unsigned long long)made + 1ull;
+    args->listener->handle = (unsigned long long)made + 1ull;
     return 1;
 }
 
-int cli_socket_accepted(const CliSocket *listener, CliSocket *peer)
+int cli_socket_accept(const CliListenerCtx *args)
 {
-    peer->handle = 0ull;
+    args->peer->handle = 0ull;
     // the handle is one past a descriptor, which an int stores
-    const int made = (listener->handle != 0ull) ? accept((int)(listener->handle - 1ull), NULL, NULL) : -1;
+    const int made =
+        (args->listener_read->handle != 0ull) ? accept((int)(args->listener_read->handle - 1ull), NULL, NULL) : -1;
     if (made < 0)
     {
         return 0;
     }
     // a descriptor is not negative; one past it so that 0 stands for none
-    peer->handle = (unsigned long long)made + 1ull;
+    args->peer->handle = (unsigned long long)made + 1ull;
     return 1;
 }
 

@@ -12,10 +12,7 @@
 
 #include <math.h>
 
-// the pixels between the points a curve is flattened to, and the most parts an icon's path has
-#define ICONS_STEP 0.5f
 #define ICONS_PATHS 3u
-
 // An icon's shape: its name, its paths, its dots as `fills` triples of center x, center y and radius, whether it is
 // the cog, drawn from its teeth; its own box, left, top, width and height in its units, where it is not drawn on the
 // square of sixteen, the box fitted to the square and centered; and a closed path filled whole, where it has one
@@ -29,6 +26,33 @@ typedef struct
     const float *box;
     const char *filled;
 } GuiIconShape;
+// The pen a path is drawn with: the cover it draws into, floats of 0 to 1 a pixel of the square, the square's side,
+// the pixels a unit takes, the units the shape's box starts at and the pixels the box stands in from the square's
+// top left, and the line's half width in pixels; where the pen stands and where its subpath began, in units; the
+// second control point of the last curve, for a smooth curve to mirror, where the last part was one; and the
+// corners gathered while a shape is filled, in pixels, in place of lines drawn, NULL while it draws
+typedef struct
+{
+    float *cover;
+    unsigned int side;
+    float scale;
+    float left;
+    float top;
+    float pad_x;
+    float pad_y;
+    float radius;
+    float x;
+    float y;
+    float start_x;
+    float start_y;
+    float control_x;
+    float control_y;
+    int has_control;
+    float *corner;
+    unsigned int corners;
+} GuiPen;
+// the pixels between the points a curve is flattened to, and the most parts an icon's path has
+#define ICONS_STEP 0.5f
 
 // the eye of the wordmark, the page's line art: each stroke the center line of one line of the drawing, and the
 // iris its one filled shape, in the drawing's own units within its box
@@ -190,69 +214,79 @@ static const GuiIconShape s_shapes[] = {
 #define ICONS_CORNERS 256u
 #define ICONS_SAMPLES 4u
 
-// The pen a path is drawn with: the cover it draws into, floats of 0 to 1 a pixel of the square, the square's side,
-// the pixels a unit takes, the units the shape's box starts at and the pixels the box stands in from the square's
-// top left, and the line's half width in pixels; where the pen stands and where its subpath began, in units; the
-// second control point of the last curve, for a smooth curve to mirror, where the last part was one; and the
-// corners gathered while a shape is filled, in pixels, in place of lines drawn, NULL while it draws
 typedef struct
 {
-    float *cover;
-    unsigned int side;
-    float scale;
-    float left;
-    float top;
-    float pad_x;
-    float pad_y;
-    float radius;
+    const GuiPen *pen_read;
     float x;
     float y;
-    float start_x;
-    float start_y;
-    float control_x;
-    float control_y;
-    int has_control;
-    float *corner;
-    unsigned int corners;
-} GuiPen;
-
+    GuiPen *pen;
+    float x0;
+    float y0;
+    float x1;
+    float y1;
+    float radius;
+    float x2;
+    float y2;
+    float ux;
+    float uy;
+    float vx;
+    float vy;
+    float rx;
+    float ry;
+    float turn;
+    int large;
+    int sweep;
+    const char **at;
+    float *value;
+    float *values;
+    unsigned int count;
+    char byte;
+    char command;
+    const char *d;
+    const char *name;
+    unsigned int *index;
+    const GuiIconShape *shape;
+    unsigned int size;
+    float stroke;
+    GuiMask *mask;
+} IconsCtx;
 // a place in units as pixels of the square across and down
-static float pen_px(const GuiPen *pen, float x)
+EMBED_INLINE float pen_px(const IconsCtx *args)
 {
-    return ((x - pen->left) * pen->scale) + pen->pad_x;
+    return ((args->x - args->pen_read->left) * args->pen_read->scale) + args->pen_read->pad_x;
 }
 
-static float pen_py(const GuiPen *pen, float y)
+EMBED_INLINE float pen_py(const IconsCtx *args)
 {
-    return ((y - pen->top) * pen->scale) + pen->pad_y;
+    return ((args->y - args->pen_read->top) * args->pen_read->scale) + args->pen_read->pad_y;
 }
 
 // a capsule of `radius` pixels about the line from x0, y0 to x1, y1 in pixels laid on the cover: each pixel's share
 // the distance left from its middle to the capsule's edge, clamped, where that is more than the pixel has; a capsule
 // of no length is a disc
-static void pen_capsule(GuiPen *pen, float x0, float y0, float x1, float y1, float radius)
+EMBED_INLINE void pen_capsule(const IconsCtx *args)
 {
     // the square's side is far inside what an int represents
-    const int side = (int)pen->side;
-    const int left = (int)floorf(((x0 < x1) ? x0 : x1) - radius - 1.0f);
-    const int right = (int)ceilf(((x0 > x1) ? x0 : x1) + radius + 1.0f);
-    const int top = (int)floorf(((y0 < y1) ? y0 : y1) - radius - 1.0f);
-    const int bottom = (int)ceilf(((y0 > y1) ? y0 : y1) + radius + 1.0f);
-    const float run_x = x1 - x0;
-    const float run_y = y1 - y0;
+    const int side = (int)args->pen->side;
+    const int left = (int)floorf(((args->x0 < args->x1) ? args->x0 : args->x1) - args->radius - 1.0f);
+    const int right = (int)ceilf(((args->x0 > args->x1) ? args->x0 : args->x1) + args->radius + 1.0f);
+    const int top = (int)floorf(((args->y0 < args->y1) ? args->y0 : args->y1) - args->radius - 1.0f);
+    const int bottom = (int)ceilf(((args->y0 > args->y1) ? args->y0 : args->y1) + args->radius + 1.0f);
+    const float run_x = args->x1 - args->x0;
+    const float run_y = args->y1 - args->y0;
     const float length_sq = (run_x * run_x) + (run_y * run_y);
     for (int y = (top < 0) ? 0 : top; (y <= bottom) && (y < side); y += 1)
     {
         for (int x = (left < 0) ? 0 : left; (x <= right) && (x < side); x += 1)
         {
-            const float from_x = ((float)x + 0.5f) - x0;
-            const float from_y = ((float)y + 0.5f) - y0;
+            const float from_x = ((float)x + 0.5f) - args->x0;
+            const float from_y = ((float)y + 0.5f) - args->y0;
             const float along = (length_sq > 0.0f) ? ((from_x * run_x) + (from_y * run_y)) / length_sq : 0.0f;
             const float clamped = (along < 0.0f) ? 0.0f : ((along > 1.0f) ? 1.0f : along);
             const float away = hypotf(from_x - (clamped * run_x), from_y - (clamped * run_y));
-            const float share = radius + 0.5f - away;
+            const float share = args->radius + 0.5f - away;
             // the pixel lies on the square: its place is not negative
-            float *const had = &pen->cover[((unsigned int)y * pen->side) + (unsigned int)x];
+            float *const had = &args->pen->cover[((unsigned int)y * args->pen->side) + (unsigned int)x];
             if (share > *had)
             {
                 *had = (share > 1.0f) ? 1.0f : share;
@@ -262,73 +296,81 @@ static void pen_capsule(GuiPen *pen, float x0, float y0, float x1, float y1, flo
 }
 
 // a corner gathered at x, y in units while a shape is filled
-static void pen_cornered(GuiPen *pen, float x, float y)
+EMBED_INLINE void pen_corner(const IconsCtx *args)
 {
-    if (pen->corners < ICONS_CORNERS)
+    if (args->pen->corners < ICONS_CORNERS)
     {
-        pen->corner[pen->corners * 2u] = pen_px(pen, x);
-        pen->corner[(pen->corners * 2u) + 1u] = pen_py(pen, y);
-        pen->corners += 1u;
+        args->pen->corner[args->pen->corners * 2u] = EMBED_CALL(pen_px, IconsCtx, .pen_read = args->pen, .x = args->x);
+        args->pen->corner[(args->pen->corners * 2u) + 1u] =
+            EMBED_CALL(pen_py, IconsCtx, .pen_read = args->pen, .y = args->y);
+        args->pen->corners += 1u;
     }
 }
 
 // the pen moved to x, y in units, a subpath begun there
-static void pen_moved(GuiPen *pen, float x, float y)
+EMBED_INLINE void pen_move(const IconsCtx *args)
 {
-    pen->x = x;
-    pen->y = y;
-    pen->start_x = x;
-    pen->start_y = y;
-    if (pen->corner != NULL)
+    float x = args->x;
+    float y = args->y;
+    args->pen->x = x;
+    args->pen->y = y;
+    args->pen->start_x = x;
+    args->pen->start_y = y;
+    if (args->pen->corner != NULL)
     {
-        pen_cornered(pen, x, y);
+        EMBED_CALL(pen_corner, IconsCtx, .pen = args->pen, .x = x, .y = y);
     }
 }
 
 // a line drawn from the pen to x, y in units, the pen left at its end; a corner gathered in its place while a shape
 // is filled
-static void pen_drawn(GuiPen *pen, float x, float y)
+EMBED_INLINE void pen_draw(const IconsCtx *args)
 {
-    if (pen->corner != NULL)
+    float x = args->x;
+    float y = args->y;
+    if (args->pen->corner != NULL)
     {
-        pen_cornered(pen, x, y);
+        EMBED_CALL(pen_corner, IconsCtx, .pen = args->pen, .x = x, .y = y);
     }
     else
     {
-        pen_capsule(pen, pen_px(pen, pen->x), pen_py(pen, pen->y), pen_px(pen, x), pen_py(pen, y), pen->radius);
+        EMBED_CALL(pen_capsule, IconsCtx, .pen = args->pen,
+                   .x0 = EMBED_CALL(pen_px, IconsCtx, .pen_read = args->pen, .x = args->pen->x),
+                   .y0 = EMBED_CALL(pen_py, IconsCtx, .pen_read = args->pen, .y = args->pen->y),
+                   .x1 = EMBED_CALL(pen_px, IconsCtx, .pen_read = args->pen, .x = x),
+                   .y1 = EMBED_CALL(pen_py, IconsCtx, .pen_read = args->pen, .y = y), .radius = args->pen->radius);
     }
-    pen->x = x;
-    pen->y = y;
+    args->pen->x = x;
+    args->pen->y = y;
 }
 
-void gui_icons_polygon_filled(float *cover, unsigned int width, unsigned int height, const float *corner,
-                              unsigned int corners)
+void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
 {
-    if (corners < 3u)
+    if (args->corners < 3u)
     {
         return;
     }
-    float least_y = corner[1];
-    float most_y = corner[1];
-    for (unsigned int at = 1u; at < corners; at += 1u)
+    float least_y = args->corner[1];
+    float most_y = args->corner[1];
+    for (unsigned int at = 1u; at < args->corners; at += 1u)
     {
-        const float y = corner[(at * 2u) + 1u];
+        const float y = args->corner[(at * 2u) + 1u];
         least_y = (y < least_y) ? y : least_y;
         most_y = (y > most_y) ? y : most_y;
     }
-    unsigned char *const counts = g_cli_cells->temporary_buf_alloc(width, &g_gui_icons_cells);
+    unsigned char *const counts = g_cli_cells->temporary_buf_alloc(args->width, &g_gui_icons_cells);
     if (counts == NULL)
     {
         return;
     }
-    memor.set(&(MemoriaCfg){.dst = counts, .val = 0, .bytes = width});
+    memor.set(&(MemoriaCfg){.dst = counts, .val = 0, .bytes = args->width});
     // the cover's sides are far inside what an int represents, and a sample's column past them is clipped
-    const int tall = (int)height;
-    const int samples_wide = (int)width * (int)ICONS_SAMPLES;
+    const int tall = (int)args->height;
+    const int samples_wide = (int)args->width * (int)ICONS_SAMPLES;
     const int top = (int)floorf(least_y);
     const int bottom = (int)ceilf(most_y);
     const float step = 1.0f / (float)ICONS_SAMPLES;
-    const unsigned int kept = (corners < ICONS_CORNERS) ? corners : ICONS_CORNERS;
+    const unsigned int saved = (args->corners < ICONS_CORNERS) ? args->corners : ICONS_CORNERS;
     for (int y = (top < 0) ? 0 : top; (y <= bottom) && (y < tall); y += 1)
     {
         int seen_from = samples_wide;
@@ -340,13 +382,13 @@ void gui_icons_polygon_filled(float *cover, unsigned int width, unsigned int hei
             float cross_x[ICONS_CORNERS];
             int cross_way[ICONS_CORNERS];
             unsigned int crossings = 0u;
-            for (unsigned int at = 0u; at < kept; at += 1u)
+            for (unsigned int at = 0u; at < saved; at += 1u)
             {
-                const unsigned int next = (at + 1u) % kept;
-                const float x0 = corner[at * 2u];
-                const float y0 = corner[(at * 2u) + 1u];
-                const float x1 = corner[next * 2u];
-                const float y1 = corner[(next * 2u) + 1u];
+                const unsigned int next = (at + 1u) % saved;
+                const float x0 = args->corner[at * 2u];
+                const float y0 = args->corner[(at * 2u) + 1u];
+                const float x1 = args->corner[next * 2u];
+                const float y1 = args->corner[(next * 2u) + 1u];
                 if ((y0 > sample_y) != (y1 > sample_y))
                 {
                     const float x = x0 + ((sample_y - y0) * (x1 - x0) / (y1 - y0));
@@ -362,7 +404,8 @@ void gui_icons_polygon_filled(float *cover, unsigned int width, unsigned int hei
                     crossings += 1u;
                 }
             }
-            // each run the winding holds off zero counted across the samples it covers, a whole pixel at a time inside it
+            // each run the winding holds off zero counted across the samples it covers, a whole pixel at a time inside
+            // it
             int winding = 0;
             float run_from = 0.0f;
             for (unsigned int at = 0u; at < crossings; at += 1u)
@@ -384,9 +427,13 @@ void gui_icons_polygon_filled(float *cover, unsigned int width, unsigned int hei
                     seen_to = ((sample < stop) && (stop > seen_to)) ? stop : seen_to;
                     while (sample < stop)
                     {
-                        const int whole = (((sample % (int)ICONS_SAMPLES) == 0) && (sample + (int)ICONS_SAMPLES <= stop)) ? (int)ICONS_SAMPLES : 1;
+                        const int whole =
+                            (((sample % (int)ICONS_SAMPLES) == 0) && (sample + (int)ICONS_SAMPLES <= stop))
+                                ? (int)ICONS_SAMPLES
+                                : 1;
                         // a pixel's count of its samples is a small count, and the sample lies on the row
-                        counts[(unsigned int)sample / ICONS_SAMPLES] = (unsigned char)(counts[(unsigned int)sample / ICONS_SAMPLES] + whole);
+                        counts[(unsigned int)sample / ICONS_SAMPLES] =
+                            (unsigned char)(counts[(unsigned int)sample / ICONS_SAMPLES] + whole);
                         sample += whole;
                     }
                 }
@@ -399,7 +446,7 @@ void gui_icons_polygon_filled(float *cover, unsigned int width, unsigned int hei
             // the pixel lies on the cover: its place is not negative
             const unsigned int count = counts[(unsigned int)x];
             counts[(unsigned int)x] = 0u;
-            float *const had = &cover[((unsigned int)y * width) + (unsigned int)x];
+            float *const had = &args->cover[((unsigned int)y * args->width) + (unsigned int)x];
             const float share = (float)count / (float)(ICONS_SAMPLES * ICONS_SAMPLES);
             if (share > *had)
             {
@@ -412,11 +459,13 @@ void gui_icons_polygon_filled(float *cover, unsigned int width, unsigned int hei
 
 // a cubic curve drawn from the pen through its control points x1, y1 and x2, y2 to x, y, as lines between points
 // along it
-static void pen_curved(GuiPen *pen, float x1, float y1, float x2, float y2, float x, float y)
+EMBED_INLINE void pen_curve(const IconsCtx *args)
 {
-    const float x0 = pen->x;
-    const float y0 = pen->y;
-    const float length = (hypotf(x1 - x0, y1 - y0) + hypotf(x2 - x1, y2 - y1) + hypotf(x - x2, y - y2)) * pen->scale;
+    const float x0 = args->pen->x;
+    const float y0 = args->pen->y;
+    const float length = (hypotf(args->x1 - x0, args->y1 - y0) + hypotf(args->x2 - args->x1, args->y2 - args->y1) +
+                          hypotf(args->x - args->x2, args->y - args->y2)) *
+                         args->pen->scale;
     // the points along a curve of an icon are far fewer than an unsigned int counts
     unsigned int steps = (unsigned int)ceilf(length / ICONS_STEP);
     steps = (steps < 4u) ? 4u : steps;
@@ -428,46 +477,49 @@ static void pen_curved(GuiPen *pen, float x1, float y1, float x2, float y2, floa
         const float weight_1 = 3.0f * rest * rest * along;
         const float weight_2 = 3.0f * rest * along * along;
         const float weight_3 = along * along * along;
-        pen_drawn(pen, (weight_0 * x0) + (weight_1 * x1) + (weight_2 * x2) + (weight_3 * x),
-                  (weight_0 * y0) + (weight_1 * y1) + (weight_2 * y2) + (weight_3 * y));
+        EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen,
+                   .x = (weight_0 * x0) + (weight_1 * args->x1) + (weight_2 * args->x2) + (weight_3 * args->x),
+                   .y = (weight_0 * y0) + (weight_1 * args->y1) + (weight_2 * args->y2) + (weight_3 * args->y));
     }
-    pen->control_x = x2;
-    pen->control_y = y2;
-    pen->has_control = 1;
+    args->pen->control_x = args->x2;
+    args->pen->control_y = args->y2;
+    args->pen->has_control = 1;
 }
 
 // the angle from the vector ux, uy to vx, vy, signed
-static float pen_angle(float ux, float uy, float vx, float vy)
+EMBED_INLINE float pen_angle(const IconsCtx *args)
 {
-    const float dot = (ux * vx) + (uy * vy);
-    const float lengths = hypotf(ux, uy) * hypotf(vx, vy);
+    const float dot = (args->ux * args->vx) + (args->uy * args->vy);
+    const float lengths = hypotf(args->ux, args->uy) * hypotf(args->vx, args->vy);
     const float ratio = (lengths > 0.0f) ? dot / lengths : 1.0f;
     const float clamped = (ratio < -1.0f) ? -1.0f : ((ratio > 1.0f) ? 1.0f : ratio);
     const float angle = acosf(clamped);
-    return (((ux * vy) - (uy * vx)) < 0.0f) ? -angle : angle;
+    return (((args->ux * args->vy) - (args->uy * args->vx)) < 0.0f) ? -angle : angle;
 }
 
 // an elliptical arc drawn from the pen to x, y with radii rx, ry turned by `turn` degrees, the larger arc where
 // `large` is set and the one that sweeps clockwise where `sweep` is, as the path language's arc, its center found
 // from its ends and the arc walked in steps
-static void pen_arced(GuiPen *pen, float rx, float ry, float turn, int large, int sweep, float x, float y)
+EMBED_INLINE void pen_arc(const IconsCtx *args)
 {
-    const float x1 = pen->x;
-    const float y1 = pen->y;
-    if ((rx == 0.0f) || (ry == 0.0f) || ((x1 == x) && (y1 == y)))
+    float x = args->x;
+    float y = args->y;
+    const float x1 = args->pen->x;
+    const float y1 = args->pen->y;
+    if ((args->rx == 0.0f) || (args->ry == 0.0f) || ((x1 == x) && (y1 == y)))
     {
-        pen_drawn(pen, x, y);
+        EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = x, .y = y);
         return;
     }
-    const float radians = turn * 3.14159265f / 180.0f;
+    const float radians = args->turn * 3.14159265f / 180.0f;
     const float cos_turn = cosf(radians);
     const float sin_turn = sinf(radians);
     const float half_x = (x1 - x) / 2.0f;
     const float half_y = (y1 - y) / 2.0f;
     const float x1_turned = (cos_turn * half_x) + (sin_turn * half_y);
     const float y1_turned = (-sin_turn * half_x) + (cos_turn * half_y);
-    float wide = fabsf(rx);
-    float tall = fabsf(ry);
+    float wide = fabsf(args->rx);
+    float tall = fabsf(args->ry);
     const float lambda = ((x1_turned * x1_turned) / (wide * wide)) + ((y1_turned * y1_turned) / (tall * tall));
     if (lambda > 1.0f)
     {
@@ -480,7 +532,7 @@ static void pen_arced(GuiPen *pen, float rx, float ry, float turn, int large, in
     const float denominator = (wide_sq * y1_turned * y1_turned) + (tall_sq * x1_turned * x1_turned);
     const float ratio = (denominator > 0.0f) ? numerator / denominator : 0.0f;
     const float root = sqrtf((ratio < 0.0f) ? 0.0f : ratio);
-    const float coefficient = (large != sweep) ? root : -root;
+    const float coefficient = (args->large != args->sweep) ? root : -root;
     const float centre_x_turned = coefficient * wide * y1_turned / tall;
     const float centre_y_turned = -coefficient * tall * x1_turned / wide;
     const float centre_x = (cos_turn * centre_x_turned) - (sin_turn * centre_y_turned) + ((x1 + x) / 2.0f);
@@ -489,38 +541,42 @@ static void pen_arced(GuiPen *pen, float rx, float ry, float turn, int large, in
     const float from_y = (y1_turned - centre_y_turned) / tall;
     const float to_x = (-x1_turned - centre_x_turned) / wide;
     const float to_y = (-y1_turned - centre_y_turned) / tall;
-    const float start = pen_angle(1.0f, 0.0f, from_x, from_y);
-    float sweep_angle = pen_angle(from_x, from_y, to_x, to_y);
-    if (!sweep && (sweep_angle > 0.0f))
+    const float start = EMBED_CALL(pen_angle, IconsCtx, .ux = 1.0f, .uy = 0.0f, .vx = from_x, .vy = from_y);
+    float sweep_angle = EMBED_CALL(pen_angle, IconsCtx, .ux = from_x, .uy = from_y, .vx = to_x, .vy = to_y);
+    if (!args->sweep && (sweep_angle > 0.0f))
     {
         sweep_angle -= 2.0f * 3.14159265f;
     }
-    else if (sweep && (sweep_angle < 0.0f))
+    else if (args->sweep && (sweep_angle < 0.0f))
     {
         sweep_angle += 2.0f * 3.14159265f;
     }
     const float longer = (wide > tall) ? wide : tall;
     // the steps around an arc of an icon are far fewer than an unsigned int counts
-    unsigned int steps = (unsigned int)ceilf(fabsf(sweep_angle) * longer * pen->scale / ICONS_STEP);
+    unsigned int steps = (unsigned int)ceilf(fabsf(sweep_angle) * longer * args->pen->scale / ICONS_STEP);
     steps = (steps < 4u) ? 4u : steps;
     for (unsigned int step = 1u; step <= steps; step += 1u)
     {
         const float angle = start + (sweep_angle * (float)step / (float)steps);
         const float ellipse_x = wide * cosf(angle);
         const float ellipse_y = tall * sinf(angle);
-        pen_drawn(pen, (cos_turn * ellipse_x) - (sin_turn * ellipse_y) + centre_x,
-                  (sin_turn * ellipse_x) + (cos_turn * ellipse_y) + centre_y);
+        EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen,
+                   .x = (cos_turn * ellipse_x) - (sin_turn * ellipse_y) + centre_x,
+                   .y = (sin_turn * ellipse_x) + (cos_turn * ellipse_y) + centre_y);
     }
-    pen->x = x;
-    pen->y = y;
+    args->pen->x = x;
+    args->pen->y = y;
 }
 
 // a number read from `*at` as the path language writes one, a sign, digits and a fraction, the separators before it
 // passed over: 1 with the number into `value` and `*at` past it, or 0 where none stands there
-static int icons_number(const char **at, float *value)
+EMBED_INLINE int icons_number(const IconsCtx *args)
 {
+    const char **at = args->at;
+    float *value = args->value;
     const char *text = *at;
-    text += cli_text_past_any(text, 0ull, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), " ,");
+    text += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ull,
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .set = " ,");
     const int negative = *text == '-';
     if ((*text == '-') || (*text == '+'))
     {
@@ -557,11 +613,11 @@ static int icons_number(const char **at, float *value)
 }
 
 // `count` numbers read from `*at` into `values`: 1 where all stood there
-static int icons_numbers(const char **at, float *values, unsigned int count)
+EMBED_INLINE int icons_numbers(const IconsCtx *args)
 {
-    for (unsigned int each = 0u; each < count; each += 1u)
+    for (unsigned int each = 0u; each < args->count; each += 1u)
     {
-        if (!icons_number(at, &values[each]))
+        if (!EMBED_CALL(icons_number, IconsCtx, .at = args->at, .value = &args->values[each]))
         {
             return 0;
         }
@@ -569,115 +625,119 @@ static int icons_numbers(const char **at, float *values, unsigned int count)
     return 1;
 }
 
-static int icons_letter(char byte)
+EMBED_INLINE int icons_letter(const IconsCtx *args)
 {
-    return ((byte >= 'A') && (byte <= 'Z')) || ((byte >= 'a') && (byte <= 'z'));
+    return ((args->byte >= 'A') && (args->byte <= 'Z')) || ((args->byte >= 'a') && (args->byte <= 'z'));
 }
 
 // one part of a path drawn by its command with the numbers that follow it: 1, or 0 where the numbers run out
-static int pen_commanded(GuiPen *pen, char command, const char **at)
+EMBED_INLINE int pen_command(const IconsCtx *args)
 {
-    const int relative = (command >= 'a') && (command <= 'z');
-    const float base_x = relative ? pen->x : 0.0f;
-    const float base_y = relative ? pen->y : 0.0f;
-    const char upper = relative ? (char)(command - 'a' + 'A') : command;
+    const int relative = (args->command >= 'a') && (args->command <= 'z');
+    const float base_x = relative ? args->pen->x : 0.0f;
+    const float base_y = relative ? args->pen->y : 0.0f;
+    const char upper = relative ? (char)(args->command - 'a' + 'A') : args->command;
     float values[7];
     if (upper == 'M')
     {
-        if (!icons_numbers(at, values, 2u))
+        if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 2u))
         {
             return 0;
         }
-        pen_moved(pen, base_x + values[0], base_y + values[1]);
+        EMBED_CALL(pen_move, IconsCtx, .pen = args->pen, .x = base_x + values[0], .y = base_y + values[1]);
     }
     else if (upper == 'L')
     {
-        if (!icons_numbers(at, values, 2u))
+        if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 2u))
         {
             return 0;
         }
-        pen_drawn(pen, base_x + values[0], base_y + values[1]);
+        EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = base_x + values[0], .y = base_y + values[1]);
     }
     else if (upper == 'H')
     {
-        if (!icons_numbers(at, values, 1u))
+        if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 1u))
         {
             return 0;
         }
-        pen_drawn(pen, base_x + values[0], pen->y);
+        EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = base_x + values[0], .y = args->pen->y);
     }
     else if (upper == 'V')
     {
-        if (!icons_numbers(at, values, 1u))
+        if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 1u))
         {
             return 0;
         }
-        pen_drawn(pen, pen->x, base_y + values[0]);
+        EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = args->pen->x, .y = base_y + values[0]);
     }
     else if (upper == 'C')
     {
-        if (!icons_numbers(at, values, 6u))
+        if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 6u))
         {
             return 0;
         }
-        pen_curved(pen, base_x + values[0], base_y + values[1], base_x + values[2], base_y + values[3],
-                   base_x + values[4], base_y + values[5]);
+        EMBED_CALL(pen_curve, IconsCtx, .pen = args->pen, .x1 = base_x + values[0], .y1 = base_y + values[1],
+                   .x2 = base_x + values[2], .y2 = base_y + values[3], .x = base_x + values[4],
+                   .y = base_y + values[5]);
         return 1;
     }
     else if (upper == 'S')
     {
-        if (!icons_numbers(at, values, 4u))
+        if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 4u))
         {
             return 0;
         }
-        const float x1 = pen->has_control ? (2.0f * pen->x) - pen->control_x : pen->x;
-        const float y1 = pen->has_control ? (2.0f * pen->y) - pen->control_y : pen->y;
-        pen_curved(pen, x1, y1, base_x + values[0], base_y + values[1], base_x + values[2], base_y + values[3]);
+        const float x1 = args->pen->has_control ? (2.0f * args->pen->x) - args->pen->control_x : args->pen->x;
+        const float y1 = args->pen->has_control ? (2.0f * args->pen->y) - args->pen->control_y : args->pen->y;
+        EMBED_CALL(pen_curve, IconsCtx, .pen = args->pen, .x1 = x1, .y1 = y1, .x2 = base_x + values[0],
+                   .y2 = base_y + values[1], .x = base_x + values[2], .y = base_y + values[3]);
         return 1;
     }
     else if (upper == 'A')
     {
-        if (!icons_numbers(at, values, 7u))
+        if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 7u))
         {
             return 0;
         }
-        pen_arced(pen, values[0], values[1], values[2], values[3] != 0.0f, values[4] != 0.0f, base_x + values[5],
-                  base_y + values[6]);
+        EMBED_CALL(pen_arc, IconsCtx, .pen = args->pen, .rx = values[0], .ry = values[1], .turn = values[2],
+                   .large = values[3] != 0.0f, .sweep = values[4] != 0.0f, .x = base_x + values[5],
+                   .y = base_y + values[6]);
     }
     else
     {
         return 0;
     }
-    pen->has_control = 0;
+    args->pen->has_control = 0;
     return 1;
 }
 
 // the path `d` drawn: each command with the numbers that follow it, a command's numbers repeating it, the pairs after
 // a move drawn as lines, and a close a line back to where the subpath began
-static void pen_path(GuiPen *pen, const char *d)
+EMBED_INLINE void pen_path(const IconsCtx *args)
 {
-    const char *at = d;
+    const char *at = args->d;
     char command = '\0';
     for (;;)
     {
-        at += cli_text_past_any(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), " ,");
+        at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = " ,");
         if (*at == '\0')
         {
             return;
         }
-        if (icons_letter(*at))
+        if (EMBED_CALL(icons_letter, IconsCtx, .byte = *at))
         {
             command = *at;
             at += 1;
             if ((command == 'Z') || (command == 'z'))
             {
-                pen_drawn(pen, pen->start_x, pen->start_y);
-                pen->has_control = 0;
+                EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = args->pen->start_x, .y = args->pen->start_y);
+                args->pen->has_control = 0;
                 command = '\0';
                 continue;
             }
         }
-        if ((command == '\0') || !pen_commanded(pen, command, &at))
+        if ((command == '\0') || !EMBED_CALL(pen_command, IconsCtx, .pen = args->pen, .command = command, .at = &at))
         {
             return;
         }
@@ -687,7 +747,7 @@ static void pen_path(GuiPen *pen, const char *d)
 }
 
 // the cog drawn: eight teeth around a wheel, each tooth's top a little narrower than its root
-static void pen_cog(GuiPen *pen)
+EMBED_INLINE void pen_cog(const IconsCtx *args)
 {
     const float outer = 6.6f;
     const float inner = 4.9f;
@@ -704,23 +764,24 @@ static void pen_cog(GuiPen *pen)
             const float y = 8.0f + (radii[corner] * sinf(turns[corner]));
             if ((tooth == 0u) && (corner == 0u))
             {
-                pen_moved(pen, x, y);
+                EMBED_CALL(pen_move, IconsCtx, .pen = args->pen, .x = x, .y = y);
             }
             else
             {
-                pen_drawn(pen, x, y);
+                EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = x, .y = y);
             }
         }
     }
-    pen_drawn(pen, pen->start_x, pen->start_y);
+    EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = args->pen->start_x, .y = args->pen->start_y);
 }
 
 // the shape named `name`, or NULL
-static const GuiIconShape *icons_shape(const char *name, unsigned int *index)
+EMBED_INLINE const GuiIconShape *icons_shape(const IconsCtx *args)
 {
+    unsigned int *index = args->index;
     for (unsigned int at = 0u; at < ICONS_COUNT; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_shapes[at].name, .cap = 32ull}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_shapes[at].name, .cap = 32ull}))
         {
             *index = at;
             return &s_shapes[at];
@@ -729,36 +790,36 @@ static const GuiIconShape *icons_shape(const char *name, unsigned int *index)
     return NULL;
 }
 
-int gui_icon_named(const char *name)
+int gui_icon_exists(const GuiIconsCfg *args)
 {
     unsigned int index = 0u;
-    return icons_shape(name, &index) != NULL;
+    return EMBED_CALL(icons_shape, IconsCtx, .name = args->name, .index = &index) != NULL;
 }
 
-void gui_icons_made(GuiIcons *icons)
+void gui_icons_init(const GuiIconsCfg *args)
 {
-    memor.set(&(MemoriaCfg){.dst = icons, .val = 0, .bytes = sizeof(*icons)});
+    memor.set(&(MemoriaCfg){.dst = args->icons, .val = 0, .bytes = sizeof(*args->icons)});
 }
 
-void gui_icons_given(GuiIcons *icons)
+void gui_icons_free(const GuiIconsCfg *args)
 {
-    for (unsigned int at = 0u; at < GUI_ICON_SLOTS; at += 1u)
+    for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
     {
-        if (icons->slot[at].used)
+        if (args->icons->entry[at].used)
         {
-            g_cli_cells->persistent_buf_release(icons->slot[at].mask.cover, &g_gui_icons_cells);
-            icons->slot[at].mask.cover = NULL;
-            icons->slot[at].used = 0;
+            g_cli_cells->persistent_buf_release(args->icons->entry[at].mask.cover, &g_gui_icons_cells);
+            args->icons->entry[at].mask.cover = NULL;
+            args->icons->entry[at].used = 0;
         }
     }
-    icons->kept = 0u;
+    args->icons->count = 0u;
 }
 
 // the shape `index` drawn at `size` with its line `stroke` wide into `mask`, the cover a cell of its own: 1, or 0
 // where a cell could not be taken
-static int icons_drawn(const GuiIconShape *shape, unsigned int size, float stroke, GuiMask *mask)
+EMBED_INLINE int icons_draw(const IconsCtx *args)
 {
-    const unsigned long long pixels = (unsigned long long)size * size;
+    const unsigned long long pixels = (unsigned long long)args->size * args->size;
     float *const floats = g_cli_cells->persistent_buf_alloc(pixels * sizeof(*floats), &g_gui_icons_cells);
     unsigned char *const cover = g_cli_cells->persistent_buf_alloc(pixels, &g_gui_icons_cells);
     if ((floats == NULL) || (cover == NULL))
@@ -771,44 +832,48 @@ static int icons_drawn(const GuiIconShape *shape, unsigned int size, float strok
     GuiPen pen;
     memor.set(&(MemoriaCfg){.dst = &pen, .val = 0, .bytes = sizeof(pen)});
     pen.cover = floats;
-    pen.side = size;
+    pen.side = args->size;
     // a shape on its own box is fitted to the square by the box's longer side and centered along its shorter
     // a shape on no box of its own stands on the icon's square
     static const float s_square[4] = {0.0f, 0.0f, GUI_ICON_UNITS, GUI_ICON_UNITS};
-    const float *const box = (shape->box != NULL) ? shape->box : s_square;
+    const float *const box = (args->shape->box != NULL) ? args->shape->box : s_square;
     const float box_wide = box[2];
     const float box_tall = box[3];
     const float longer = (box_wide > box_tall) ? box_wide : box_tall;
-    pen.scale = (float)size / longer;
+    pen.scale = (float)args->size / longer;
     pen.left = box[0];
     pen.top = box[1];
     pen.pad_x = (longer - box_wide) * pen.scale / 2.0f;
     pen.pad_y = (longer - box_tall) * pen.scale / 2.0f;
-    pen.radius = stroke / 2.0f;
-    if (shape->cog)
+    pen.radius = args->stroke / 2.0f;
+    if (args->shape->cog)
     {
-        pen_cog(&pen);
+        EMBED_CALL(pen_cog, IconsCtx, .pen = &pen);
     }
     for (unsigned int part = 0u; part < ICONS_PATHS; part += 1u)
     {
-        if (shape->path[part] != NULL)
+        if (args->shape->path[part] != NULL)
         {
-            pen_path(&pen, shape->path[part]);
+            EMBED_CALL(pen_path, IconsCtx, .pen = &pen, .d = args->shape->path[part]);
         }
     }
-    for (unsigned int dot = 0u; dot < shape->fills; dot += 1u)
+    for (unsigned int dot = 0u; dot < args->shape->fills; dot += 1u)
     {
-        const float *const fill = &shape->fill[dot * 3u];
-        pen_capsule(&pen, pen_px(&pen, fill[0]), pen_py(&pen, fill[1]), pen_px(&pen, fill[0]), pen_py(&pen, fill[1]),
-                    fill[2] * pen.scale);
+        const float *const fill = &args->shape->fill[dot * 3u];
+        EMBED_CALL(pen_capsule, IconsCtx, .pen = &pen,
+                   .x0 = EMBED_CALL(pen_px, IconsCtx, .pen_read = &pen, .x = fill[0]),
+                   .y0 = EMBED_CALL(pen_py, IconsCtx, .pen_read = &pen, .y = fill[1]),
+                   .x1 = EMBED_CALL(pen_px, IconsCtx, .pen_read = &pen, .x = fill[0]),
+                   .y1 = EMBED_CALL(pen_py, IconsCtx, .pen_read = &pen, .y = fill[1]), .radius = fill[2] * pen.scale);
     }
-    if (shape->filled != NULL)
+    if (args->shape->filled != NULL)
     {
         float corners[ICONS_CORNERS * 2u];
         pen.corner = corners;
         pen.corners = 0u;
-        pen_path(&pen, shape->filled);
-        gui_icons_polygon_filled(pen.cover, pen.side, pen.side, pen.corner, pen.corners);
+        EMBED_CALL(pen_path, IconsCtx, .pen = &pen, .d = args->shape->filled);
+        EMBED_CALL(gui_icons_cover.polygon_fill, GuiIconsCoverCfg, .cover = pen.cover, .width = pen.side,
+                   .height = pen.side, .corner = pen.corner, .corners = pen.corners);
         pen.corner = NULL;
     }
     for (unsigned long long at = 0ull; at < pixels; at += 1ull)
@@ -817,43 +882,45 @@ static int icons_drawn(const GuiIconShape *shape, unsigned int size, float strok
         cover[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);
     }
     g_cli_cells->persistent_buf_release(floats, &g_gui_icons_cells);
-    mask->width = size;
-    mask->height = size;
-    mask->left = 0;
-    mask->top = 0;
-    mask->cover = cover;
+    args->mask->width = args->size;
+    args->mask->height = args->size;
+    args->mask->left = 0;
+    args->mask->top = 0;
+    args->mask->cover = cover;
     return 1;
 }
 
-const GuiMask *gui_icon(GuiIcons *icons, const char *name, unsigned int size, float stroke)
+const GuiMask *gui_icon_get(const GuiIconsCfg *args)
 {
+    unsigned int size = args->size;
+    float stroke = args->stroke;
     unsigned int index = 0u;
-    const GuiIconShape *const shape = icons_shape(name, &index);
+    const GuiIconShape *const shape = EMBED_CALL(icons_shape, IconsCtx, .name = args->name, .index = &index);
     if ((shape == NULL) || (size == 0u))
     {
         return NULL;
     }
-    for (unsigned int at = 0u; at < GUI_ICON_SLOTS; at += 1u)
+    for (unsigned int at = 0u; at < GUI_ICON_CACHE_ENTRIES; at += 1u)
     {
-        const GuiKeptIcon *const kept = &icons->slot[at];
-        if (kept->used && (kept->icon == index) && (kept->size == size) && (kept->stroke == stroke))
+        const GuiIconCacheEntry *const entry = &args->icons->entry[at];
+        if (entry->used && (entry->icon == index) && (entry->size == size) && (entry->stroke == stroke))
         {
-            return &kept->mask;
+            return &entry->mask;
         }
     }
-    if (icons->kept >= GUI_ICON_SLOTS)
+    if (args->icons->count >= GUI_ICON_CACHE_ENTRIES)
     {
-        gui_icons_given(icons);
+        cli_icons.free(args);
     }
-    GuiKeptIcon *const slot = &icons->slot[icons->kept];
-    if (!icons_drawn(shape, size, stroke, &slot->mask))
+    GuiIconCacheEntry *const entry = &args->icons->entry[args->icons->count];
+    if (!EMBED_CALL(icons_draw, IconsCtx, .shape = shape, .size = size, .stroke = stroke, .mask = &entry->mask))
     {
         return NULL;
     }
-    slot->used = 1;
-    slot->icon = index;
-    slot->size = size;
-    slot->stroke = stroke;
-    icons->kept += 1u;
-    return &slot->mask;
+    entry->used = 1;
+    entry->icon = index;
+    entry->size = size;
+    entry->stroke = stroke;
+    args->icons->count += 1u;
+    return &entry->mask;
 }

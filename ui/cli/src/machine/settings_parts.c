@@ -9,134 +9,169 @@ static CliPart *s_parts_of;
 static CliPartValue *s_values_of;
 static CliKindSet *s_kinds_of;
 
-void cli_settings_parts_stored(CliPart *parts, CliPartValue *values, CliKindSet *kinds)
+void cli_settings_parts_store(const CliSettingsPartsCtx *args)
 {
-    s_parts_of = parts;
-    s_values_of = values;
-    s_kinds_of = kinds;
+    s_parts_of = args->parts;
+    s_values_of = args->values;
+    s_kinds_of = args->kinds;
 }
 
-// a problem of a file put after the layers', its file first
-static void cli_file_problem(CliLayers *layers, const char *file, const char *first, const char *second,
-                             const char *third)
+typedef struct
 {
+    CliLayers *layers;
+    const char *file;
+    const char *first;
+    const char *second;
+    const char *third;
+    unsigned int parts;
+    const CliChain *chain;
+    unsigned int file_u32;
+    const char *part;
+    unsigned int first_u32;
+    unsigned int values;
+    unsigned int rank;
+    const char *key;
+    unsigned int value;
+} SettingsPartsCtx;
+// a problem of a file put after the layers', its file first
+EMBED_INLINE void cli_file_problem(const SettingsPartsCtx *args)
+{
+    CliLayers *layers = args->layers;
     char problem[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {problem, sizeof(problem), 0ull};
-    mmgr_line_put(&line, file);
-    mmgr_line_put(&line, first);
-    mmgr_line_put(&line, second);
-    mmgr_line_put(&line, third);
+    mmgr_line_put(&line, args->file);
+    mmgr_line_put(&line, args->first);
+    mmgr_line_put(&line, args->second);
+    mmgr_line_put(&line, args->third);
     mmgr_line_finish(&line);
-    cli_settings_problem(layers, problem);
+    EMBED_CALL(cli_settings_layers_problem_internal.problem, CliSettingsLayersProblemCtx, .layers = layers,
+               .problem = problem);
 }
 
 // a part of a file put after the parts, its values from `first`
-static unsigned int cli_part_put(unsigned int parts, const CliChain *chain, unsigned int file, const char *part,
-                                 unsigned int first, unsigned int values, unsigned int rank)
+EMBED_INLINE unsigned int cli_part_put(const SettingsPartsCtx *args)
 {
-    if (parts < CLI_LAYER_PARTS)
+    if (args->parts < CLI_LAYER_PARTS)
     {
-        s_parts_of[parts] = (CliPart){chain, file, part, first, values - first, rank};
-        return parts + 1u;
+        s_parts_of[args->parts] = (CliPart){
+            args->chain, args->file_u32, args->part, args->first_u32, args->values - args->first_u32, args->rank};
+        return args->parts + 1u;
     }
-    return parts;
+    return args->parts;
 }
 
 // a value a part sets put after the values: the count after
-static unsigned int cli_value_put(unsigned int values, const char *key, unsigned int value)
+EMBED_INLINE unsigned int cli_value_put(const SettingsPartsCtx *args)
 {
-    if (values < CLI_LAYER_RAW)
+    if (args->values < CLI_LAYER_RAW)
     {
-        s_values_of[values] = (CliPartValue){key, value};
-        return values + 1u;
+        s_values_of[args->values] = (CliPartValue){args->key, args->value};
+        return args->values + 1u;
     }
-    return values;
+    return args->values;
 }
 
 // the parts of one file put after the parts: its own settings, its system's, and on the reader's own settings.json its
 // machine's; a kind's settings put after the kinds
-unsigned int cli_settings_file_parts(CliLayers *layers, const CliChain *chain, unsigned int file, int of_tree, int own,
-                                     unsigned int parts, unsigned int *values, unsigned int *kinds)
+unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
 {
-    const CliJson *const json = &chain->json;
-    const char *const name = chain->file[file];
-    const unsigned int object = chain->values[file];
+    unsigned int parts = args->parts_u32;
+    unsigned int *values = args->values_u32s;
+    unsigned int *kinds = args->kinds_u32s;
+    const CliJson *const json = &args->chain->json;
+    const char *const name = args->chain->file[args->file];
+    const unsigned int object = args->chain->values[args->file];
     const unsigned int first = *values;
     for (unsigned int member = json->node[object].first; member != CLI_JSON_NONE; member = json->node[member].next)
     {
         const char *const key = json->text + json->node[member].key;
         const char *kind = NULL;
         unsigned long long length = 0ull;
-        if (cli_settings_kind_of(key, &kind, &length))
+        if (EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = key, .kind = &kind,
+                       .length_pointer = &length))
         {
-            if (cli_json_is(json, member, CFG_JSON_OBJECT) && (*kinds < CLI_LAYER_PARTS))
+            if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
+                           .kind = CFG_JSON_OBJECT) &&
+                (*kinds < CLI_LAYER_PARTS))
             {
-                s_kinds_of[*kinds] = (CliKindSet){chain, file, key, member};
+                s_kinds_of[*kinds] = (CliKindSet){args->chain, args->file, key, member};
                 *kinds += 1u;
             }
-            else if (!cli_json_is(json, member, CFG_JSON_OBJECT))
+            else if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                 .node = member, .kind = CFG_JSON_OBJECT))
             {
-                cli_file_problem(layers, name, ": ", key, " is an object of settings");
+                EMBED_CALL(cli_file_problem, SettingsPartsCtx, .layers = args->layers, .file = name, .first = ": ",
+                           .second = key, .third = " is an object of settings");
             }
         }
-        else if (of_tree && cli_settings_tree_scoped(key))
+        else if (args->of_tree && EMBED_CALL(cli_settings_key_internal.tree_scope, CliSettingsKeyCtx, .key = key))
         {
-            cli_file_problem(layers, name, ": ", key, " is the reader's own to set, and a tree's file does not set it");
+            EMBED_CALL(cli_file_problem, SettingsPartsCtx, .layers = args->layers, .file = name, .first = ": ",
+                       .second = key, .third = " is the reader's own to set, and a tree's file does not set it");
         }
-        else if (!cli_settings_is_file_key(key))
+        else if (!EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = key))
         {
-            *values = cli_value_put(*values, key, member);
+            *values = EMBED_CALL(cli_value_put, SettingsPartsCtx, .values = *values, .key = key, .value = member);
         }
     }
-    const unsigned int rank = of_tree ? CLI_RANK_OVER : (own ? CLI_RANK_OWN : CLI_RANK_UNDER);
-    parts = cli_part_put(parts, chain, file, NULL, first, *values, rank);
-    const unsigned int set = cli_json_member(json, object, layers->system);
-    if (cli_json_is(json, set, CFG_JSON_OBJECT))
+    const unsigned int rank = args->of_tree ? CLI_RANK_OVER : (args->own ? CLI_RANK_OWN : CLI_RANK_UNDER);
+    parts = EMBED_CALL(cli_part_put, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
+                       .part = NULL, .first_u32 = first, .values = *values, .rank = rank);
+    const unsigned int set = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = object, .name = args->layers->system);
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = set,
+                   .kind = CFG_JSON_OBJECT))
     {
         const unsigned int system_first = *values;
         for (unsigned int member = json->node[set].first; member != CLI_JSON_NONE; member = json->node[member].next)
         {
             const char *const key = json->text + json->node[member].key;
-            if (cli_settings_is_file_key(key))
+            if (EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = key))
             {
                 char msg_buf[CLI_NAME_MAX_LEN * 2u];
                 VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
                 mmgr_line_put(&line, ": ");
-                mmgr_line_put(&line, layers->system);
+                mmgr_line_put(&line, args->layers->system);
                 mmgr_line_put(&line, " sets ");
                 mmgr_line_finish(&line);
-                cli_file_problem(layers, name, msg_buf, key, ", which a file sets outside a system's part");
+                EMBED_CALL(cli_file_problem, SettingsPartsCtx, .layers = args->layers, .file = name, .first = msg_buf,
+                           .second = key, .third = ", which a file sets outside a system's part");
             }
-            else if (of_tree && cli_settings_tree_scoped(key))
+            else if (args->of_tree && EMBED_CALL(cli_settings_key_internal.tree_scope, CliSettingsKeyCtx, .key = key))
             {
-                cli_file_problem(layers, name, ": ", key,
-                                 " is the reader's own to set, and a tree's file does not set it");
+                EMBED_CALL(cli_file_problem, SettingsPartsCtx, .layers = args->layers, .file = name, .first = ": ",
+                           .second = key, .third = " is the reader's own to set, and a tree's file does not set it");
             }
             else
             {
-                *values = cli_value_put(*values, key, member);
+                *values = EMBED_CALL(cli_value_put, SettingsPartsCtx, .values = *values, .key = key, .value = member);
             }
         }
-        parts = cli_part_put(parts, chain, file, layers->system, system_first, *values,
-                             (rank == CLI_RANK_UNDER) ? CLI_RANK_UNDER : CLI_RANK_OVER);
+        parts = EMBED_CALL(cli_part_put, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
+                           .part = args->layers->system, .first_u32 = system_first, .values = *values,
+                           .rank = (rank == CLI_RANK_UNDER) ? CLI_RANK_UNDER : CLI_RANK_OVER);
     }
     else if (set != CLI_JSON_NONE)
     {
-        cli_file_problem(layers, name, ": ", layers->system, " is an object of settings");
+        EMBED_CALL(cli_file_problem, SettingsPartsCtx, .layers = args->layers, .file = name, .first = ": ",
+                   .second = args->layers->system, .third = " is an object of settings");
     }
-    const unsigned int machine = cli_json_member(json, object, "machine");
-    if (own && cli_json_is(json, machine, CFG_JSON_OBJECT))
+    const unsigned int machine = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = object, .name = "machine");
+    if (args->own && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                .node = machine, .kind = CFG_JSON_OBJECT))
     {
         const unsigned int machine_first = *values;
         for (unsigned int member = json->node[machine].first; member != CLI_JSON_NONE; member = json->node[member].next)
         {
             const char *const key = json->text + json->node[member].key;
-            if (!cli_settings_is_file_key(key))
+            if (!EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = key))
             {
-                *values = cli_value_put(*values, key, member);
+                *values = EMBED_CALL(cli_value_put, SettingsPartsCtx, .values = *values, .key = key, .value = member);
             }
         }
-        parts = cli_part_put(parts, chain, file, "machine", machine_first, *values, CLI_RANK_OVER);
+        parts = EMBED_CALL(cli_part_put, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
+                           .part = "machine", .first_u32 = machine_first, .values = *values, .rank = CLI_RANK_OVER);
     }
     return parts;
 }

@@ -7,60 +7,63 @@
 #include "../text/text.h"
 #include "pg_internal.h"
 
-const CliDbHead *cli_pg_head(const CliPg *pg)
+const CliDbHead *cli_pg_head(const CliPgCancelCfg *args)
 {
-    return &pg->head;
+    return &args->pg_read->head;
 }
 
-char cli_pg_status(const CliPg *pg)
+char cli_pg_status(const CliPgCancelCfg *args)
 {
-    return pg->status;
+    return args->pg_read->status;
 }
 
-const char *cli_pg_parameter(const CliPg *pg, const char *name)
+const char *cli_pg_parameter(const CliPgNameCfg *args)
 {
-    for (unsigned int at = 0u; at < pg->parameters; at += 1u)
+    for (unsigned int at = 0u; at < args->pg_read->parameters; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = pg->names[at], .other = name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->pg_read->names[at], .other = args->name, .cap = CLI_CELLS_POOL}))
         {
-            return pg->values[at];
+            return args->pg_read->values[at];
         }
     }
     return NULL;
 }
 
-const char *cli_pg_notice(const CliPg *pg, unsigned int at)
+const char *cli_pg_notice(const CliPgAtCfg *args)
 {
-    return (at < pg->notice_count) ? pg->notices[at] : NULL;
+    return (args->at < args->pg_read->notice_count) ? args->pg_read->notices[args->at] : NULL;
 }
 
-int cli_pg_canceller(const CliPg *pg, CliPgCancel *cancel)
+int cli_pg_canceller(const CliPgCancelCfg *args)
 {
-    if (pg->has_cancel)
+    CliPgCancel *cancel = args->cancel;
+    if (args->pg_read->has_cancel)
     {
-        *cancel = pg->cancel;
+        *cancel = args->pg_read->cancel;
     }
-    return pg->has_cancel;
+    return args->pg_read->has_cancel;
 }
 
-int cli_pg_cancel_sent(const CliPgCancel *cancel, VerbaLinea *err_msg)
+int cli_pg_cancel_send(const CliPgCfg *args)
 {
     char address[CLI_NAME_MAX_LEN + 16u];
     VerbaLinea named = {address, sizeof(address), 0ull};
-    mmgr_line_put(&named, cancel->host);
+    mmgr_line_put(&named, args->cancel_read->host);
     mmgr_line_ch(&named, ':');
-    mmgr_line_decimal(&named, cancel->port, 1u);
+    mmgr_line_decimal(&named, args->cancel_read->port, 1u);
     mmgr_line_finish(&named);
     CliSocket socket;
-    if (!cli_net_reach(address, "stopping a PostgreSQL statement", err_msg) ||
-        !cli_socket_connected(&socket, cancel->host, cancel->port, err_msg))
+    if (!EMBED_CALL(cli_net_address.reach, CliNetAddressCfg, .address = address,
+                    .purpose = "stopping a PostgreSQL statement", .err_msg = args->err_msg) ||
+        !EMBED_CALL(cli_err_msg_internal.socket_connect, CliErrMsgCtx, .sock_out = &socket,
+                    .host = args->cancel_read->host, .port = args->cancel_read->port, .err_msg = args->err_msg))
     {
         return 0;
     }
     // the request is its length, the cancel code 80877102, the backend's number and its secret, each big-endian
-    unsigned char request[16u + sizeof(cancel->secret)];
-    const unsigned long long length = 12ull + cancel->secret_size;
-    const unsigned long long words[3] = {length, 80877102ull, cancel->pid};
+    unsigned char request[16u + sizeof(args->cancel_read->secret)];
+    const unsigned long long length = 12ull + args->cancel_read->secret_size;
+    const unsigned long long words[3] = {length, 80877102ull, args->cancel_read->pid};
     for (unsigned int word = 0u; word < 3u; word += 1u)
     {
         for (unsigned int byte = 0u; byte < 4u; byte += 1u)
@@ -68,23 +71,26 @@ int cli_pg_cancel_sent(const CliPgCancel *cancel, VerbaLinea *err_msg)
             request[(word * 4u) + byte] = (unsigned char)((words[word] >> (24u - (8u * byte))) & 0xffu);
         }
     }
-    memor.cpy(&(MemoriaCfg){.dst = request + 12u, .src = cancel->secret, .bytes = cancel->secret_size});
-    if (!cli_socket_written(&socket, request, length))
+    memor.cpy(
+        &(MemoriaCfg){.dst = request + 12u, .src = args->cancel_read->secret, .bytes = args->cancel_read->secret_size});
+    if (!EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &socket, .bytes = request,
+                    .size = length))
     {
-        cli_socket_closed(&socket);
-        mmgr_line_put(err_msg, "the cancel request could not be sent");
+        EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &socket);
+        mmgr_line_put(args->err_msg, "the cancel request could not be sent");
         return 0;
     }
     // the server closes the connection once it has the request
     unsigned char rest[1];
-    (void)cli_socket_some(&socket, rest, sizeof(rest));
-    cli_socket_closed(&socket);
+    (void)EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &socket, .bytes_out = rest,
+                     .room = sizeof(rest));
+    EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &socket);
     return 1;
 }
 
-void cli_pg_literal(const char *text, VerbaLinea *out)
+void cli_pg_literal(const CliPgTextCfg *args)
 {
-    mmgr_line_ch(out, '\'');
-    cli_text_put_doubled(out, text, "'");
-    mmgr_line_ch(out, '\'');
+    mmgr_line_ch(args->out, '\'');
+    EMBED_CALL(cli_text_set_table.put_double, CliTextSetCfg, .out = args->out, .text = args->text, .set = "'");
+    mmgr_line_ch(args->out, '\'');
 }

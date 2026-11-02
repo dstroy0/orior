@@ -30,35 +30,51 @@ unsigned long long g_cli_schema_key_to[CLI_SCHEMA_OPEN_KEYS];
 static unsigned int s_keys;
 CliSchemaSpot g_cli_schema_spot;
 
+typedef struct
+{
+    int key;
+    unsigned long long from;
+    unsigned long long to;
+    unsigned int index;
+    const char *text;
+    unsigned long long size;
+    unsigned long long *at;
+    unsigned int frames;
+    unsigned int schema;
+    const char *base;
+    unsigned int at_u32;
+    unsigned int depth;
+} SchemaCompleteCtx;
 // a step put on the spot's steps where it fits
-static void complete_step(int key, unsigned long long from, unsigned long long to, unsigned int index)
+EMBED_INLINE void complete_step(const SchemaCompleteCtx *args)
 {
     if (g_cli_schema_spot.steps <= CLI_SCHEMA_FRAMES)
     {
-        g_cli_schema_spot.step[g_cli_schema_spot.steps] = (CliSchemaStep){key, from, to, index};
+        g_cli_schema_spot.step[g_cli_schema_spot.steps] = (CliSchemaStep){args->key, args->from, args->to, args->index};
         g_cli_schema_spot.steps += 1u;
     }
 }
 
 // a string passed from `at`, its raw text a key where the object's colon was not passed: past it, or 0 where it is not
 // closed and the cursor stands in it
-static int complete_string(const char *text, unsigned long long size, unsigned long long *at, unsigned int frames)
+EMBED_INLINE int complete_string(const SchemaCompleteCtx *args)
 {
+    unsigned long long *at = args->at;
     unsigned long long end = *at + 1u;
-    while (end < size)
+    while (end < args->size)
     {
-        if (text[end] == '\\')
+        if (args->text[end] == '\\')
         {
             end += 2u;
             continue;
         }
-        if (text[end] == '"')
+        if (args->text[end] == '"')
         {
-            if ((frames > 0u) && s_frame[frames - 1u].object && !s_frame[frames - 1u].colon)
+            if ((args->frames > 0u) && s_frame[args->frames - 1u].object && !s_frame[args->frames - 1u].colon)
             {
-                s_frame[frames - 1u].has_key = 1;
-                s_frame[frames - 1u].key_from = *at + 1u;
-                s_frame[frames - 1u].key_to = end;
+                s_frame[args->frames - 1u].has_key = 1;
+                s_frame[args->frames - 1u].key_from = *at + 1u;
+                s_frame[args->frames - 1u].key_to = end;
             }
             *at = end + 1u;
             return 1;
@@ -68,30 +84,39 @@ static int complete_string(const char *text, unsigned long long size, unsigned l
     return 0;
 }
 
-int cli_schema_spot(const char *text, unsigned long long size)
+int cli_schema_spot(const CliSchemaReadTextCtx *args)
 {
     unsigned int frames = 0u;
     s_keys = 0u;
     g_cli_schema_spot.steps = 0u;
     g_cli_schema_spot.in_string = 0;
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ull; at < args->size;)
     {
         unsigned long long end = 0ull;
-        if (cli_text_starts(text + at, size - at, "//"))
+        if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = args->text + at,
+                       .size = args->size - at, .prefix = "//"))
         {
-            at = cli_text_find(text + at, size - at, "\n", 1u, &end) ? at + end : size;
+            at = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->text + at,
+                            .length_value = args->size - at, .wanted = "\n", .size = 1u, .at_pointer = &end)
+                     ? at + end
+                     : args->size;
             continue;
         }
-        if (cli_text_starts(text + at, size - at, "/*"))
+        if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = args->text + at,
+                       .size = args->size - at, .prefix = "/*"))
         {
-            at = cli_text_find(text + at + 2u, size - at - 2u, "*/", 2u, &end) ? at + 2u + end + 2u : size;
+            at = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->text + at + 2u,
+                            .length_value = args->size - at - 2u, .wanted = "*/", .size = 2u, .at_pointer = &end)
+                     ? at + 2u + end + 2u
+                     : args->size;
             continue;
         }
-        const char byte = text[at];
+        const char byte = args->text[at];
         CliSchemaFrame *const last = (frames > 0u) ? &s_frame[frames - 1u] : NULL;
         if (byte == '"')
         {
-            if (!complete_string(text, size, &at, frames))
+            if (!EMBED_CALL(complete_string, SchemaCompleteCtx, .text = args->text, .size = args->size, .at = &at,
+                            .frames = frames))
             {
                 g_cli_schema_spot.in_string = 1;
                 break;
@@ -121,11 +146,12 @@ int cli_schema_spot(const char *text, unsigned long long size)
         {
             if ((last != NULL) && last->object && last->has_key && last->colon)
             {
-                complete_step(1, last->key_from, last->key_to, 0u);
+                EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 1, .from = last->key_from, .to = last->key_to,
+                           .index = 0u);
             }
             else if ((last != NULL) && !last->object)
             {
-                complete_step(0, 0ull, 0ull, last->index);
+                EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 0, .from = 0ull, .to = 0ull, .index = last->index);
             }
             s_frame[frames] = (CliSchemaFrame){byte == '{', 0, 0ull, 0ull, 0, s_keys, 0u};
             frames += 1u;
@@ -147,14 +173,15 @@ int cli_schema_spot(const char *text, unsigned long long size)
     {
         if (last->colon)
         {
-            complete_step(1, last->has_key ? last->key_from : 0ull, last->has_key ? last->key_to : 0ull, 0u);
+            EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 1, .from = last->has_key ? last->key_from : 0ull,
+                       .to = last->has_key ? last->key_to : 0ull, .index = 0u);
         }
         g_cli_schema_spot.at_key = !last->colon;
         g_cli_schema_spot.keys_first = last->keys_first;
         g_cli_schema_spot.keys = s_keys - last->keys_first;
         return 1;
     }
-    complete_step(0, 0ull, 0ull, last->index);
+    EMBED_CALL(complete_step, SchemaCompleteCtx, .key = 0, .from = 0ull, .to = 0ull, .index = last->index);
     g_cli_schema_spot.at_key = 0;
     g_cli_schema_spot.keys_first = 0u;
     g_cli_schema_spot.keys = 0u;
@@ -166,55 +193,65 @@ unsigned int g_cli_schema_reached[CLI_SCHEMA_REACHED];
 unsigned int g_cli_schema_reached_count;
 
 // the schemas that apply at the end of the steps from `at` of `schema`, read in `base`, put among those reached
-static void complete_schemas_at(const char *text, unsigned int schema, const char *base, unsigned int at,
-                                unsigned int depth)
+static void complete_schemas_at(const SchemaCompleteCtx *args)
 {
+    const char *text = args->text;
+    const char *base = args->base;
     CliSchemaStore *const store = g_cli_schema_store;
     const CliJson *const json = &store->json;
-    if ((depth > CLI_SCHEMA_DEEPEST) || (schema == CLI_SCHEMA_NONE) || !cli_json_is(json, schema, CFG_JSON_OBJECT))
+    if ((args->depth > CLI_SCHEMA_DEEPEST) || (args->schema == CLI_SCHEMA_NONE) ||
+        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->schema,
+                    .kind = CFG_JSON_OBJECT))
     {
         return;
     }
     unsigned long long size = 0ull;
-    const char *const reference = cli_schema_string(json, schema, "$ref", &size);
+    const char *const reference = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
+                                             .map = args->schema, .name = "$ref", .size_pointer = &size);
     // the base a reference is read in, a cell retained while the schemas under it are reached
     char *const doc =
         (reference != NULL) ? g_cli_cells->temporary_buf_alloc(CLI_PATH_MAX_LEN, &g_cli_schema_cells) : NULL;
     if (doc != NULL)
     {
-        const unsigned int target = cli_schema_resolve(store, base, reference, size, doc);
+        const unsigned int target = EMBED_CALL(cli_schema_size_internal.resolve, CliSchemaSizeCtx, .store = store,
+                                               .base = base, .reference = reference, .size = size, .key = doc);
         if (target != CLI_SCHEMA_NONE)
         {
-            complete_schemas_at(text, target, doc, at, depth + 1u);
+            EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = target, .base = doc,
+                       .at_u32 = args->at_u32, .depth = args->depth + 1u);
         }
     }
     g_cli_cells->persistent_buf_release(doc, &g_cli_schema_cells);
     static const char *const s_words[5] = {"allOf", "anyOf", "oneOf", "then", "else"};
     for (unsigned int word = 0u; word < 5u; word += 1u)
     {
-        const unsigned int all = cli_schema_get(json, schema, s_words[word]);
-        if ((word < 3u) && cli_json_is(json, all, CFG_JSON_ARRAY))
+        const unsigned int all = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                            .map = args->schema, .name = s_words[word]);
+        if ((word < 3u) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                      .node = all, .kind = CFG_JSON_ARRAY))
         {
             for (unsigned int one = json->node[all].first; one != CLI_JSON_NONE; one = json->node[one].next)
             {
-                complete_schemas_at(text, one, base, at, depth + 1u);
+                EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = one, .base = base,
+                           .at_u32 = args->at_u32, .depth = args->depth + 1u);
             }
         }
         else if ((word >= 3u) && (all != CLI_JSON_NONE))
         {
-            complete_schemas_at(text, all, base, at, depth + 1u);
+            EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = all, .base = base,
+                       .at_u32 = args->at_u32, .depth = args->depth + 1u);
         }
     }
-    if (at == g_cli_schema_spot.steps)
+    if (args->at_u32 == g_cli_schema_spot.steps)
     {
         if (g_cli_schema_reached_count < CLI_SCHEMA_REACHED)
         {
-            g_cli_schema_reached[g_cli_schema_reached_count] = schema;
+            g_cli_schema_reached[g_cli_schema_reached_count] = args->schema;
             g_cli_schema_reached_count += 1u;
         }
         return;
     }
-    const CliSchemaStep *const step = &g_cli_schema_spot.step[at];
+    const CliSchemaStep *const step = &g_cli_schema_spot.step[args->at_u32];
     if (step->key)
     {
         char key[1u << 12u];
@@ -223,77 +260,111 @@ static void complete_schemas_at(const char *text, unsigned int schema, const cha
         memor.cpy(&(MemoriaCfg){.dst = key, .src = text + step->from, .bytes = (size_t)key_size});
         key[key_size] = '\0';
         int any = 0;
-        const unsigned int named = cli_schema_get(json, cli_schema_get(json, schema, "properties"), key);
+        const unsigned int named =
+            EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                       .map = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                         .map = args->schema, .name = "properties"),
+                       .name = key);
         if (named != CLI_JSON_NONE)
         {
             any = 1;
-            complete_schemas_at(text, named, base, at + 1u, depth + 1u);
+            EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = named, .base = base,
+                       .at_u32 = args->at_u32 + 1u, .depth = args->depth + 1u);
         }
-        const unsigned int patterns = cli_schema_get(json, schema, "patternProperties");
-        for (unsigned int one = cli_json_is(json, patterns, CFG_JSON_OBJECT) ? json->node[patterns].first
-                                                                             : CLI_JSON_NONE;
+        const unsigned int patterns = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                                 .map = args->schema, .name = "patternProperties");
+        for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                           .node = patterns, .kind = CFG_JSON_OBJECT)
+                                    ? json->node[patterns].first
+                                    : CLI_JSON_NONE;
              one != CLI_JSON_NONE; one = json->node[one].next)
         {
             const char *const pattern = json->text + json->node[one].key;
-            if (cli_schema_matches(pattern, cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}), key,
-                                   key_size) == 1)
+            if (EMBED_CALL(cli_schema_text_internal.matches, CliSchemaTextCtx, .pattern = pattern,
+                           .pattern_size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}),
+                           .text = key, .size = key_size) == 1)
             {
                 any = 1;
-                complete_schemas_at(text, one, base, at + 1u, depth + 1u);
+                EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = one, .base = base,
+                           .at_u32 = args->at_u32 + 1u, .depth = args->depth + 1u);
             }
         }
-        const unsigned int additional = cli_schema_get(json, schema, "additionalProperties");
-        if (!any && cli_json_is(json, additional, CFG_JSON_OBJECT))
+        const unsigned int additional = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                                   .map = args->schema, .name = "additionalProperties");
+        if (!any && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                               .node = additional, .kind = CFG_JSON_OBJECT))
         {
-            complete_schemas_at(text, additional, base, at + 1u, depth + 1u);
+            EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = additional, .base = base,
+                       .at_u32 = args->at_u32 + 1u, .depth = args->depth + 1u);
         }
         return;
     }
-    unsigned int tuple = cli_schema_get(json, schema, "prefixItems");
-    const unsigned int items = cli_schema_get(json, schema, "items");
-    tuple = (tuple != CLI_JSON_NONE) ? tuple : (cli_json_is(json, items, CFG_JSON_ARRAY) ? items : CLI_JSON_NONE);
-    const unsigned int placed = cli_json_item(json, tuple, step->index);
+    unsigned int tuple = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema,
+                                    .name = "prefixItems");
+    const unsigned int items =
+        EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema, .name = "items");
+    tuple = (tuple != CLI_JSON_NONE) ? tuple
+                                     : (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                   .json_read = json, .node = items, .kind = CFG_JSON_ARRAY)
+                                            ? items
+                                            : CLI_JSON_NONE);
+    const unsigned int placed = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                           .json_read = json, .array = tuple, .index = step->index);
     if (placed != CLI_JSON_NONE)
     {
-        complete_schemas_at(text, placed, base, at + 1u, depth + 1u);
+        EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = placed, .base = base,
+                   .at_u32 = args->at_u32 + 1u, .depth = args->depth + 1u);
         return;
     }
-    const unsigned int rest =
-        cli_json_is(json, items, CFG_JSON_OBJECT) ? items : cli_schema_get(json, schema, "additionalItems");
+    const unsigned int rest = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                         .node = items, .kind = CFG_JSON_OBJECT)
+                                  ? items
+                                  : EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                               .map = args->schema, .name = "additionalItems");
     if (rest != CLI_JSON_NONE)
     {
-        complete_schemas_at(text, rest, base, at + 1u, depth + 1u);
+        EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = rest, .base = base,
+                   .at_u32 = args->at_u32 + 1u, .depth = args->depth + 1u);
     }
 }
 
-void cli_schema_detail(const CliJson *json, unsigned int schema, VerbaLinea *out)
+void cli_schema_detail(const CliSchemaJsonOutCtx *args)
 {
     unsigned long long size = 0ull;
-    const char *description = cli_schema_string(json, schema, "description", &size);
-    description = (description != NULL) ? description : cli_schema_string(json, schema, "title", &size);
+    const char *description = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = args->json,
+                                         .map = args->schema, .name = "description", .size_pointer = &size);
+    description = (description != NULL)
+                      ? description
+                      : EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = args->json,
+                                   .map = args->schema, .name = "title", .size_pointer = &size);
     if (description != NULL)
     {
-        unsigned long long line = cli_text_line_at(description, 0ull, size).stop;
+        unsigned long long line =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = description, .at = 0ull, .size = size).stop;
         line -= ((line > 0u) && (description[line - 1u] == '\r')) ? 1u : 0u;
-        mmgr_line_put_n(out, description, line);
+        mmgr_line_put_n(args->out, description, line);
         return;
     }
-    const unsigned int kind = cli_schema_get(json, schema, "type");
+    const unsigned int kind = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = args->json,
+                                         .map = args->schema, .name = "type");
     if (kind == CLI_JSON_NONE)
     {
         return;
     }
-    const char *const text = cli_json_string(json, kind, &size);
+    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                        .json_read = args->json, .node = kind, .length_pointer = &size);
     if (text != NULL)
     {
-        mmgr_line_put_n(out, text, size);
+        mmgr_line_put_n(args->out, text, size);
         return;
     }
-    cli_json_write(json, kind, out, 0u, 1);
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json, .node = kind,
+               .out = args->out, .indent = 0u, .sorted = 1);
 }
 
-void cli_schema_reached_of(const char *text, unsigned int schema, const char *base)
+void cli_schema_reached_get(const CliSchemaTextBaseCtx *args)
 {
     g_cli_schema_reached_count = 0u;
-    complete_schemas_at(text, schema, base, 0u, 0u);
+    EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = args->text, .schema = args->schema, .base = args->base,
+               .at_u32 = 0u, .depth = 0u);
 }

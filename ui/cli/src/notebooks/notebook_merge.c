@@ -3,9 +3,6 @@
 // notebook_merge.c: a notebook's cells as a diff compares them, and the cells two sides of a merge make of their base
 #include "notebook_internal.h"
 
-// the most lines of one cell's source two cells are compared by
-#define CLI_NOTEBOOK_LINES 4096u
-
 // A merge's room, one cell sized to the cells of its three books: the cells of each side, where each base cell stands
 // on each side, CLI_JSON_NONE where it stands on none, and the table of the longest runs of the same cells, a row for
 // each base cell and one more, each as wide as the longer side and one more
@@ -18,96 +15,173 @@ typedef struct
     unsigned int *theirs_at;
     unsigned int *table;
 } CliMergeRoom;
+// the most lines of one cell's source two cells are compared by
+#define CLI_NOTEBOOK_LINES 4096u
 
-int cli_notebook_for_diff(CliJson *json, const char *text, unsigned long long size, CfgJsonToken *tokens,
-                          unsigned int tokens_most, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_notebook_for_diff(const CliNotebookTextCfg *args)
 {
-    const unsigned int book = cli_notebook_read(json, "x.ipynb", text, size, tokens, tokens_most, err_msg);
+    const unsigned int book = EMBED_CALL(
+        cli_notebook_path.read, CliNotebookPathCfg, .json = args->json, .path = "x.ipynb", .text = args->text,
+        .size = args->size, .tokens = args->tokens, .tokens_most = args->tokens_most, .err_msg = args->err_msg);
     if (book == CLI_JSON_NONE)
     {
         return 0;
     }
-    const unsigned long long begun = out->at;
-    const unsigned int cells = cli_json_member(json, book, "cells");
+    const unsigned long long begun = args->out->at;
+    const unsigned int cells = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = args->json, .object = book, .name = "cells");
     unsigned int index = 0u;
-    for (unsigned int cell = cli_json_is(json, cells, CFG_JSON_ARRAY) ? json->node[cells].first : CLI_JSON_NONE;
-         cell != CLI_JSON_NONE; cell = json->node[cell].next)
+    for (unsigned int cell = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                        .json_read = args->json, .node = cells, .kind = CFG_JSON_ARRAY)
+                                 ? args->json->node[cells].first
+                                 : CLI_JSON_NONE;
+         cell != CLI_JSON_NONE; cell = args->json->node[cell].next)
     {
         index += 1u;
-        const char *const named = cli_json_string(json, cli_json_member(json, cell, "cell_type"), NULL);
-        mmgr_line_put(out, "# cell ");
-        mmgr_line_decimal(out, index, 1u);
-        mmgr_line_put(out, " (");
-        mmgr_line_put(out, (named != NULL) ? named : "code");
-        mmgr_line_put(out, ")\n");
+        const char *const named =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = args->json, .object = cell, .name = "cell_type"),
+                       .length_pointer = NULL);
+        mmgr_line_put(args->out, "# cell ");
+        mmgr_line_decimal(args->out, index, 1u);
+        mmgr_line_put(args->out, " (");
+        mmgr_line_put(args->out, (named != NULL) ? named : "code");
+        mmgr_line_put(args->out, ")\n");
         unsigned long long length = 0ull;
-        const char *const source = cli_notebook_source(json, cell, &length);
-        mmgr_line_put_n(out, source, length);
-        if (mmgr_line_ok(out) && !cli_notebook_ends(out->out + begun, out->at - begun, "\n"))
+        const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
+                                              .json_read = args->json, .cell = cell, .length_pointer = &length);
+        mmgr_line_put_n(args->out, source, length);
+        if (mmgr_line_ok(args->out) &&
+            !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx, .text = args->out->out + begun,
+                        .length = args->out->at - begun, .ending = "\n"))
         {
-            mmgr_line_ch(out, '\n');
+            mmgr_line_ch(args->out, '\n');
         }
-        const unsigned int outputs = cli_json_member(json, cell, "outputs");
-        for (unsigned int output = cli_json_is(json, outputs, CFG_JSON_ARRAY) ? json->node[outputs].first
-                                                                              : CLI_JSON_NONE;
-             output != CLI_JSON_NONE; output = json->node[output].next)
+        const unsigned int outputs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = args->json, .object = cell, .name = "outputs");
+        for (unsigned int output = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                              .json_read = args->json, .node = outputs, .kind = CFG_JSON_ARRAY)
+                                       ? args->json->node[outputs].first
+                                       : CLI_JSON_NONE;
+             output != CLI_JSON_NONE; output = args->json->node[output].next)
         {
-            const unsigned int data = cli_json_member(json, output, "data");
-            const char *shown = cli_json_string(json, cli_json_member(json, output, "text"), NULL);
-            shown = (shown != NULL) ? shown : cli_json_string(json, cli_json_member(json, data, "text/plain"), NULL);
-            const char *const evalue = cli_json_string(json, cli_json_member(json, output, "evalue"), NULL);
-            const char *const ename = cli_json_string(json, cli_json_member(json, output, "ename"), NULL);
-            const char *const typed = cli_json_string(json, cli_json_member(json, output, "output_type"), NULL);
-            mmgr_line_put(out, "## ");
-            mmgr_line_put(out, (typed != NULL) ? typed : "output");
+            const unsigned int data = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                 .json_read = args->json, .object = output, .name = "data");
+            const char *shown =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = args->json, .object = output, .name = "text"),
+                           .length_pointer = NULL);
+            shown = (shown != NULL)
+                        ? shown
+                        : EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                     .json_read = args->json,
+                                     .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                        .json_read = args->json, .object = data, .name = "text/plain"),
+                                     .length_pointer = NULL);
+            const char *const evalue =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = args->json, .object = output, .name = "evalue"),
+                           .length_pointer = NULL);
+            const char *const ename =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = args->json, .object = output, .name = "ename"),
+                           .length_pointer = NULL);
+            const char *const typed =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = args->json, .object = output, .name = "output_type"),
+                           .length_pointer = NULL);
+            mmgr_line_put(args->out, "## ");
+            mmgr_line_put(args->out, (typed != NULL) ? typed : "output");
             if ((shown != NULL) || (evalue != NULL))
             {
-                mmgr_line_ch(out, '\n');
+                mmgr_line_ch(args->out, '\n');
                 if (shown != NULL)
                 {
-                    mmgr_line_put(out, shown);
+                    mmgr_line_put(args->out, shown);
                 }
                 else
                 {
-                    mmgr_line_put(out, (ename != NULL) ? ename : "error");
-                    mmgr_line_put(out, ": ");
-                    mmgr_line_put(out, evalue);
+                    mmgr_line_put(args->out, (ename != NULL) ? ename : "error");
+                    mmgr_line_put(args->out, ": ");
+                    mmgr_line_put(args->out, evalue);
                 }
-                if (mmgr_line_ok(out) && !cli_notebook_ends(out->out + begun, out->at - begun, "\n"))
+                if (mmgr_line_ok(args->out) &&
+                    !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx, .text = args->out->out + begun,
+                                .length = args->out->at - begun, .ending = "\n"))
                 {
-                    mmgr_line_ch(out, '\n');
+                    mmgr_line_ch(args->out, '\n');
                 }
                 continue;
             }
-            mmgr_line_put(out, ": ");
+            mmgr_line_put(args->out, ": ");
             int first = 1;
-            for (unsigned int kind = cli_json_is(json, data, CFG_JSON_OBJECT) ? json->node[data].first : CLI_JSON_NONE;
-                 kind != CLI_JSON_NONE; kind = json->node[kind].next)
+            for (unsigned int kind = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                .json_read = args->json, .node = data, .kind = CFG_JSON_OBJECT)
+                                         ? args->json->node[data].first
+                                         : CLI_JSON_NONE;
+                 kind != CLI_JSON_NONE; kind = args->json->node[kind].next)
             {
-                mmgr_line_put(out, first ? "" : ", ");
-                mmgr_line_put(out, json->text + json->node[kind].key);
+                mmgr_line_put(args->out, first ? "" : ", ");
+                mmgr_line_put(args->out, args->json->text + args->json->node[kind].key);
                 first = 0;
             }
-            mmgr_line_ch(out, '\n');
+            mmgr_line_ch(args->out, '\n');
         }
     }
     return 1;
 }
 
+typedef struct
+{
+    const char *text;
+    unsigned long long length;
+    const char *(*lines)[2];
+    const CliJson *json;
+    unsigned int one;
+    unsigned int other;
+    const unsigned int *base_pointer;
+    unsigned int n;
+    const unsigned int *other_pointer;
+    unsigned int m;
+    unsigned int *found;
+    unsigned int *runs;
+    unsigned int book;
+    unsigned int *cells;
+    const unsigned int *sides;
+    unsigned int bases;
+    unsigned int index;
+    CliJson *json_out;
+    unsigned int entries;
+    const char *key;
+    unsigned int cell;
+    unsigned int base;
+    const CliMergeRoom *room;
+    unsigned int after;
+    unsigned int ours;
+    unsigned int theirs;
+    unsigned int mine;
+    unsigned int yours;
+} NotebookMergeCtx;
 // the lines of a text, CLI_NOTEBOOK_LINES at the most, each its start and its end, into `lines` where it is given:
 // their count
-static unsigned int cli_lines_split(const char *text, unsigned long long length, const char *(*lines)[2])
+EMBED_INLINE unsigned int cli_lines_split(const NotebookMergeCtx *args)
 {
     unsigned int count = 0u;
-    const char *at = text;
-    while ((at < (text + length)) && (count < CLI_NOTEBOOK_LINES))
+    const char *at = args->text;
+    while ((at < (args->text + args->length)) && (count < CLI_NOTEBOOK_LINES))
     {
         const char *stop = NULL;
-        const char *const next = cli_notebook_line(at, text + length, &stop);
-        if (lines != NULL)
+        const char *const next = EMBED_CALL(cli_notebook_at_internal.line, CliNotebookAtCtx, .at = at,
+                                            .end = args->text + args->length, .stop = &stop);
+        if (args->lines != NULL)
         {
-            lines[count][0] = at;
-            lines[count][1] = stop;
+            args->lines[count][0] = at;
+            args->lines[count][1] = stop;
         }
         count += 1u;
         at = next;
@@ -118,19 +192,25 @@ static unsigned int cli_lines_split(const char *text, unsigned long long length,
 // whether two cells' sources are alike enough to be one cell: at least half their lines shared, each line of
 // one matched to the first line of the other like it not matched yet; the lines of both, and which of the other's are
 // matched, in a cell of their count, two that cannot be given one not alike
-static int cli_alike(const CliJson *json, unsigned int one, unsigned int other)
+EMBED_INLINE int cli_alike(const NotebookMergeCtx *args)
 {
+    const CliJson *json = args->json;
+    unsigned int other = args->other;
     unsigned long long left_length = 0ull;
     unsigned long long right_length = 0ull;
-    const char *const left_text = cli_notebook_source(json, one, &left_length);
-    const char *const right_text = cli_notebook_source(json, other, &right_length);
+    const char *const left_text = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
+                                             .json_read = json, .cell = args->one, .length_pointer = &left_length);
+    const char *const right_text = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
+                                              .json_read = json, .cell = other, .length_pointer = &right_length);
     if ((left_length == right_length) &&
         (memor.cmp(&(MemoriaCfg){.src = left_text, .other = right_text, .bytes = left_length}) == 0))
     {
         return 1;
     }
-    const unsigned int left = cli_lines_split(left_text, left_length, NULL);
-    const unsigned int right = cli_lines_split(right_text, right_length, NULL);
+    const unsigned int left =
+        EMBED_CALL(cli_lines_split, NotebookMergeCtx, .text = left_text, .length = left_length, .lines = NULL);
+    const unsigned int right =
+        EMBED_CALL(cli_lines_split, NotebookMergeCtx, .text = right_text, .length = right_length, .lines = NULL);
     const char *(*const lines)[2] =
         ((left != 0u) && (right != 0u))
             ? g_cli_cells->persistent_buf_alloc(((left + right) * sizeof(*lines)) + right, &g_cli_notebook_cells)
@@ -143,8 +223,9 @@ static int cli_alike(const CliJson *json, unsigned int one, unsigned int other)
     const char *(*const right_lines)[2] = lines + left;
     // the matched marks after the lines, one byte each
     unsigned char *const used = (unsigned char *)(void *)(lines + left + right);
-    (void)cli_lines_split(left_text, left_length, left_lines);
-    (void)cli_lines_split(right_text, right_length, right_lines);
+    (void)EMBED_CALL(cli_lines_split, NotebookMergeCtx, .text = left_text, .length = left_length, .lines = left_lines);
+    (void)EMBED_CALL(cli_lines_split, NotebookMergeCtx, .text = right_text, .length = right_length,
+                     .lines = right_lines);
     memor.set(&(MemoriaCfg){.dst = used, .val = 0, .bytes = right});
     unsigned int shared = 0u;
     for (unsigned int line = 0u; line < left; line += 1u)
@@ -167,53 +248,72 @@ static int cli_alike(const CliJson *json, unsigned int one, unsigned int other)
 }
 
 // Whether two cells are the same cell: by their ids where both carry one, and else of one kind and alike
-static int cli_same_cell(const CliJson *json, unsigned int one, unsigned int other)
+EMBED_INLINE int cli_same_cell(const NotebookMergeCtx *args)
 {
-    const char *const left = cli_json_string(json, cli_json_member(json, one, "id"), NULL);
-    const char *const right = cli_json_string(json, cli_json_member(json, other, "id"), NULL);
+    const CliJson *json = args->json;
+    unsigned int one = args->one;
+    unsigned int other = args->other;
+    const char *const left =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = one, .name = "id"),
+                   .length_pointer = NULL);
+    const char *const right =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = other, .name = "id"),
+                   .length_pointer = NULL);
     if ((left != NULL) && (right != NULL))
     {
         return cellul.eq(&(CatenaFinitaCfg){.src = left, .other = right, .cap = CLI_CELLS_POOL});
     }
-    return cli_json_same(json, cli_json_member(json, one, "cell_type"), json,
-                         cli_json_member(json, other, "cell_type")) &&
-           cli_alike(json, one, other);
+    return EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = json,
+                      .one = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = one, .name = "cell_type"),
+                      .other_json = json,
+                      .other = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = other, .name = "cell_type")) &&
+           EMBED_CALL(cli_alike, NotebookMergeCtx, .json = json, .one = one, .other = other);
 }
 
 // For each cell of `base`, where the same cell stands in `other`, by the longest run of matches in order, as a diff
 // aligns lines, the table of runs stored in `runs`, a row of `m` and one more for each of `n` and one more
-static void cli_aligned(const CliJson *json, const unsigned int *base, unsigned int n, const unsigned int *other,
-                        unsigned int m, unsigned int *found, unsigned int *runs)
+static void cli_align(const NotebookMergeCtx *args)
 {
-    const unsigned long long width = (unsigned long long)m + 1ull;
-#define CLI_RUN(row_, column_) runs[((row_) * width) + (column_)]
-    for (unsigned int j = 0u; j <= m; j += 1u)
+    const unsigned long long width = (unsigned long long)args->m + 1ull;
+#define CLI_RUN(row_, column_) args->runs[((row_) * width) + (column_)]
+    for (unsigned int j = 0u; j <= args->m; j += 1u)
     {
-        CLI_RUN(n, j) = 0u;
+        CLI_RUN(args->n, j) = 0u;
     }
-    for (unsigned int i = n; i > 0u; i -= 1u)
+    for (unsigned int i = args->n; i > 0u; i -= 1u)
     {
-        CLI_RUN(i - 1u, m) = 0u;
-        for (unsigned int j = m; j > 0u; j -= 1u)
+        CLI_RUN(i - 1u, args->m) = 0u;
+        for (unsigned int j = args->m; j > 0u; j -= 1u)
         {
             const unsigned int down = CLI_RUN(i, j - 1u);
             const unsigned int across = CLI_RUN(i - 1u, j);
-            CLI_RUN(i - 1u, j - 1u) = cli_same_cell(json, base[i - 1u], other[j - 1u]) ? (CLI_RUN(i, j) + 1u)
-                                      : (down > across)                                ? down
-                                                                                       : across;
+            CLI_RUN(i - 1u, j - 1u) =
+                EMBED_CALL(cli_same_cell, NotebookMergeCtx, .json = args->json, .one = args->base_pointer[i - 1u],
+                           .other = args->other_pointer[j - 1u])
+                    ? (CLI_RUN(i, j) + 1u)
+                : (down > across) ? down
+                                  : across;
         }
     }
     unsigned int i = 0u;
     unsigned int j = 0u;
-    for (unsigned int at = 0u; at < n; at += 1u)
+    for (unsigned int at = 0u; at < args->n; at += 1u)
     {
-        found[at] = CLI_JSON_NONE;
+        args->found[at] = CLI_JSON_NONE;
     }
-    while ((i < n) && (j < m))
+    while ((i < args->n) && (j < args->m))
     {
-        if (cli_same_cell(json, base[i], other[j]) && (CLI_RUN(i, j) == (CLI_RUN(i + 1u, j + 1u) + 1u)))
+        if (EMBED_CALL(cli_same_cell, NotebookMergeCtx, .json = args->json, .one = args->base_pointer[i],
+                       .other = args->other_pointer[j]) &&
+            (CLI_RUN(i, j) == (CLI_RUN(i + 1u, j + 1u) + 1u)))
         {
-            found[i] = j;
+            args->found[i] = j;
             i += 1u;
             j += 1u;
         }
@@ -230,16 +330,21 @@ static void cli_aligned(const CliJson *json, const unsigned int *base, unsigned 
 }
 
 // the cells of a book's `cells`, at most CLI_NOTEBOOK_CELLS, into `cells` where it is given: their count
-static unsigned int cli_cells(const CliJson *json, unsigned int book, unsigned int *cells)
+EMBED_INLINE unsigned int cli_cells(const NotebookMergeCtx *args)
 {
-    const unsigned int list = cli_json_member(json, book, "cells");
+    const CliJson *json = args->json;
+    const unsigned int list = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                         .object = args->book, .name = "cells");
     unsigned int count = 0u;
-    for (unsigned int cell = cli_json_is(json, list, CFG_JSON_ARRAY) ? json->node[list].first : CLI_JSON_NONE;
+    for (unsigned int cell = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                        .node = list, .kind = CFG_JSON_ARRAY)
+                                 ? json->node[list].first
+                                 : CLI_JSON_NONE;
          (cell != CLI_JSON_NONE) && (count < CLI_NOTEBOOK_CELLS); cell = json->node[cell].next)
     {
-        if (cells != NULL)
+        if (args->cells != NULL)
         {
-            cells[count] = cell;
+            args->cells[count] = cell;
         }
         count += 1u;
     }
@@ -248,13 +353,13 @@ static unsigned int cli_cells(const CliJson *json, unsigned int book, unsigned i
 
 // the base cell a cell one side added follows there: the nearest cell before it that stands for a base cell, by that
 // base cell's place, or CLI_JSON_NONE for the head
-static unsigned int cli_follows(const unsigned int *sides, unsigned int bases, unsigned int index)
+EMBED_INLINE unsigned int cli_follows(const NotebookMergeCtx *args)
 {
-    for (unsigned int before = index; before > 0u; before -= 1u)
+    for (unsigned int before = args->index; before > 0u; before -= 1u)
     {
-        for (unsigned int base = 0u; base < bases; base += 1u)
+        for (unsigned int base = 0u; base < args->bases; base += 1u)
         {
-            if (sides[base] == (before - 1u))
+            if (args->sides[base] == (before - 1u))
             {
                 return base;
             }
@@ -264,11 +369,11 @@ static unsigned int cli_follows(const unsigned int *sides, unsigned int bases, u
 }
 
 // whether a side's cell `index` stands for a base cell
-static int cli_taken(const unsigned int *sides, unsigned int bases, unsigned int index)
+EMBED_INLINE int cli_on_take(const NotebookMergeCtx *args)
 {
-    for (unsigned int base = 0u; base < bases; base += 1u)
+    for (unsigned int base = 0u; base < args->bases; base += 1u)
     {
-        if (sides[base] == index)
+        if (args->sides[base] == args->index)
         {
             return 1;
         }
@@ -277,120 +382,181 @@ static int cli_taken(const unsigned int *sides, unsigned int bases, unsigned int
 }
 
 // `{"key": cell}` put after the entries, the cell copied
-static void cli_entry(CliJson *json, unsigned int entries, const char *key, unsigned int cell)
+EMBED_INLINE void cli_entry(const NotebookMergeCtx *args)
 {
-    const unsigned int entry = cli_json_made(json, CFG_JSON_OBJECT);
-    cli_json_set(json, entry, key, cli_json_copy(json, cell));
-    cli_json_append(json, entries, entry);
+    CliJson *json = args->json_out;
+    const unsigned int entry =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = entry,
+               .name = args->key,
+               .value = EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = json, .node = args->cell));
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = args->entries,
+               .value = entry);
 }
 
 // whether a side's cell changed from its base cell: its source or its kind
-static int cli_changed(const CliJson *json, unsigned int cell, unsigned int base)
+EMBED_INLINE int cli_change(const NotebookMergeCtx *args)
 {
+    const CliJson *json = args->json;
+    unsigned int cell = args->cell;
     unsigned long long length = 0ull;
     unsigned long long base_length = 0ull;
-    const char *const source = cli_notebook_source(json, cell, &length);
-    const char *const base_source = cli_notebook_source(json, base, &base_length);
+    const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
+                                          .json_read = json, .cell = cell, .length_pointer = &length);
+    const char *const base_source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
+                                               .json_read = json, .cell = args->base, .length_pointer = &base_length);
     return (length != base_length) ||
            (memor.cmp(&(MemoriaCfg){.src = source, .other = base_source, .bytes = length}) != 0) ||
-           !cli_json_same(json, cli_json_member(json, cell, "cell_type"), json,
-                          cli_json_member(json, base, "cell_type"));
+           !EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = json,
+                       .one = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                         .object = cell, .name = "cell_type"),
+                       .other_json = json,
+                       .other = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = args->base, .name = "cell_type"));
 }
 
 // whether two cells contain the same source
-static int cli_same_source(const CliJson *json, unsigned int one, unsigned int other)
+EMBED_INLINE int cli_same_source(const NotebookMergeCtx *args)
 {
+    const CliJson *json = args->json;
+    unsigned int other = args->other;
     unsigned long long length = 0ull;
     unsigned long long other_length = 0ull;
-    const char *const source = cli_notebook_source(json, one, &length);
-    const char *const other_source = cli_notebook_source(json, other, &other_length);
+    const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
+                                          .json_read = json, .cell = args->one, .length_pointer = &length);
+    const char *const other_source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
+                                                .json_read = json, .cell = other, .length_pointer = &other_length);
     return (length == other_length) &&
            (memor.cmp(&(MemoriaCfg){.src = source, .other = other_source, .bytes = length}) == 0);
 }
 
 // the cells each side added after the base cell `after`, CLI_JSON_NONE for the head, put as entries: ours, then each
 // of theirs no cell of ours added there contains the source of
-static void cli_added_put(CliJson *json, const CliMergeRoom *room, unsigned int entries, unsigned int after,
-                          unsigned int bases, unsigned int ours, unsigned int theirs)
+EMBED_INLINE void cli_added_put(const NotebookMergeCtx *args)
 {
-    for (unsigned int index = 0u; index < ours; index += 1u)
+    for (unsigned int index = 0u; index < args->ours; index += 1u)
     {
-        if (!cli_taken(room->ours_at, bases, index) && (cli_follows(room->ours_at, bases, index) == after))
+        if (!EMBED_CALL(cli_on_take, NotebookMergeCtx, .sides = args->room->ours_at, .bases = args->bases,
+                        .index = index) &&
+            (EMBED_CALL(cli_follows, NotebookMergeCtx, .sides = args->room->ours_at, .bases = args->bases,
+                        .index = index) == args->after))
         {
-            cli_entry(json, entries, "take", room->ours[index]);
+            EMBED_CALL(cli_entry, NotebookMergeCtx, .json_out = args->json_out, .entries = args->entries, .key = "take",
+                       .cell = args->room->ours[index]);
         }
     }
-    for (unsigned int index = 0u; index < theirs; index += 1u)
+    for (unsigned int index = 0u; index < args->theirs; index += 1u)
     {
-        if (cli_taken(room->theirs_at, bases, index) || (cli_follows(room->theirs_at, bases, index) != after))
+        if (EMBED_CALL(cli_on_take, NotebookMergeCtx, .sides = args->room->theirs_at, .bases = args->bases,
+                       .index = index) ||
+            (EMBED_CALL(cli_follows, NotebookMergeCtx, .sides = args->room->theirs_at, .bases = args->bases,
+                        .index = index) != args->after))
         {
             continue;
         }
         int found = 0;
-        for (unsigned int mine = 0u; !found && (mine < ours); mine += 1u)
+        for (unsigned int mine = 0u; !found && (mine < args->ours); mine += 1u)
         {
-            found = !cli_taken(room->ours_at, bases, mine) && (cli_follows(room->ours_at, bases, mine) == after) &&
-                    cli_same_source(json, room->ours[mine], room->theirs[index]);
+            found = !EMBED_CALL(cli_on_take, NotebookMergeCtx, .sides = args->room->ours_at, .bases = args->bases,
+                                .index = mine) &&
+                    (EMBED_CALL(cli_follows, NotebookMergeCtx, .sides = args->room->ours_at, .bases = args->bases,
+                                .index = mine) == args->after) &&
+                    EMBED_CALL(cli_same_source, NotebookMergeCtx, .json = args->json_out, .one = args->room->ours[mine],
+                               .other = args->room->theirs[index]);
         }
         if (!found)
         {
-            cli_entry(json, entries, "take", room->theirs[index]);
+            EMBED_CALL(cli_entry, NotebookMergeCtx, .json_out = args->json_out, .entries = args->entries, .key = "take",
+                       .cell = args->room->theirs[index]);
         }
     }
 }
 
 // `{"conflict": {"base", "ours", "theirs"}}` put after the entries, a side that deleted the cell null
-static void cli_conflict(CliJson *json, unsigned int entries, unsigned int base, unsigned int mine, unsigned int yours)
+EMBED_INLINE void cli_conflict(const NotebookMergeCtx *args)
 {
-    const unsigned int conflict = cli_json_made(json, CFG_JSON_OBJECT);
-    cli_json_set(json, conflict, "base", cli_json_copy(json, base));
-    cli_json_set(json, conflict, "ours",
-                 (mine != CLI_JSON_NONE) ? cli_json_copy(json, mine) : cli_json_made(json, CFG_JSON_NULL));
-    cli_json_set(json, conflict, "theirs",
-                 (yours != CLI_JSON_NONE) ? cli_json_copy(json, yours) : cli_json_made(json, CFG_JSON_NULL));
-    const unsigned int entry = cli_json_made(json, CFG_JSON_OBJECT);
-    cli_json_set(json, entry, "conflict", conflict);
-    cli_json_append(json, entries, entry);
+    CliJson *json = args->json_out;
+    const unsigned int conflict =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = conflict,
+               .name = "base",
+               .value = EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = json, .node = args->base));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = conflict,
+               .name = "ours",
+               .value = (args->mine != CLI_JSON_NONE)
+                            ? EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = json, .node = args->mine)
+                            : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json,
+                                         .kind = CFG_JSON_NULL));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = conflict,
+               .name = "theirs",
+               .value = (args->yours != CLI_JSON_NONE)
+                            ? EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = json, .node = args->yours)
+                            : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json,
+                                         .kind = CFG_JSON_NULL));
+    const unsigned int entry =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = entry,
+               .name = "conflict", .value = conflict);
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = args->entries,
+               .value = entry);
 }
 
 // the entry for one base cell, as each side stores it
-static void cli_base_entry(CliJson *json, unsigned int entries, unsigned int base, unsigned int mine,
-                           unsigned int yours)
+EMBED_INLINE void cli_base_entry(const NotebookMergeCtx *args)
 {
-    if ((mine != CLI_JSON_NONE) && (yours != CLI_JSON_NONE))
+    CliJson *json = args->json_out;
+    if ((args->mine != CLI_JSON_NONE) && (args->yours != CLI_JSON_NONE))
     {
-        const int ours_changed = cli_changed(json, mine, base);
-        const int theirs_changed = cli_changed(json, yours, base);
-        if (!theirs_changed || (ours_changed && cli_same_source(json, mine, yours) &&
-                                cli_json_same(json, cli_json_member(json, mine, "cell_type"), json,
-                                              cli_json_member(json, yours, "cell_type"))))
+        const int ours_changed =
+            EMBED_CALL(cli_change, NotebookMergeCtx, .json = json, .cell = args->mine, .base = args->base);
+        const int theirs_changed =
+            EMBED_CALL(cli_change, NotebookMergeCtx, .json = json, .cell = args->yours, .base = args->base);
+        if (!theirs_changed ||
+            (ours_changed &&
+             EMBED_CALL(cli_same_source, NotebookMergeCtx, .json = json, .one = args->mine, .other = args->yours) &&
+             EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = json,
+                        .one = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->mine, .name = "cell_type"),
+                        .other_json = json,
+                        .other = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = args->yours, .name = "cell_type"))))
         {
-            cli_entry(json, entries, "take", mine);
+            EMBED_CALL(cli_entry, NotebookMergeCtx, .json_out = json, .entries = args->entries, .key = "take",
+                       .cell = args->mine);
         }
         else if (!ours_changed)
         {
-            cli_entry(json, entries, "take", yours);
+            EMBED_CALL(cli_entry, NotebookMergeCtx, .json_out = json, .entries = args->entries, .key = "take",
+                       .cell = args->yours);
         }
         else
         {
-            cli_conflict(json, entries, base, mine, yours);
+            EMBED_CALL(cli_conflict, NotebookMergeCtx, .json_out = json, .entries = args->entries, .base = args->base,
+                       .mine = args->mine, .yours = args->yours);
         }
     }
-    else if ((mine != CLI_JSON_NONE) && cli_changed(json, mine, base))
+    else if ((args->mine != CLI_JSON_NONE) &&
+             EMBED_CALL(cli_change, NotebookMergeCtx, .json = json, .cell = args->mine, .base = args->base))
     {
-        cli_conflict(json, entries, base, mine, CLI_JSON_NONE);
+        EMBED_CALL(cli_conflict, NotebookMergeCtx, .json_out = json, .entries = args->entries, .base = args->base,
+                   .mine = args->mine, .yours = CLI_JSON_NONE);
     }
-    else if ((yours != CLI_JSON_NONE) && cli_changed(json, yours, base))
+    else if ((args->yours != CLI_JSON_NONE) &&
+             EMBED_CALL(cli_change, NotebookMergeCtx, .json = json, .cell = args->yours, .base = args->base))
     {
-        cli_conflict(json, entries, base, CLI_JSON_NONE, yours);
+        EMBED_CALL(cli_conflict, NotebookMergeCtx, .json_out = json, .entries = args->entries, .base = args->base,
+                   .mine = CLI_JSON_NONE, .yours = args->yours);
     }
 }
 
-unsigned int cli_notebook_merge(CliJson *json, unsigned int base, unsigned int ours, unsigned int theirs)
+unsigned int cli_notebook_merge(const CliNotebookCfg *args)
 {
-    const unsigned int bases = cli_cells(json, base, NULL);
-    const unsigned int our_count = cli_cells(json, ours, NULL);
-    const unsigned int their_count = cli_cells(json, theirs, NULL);
+    const unsigned int bases =
+        EMBED_CALL(cli_cells, NotebookMergeCtx, .json = args->json, .book = args->base, .cells = NULL);
+    const unsigned int our_count =
+        EMBED_CALL(cli_cells, NotebookMergeCtx, .json = args->json, .book = args->ours, .cells = NULL);
+    const unsigned int their_count =
+        EMBED_CALL(cli_cells, NotebookMergeCtx, .json = args->json, .book = args->theirs, .cells = NULL);
     const unsigned long long wider = ((our_count > their_count) ? our_count : their_count) + 1ull;
     const unsigned long long lists = (3ull * bases) + our_count + their_count;
     unsigned int *const cell =
@@ -405,27 +571,40 @@ unsigned int cli_notebook_merge(CliJson *json, unsigned int base, unsigned int o
                                cell + bases + our_count + their_count,
                                cell + (2u * bases) + our_count + their_count,
                                cell + lists};
-    (void)cli_cells(json, base, room.base);
-    (void)cli_cells(json, ours, room.ours);
-    (void)cli_cells(json, theirs, room.theirs);
-    cli_aligned(json, room.base, bases, room.ours, our_count, room.ours_at, room.table);
-    cli_aligned(json, room.base, bases, room.theirs, their_count, room.theirs_at, room.table);
-    const unsigned int entries = cli_json_made(json, CFG_JSON_ARRAY);
-    cli_added_put(json, &room, entries, CLI_JSON_NONE, bases, our_count, their_count);
+    (void)EMBED_CALL(cli_cells, NotebookMergeCtx, .json = args->json, .book = args->base, .cells = room.base);
+    (void)EMBED_CALL(cli_cells, NotebookMergeCtx, .json = args->json, .book = args->ours, .cells = room.ours);
+    (void)EMBED_CALL(cli_cells, NotebookMergeCtx, .json = args->json, .book = args->theirs, .cells = room.theirs);
+    EMBED_CALL(cli_align, NotebookMergeCtx, .json = args->json, .base_pointer = room.base, .n = bases,
+               .other_pointer = room.ours, .m = our_count, .found = room.ours_at, .runs = room.table);
+    EMBED_CALL(cli_align, NotebookMergeCtx, .json = args->json, .base_pointer = room.base, .n = bases,
+               .other_pointer = room.theirs, .m = their_count, .found = room.theirs_at, .runs = room.table);
+    const unsigned int entries =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json, .kind = CFG_JSON_ARRAY);
+    EMBED_CALL(cli_added_put, NotebookMergeCtx, .json_out = args->json, .room = &room, .entries = entries,
+               .after = CLI_JSON_NONE, .bases = bases, .ours = our_count, .theirs = their_count);
     for (unsigned int index = 0u; index < bases; index += 1u)
     {
         const unsigned int mine =
             (room.ours_at[index] != CLI_JSON_NONE) ? room.ours[room.ours_at[index]] : CLI_JSON_NONE;
         const unsigned int yours =
             (room.theirs_at[index] != CLI_JSON_NONE) ? room.theirs[room.theirs_at[index]] : CLI_JSON_NONE;
-        cli_base_entry(json, entries, room.base[index], mine, yours);
-        cli_added_put(json, &room, entries, index, bases, our_count, their_count);
+        EMBED_CALL(cli_base_entry, NotebookMergeCtx, .json_out = args->json, .entries = entries,
+                   .base = room.base[index], .mine = mine, .yours = yours);
+        EMBED_CALL(cli_added_put, NotebookMergeCtx, .json_out = args->json, .room = &room, .entries = entries,
+                   .after = index, .bases = bases, .ours = our_count, .theirs = their_count);
     }
     g_cli_cells->persistent_buf_release(cell, &g_cli_notebook_cells);
-    const unsigned int book = cli_json_copy(json, ours);
-    cli_json_set(json, book, "cells", cli_json_made(json, CFG_JSON_ARRAY));
-    const unsigned int merged = cli_json_made(json, CFG_JSON_OBJECT);
-    cli_json_set(json, merged, "book", book);
-    cli_json_set(json, merged, "entries", entries);
-    return json->full ? CLI_JSON_NONE : merged;
+    const unsigned int book =
+        EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = args->json, .node = args->ours);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = book,
+               .name = "cells",
+               .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json,
+                                   .kind = CFG_JSON_ARRAY));
+    const unsigned int merged =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = merged,
+               .name = "book", .value = book);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = merged,
+               .name = "entries", .value = entries);
+    return args->json->full ? CLI_JSON_NONE : merged;
 }

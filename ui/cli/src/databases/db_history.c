@@ -9,42 +9,51 @@
 #include "db_internal.h"
 #include "sql.h"
 
+typedef struct
+{
+    const CliDbOpen *open;
+    char *path;
+    const char *text;
+    unsigned long long size;
+} DbHistoryCtx;
+
 // the connection's history file into `path`, sized for CLI_PATH_MAX_LEN, its folder made: 1, or 0 where orior_cli has
 // no home folder
-static int history_file(const CliDbOpen *open, char *path)
+EMBED_INLINE int history_file(const DbHistoryCtx *args)
 {
     char home[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char account[CLI_PATH_MAX_LEN];
     char hash[80];
-    if (!cli_home_folder(home))
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home))
     {
         return 0;
     }
-    cli_full(home, "databases", folder);
-    if (!query_folder_made(folder))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = "databases", .joined = folder);
+    if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder))
     {
         return 0;
     }
     VerbaLinea account_line = {account, sizeof(account), 0ull};
-    cli_db_account(&open->config, &account_line);
+    EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &args->open->config,
+               .out = &account_line);
     VerbaLinea hash_line = {hash, sizeof(hash), 0ull};
-    cli_sha256_text(account_line.out, account_line.at, &hash_line);
+    EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = account_line.out, .size = account_line.at,
+               .text = &hash_line);
     hash_line.at = 16ull;
     mmgr_line_put(&hash_line, ".jsonl");
     mmgr_line_finish(&hash_line);
-    cli_full(folder, hash, path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = hash, .joined = args->path);
     return 1;
 }
 
-void cli_db_remembered(CliDbOpen *open, const char *statement, unsigned long long size, unsigned long long took,
-                       const char *err_text, int failed)
+void cli_db_remembered(const CliDbStatementCtx *args)
 {
     static char s_entry[1u << 20u];
     static CliLock s_lock = CLI_LOCK_INIT;
     char path[CLI_PATH_MAX_LEN];
     char next[CLI_PATH_MAX_LEN + 8u];
-    if (!history_file(open, path))
+    if (!EMBED_CALL(history_file, DbHistoryCtx, .open = args->open, .path = path))
     {
         return;
     }
@@ -52,98 +61,111 @@ void cli_db_remembered(CliDbOpen *open, const char *statement, unsigned long lon
     mmgr_line_put(&next_line, path);
     mmgr_line_put(&next_line, ".next");
     mmgr_line_finish(&next_line);
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea entry = {s_entry, sizeof(s_entry), 0ull};
     mmgr_line_put(&entry, "{\"at\":");
     mmgr_line_decimal(&entry, cli_wall_milliseconds(), 1u);
     mmgr_line_put(&entry, ",\"sql\":");
-    cli_json_quoted_lossy(&entry, (const unsigned char *)statement, size);
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &entry,
+               .text_bytes = (const unsigned char *)args->statement, .length = args->size);
     mmgr_line_put(&entry, ",\"ms\":");
-    mmgr_line_decimal(&entry, took, 1u);
-    mmgr_line_put(&entry, failed ? ",\"failed\":" : ",\"result\":");
-    cli_json_quoted_lossy(&entry, (const unsigned char *)err_text,
-                          cellul.len(&(CatenaFinitaCfg){.src = err_text, .cap = CLI_CELLS_POOL}));
+    mmgr_line_decimal(&entry, args->took, 1u);
+    mmgr_line_put(&entry, args->failed ? ",\"failed\":" : ",\"result\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &entry,
+               .text_bytes = (const unsigned char *)args->err_text,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->err_text, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&entry, "}\n");
     // the history's newest lines but one retained, then the entry after them
     unsigned long long history_size = 0ull;
-    const unsigned char *const history = cli_file_taken(path, &history_size, &g_cli_db_cells);
+    const unsigned char *const history = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                    .size_pointer = &history_size, .owner = &g_cli_db_cells);
     // each newline before the last line's end starts one more line retained, counted back from the end
     unsigned long long start = 0ull;
     unsigned long long end =
         ((history_size > 0u) && (history[history_size - 1u] == '\n')) ? history_size - 1u : history_size;
     unsigned int count = 0u;
-    const char *newline = cli_text_last((const char *)history, end, '\n');
+    const char *newline = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = (const char *)history,
+                                     .length_value = end, .byte = '\n');
     while ((newline != NULL) && (count < CLI_DB_HISTORY - 2u))
     {
         count += 1u;
         // a newline found lies in the bytes
-        newline = cli_text_last((const char *)history, (unsigned long long)(newline - (const char *)history), '\n');
+        newline = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = (const char *)history,
+                             .length_value = (unsigned long long)(newline - (const char *)history), .byte = '\n');
     }
     start = (newline != NULL) ? ((unsigned long long)(newline - (const char *)history) + 1ull) : 0ull;
-    int written = mmgr_line_ok(&entry) && cli_file_appended(next, "", 0ull, 1);
+    int written = mmgr_line_ok(&entry) && EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next,
+                                                     .bytes = "", .size = 0ull, .fresh = 1);
     if (written && (start < history_size))
     {
-        written = cli_file_appended(next, history + start, history_size - start, 0);
+        written = EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next,
+                             .bytes = history + start, .size = history_size - start, .fresh = 0);
         if (written && (history[history_size - 1u] != '\n'))
         {
-            written = cli_file_appended(next, "\n", 1ull, 0);
+            written = EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next, .bytes = "\n",
+                                 .size = 1ull, .fresh = 0);
         }
     }
-    cli_file_given(history, &g_cli_db_cells);
-    written = written && cli_file_appended(next, entry.out, entry.at, 0);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = history, .owner = &g_cli_db_cells);
+    written = written && EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next,
+                                    .bytes = entry.out, .size = entry.at, .fresh = 0);
     if (written)
     {
-        (void)cli_moved(next, path);
+        (void)EMBED_CALL(cli_err_msg_from_internal.move, CliErrMsgFromCtx, .from_text = next, .to = path);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
-void cli_db_history(CliDbOpen *open, VerbaLinea *out)
+void cli_db_history(const CliDbOutCountCfg *args)
 {
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = history_file(open, path) ? cli_file_taken(path, &size, &g_cli_db_cells) : NULL;
-    mmgr_line_ch(out, '[');
+    const unsigned char *const bytes = EMBED_CALL(history_file, DbHistoryCtx, .open = args->open, .path = path)
+                                           ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                        .size_pointer = &size, .owner = &g_cli_db_cells)
+                                           : NULL;
+    mmgr_line_ch(args->out, '[');
     unsigned int written = 0u;
     // the lines from the last back, each that reads as JSON
     for (unsigned long long end = size; (bytes != NULL) && (end > 0u);)
     {
         unsigned long long start = end;
-        start = cli_text_back_any((const char *)bytes, start, "\n");
+        start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
+                           .at = start, .set = "\n");
         VerbaLinea none = {NULL, 0ull, 0ull};
-        if ((end > start) && cli_json_compacted((const char *)bytes + start, end - start, &none))
+        if ((end > start) && EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
+                                        .text = (const char *)bytes + start, .size = end - start, .out = &none))
         {
-            mmgr_line_put(out, (written > 0u) ? "," : "");
-            mmgr_line_put_n(out, (const char *)bytes + start, end - start);
+            mmgr_line_put(args->out, (written > 0u) ? "," : "");
+            mmgr_line_put_n(args->out, (const char *)bytes + start, end - start);
             written += 1u;
         }
         end = (start > 0u) ? start - 1u : 0u;
     }
-    cli_file_given(bytes, &g_cli_db_cells);
-    mmgr_line_ch(out, ']');
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_db_cells);
+    mmgr_line_ch(args->out, ']');
 }
 
 // the characters of the first `size` bytes of a text, each counted once at its first byte
-static unsigned long long history_characters(const char *text, unsigned long long size)
+EMBED_INLINE unsigned long long history_characters(const DbHistoryCtx *args)
 {
     unsigned long long count = 0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
     {
-        count += (((unsigned char)text[at] & 0xc0u) != 0x80u) ? 1ull : 0ull;
+        count += (((unsigned char)args->text[at] & 0xc0u) != 0x80u) ? 1ull : 0ull;
     }
     return count;
 }
 
-void cli_db_statement_at(const char *text, unsigned long long size, unsigned long long offset, const char *kind,
-                         VerbaLinea *out)
+void cli_db_statement_at(const CliDbOutSizeCfg *args)
 {
     // the byte the character at `offset` starts at, the text's end where it is past its last
     unsigned long long byte = 0ull;
-    for (unsigned long long seen = 0ull; byte < size; byte += 1ull)
+    for (unsigned long long seen = 0ull; byte < args->size; byte += 1ull)
     {
-        if (((unsigned char)text[byte] & 0xc0u) != 0x80u)
+        if (((unsigned char)args->text[byte] & 0xc0u) != 0x80u)
         {
-            if (seen == offset)
+            if (seen == args->offset)
             {
                 break;
             }
@@ -151,16 +173,20 @@ void cli_db_statement_at(const char *text, unsigned long long size, unsigned lon
         }
     }
     CliSqlSpan span;
-    if (!cli_sql_statement_at(text, size, byte, cli_sql_dialect(kind), &span))
+    if (!EMBED_CALL(cli_sql_text.statement_at, CliSqlTextCfg, .text = args->text, .length = args->size,
+                    .at_value = byte, .dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->kind),
+                    .span = &span))
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
         return;
     }
-    mmgr_line_ch(out, '[');
-    mmgr_line_decimal(out, history_characters(text, span.start), 1u);
-    mmgr_line_ch(out, ',');
-    mmgr_line_decimal(out, history_characters(text, span.end), 1u);
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, '[');
+    mmgr_line_decimal(args->out, EMBED_CALL(history_characters, DbHistoryCtx, .text = args->text, .size = span.start),
+                      1u);
+    mmgr_line_ch(args->out, ',');
+    mmgr_line_decimal(args->out, EMBED_CALL(history_characters, DbHistoryCtx, .text = args->text, .size = span.end),
+                      1u);
+    mmgr_line_ch(args->out, ']');
 }
 
 // The spans of a text's statements being written: the text and where they go
@@ -171,21 +197,25 @@ typedef struct
     unsigned int written;
 } CliDbSpans;
 
-static void history_span(void *context, CliSqlSpan span)
+static void history_span(const CliEachSpanCfg *args)
 {
-    CliDbSpans *const spans = (CliDbSpans *)context;
+    CliDbSpans *const spans = (CliDbSpans *)args->context;
     mmgr_line_put(spans->out, (spans->written > 0u) ? ",[" : "[");
-    mmgr_line_decimal(spans->out, history_characters(spans->text, span.start), 1u);
+    mmgr_line_decimal(spans->out,
+                      EMBED_CALL(history_characters, DbHistoryCtx, .text = spans->text, .size = args->span.start), 1u);
     mmgr_line_ch(spans->out, ',');
-    mmgr_line_decimal(spans->out, history_characters(spans->text, span.end), 1u);
+    mmgr_line_decimal(spans->out,
+                      EMBED_CALL(history_characters, DbHistoryCtx, .text = spans->text, .size = args->span.end), 1u);
     mmgr_line_ch(spans->out, ']');
     spans->written += 1u;
 }
 
-void cli_db_statements(const char *text, unsigned long long size, const char *kind, VerbaLinea *out)
+void cli_db_statements(const CliDbOutSizeCfg *args)
 {
-    CliDbSpans spans = {text, out, 0u};
-    mmgr_line_ch(out, '[');
-    cli_sql_statements(text, size, cli_sql_dialect(kind), history_span, &spans);
-    mmgr_line_ch(out, ']');
+    CliDbSpans spans = {args->text, args->out, 0u};
+    mmgr_line_ch(args->out, '[');
+    EMBED_CALL(cli_sql_text_length.statements, CliSqlTextLengthCfg, .text = args->text, .length = args->size,
+               .dialect = EMBED_CALL(cli_sql.dialect, CliSqlCfg, .name = args->kind), .each = history_span,
+               .context = &spans);
+    mmgr_line_ch(args->out, ']');
 }

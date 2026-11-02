@@ -5,9 +5,14 @@
 // file and one on its close mark closes it (tabs.c)
 #ifndef GUI_PARTS_TABS_H
 #define GUI_PARTS_TABS_H
+typedef struct GuiTabsGlyphsFrameCountCfg GuiTabsGlyphsFrameCountCfg;
+typedef struct GuiTabsGlyphsFrameCfg GuiTabsGlyphsFrameCfg;
+typedef struct GuiTabsGlyphsCfg GuiTabsGlyphsCfg;
+typedef struct GuiTabsCfg GuiTabsCfg;
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
+#include "embed_dispatch_layout.h"
 
 // the most tabs the array holds; and the sizes in the page's pixels: a tab's text size, its padding at its left and its
 // right, the gap between its name and its close mark, its corner radius, the line along the shown tab's top and left,
@@ -41,16 +46,89 @@ typedef struct
 } GuiTab;
 
 // the name a tab shows, the last part of its path, into `name`, its length
-const char *gui_tab_name(const GuiTab *tab, unsigned long long *length);
+const char *gui_tab_name(const GuiTabsCfg *args);
 // the rectangle of the tab `at` of the `count` tabs in the frame's tabs row, and its close mark's
-GuiRect gui_tab_rect(GuiGlyphs *glyphs, const GuiFrame *frame, const GuiTab *tab, unsigned int count, unsigned int at);
-GuiRect gui_tab_close_rect(GuiGlyphs *glyphs, const GuiFrame *frame, const GuiTab *tab, unsigned int count,
-                           unsigned int at);
+GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args);
+GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args);
 // the tab at x, y: 1 with its place into `at` and whether the pixel stands on its close mark into `closing`, else 0
-int gui_tabs_hit(GuiGlyphs *glyphs, const GuiFrame *frame, const GuiTab *tab, unsigned int count, int x, int y,
-                 unsigned int *at, int *closing);
+int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args);
 // the row drawn in the frame's tabs rectangle: its ground, the line along its foot, and each tab, the one `active`
 // on its own ground with its lines, -1 for none
-void gui_tabs_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const GuiFrame *frame,
-                    const GuiTab *tab, unsigned int count, int active);
+void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args);
+struct GuiTabsGlyphsFrameCountCfg
+{
+    const GuiTab *tab;
+    GuiGlyphs *glyphs;
+    const GuiFrame *frame;
+    unsigned int count;
+    int x;
+    int y;
+    unsigned int *at_pointer;
+    int *closing;
+};
+
+struct GuiTabsGlyphsFrameCfg
+{
+    const GuiTab *tab;
+    GuiGlyphs *glyphs;
+    const GuiFrame *frame;
+    unsigned int count;
+    GuiRaster *raster;
+    const GuiPalette *palette;
+    int active;
+};
+
+struct GuiTabsGlyphsCfg
+{
+    const GuiTab *tab;
+    GuiGlyphs *glyphs;
+    const GuiFrame *frame;
+    unsigned int count;
+    unsigned int at;
+};
+
+struct GuiTabsCfg
+{
+    const GuiTab *tab;
+    unsigned long long *length;
+};
+
+typedef struct
+{
+    const char *(*tab_name)(const GuiTabsCfg *args);
+} GuiTabsNs;
+EMBED_TABLE_LAYOUT(GuiTabsNs, tab_name);
+EMBED_TABLE_STORAGE GuiTabsNs gui_tabs EMBED_UNUSED = {
+    .tab_name = gui_tab_name,
+};
+
+typedef struct
+{
+    GuiRect (*tab_rect)(const GuiTabsGlyphsCfg *args);
+    GuiRect (*tab_close_rect)(const GuiTabsGlyphsCfg *args);
+} GuiTabsGlyphsNs;
+EMBED_TABLE_LAYOUT(GuiTabsGlyphsNs, tab_rect, tab_close_rect);
+EMBED_TABLE_STORAGE GuiTabsGlyphsNs gui_tabs_glyphs EMBED_UNUSED = {
+    .tab_rect = gui_tab_rect,
+    .tab_close_rect = gui_tab_close_rect,
+};
+
+typedef struct
+{
+    int (*hit)(const GuiTabsGlyphsFrameCountCfg *args);
+} GuiTabsGlyphsFrameCountNs;
+EMBED_TABLE_LAYOUT(GuiTabsGlyphsFrameCountNs, hit);
+EMBED_TABLE_STORAGE GuiTabsGlyphsFrameCountNs gui_tabs_glyphs_frame_count EMBED_UNUSED = {
+    .hit = gui_tabs_hit,
+};
+
+typedef struct
+{
+    void (*draw)(const GuiTabsGlyphsFrameCfg *args);
+} GuiTabsGlyphsFrameNs;
+EMBED_TABLE_LAYOUT(GuiTabsGlyphsFrameNs, draw);
+EMBED_TABLE_STORAGE GuiTabsGlyphsFrameNs gui_tabs_glyphs_frame EMBED_UNUSED = {
+    .draw = gui_tabs_draw,
+};
+
 #endif

@@ -64,27 +64,27 @@ static unsigned long long list_written(unsigned char *out, int high, const char 
 
 int main(void)
 {
-    (void)cli_cells_made(CLI_CELLS_POOL);
+    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     static unsigned char s_list[128];
     int enabled = -1;
     const unsigned long long off = list_written(s_list, 0, "Gtk/EnableAnimations", 20u, 0u);
-    cli_check(gui_xsettings_animations(s_list, off, &enabled) && (enabled == 0), "animations turned off are read, past a string, low byte first");
+    cli_check(EMBED_CALL(gui_xsettings.animations, GuiXsettingsCfg, .data = s_list, .size = off, .enabled = &enabled) && (enabled == 0), "animations turned off are read, past a string, low byte first");
     enabled = -1;
     const unsigned long long on = list_written(s_list, 0, "Gtk/EnableAnimations", 20u, 1u);
-    cli_check(gui_xsettings_animations(s_list, on, &enabled) && (enabled == 1), "animations on are read");
+    cli_check(EMBED_CALL(gui_xsettings.animations, GuiXsettingsCfg, .data = s_list, .size = on, .enabled = &enabled) && (enabled == 1), "animations on are read");
     enabled = -1;
     const unsigned long long high = list_written(s_list, 1, "Gtk/EnableAnimations", 20u, 0u);
-    cli_check(gui_xsettings_animations(s_list, high, &enabled) && (enabled == 0), "and high byte first");
+    cli_check(EMBED_CALL(gui_xsettings.animations, GuiXsettingsCfg, .data = s_list, .size = high, .enabled = &enabled) && (enabled == 0), "and high byte first");
     enabled = -1;
     const unsigned long long other = list_written(s_list, 0, "Gtk/EnableAnimationZ", 20u, 0u);
-    cli_check(!gui_xsettings_animations(s_list, other, &enabled) && (enabled == -1), "a list without the setting does not answer");
+    cli_check(!EMBED_CALL(gui_xsettings.animations, GuiXsettingsCfg, .data = s_list, .size = other, .enabled = &enabled) && (enabled == -1), "a list without the setting does not answer");
     const unsigned long long whole = list_written(s_list, 0, "Gtk/EnableAnimations", 20u, 0u);
     int cut_answered = 0;
     for (unsigned long long size = 0ull; size < whole; size += 1ull)
     {
-        cut_answered += gui_xsettings_animations(s_list, size, &enabled);
+        cut_answered += EMBED_CALL(gui_xsettings.animations, GuiXsettingsCfg, .data = s_list, .size = size, .enabled = &enabled);
     }
     cli_check(cut_answered == 0, "a list cut short anywhere does not answer");
-    cli_check(!gui_xsettings_animations(NULL, 0ull, &enabled), "and nor does no list");
-    return cli_checked();
+    cli_check(!EMBED_CALL(gui_xsettings.animations, GuiXsettingsCfg, .data = NULL, .size = 0ull, .enabled = &enabled), "and nor does no list");
+    return cli_on_check();
 }

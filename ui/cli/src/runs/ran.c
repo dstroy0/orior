@@ -43,7 +43,7 @@ typedef struct
 static char s_nothing[1];
 static CliRan s_refused = {s_nothing, 0ull, s_nothing, 0ull, 1, -1ll, 0};
 
-CliRan *cli_ran_taken(void)
+CliRan *cli_ran_take(void)
 {
     CliRanRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), &g_cli_runs_cells);
     if (room == NULL)
@@ -58,43 +58,54 @@ CliRan *cli_ran_taken(void)
     return &room->ran;
 }
 
-// the room that contains `ran`, one cli_ran_taken took from the cells
-static CliRanRoom *cli_room_of(CliRan *ran)
+typedef struct
 {
-    return (CliRanRoom *)(void *)((char *)ran - offsetof(CliRanRoom, ran));
+    CliRan *ran;
+    unsigned long long pipe;
+    char **text;
+    unsigned long long *size;
+    int *whole;
+} RanCtx;
+// the room that contains `ran`, one cli_ran_take took from the cells
+EMBED_INLINE CliRanRoom *cli_room_get(const RanCtx *args)
+{
+    return (CliRanRoom *)(void *)((char *)args->ran - offsetof(CliRanRoom, ran));
 }
 
 // what a run gave given back, its texts the empty one again
-static void cli_ran_texts_given(CliRan *ran)
+EMBED_INLINE void cli_ran_texts_free(const RanCtx *args)
 {
-    if (ran->out != s_nothing)
+    if (args->ran->out != s_nothing)
     {
-        g_cli_cells->persistent_buf_release(ran->out, &g_cli_runs_cells);
+        g_cli_cells->persistent_buf_release(args->ran->out, &g_cli_runs_cells);
     }
-    if (ran->err != s_nothing)
+    if (args->ran->err != s_nothing)
     {
-        g_cli_cells->persistent_buf_release(ran->err, &g_cli_runs_cells);
+        g_cli_cells->persistent_buf_release(args->ran->err, &g_cli_runs_cells);
     }
-    ran->out = s_nothing;
-    ran->err = s_nothing;
-    ran->out_size = 0ull;
-    ran->err_size = 0ull;
+    args->ran->out = s_nothing;
+    args->ran->err = s_nothing;
+    args->ran->out_size = 0ull;
+    args->ran->err_size = 0ull;
 }
 
-void cli_ran_given(CliRan *ran)
+void cli_ran_free(const CliWordsCtx *args)
 {
-    if (ran != &s_refused)
+    if (args->ran != &s_refused)
     {
-        cli_ran_texts_given(ran);
-        g_cli_cells->persistent_buf_release(cli_room_of(ran), &g_cli_runs_cells);
+        EMBED_CALL(cli_ran_texts_free, RanCtx, .ran = args->ran);
+        g_cli_cells->persistent_buf_release(EMBED_CALL(cli_room_get, RanCtx, .ran = args->ran), &g_cli_runs_cells);
     }
 }
 
 // what `pipe` gives read until it ends, a piece at a time, then joined in one cell of its size with a 0 after: the
 // text into `text`, the empty one where nothing came, its size into `size`, and 0 into `whole` where a cell could not
 // be taken and what came is not all stored
-static void cli_pipe_read(unsigned long long pipe, char **text, unsigned long long *size, int *whole)
+static void cli_pipe_read(const RanCtx *args)
 {
+    char **text = args->text;
+    unsigned long long *size = args->size;
+    int *whole = args->whole;
     CliRanPiece *first = NULL;
     CliRanPiece *last = NULL;
     unsigned long long total = 0ull;
@@ -108,7 +119,8 @@ static void cli_pipe_read(unsigned long long pipe, char **text, unsigned long lo
                 // the pipe drained into a piece of the stack's, and the program is not blocked writing
                 char spare[4096];
                 *whole = 0;
-                while (cli_spawn_read(pipe, spare, sizeof(spare)) != 0ull)
+                while (EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
+                                  .pipe_handle = args->pipe, .piece = spare, .room = sizeof(spare)) != 0ull)
                 {
                 }
                 break;
@@ -125,7 +137,9 @@ static void cli_pipe_read(unsigned long long pipe, char **text, unsigned long lo
             }
             last = piece;
         }
-        const unsigned long long got = cli_spawn_read(pipe, last->bytes + last->size, CLI_RAN_PIECE - last->size);
+        const unsigned long long got =
+            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = args->pipe,
+                       .piece = last->bytes + last->size, .room = CLI_RAN_PIECE - last->size);
         if (got == 0ull)
         {
             break;
@@ -161,37 +175,39 @@ static void cli_errors_read(void *context)
     CliRanRoom *const room = (CliRanRoom *)context;
     CliRan *const ran = &room->ran;
     int whole = 1;
-    cli_pipe_read(room->spawned.err, &ran->err, &ran->err_size, &whole);
-    cli_lock_take(&room->lock);
+    EMBED_CALL(cli_pipe_read, RanCtx, .pipe = room->spawned.err, .text = &ran->err, .size = &ran->err_size,
+               .whole = &whole);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     ran->whole = ran->whole && whole;
     room->ended += 1u;
-    cli_wake_all(&room->wake);
-    cli_lock_give(&room->lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &room->wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
 }
 
 // the run's input written whole and its pipe closed, which the program reads as its input's end, the end reported
-static void cli_input_written(void *context)
+static void cli_input_write(void *context)
 {
     CliRanRoom *const room = (CliRanRoom *)context;
-    cli_spawn_written(room->spawned.in, room->input, room->length);
-    cli_spawn_input_closed(&room->spawned);
-    cli_lock_take(&room->lock);
+    EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = room->spawned.in,
+               .bytes = room->input, .size = room->length);
+    EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &room->spawned);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     room->ended += 1u;
-    cli_wake_all(&room->wake);
-    cli_lock_give(&room->lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &room->wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
 }
 
 // the run's time watched until its output ends, the run ended with every process under it where it runs past its
 // limit first, the end reported
-static void cli_watched(void *context)
+static void cli_on_watch(void *context)
 {
     CliRanRoom *const room = (CliRanRoom *)context;
     const unsigned long long began = cli_clock_milliseconds();
     for (;;)
     {
-        cli_lock_take(&room->lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
         const int finished = room->finished;
-        cli_lock_give(&room->lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
         if (finished)
         {
             break;
@@ -199,45 +215,53 @@ static void cli_watched(void *context)
         if ((cli_clock_milliseconds() - began) >= room->limit)
         {
             room->ran.stopped = 1;
-            cli_spawn_tree_end(room->spawned.id);
+            EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = room->spawned.id);
             break;
         }
-        query_paused(20u);
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
     }
-    cli_lock_take(&room->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     room->ended += 1u;
-    cli_wake_all(&room->wake);
-    cli_lock_give(&room->lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &room->wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
 }
 
-int cli_ran(const char *const *words, const char *folder, const CliSetting *settings, unsigned int count, CliRan *ran,
-            VerbaLinea *err_msg)
+int cli_on_run(const CliWordsCtx *args)
 {
-    return cli_ran_within(words, folder, settings, count, NULL, 0ull, 0ull, ran, err_msg);
+    return EMBED_CALL(cli_words_internal.ran_within, CliWordsCtx, .words = args->words, .folder = args->folder,
+                      .settings = args->settings, .count = args->count, .input = NULL, .length = 0ull,
+                      .milliseconds_u64 = 0ull, .ran = args->ran, .err_msg = args->err_msg);
 }
 
-int cli_ran_fed(const char *const *words, const char *folder, const CliSetting *settings, unsigned int count,
-                const char *input, unsigned long long length, CliRan *ran, VerbaLinea *err_msg)
+int cli_ran_feed(const CliWordsCtx *args)
 {
-    return cli_ran_within(words, folder, settings, count, input, length, 0ull, ran, err_msg);
+    return EMBED_CALL(cli_words_internal.ran_within, CliWordsCtx, .words = args->words, .folder = args->folder,
+                      .settings = args->settings, .count = args->count, .input = args->input, .length = args->length,
+                      .milliseconds_u64 = 0ull, .ran = args->ran, .err_msg = args->err_msg);
 }
 
-int cli_ran_within(const char *const *words, const char *folder, const CliSetting *settings, unsigned int count,
-                   const char *input, unsigned long long length, unsigned long long milliseconds, CliRan *ran,
-                   VerbaLinea *err_msg)
+int cli_ran_within(const CliWordsCtx *args)
 {
-    if (ran == &s_refused)
+    const char *input = args->input;
+    unsigned long long length = args->length;
+    if (args->ran == &s_refused)
     {
-        mmgr_line_put(err_msg, "the cells cannot meet a program run");
+        mmgr_line_put(args->err_msg, "the cells cannot meet a program run");
         return 0;
     }
-    CliRanRoom *const room = cli_room_of(ran);
-    cli_ran_texts_given(ran);
-    ran->whole = 1;
-    ran->code = -1ll;
-    ran->stopped = 0;
-    const int started = (input != NULL) ? cli_spawn_fed(&room->spawned, words, folder, settings, count, 1, err_msg)
-                                        : cli_spawn(&room->spawned, words, folder, settings, count, 1, err_msg);
+    CliRanRoom *const room = EMBED_CALL(cli_room_get, RanCtx, .ran = args->ran);
+    EMBED_CALL(cli_ran_texts_free, RanCtx, .ran = args->ran);
+    args->ran->whole = 1;
+    args->ran->code = -1ll;
+    args->ran->stopped = 0;
+    const int started =
+        (input != NULL)
+            ? EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &room->spawned,
+                         .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
+                         .detached = 1, .err_msg = args->err_msg)
+            : EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &room->spawned,
+                         .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
+                         .detached = 1, .err_msg = args->err_msg);
     if (!started)
     {
         return 0;
@@ -246,38 +270,41 @@ int cli_ran_within(const char *const *words, const char *folder, const CliSettin
     room->input = input;
     room->length = length;
     room->reader = (CliThread){cli_errors_read, room};
-    room->writer = (CliThread){cli_input_written, room};
-    room->limit = milliseconds;
+    room->writer = (CliThread){cli_input_write, room};
+    room->limit = args->milliseconds_u64;
     room->finished = 0;
-    room->watcher = (CliThread){cli_watched, room};
+    room->watcher = (CliThread){cli_on_watch, room};
     // the reader and the writer each report their end, on a thread of their own or, where none starts, here; a watcher
     // that cannot start leaves the run to take its time
-    const unsigned int watching = ((milliseconds != 0ull) && cli_thread_started(&room->watcher)) ? 1u : 0u;
+    const unsigned int watching = ((args->milliseconds_u64 != 0ull) &&
+                                   EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &room->watcher))
+                                      ? 1u
+                                      : 0u;
     const unsigned int ending = ((input != NULL) ? 2u : 1u) + watching;
-    const int reading = cli_thread_started(&room->reader);
-    if ((input != NULL) && !cli_thread_started(&room->writer))
+    const int reading = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &room->reader);
+    if ((input != NULL) && !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &room->writer))
     {
-        cli_input_written(room);
+        cli_input_write(room);
     }
     int whole = 1;
     char *out = s_nothing;
     unsigned long long out_size = 0ull;
-    cli_pipe_read(room->spawned.out, &out, &out_size, &whole);
+    EMBED_CALL(cli_pipe_read, RanCtx, .pipe = room->spawned.out, .text = &out, .size = &out_size, .whole = &whole);
     if (!reading)
     {
         cli_errors_read(room);
     }
-    cli_lock_take(&room->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     room->finished = 1;
     while (room->ended < ending)
     {
-        cli_wake_wait(&room->wake, &room->lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &room->wake, .lock = &room->lock);
     }
-    ran->out = out;
-    ran->out_size = out_size;
-    ran->whole = ran->whole && whole;
-    cli_lock_give(&room->lock);
-    ran->code = cli_spawn_wait(&room->spawned);
-    cli_spawn_closed(&room->spawned);
+    args->ran->out = out;
+    args->ran->out_size = out_size;
+    args->ran->whole = args->ran->whole && whole;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
+    args->ran->code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &room->spawned);
+    EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &room->spawned);
     return 1;
 }

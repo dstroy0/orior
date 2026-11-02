@@ -16,54 +16,100 @@
 #define CLI_SERVE_CHANGES 4096u
 #define CLI_SERVE_PAGE_EDITS 65536u
 
-// a place `{line, col}` of the page's read into `place`: 1, or 0 where it is none
-static int page_place(const CliJson *json, unsigned int node, CliPlace *place)
+typedef struct
 {
+    const CliJson *json;
+    unsigned int node;
+    CliPlace *place;
+    const CliServeArgs *request;
+    char *root;
+    const char **path;
+    const char **text;
+    unsigned long long *size;
+    unsigned long long *line;
+    VerbaLinea *err_msg;
+} ServeCallPageCtx;
+// a place `{line, col}` of the page's read into `place`: 1, or 0 where it is none
+EMBED_INLINE int page_place(const ServeCallPageCtx *args)
+{
+    const CliJson *json = args->json;
+    unsigned int node = args->node;
     const unsigned long long none = ~0ull;
-    place->line = cli_servers_whole(json, cli_json_member(json, node, "line"), none);
-    place->col = cli_servers_whole(json, cli_json_member(json, node, "col"), none);
-    return (place->line != none) && (place->col != none);
+    args->place->line =
+        EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = node, .name = "line"),
+                   .otherwise = none);
+    args->place->col =
+        EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = node, .name = "col"),
+                   .otherwise = none);
+    return (args->place->line != none) && (args->place->col != none);
 }
 
-static int pages_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_open(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    return (key != NULL) && cli_serve_at(args, root, full, err_msg) && cli_pages_open(key, full, out, err_msg);
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    return (key != NULL) &&
+           EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx, .request = arguments,
+                      .root = root, .full = full, .err_msg = err_msg) &&
+           EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = key, .path = full, .out = out, .err_msg = err_msg);
 }
 
-static int pages_shape(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_shape(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    return (key != NULL) && cli_pages_shape(key, out, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    return (key != NULL) &&
+           EMBED_CALL(cli_pages_path.shape, CliPagesPathCfg, .key = key, .out = out, .err_msg = err_msg);
 }
 
 // the lines from `from` to before `to` of the paged text under `key` and their colors, answered together as
 // `{"lines", "colors"}`: the lines colored as they are read, no further than the first `columns` letters of each where
 // the page names how far its view draws, the page mirroring them from here on, and no colors where the text is no
 // branch
-static int pages_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_read(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    if ((key == NULL) || !cli_serve_whole(args, "from", &from, err_msg) || !cli_serve_whole(args, "to", &to, err_msg))
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    if ((key == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "from",
+                    .value = &from, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "to",
+                    .value = &to, .err_msg = err_msg))
     {
         return 0;
     }
-    const unsigned long long columns = cli_serve_whole_or(args, "columns", 0ull);
+    const unsigned long long columns = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx,
+                                                  .request = arguments, .key = "columns", .otherwise_u64 = 0ull);
     mmgr_line_put(out, "{\"lines\":");
-    if (!cli_pages_read(key, from, to, 0ull, out, NULL, err_msg))
+    if (!EMBED_CALL(cli_pages_out.read, CliPagesOutCfg, .key = key, .from = from, .to = to, .cut = 0ull, .out = out,
+                    .lengths = NULL, .err_msg = err_msg))
     {
         return 0;
     }
     mmgr_line_put(out, ",\"colors\":");
     if (columns != 0ull)
     {
-        (void)cli_document_columns(key, columns);
+        (void)EMBED_CALL(cli_document_key_columns.columns, CliDocumentKeyColumnsCfg, .key = key, .columns = columns);
     }
-    if ((to <= from) || !cli_document_runs_written(key, from, to - 1ull, 1, out))
+    if ((to <= from) || !EMBED_CALL(cli_document_out_key_first.runs_write, CliDocumentOutKeyFirstCfg, .key = key,
+                                    .first = from, .last = to - 1ull, .mirrored = 1, .out = out))
     {
         mmgr_line_put(out, "[]");
     }
@@ -72,40 +118,59 @@ static int pages_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
 }
 
 // where the page's view of the paged text under `key` stands, `{top, rows, columns, map_from, map_to, cached_from,
-// cached_to, cached_cut, width}` as cli_pages_viewed reads them, placed here: answered `{"keep": [from, to], "from",
+// cached_to, cached_cut, width}` as cli_pages_on_view reads them, placed here: answered `{"save": [from, to], "from",
 // "cut", "lines", "lengths", "colors"}`, the lines the page is to hold with their colors no further than the view
-// reaches, and where the lines are cut each one's whole length in the page's units; `{"keep"}` alone where it holds
+// reaches, and where the lines are cut each one's whole length in the page's units; `{"save"}` alone where it holds
 // what it needs
-static int pages_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_view(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
     if (key == NULL)
     {
         return 0;
     }
-    const CliPagesView view = {
-        cli_serve_whole_or(args, "top", 0ull),       cli_serve_whole_or(args, "rows", 1ull),
-        cli_serve_whole_or(args, "columns", 0ull),   cli_serve_whole_or(args, "map_from", 0ull),
-        cli_serve_whole_or(args, "map_to", 0ull),    cli_serve_whole_or(args, "cached_from", 0ull),
-        cli_serve_whole_or(args, "cached_to", 0ull), cli_serve_whole_or(args, "cached_cut", 0ull),
-        cli_serve_whole_or(args, "width", 0ull)};
+    const CliPagesView view = {EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "top", .otherwise_u64 = 0ull),
+                               EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "rows", .otherwise_u64 = 1ull),
+                               EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "columns", .otherwise_u64 = 0ull),
+                               EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "map_from", .otherwise_u64 = 0ull),
+                               EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "map_to", .otherwise_u64 = 0ull),
+                               EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "cached_from", .otherwise_u64 = 0ull),
+                               EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "cached_to", .otherwise_u64 = 0ull),
+                               EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "cached_cut", .otherwise_u64 = 0ull),
+                               EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "width", .otherwise_u64 = 0ull)};
     CliPagesPlaced placed = {0ull, 0ull, 0ull, 0ull, 0ull};
-    if (!cli_pages_viewed(key, &view, &placed))
+    if (!EMBED_CALL(cli_pages_view.view, CliPagesViewCfg, .key = key, .view = &view, .placed = &placed))
     {
         mmgr_line_put(err_msg, key);
         mmgr_line_put(err_msg, ": no paged text is stored under the key");
         return 0;
     }
     mmgr_line_put(out, "{\"keep\":[");
-    mmgr_line_decimal(out, placed.keep_from, 1u);
+    mmgr_line_decimal(out, placed.save_from, 1u);
     mmgr_line_ch(out, ',');
-    mmgr_line_decimal(out, placed.keep_to, 1u);
+    mmgr_line_decimal(out, placed.save_to, 1u);
     mmgr_line_ch(out, ']');
     if (placed.from < placed.to)
     {
         // each line's length in a cell of its own, twenty digits at the most and a comma, and the brackets
         const unsigned long long room = ((placed.to - placed.from) * 21ull) + 2ull;
-        char *const cell = (placed.cut != 0ull) ? cli_serve_cell(room, "the lengths of a view's lines", err_msg) : NULL;
+        char *const cell = (placed.cut != 0ull)
+                               ? EMBED_CALL(cli_serve_size_err_msg_internal.cell, CliServeSizeErrMsgCtx, .size = room,
+                                            .what = "the lengths of a view's lines", .err_msg = err_msg)
+                               : NULL;
         VerbaLinea lengths = {cell, room, 0ull};
         mmgr_line_put(out, ",\"from\":");
         mmgr_line_decimal(out, placed.from, 1u);
@@ -113,7 +178,8 @@ static int pages_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         // the cut the lines were read at, 0 where none of them was longer
         unsigned long long cut = placed.cut;
         const int read = ((placed.cut == 0ull) || (cell != NULL)) &&
-                         cli_pages_read(key, placed.from, placed.to, &cut, out, &lengths, err_msg);
+                         EMBED_CALL(cli_pages_out.read, CliPagesOutCfg, .key = key, .from = placed.from,
+                                    .to = placed.to, .cut = &cut, .out = out, .lengths = &lengths, .err_msg = err_msg);
         if (cell != NULL)
         {
             mmgr_line_put(out, (cut != 0ull) ? ",\"lengths\":" : "");
@@ -129,9 +195,11 @@ static int pages_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         mmgr_line_put(out, ",\"colors\":");
         if (view.columns != 0ull)
         {
-            (void)cli_document_columns(key, view.columns);
+            (void)EMBED_CALL(cli_document_key_columns.columns, CliDocumentKeyColumnsCfg, .key = key,
+                             .columns = view.columns);
         }
-        if (!cli_document_runs_written(key, placed.from, placed.to - 1ull, 1, out))
+        if (!EMBED_CALL(cli_document_out_key_first.runs_write, CliDocumentOutKeyFirstCfg, .key = key,
+                        .first = placed.from, .last = placed.to - 1ull, .mirrored = 1, .out = out))
         {
             mmgr_line_put(out, "[]");
         }
@@ -140,16 +208,22 @@ static int pages_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     return 1;
 }
 
-static int pages_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_edit(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
     if (key == NULL)
     {
         return 0;
     }
-    const CliJson *const json = args->json;
-    const unsigned int changes = cli_serve_arg(args, "changes");
-    if (!cli_json_is(json, changes, CFG_JSON_ARRAY))
+    const CliJson *const json = arguments->json;
+    const unsigned int changes =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "changes");
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = changes,
+                    .kind = CFG_JSON_ARRAY))
     {
         mmgr_line_put(err_msg, "changes: invalid type: null, expected a sequence");
         return 0;
@@ -162,7 +236,10 @@ static int pages_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
          (change != CLI_JSON_NONE) && (changes_most < CLI_SERVE_CHANGES); change = json->node[change].next)
     {
         changes_most += 1u;
-        for (unsigned int edit = cli_json_is(json, change, CFG_JSON_ARRAY) ? json->node[change].first : CLI_JSON_NONE;
+        for (unsigned int edit = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                            .node = change, .kind = CFG_JSON_ARRAY)
+                                     ? json->node[change].first
+                                     : CLI_JSON_NONE;
              (edit != CLI_JSON_NONE) && (edits_most < CLI_SERVE_PAGE_EDITS); edit = json->node[edit].next)
         {
             edits_most += 1u;
@@ -170,8 +247,9 @@ static int pages_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     }
     const unsigned long long edit_bytes = (edits_most + 1ull) * sizeof(CliEdit);
     const unsigned long long change_bytes = (changes_most + 1ull) * sizeof(const CliEdit *);
-    char *const cell = cli_serve_cell(edit_bytes + change_bytes + ((changes_most + 1ull) * sizeof(unsigned int)),
-                                      "the edits of a stored text", err_msg);
+    char *const cell = EMBED_CALL(cli_serve_size_err_msg_internal.cell, CliServeSizeErrMsgCtx,
+                                  .size = edit_bytes + change_bytes + ((changes_most + 1ull) * sizeof(unsigned int)),
+                                  .what = "the edits of a stored text", .err_msg = err_msg);
     if (cell == NULL)
     {
         return 0;
@@ -188,15 +266,29 @@ static int pages_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     {
         change_list[count] = &edit_list[used];
         edit_counts[count] = 0u;
-        for (unsigned int edit = cli_json_is(json, change, CFG_JSON_ARRAY) ? json->node[change].first : CLI_JSON_NONE;
+        for (unsigned int edit = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                            .node = change, .kind = CFG_JSON_ARRAY)
+                                     ? json->node[change].first
+                                     : CLI_JSON_NONE;
              (missing == NULL) && (edit != CLI_JSON_NONE) && (used < edits_most); edit = json->node[edit].next)
         {
             CliEdit *const one = &edit_list[used];
-            one->text = cli_json_string(json, cli_json_member(json, edit, "text"), &one->length);
-            missing = !page_place(json, cli_json_member(json, edit, "from"), &one->from) ? "from"
-                      : !page_place(json, cli_json_member(json, edit, "to"), &one->to)   ? "to"
-                      : (one->text == NULL)                                              ? "text"
-                                                                                         : NULL;
+            one->text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                      .json_read = json, .object = edit, .name = "text"),
+                                   .length_pointer = &one->length);
+            missing = !EMBED_CALL(page_place, ServeCallPageCtx, .json = json,
+                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                     .json_read = json, .object = edit, .name = "from"),
+                                  .place = &one->from)
+                          ? "from"
+                      : !EMBED_CALL(page_place, ServeCallPageCtx, .json = json,
+                                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                       .json_read = json, .object = edit, .name = "to"),
+                                    .place = &one->to)
+                          ? "to"
+                      : (one->text == NULL) ? "text"
+                                            : NULL;
             used += 1u;
             edit_counts[count] += 1u;
         }
@@ -209,202 +301,324 @@ static int pages_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         mmgr_line_put(err_msg, missing);
         mmgr_line_ch(err_msg, '`');
     }
-    const int done = whole && cli_document_paged_edit(key, change_list, edit_counts, count, out, err_msg);
+    const int done =
+        whole && EMBED_CALL(cli_document_out.paged_edit, CliDocumentOutCfg, .key = key, .changes = change_list,
+                            .edits = edit_counts, .count_u32 = count, .out = out, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(cell, &g_cli_window_cells);
     return done;
 }
 
-static int pages_changed(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_change(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    return (key != NULL) && cli_pages_changed(key, out, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    return (key != NULL) &&
+           EMBED_CALL(cli_pages_path.change, CliPagesPathCfg, .key = key, .out = out, .err_msg = err_msg);
 }
 
-static int pages_find(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_find(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long most = 0ull;
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const unsigned int node = cli_serve_arg(args, "sought");
-    const CliServeArgs sought_args = {args->json, node};
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    const unsigned int node =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "sought");
+    const CliServeArgs sought_args = {arguments->json, node};
     int regex = 0;
     int match_case = 0;
     int word = 0;
-    const char *const query =
-        cli_json_is(args->json, node, CFG_JSON_OBJECT) ? cli_serve_string(&sought_args, "query", err_msg) : NULL;
-    if ((key == NULL) || (query == NULL) || !cli_serve_bool(&sought_args, "regex", &regex, err_msg) ||
-        !cli_serve_bool(&sought_args, "case", &match_case, err_msg) ||
-        !cli_serve_bool(&sought_args, "word", &word, err_msg) || !cli_serve_whole(args, "most", &most, err_msg))
+    const char *const query = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                         .json_read = arguments->json, .node = node, .kind = CFG_JSON_OBJECT)
+                                  ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                               .request = &sought_args, .key = "query", .err_msg = err_msg)
+                                  : NULL;
+    if ((key == NULL) || (query == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.serve_bool, CliServeErrMsgCtx, .request = &sought_args, .key = "regex",
+                    .value_i32s = &regex, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.serve_bool, CliServeErrMsgCtx, .request = &sought_args, .key = "case",
+                    .value_i32s = &match_case, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.serve_bool, CliServeErrMsgCtx, .request = &sought_args, .key = "word",
+                    .value_i32s = &word, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "most",
+                    .value = &most, .err_msg = err_msg))
     {
-        if ((key != NULL) && !cli_json_is(args->json, node, CFG_JSON_OBJECT))
+        if ((key != NULL) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                         .json_read = arguments->json, .node = node, .kind = CFG_JSON_OBJECT))
         {
             mmgr_line_put(err_msg, "sought: invalid type: null, expected struct Sought");
         }
         return 0;
     }
     const CliDocSought sought = {query, regex, match_case, word};
-    return cli_pages_find(key, &sought, most, out, err_msg);
+    return EMBED_CALL(cli_pages_out_err_msg_sought.find, CliPagesOutErrMsgSoughtCfg, .key = key, .sought = &sought,
+                      .most = most, .out = out, .err_msg = err_msg);
 }
 
-static int pages_save(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_save(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
     if (key == NULL)
     {
         return 0;
     }
     // a paged file is written as every file of the tree is, one write at a time
-    cli_lock_take(&g_cli_serve_write_lock);
-    const int saved = cli_pages_save(key, out, err_msg);
-    cli_lock_give(&g_cli_serve_write_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve_write_lock);
+    const int saved = EMBED_CALL(cli_pages_path.save, CliPagesPathCfg, .key = key, .out = out, .err_msg = err_msg);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve_write_lock);
     return saved;
 }
 
-static int pages_release(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pages_release(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
     if (key == NULL)
     {
         return 0;
     }
     // the branch its colors are walked in let go before the pages its lines are read from
-    cli_document_release(key);
-    cli_pages_release(key);
-    mmgr_line_put(out, "null");
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
+    EMBED_CALL(cli_pages.release, CliPagesCfg, .key = key);
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-static int requests_parse(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int requests_parse(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long size = 0ull;
-    const char *const text = cli_serve_string(args, "text", err_msg);
+    const char *const text = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "text", .err_msg = err_msg);
     if (text == NULL)
     {
         return 0;
     }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &size);
-    return cli_requests_parsed(text, size, out, err_msg);
+    (void)EMBED_CALL(
+        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text"),
+        .length_pointer = &size);
+    return EMBED_CALL(cli_requests_text_table.parse, CliRequestsTextCfg, .text = text, .size = size, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int requests_environments(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int requests_environments(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    return (path != NULL) && cli_serve_tree(root, err_msg) && cli_requests_environments(root, path, out, err_msg);
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    return (path != NULL) &&
+           EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_requests_text_table.environments, CliRequestsTextCfg, .root = root, .path = path, .out = out,
+                      .err_msg = err_msg);
 }
 
 // the arguments `path`, `text` and `line` of a request, and the tree: 1, or 0 with why given
-static int requests_at(const CliServeArgs *args, char *root, const char **path, const char **text,
-                       unsigned long long *size, unsigned long long *line, VerbaLinea *err_msg)
+EMBED_INLINE int requests_at(const ServeCallPageCtx *args)
 {
-    *path = cli_serve_string(args, "path", err_msg);
-    *text = (*path != NULL) ? cli_serve_string(args, "text", err_msg) : NULL;
-    if ((*text == NULL) || !cli_serve_whole(args, "line", line, err_msg) || !cli_serve_tree(root, err_msg))
+    const CliServeArgs *arguments = args->request;
+    char *root = args->root;
+    const char **path = args->path;
+    const char **text = args->text;
+    VerbaLinea *err_msg = args->err_msg;
+    *path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments, .key = "path",
+                       .err_msg = err_msg);
+    *text = (*path != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                         .key = "text", .err_msg = err_msg)
+                            : NULL;
+    if ((*text == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "line",
+                    .value = args->line, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), size);
+    (void)EMBED_CALL(
+        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text"),
+        .length_pointer = args->size);
     return 1;
 }
 
-static int requests_send(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int requests_send(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     const char *path = NULL;
     const char *text = NULL;
     unsigned long long size = 0ull;
     unsigned long long line = 0ull;
-    return requests_at(args, root, &path, &text, &size, &line, err_msg) &&
-           cli_requests_sent_at(root, path, text, size, line, cli_serve_string_or(args, "env", NULL), out, err_msg);
+    return EMBED_CALL(requests_at, ServeCallPageCtx, .request = arguments, .root = root, .path = &path, .text = &text,
+                      .size = &size, .line = &line, .err_msg = err_msg) &&
+           EMBED_CALL(cli_requests_text_table.sent_at, CliRequestsTextCfg, .root = root, .path = path, .text = text,
+                      .size = size, .line = line,
+                      .env = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "env", .otherwise = NULL),
+                      .out = out, .err_msg = err_msg);
 }
 
-static int requests_answers(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int requests_answers(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     const char *path = NULL;
     const char *text = NULL;
     unsigned long long size = 0ull;
     unsigned long long line = 0ull;
-    return requests_at(args, root, &path, &text, &size, &line, err_msg) &&
-           cli_requests_answers(root, path, text, size, line, out, err_msg);
+    return EMBED_CALL(requests_at, ServeCallPageCtx, .request = arguments, .root = root, .path = &path, .text = &text,
+                      .size = &size, .line = &line, .err_msg = err_msg) &&
+           EMBED_CALL(cli_requests_text_table.answers, CliRequestsTextCfg, .root = root, .path = path, .text = text,
+                      .size = size, .line = line, .out = out, .err_msg = err_msg);
 }
 
-static int requests_curl(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int requests_curl(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     const char *path = NULL;
     const char *text = NULL;
     unsigned long long size = 0ull;
     unsigned long long line = 0ull;
-    return requests_at(args, root, &path, &text, &size, &line, err_msg) &&
-           cli_requests_curl(root, path, text, size, line, cli_serve_string_or(args, "env", NULL), out, err_msg);
+    return EMBED_CALL(requests_at, ServeCallPageCtx, .request = arguments, .root = root, .path = &path, .text = &text,
+                      .size = &size, .line = &line, .err_msg = err_msg) &&
+           EMBED_CALL(cli_requests_text_table.curl, CliRequestsTextCfg, .root = root, .path = path, .text = text,
+                      .size = size, .line = line,
+                      .env = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "env", .otherwise = NULL),
+                      .out = out, .err_msg = err_msg);
 }
 
-static int requests_from_curl(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int requests_from_curl(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long size = 0ull;
-    const char *const text = cli_serve_string(args, "text", err_msg);
+    const char *const text = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "text", .err_msg = err_msg);
     if (text == NULL)
     {
         return 0;
     }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &size);
-    return cli_requests_from_curl(text, size, out, err_msg);
+    (void)EMBED_CALL(
+        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text"),
+        .length_pointer = &size);
+    return EMBED_CALL(cli_requests_table.from_curl, CliRequestsCfg, .line_text = text, .size = size, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int requests_private(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int requests_private(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    return (path != NULL) && cli_serve_tree(root, err_msg) && cli_requests_private_made(root, path, out, err_msg);
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    return (path != NULL) &&
+           EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_requests_text_table.private_init, CliRequestsTextCfg, .root = root, .path = path, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int containers_list(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int containers_list(const CliServeAnswerCfg *args)
 {
-    (void)args;
-    (void)err_msg;
-    cli_containers_list(out);
+    VerbaLinea *out = args->out;
+    EMBED_CALL(cli_containers_out_line.list, CliContainersOutLineCfg, .out = out);
     return 1;
 }
 
-static int container_act(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int container_act(const CliServeAnswerCfg *args)
 {
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    const char *const act = (name != NULL) ? cli_serve_string(args, "act", err_msg) : NULL;
-    if ((act == NULL) || !cli_containers_act(name, act, err_msg))
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    const char *const act = (name != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                        .request = arguments, .key = "act", .err_msg = err_msg)
+                                           : NULL;
+    if ((act == NULL) ||
+        !EMBED_CALL(cli_containers.act, CliContainersCfg, .name = name, .act = act, .err_msg = err_msg))
     {
         return 0;
     }
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-static int container_logs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int container_logs(const CliServeAnswerCfg *args)
 {
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    return (name != NULL) && cli_containers_logs(name, out, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    return (name != NULL) && EMBED_CALL(cli_containers_out_line.logs, CliContainersOutLineCfg, .name = name, .out = out,
+                                        .err_msg = err_msg);
 }
 
-static int container_run(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int container_run(const CliServeAnswerCfg *args)
 {
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    const char *const line = (name != NULL) ? cli_serve_string(args, "line", err_msg) : NULL;
-    return (line != NULL) && cli_containers_run_in(name, line, out, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    const char *const line = (name != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "line", .err_msg = err_msg)
+                                            : NULL;
+    return (line != NULL) && EMBED_CALL(cli_containers_out_line.run_in, CliContainersOutLineCfg, .name = name,
+                                        .line = line, .out = out, .err_msg = err_msg);
 }
 
-static int pods_list(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pods_list(const CliServeAnswerCfg *args)
 {
-    (void)args;
-    (void)err_msg;
-    cli_containers_pods(out);
+    VerbaLinea *out = args->out;
+    EMBED_CALL(cli_containers_out_line.pods, CliContainersOutLineCfg, .out = out);
     return 1;
 }
 
-static int pod_logs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int pod_logs(const CliServeAnswerCfg *args)
 {
-    const char *const space = cli_serve_string(args, "namespace", err_msg);
-    const char *const name = (space != NULL) ? cli_serve_string(args, "name", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const space = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                         .key = "namespace", .err_msg = err_msg);
+    const char *const name = (space != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                          .request = arguments, .key = "name", .err_msg = err_msg)
+                                             : NULL;
     return (name != NULL) &&
-           cli_containers_pod_logs(space, name, cli_serve_string_or(args, "container", NULL), out, err_msg);
+           EMBED_CALL(cli_containers_out.pod_logs, CliContainersOutCfg, .space = space, .name = name,
+                      .container = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                              .request = arguments, .key = "container", .otherwise = NULL),
+                      .out = out, .err_msg = err_msg);
 }
 
 const CliServeCall g_cli_serve_page_calls[] = {
@@ -413,7 +627,7 @@ const CliServeCall g_cli_serve_page_calls[] = {
     {"pages_read", pages_read},
     {"pages_view", pages_view},
     {"pages_edit", pages_edit},
-    {"pages_changed", pages_changed},
+    {"pages_changed", pages_change},
     {"pages_find", pages_find},
     {"pages_save", pages_save},
     {"pages_release", pages_release},

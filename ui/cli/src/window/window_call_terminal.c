@@ -13,11 +13,27 @@
 #include "../toolchains/toolchains.h"
 #include "window_internal.h"
 
+#define CLI_TERMINAL_PIECE 8192u
+#define CLI_TERMINAL_BODY ((CLI_TERMINAL_PIECE * 6u) + 64u)
+// One terminal: its number, 0 where the place is free; its shell; its key to the comms layer, where it has one; whether
+// its output is still read and its shell still waited on, the place freed once neither is; the threads that do each;
+// and the output read and the event it is sent in
+typedef struct
+{
+    unsigned long long id;
+    CliSpawned spawned;
+    char key[CLI_COMMS_KEY];
+    int keyed;
+    int reading;
+    int waiting;
+    CliThread reader;
+    CliThread waiter;
+    char piece[CLI_TERMINAL_PIECE + 4u];
+    char body[CLI_TERMINAL_BODY];
+} CliTerminal;
 // the most terminals open at once; the bytes of output read at once, and the event they are sent in, each read byte
 // escaped as six at the most
 #define CLI_TERMINALS 64u
-#define CLI_TERMINAL_PIECE 8192u
-#define CLI_TERMINAL_BODY ((CLI_TERMINAL_PIECE * 6u) + 64u)
 
 // the most words a shell on this machine starts with, and the most settings of its environment
 #define CLI_TERMINAL_WORDS 8u
@@ -43,33 +59,31 @@
 #define CLI_TERMINAL_CODE_SIGNALED 1
 #endif
 
-// One terminal: its number, 0 where the place is free; its shell; its key to the comms layer, where it has one; whether
-// its output is still read and its shell still waited on, the place freed once neither is; the threads that do each;
-// and the output read and the event it is sent in
-typedef struct
-{
-    unsigned long long id;
-    CliSpawned spawned;
-    char key[CLI_COMMS_KEY];
-    int keyed;
-    int reading;
-    int waiting;
-    CliThread reader;
-    CliThread waiter;
-    char piece[CLI_TERMINAL_PIECE + 4u];
-    char body[CLI_TERMINAL_BODY];
-} CliTerminal;
-
 static CliTerminal s_terminal[CLI_TERMINALS];
 static unsigned long long s_next_id;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the terminal numbered `id`, or NULL where none is open; under the lock
-static CliTerminal *terminal_of(unsigned long long id)
+typedef struct
 {
-    for (unsigned int at = 0u; (id != 0ull) && (at < CLI_TERMINALS); at += 1u)
+    unsigned long long id;
+    CliTerminal *terminal;
+    const char *bytes;
+    unsigned long long size;
+    char digit;
+    const char *url;
+    char *folder;
+    const char *at;
+    unsigned int cols;
+    unsigned int rows;
+    VerbaLinea *err_msg;
+    const CliLinkAddress *address;
+} WindowCallTerminalCtx;
+// the terminal numbered `id`, or NULL where none is open; under the lock
+EMBED_INLINE CliTerminal *terminal_get(const WindowCallTerminalCtx *args)
+{
+    for (unsigned int at = 0u; (args->id != 0ull) && (at < CLI_TERMINALS); at += 1u)
     {
-        if (s_terminal[at].id == id)
+        if (s_terminal[at].id == args->id)
         {
             return &s_terminal[at];
         }
@@ -78,31 +92,31 @@ static CliTerminal *terminal_of(unsigned long long id)
 }
 
 // a terminal's place freed once its output is read to its end and its shell waited on; under the lock
-static void terminal_released(CliTerminal *terminal)
+EMBED_INLINE void terminal_release(const WindowCallTerminalCtx *args)
 {
-    if (!terminal->reading && !terminal->waiting)
+    if (!args->terminal->reading && !args->terminal->waiting)
     {
-        cli_spawn_closed(&terminal->spawned);
-        terminal->id = 0ull;
+        EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->terminal->spawned);
+        args->terminal->id = 0ull;
     }
 }
 
 // how many bytes at the start of `size` bytes of `bytes` are whole letters; a letter the end of a read cuts waits for
 // the rest of it in the next
-static unsigned long long terminal_whole(const char *bytes, unsigned long long size)
+EMBED_INLINE unsigned long long terminal_whole(const WindowCallTerminalCtx *args)
 {
-    for (unsigned long long back = 1ull; (back <= 3ull) && (back <= size); back += 1ull)
+    for (unsigned long long back = 1ull; (back <= 3ull) && (back <= args->size); back += 1ull)
     {
-        const unsigned char letter = (unsigned char)bytes[size - back];
+        const unsigned char letter = (unsigned char)args->bytes[args->size - back];
         if ((letter & 0xc0u) == 0x80u)
         {
             continue;
         }
         const unsigned long long needs =
             (letter >= 0xf0u) ? 4ull : ((letter >= 0xe0u) ? 3ull : ((letter >= 0xc0u) ? 2ull : 1ull));
-        return (needs > back) ? (size - back) : size;
+        return (needs > back) ? (args->size - back) : args->size;
     }
-    return size;
+    return args->size;
 }
 
 // the output a terminal's shell writes sent to the page as it comes, and its place freed once its shell is also waited
@@ -113,25 +127,29 @@ static void terminal_read(void *context)
     unsigned long long pending = 0ull;
     for (;;)
     {
-        const unsigned long long got =
-            cli_spawn_read(terminal->spawned.out, terminal->piece + pending, CLI_TERMINAL_PIECE);
+        const unsigned long long got = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
+                                                  .pipe_handle = terminal->spawned.out,
+                                                  .piece = terminal->piece + pending, .room = CLI_TERMINAL_PIECE);
         if (got == 0ull)
         {
             break;
         }
         const unsigned long long size = pending + got;
-        const unsigned long long whole = terminal_whole(terminal->piece, size);
+        const unsigned long long whole =
+            EMBED_CALL(terminal_whole, WindowCallTerminalCtx, .bytes = terminal->piece, .size = size);
         if (whole > 0ull)
         {
             VerbaLinea body = {terminal->body, sizeof(terminal->body), 0ull};
             mmgr_line_put(&body, "{\"id\":");
             mmgr_line_decimal(&body, terminal->id, 1u);
             mmgr_line_put(&body, ",\"text\":\"");
-            cli_json_escaped_lossy(&body, (const unsigned char *)terminal->piece, whole);
+            EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = &body,
+                       .text_bytes = (const unsigned char *)terminal->piece, .length = whole);
             mmgr_line_put(&body, "\"}");
             if (mmgr_line_ok(&body))
             {
-                cli_serve_emitted("term-out", body.out, body.at);
+                EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "term-out", .body = body.out,
+                           .size = body.at);
             }
         }
         // the bytes of a letter the read cut, three at the most, moved to the piece's start for the rest of it
@@ -141,10 +159,10 @@ static void terminal_read(void *context)
         }
         pending = size - whole;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     terminal->reading = 0;
-    terminal_released(terminal);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(terminal_release, WindowCallTerminalCtx, .terminal = terminal);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // a terminal's shell waited on to its end: its part of the comms layer let go, the pseudo-terminal let go so that its
@@ -153,14 +171,14 @@ static void terminal_read(void *context)
 static void terminal_wait(void *context)
 {
     CliTerminal *const terminal = context;
-    const long long code = cli_spawn_wait(&terminal->spawned);
+    const long long code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &terminal->spawned);
     if (terminal->keyed)
     {
-        cli_window_terminal_left(terminal->key);
+        EMBED_CALL(cli_window_key_internal.terminal_leave, CliWindowKeyCtx, .key = terminal->key);
     }
-    cli_lock_take(&s_lock);
-    cli_spawn_terminal_closed(&terminal->spawned);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_spawned_internal.spawn_terminal_close, CliSpawnedCtx, .spawned = &terminal->spawned);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     char text[96];
     VerbaLinea body = {text, sizeof(text), 0ull};
     mmgr_line_put(&body, "{\"id\":");
@@ -176,41 +194,44 @@ static void terminal_wait(void *context)
         mmgr_line_decimal(&body, (unsigned long long)code & 0xffffffffull, 1u);
     }
     mmgr_line_ch(&body, '}');
-    cli_serve_emitted("term-exit", text, mmgr_line_ok(&body) ? body.at : 0ull);
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "term-exit", .body = text,
+               .size = mmgr_line_ok(&body) ? body.at : 0ull);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     terminal->waiting = 0;
-    terminal_released(terminal);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(terminal_release, WindowCallTerminalCtx, .terminal = terminal);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the value of the hexadecimal digit `digit`, or 16 where it is none
-static unsigned int terminal_hex_of(char digit)
+EMBED_INLINE unsigned int terminal_hex_get(const WindowCallTerminalCtx *args)
 {
     // a digit's distance from the first of its run is below 16 where the digit is one
-    return ((digit >= '0') && (digit <= '9'))   ? (unsigned int)(digit - '0')
-           : ((digit >= 'a') && (digit <= 'f')) ? (unsigned int)(digit - 'a') + 10u
-           : ((digit >= 'A') && (digit <= 'F')) ? (unsigned int)(digit - 'A') + 10u
-                                                : 16u;
+    return ((args->digit >= '0') && (args->digit <= '9'))   ? (unsigned int)(args->digit - '0')
+           : ((args->digit >= 'a') && (args->digit <= 'f')) ? (unsigned int)(args->digit - 'a') + 10u
+           : ((args->digit >= 'A') && (args->digit <= 'F')) ? (unsigned int)(args->digit - 'A') + 10u
+                                                            : 16u;
 }
 
 // the folder a file URL names, as OSC 7 gives it, into `folder`, sized for CLI_PATH_MAX_LEN: its host taken off, its
 // escapes read, and on Windows a path of Git's bash, `/d/x`, read as `D:/x`: 1, or 0 where it does not fit
-static int terminal_folder_of(const char *url, char *folder)
+EMBED_INLINE int terminal_folder_get(const WindowCallTerminalCtx *args)
 {
-    const char *path = url;
-    if (cellul.starts(&(CatenaFinitaCfg){.src = url, .other = "file://", .cap = CLI_CELLS_POOL}))
+    const char *path = args->url;
+    if (cellul.starts(&(CatenaFinitaCfg){.src = args->url, .other = "file://", .cap = CLI_CELLS_POOL}))
     {
-        const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = url + 7, .cap = CLI_CELLS_POOL, .byte = '/'});
-        path = (slash != NULL) ? slash : (url + 7);
+        const char *const slash =
+            cellul.chr(&(CatenaFinitaCfg){.src = args->url + 7, .cap = CLI_CELLS_POOL, .byte = '/'});
+        path = (slash != NULL) ? slash : (args->url + 7);
     }
     char read[CLI_PATH_MAX_LEN];
     VerbaLinea decoded = {read, sizeof(read), 0ull};
-    cli_text_put_unescaped(&decoded, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_text_size_set.put_unescaped, CliTextSizeSetCfg, .out = &decoded, .text = path,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
     if (mmgr_line_finish(&decoded) == 0ull)
     {
         return 0;
     }
-    VerbaLinea whole = {folder, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea whole = {args->folder, CLI_PATH_MAX_LEN, 0ull};
     const int letter = ((read[1] >= 'a') && (read[1] <= 'z')) || ((read[1] >= 'A') && (read[1] <= 'Z'));
     const int drive = CLI_TERMINAL_WINDOWS && (read[0] == '/') && letter && ((read[2] == '/') || (read[2] == '\0'));
     if (drive)
@@ -229,19 +250,26 @@ static int terminal_folder_of(const char *url, char *folder)
 
 // the reader's shell on this machine started in `terminal`, at the folder `at` names where it is one; under the lock:
 // 1, or 0 with why given
-static int terminal_local_started(CliTerminal *terminal, const char *at, unsigned int cols, unsigned int rows,
-                                  VerbaLinea *err_msg)
+EMBED_INLINE int terminal_local_start(const WindowCallTerminalCtx *args)
 {
+    const char *at = args->at;
+    unsigned int cols = args->cols;
+    unsigned int rows = args->rows;
+    VerbaLinea *err_msg = args->err_msg;
     static char s_folder[CLI_PATH_MAX_LEN];
     static char s_shell[CLI_PATH_MAX_LEN];
     static char s_path[CLI_PATH_TEXT];
     static char s_program[CLI_PATH_MAX_LEN];
     static char s_address[CLI_PATH_MAX_LEN];
     static char s_prompt[16];
-    int found = (at != NULL) && terminal_folder_of(at, s_folder) && query_is_folder(s_folder);
-    found = found || cli_serve_root_now(s_folder);
-    found = found || (query_environment_read(CLI_TERMINAL_HOME, s_folder, sizeof(s_folder)) && (s_folder[0] != '\0'));
-    found = found || cli_folder_current(s_folder, sizeof(s_folder));
+    int found = (at != NULL) && EMBED_CALL(terminal_folder_get, WindowCallTerminalCtx, .url = at, .folder = s_folder) &&
+                EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = s_folder);
+    found = found || EMBED_CALL(cli_serve_err_msg_root.root_now, CliServeErrMsgRootCfg, .root_out = s_folder);
+    found = found || (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx,
+                                 .name = CLI_TERMINAL_HOME, .value_out = s_folder, .room = sizeof(s_folder)) &&
+                      (s_folder[0] != '\0'));
+    found = found || EMBED_CALL(cli_path_room_internal.folder_current, CliPathRoomCtx, .path_out = s_folder,
+                                .room_size = sizeof(s_folder));
     if (!found)
     {
         mmgr_line_put(err_msg, "no folder to open a terminal in");
@@ -253,9 +281,13 @@ static int terminal_local_started(CliTerminal *terminal, const char *at, unsigne
     unsigned int count = 0u;
     // ORIOR_SHELL where it is set; on Windows Git's bash, the one the jobs run in, as a login shell told to stay in the
     // folder it starts in; elsewhere the reader's own SHELL, else bash, as a login shell
-    const int named = query_environment_read("ORIOR_SHELL", s_shell, sizeof(s_shell));
-    const int own_shell = !named && !CLI_TERMINAL_WINDOWS && query_environment_read("SHELL", s_shell, sizeof(s_shell));
-    if (!named && CLI_TERMINAL_WINDOWS && !cli_runner_bash(s_shell, err_msg))
+    const int named = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_SHELL",
+                                 .value_out = s_shell, .room = sizeof(s_shell));
+    const int own_shell = !named && !CLI_TERMINAL_WINDOWS &&
+                          EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "SHELL",
+                                     .value_out = s_shell, .room = sizeof(s_shell));
+    if (!named && CLI_TERMINAL_WINDOWS &&
+        !EMBED_CALL(cli_runner_name.bash, CliRunnerNameCfg, .path = s_shell, .err_msg = err_msg))
     {
         return 0;
     }
@@ -276,11 +308,13 @@ static int terminal_local_started(CliTerminal *terminal, const char *at, unsigne
     words[word] = NULL;
     // orior's own folder comes last: `orior` runs in the terminal where no other is installed, and shadows no program
     // of the reader's
-    cli_toolchains_run_path(s_path, sizeof(s_path));
-    if (cli_program_own(s_program, sizeof(s_program)))
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
+    if (EMBED_CALL(cli_path_room_internal.program_own, CliPathRoomCtx, .path_out = s_program,
+                   .room_size = sizeof(s_program)))
     {
         size_t end = cellul.len(&(CatenaFinitaCfg){.src = s_program, .cap = CLI_CELLS_POOL});
-        end = (size_t)cli_text_back_any(s_program, end, "/\\");
+        end = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = s_program,
+                                 .at = end, .set = "/\\");
         s_program[(end > 0u) ? end - 1u : 0u] = '\0';
         VerbaLinea path = {s_path, sizeof(s_path),
                            cellul.len(&(CatenaFinitaCfg){.src = s_path, .cap = sizeof(s_path)})};
@@ -293,62 +327,76 @@ static int terminal_local_started(CliTerminal *terminal, const char *at, unsigne
     settings[count + 2u] = (CliSetting){"COLORTERM", "truecolor"};
     count += 3u;
     // bash says the folder it stands in before each prompt, as OSC 7, where nothing of the reader's already sets what
-    // it does before a prompt: the window keeps the folder to open in again
+    // it does before a prompt: the window saves the folder to open in again
     const size_t shell_length = cellul.len(&(CatenaFinitaCfg){.src = s_shell, .cap = CLI_CELLS_POOL});
     const int bash =
         !named &&
         (CLI_TERMINAL_WINDOWS || !own_shell ||
          ((shell_length >= 4u) &&
           cellul.eq(&(CatenaFinitaCfg){.src = s_shell + shell_length - 4u, .other = "bash", .cap = CLI_CELLS_POOL})));
-    if (bash && !query_environment_read("PROMPT_COMMAND", s_prompt, sizeof(s_prompt)))
+    if (bash && !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PROMPT_COMMAND",
+                            .value_out = s_prompt, .room = sizeof(s_prompt)))
     {
         settings[count] =
             (CliSetting){"PROMPT_COMMAND", "printf '\\033]7;file://%s%s\\007' \"${HOSTNAME:-}\" \"$PWD\""};
         count += 1u;
     }
     // the shell, and every program run in it, joins the door with the key it is started with
-    terminal->keyed = cli_window_terminal_key(terminal->key, s_address);
-    if (terminal->keyed)
+    args->terminal->keyed = EMBED_CALL(cli_window_key_address_internal.terminal_key, CliWindowKeyAddressCtx,
+                                       .key_out = args->terminal->key, .address = s_address);
+    if (args->terminal->keyed)
     {
         settings[count] = (CliSetting){"ORIOR_COMMS", s_address};
-        settings[count + 1u] = (CliSetting){"ORIOR_KEY", terminal->key};
+        settings[count + 1u] = (CliSetting){"ORIOR_KEY", args->terminal->key};
         count += 2u;
     }
-    const int started = cli_spawn_terminal(&terminal->spawned, words, s_folder, settings, count, cols, rows, err_msg);
-    if (started && terminal->keyed)
+    const int started =
+        EMBED_CALL(cli_words_err_msg_spawned_internal.spawn_terminal, CliWordsErrMsgSpawnedCtx,
+                   .spawned = &args->terminal->spawned, .words = words, .folder = s_folder, .settings = settings,
+                   .count = count, .cols = cols, .rows = rows, .err_msg = err_msg);
+    if (started && args->terminal->keyed)
     {
         // a process id fits the 32 bits the system gives it
-        cli_window_terminal_bound(terminal->key, (unsigned int)terminal->spawned.id);
+        EMBED_CALL(cli_window_key_internal.terminal_bind, CliWindowKeyCtx, .key = args->terminal->key,
+                   .process = (unsigned int)args->terminal->spawned.id);
     }
-    else if (terminal->keyed)
+    else if (args->terminal->keyed)
     {
-        cli_window_terminal_left(terminal->key);
+        EMBED_CALL(cli_window_key_internal.terminal_leave, CliWindowKeyCtx, .key = args->terminal->key);
     }
     return started;
 }
 
 // the reader's shell on the tree's machine started in `terminal` over the link, at the folder `at` names, or the tree's
 // folder where it names none; under the lock: 1, or 0 with why given
-static int terminal_linked_started(CliTerminal *terminal, const CliLinkAddress *address, const char *at,
-                                   unsigned int cols, unsigned int rows, VerbaLinea *err_msg)
+EMBED_INLINE int terminal_linked_start(const WindowCallTerminalCtx *args)
 {
+    CliTerminal *terminal = args->terminal;
+    const CliLinkAddress *address = args->address;
+    unsigned int cols = args->cols;
+    unsigned int rows = args->rows;
+    VerbaLinea *err_msg = args->err_msg;
     static char s_folder[CLI_PATH_MAX_LEN];
     static char s_line[CLI_PATH_MAX_LEN * 4u];
     static char s_found[CLI_PATH_MAX_LEN];
     static CliWords s_words;
     const char *folder = NULL;
-    if ((at != NULL) && terminal_folder_of(at, s_folder))
+    if ((args->at != NULL) &&
+        EMBED_CALL(terminal_folder_get, WindowCallTerminalCtx, .url = args->at, .folder = s_folder))
     {
-        cli_text_swapped(s_folder, cellul.len(&(CatenaFinitaCfg){.src = s_folder, .cap = CLI_CELLS_POOL}), '\\', '/');
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = s_folder,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = s_folder, .cap = CLI_CELLS_POOL}), .from = '\\',
+                   .to = '/');
         folder = s_folder;
     }
     VerbaLinea shell = {s_line, sizeof(s_line), 0ull};
-    cli_link_shell_line(address, folder, &shell);
+    EMBED_CALL(cli_link_out.shell_line, CliLinkOutCfg, .address = address, .folder = folder, .out = &shell);
     (void)mmgr_line_finish(&shell);
     s_words.count = 0u;
     s_words.used = 0u;
     s_words.full = 0;
-    cli_link_runs(address, s_line, 1, &s_words);
+    EMBED_CALL(cli_link_address_table.runs, CliLinkAddressCfg, .address = address, .line = s_line, .terminal = 1,
+               .words = &s_words);
     if (s_words.count == 0u)
     {
         mmgr_line_put(err_msg, "no shell opens on the tree's machine");
@@ -357,23 +405,31 @@ static int terminal_linked_started(CliTerminal *terminal, const CliLinkAddress *
     // the program as a file on the PATH: on Windows a pseudo-console runs the first file of the name it finds, and
     // docker's folder holds a script named docker beside docker.exe
     const char *const program = s_words.word[0];
-    if (cli_toolchains_on_path(&program, 1u, s_found))
+    if (EMBED_CALL(cli_toolchains_names.on_path, CliToolchainsNamesCfg, .names = &program, .count = 1u,
+                   .program = s_found))
     {
         s_words.word[0] = s_found;
     }
     s_words.word[s_words.count] = NULL;
     const CliSetting settings[1] = {{"TERM", "xterm-256color"}};
     terminal->keyed = 0;
-    return cli_spawn_terminal(&terminal->spawned, s_words.word, NULL, settings, 1u, cols, rows, err_msg);
+    return EMBED_CALL(cli_words_err_msg_spawned_internal.spawn_terminal, CliWordsErrMsgSpawnedCtx,
+                      .spawned = &terminal->spawned, .words = s_words.word, .folder = NULL, .settings = settings,
+                      .count = 1u, .cols = cols, .rows = rows, .err_msg = err_msg);
 }
 
 // a terminal opened `cols` wide and `rows` tall at the folder the file URL `at` names: its number
-static int terminal_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int terminal_open(const CliServeAnswerCfg *args)
 {
-    const unsigned long long cols = cli_serve_whole_or(args, "cols", 80ull);
-    const unsigned long long rows = cli_serve_whole_or(args, "rows", 24ull);
-    const char *const at = cli_serve_string_or(args, "at", NULL);
-    cli_lock_take(&s_lock);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const unsigned long long cols = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx,
+                                               .request = arguments, .key = "cols", .otherwise_u64 = 80ull);
+    const unsigned long long rows = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx,
+                                               .request = arguments, .key = "rows", .otherwise_u64 = 24ull);
+    const char *const at = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "at", .otherwise = NULL);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliTerminal *terminal = NULL;
     for (unsigned int place = 0u; (terminal == NULL) && (place < CLI_TERMINALS); place += 1u)
     {
@@ -390,8 +446,11 @@ static int terminal_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
     }
     else
     {
-        started = cli_link_address(&address) ? terminal_linked_started(terminal, &address, at, wide, tall, err_msg)
-                                             : terminal_local_started(terminal, at, wide, tall, err_msg);
+        started = EMBED_CALL(cli_link_text.address, CliLinkTextCfg, .address_out = &address)
+                      ? EMBED_CALL(terminal_linked_start, WindowCallTerminalCtx, .terminal = terminal,
+                                   .address = &address, .at = at, .cols = wide, .rows = tall, .err_msg = err_msg)
+                      : EMBED_CALL(terminal_local_start, WindowCallTerminalCtx, .terminal = terminal, .at = at,
+                                   .cols = wide, .rows = tall, .err_msg = err_msg);
     }
     if (started)
     {
@@ -399,44 +458,53 @@ static int terminal_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
         terminal->id = s_next_id;
         terminal->reader = (CliThread){terminal_read, terminal, CLI_PRIORITY_WORK};
         terminal->waiter = (CliThread){terminal_wait, terminal, CLI_PRIORITY_WORK};
-        terminal->reading = cli_thread_started(&terminal->reader);
-        terminal->waiting = terminal->reading && cli_thread_started(&terminal->waiter);
+        terminal->reading = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &terminal->reader);
+        terminal->waiting = terminal->reading &&
+                            EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &terminal->waiter);
         if (!terminal->waiting)
         {
             // a shell no thread waits on is hung up on, and its place freed once its reader meets the output's end
-            cli_spawn_terminal_hung_up(&terminal->spawned);
-            cli_spawn_terminal_closed(&terminal->spawned);
-            terminal_released(terminal);
+            EMBED_CALL(cli_cols_internal.spawn_terminal_hung_up, CliColsCtx, .spawned_read = &terminal->spawned);
+            EMBED_CALL(cli_spawned_internal.spawn_terminal_close, CliSpawnedCtx, .spawned = &terminal->spawned);
+            EMBED_CALL(terminal_release, WindowCallTerminalCtx, .terminal = terminal);
             mmgr_line_put(err_msg, "a terminal's thread did not start");
             started = 0;
         }
         else
         {
-            mmgr_line_decimal(out, terminal->id, 1u);
+            mmgr_line_decimal(args->out, terminal->id, 1u);
         }
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return started;
 }
 
 // what was typed, `text`, written to the shell of the terminal `id`
-static int terminal_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int terminal_write(const CliServeAnswerCfg *args)
 {
-    (void)out;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long id = 0ull;
     unsigned long long length = 0ull;
-    const char *const text = cli_serve_whole(args, "id", &id, err_msg)
-                                 ? cli_json_string(args->json, cli_serve_arg(args, "text"), &length)
-                                 : NULL;
+    const char *const text =
+        EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "id", .value = &id,
+                   .err_msg = err_msg)
+            ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+                         .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments,
+                                            .key = "text"),
+                         .length_pointer = &length)
+            : NULL;
     if (text == NULL)
     {
         mmgr_line_put(err_msg, (err_msg->at == 0ull) ? "text: a terminal is written text" : "");
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const CliTerminal *const terminal = terminal_of(id);
-    const int written = (terminal != NULL) && cli_spawn_written(terminal->spawned.in, text, length);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const CliTerminal *const terminal = EMBED_CALL(terminal_get, WindowCallTerminalCtx, .id = id);
+    const int written =
+        (terminal != NULL) && EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx,
+                                         .pipe_handle = terminal->spawned.in, .bytes = text, .size = length);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!written)
     {
         mmgr_line_put(err_msg, "no terminal ");
@@ -446,24 +514,30 @@ static int terminal_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
 }
 
 // the terminal `id` given a new size, `cols` wide and `rows` tall, which its shell and the programs in it are told of
-static int terminal_resize(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int terminal_resize(const CliServeAnswerCfg *args)
 {
-    (void)out;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long id = 0ull;
     unsigned long long cols = 0ull;
     unsigned long long rows = 0ull;
-    if (!cli_serve_whole(args, "id", &id, err_msg) || !cli_serve_whole(args, "cols", &cols, err_msg) ||
-        !cli_serve_whole(args, "rows", &rows, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "id",
+                    .value = &id, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "cols",
+                    .value = &cols, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "rows",
+                    .value = &rows, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const CliTerminal *const terminal = terminal_of(id);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const CliTerminal *const terminal = EMBED_CALL(terminal_get, WindowCallTerminalCtx, .id = id);
     // a terminal's size is far below what an unsigned int counts
-    const int sized = (terminal != NULL) &&
-                      cli_spawn_terminal_sized(&terminal->spawned, (cols < 0xffffull) ? (unsigned int)cols : 0xffffu,
-                                               (rows < 0xffffull) ? (unsigned int)rows : 0xffffu);
-    cli_lock_give(&s_lock);
+    const int sized = (terminal != NULL) && EMBED_CALL(cli_cols_internal.spawn_terminal_resize, CliColsCtx,
+                                                       .spawned_read = &terminal->spawned,
+                                                       .cols = (cols < 0xffffull) ? (unsigned int)cols : 0xffffu,
+                                                       .rows = (rows < 0xffffull) ? (unsigned int)rows : 0xffffu);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (terminal == NULL)
     {
         mmgr_line_put(err_msg, "no terminal ");
@@ -477,21 +551,23 @@ static int terminal_resize(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
 }
 
 // the shell of the terminal `id` hung up on, which closes the terminal; a terminal already gone is closed
-static int terminal_close(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int terminal_close(const CliServeAnswerCfg *args)
 {
-    (void)out;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long id = 0ull;
-    if (!cli_serve_whole(args, "id", &id, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "id",
+                    .value = &id, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const CliTerminal *const terminal = terminal_of(id);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const CliTerminal *const terminal = EMBED_CALL(terminal_get, WindowCallTerminalCtx, .id = id);
     if ((terminal != NULL) && terminal->waiting)
     {
-        cli_spawn_terminal_hung_up(&terminal->spawned);
+        EMBED_CALL(cli_cols_internal.spawn_terminal_hung_up, CliColsCtx, .spawned_read = &terminal->spawned);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 

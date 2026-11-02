@@ -2,9 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // programs.c: the programs the query needs, named by role and never by path: each role's name as a person reads it,
 // and the programs as the PATH alone gives them, which the command line falls back to where no toolchain is chosen
+#include "../../../cli/src/command_line/callback_cfg.h"
 #include "../../../cli/src/text/text.h"
 #include "../query_internal.h"
 
+// what the walk for MSVC's host compiler records: the folder it stands in, a level's names, and the newest cl found
+typedef struct
+{
+    char folder[QUERY_PATH_MAX_LEN];
+    char found[QUERY_PATH_MAX_LEN];
+    unsigned int depth;
+} QueryClWalk;
 #if defined(_WIN32)
 #define QUERY_PATH_SEPARATOR ';'
 #define QUERY_FOLDER_SEPARATOR '\\'
@@ -16,33 +24,47 @@
 // the longest PATH the query reads
 #define QUERY_RUN_PATH_MAX_LEN 32768u
 
-const char *query_role_name(QueryRole role)
+const char *query_role_name(const QueryCfg *args)
 {
     static const char *const s_names[QUERY_ROLE_COUNT] = {
         "the C compiler", "the C++ compiler", "nvcc",   "nvdisasm", "cuobjdump", "cl",
         "python",         "nvidia-smi",       "docker", "curl",     "tar"};
-    return ((unsigned int)role < (unsigned int)QUERY_ROLE_COUNT) ? s_names[role] : "a program";
+    return ((unsigned int)args->role < (unsigned int)QUERY_ROLE_COUNT) ? s_names[args->role] : "a program";
 }
 
-// `name` as a program in `folder`, with `.exe` on Windows, where it is there, written into `path`: 1, or 0
-static int query_in_folder(const char *folder, unsigned long long folder_length, const char *name, char *path,
-                           size_t room)
+typedef struct
 {
-    VerbaLinea line = {path, room, 0ull};
-    mmgr_line_put_n(&line, folder, folder_length);
+    const char *folder;
+    unsigned long long folder_length;
+    const char *name;
+    char *path;
+    size_t room;
+    const char *const *names;
+    unsigned int count;
+    QueryClWalk *walk;
+    unsigned int depth;
+} ProgramsCtx;
+// `name` as a program in `folder`, with `.exe` on Windows, where it is there, written into `path`: 1, or 0
+EMBED_INLINE int query_in_folder(const ProgramsCtx *args)
+{
+    char *path = args->path;
+    VerbaLinea line = {path, args->room, 0ull};
+    mmgr_line_put_n(&line, args->folder, args->folder_length);
     mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
-    mmgr_line_put(&line, name);
-    if ((mmgr_line_finish(&line) != 0ull) && query_is_file(path))
+    mmgr_line_put(&line, args->name);
+    if ((mmgr_line_finish(&line) != 0ull) &&
+        EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
     {
         return 1;
     }
 #if defined(_WIN32)
     line.at = 0ull;
-    mmgr_line_put_n(&line, folder, folder_length);
+    mmgr_line_put_n(&line, args->folder, args->folder_length);
     mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
     mmgr_line_put(&line, ".exe");
-    return (mmgr_line_finish(&line) != 0ull) && query_is_file(path);
+    return (mmgr_line_finish(&line) != 0ull) &&
+           EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
 #else
     return 0;
 #endif
@@ -52,7 +74,8 @@ static const char *query_run_path_read(void *context)
 {
     (void)context;
     static char s_path[QUERY_ENVIRONMENT_MAX_LEN];
-    if (!query_environment_read("PATH", s_path, sizeof(s_path)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH", .value_out = s_path,
+                    .room = sizeof(s_path)))
     {
         s_path[0] = '\0';
     }
@@ -60,7 +83,7 @@ static const char *query_run_path_read(void *context)
 }
 
 // the first of `names`, `count` of them, found as a program in a folder of the PATH, written into `path`: 1, or 0
-static int query_on_path_found(const char *const *names, unsigned int count, char *path, size_t room)
+EMBED_INLINE int query_on_path_find(const ProgramsCtx *args)
 {
     const char *const run_path = query_run_path_read(NULL);
     const char *folder = run_path;
@@ -71,9 +94,10 @@ static int query_on_path_found(const char *const *names, unsigned int count, cha
         const unsigned long long length = (end != NULL)
                                               ? (unsigned long long)(end - folder)
                                               : cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
-        for (unsigned int at = 0u; (length != 0ull) && (at < count); at += 1u)
+        for (unsigned int at = 0u; (length != 0ull) && (at < args->count); at += 1u)
         {
-            if (query_in_folder(folder, length, names[at], path, room))
+            if (EMBED_CALL(query_in_folder, ProgramsCtx, .folder = folder, .folder_length = length,
+                           .name = args->names[at], .path = args->path, .room = args->room))
             {
                 return 1;
             }
@@ -83,39 +107,35 @@ static int query_on_path_found(const char *const *names, unsigned int count, cha
     return 0;
 }
 
-// what the walk for MSVC's host compiler records: the folder it stands in, a level's names, and the newest cl found
-typedef struct
-{
-    char folder[QUERY_PATH_MAX_LEN];
-    char found[QUERY_PATH_MAX_LEN];
-    unsigned int depth;
-} QueryClWalk;
-
-static void query_cl_walked(void *context, const char *name, int is_folder);
+static void query_cl_walk(const CliEachNameIsFolderCfg *args);
 
 // the folder `walk` stands in joined with `name`, walked one level down at `depth`, and stood back from
-static void query_cl_entered(QueryClWalk *walk, const char *name, unsigned int depth)
+EMBED_INLINE void query_cl_enter(const ProgramsCtx *args)
 {
-    const size_t standing = cellul.len(&(CatenaFinitaCfg){.src = walk->folder, .cap = CLI_CELLS_POOL});
-    VerbaLinea line = {walk->folder, sizeof(walk->folder), standing};
+    unsigned int depth = args->depth;
+    const size_t standing = cellul.len(&(CatenaFinitaCfg){.src = args->walk->folder, .cap = CLI_CELLS_POOL});
+    VerbaLinea line = {args->walk->folder, sizeof(args->walk->folder), standing};
     mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
     if (mmgr_line_finish(&line) != 0ull)
     {
-        const unsigned int saved_depth = walk->depth;
-        walk->depth = depth;
-        query_folder_each(walk->folder, query_cl_walked, walk);
-        walk->depth = saved_depth;
+        const unsigned int saved_depth = args->walk->depth;
+        args->walk->depth = depth;
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->walk->folder,
+                   .each = query_cl_walk, .context_bytess = args->walk);
+        args->walk->depth = saved_depth;
     }
-    walk->folder[standing] = '\0';
+    args->walk->folder[standing] = '\0';
 }
 
 // The walk under a base: depth 0 a year or a version, the version containing `bin\Hostx64\x64\cl.exe` directly or the
 // year an edition containing `VC\Tools\MSVC\<version>`; the found recorded where its path sorts last
-static void query_cl_walked(void *context, const char *name, int is_folder)
+static void query_cl_walk(const CliEachNameIsFolderCfg *args)
 {
+    void *context = args->context;
+    const char *name = args->name;
     QueryClWalk *const walk = (QueryClWalk *)context;
-    if (!is_folder)
+    if (!args->is_folder)
     {
         return;
     }
@@ -127,7 +147,9 @@ static void query_cl_walked(void *context, const char *name, int is_folder)
         mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
         mmgr_line_put(&line, name);
         mmgr_line_put(&line, "\\bin\\Hostx64\\x64\\cl.exe");
-        if ((mmgr_line_finish(&line) != 0ull) && query_is_file(cl) && (cli_text_order(cl, walk->found) > 0))
+        if ((mmgr_line_finish(&line) != 0ull) &&
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = cl) &&
+            (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = cl, .other_pointer = walk->found) > 0))
         {
             memor.cpy(&(MemoriaCfg){.dst = walk->found,
                                     .src = cl,
@@ -136,7 +158,7 @@ static void query_cl_walked(void *context, const char *name, int is_folder)
     }
     if (walk->depth == 0u)
     {
-        query_cl_entered(walk, name, 1u);
+        EMBED_CALL(query_cl_enter, ProgramsCtx, .walk = walk, .name = name, .depth = 1u);
     }
     else if (walk->depth == 1u)
     {
@@ -148,7 +170,8 @@ static void query_cl_walked(void *context, const char *name, int is_folder)
         if (mmgr_line_finish(&line) != 0ull)
         {
             walk->depth = 2u;
-            query_folder_each(walk->folder, query_cl_walked, walk);
+            EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = walk->folder,
+                       .each = query_cl_walk, .context_bytess = walk);
             walk->depth = 1u;
         }
         walk->folder[standing] = '\0';
@@ -157,7 +180,7 @@ static void query_cl_walked(void *context, const char *name, int is_folder)
 
 // MSVC's host compiler as nvcc wants it on Windows: the newest `cl` under Visual Studio's MSVC tools, the Build
 // Tools' first, written into `path`: 1, or 0 where none is installed
-static int query_cl_installed(char *path, size_t room)
+EMBED_INLINE int query_cl_install(const ProgramsCtx *args)
 {
     static const char *const s_bases[2] = {
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC",
@@ -171,21 +194,24 @@ static int query_cl_installed(char *path, size_t room)
                           .src = s_bases[base],
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_bases[base], .cap = CLI_CELLS_POOL}) + 1u});
         s_walk.depth = 0u;
-        query_folder_each(s_walk.folder, query_cl_walked, &s_walk);
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = s_walk.folder,
+                   .each = query_cl_walk, .context_bytess = &s_walk);
     }
     if (s_walk.found[0] == '\0')
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = path,
+    memor.cpy(&(MemoriaCfg){.dst = args->path,
                             .src = s_walk.found,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_walk.found, .cap = CLI_CELLS_POOL}) + 1u});
-    return path[0] != '\0';
+    return args->path[0] != '\0';
 }
 
-static int query_on_path_program(void *context, QueryRole role, char *path, size_t room, VerbaLinea *err_msg)
+static int query_on_path_program(const QueryEachRolePathRoomErrMsgCfg *args)
 {
-    (void)context;
+    QueryRole role = args->role;
+    char *path = args->path;
+    size_t room = args->room;
     static const char *const s_c[3] = {"cc", "gcc", "clang"};
     static const char *const s_cxx[3] = {"c++", "g++", "clang++"};
 #if defined(_WIN32)
@@ -198,39 +224,46 @@ static int query_on_path_program(void *context, QueryRole role, char *path, size
     int found = 0;
     if (role == QUERY_ROLE_C)
     {
-        found = query_on_path_found(s_c, 3u, path, room);
+        found = EMBED_CALL(query_on_path_find, ProgramsCtx, .names = s_c, .count = 3u, .path = path, .room = room);
     }
     else if (role == QUERY_ROLE_CXX)
     {
-        found = query_on_path_found(s_cxx, 3u, path, room);
+        found = EMBED_CALL(query_on_path_find, ProgramsCtx, .names = s_cxx, .count = 3u, .path = path, .room = room);
     }
     else if (role == QUERY_ROLE_PYTHON)
     {
-        found = query_on_path_found(s_python, 2u, path, room);
+        found = EMBED_CALL(query_on_path_find, ProgramsCtx, .names = s_python, .count = 2u, .path = path, .room = room);
     }
     else if ((role == QUERY_ROLE_NVDISASM) || (role == QUERY_ROLE_CUOBJDUMP))
     {
         // a program beside nvcc, in its folder
         char nvcc[QUERY_PATH_MAX_LEN];
         const char *const nvcc_name = "nvcc";
-        if (query_on_path_found(&nvcc_name, 1u, nvcc, sizeof(nvcc)))
+        if (EMBED_CALL(query_on_path_find, ProgramsCtx, .names = &nvcc_name, .count = 1u, .path = nvcc,
+                       .room = sizeof(nvcc)))
         {
-            const char *const slash = cli_text_last(
-                nvcc, cellul.len(&(CatenaFinitaCfg){.src = nvcc, .cap = CLI_CELLS_POOL}), QUERY_FOLDER_SEPARATOR);
+            const char *const slash =
+                EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = nvcc,
+                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = nvcc, .cap = CLI_CELLS_POOL}),
+                           .byte = QUERY_FOLDER_SEPARATOR);
             const unsigned long long folder = (slash != NULL) ? (unsigned long long)(slash - nvcc) : 0ull;
-            found = (folder != 0ull) &&
-                    query_in_folder(nvcc, folder, (role == QUERY_ROLE_NVDISASM) ? "nvdisasm" : "cuobjdump", path, room);
+            found =
+                (folder != 0ull) && EMBED_CALL(query_in_folder, ProgramsCtx, .folder = nvcc, .folder_length = folder,
+                                               .name = (role == QUERY_ROLE_NVDISASM) ? "nvdisasm" : "cuobjdump",
+                                               .path = path, .room = room);
         }
     }
     else if ((unsigned int)role < (unsigned int)QUERY_ROLE_COUNT)
     {
-        found = query_on_path_found(&s_alone[role], 1u, path, room);
-        found = found || ((role == QUERY_ROLE_CL) && query_cl_installed(path, room));
+        found = EMBED_CALL(query_on_path_find, ProgramsCtx, .names = &s_alone[role], .count = 1u, .path = path,
+                           .room = room);
+        found =
+            found || ((role == QUERY_ROLE_CL) && EMBED_CALL(query_cl_install, ProgramsCtx, .path = path, .room = room));
     }
     if (!found)
     {
-        mmgr_line_put(err_msg, query_role_name(role));
-        mmgr_line_put(err_msg, " is not found on the PATH");
+        mmgr_line_put(args->err_msg, EMBED_CALL(query_table.role_name, QueryCfg, .role = role));
+        mmgr_line_put(args->err_msg, " is not found on the PATH");
     }
     return found;
 }

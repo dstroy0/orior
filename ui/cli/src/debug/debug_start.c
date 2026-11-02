@@ -7,165 +7,223 @@
 #include "../tests/cargo_tests.h"
 #include "../tests/test_runs.h"
 
+typedef struct
+{
+    const CliJson *json;
+    unsigned int object;
+    const char *name;
+    char *out;
+    unsigned long long room;
+    VerbaLinea *err_msg;
+    unsigned long long parent;
+    char *language;
+    CliDebugSession *place;
+    const char *root;
+    unsigned int start;
+    CliDebugPlan *plan;
+} DebugStartCtx;
+
 // a string member `name` of the object `object` of `json` into `out`, sized for `room`: 1, or 0 with the member named
 // missing where it is not a string
-static int start_field(const CliJson *json, unsigned int object, const char *name, char *out, unsigned long long room,
-                       VerbaLinea *err_msg)
+EMBED_INLINE int start_field(const DebugStartCtx *args)
 {
-    const char *const text = cli_json_string(json, cli_json_member(json, object, name), NULL);
+    const CliJson *json = args->json;
+    unsigned int object = args->object;
+    const char *name = args->name;
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = object, .name = name),
+                   .length_pointer = NULL);
     if (text == NULL)
     {
-        mmgr_line_put(err_msg, "missing field `");
-        mmgr_line_put(err_msg, name);
-        mmgr_line_ch(err_msg, '`');
+        mmgr_line_put(args->err_msg, "missing field `");
+        mmgr_line_put(args->err_msg, name);
+        mmgr_line_ch(args->err_msg, '`');
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = out, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = args->out,
+                            .src = text,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
     return 1;
 }
 
 // the language of the session `parent` into `language`: 1, or 0 where it is not listed
-static int start_parent_language(unsigned long long parent, char *language)
+EMBED_INLINE int start_parent_language(const DebugStartCtx *args)
 {
     int found = 0;
-    cli_lock_take(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         const CliDebugSession *const session = &g_cli_debug.sessions[at];
-        if (session->taken && session->listed && (session->info.id == parent))
+        if (session->taken && session->listed && (session->info.id == args->parent))
         {
             memor.cpy(&(MemoriaCfg){
-                .dst = language,
+                .dst = args->language,
                 .src = session->info.language,
                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = session->info.language, .cap = CLI_CELLS_POOL}) + 1u});
             found = 1;
         }
     }
-    cli_lock_give(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return found;
 }
 
 // the language, the adapter, and for a C file of a CMake or Meson build orior_cli configured the program that build
 // makes from it, read into `plan`: 1, or 0 with why given
-static int start_adapter(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                         CliDebugPlan *plan, VerbaLinea *err_msg)
+EMBED_INLINE int start_adapter(const DebugStartCtx *args)
 {
-    CliJson *const to = &place->start;
+    const char *root = args->root;
+    const CliJson *json = args->json;
+    VerbaLinea *err_msg = args->err_msg;
+    CliJson *const to = &args->place->start;
     char path[CLI_PATH_MAX_LEN];
     unsigned long long parent = 0ull;
-    plan->has_made = 0;
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "process", .cap = CLI_CELLS_POOL})))
+    args->plan->has_made = 0;
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "process", .cap = CLI_CELLS_POOL})))
     {
-        if (!start_field(json, start, "language", plan->language, sizeof(plan->language), err_msg))
+        if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "language",
+                        .out = args->plan->language, .room = sizeof(args->plan->language), .err_msg = err_msg))
         {
             return 0;
         }
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
     {
-        if (!start_field(json, start, "id", plan->id, sizeof(plan->id), err_msg))
+        if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "id",
+                        .out = args->plan->id, .room = sizeof(args->plan->id), .err_msg = err_msg))
         {
             return 0;
         }
-        memor.cpy(
-            &(MemoriaCfg){.dst = plan->language,
-                          .src = cli_cargo_is_rust(plan->id) ? "rust" : "python",
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = cli_cargo_is_rust(plan->id) ? "rust" : "python",
-                                                                 .cap = CLI_CELLS_POOL}) +
-                                   1u});
+        memor.cpy(&(MemoriaCfg){
+            .dst = args->plan->language,
+            .src = EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = args->plan->id) ? "rust"
+                                                                                                          : "python",
+            .bytes = cellul.len(&(CatenaFinitaCfg){
+                         .src = EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = args->plan->id)
+                                    ? "rust"
+                                    : "python",
+                         .cap = CLI_CELLS_POOL}) +
+                     1u});
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
     {
-        if (!cli_debug_unsigned(json, cli_json_member(json, start, "parent"), &parent))
+        if (!EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
+                        .json = json,
+                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = args->start, .name = "parent"),
+                        .value_u64s = &parent))
         {
             mmgr_line_put(err_msg, "missing field `parent`");
             return 0;
         }
-        if (!start_parent_language(parent, plan->language))
+        if (!EMBED_CALL(start_parent_language, DebugStartCtx, .parent = parent, .language = args->plan->language))
         {
             mmgr_line_put(err_msg, "that session has ended");
             return 0;
         }
     }
-    else if ((cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "address", .cap = CLI_CELLS_POOL})) ||
-             (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "record", .cap = CLI_CELLS_POOL})))
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "address", .cap = CLI_CELLS_POOL})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "record", .cap = CLI_CELLS_POOL})))
     {
-        memor.cpy(&(MemoriaCfg){.dst = plan->language,
+        memor.cpy(&(MemoriaCfg){.dst = args->plan->language,
                                 .src = "python",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_CELLS_POOL}) + 1u});
     }
     else
     {
         mmgr_line_put(err_msg, "unknown variant `");
-        mmgr_line_put(err_msg, plan->kind);
+        mmgr_line_put(err_msg, args->plan->kind);
         mmgr_line_put(err_msg, "`, expected one of `file`, `test`, `process`, `address`, `child`, `record`");
         return 0;
     }
-    plan->recording = (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "record", .cap = CLI_CELLS_POOL}));
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = plan->language, .other = "c", .cap = CLI_CELLS_POOL})))
+    args->plan->recording =
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "record", .cap = CLI_CELLS_POOL}));
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->language, .other = "c", .cap = CLI_CELLS_POOL})))
     {
         char full[CLI_PATH_MAX_LEN];
-        if (!start_field(json, start, "path", path, sizeof(path), err_msg))
+        if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "path", .out = path,
+                        .room = sizeof(path), .err_msg = err_msg))
         {
             return 0;
         }
-        cli_full(root, path, full);
-        plan->has_made = cli_compile_db_program_of(root, full, &plan->made);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
+        args->plan->has_made = EMBED_CALL(cli_compile_db_root_file.program_get, CliCompileDbRootFileCfg, .root = root,
+                                          .file = full, .program = &args->plan->made);
     }
-    if (plan->recording)
+    if (args->plan->recording)
     {
-        plan->spec = cli_json_made(to, CFG_JSON_OBJECT);
-        cli_json_set(to, plan->spec, "program", cli_json_string_made(to, "orior", 5ull));
-        cli_json_set(to, plan->spec, "launch", cli_json_made(to, CFG_JSON_OBJECT));
+        args->plan->spec =
+            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = args->plan->spec,
+                   .name = "program",
+                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                       .json = to, .text = "orior", .length = 5ull));
+        EMBED_CALL(
+            cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = args->plan->spec,
+            .name = "launch",
+            .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT));
         memor.cpy(&(MemoriaCfg){
-            .dst = plan->tool,
+            .dst = args->plan->tool,
             .src = "orior's recorder",
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "orior's recorder", .cap = CLI_CELLS_POOL}) + 1u});
-        plan->tool_id[0] = '\0';
-        plan->program[0] = '\0';
+        args->plan->tool_id[0] = '\0';
+        args->plan->program[0] = '\0';
         return 1;
     }
     const char *const ahead =
-        !plan->has_made                                                                                      ? ""
-        : (cellul.eq(&(CatenaFinitaCfg){.src = plan->made.compiler, .other = "GNU", .cap = CLI_CELLS_POOL})) ? "gcc"
-                                                                                                             : "llvm";
-    return cli_debug_adapter(plan->language, ahead, to, &plan->spec, plan->tool, plan->tool_id, plan->program, err_msg);
+        !args->plan->has_made ? ""
+        : (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->made.compiler, .other = "GNU", .cap = CLI_CELLS_POOL}))
+            ? "gcc"
+            : "llvm";
+    return EMBED_CALL(cli_debug_err_msg_internal.adapter, CliDebugErrMsgCtx, .language = args->plan->language,
+                      .ahead = ahead, .json_out = to, .spec = &args->plan->spec, .tool = args->plan->tool,
+                      .tool_id = args->plan->tool_id, .program = args->plan->program, .err_msg = err_msg);
 }
 
 // the launch of a file: the program built where its language is built, the file itself where it runs from its source
-static int start_file(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                      CliDebugPlan *plan, VerbaLinea *err_msg)
+EMBED_INLINE int start_file(const DebugStartCtx *args)
 {
-    CliJson *const to = &place->start;
+    const char *root = args->root;
+    const CliJson *json = args->json;
+    VerbaLinea *err_msg = args->err_msg;
+    CliJson *const to = &args->place->start;
     char path[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
     char program[CLI_PATH_MAX_LEN];
     int built = 0;
-    if (!start_field(json, start, "path", path, sizeof(path), err_msg))
+    if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "path", .out = path,
+                    .room = sizeof(path), .err_msg = err_msg))
     {
         return 0;
     }
-    cli_full(root, path, file);
-    if (plan->has_made)
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = file);
+    if (args->plan->has_made)
     {
-        built = cli_debug_build_program(&plan->made, program, err_msg);
+        built = EMBED_CALL(cli_debug_err_msg_program_internal.build_program, CliDebugErrMsgProgramCtx,
+                           .made = &args->plan->made, .program = program, .err_msg = err_msg);
         if (!built)
         {
             return 0;
         }
     }
-    else if (!cli_debug_build(root, file, plan->language, plan->tool_id, program, &built, err_msg))
+    else if (!EMBED_CALL(cli_debug_err_msg_language_internal.build, CliDebugErrMsgLanguageCtx, .root = root,
+                         .path = file, .language = args->plan->language, .ahead = args->plan->tool_id,
+                         .program = program, .built = &built, .err_msg = err_msg))
     {
         return 0;
     }
     const char *const names[3] = {"program", "path", "root"};
     const char *const withs[3] = {built ? program : file, file, root};
-    plan->request = "launch";
-    plan->arguments = cli_debug_filled(to, to, cli_json_member(to, plan->spec, "launch"), names, withs, 3u, 0);
-    memor.cpy(&(MemoriaCfg){.dst = plan->name,
+    args->plan->request = "launch";
+    args->plan->arguments =
+        EMBED_CALL(cli_debug_json_internal.fill, CliDebugJsonCtx, .to = to, .json = to,
+                   .from = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = to,
+                                      .object = args->plan->spec, .name = "launch"),
+                   .names = names, .withs = withs, .count = 3u, .numbered = 0);
+    memor.cpy(&(MemoriaCfg){.dst = args->plan->name,
                             .src = path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     return 1;
@@ -173,129 +231,183 @@ static int start_file(CliDebugSession *place, const char *root, const CliJson *j
 
 // the launch of one test: a Rust test's program, built as cargo test builds it, run for that test alone, or pytest
 // run on a Python test, in place of a program
-static int start_test(CliDebugSession *place, const char *root, CliDebugPlan *plan, VerbaLinea *err_msg)
+EMBED_INLINE int start_test(const DebugStartCtx *args)
 {
-    CliJson *const to = &place->start;
-    const unsigned int launch = cli_json_member(to, plan->spec, "launch");
-    plan->request = "launch";
-    memor.cpy(&(MemoriaCfg){.dst = plan->name,
-                            .src = plan->id,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = plan->id, .cap = CLI_CELLS_POOL}) + 1u});
-    if (cli_cargo_is_rust(plan->id))
+    const char *root = args->root;
+    VerbaLinea *err_msg = args->err_msg;
+    CliJson *const to = &args->place->start;
+    const unsigned int launch = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = to,
+                                           .object = args->plan->spec, .name = "launch");
+    args->plan->request = "launch";
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->plan->name,
+                      .src = args->plan->id,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plan->id, .cap = CLI_CELLS_POOL}) + 1u});
+    if (EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = args->plan->id))
     {
         char program[CLI_PATH_MAX_LEN];
         char full[CLI_PATH_MAX_LEN];
         char folder[CLI_PATH_MAX_LEN];
-        if (!cli_cargo_binary(root, plan->id, program, full, folder, err_msg))
+        if (!EMBED_CALL(cli_cargo_tests_id.cargo_binary, CliCargoTestsIdCfg, .root = root, .id = args->plan->id,
+                        .program = program, .full = full, .package = folder, .err_msg = err_msg))
         {
             return 0;
         }
         const char *const names[3] = {"program", "path", "root"};
         const char *const withs[3] = {program, "", folder};
-        plan->arguments = cli_debug_filled(to, to, launch, names, withs, 3u, 0);
-        if (!cli_json_is(to, plan->arguments, CFG_JSON_OBJECT))
+        args->plan->arguments = EMBED_CALL(cli_debug_json_internal.fill, CliDebugJsonCtx, .to = to, .json = to,
+                                           .from = launch, .names = names, .withs = withs, .count = 3u, .numbered = 0);
+        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = to,
+                        .node = args->plan->arguments, .kind = CFG_JSON_OBJECT))
         {
-            plan->arguments = cli_json_made(to, CFG_JSON_OBJECT);
+            args->plan->arguments =
+                EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
         }
         const char *const words[4] = {full, "--exact", "--nocapture", "--test-threads=1"};
-        const unsigned int args = cli_json_made(to, CFG_JSON_ARRAY);
+        const unsigned int args_local =
+            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_ARRAY);
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            cli_json_append(
-                to, args,
-                cli_json_string_made(to, words[at],
-                                     cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL})));
+            EMBED_CALL(
+                cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = to, .array = args_local,
+                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                    .json = to, .text = words[at],
+                                    .length = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL})));
         }
-        cli_json_set(to, plan->arguments, "args", args);
-        cli_json_set(
-            to, plan->arguments, "cwd",
-            cli_json_string_made(to, folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL})));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "args", .value = args_local);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "cwd",
+                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                       .json = to, .text = folder,
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL})));
         return 1;
     }
     const char *const names[3] = {"program", "path", "root"};
     const char *const withs[3] = {"", "", root};
-    plan->arguments = cli_debug_filled(to, to, launch, names, withs, 3u, 0);
-    if (cli_json_is(to, plan->arguments, CFG_JSON_OBJECT))
+    args->plan->arguments = EMBED_CALL(cli_debug_json_internal.fill, CliDebugJsonCtx, .to = to, .json = to,
+                                       .from = launch, .names = names, .withs = withs, .count = 3u, .numbered = 0);
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = to,
+                   .node = args->plan->arguments, .kind = CFG_JSON_OBJECT))
     {
         char python[CLI_PATH_MAX_LEN];
-        const char *const words[4] = {plan->id, "-p", "no:cacheprovider", "-q"};
-        const unsigned int args = cli_json_made(to, CFG_JSON_ARRAY);
+        const char *const words[4] = {args->plan->id, "-p", "no:cacheprovider", "-q"};
+        const unsigned int args_local =
+            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_ARRAY);
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            cli_json_append(
-                to, args,
-                cli_json_string_made(to, words[at],
-                                     cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL})));
+            EMBED_CALL(
+                cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = to, .array = args_local,
+                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                    .json = to, .text = words[at],
+                                    .length = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL})));
         }
-        cli_json_remove(to, plan->arguments, "program");
-        cli_json_set(to, plan->arguments, "module", cli_json_string_made(to, "pytest", 6ull));
-        cli_json_set(to, plan->arguments, "args", args);
-        if (cli_test_python(python))
+        EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "program");
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "module",
+                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                       .json = to, .text = "pytest", .length = 6ull));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "args", .value = args_local);
+        if (EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python))
         {
-            cli_json_set(
-                to, plan->arguments, "python",
-                cli_json_string_made(to, python, cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL})));
+            EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                       .object = args->plan->arguments, .name = "python",
+                       .value =
+                           EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                      .json = to, .text = python,
+                                      .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL})));
         }
     }
     return 1;
 }
 
 // the attach to a process by its number, its native code where a session started it
-static int start_process(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                         CliDebugPlan *plan, VerbaLinea *err_msg)
+EMBED_INLINE int start_process(const DebugStartCtx *args)
 {
-    CliJson *const to = &place->start;
+    const CliJson *json = args->json;
+    CliJson *const to = &args->place->start;
     unsigned long long pid = 0ull;
-    if (!cli_debug_unsigned(json, cli_json_member(json, start, "pid"), &pid) || (pid > 0xffffffffull))
+    if (!EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx, .json = json,
+                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                       .object = args->start, .name = "pid"),
+                    .value_u64s = &pid) ||
+        (pid > 0xffffffffull))
     {
-        mmgr_line_put(err_msg, "missing field `pid`");
+        mmgr_line_put(args->err_msg, "missing field `pid`");
         return 0;
     }
-    plan->has_parent = cli_debug_unsigned(json, cli_json_member(json, start, "parent"), &plan->parent);
-    plan->has_pid = 1;
-    plan->pid = (unsigned int)pid;
+    args->plan->has_parent =
+        EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx, .json = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->start, .name = "parent"),
+                   .value_u64s = &args->plan->parent);
+    args->plan->has_pid = 1;
+    args->plan->pid = (unsigned int)pid;
     char number[32];
     VerbaLinea pid_line = {number, sizeof(number), 0ull};
     mmgr_line_decimal(&pid_line, pid, 1u);
     mmgr_line_finish(&pid_line);
-    unsigned int template = cli_json_member(to, plan->spec, "attach");
+    unsigned int template = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = to,
+                                       .object = args->plan->spec, .name = "attach");
     if (template == CLI_JSON_NONE)
     {
-        template = cli_json_made(to, CFG_JSON_OBJECT);
-        cli_json_set(to, template, "pid", cli_json_string_made(to, "{pid}", 5ull));
+        template = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = template,
+                   .name = "pid",
+                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                       .json = to, .text = "{pid}", .length = 5ull));
     }
     const char *const names[2] = {"pid", "root"};
-    const char *const withs[2] = {number, root};
-    plan->request = "attach";
-    plan->arguments = cli_debug_filled(to, to, template, names, withs, 2u, 1);
-    VerbaLinea name = {plan->name, sizeof(plan->name), 0ull};
-    mmgr_line_put(&name, plan->has_parent ? "the native code of process " : "process ");
+    const char *const withs[2] = {number, args->root};
+    args->plan->request = "attach";
+    args->plan->arguments = EMBED_CALL(cli_debug_json_internal.fill, CliDebugJsonCtx, .to = to, .json = to,
+                                       .from = template, .names = names, .withs = withs, .count = 2u, .numbered = 1);
+    VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ull};
+    mmgr_line_put(&name, args->plan->has_parent ? "the native code of process " : "process ");
     mmgr_line_put(&name, number);
     mmgr_line_finish(&name);
     return 1;
 }
 
 // the attach to a debugger listening at an address, and to the child a session's program started
-static int start_reached(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                         CliDebugPlan *plan, VerbaLinea *err_msg)
+EMBED_INLINE int start_reach(const DebugStartCtx *args)
 {
-    CliJson *const to = &place->start;
-    plan->request = "attach";
-    if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
+    const CliJson *json = args->json;
+    CliJson *const to = &args->place->start;
+    args->plan->request = "attach";
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
     {
-        const unsigned int config = cli_json_member(json, start, "config");
-        (void)cli_debug_unsigned(json, cli_json_member(json, start, "parent"), &plan->parent);
-        plan->has_parent = 1;
-        plan->arguments =
-            (config != CLI_JSON_NONE) ? cli_json_copy_from(to, json, config) : cli_json_made(to, CFG_JSON_NULL);
-        const char *const named = cli_json_string(json, cli_json_member(json, config, "name"), NULL);
+        const unsigned int config = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = json, .object = args->start, .name = "config");
+        (void)EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
+                         .json = json,
+                         .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = args->start, .name = "parent"),
+                         .value_u64s = &args->plan->parent);
+        args->plan->has_parent = 1;
+        args->plan->arguments =
+            (config != CLI_JSON_NONE)
+                ? EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .to = to, .from = json,
+                             .node = config)
+                : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_NULL);
+        const char *const named =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = config, .name = "name"),
+                       .length_pointer = NULL);
         unsigned long long sub = 0ull;
-        VerbaLinea name = {plan->name, sizeof(plan->name), 0ull};
+        VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ull};
         if (named != NULL)
         {
             mmgr_line_put(&name, named);
         }
-        else if (cli_debug_unsigned(json, cli_json_member(json, config, "subProcessId"), &sub))
+        else if (EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
+                            .json = json,
+                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = json, .object = config, .name = "subProcessId"),
+                            .value_u64s = &sub))
         {
             mmgr_line_put(&name, "process ");
             mmgr_line_decimal(&name, sub, 1u);
@@ -305,150 +417,220 @@ static int start_reached(CliDebugSession *place, const char *root, const CliJson
             mmgr_line_put(&name, "child");
         }
         mmgr_line_finish(&name);
-        const unsigned int connect = cli_json_member(json, config, "connect");
+        const unsigned int connect = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = json, .object = config, .name = "connect");
         unsigned long long port = 0ull;
-        plan->listening = cli_debug_unsigned(json, cli_json_member(json, connect, "port"), &port);
+        args->plan->listening = EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned,
+                                           CliDebugJsonNodeValueU64sCtx, .json = json,
+                                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                              .json_read = json, .object = connect, .name = "port"),
+                                           .value_u64s = &port);
         // a port retains its low 16 bits, as the protocol's ports are
-        plan->port = (unsigned int)(port & 0xffffull);
-        memor.cpy(
-            &(MemoriaCfg){.dst = plan->host,
-                          .src = cli_debug_text(json, cli_json_member(json, connect, "host"), "127.0.0.1"),
-                          .bytes = cellul.len(&(CatenaFinitaCfg){
-                                       .src = cli_debug_text(json, cli_json_member(json, connect, "host"), "127.0.0.1"),
-                                       .cap = CLI_CELLS_POOL}) +
-                                   1u});
-        plan->ends_program = 1;
+        args->plan->port = (unsigned int)(port & 0xffffull);
+        memor.cpy(&(MemoriaCfg){
+            .dst = args->plan->host,
+            .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = json,
+                              .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                 .json_read = json, .object = connect, .name = "host"),
+                              .fallback = "127.0.0.1"),
+            .bytes = cellul.len(&(CatenaFinitaCfg){
+                         .src = EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx,
+                                           .json = json,
+                                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                              .json_read = json, .object = connect, .name = "host"),
+                                           .fallback = "127.0.0.1"),
+                         .cap = CLI_CELLS_POOL}) +
+                     1u});
+        args->plan->ends_program = 1;
         return 1;
     }
     unsigned long long port = 0ull;
-    if (!start_field(json, start, "host", plan->host, sizeof(plan->host), err_msg))
+    if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "host",
+                    .out = args->plan->host, .room = sizeof(args->plan->host), .err_msg = args->err_msg))
     {
         return 0;
     }
-    if (!cli_debug_unsigned(json, cli_json_member(json, start, "port"), &port) || (port > 0xffffull))
+    if (!EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx, .json = json,
+                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                       .object = args->start, .name = "port"),
+                    .value_u64s = &port) ||
+        (port > 0xffffull))
     {
-        mmgr_line_put(err_msg, "missing field `port`");
+        mmgr_line_put(args->err_msg, "missing field `port`");
         return 0;
     }
-    plan->port = (unsigned int)port;
-    plan->listening = 1;
-    plan->ends_program = 0;
-    plan->arguments = cli_json_made(to, CFG_JSON_OBJECT);
-    const unsigned int connect = cli_json_made(to, CFG_JSON_OBJECT);
-    cli_json_set(
-        to, connect, "host",
-        cli_json_string_made(to, plan->host, cellul.len(&(CatenaFinitaCfg){.src = plan->host, .cap = CLI_CELLS_POOL})));
+    args->plan->port = (unsigned int)port;
+    args->plan->listening = 1;
+    args->plan->ends_program = 0;
+    args->plan->arguments =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
+    const unsigned int connect =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(
+        cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = connect, .name = "host",
+        .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = to,
+                            .text = args->plan->host,
+                            .length = cellul.len(&(CatenaFinitaCfg){.src = args->plan->host, .cap = CLI_CELLS_POOL})));
     char number[32];
     VerbaLinea port_line = {number, sizeof(number), 0ull};
     mmgr_line_decimal(&port_line, port, 1u);
     mmgr_line_finish(&port_line);
-    cli_json_set(to, connect, "port", cli_json_number_made(to, number));
-    cli_json_set(to, plan->arguments, "connect", connect);
-    const char *const remote = cli_json_string(json, cli_json_member(json, start, "remote"), NULL);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = connect,
+               .name = "port",
+               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_number_init, CliJsonTreeTextLengthKindCfg,
+                                   .json = to, .text = number));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+               .object = args->plan->arguments, .name = "connect", .value = connect);
+    const char *const remote =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->start, .name = "remote"),
+                   .length_pointer = NULL);
     if ((remote != NULL) && (remote[0] != '\0'))
     {
-        const unsigned int mappings = cli_json_made(to, CFG_JSON_ARRAY);
-        const unsigned int mapping = cli_json_made(to, CFG_JSON_OBJECT);
-        cli_json_set(
-            to, mapping, "localRoot",
-            cli_json_string_made(to, root, cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL})));
-        cli_json_set(
-            to, mapping, "remoteRoot",
-            cli_json_string_made(to, remote, cellul.len(&(CatenaFinitaCfg){.src = remote, .cap = CLI_CELLS_POOL})));
-        cli_json_append(to, mappings, mapping);
-        cli_json_set(to, plan->arguments, "pathMappings", mappings);
+        const unsigned int mappings =
+            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_ARRAY);
+        const unsigned int mapping =
+            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = mapping,
+                   .name = "localRoot",
+                   .value =
+                       EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                  .json = to, .text = args->root,
+                                  .length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL})));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to, .object = mapping,
+                   .name = "remoteRoot",
+                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                       .json = to, .text = remote,
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = remote, .cap = CLI_CELLS_POOL})));
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = to, .array = mappings,
+                   .value = mapping);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "pathMappings", .value = mappings);
     }
-    VerbaLinea name = {plan->name, sizeof(plan->name), 0ull};
-    mmgr_line_put(&name, plan->host);
+    VerbaLinea name = {args->plan->name, sizeof(args->plan->name), 0ull};
+    mmgr_line_put(&name, args->plan->host);
     mmgr_line_ch(&name, ':');
     mmgr_line_put(&name, number);
     mmgr_line_finish(&name);
     return 1;
 }
 
-int cli_debug_planned(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                      unsigned int options, CliDebugPlan *plan, VerbaLinea *err_msg)
+int cli_debug_plan(const CliDebugStartCfg *args)
 {
-    CliJson *const to = &place->start;
+    const CliJson *json = args->json;
+    CliJson *const to = &args->place->start;
     // the spec and the arguments the session starts with, made in a tree of the most they take, its cell owned by the
     // place until it is freed
-    cli_json_given(to);
-    if (!cli_json_reserved(to, CLI_DEBUG_START_NODES, CLI_DEBUG_START_TEXT, "the tree a debug session starts with",
-                           &g_cli_debug_cells))
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = to);
+    if (!EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = to,
+                    .nodes_most = CLI_DEBUG_START_NODES, .text_most = CLI_DEBUG_START_TEXT,
+                    .what = "the tree a debug session starts with", .owner = &g_cli_debug_cells))
     {
-        mmgr_line_put(err_msg, "the cells cannot meet the tree a debug session starts with");
+        mmgr_line_put(args->err_msg, "the cells cannot meet the tree a debug session starts with");
         return 0;
     }
-    memor.set(&(MemoriaCfg){.dst = plan, .val = 0, .bytes = sizeof(*plan)});
-    if (!start_field(json, start, "kind", plan->kind, sizeof(plan->kind), err_msg) ||
-        !start_adapter(place, root, json, start, plan, err_msg))
+    memor.set(&(MemoriaCfg){.dst = args->plan, .val = 0, .bytes = sizeof(*args->plan)});
+    if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "kind",
+                    .out = args->plan->kind, .room = sizeof(args->plan->kind), .err_msg = args->err_msg) ||
+        !EMBED_CALL(start_adapter, DebugStartCtx, .place = args->place, .root = args->root, .json = json,
+                    .start = args->start, .plan = args->plan, .err_msg = args->err_msg))
     {
         return 0;
     }
     int made = 0;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "file", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_CELLS_POOL}))
     {
-        made = start_file(place, root, json, start, plan, err_msg);
+        made = EMBED_CALL(start_file, DebugStartCtx, .place = args->place, .root = args->root, .json = json,
+                          .start = args->start, .plan = args->plan, .err_msg = args->err_msg);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
     {
-        made = start_test(place, root, plan, err_msg);
+        made = EMBED_CALL(start_test, DebugStartCtx, .place = args->place, .root = args->root, .plan = args->plan,
+                          .err_msg = args->err_msg);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "process", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "process", .cap = CLI_CELLS_POOL}))
     {
-        made = start_process(place, root, json, start, plan, err_msg);
+        made = EMBED_CALL(start_process, DebugStartCtx, .place = args->place, .root = args->root, .json = json,
+                          .start = args->start, .plan = args->plan, .err_msg = args->err_msg);
     }
-    else if (plan->recording)
+    else if (args->plan->recording)
     {
         char path[CLI_PATH_MAX_LEN];
         char full[CLI_PATH_MAX_LEN];
         char python[CLI_PATH_MAX_LEN];
-        made = start_field(json, start, "path", path, sizeof(path), err_msg);
-        cli_full(root, path, full);
+        made = EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "path", .out = path,
+                          .room = sizeof(path), .err_msg = args->err_msg);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = path, .joined = full);
         python[0] = '\0';
-        (void)cli_test_python(python);
-        plan->request = "launch";
-        plan->arguments = cli_json_made(to, CFG_JSON_OBJECT);
-        cli_json_set(
-            to, plan->arguments, "program",
-            cli_json_string_made(to, full, cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL})));
-        cli_json_set(
-            to, plan->arguments, "python",
-            cli_json_string_made(to, python, cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL})));
-        memor.cpy(&(MemoriaCfg){.dst = plan->name,
+        (void)EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python);
+        args->plan->request = "launch";
+        args->plan->arguments =
+            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "program",
+                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                       .json = to, .text = full,
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL})));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "python",
+                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                       .json = to, .text = python,
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL})));
+        memor.cpy(&(MemoriaCfg){.dst = args->plan->name,
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     }
     else
     {
-        made = start_reached(place, root, json, start, plan, err_msg);
+        made = EMBED_CALL(start_reach, DebugStartCtx, .place = args->place, .root = args->root, .json = json,
+                          .start = args->start, .plan = args->plan, .err_msg = args->err_msg);
     }
     if (!made)
     {
         return 0;
     }
-    const int launch = (cellul.eq(&(CatenaFinitaCfg){.src = plan->request, .other = "launch", .cap = CLI_CELLS_POOL}));
-    if (launch && (cellul.eq(&(CatenaFinitaCfg){.src = plan->language, .other = "python", .cap = CLI_CELLS_POOL})) &&
-        !plan->recording && cli_json_is(to, plan->arguments, CFG_JSON_OBJECT))
+    const int launch =
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->request, .other = "launch", .cap = CLI_CELLS_POOL}));
+    if (launch &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->language, .other = "python", .cap = CLI_CELLS_POOL})) &&
+        !args->plan->recording &&
+        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = to,
+                   .node = args->plan->arguments, .kind = CFG_JSON_OBJECT))
     {
         // the processes a Python program starts are debugged with it
-        cli_json_set(to, plan->arguments, "subProcess", cli_json_made(to, CFG_JSON_TRUE));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "subProcess",
+                   .value =
+                       EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_TRUE));
     }
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "child", .cap = CLI_CELLS_POOL}))
     {
-        cli_debug_step_arguments(plan->language, json, cli_json_member(json, options, "stepping"), to, plan->arguments);
+        EMBED_CALL(cli_debug_json_language_internal.step_arguments, CliDebugJsonLanguageCtx,
+                   .language = args->plan->language, .json = json,
+                   .stepping = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->options, .name = "stepping"),
+                   .to = to, .arguments = args->plan->arguments);
     }
-    if (cli_debug_true(json, cli_json_member(json, options, "entry")) && launch)
+    if (EMBED_CALL(cli_debug_json_node_internal.debug_true, CliDebugJsonNodeCtx, .json = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->options, .name = "entry")) &&
+        launch)
     {
-        if (!cli_json_is(to, plan->arguments, CFG_JSON_OBJECT))
+        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = to,
+                        .node = args->plan->arguments, .kind = CFG_JSON_OBJECT))
         {
-            plan->arguments = cli_json_made(to, CFG_JSON_OBJECT);
+            args->plan->arguments =
+                EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_OBJECT);
         }
-        cli_json_set(to, plan->arguments, "stopOnEntry", cli_json_made(to, CFG_JSON_TRUE));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = to,
+                   .object = args->plan->arguments, .name = "stopOnEntry",
+                   .value =
+                       EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = to, .kind = CFG_JSON_TRUE));
     }
     if (to->full)
     {
-        mmgr_line_put(err_msg, "the session's start does not fit the room it is made in");
+        mmgr_line_put(args->err_msg, "the session's start does not fit the room it is made in");
         return 0;
     }
     return 1;

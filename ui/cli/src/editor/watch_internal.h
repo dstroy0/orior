@@ -4,33 +4,81 @@
 // tree read every two seconds where the system does not report its changes
 #ifndef WATCH_INTERNAL_H
 #define WATCH_INTERNAL_H
+typedef struct CliWatchPathsCtx CliWatchPathsCtx;
+typedef struct CliWatchCtx CliWatchCtx;
 
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
+#include "embed_dispatch_layout.h"
 #include "watch.h"
 
 // a change put for the next batch, its path from the tree's top; whether the watch is stopping; the end of the thread
 // that reads the tree notified, so the watch can stop; and the cells the changes waiting and a batch occupy (watch.c)
 extern CellOwner g_cli_watch_cells;
-void cli_watch_changed(void *context, const char *path, unsigned int kind);
+void cli_watch_change(const CliEachPathKindCfg *args);
 int cli_watch_stopping(void);
-void cli_watch_poll_ended(void);
+void cli_watch_poll_end(void);
 
 // the tree at `root` read as the first reading, its readings cells counted to the files: 1, a reading that could not
 // be made standing as none, which the next reading takes the place of; on a thread of its own, the tree read every two
 // seconds and each change since the last reading put for the batches, until the watch stops; and the readings given
 // back, which the polling does as it ends (watch_read.c)
-int cli_watch_first_reading(const char *root);
-void cli_watch_polled(void *context);
+int cli_watch_first_reading(const CliWatchCtx *args);
+void cli_watch_poll(void *context);
 
 // a change reported: its path from the tree's top, and its kind
-typedef void (*CliWatchChangeFn)(void *context, const char *path, unsigned int kind);
+typedef void (*CliWatchChangeFn)(const CliEachPathKindCfg *args);
 
 // the tree at `root` read again and set against the last reading, each change since it handed to `emit` (watch_read.c)
-void cli_watch_read_again(const char *root, CliWatchChangeFn emit, void *context);
+void cli_watch_read_again(const CliWatchCtx *args);
 
 // the changes `paths`, `count` of them, each of its kind in `kinds`, of the tree at `root` gathered and written as a
 // batch, while no watch runs: 1 where any are left (watch.c)
-int cli_watch_gathered_of(const char *root, const char *const *paths, const unsigned int *kinds, unsigned int count,
-                          VerbaLinea *out);
+int cli_watch_gathered_get(const CliWatchPathsCtx *args);
+
+struct CliWatchPathsCtx
+{
+    const char *root;
+    const char *const *paths;
+    const unsigned int *kinds;
+    unsigned int count;
+    VerbaLinea *out;
+};
+
+struct CliWatchCtx
+{
+    const char *root;
+    CliWatchChangeFn emit;
+    void *context;
+};
+
+typedef struct
+{
+    void (*change)(const CliEachPathKindCfg *args);
+} CliEachPathKindNs;
+EMBED_TABLE_LAYOUT(CliEachPathKindNs, change);
+EMBED_TABLE_STORAGE CliEachPathKindNs cli_each_path_kind EMBED_UNUSED = {
+    .change = cli_watch_change,
+};
+
+typedef struct
+{
+    int (*first_reading)(const CliWatchCtx *args);
+    void (*read_again)(const CliWatchCtx *args);
+} CliWatchNsTable;
+EMBED_TABLE_LAYOUT(CliWatchNsTable, first_reading, read_again);
+EMBED_TABLE_STORAGE CliWatchNsTable cli_watch_internal EMBED_UNUSED = {
+    .first_reading = cli_watch_first_reading,
+    .read_again = cli_watch_read_again,
+};
+
+typedef struct
+{
+    int (*gathered_get)(const CliWatchPathsCtx *args);
+} CliWatchPathsNs;
+EMBED_TABLE_LAYOUT(CliWatchPathsNs, gathered_get);
+EMBED_TABLE_STORAGE CliWatchPathsNs cli_watch_paths_internal EMBED_UNUSED = {
+    .gathered_get = cli_watch_gathered_get,
+};
 
 #endif

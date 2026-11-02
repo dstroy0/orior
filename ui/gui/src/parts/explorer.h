@@ -9,11 +9,20 @@
 // arrow, the folder's icon or the file's mark, and the name (explorer.c)
 #ifndef GUI_PARTS_EXPLORER_H
 #define GUI_PARTS_EXPLORER_H
+typedef struct GuiExplorerFrameXYCfg GuiExplorerFrameXYCfg;
+typedef struct GuiExplorerFrameXCfg GuiExplorerFrameXCfg;
+typedef struct GuiExplorerTicketCfg GuiExplorerTicketCfg;
+typedef struct GuiExplorerCfg GuiExplorerCfg;
+typedef struct GuiExplorerNodeCfg GuiExplorerNodeCfg;
+typedef struct GuiExplorerRowCfg GuiExplorerRowCfg;
+typedef struct GuiExplorerRowFrameCfg GuiExplorerRowFrameCfg;
+typedef struct GuiExplorerFrameCfg GuiExplorerFrameCfg;
 #include "../../../cli/src/text/json_tree.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../icons.h"
 #include "../palette.h"
+#include "embed_dispatch_layout.h"
 
 // the most nodes the cells hold and the most bytes their paths take; no row; and the sizes in the page's pixels:
 // the explorer's head, the line over the pane and the pane's head, a row, a row's padding at the left, a guide's
@@ -66,7 +75,7 @@ typedef struct
 } GuiPick;
 
 // The explorer: the nodes in the tree's order, a folder's entries after it, and how many; the text their paths are
-// kept in and how much of it is used; the row the pointer stands on, GUI_EXPLORER_NONE for none; how many rows are
+// saved in and how much of it is used; the row the pointer stands on, GUI_EXPLORER_NONE for none; how many rows are
 // scrolled off the pane's top; and whether the top folder's listing came and the ticket it was asked under
 typedef struct
 {
@@ -82,36 +91,189 @@ typedef struct
 
 // an explorer made holding no nodes, its cells taken: 1, or 0 where they could not be; every cell given back; and
 // the nodes let go, the top folder unlisted
-int gui_explorer_made(GuiExplorer *explorer);
-void gui_explorer_given(GuiExplorer *explorer);
-void gui_explorer_emptied(GuiExplorer *explorer);
+int gui_explorer_init(const GuiExplorerCfg *args);
+void gui_explorer_free(const GuiExplorerCfg *args);
+void gui_explorer_clear(const GuiExplorerCfg *args);
 // the folder at `dir`, the top folder where empty, marked as asked for under the call's `ticket`; and a listing
 // answered under `ticket` taken, `root` the array of entries, each `{"name", "path", "dir", "ignored"}`, put under
 // the folder asked: 1, or 0 where no folder was asked under the ticket
-void gui_explorer_listing(GuiExplorer *explorer, const char *dir, unsigned long long ticket);
-int gui_explorer_listed(GuiExplorer *explorer, unsigned long long ticket, const CliJson *json, unsigned int root);
+void gui_explorer_listing(const GuiExplorerCfg *args);
+int gui_explorer_list(const GuiExplorerTicketCfg *args);
 // whether the top folder's listing was asked for or came
-int gui_explorer_root_asked(const GuiExplorer *explorer);
+int gui_explorer_root_request(const GuiExplorerNodeCfg *args);
 // the rows, the nodes whose folders above are all open: how many, and the node of the row `row` into `node`: 1, or 0
 // past them; and a node's path, its length into `length`
-unsigned int gui_explorer_rows(const GuiExplorer *explorer);
-int gui_explorer_row(const GuiExplorer *explorer, unsigned int row, unsigned int *node);
-const char *gui_explorer_path(const GuiExplorer *explorer, unsigned int node, unsigned long long *length);
+unsigned int gui_explorer_rows(const GuiExplorerFrameXYCfg *args);
+int gui_explorer_row(const GuiExplorerRowCfg *args);
+const char *gui_explorer_path(const GuiExplorerNodeCfg *args);
 // the rectangle of the row `row` in the frame's side as the rows are scrolled; and the row at x, y: 1 with its number
 // into `row`, else 0
-GuiRect gui_explorer_row_rect(const GuiFrame *frame, const GuiExplorer *explorer, unsigned int row);
-int gui_explorer_hit(const GuiExplorer *explorer, const GuiFrame *frame, int x, int y, unsigned int *row);
+GuiRect gui_explorer_row_rect(const GuiExplorerRowFrameCfg *args);
+int gui_explorer_hit(const GuiExplorerFrameXYCfg *args);
 // the pointer moved to x, y: the row it stands on marked: 1 where that changed
-int gui_explorer_moved(GuiExplorer *explorer, const GuiFrame *frame, int x, int y);
+int gui_explorer_move(const GuiExplorerFrameXCfg *args);
 // a press at x, y: a folder opened or closed, or a file picked, into `pick`: 1 where the press was the side's
-int gui_explorer_pressed(GuiExplorer *explorer, const GuiFrame *frame, int x, int y, GuiPick *pick);
+int gui_explorer_press(const GuiExplorerFrameXCfg *args);
 // the wheel turned `rows` rows, down where positive: the rows scrolled, no further than the last fills the pane: 1
 // where the scroll changed
-int gui_explorer_wheeled(GuiExplorer *explorer, const GuiFrame *frame, int rows);
+int gui_explorer_wheel(const GuiExplorerFrameCfg *args);
 // the side drawn: its ground and its edge, `title` at its head, and where `folders` is 1 the files' pane headed by
 // `tree`, the tree's name, with the rows, the one pointed on the pointed ground and the one at `shown`, the file the
 // editor shows, on the selection's
-void gui_explorer_drawn(const GuiExplorer *explorer, GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons,
-                        const GuiPalette *palette, const GuiFrame *frame, const char *title, int folders,
-                        const char *tree, const char *shown);
+void gui_explorer_draw(const GuiExplorerFrameXYCfg *args);
+struct GuiExplorerFrameXYCfg
+{
+    const GuiExplorer *explorer_read;
+    const GuiFrame *frame;
+    int x;
+    int y;
+    unsigned int *row_pointer;
+    GuiRaster *raster;
+    GuiGlyphs *glyphs;
+    GuiIcons *icons;
+    const GuiPalette *palette;
+    const char *title;
+    int folders;
+    const char *tree;
+    const char *shown;
+};
+
+struct GuiExplorerFrameXCfg
+{
+    GuiExplorer *explorer;
+    const GuiFrame *frame;
+    int x;
+    int y;
+    GuiPick *pick;
+};
+
+struct GuiExplorerTicketCfg
+{
+    GuiExplorer *explorer;
+    unsigned long long ticket;
+    const CliJson *json;
+    unsigned int root;
+};
+
+struct GuiExplorerCfg
+{
+    GuiExplorer *explorer;
+    const char *dir;
+    unsigned long long ticket;
+};
+
+struct GuiExplorerNodeCfg
+{
+    const GuiExplorer *explorer_read;
+    unsigned int node_value;
+    unsigned long long *length;
+};
+
+struct GuiExplorerRowCfg
+{
+    const GuiExplorer *explorer_read;
+    unsigned int row;
+    unsigned int *node;
+};
+
+struct GuiExplorerRowFrameCfg
+{
+    const GuiExplorer *explorer_read;
+    unsigned int row;
+    const GuiFrame *frame;
+};
+
+struct GuiExplorerFrameCfg
+{
+    GuiExplorer *explorer;
+    const GuiFrame *frame;
+    int rows;
+};
+
+typedef struct
+{
+    int (*init)(const GuiExplorerCfg *args);
+    void (*free)(const GuiExplorerCfg *args);
+    void (*clear)(const GuiExplorerCfg *args);
+    void (*listing)(const GuiExplorerCfg *args);
+} CliExplorerNs;
+EMBED_TABLE_LAYOUT(CliExplorerNs, init, free, clear, listing);
+EMBED_TABLE_STORAGE CliExplorerNs cli_explorer EMBED_UNUSED = {
+    .init = gui_explorer_init,
+    .free = gui_explorer_free,
+    .clear = gui_explorer_clear,
+    .listing = gui_explorer_listing,
+};
+
+typedef struct
+{
+    int (*list)(const GuiExplorerTicketCfg *args);
+} GuiExplorerTicketNs;
+EMBED_TABLE_LAYOUT(GuiExplorerTicketNs, list);
+EMBED_TABLE_STORAGE GuiExplorerTicketNs gui_explorer_ticket EMBED_UNUSED = {
+    .list = gui_explorer_list,
+};
+
+typedef struct
+{
+    int (*root_request)(const GuiExplorerNodeCfg *args);
+    const char *(*path)(const GuiExplorerNodeCfg *args);
+} GuiExplorerNodeNs;
+EMBED_TABLE_LAYOUT(GuiExplorerNodeNs, root_request, path);
+EMBED_TABLE_STORAGE GuiExplorerNodeNs gui_explorer_node EMBED_UNUSED = {
+    .root_request = gui_explorer_root_request,
+    .path = gui_explorer_path,
+};
+
+typedef struct
+{
+    unsigned int (*rows)(const GuiExplorerFrameXYCfg *args);
+    int (*hit)(const GuiExplorerFrameXYCfg *args);
+    void (*draw)(const GuiExplorerFrameXYCfg *args);
+} GuiExplorerFrameXYNs;
+EMBED_TABLE_LAYOUT(GuiExplorerFrameXYNs, rows, hit, draw);
+EMBED_TABLE_STORAGE GuiExplorerFrameXYNs gui_explorer_frame_xy EMBED_UNUSED = {
+    .rows = gui_explorer_rows,
+    .hit = gui_explorer_hit,
+    .draw = gui_explorer_draw,
+};
+
+typedef struct
+{
+    int (*row)(const GuiExplorerRowCfg *args);
+} CliExplorerRowNs;
+EMBED_TABLE_LAYOUT(CliExplorerRowNs, row);
+EMBED_TABLE_STORAGE CliExplorerRowNs cli_explorer_row EMBED_UNUSED = {
+    .row = gui_explorer_row,
+};
+
+typedef struct
+{
+    GuiRect (*row_rect)(const GuiExplorerRowFrameCfg *args);
+} GuiExplorerRowFrameNs;
+EMBED_TABLE_LAYOUT(GuiExplorerRowFrameNs, row_rect);
+EMBED_TABLE_STORAGE GuiExplorerRowFrameNs gui_explorer_row_frame EMBED_UNUSED = {
+    .row_rect = gui_explorer_row_rect,
+};
+
+typedef struct
+{
+    int (*move)(const GuiExplorerFrameXCfg *args);
+    int (*press)(const GuiExplorerFrameXCfg *args);
+} GuiExplorerFrameXNs;
+EMBED_TABLE_LAYOUT(GuiExplorerFrameXNs, move, press);
+EMBED_TABLE_STORAGE GuiExplorerFrameXNs gui_explorer_frame_x EMBED_UNUSED = {
+    .move = gui_explorer_move,
+    .press = gui_explorer_press,
+};
+
+typedef struct
+{
+    int (*wheel)(const GuiExplorerFrameCfg *args);
+} GuiExplorerFrameNs;
+EMBED_TABLE_LAYOUT(GuiExplorerFrameNs, wheel);
+EMBED_TABLE_STORAGE GuiExplorerFrameNs gui_explorer_frame EMBED_UNUSED = {
+    .wheel = gui_explorer_wheel,
+};
+
 #endif

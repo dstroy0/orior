@@ -16,24 +16,24 @@ void cli_check_begun(void)
 // a line written to the output
 static void check_line(const VerbaLinea *line)
 {
-    query_terminal_written(0, line->out, mmgr_line_ok(line) ? line->at : 0ull);
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = line->out, .length = mmgr_line_ok(line) ? line->at : 0ull);
 }
 
 // ORIOR_CELLS_OWNERS set: the pool's report and MMgr's owner table written, each owner's bytes now and its peak
 static void check_owners_told(void)
 {
     char asked[8];
-    if (!query_environment_read("ORIOR_CELLS_OWNERS", asked, sizeof(asked)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS", .value_out = asked, .room = sizeof(asked)))
     {
         return;
     }
     static char s_owners[256ull * 1024ull];
     VerbaLinea owners = {s_owners, sizeof(s_owners), 0ull};
     mmgr_line_put(&owners, "cells pool ");
-    cli_cells_usage_written(&owners);
+    EMBED_CALL(cli_cells_table.usage_write, CliCellsCfg, .out = &owners);
     mmgr_line_ch(&owners, '\n');
     mmgr_line_put(&owners, "cells owners ");
-    cli_cells_owners_written(&owners);
+    EMBED_CALL(cli_cells_table.owners_write, CliCellsCfg, .out = &owners);
     mmgr_line_ch(&owners, '\n');
     check_line(&owners);
 }
@@ -75,14 +75,14 @@ void cli_check_text(const char *text, unsigned long long size, const char *wante
 
 void cli_check_folder(const char *name, char *full)
 {
-    if (!query_path_full(name, full, CLI_PATH_MAX_LEN))
+    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = name, .full = full, .room = CLI_PATH_MAX_LEN))
     {
         memor.cpy(&(MemoriaCfg){.dst = full,
                                 .src = name,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    (void)query_removed(full);
-    (void)query_folder_made(full);
+    (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = full);
+    (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = full);
 }
 
 // The tree a text is parsed into, a cell sized to the text at each parse, the one before given back, and the last
@@ -91,25 +91,25 @@ static CliJson s_json;
 
 const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
-    cli_json_given(&s_json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    *root = cli_json_taken(&s_json, text, size, 0u, 0ull, &err_msg, &g_checks_cells);
+    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
     return &s_json;
 }
 
 const char *cli_check_member_text(unsigned int node, const char *name)
 {
-    const char *const text = cli_json_string(&s_json, cli_json_member(&s_json, node, name), NULL);
+    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = node, .name = name), .length_pointer = NULL);
     return (text != NULL) ? text : "";
 }
 
 unsigned int cli_check_finding(unsigned int found, const char *code, const char *part)
 {
-    for (unsigned int at = 0u; cli_json_item(&s_json, found, at) != CLI_JSON_NONE; at += 1u)
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = found, .index = at) != CLI_JSON_NONE; at += 1u)
     {
-        const unsigned int one = cli_json_item(&s_json, found, at);
-        const char *const message = cli_check_member_text(cli_json_member(&s_json, one, "message"), "value");
+        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = found, .index = at);
+        const char *const message = cli_check_member_text(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = one, .name = "message"), "value");
         if (((code == NULL) ||
              (cellul.eq(&(CatenaFinitaCfg){
                  .src = cli_check_member_text(one, "code"), .other = code, .cap = CLI_CELLS_POOL}))) &&
@@ -148,9 +148,8 @@ const CliCompletions *cli_check_build_completed(const char *root, const char *pa
         line += (at[0] == '\n') ? 1u : 0u;
         col = (at[0] == '\n') ? 0u : col + 1u;
     }
-    cli_completions_begun(&s_items);
-    cli_build_complete(root, path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), line, col,
-                       &s_items);
+    EMBED_CALL(cli_edits_items.completions_begin, CliEditsItemsCfg, .items = &s_items);
+    EMBED_CALL(cli_builds_path.build_complete, CliBuildsPathCfg, .root = root, .path = path, .text = text, .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .line = line, .col = col, .items = &s_items);
     return &s_items;
 }
 
@@ -167,11 +166,11 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
                             .src = "127.0.0.1",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "127.0.0.1", .cap = CLI_CELLS_POOL}) + 1u});
     *at = port;
-    if (!query_environment_read(variable, named, sizeof(named)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named, .room = sizeof(named)))
     {
         return;
     }
-    const char *const colon = cli_text_last(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), ':');
+    const char *const colon = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named, .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), .byte = ':');
     unsigned long long number = 0ull;
     int digits = (colon != NULL) && (colon[1] != '\0');
     for (const char *letter = (colon != NULL) ? colon + 1 : ""; digits && (letter[0] != '\0'); letter += 1)
@@ -190,16 +189,16 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
     }
 }
 
-int cli_checked(void)
+int cli_on_check(void)
 {
-    cli_json_given(&s_json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     char text[128];
     VerbaLinea line = {text, sizeof(text), 0ull};
     mmgr_line_decimal(&line, s_checks, 1u);
     mmgr_line_put(&line, " checks, ");
     mmgr_line_decimal(&line, s_failed, 1u);
     mmgr_line_put(&line, " failed, cells ");
-    cli_cells_usage_written(&line);
+    EMBED_CALL(cli_cells_table.usage_write, CliCellsCfg, .out = &line);
     mmgr_line_ch(&line, '\n');
     check_line(&line);
     check_owners_told();

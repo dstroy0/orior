@@ -23,10 +23,18 @@ typedef struct
 static CliLock s_lock = CLI_LOCK_INIT;
 static unsigned int s_running;
 
-// the event of a request's answer sent: `{"request", "answer"}`, or `{"request", "error"}` with why
-static void deferred_event_sent(unsigned long long request_id, int ok, const VerbaLinea *out, const VerbaLinea *err_msg)
+typedef struct
 {
-    const unsigned long long event_json_room = out->at + (err_msg->at * 6ull) + 64ull;
+    unsigned long long request_id;
+    int ok;
+    const VerbaLinea *out;
+    const VerbaLinea *err_msg;
+} ServeDeferredCtx;
+// the event of a request's answer sent: `{"request", "answer"}`, or `{"request", "error"}` with why
+EMBED_INLINE void deferred_event_send(const ServeDeferredCtx *args)
+{
+    const VerbaLinea *out = args->out;
+    const unsigned long long event_json_room = out->at + (args->err_msg->at * 6ull) + 64ull;
     char *const event_json_cell = g_cli_cells->temporary_buf_alloc(event_json_room, &g_cli_window_cells);
     VerbaLinea event_json = mmgr_line_over(event_json_cell, event_json_room);
     if (event_json.out == NULL)
@@ -34,8 +42,8 @@ static void deferred_event_sent(unsigned long long request_id, int ok, const Ver
         return;
     }
     mmgr_line_put(&event_json, "{\"request\":");
-    mmgr_line_decimal(&event_json, request_id, 1u);
-    if (ok)
+    mmgr_line_decimal(&event_json, args->request_id, 1u);
+    if (args->ok)
     {
         mmgr_line_put(&event_json, ",\"answer\":");
         if (out->at > 0ull)
@@ -50,12 +58,14 @@ static void deferred_event_sent(unsigned long long request_id, int ok, const Ver
     else
     {
         mmgr_line_put(&event_json, ",\"error\":");
-        cli_json_quoted(&event_json, err_msg->out, err_msg->at);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &event_json,
+                   .text = args->err_msg->out, .length = args->err_msg->at);
     }
     mmgr_line_ch(&event_json, '}');
     if (mmgr_line_ok(&event_json))
     {
-        cli_serve_emitted("call-answered", event_json.out, event_json.at);
+        EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "call-answered", .body = event_json.out,
+                   .size = event_json.at);
     }
     g_cli_cells->persistent_buf_release(event_json.out, &g_cli_window_cells);
 }
@@ -73,52 +83,60 @@ static void deferred_run(void *context)
     {
         mmgr_line_put(&err_msg, "the answer could not be given a cell");
     }
-    int ok = grown && cli_serve_answered(deferred->answer, deferred->args, deferred->size, &out, &err_msg);
+    int ok = grown && EMBED_CALL(cli_serve_size_internal.answer, CliServeSizeCtx, .answer = deferred->answer,
+                                 .args_text = deferred->args, .size = deferred->size, .out = &out, .err_msg = &err_msg);
     if (ok && !mmgr_line_ok(&out))
     {
         err_msg.at = 0ull;
         mmgr_line_put(&err_msg, "the answer does not fit the room it is made in");
         ok = 0;
     }
-    deferred_event_sent(deferred->request_id, ok, &out, &err_msg);
+    EMBED_CALL(deferred_event_send, ServeDeferredCtx, .request_id = deferred->request_id, .ok = ok, .out = &out,
+               .err_msg = &err_msg);
     if (grown)
     {
         g_cli_cells->persistent_buf_release(out.out, &g_cli_window_cells);
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_running -= 1u;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(deferred, &g_cli_window_cells);
 }
 
-int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_deferred_or(const CliServeErrMsgOutRequestCtx *args)
 {
-    if (cli_serve_arg(args, "request") == CLI_JSON_NONE)
+    CliServeAnswer answer = args->answer;
+    VerbaLinea *out = args->out;
+    if (EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = args->request, .key = "request") ==
+        CLI_JSON_NONE)
     {
-        return answer(args, out, err_msg);
+        return EMBED_CALL(answer, CliServeAnswerCfg, .request = args->request, .out = out, .err_msg = args->err_msg);
     }
     unsigned long long request_id = 0ull;
-    if (!cli_serve_whole(args, "request", &request_id, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = args->request, .key = "request",
+                    .value = &request_id, .err_msg = args->err_msg))
     {
         return 0;
     }
     // the arguments written again as text: the thread reads them once the room they came in is given back
-    const unsigned long long text_room = cli_json_written_room(args->json);
+    const unsigned long long text_room =
+        EMBED_CALL(cli_json_tree_node_out.json_write_room, CliJsonTreeNodeOutCfg, .json_read = args->request->json);
     char *const text_cell = g_cli_cells->temporary_buf_alloc(text_room, &g_cli_window_cells);
     VerbaLinea text = mmgr_line_over(text_cell, text_room);
     if (text.out == NULL)
     {
-        mmgr_line_put(err_msg, "the deferred call's arguments could not be given a cell");
+        mmgr_line_put(args->err_msg, "the deferred call's arguments could not be given a cell");
         return 0;
     }
-    cli_json_write(args->json, args->object, &text, 0u, 0);
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->request->json,
+               .node = args->request->object, .out = &text, .indent = 0u, .sorted = 0);
     CliServeDeferred *const deferred =
         mmgr_line_ok(&text) ? g_cli_cells->persistent_buf_alloc(sizeof(*deferred) + text.at + 1ull, &g_cli_window_cells)
                             : NULL;
     if (deferred == NULL)
     {
         g_cli_cells->persistent_buf_release(text.out, &g_cli_window_cells);
-        mmgr_line_put(err_msg, "the deferred call could not be given a cell");
+        mmgr_line_put(args->err_msg, "the deferred call could not be given a cell");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = deferred->args, .src = text.out, .bytes = text.at});
@@ -128,23 +146,23 @@ int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, Verba
     deferred->request_id = request_id;
     deferred->thread = (CliThread){deferred_run, deferred, CLI_PRIORITY_WORK};
     g_cli_cells->persistent_buf_release(text.out, &g_cli_window_cells);
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int room = s_running < CLI_SERVE_DEFERRED_MAX;
     s_running += room ? 1u : 0u;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!room)
     {
         g_cli_cells->persistent_buf_release(deferred, &g_cli_window_cells);
-        mmgr_line_put(err_msg, "too many calls are deferred at once");
+        mmgr_line_put(args->err_msg, "too many calls are deferred at once");
         return 0;
     }
-    if (!cli_thread_started(&deferred->thread))
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &deferred->thread))
     {
-        cli_lock_take(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_running -= 1u;
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         g_cli_cells->persistent_buf_release(deferred, &g_cli_window_cells);
-        mmgr_line_put(err_msg, "the deferred call's thread did not start");
+        mmgr_line_put(args->err_msg, "the deferred call's thread did not start");
         return 0;
     }
     mmgr_line_put(out, "{\"deferred\":true}");

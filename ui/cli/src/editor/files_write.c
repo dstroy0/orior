@@ -6,125 +6,149 @@
 #include "archive.h"
 #include "files.h"
 
-// that the path is there already, reported
-static void cli_there_already(const char *path, VerbaLinea *err_msg)
+typedef struct
 {
-    mmgr_line_put(err_msg, path);
-    mmgr_line_put(err_msg, " is there already");
+    const char *path;
+    VerbaLinea *err_msg;
+} FilesWriteCtx;
+
+// that the path is there already, reported
+EMBED_INLINE void cli_there_already(const FilesWriteCtx *args)
+{
+    mmgr_line_put(args->err_msg, args->path);
+    mmgr_line_put(args->err_msg, " is there already");
 }
 
 // that the path could not be written, reported
-static void cli_unwritten(const char *path, VerbaLinea *err_msg)
+EMBED_INLINE void cli_unwritten(const FilesWriteCtx *args)
 {
-    mmgr_line_put(err_msg, path);
-    mmgr_line_put(err_msg, ": it could not be written");
+    mmgr_line_put(args->err_msg, args->path);
+    mmgr_line_put(args->err_msg, ": it could not be written");
 }
 
-int cli_files_create_file(const char *root, const char *file, VerbaLinea *err_msg)
+int cli_files_create_file(const CliFilesRootErrMsgTextCfg *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    if (!cli_inside(root, file, path, err_msg))
+    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->file, .joined = path,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
-    if (query_is_file(path) || query_is_folder(path))
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path) ||
+        EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path))
     {
-        cli_there_already(file, err_msg);
+        EMBED_CALL(cli_there_already, FilesWriteCtx, .path = args->file, .err_msg = args->err_msg);
         return 0;
     }
     char parent[CLI_PATH_MAX_LEN];
-    if ((cli_path_parent(path, parent) && !query_folder_made(parent)) || !query_file_written(path, "", 0ull))
+    if ((EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = parent) &&
+         !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent)) ||
+        !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "",
+                    .size = 0ull))
     {
-        cli_unwritten(file, err_msg);
+        EMBED_CALL(cli_unwritten, FilesWriteCtx, .path = args->file, .err_msg = args->err_msg);
         return 0;
     }
     return 1;
 }
 
-int cli_files_create_folder(const char *root, const char *dir, VerbaLinea *err_msg)
+int cli_files_create_folder(const CliFilesRootOutDirCfg *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    if (!cli_inside(root, dir, path, err_msg))
+    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->dir, .joined = path,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
-    if (query_is_file(path) || query_is_folder(path))
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path) ||
+        EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path))
     {
-        cli_there_already(dir, err_msg);
+        EMBED_CALL(cli_there_already, FilesWriteCtx, .path = args->dir, .err_msg = args->err_msg);
         return 0;
     }
-    if (!query_folder_made(path))
+    if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = path))
     {
-        cli_unwritten(dir, err_msg);
+        EMBED_CALL(cli_unwritten, FilesWriteCtx, .path = args->dir, .err_msg = args->err_msg);
         return 0;
     }
     return 1;
 }
 
-int cli_files_write(const char *root, const char *file, const char *text, unsigned long long length,
-                    VerbaLinea *err_msg)
+int cli_files_write(const CliFilesRootErrMsgTextCfg *args)
 {
+    const char *root = args->root;
+    const char *file = args->file;
+    VerbaLinea *err_msg = args->err_msg;
     // a file within an archive is saved back into it
     char archive[CLI_PATH_MAX_LEN];
     char inner[CLI_PATH_MAX_LEN];
-    if (cli_archive_split(root, file, archive, inner) && (inner[0] != '\0'))
+    if (EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = root, .path = file, .file = archive,
+                   .inner = inner) &&
+        (inner[0] != '\0'))
     {
-        return cli_archive_write(root, file, (const unsigned char *)text, length, err_msg);
+        return EMBED_CALL(cli_archive_size_data.write, CliArchiveSizeDataCfg, .root = root, .path = file,
+                          .data = (const unsigned char *)args->text, .size = args->length, .err_msg = err_msg);
     }
     char path[CLI_PATH_MAX_LEN];
     char beside[CLI_PATH_MAX_LEN];
-    if (!cli_inside(root, file, path, err_msg) || !cli_files_saving_beside(path, file, beside, err_msg))
+    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = root, .relative = file, .joined = path,
+                    .err_msg = err_msg) ||
+        !EMBED_CALL(cli_files_path_err_msg.saving_beside, CliFilesPathErrMsgCfg, .path = path, .file = file,
+                    .beside = beside, .err_msg = err_msg))
     {
         return 0;
     }
-    if (!query_file_written(beside, text, length))
+    if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = beside,
+                    .bytes = args->text, .size = args->length))
     {
         const unsigned int error = cli_system_error();
-        cli_unwritten(file, err_msg);
-        cli_system_reason(error, err_msg);
+        EMBED_CALL(cli_unwritten, FilesWriteCtx, .path = file, .err_msg = err_msg);
+        EMBED_CALL(cli_error_internal.system_reason, CliErrorCtx, .error = error, .err_msg = err_msg);
         return 0;
     }
-    return cli_files_saved(beside, path, file, err_msg);
+    return EMBED_CALL(cli_files_path.save, CliFilesPathCfg, .beside_read = beside, .path = path, .file = file,
+                      .err_msg = err_msg);
 }
 
-int cli_files_saving_beside(const char *path, const char *file, char *beside, VerbaLinea *err_msg)
+int cli_files_saving_beside(const CliFilesPathErrMsgCfg *args)
 {
     char parent[CLI_PATH_MAX_LEN];
-    if (!cli_path_parent(path, parent))
+    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = parent))
     {
-        mmgr_line_put(err_msg, file);
-        mmgr_line_put(err_msg, " has no folder");
+        mmgr_line_put(args->err_msg, args->file);
+        mmgr_line_put(args->err_msg, " has no folder");
         return 0;
     }
-    const char *name = path + cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_CELLS_POOL});
-    name += cli_text_past_any(name, 0ull, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), "/\\");
+    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_CELLS_POOL});
+    name += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ull,
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "/\\");
     if (name[0] == '\0')
     {
-        mmgr_line_put(err_msg, file);
-        mmgr_line_put(err_msg, " has no name");
+        mmgr_line_put(args->err_msg, args->file);
+        mmgr_line_put(args->err_msg, " has no name");
         return 0;
     }
-    VerbaLinea line = {beside, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->beside, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, parent);
     mmgr_line_put(&line, "/.");
     mmgr_line_put(&line, name);
     mmgr_line_put(&line, ".saving");
     if (mmgr_line_finish(&line) == 0ull)
     {
-        cli_unwritten(file, err_msg);
+        EMBED_CALL(cli_unwritten, FilesWriteCtx, .path = args->file, .err_msg = args->err_msg);
         return 0;
     }
     return 1;
 }
 
-int cli_files_saved(const char *beside, const char *path, const char *file, VerbaLinea *err_msg)
+int cli_files_save(const CliFilesPathCfg *args)
 {
-    if (!query_file_renamed(beside, path))
+    if (!EMBED_CALL(query_from_internal.file_rename, QueryFromCtx, .from = args->beside_read, .to = args->path))
     {
         const unsigned int error = cli_system_error();
-        query_removed(beside);
-        cli_unwritten(file, err_msg);
-        cli_system_reason(error, err_msg);
+        EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = args->beside_read);
+        EMBED_CALL(cli_unwritten, FilesWriteCtx, .path = args->file, .err_msg = args->err_msg);
+        EMBED_CALL(cli_error_internal.system_reason, CliErrorCtx, .error = error, .err_msg = args->err_msg);
         return 0;
     }
     return 1;

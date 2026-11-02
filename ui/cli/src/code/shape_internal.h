@@ -4,9 +4,13 @@
 // bytes; the placeholders of a pattern; and the match of the pattern's parts against the code's tokens
 #ifndef SHAPE_INTERNAL_H
 #define SHAPE_INTERNAL_H
+typedef struct CliShapeLanguagesCtx CliShapeLanguagesCtx;
+typedef struct CliShapeMatcherCtx CliShapeMatcherCtx;
+typedef struct CliShapeCtx CliShapeCtx;
 
 #include "../command_line/cells.h"
 #include "../text/text.h"
+#include "embed_dispatch_layout.h"
 #include "shape.h"
 
 // the kinds of a token: a name, a number, a string, a mark, and, in a language whose plugin says a line's end ends a
@@ -66,13 +70,12 @@ typedef struct
 // the tokens of `size` bytes of `src` in the language `language` read by `languages` into `tokens`, and, where `holes`
 // is not NULL, each placeholder as a name token whose place is stored there: 1, or 0 where the language is none read
 // here or the cells cannot meet its leaves (shape.c)
-int cli_shape_tokens(CliSymbolsLanguages *languages, const char *language, const char *src, unsigned long long size,
-                     CliShapeTokens *tokens, CliShapeHoles *holes);
+int cli_shape_tokens(const CliShapeLanguagesCtx *args);
 
 // The match of a pattern against the code: the code and its tokens; the pattern and its tokens, each part a word to
 // match as written or the placeholder at `hole_of`, CLI_SHAPE_HOLES for none; the steps taken; the placeholders bound
 // so far, each its name and the tokens it took; and the stack of ends tried, `ends_top` of them in a cell of
-// `ends_room`, given back with cli_shape_ends_given
+// `ends_room`, given back with cli_shape_ends_free
 typedef struct
 {
     const char *src;
@@ -96,14 +99,68 @@ typedef struct
 extern CellOwner g_cli_shape_cells;
 
 // the matcher's stack of ends given back (shape_match.c)
-void cli_shape_ends_given(CliShapeMatcher *matcher);
+void cli_shape_ends_free(const CliShapeMatcherCtx *args);
 
 // the end of a match of the parts from `part` on at the token `at`, the placeholders bound so far still bound: 1 with
 // it into `end`, or 0 where none matches (shape_match.c)
-int cli_shape_from(CliShapeMatcher *matcher, unsigned int part, unsigned int at, unsigned int *end);
+int cli_shape_from(const CliShapeMatcherCtx *args);
 
 // the bound placeholder named `size` bytes of `name`: its place among the bound, CLI_SHAPE_HOLES where none is
 // (shape_match.c)
-unsigned int cli_shape_bound(const CliShapeMatcher *matcher, const char *name, unsigned long long size);
+unsigned int cli_shape_bind(const CliShapeCtx *args);
+
+struct CliShapeLanguagesCtx
+{
+    CliSymbolsLanguages *languages;
+    const char *language;
+    const char *src;
+    unsigned long long size;
+    CliShapeTokens *tokens;
+    CliShapeHoles *holes;
+};
+
+struct CliShapeMatcherCtx
+{
+    CliShapeMatcher *matcher;
+    unsigned int part;
+    unsigned int at;
+    unsigned int *end;
+};
+
+struct CliShapeCtx
+{
+    unsigned long long size;
+    const CliShapeMatcher *matcher_read;
+    const char *name;
+};
+
+typedef struct
+{
+    int (*tokens)(const CliShapeLanguagesCtx *args);
+} CliShapeLanguagesNsTable;
+EMBED_TABLE_LAYOUT(CliShapeLanguagesNsTable, tokens);
+EMBED_TABLE_STORAGE CliShapeLanguagesNsTable cli_shape_languages_internal EMBED_UNUSED = {
+    .tokens = cli_shape_tokens,
+};
+
+typedef struct
+{
+    void (*ends_free)(const CliShapeMatcherCtx *args);
+    int (*from)(const CliShapeMatcherCtx *args);
+} CliShapeMatcherNs;
+EMBED_TABLE_LAYOUT(CliShapeMatcherNs, ends_free, from);
+EMBED_TABLE_STORAGE CliShapeMatcherNs cli_shape_matcher_internal EMBED_UNUSED = {
+    .ends_free = cli_shape_ends_free,
+    .from = cli_shape_from,
+};
+
+typedef struct
+{
+    unsigned int (*bind)(const CliShapeCtx *args);
+} CliShapeNsTable;
+EMBED_TABLE_LAYOUT(CliShapeNsTable, bind);
+EMBED_TABLE_STORAGE CliShapeNsTable cli_shape_internal EMBED_UNUSED = {
+    .bind = cli_shape_bind,
+};
 
 #endif

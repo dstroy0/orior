@@ -16,7 +16,6 @@ typedef struct
     long long y;
     long long size[3];
 } CliTexRecord;
-
 // The scale a SyncTeX file gives its units by
 typedef struct
 {
@@ -26,109 +25,163 @@ typedef struct
     double y_offset;
 } CliTexScale;
 
-// `length` bytes from `start` of `text` with the ASCII whitespace about them taken off, as their start and size
-static void latex_trimmed(const char *text, unsigned long long *start, unsigned long long *size)
+typedef struct
 {
-    while ((*size > 0ull) && cli_tex_white(text[*start]))
+    const char *text;
+    unsigned long long *start;
+    unsigned long long *size;
+    unsigned long long length;
+    unsigned long long at;
+    char letter;
+    unsigned long long start_value;
+    long long *value;
+    CliTexRecord *record;
+    long long value_value;
+    double offset;
+    const CliTexScale *scale;
+    unsigned int files;
+    unsigned int tag;
+    const char *rest;
+    const CliTexNames *names;
+    unsigned int *files_pointer;
+    unsigned int *used;
+    const CliTexOpen *done;
+    unsigned int marks;
+    unsigned long long page;
+    int *written;
+    VerbaLinea *out;
+    const char *line;
+    unsigned long long size_value;
+    CliTexScale *scale_out;
+    int *content;
+} LatexSyncCtx;
+// `length` bytes from `start` of `text` with the ASCII whitespace about them taken off, as their start and size
+EMBED_INLINE void latex_trim(const LatexSyncCtx *args)
+{
+    unsigned long long *start = args->start;
+    unsigned long long *size = args->size;
+    while ((*size > 0ull) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[*start]))
     {
         *start += 1ull;
         *size -= 1ull;
     }
-    while ((*size > 0ull) && cli_tex_white(text[*start + *size - 1ull]))
+    while ((*size > 0ull) &&
+           EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->text[*start + *size - 1ull]))
     {
         *size -= 1ull;
     }
 }
 
 // where `letter` is first in `length` bytes of `text` from `at`, `length` where it is not
-static unsigned long long latex_at(const char *text, unsigned long long length, unsigned long long at, char letter)
+EMBED_INLINE unsigned long long latex_at(const LatexSyncCtx *args)
 {
     const char *const found =
-        (at < length) ? memor.chr(&(MemoriaCfg){.src = text + at, .val = letter, .bytes = length - at}) : NULL;
-    return (found != NULL) ? (unsigned long long)(found - text) : length;
+        (args->at < args->length)
+            ? memor.chr(
+                  &(MemoriaCfg){.src = args->text + args->at, .val = args->letter, .bytes = args->length - args->at})
+            : NULL;
+    return (found != NULL) ? (unsigned long long)(found - args->text) : args->length;
 }
 
 // `length` bytes from `start` of `text` read trimmed as a signed number into `value`: 1, or 0 where they read as none
-static int latex_signed_trimmed(const char *text, unsigned long long start, unsigned long long length, long long *value)
+EMBED_INLINE int latex_signed_trim(const LatexSyncCtx *args)
 {
-    unsigned long long from = start;
+    const char *text = args->text;
+    unsigned long long length = args->length;
+    long long *value = args->value;
+    unsigned long long from = args->start_value;
     unsigned long long size = length;
-    latex_trimmed(text, &from, &size);
-    return cli_tex_signed(text + from, size, value);
+    EMBED_CALL(latex_trim, LatexSyncCtx, .text = text, .start = &from, .size = &size);
+    return EMBED_CALL(cli_latex_text_length_value_i_64s_internal.tex_sign, CliLatexTextLengthValueI64sCtx,
+                      .text = text + from, .length = size, .value_i64s = value);
 }
 
 // a record, `tag,line:x,y:width,height,depth` after its kind, read into `record`: 1, or 0 where it is not one
-static int latex_record(const char *text, unsigned long long length, CliTexRecord *record)
+static int latex_record(const LatexSyncCtx *args)
 {
-    const unsigned long long colon = latex_at(text, length, 0ull, ':');
+    const char *text = args->text;
+    unsigned long long length = args->length;
+    const unsigned long long colon =
+        EMBED_CALL(latex_at, LatexSyncCtx, .text = text, .length = length, .at = 0ull, .letter = ':');
     if (colon == length)
     {
         return 0;
     }
-    const unsigned long long comma = latex_at(text, colon, 0ull, ',');
+    const unsigned long long comma =
+        EMBED_CALL(latex_at, LatexSyncCtx, .text = text, .length = colon, .at = 0ull, .letter = ',');
     if (comma == colon)
     {
         return 0;
     }
     unsigned long long from = 0ull;
     unsigned long long size = comma;
-    latex_trimmed(text, &from, &size);
+    EMBED_CALL(latex_trim, LatexSyncCtx, .text = text, .start = &from, .size = &size);
     unsigned long long tag = 0ull;
-    if (!cli_tex_count(text + from, size, 4294967295ull, &tag))
+    if (!EMBED_CALL(cli_latex_text_length_internal.tex_count, CliLatexTextLengthCtx, .text = text + from,
+                    .length = size, .most = 4294967295ull, .value_u64s = &tag))
     {
         return 0;
     }
-    const unsigned long long line_end = latex_at(text, colon, comma + 1ull, ',');
+    const unsigned long long line_end =
+        EMBED_CALL(latex_at, LatexSyncCtx, .text = text, .length = colon, .at = comma + 1ull, .letter = ',');
     from = comma + 1ull;
     size = line_end - from;
-    latex_trimmed(text, &from, &size);
-    if (!cli_tex_count(text + from, size, ~0ull, &record->line))
+    EMBED_CALL(latex_trim, LatexSyncCtx, .text = text, .start = &from, .size = &size);
+    if (!EMBED_CALL(cli_latex_text_length_internal.tex_count, CliLatexTextLengthCtx, .text = text + from,
+                    .length = size, .most = ~0ull, .value_u64s = &args->record->line))
     {
         return 0;
     }
-    record->tag = (unsigned int)tag;
+    args->record->tag = (unsigned int)tag;
     const unsigned long long place = colon + 1ull;
-    const unsigned long long place_end = latex_at(text, length, place, ':');
-    const unsigned long long split = latex_at(text, place_end, place, ',');
+    const unsigned long long place_end =
+        EMBED_CALL(latex_at, LatexSyncCtx, .text = text, .length = length, .at = place, .letter = ':');
+    const unsigned long long split =
+        EMBED_CALL(latex_at, LatexSyncCtx, .text = text, .length = place_end, .at = place, .letter = ',');
     if (split == place_end)
     {
         return 0;
     }
-    record->size[0] = 0ll;
-    record->size[1] = 0ll;
-    record->size[2] = 0ll;
+    args->record->size[0] = 0ll;
+    args->record->size[1] = 0ll;
+    args->record->size[2] = 0ll;
     if (place_end < length)
     {
-        const unsigned long long dims_end = latex_at(text, length, place_end + 1ull, ':');
+        const unsigned long long dims_end =
+            EMBED_CALL(latex_at, LatexSyncCtx, .text = text, .length = length, .at = place_end + 1ull, .letter = ':');
         unsigned long long value = place_end + 1ull;
         for (unsigned int at = 0u; (at < 3u) && (value <= dims_end); at += 1u)
         {
-            const unsigned long long value_end = latex_at(text, dims_end, value, ',');
-            if (!latex_signed_trimmed(text, value, value_end - value, &record->size[at]))
+            const unsigned long long value_end =
+                EMBED_CALL(latex_at, LatexSyncCtx, .text = text, .length = dims_end, .at = value, .letter = ',');
+            if (!EMBED_CALL(latex_signed_trim, LatexSyncCtx, .text = text, .start_value = value,
+                            .length = value_end - value, .value = &args->record->size[at]))
             {
-                record->size[at] = 0ll;
+                args->record->size[at] = 0ll;
             }
             value = value_end + 1ull;
         }
     }
-    return latex_signed_trimmed(text, place, split - place, &record->x) &&
-           latex_signed_trimmed(text, split + 1ull, place_end - split - 1ull, &record->y);
+    return EMBED_CALL(latex_signed_trim, LatexSyncCtx, .text = text, .start_value = place, .length = split - place,
+                      .value = &args->record->x) &&
+           EMBED_CALL(latex_signed_trim, LatexSyncCtx, .text = text, .start_value = split + 1ull,
+                      .length = place_end - split - 1ull, .value = &args->record->y);
 }
 
 // a length in the file's units, `offset` added, in the page's points to the thousandth
-static double latex_points(long long value, double offset, const CliTexScale *scale)
+EMBED_INLINE double latex_points(const LatexSyncCtx *args)
 {
-    return round((((double)value * scale->unit) + offset) * scale->magnification / 1000.0 / 65536.0 * 72.0 / 72.27 *
-                 1000.0) /
+    return round((((double)args->value_value * args->scale->unit) + args->offset) * args->scale->magnification /
+                 1000.0 / 65536.0 * 72.0 / 72.27 * 1000.0) /
            1000.0;
 }
 
 // the file a tag names that is a file of the tree: its path in the room, or NULL where it names none
-static const char *latex_file_of(unsigned int files, unsigned int tag)
+EMBED_INLINE const char *latex_file_get(const LatexSyncCtx *args)
 {
-    for (unsigned int at = 0u; at < files; at += 1u)
+    for (unsigned int at = 0u; at < args->files; at += 1u)
     {
-        if (g_cli_latex->files[at].tag == tag)
+        if (g_cli_latex->files[at].tag == args->tag)
         {
             return g_cli_latex->files[at].named ? g_cli_latex->names + g_cli_latex->files[at].at : NULL;
         }
@@ -137,17 +190,24 @@ static const char *latex_file_of(unsigned int files, unsigned int tag)
 }
 
 // an `Input:tag:name` line's file recorded by its tag, a tag recorded before replaced
-static void latex_input_stored(const char *rest, unsigned long long length, const CliTexNames *names,
-                               unsigned int *files, unsigned int *used)
+EMBED_INLINE void latex_input_store(const LatexSyncCtx *args)
 {
-    const unsigned long long colon = latex_at(rest, length, 0ull, ':');
+    unsigned long long length = args->length;
+    const CliTexNames *names = args->names;
+    unsigned int *files = args->files_pointer;
+    unsigned int *used = args->used;
+    const unsigned long long colon =
+        EMBED_CALL(latex_at, LatexSyncCtx, .text = args->rest, .length = length, .at = 0ull, .letter = ':');
     unsigned long long tag = 0ull;
-    if ((colon == length) || !cli_tex_count(rest, colon, 4294967295ull, &tag))
+    if ((colon == length) ||
+        !EMBED_CALL(cli_latex_text_length_internal.tex_count, CliLatexTextLengthCtx, .text = args->rest,
+                    .length = colon, .most = 4294967295ull, .value_u64s = &tag))
     {
         return;
     }
     char file[CLI_PATH_MAX_LEN];
-    const int named = cli_tex_names_of(names, rest + colon + 1ull, length - colon - 1ull, file);
+    const int named = EMBED_CALL(cli_latex_length_internal.tex_names_get, CliLatexLengthCtx, .names = names,
+                                 .name = args->rest + colon + 1ull, .length = length - colon - 1ull, .file = file);
     const size_t size = named ? cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u : 0u;
     unsigned int at = 0u;
     while ((at < *files) && (g_cli_latex->files[at].tag != (unsigned int)tag))
@@ -169,47 +229,57 @@ static void latex_input_stored(const char *rest, unsigned long long length, cons
 
 // a box closed: one written for each file of the tree whose lines it marks, in the order it first marks them, with
 // each line where it changes and the point across where its part starts
-static void latex_box_written(const CliTexOpen *done, unsigned int marks, unsigned long long page, unsigned int files,
-                              const CliTexScale *scale, int *written, VerbaLinea *out)
+EMBED_INLINE void latex_box_write(const LatexSyncCtx *args)
 {
-    for (unsigned int mark = done->marks; mark < marks; mark += 1u)
+    int *written = args->written;
+    VerbaLinea *out = args->out;
+    for (unsigned int mark = args->done->marks; mark < args->marks; mark += 1u)
     {
         const unsigned int tag = g_cli_latex->marks[mark].tag;
-        unsigned int before = done->marks;
+        unsigned int before = args->done->marks;
         while ((before < mark) && (g_cli_latex->marks[before].tag != tag))
         {
             before += 1u;
         }
-        const char *const file = latex_file_of(files, tag);
+        const char *const file = EMBED_CALL(latex_file_get, LatexSyncCtx, .files = args->files, .tag = tag);
         if ((before < mark) || (file == NULL))
         {
             continue;
         }
-        const long long width = done->size[0];
-        const long long height = done->size[1];
-        const long long depth = done->size[2];
+        const long long width = args->done->size[0];
+        const long long height = args->done->size[1];
+        const long long depth = args->done->size[2];
         // the top is the baseline less the height, and the box as tall as its height and depth together, each worked
         // as two's complement does where it would wrap
-        const long long top = (long long)((unsigned long long)done->y - (unsigned long long)height);
+        const long long top = (long long)((unsigned long long)args->done->y - (unsigned long long)height);
         const long long tall = (long long)((unsigned long long)height + (unsigned long long)depth);
         mmgr_line_put(out, *written ? ",{\"page\":" : "{\"page\":");
         *written = 1;
-        mmgr_line_decimal(out, page, 1u);
+        mmgr_line_decimal(out, args->page, 1u);
         mmgr_line_put(out, ",\"file\":");
-        cli_json_quoted_lossy(out, (const unsigned char *)file,
-                              cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)file,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}));
         mmgr_line_put(out, ",\"x\":");
-        cli_json_double(out, latex_points(done->x, scale->x_offset, scale));
+        EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = out,
+                   .value_f64 = EMBED_CALL(latex_points, LatexSyncCtx, .value_value = args->done->x,
+                                           .offset = args->scale->x_offset, .scale = args->scale));
         mmgr_line_put(out, ",\"y\":");
-        cli_json_double(out, latex_points(top, scale->y_offset, scale));
+        EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = out,
+                   .value_f64 = EMBED_CALL(latex_points, LatexSyncCtx, .value_value = top,
+                                           .offset = args->scale->y_offset, .scale = args->scale));
         mmgr_line_put(out, ",\"w\":");
-        cli_json_double(out, latex_points(width, 0.0, scale));
+        EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = out,
+                   .value_f64 = EMBED_CALL(latex_points, LatexSyncCtx, .value_value = width, .offset = 0.0,
+                                           .scale = args->scale));
         mmgr_line_put(out, ",\"h\":");
-        cli_json_double(out, latex_points(tall, 0.0, scale));
+        EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = out,
+                   .value_f64 = EMBED_CALL(latex_points, LatexSyncCtx, .value_value = tall, .offset = 0.0,
+                                           .scale = args->scale));
         mmgr_line_put(out, ",\"lines\":[");
         int first = 1;
         unsigned long long last = 0ull;
-        for (unsigned int at = mark; at < marks; at += 1u)
+        for (unsigned int at = mark; at < args->marks; at += 1u)
         {
             const CliTexMark *const read = &g_cli_latex->marks[at];
             if ((read->tag != tag) || (!first && (read->line == last)))
@@ -217,7 +287,9 @@ static void latex_box_written(const CliTexOpen *done, unsigned int marks, unsign
                 continue;
             }
             mmgr_line_put(out, first ? "[" : ",[");
-            cli_json_double(out, latex_points(read->x, scale->x_offset, scale));
+            EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = out,
+                       .value_f64 = EMBED_CALL(latex_points, LatexSyncCtx, .value_value = read->x,
+                                               .offset = args->scale->x_offset, .scale = args->scale));
             mmgr_line_ch(out, ',');
             mmgr_line_decimal(out, read->line, 1u);
             mmgr_line_ch(out, ']');
@@ -229,31 +301,36 @@ static void latex_box_written(const CliTexOpen *done, unsigned int marks, unsign
 }
 
 // a line of the preamble read: the scale it sets, and 1 into `content` where it opens the content
-static void latex_preamble_read(const char *line, unsigned long long size, CliTexScale *scale, int *content)
+EMBED_INLINE void latex_preamble_read(const LatexSyncCtx *args)
 {
+    int *content = args->content;
     static const char *const heads[4] = {"Unit:", "Magnification:", "X Offset:", "Y Offset:"};
-    double *const values[4] = {&scale->unit, &scale->magnification, &scale->x_offset, &scale->y_offset};
+    double *const values[4] = {&args->scale_out->unit, &args->scale_out->magnification, &args->scale_out->x_offset,
+                               &args->scale_out->y_offset};
     for (unsigned int head = 0u; head < 4u; head += 1u)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = heads[head], .cap = CLI_CELLS_POOL});
-        if ((size < length) || (memor.cmp(&(MemoriaCfg){.src = line, .other = heads[head], .bytes = length}) != 0))
+        if ((args->size_value < length) ||
+            (memor.cmp(&(MemoriaCfg){.src = args->line, .other = heads[head], .bytes = length}) != 0))
         {
             continue;
         }
         unsigned long long from = length;
-        unsigned long long rest = size - length;
-        latex_trimmed(line, &from, &rest);
+        unsigned long long rest = args->size_value - length;
+        EMBED_CALL(latex_trim, LatexSyncCtx, .text = args->line, .start = &from, .size = &rest);
         double value = 0.0;
-        if (cli_tex_double(line + from, rest, &value))
+        if (EMBED_CALL(cli_latex_text_length_value_internal.tex_double, CliLatexTextLengthValueCtx,
+                       .text = args->line + from, .length = rest, .value = &value))
         {
             *values[head] = value;
             break;
         }
     }
-    *content = (size >= 8ull) && (memor.cmp(&(MemoriaCfg){.src = line, .other = "Content:", .bytes = 8u}) == 0);
+    *content = (args->size_value >= 8ull) &&
+               (memor.cmp(&(MemoriaCfg){.src = args->line, .other = "Content:", .bytes = 8u}) == 0);
 }
 
-void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliTexNames *names, VerbaLinea *out)
+void cli_tex_boxes_write(const CliLatexNamesCtx *args)
 {
     CliTexScale scale = {1.0, 1000.0, 0.0, 0.0};
     unsigned long long page = 0ull;
@@ -266,18 +343,21 @@ void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliT
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
     unsigned long long length = 0ull;
-    mmgr_line_ch(out, '[');
-    while (cli_tex_line(sync, size, &at, &start, &length))
+    mmgr_line_ch(args->out, '[');
+    while (EMBED_CALL(cli_latex_text_internal.tex_line, CliLatexTextCtx, .text = args->sync, .length = args->size,
+                      .at = &at, .start = &start, .size_pointer = &length))
     {
-        const char *const line = sync + start;
+        const char *const line = args->sync + start;
         if ((length >= 6ull) && (memor.cmp(&(MemoriaCfg){.src = line, .other = "Input:", .bytes = 6u}) == 0))
         {
-            latex_input_stored(line + 6ull, length - 6ull, names, &files, &used);
+            EMBED_CALL(latex_input_store, LatexSyncCtx, .rest = line + 6ull, .length = length - 6ull,
+                       .names = args->names, .files_pointer = &files, .used = &used);
             continue;
         }
         if (!content)
         {
-            latex_preamble_read(line, length, &scale, &content);
+            EMBED_CALL(latex_preamble_read, LatexSyncCtx, .line = line, .size_value = length, .scale_out = &scale,
+                       .content = &content);
             continue;
         }
         if (length == 0ull)
@@ -292,9 +372,12 @@ void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliT
         case '{': {
             unsigned long long from = 0ull;
             unsigned long long count = rest_size;
-            latex_trimmed(rest, &from, &count);
+            EMBED_CALL(latex_trim, LatexSyncCtx, .text = rest, .start = &from, .size = &count);
             unsigned long long number = 0ull;
-            page = cli_tex_count(rest + from, count, ~0ull, &number) ? number : page + 1ull;
+            page = EMBED_CALL(cli_latex_text_length_internal.tex_count, CliLatexTextLengthCtx, .text = rest + from,
+                              .length = count, .most = ~0ull, .value_u64s = &number)
+                       ? number
+                       : page + 1ull;
             open = 0u;
             marks = 0u;
             break;
@@ -304,7 +387,8 @@ void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliT
             marks = 0u;
             break;
         case '(':
-            if ((open < CLI_LATEX_OPEN) && latex_record(rest, rest_size, &read))
+            if ((open < CLI_LATEX_OPEN) &&
+                EMBED_CALL(latex_record, LatexSyncCtx, .text = rest, .length = rest_size, .record = &read))
             {
                 g_cli_latex->open[open] =
                     (CliTexOpen){read.x, read.y, {read.size[0], read.size[1], read.size[2]}, marks};
@@ -315,7 +399,8 @@ void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliT
             if (open > 0u)
             {
                 open -= 1u;
-                latex_box_written(&g_cli_latex->open[open], marks, page, files, &scale, &written, out);
+                EMBED_CALL(latex_box_write, LatexSyncCtx, .done = &g_cli_latex->open[open], .marks = marks,
+                           .page = page, .files = files, .scale = &scale, .written = &written, .out = args->out);
                 marks = g_cli_latex->open[open].marks;
             }
             break;
@@ -325,7 +410,9 @@ void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliT
         case '$':
         case 'h':
         case 'v':
-            if ((open > 0u) && (marks < CLI_LATEX_MARKS) && latex_record(rest, rest_size, &read) && (read.line > 0ull))
+            if ((open > 0u) && (marks < CLI_LATEX_MARKS) &&
+                EMBED_CALL(latex_record, LatexSyncCtx, .text = rest, .length = rest_size, .record = &read) &&
+                (read.line > 0ull))
             {
                 g_cli_latex->marks[marks] = (CliTexMark){read.tag, read.x, read.line};
                 marks += 1u;
@@ -335,5 +422,5 @@ void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliT
             break;
         }
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
 }

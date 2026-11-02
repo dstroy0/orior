@@ -10,12 +10,6 @@
 #include "../text/text.h"
 #include "fill_internal.h"
 
-// the bytes a tag line's head, its hanging lead and the comment's lead each occupy
-#define CLI_FILL_LINE_ROOM (1u << 16u)
-
-// the tags whose first word after a type is a name
-static const char *const s_named_tags[7] = {"param", "arg", "argument", "property", "prop", "template", "typedef"};
-
 // A tag of a run: the tag, its type in braces, its name, and its description
 typedef struct
 {
@@ -28,6 +22,11 @@ typedef struct
     const char *description;
     unsigned long long description_size;
 } CliFillTag;
+// the bytes a tag line's head, its hanging lead and the comment's lead each occupy
+#define CLI_FILL_LINE_ROOM (1u << 16u)
+
+// the tags whose first word after a type is a name
+static const char *const s_named_tags[7] = {"param", "arg", "argument", "property", "prop", "template", "typedef"};
 
 // A fill's room, parts of one cell taken for the comment filled, sized to its lines and bytes, and given back as the
 // fill ends: each part's first line among the comment's lines and its count, 0 for a blank line between parts; each
@@ -48,95 +47,149 @@ typedef struct
 static CliFillRoom s_room;
 static CliFillRoom *s_fill;
 
-int cli_fill_comment_locked(VerbaLinea *err_msg)
+int cli_fill_comment_lock(const CliFillCtx *args)
 {
-    (void)err_msg;
+    (void)args;
     s_fill = &s_room;
     return 1;
 }
 
-void cli_fill_comment_released(void)
+void cli_fill_comment_release(void)
 {
     s_fill = NULL;
 }
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
-static void *comment_part(unsigned char **at, unsigned long long bytes)
+typedef struct
 {
+    unsigned char **at;
+    unsigned long long bytes;
+    unsigned int lines;
+    VerbaLinea *err_msg;
+    const char *text;
+    const CliFillLine *line_fill_line_pointer;
+    unsigned long long *size_pointer;
+    unsigned long long size;
+    const CliFillLine *at_fill_line_pointer;
+    CliFillLine *first;
+    CliFillLine *last;
+    unsigned int count;
+    const char *line;
+    int stored;
+    const CliFillLine *first_read;
+    const CliFillLine *last_read;
+    unsigned long long *tag_size;
+    const char **kind;
+    unsigned long long *kind_size;
+    CliFillTag *tag;
+    VerbaLinea *out;
+    unsigned long long width;
+    unsigned int part;
+    unsigned long long *used;
+    CliFilled *filled;
+    unsigned int *part_pointer;
+    unsigned int parts;
+    const char *lead;
+    unsigned long long lead_size;
+    unsigned int width_u32;
+} FillCommentCtx;
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
+EMBED_INLINE void *comment_part(const FillCommentCtx *args)
+{
+    unsigned char **at = args->at;
     void *const part = *at;
-    *at += (bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ull) & ~7ull;
     return part;
 }
 
 // the fill's cell taken for a comment of `lines` lines and `bytes` bytes and the room's parts set into it: the cell,
 // or NULL with why given where it is refused
-static void *comment_room_taken(unsigned int lines, unsigned long long bytes, VerbaLinea *err_msg)
+EMBED_INLINE void *comment_room_take(const FillCommentCtx *args)
 {
-    const unsigned long long joined = bytes + lines + 1ull;
-    const unsigned long long size = ((unsigned long long)lines * ((2ull * sizeof(unsigned int)) + sizeof(CliFillTag))) +
-                                    joined + (3ull * CLI_FILL_LINE_ROOM) + (8ull * 8ull);
+    const unsigned long long joined = args->bytes + args->lines + 1ull;
+    const unsigned long long size =
+        ((unsigned long long)args->lines * ((2ull * sizeof(unsigned int)) + sizeof(CliFillTag))) + joined +
+        (3ull * CLI_FILL_LINE_ROOM) + (8ull * 8ull);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(size, &g_cli_editor_cells);
     if (cell == NULL)
     {
-        mmgr_line_put(err_msg, "a comment's fill could not be taken");
+        mmgr_line_put(args->err_msg, "a comment's fill could not be taken");
         return NULL;
     }
     unsigned char *at = cell;
-    s_fill->part_first = comment_part(&at, (unsigned long long)lines * sizeof(unsigned int));
-    s_fill->part_lines = comment_part(&at, (unsigned long long)lines * sizeof(unsigned int));
-    s_fill->parts_most = lines;
-    s_fill->tag = comment_part(&at, (unsigned long long)lines * sizeof(CliFillTag));
-    s_fill->joined = comment_part(&at, joined);
+    s_fill->part_first = EMBED_CALL(comment_part, FillCommentCtx, .at = &at,
+                                    .bytes = (unsigned long long)args->lines * sizeof(unsigned int));
+    s_fill->part_lines = EMBED_CALL(comment_part, FillCommentCtx, .at = &at,
+                                    .bytes = (unsigned long long)args->lines * sizeof(unsigned int));
+    s_fill->parts_most = args->lines;
+    s_fill->tag = EMBED_CALL(comment_part, FillCommentCtx, .at = &at,
+                             .bytes = (unsigned long long)args->lines * sizeof(CliFillTag));
+    s_fill->joined = EMBED_CALL(comment_part, FillCommentCtx, .at = &at, .bytes = joined);
     s_fill->joined_most = joined;
-    s_fill->head = comment_part(&at, CLI_FILL_LINE_ROOM);
-    s_fill->hang = comment_part(&at, CLI_FILL_LINE_ROOM);
-    s_fill->lead = comment_part(&at, CLI_FILL_LINE_ROOM);
+    s_fill->head = EMBED_CALL(comment_part, FillCommentCtx, .at = &at, .bytes = CLI_FILL_LINE_ROOM);
+    s_fill->hang = EMBED_CALL(comment_part, FillCommentCtx, .at = &at, .bytes = CLI_FILL_LINE_ROOM);
+    s_fill->lead = EMBED_CALL(comment_part, FillCommentCtx, .at = &at, .bytes = CLI_FILL_LINE_ROOM);
     return cell;
 }
 
 // the start of a line's text, its whitespace taken off
-static const char *comment_trimmed_start(const char *text, const CliFillLine *line, unsigned long long *size)
+EMBED_INLINE const char *comment_trimmed_start(const FillCommentCtx *args)
 {
-    const unsigned long long lead = cli_text_lead(text + line->start, line->end - line->start);
-    *size = line->end - line->start - lead;
-    return text + line->start + lead;
+    const char *text = args->text;
+    unsigned long long *size = args->size_pointer;
+    const unsigned long long lead = EMBED_CALL(
+        cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = text + args->line_fill_line_pointer->start,
+        .size = args->line_fill_line_pointer->end - args->line_fill_line_pointer->start);
+    *size = args->line_fill_line_pointer->end - args->line_fill_line_pointer->start - lead;
+    return text + args->line_fill_line_pointer->start + lead;
 }
 
 // the bounds of the comment around `at`, its opening line and its closing line: 1, or 0 where `at` is in none
-static int comment_bounds(const char *text, unsigned long long size, const CliFillLine *at, CliFillLine *first,
-                          CliFillLine *last)
+EMBED_INLINE int comment_bounds(const FillCommentCtx *args)
 {
-    *first = *at;
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    CliFillLine *first = args->first;
+    CliFillLine *last = args->last;
+    *first = *args->at_fill_line_pointer;
     for (;;)
     {
         unsigned long long length = 0ull;
-        const char *const line = comment_trimmed_start(text, first, &length);
-        if (cli_text_starts(line, length, "/*"))
+        const char *const line = EMBED_CALL(comment_trimmed_start, FillCommentCtx, .text = text,
+                                            .line_fill_line_pointer = first, .size_pointer = &length);
+        if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = line, .size = length, .prefix = "/*"))
         {
             break;
         }
-        if (!cli_text_starts(line, length, "*") ||
-            (cli_text_starts(line, length, "*/") && (first->index != at->index)) || (first->index == 0u))
+        if (!EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = line, .size = length,
+                        .prefix = "*") ||
+            (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = line, .size = length,
+                        .prefix = "*/") &&
+             (first->index != args->at_fill_line_pointer->index)) ||
+            (first->index == 0u))
         {
             return 0;
         }
-        (void)cli_fill_before(text, first);
+        (void)EMBED_CALL(cli_fill_text_size_internal.before, CliFillTextSizeCtx, .text = text, .line = first);
     }
-    *last = *at;
+    *last = *args->at_fill_line_pointer;
     for (;;)
     {
-        const unsigned long long end = cli_text_trimmed_end(text + last->start, last->end - last->start);
-        if (cli_text_ends(text + last->start, end, "*/"))
+        const unsigned long long end = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg,
+                                                  .text = text + last->start, .size = last->end - last->start);
+        if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = text + last->start, .size = end,
+                       .suffix = "*/"))
         {
             break;
         }
-        if (!cli_fill_after(text, size, last))
+        if (!EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx, .text = text, .size = size,
+                        .line = last))
         {
             return 0;
         }
         unsigned long long length = 0ull;
-        const char *const line = comment_trimmed_start(text, last, &length);
-        if (!cli_text_starts(line, length, "*"))
+        const char *const line = EMBED_CALL(comment_trimmed_start, FillCommentCtx, .text = text,
+                                            .line_fill_line_pointer = last, .size_pointer = &length);
+        if (!EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = line, .size = length, .prefix = "*"))
         {
             return 0;
         }
@@ -146,72 +199,90 @@ static int comment_bounds(const char *text, unsigned long long size, const CliFi
 
 // a comment's line put among its lines where it is retained, one place left after them for a description: their count
 // after
-static unsigned int comment_body_put(unsigned int count, const char *line, unsigned long long size, int stored)
+EMBED_INLINE unsigned int comment_body_put(const FillCommentCtx *args)
 {
-    if (stored && (count + 1u < g_cli_fill_slices))
+    if (args->stored && (args->count + 1u < g_cli_fill_slices))
     {
-        g_cli_fill_slice[count] = line;
-        g_cli_fill_slice_size[count] = size;
-        return count + 1u;
+        g_cli_fill_slice[args->count] = args->line;
+        g_cli_fill_slice_size[args->count] = args->size;
+        return args->count + 1u;
     }
-    return count;
+    return args->count;
 }
 
 // the comment's lines between `first` and `last`, each without its star, the opening and closing lines' text where
 // they contain any: their count
-static unsigned int comment_body(const char *text, unsigned long long size, const CliFillLine *first,
-                                 const CliFillLine *last)
+EMBED_INLINE unsigned int comment_body(const FillCommentCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    cli_text_trimmed(text + first->start, first->end - first->start, &from, &to);
-    const char *open = text + first->start + from;
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + args->first_read->start,
+               .size = args->first_read->end - args->first_read->start, .from_u64s = &from, .to_u64s = &to);
+    const char *open = text + args->first_read->start + from;
     unsigned long long open_size = to - from;
     {
-        const unsigned long long lead = cli_text_past_any(open, 0ull, open_size, "/");
+        const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                                                   .text = open, .at = 0ull, .size = open_size, .set = "/");
         open += lead;
         open_size -= lead;
     }
     {
-        const unsigned long long lead = cli_text_past_any(open, 0ull, open_size, "*");
+        const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                                                   .text = open, .at = 0ull, .size = open_size, .set = "*");
         open += lead;
         open_size -= lead;
     }
-    cli_text_trimmed(open, open_size, &from, &to);
-    unsigned int count = comment_body_put(0u, open + from, to - from, to > from);
-    CliFillLine line = *first;
-    while (cli_fill_after(text, size, &line) && (line.index < last->index))
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = open, .size = open_size,
+               .from_u64s = &from, .to_u64s = &to);
+    unsigned int count = EMBED_CALL(comment_body_put, FillCommentCtx, .count = 0u, .line = open + from,
+                                    .size = to - from, .stored = to > from);
+    CliFillLine line = *args->first_read;
+    while (
+        EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx, .text = text, .size = size, .line = &line) &&
+        (line.index < args->last_read->index))
     {
         unsigned long long length = 0ull;
-        const char *body = comment_trimmed_start(text, &line, &length);
+        const char *body = EMBED_CALL(comment_trimmed_start, FillCommentCtx, .text = text,
+                                      .line_fill_line_pointer = &line, .size_pointer = &length);
         {
-            const unsigned long long lead = cli_text_past_any(body, 0ull, length, "*");
+            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                                                       .text = body, .at = 0ull, .size = length, .set = "*");
             body += lead;
             length -= lead;
         }
-        cli_text_trimmed(body, length, &from, &to);
-        count = comment_body_put(count, body + from, to - from, 1);
+        EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = body, .size = length,
+                   .from_u64s = &from, .to_u64s = &to);
+        count = EMBED_CALL(comment_body_put, FillCommentCtx, .count = count, .line = body + from, .size = to - from,
+                           .stored = 1);
     }
-    cli_text_trimmed(text + last->start, last->end - last->start, &from, &to);
-    const char *close = text + last->start + from;
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + args->last_read->start,
+               .size = args->last_read->end - args->last_read->start, .from_u64s = &from, .to_u64s = &to);
+    const char *close = text + args->last_read->start + from;
     unsigned long long close_size = to - from;
-    close_size = cli_text_back_past(close, close_size, "/");
-    close_size = cli_text_back_past(close, close_size, "*");
+    close_size = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = close,
+                            .at = close_size, .set = "/");
+    close_size = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = close,
+                            .at = close_size, .set = "*");
     {
-        const unsigned long long lead = cli_text_past_any(close, 0ull, close_size, "*");
+        const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                                                   .text = close, .at = 0ull, .size = close_size, .set = "*");
         close += lead;
         close_size -= lead;
     }
-    cli_text_trimmed(close, close_size, &from, &to);
-    return comment_body_put(count, close + from, to - from, to > from);
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = close, .size = close_size,
+               .from_u64s = &from, .to_u64s = &to);
+    return EMBED_CALL(comment_body_put, FillCommentCtx, .count = count, .line = close + from, .size = to - from,
+                      .stored = to > from);
 }
 
 // the comment's lines split into parts: each blank line a part of no lines, each tag the start of a part, and each
 // other line put on the part before it where that contains lines: their count
-static unsigned int comment_parts(unsigned int lines)
+EMBED_INLINE unsigned int comment_parts(const FillCommentCtx *args)
 {
     unsigned int count = 0u;
-    for (unsigned int at = 0u; at < lines; at += 1u)
+    for (unsigned int at = 0u; at < args->lines; at += 1u)
     {
         const int blank = (g_cli_fill_slice_size[at] == 0u);
         const int tag = !blank && (g_cli_fill_slice[at][0] == '@');
@@ -231,32 +302,41 @@ static unsigned int comment_parts(unsigned int lines)
 
 // the kind of the tag a part of `size` bytes starts with: its tag, its first word, into `tag`, and its kind, the tag
 // without its `@`, into `kind`
-static void comment_tag_of(const char *line, unsigned long long size, unsigned long long *tag_size, const char **kind,
-                           unsigned long long *kind_size)
+EMBED_INLINE void comment_tag_get(const FillCommentCtx *args)
 {
+    unsigned long long size = args->size;
+    unsigned long long *tag_size = args->tag_size;
+    const char **kind = args->kind;
+    unsigned long long *kind_size = args->kind_size;
     unsigned long long walk = 0ull;
     unsigned long long word = 0ull;
     *tag_size = 0ull;
-    (void)cli_text_word(line, size, &walk, &word, tag_size);
-    *kind = line;
+    (void)EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = args->line, .size = size,
+                     .at_pointer = &walk, .word = &word, .length = tag_size);
+    *kind = args->line;
     *kind_size = *tag_size;
     {
-        const unsigned long long lead = cli_text_past_any(*kind, 0ull, *kind_size, "@");
+        const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                                                   .text = *kind, .at = 0ull, .size = *kind_size, .set = "@");
         *kind += lead;
         *kind_size -= lead;
     }
 }
 
 // a tag of `size` bytes split into its parts
-static void comment_split_tag(const char *line, unsigned long long size, CliFillTag *tag)
+EMBED_INLINE void comment_split_tag(const FillCommentCtx *args)
 {
+    unsigned long long size = args->size;
+    CliFillTag *tag = args->tag;
     const char *kind = NULL;
     unsigned long long kind_size = 0ull;
-    comment_tag_of(line, size, &tag->tag_size, &kind, &kind_size);
-    tag->tag = line;
-    const char *rest = line + tag->tag_size;
+    EMBED_CALL(comment_tag_get, FillCommentCtx, .line = args->line, .size = size, .tag_size = &tag->tag_size,
+               .kind = &kind, .kind_size = &kind_size);
+    tag->tag = args->line;
+    const char *rest = args->line + tag->tag_size;
     unsigned long long rest_size = size - tag->tag_size;
-    unsigned long long skipped = cli_text_lead(rest, rest_size);
+    unsigned long long skipped =
+        EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = rest, .size = rest_size);
     rest += skipped;
     rest_size -= skipped;
     tag->kind = rest;
@@ -279,7 +359,8 @@ static void comment_split_tag(const char *line, unsigned long long size, CliFill
             tag->kind_size = end;
             rest += end;
             rest_size -= end;
-            skipped = cli_text_lead(rest, rest_size);
+            skipped =
+                EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = rest, .size = rest_size);
             rest += skipped;
             rest_size -= skipped;
         }
@@ -293,45 +374,55 @@ static void comment_split_tag(const char *line, unsigned long long size, CliFill
         {
             unsigned long long walk = 0ull;
             unsigned long long word = 0ull;
-            (void)cli_text_word(rest, rest_size, &walk, &word, &tag->name_size);
+            (void)EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = rest, .size = rest_size,
+                             .at_pointer = &walk, .word = &word, .length = &tag->name_size);
             rest += tag->name_size;
             rest_size -= tag->name_size;
-            skipped = cli_text_lead(rest, rest_size);
+            skipped =
+                EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = rest, .size = rest_size);
             rest += skipped;
             rest_size -= skipped;
             break;
         }
     }
     {
-        const unsigned long long lead = cli_text_past_any(rest, 0ull, rest_size, "-");
+        const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                                                   .text = rest, .at = 0ull, .size = rest_size, .set = "-");
         rest += lead;
         rest_size -= lead;
     }
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    cli_text_trimmed(rest, rest_size, &from, &to);
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = rest, .size = rest_size,
+               .from_u64s = &from, .to_u64s = &to);
     tag->description = rest + from;
     tag->description_size = to - from;
 }
 
 // `size` bytes of `text` written padded with spaces to `width` letters
-static void comment_padded(VerbaLinea *out, const char *text, unsigned long long size, unsigned long long width)
+EMBED_INLINE void comment_pad(const FillCommentCtx *args)
 {
-    mmgr_line_put_n(out, text, size);
-    for (unsigned long long letters = cli_text_letters(text, size); letters < width; letters += 1u)
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    mmgr_line_put_n(args->out, text, size);
+    for (unsigned long long letters =
+             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text, .size = size);
+         letters < args->width; letters += 1u)
     {
-        mmgr_line_ch(out, ' ');
+        mmgr_line_ch(args->out, ' ');
     }
 }
 
 // the part at `part` of the comment's lines joined by spaces into the room from `*used`: its start and size
-static const char *comment_joined(unsigned int part, unsigned long long *used, unsigned long long *size)
+EMBED_INLINE const char *comment_join(const FillCommentCtx *args)
 {
+    unsigned long long *used = args->used;
+    unsigned long long *size = args->size_pointer;
     char *const start = s_fill->joined + *used;
     VerbaLinea line = {start, s_fill->joined_most - *used, 0ull};
-    for (unsigned int at = 0u; at < s_fill->part_lines[part]; at += 1u)
+    for (unsigned int at = 0u; at < s_fill->part_lines[args->part]; at += 1u)
     {
-        const unsigned int index = s_fill->part_first[part] + at;
+        const unsigned int index = s_fill->part_first[args->part] + at;
         mmgr_line_put(&line, (at > 0u) ? " " : "");
         mmgr_line_put_n(&line, g_cli_fill_slice[index], g_cli_fill_slice_size[index]);
     }
@@ -345,41 +436,47 @@ static const char *comment_joined(unsigned int part, unsigned long long *used, u
 }
 
 // the run of tags of one kind from the part at `*part`, lined up and written, `*part` past it
-static void comment_run(CliFilled *filled, unsigned int *part, unsigned int parts, const char *lead,
-                        unsigned long long lead_size, unsigned int width, unsigned int lines)
+EMBED_INLINE void comment_run(const FillCommentCtx *args)
 {
+    CliFilled *filled = args->filled;
+    unsigned int *part = args->part_pointer;
+    unsigned int width = args->width_u32;
     const char *kind = NULL;
     unsigned long long kind_size = 0ull;
     unsigned long long tag_size = 0ull;
     const unsigned int head_line = s_fill->part_first[*part];
-    comment_tag_of(g_cli_fill_slice[head_line], g_cli_fill_slice_size[head_line], &tag_size, &kind, &kind_size);
+    EMBED_CALL(comment_tag_get, FillCommentCtx, .line = g_cli_fill_slice[head_line],
+               .size = g_cli_fill_slice_size[head_line], .tag_size = &tag_size, .kind = &kind, .kind_size = &kind_size);
     unsigned int count = 0u;
     unsigned long long used = 0ull;
     unsigned long long widths[3] = {0ull, 0ull, 0ull};
-    while ((*part < parts) && (s_fill->part_lines[*part] > 0u) &&
+    while ((*part < args->parts) && (s_fill->part_lines[*part] > 0u) &&
            (g_cli_fill_slice[s_fill->part_first[*part]][0] == '@'))
     {
         const char *other = NULL;
         unsigned long long other_size = 0ull;
         const unsigned int line = s_fill->part_first[*part];
-        comment_tag_of(g_cli_fill_slice[line], g_cli_fill_slice_size[line], &tag_size, &other, &other_size);
+        EMBED_CALL(comment_tag_get, FillCommentCtx, .line = g_cli_fill_slice[line], .size = g_cli_fill_slice_size[line],
+                   .tag_size = &tag_size, .kind = &other, .kind_size = &other_size);
         if ((other_size != kind_size) ||
             (memor.cmp(&(MemoriaCfg){.src = other, .other = kind, .bytes = (size_t)kind_size}) != 0))
         {
             break;
         }
         unsigned long long size = 0ull;
-        const char *const joined = comment_joined(*part, &used, &size);
+        const char *const joined =
+            EMBED_CALL(comment_join, FillCommentCtx, .part = *part, .used = &used, .size_pointer = &size);
         *part += 1u;
         if (joined == NULL)
         {
             continue;
         }
         CliFillTag *const tag = &s_fill->tag[count];
-        comment_split_tag(joined, size, tag);
-        const unsigned long long letters[3] = {cli_text_letters(tag->tag, tag->tag_size),
-                                               cli_text_letters(tag->kind, tag->kind_size),
-                                               cli_text_letters(tag->name, tag->name_size)};
+        EMBED_CALL(comment_split_tag, FillCommentCtx, .line = joined, .size = size, .tag = tag);
+        const unsigned long long letters[3] = {
+            EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = tag->tag, .size = tag->tag_size),
+            EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = tag->kind, .size = tag->kind_size),
+            EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = tag->name, .size = tag->name_size)};
         for (unsigned int at = 0u; at < 3u; at += 1u)
         {
             widths[at] = (letters[at] > widths[at]) ? letters[at] : widths[at];
@@ -390,52 +487,65 @@ static void comment_run(CliFilled *filled, unsigned int *part, unsigned int part
     {
         const CliFillTag *const tag = &s_fill->tag[at];
         VerbaLinea head = {s_fill->head, CLI_FILL_LINE_ROOM, 0ull};
-        mmgr_line_put_n(&head, lead, lead_size);
-        comment_padded(&head, tag->tag, tag->tag_size, widths[0]);
+        mmgr_line_put_n(&head, args->lead, args->lead_size);
+        EMBED_CALL(comment_pad, FillCommentCtx, .out = &head, .text = tag->tag, .size = tag->tag_size,
+                   .width = widths[0]);
         if (widths[1] > 0u)
         {
             mmgr_line_ch(&head, ' ');
-            comment_padded(&head, tag->kind, tag->kind_size, widths[1]);
+            EMBED_CALL(comment_pad, FillCommentCtx, .out = &head, .text = tag->kind, .size = tag->kind_size,
+                       .width = widths[1]);
         }
         if (widths[2] > 0u)
         {
             mmgr_line_ch(&head, ' ');
-            comment_padded(&head, tag->name, tag->name_size, widths[2]);
+            EMBED_CALL(comment_pad, FillCommentCtx, .out = &head, .text = tag->name, .size = tag->name_size,
+                       .width = widths[2]);
         }
         if (tag->description_size == 0u)
         {
-            cli_filled_line(filled, s_fill->head, cli_text_trimmed_end(s_fill->head, head.at));
+            EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = filled, .bytes = s_fill->head,
+                       .size = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = s_fill->head,
+                                          .size = head.at));
             continue;
         }
         mmgr_line_ch(&head, ' ');
         VerbaLinea hang = {s_fill->hang, CLI_FILL_LINE_ROOM, 0ull};
-        mmgr_line_put_n(&hang, lead, lead_size);
-        for (unsigned long long letters = cli_text_letters(lead, lead_size);
-             letters < cli_text_letters(s_fill->head, head.at); letters += 1u)
+        mmgr_line_put_n(&hang, args->lead, args->lead_size);
+        for (unsigned long long letters = EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->lead,
+                                                     .size = args->lead_size);
+             letters <
+             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = s_fill->head, .size = head.at);
+             letters += 1u)
         {
             mmgr_line_ch(&hang, ' ');
         }
-        g_cli_fill_slice[lines] = tag->description;
-        g_cli_fill_slice_size[lines] = tag->description_size;
-        cli_fill_words(filled, lines, 1u, s_fill->head, head.at, s_fill->hang, hang.at, width);
+        g_cli_fill_slice[args->lines] = tag->description;
+        g_cli_fill_slice_size[args->lines] = tag->description_size;
+        EMBED_CALL(cli_fill_filled_internal.words, CliFillFilledCtx, .filled = filled, .slice = args->lines,
+                   .count = 1u, .first = s_fill->head, .first_size = head.at, .rest = s_fill->hang,
+                   .rest_size = hang.at, .width = width);
     }
 }
 
-int cli_fill_comment(const char *text, unsigned long long size, const CliFillLine *at, unsigned int width,
-                     CliFilled *filled, CliTextEdit *edit)
+int cli_fill_comment(const CliFillTextCtx *args)
 {
-    CliFillLine first = *at;
-    CliFillLine last = *at;
-    if (!comment_bounds(text, size, at, &first, &last))
+    CliFillLine first = *args->at;
+    CliFillLine last = *args->at;
+    if (!EMBED_CALL(comment_bounds, FillCommentCtx, .text = args->text, .size = args->size,
+                    .at_fill_line_pointer = args->at, .first = &first, .last = &last))
     {
         return 0;
     }
-    const char *const indent = text + first.start;
-    const unsigned long long indent_size = cli_text_lead(indent, first.end - first.start);
-    const unsigned int lines = comment_body(text, size, &first, &last);
+    const char *const indent = args->text + first.start;
+    const unsigned long long indent_size = EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg,
+                                                      .text = indent, .size = first.end - first.start);
+    const unsigned int lines = EMBED_CALL(comment_body, FillCommentCtx, .text = args->text, .size = args->size,
+                                          .first_read = &first, .last_read = &last);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    void *const cell = comment_room_taken(lines, last.end - first.start, &err_msg);
+    void *const cell = EMBED_CALL(comment_room_take, FillCommentCtx, .lines = lines, .bytes = last.end - first.start,
+                                  .err_msg = &err_msg);
     if (cell == NULL)
     {
         return 0;
@@ -443,54 +553,64 @@ int cli_fill_comment(const char *text, unsigned long long size, const CliFillLin
     VerbaLinea lead = {s_fill->lead, CLI_FILL_LINE_ROOM, 0ull};
     mmgr_line_put_n(&lead, indent, indent_size);
     mmgr_line_put(&lead, " * ");
-    const unsigned int parts = comment_parts(lines);
-    cli_filled_line(filled, indent, indent_size);
-    mmgr_line_put(filled->out, "/**");
+    const unsigned int parts = EMBED_CALL(comment_parts, FillCommentCtx, .lines = lines);
+    EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = args->filled, .bytes = indent,
+               .size = indent_size);
+    mmgr_line_put(args->filled->out, "/**");
     for (unsigned int part = 0u; part < parts;)
     {
         if (s_fill->part_lines[part] == 0u)
         {
             unsigned long long last_size = 0ull;
-            const char *const written = cli_filled_last(filled, &last_size);
+            const char *const written = EMBED_CALL(cli_fill_filled_size_internal.filled_last, CliFillFilledSizeCtx,
+                                                   .filled_read = args->filled, .size_pointer = &last_size);
             unsigned long long from = 0ull;
             unsigned long long to = 0ull;
-            cli_text_trimmed(written, last_size, &from, &to);
+            EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = written, .size = last_size,
+                       .from_u64s = &from, .to_u64s = &to);
             const int star = (to - from == 1u) && (written[from] == '*');
             const int open = (to - from == 3u) &&
                              (memor.cmp(&(MemoriaCfg){.src = written + from, .other = "/**", .bytes = 3u}) == 0);
             if (!star && !open)
             {
-                cli_filled_line(filled, indent, indent_size);
-                mmgr_line_put(filled->out, " *");
+                EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = args->filled, .bytes = indent,
+                           .size = indent_size);
+                mmgr_line_put(args->filled->out, " *");
             }
             part += 1u;
             continue;
         }
         if (g_cli_fill_slice[s_fill->part_first[part]][0] != '@')
         {
-            cli_fill_words(filled, s_fill->part_first[part], s_fill->part_lines[part], s_fill->lead, lead.at,
-                           s_fill->lead, lead.at, width);
+            EMBED_CALL(cli_fill_filled_internal.words, CliFillFilledCtx, .filled = args->filled,
+                       .slice = s_fill->part_first[part], .count = s_fill->part_lines[part], .first = s_fill->lead,
+                       .first_size = lead.at, .rest = s_fill->lead, .rest_size = lead.at, .width = args->width);
             part += 1u;
             continue;
         }
-        comment_run(filled, &part, parts, s_fill->lead, lead.at, width, lines);
+        EMBED_CALL(comment_run, FillCommentCtx, .filled = args->filled, .part_pointer = &part, .parts = parts,
+                   .lead = s_fill->lead, .lead_size = lead.at, .width_u32 = args->width, .lines = lines);
     }
     for (;;)
     {
         unsigned long long last_size = 0ull;
-        const char *const written = cli_filled_last(filled, &last_size);
+        const char *const written = EMBED_CALL(cli_fill_filled_size_internal.filled_last, CliFillFilledSizeCtx,
+                                               .filled_read = args->filled, .size_pointer = &last_size);
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
-        cli_text_trimmed(written, last_size, &from, &to);
+        EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = written, .size = last_size,
+                   .from_u64s = &from, .to_u64s = &to);
         if ((to - from != 1u) || (written[from] != '*'))
         {
             break;
         }
-        cli_filled_dropped(filled);
+        cli_fill_text_internal.filled_drop(args);
     }
-    cli_filled_line(filled, indent, indent_size);
-    mmgr_line_put(filled->out, " */");
-    cli_fill_edit_of(text, &first, &last, filled, edit);
+    EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = args->filled, .bytes = indent,
+               .size = indent_size);
+    mmgr_line_put(args->filled->out, " */");
+    EMBED_CALL(cli_fill_text_filled_internal.edit_get, CliFillTextFilledCtx, .text = args->text,
+               .first_fill_line_pointer = &first, .last = &last, .filled_read = args->filled, .edit = args->edit);
     g_cli_cells->persistent_buf_release(cell, &g_cli_editor_cells);
     return 1;
 }

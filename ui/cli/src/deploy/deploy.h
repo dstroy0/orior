@@ -22,8 +22,12 @@
 // deploy_standing.c, deploy_run.c, deploy_send.c, deploy_jobs.c)
 #ifndef DEPLOY_H
 #define DEPLOY_H
+typedef struct CliDeployRootCfg CliDeployRootCfg;
+typedef struct CliDeployCfg CliDeployCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // what a deployment does, as the job's `do` specifies
 #define CLI_DEPLOY_PREVIEW 0
@@ -31,16 +35,50 @@
 #define CLI_DEPLOY_ROLL_BACK 2
 
 // a line a deployment prints as it goes, `size` bytes of it
-typedef void (*CliDeployPrintFn)(void *context, const char *line, unsigned long long size);
+typedef void (*CliDeployPrintFn)(const CliEachLineSizeCfg *args);
 
 // the act a job's `do` names: CLI_DEPLOY_PREVIEW, CLI_DEPLOY_SEND or CLI_DEPLOY_ROLL_BACK, or -1 where it names none
 // (deploy_jobs.c)
-int cli_deploy_act_of(const char *word);
+int cli_deploy_act_get(const CliDeployCfg *args);
 
 // the deployment `name` of the tree at `root` previewed, sent or rolled back as `act` specifies: files changed at a
 // place since they were last sent retained there unless `replace`, and files there the tree no longer has retained
 // unless `delete`, each step printed to `print` as it goes: 1, or 0 with why given (deploy_run.c)
-int cli_deploy_run(const char *root, const char *name, int act, int replace, int remove, CliDeployPrintFn print,
-                   void *context, VerbaLinea *err_msg);
+int cli_deploy_run(const CliDeployRootCfg *args);
+
+struct CliDeployRootCfg
+{
+    const char *root;
+    const char *name;
+    int act;
+    int replace;
+    int remove;
+    CliDeployPrintFn print;
+    void *context;
+    VerbaLinea *err_msg;
+};
+
+struct CliDeployCfg
+{
+    const char *word;
+};
+
+typedef struct
+{
+    int (*act_get)(const CliDeployCfg *args);
+} CliDeployNs;
+EMBED_TABLE_LAYOUT(CliDeployNs, act_get);
+EMBED_TABLE_STORAGE CliDeployNs cli_deploy_table EMBED_UNUSED = {
+    .act_get = cli_deploy_act_get,
+};
+
+typedef struct
+{
+    int (*run)(const CliDeployRootCfg *args);
+} CliDeployRootNs;
+EMBED_TABLE_LAYOUT(CliDeployRootNs, run);
+EMBED_TABLE_STORAGE CliDeployRootNs cli_deploy_root EMBED_UNUSED = {
+    .run = cli_deploy_run,
+};
 
 #endif

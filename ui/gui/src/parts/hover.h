@@ -6,14 +6,20 @@
 // a linger after the pointer leaves them; the pointer resting on another word asks again (hover.c)
 #ifndef GUI_PARTS_HOVER_H
 #define GUI_PARTS_HOVER_H
+typedef struct GuiHoverRasterCfg GuiHoverRasterCfg;
+typedef struct GuiHoverInCfg GuiHoverInCfg;
+typedef struct GuiHoverStateCfg GuiHoverStateCfg;
+typedef struct GuiHoverXCfg GuiHoverXCfg;
+typedef struct GuiHoverCfg GuiHoverCfg;
 #include "../../../cli/src/text/json_tree.h"
+#include "embed_dispatch_layout.h"
 #include "panel.h"
 
 // the milliseconds a rest takes before the word is asked about and the box lingers after the pointer leaves; the box's
 // most width and height in the page's pixels, 36rem by 18rem, and its padding down and across; the cells either side of
-// the word the pointer may stand on and keep the box; and the bytes the parts are joined in
-#define GUI_HOVER_RESTS 380ull
-#define GUI_HOVER_LINGER 300ull
+// the word the pointer may stand on and save the box; and the bytes the parts are joined in
+#define GUI_HOVER_SHOW_DELAY_MS 380ull
+#define GUI_HOVER_HIDE_DELAY_MS 300ull
 #define GUI_HOVER_WIDE 576
 #define GUI_HOVER_TALL 288
 #define GUI_HOVER_PAD_Y 7
@@ -41,33 +47,126 @@ typedef struct
     unsigned long long column;
     int x;
     int y;
-    unsigned long long moved_ms;
+    unsigned long long show_deadline_ms;
     int asked;
     unsigned long long asked_row;
     unsigned long long asked_column;
-    unsigned long long left_ms;
+    unsigned long long hide_deadline_ms;
 } GuiHover;
 
 // a hover showing nothing; its cell given back; and the box hidden, its parts given back
-void gui_hover_made(GuiHover *hover);
-void gui_hover_given(GuiHover *hover);
-void gui_hover_hidden(GuiHover *hover);
+void gui_hover_init(const GuiHoverStateCfg *args);
+void gui_hover_free(const GuiHoverStateCfg *args);
+void gui_hover_hide(const GuiHoverStateCfg *args);
 // the pointer moved to x, y at `now`: `in_text` 1 where it stands in the editor's text at `row` and `column`; a new
 // cell begins a rest, and a pointer off the word and the box begins the linger
-void gui_hover_moved(GuiHover *hover, int in_text, unsigned long long row, unsigned long long column, int x, int y,
-                     unsigned long long now);
+void gui_hover_move(const GuiHoverInCfg *args);
 // the milliseconds until the hover next wants the clock, 0 for never
-unsigned long long gui_hover_due(const GuiHover *hover, unsigned long long now);
+unsigned long long gui_hover_next_deadline_ms(const GuiHoverCfg *args);
 // the clock come at `now`: the box hidden where the linger is up, and `ask` set 1 where the rest is up and the cell
 // the pointer stands on is to be asked about, its row and cell into the hover's asked place: 1 where a frame is owed
-int gui_hover_ticked(GuiHover *hover, unsigned long long now, int *ask);
+int gui_hover_tick(const GuiHoverStateCfg *args);
 // the answer `root` of `json` taken: `{"from", "to", "parts"}` shown as its parts joined, or null, which hides the box
 // where the pointer stands off it: 1, or 0 where a cell could not be taken
-int gui_hover_put(GuiHover *hover, const CliJson *json, unsigned int root);
+int gui_hover_put(const GuiHoverStateCfg *args);
 // whether the pixel at x, y stands in the box shown
-int gui_hover_holds(const GuiHover *hover, int x, int y);
+int gui_hover_holds(const GuiHoverXCfg *args);
 // the box drawn for the word whose first cell is `anchor` and last cell `last`, placed under the word's row inside
 // `bounds` at `scale`, its parts as Markdown; the word's rectangle and the box's recorded
-void gui_hover_drawn(GuiHover *hover, GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, GuiRect anchor,
-                     GuiRect last, GuiRect bounds, float scale);
+void gui_hover_draw(const GuiHoverRasterCfg *args);
+struct GuiHoverRasterCfg
+{
+    GuiHover *hover;
+    GuiRaster *raster;
+    GuiGlyphs *glyphs;
+    const GuiPalette *palette;
+    GuiRect anchor;
+    GuiRect last;
+    GuiRect bounds;
+    int scale;
+};
+
+struct GuiHoverInCfg
+{
+    GuiHover *hover;
+    int in_text;
+    unsigned long long row;
+    unsigned long long column;
+    int x;
+    int y;
+};
+
+struct GuiHoverStateCfg
+{
+    GuiHover *hover;
+    int *ask;
+    const CliJson *json;
+    unsigned int root;
+};
+
+struct GuiHoverXCfg
+{
+    int x;
+    int y;
+    const GuiHover *hover_read;
+};
+
+struct GuiHoverCfg
+{
+    const GuiHover *hover_read;
+};
+
+typedef struct
+{
+    void (*init)(const GuiHoverStateCfg *args);
+    void (*free)(const GuiHoverStateCfg *args);
+    void (*hide)(const GuiHoverStateCfg *args);
+    int (*tick)(const GuiHoverStateCfg *args);
+    int (*put)(const GuiHoverStateCfg *args);
+} GuiHoverStateNs;
+EMBED_TABLE_LAYOUT(GuiHoverStateNs, init, free, hide, tick, put);
+EMBED_TABLE_STORAGE GuiHoverStateNs gui_hover_state EMBED_UNUSED = {
+    .init = gui_hover_init,
+    .free = gui_hover_free,
+    .hide = gui_hover_hide,
+    .tick = gui_hover_tick,
+    .put = gui_hover_put,
+};
+
+typedef struct
+{
+    void (*move)(const GuiHoverInCfg *args);
+} GuiHoverInNs;
+EMBED_TABLE_LAYOUT(GuiHoverInNs, move);
+EMBED_TABLE_STORAGE GuiHoverInNs gui_hover_in EMBED_UNUSED = {
+    .move = gui_hover_move,
+};
+
+typedef struct
+{
+    unsigned long long (*next_deadline_ms)(const GuiHoverCfg *args);
+} GuiHoverNs;
+EMBED_TABLE_LAYOUT(GuiHoverNs, next_deadline_ms);
+EMBED_TABLE_STORAGE GuiHoverNs gui_hover EMBED_UNUSED = {
+    .next_deadline_ms = gui_hover_next_deadline_ms,
+};
+
+typedef struct
+{
+    int (*holds)(const GuiHoverXCfg *args);
+} GuiHoverXNs;
+EMBED_TABLE_LAYOUT(GuiHoverXNs, holds);
+EMBED_TABLE_STORAGE GuiHoverXNs gui_hover_x EMBED_UNUSED = {
+    .holds = gui_hover_holds,
+};
+
+typedef struct
+{
+    void (*draw)(const GuiHoverRasterCfg *args);
+} GuiHoverRasterNs;
+EMBED_TABLE_LAYOUT(GuiHoverRasterNs, draw);
+EMBED_TABLE_STORAGE GuiHoverRasterNs gui_hover_raster EMBED_UNUSED = {
+    .draw = gui_hover_draw,
+};
+
 #endif

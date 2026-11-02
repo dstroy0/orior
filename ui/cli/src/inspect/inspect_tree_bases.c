@@ -10,55 +10,86 @@
 // the most imports a base is followed through
 #define CLI_TREE_BASE_DEPTH 6u
 
-// whether a text of `facts` is `size` bytes of `bytes`
-static int bases_same(const CliFacts *facts, CliInspectText text, const char *bytes, unsigned long long size)
+typedef struct
 {
-    return (text.size == size) &&
-           (memor.cmp(&(MemoriaCfg){.src = facts->text + text.at, .other = bytes, .bytes = (size_t)size}) == 0);
+    const CliFacts *facts;
+    CliInspectText text;
+    const char *bytes;
+    unsigned long long size;
+    const CliInspectName *name_inspect_name_pointer;
+    unsigned int file;
+    const char *spec;
+    unsigned long long spec_size;
+    const char *taken;
+    unsigned long long taken_size;
+    const char *name;
+    unsigned int depth;
+    unsigned int *found_file;
+    unsigned int *found_class;
+    const char *module;
+    unsigned long long module_size;
+} InspectTreeBasesCtx;
+// whether a text of `facts` is `size` bytes of `bytes`
+EMBED_INLINE int bases_same(const InspectTreeBasesCtx *args)
+{
+    const char *bytes = args->bytes;
+    return (args->text.size == args->size) &&
+           (memor.cmp(&(MemoriaCfg){
+                .src = args->facts->text + args->text.at, .other = bytes, .bytes = (size_t)args->size}) == 0);
 }
 
 // what a name a `from` import takes is called in the file: its alias, or the name itself
-static CliInspectText bases_called(const CliInspectName *name)
+EMBED_INLINE CliInspectText bases_call(const InspectTreeBasesCtx *args)
 {
-    return name->has_alias ? name->alias : name->name;
+    return args->name_inspect_name_pointer->has_alias ? args->name_inspect_name_pointer->alias
+                                                      : args->name_inspect_name_pointer->name;
 }
 
 // the class `name` names in the module `spec`, `spec_size` bytes of it, found from the file at `file` with `taken`
 // after it where `taken_size` is not 0, `depth` imports in
-static int bases_in_module(unsigned int file, const char *spec, unsigned long long spec_size, const char *taken,
-                           unsigned long long taken_size, const char *name, unsigned long long size, unsigned int depth,
-                           unsigned int *found_file, unsigned int *found_class)
+EMBED_INLINE int bases_in_module(const InspectTreeBasesCtx *args)
 {
+    unsigned int file = args->file;
+    const char *spec = args->spec;
+    unsigned long long size = args->size;
+    unsigned int depth = args->depth;
+    unsigned int *found_file = args->found_file;
+    unsigned int *found_class = args->found_class;
     char joined[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {joined, sizeof(joined), 0ull};
-    mmgr_line_put_n(&line, spec, spec_size);
-    if (taken_size > 0u)
+    mmgr_line_put_n(&line, spec, args->spec_size);
+    if (args->taken_size > 0u)
     {
-        mmgr_line_put(&line, ((spec_size > 0u) && (spec[spec_size - 1u] == '.')) ? "" : ".");
-        mmgr_line_put_n(&line, taken, taken_size);
+        mmgr_line_put(&line, ((args->spec_size > 0u) && (spec[args->spec_size - 1u] == '.')) ? "" : ".");
+        mmgr_line_put_n(&line, args->taken, args->taken_size);
     }
     if (!mmgr_line_ok(&line))
     {
         return 0;
     }
-    const unsigned int from = cli_tree_python_module(file, joined, line.at);
+    const unsigned int from = EMBED_CALL(cli_inspect_tree_size_file_internal.tree_python_module,
+                                         CliInspectTreeSizeFileCtx, .file = file, .spec = joined, .size = line.at);
     if (from == CLI_TREE_NONE)
     {
         return 0;
     }
-    return cli_tree_base_of(from, name, size, depth + 1u, found_file, found_class);
+    return EMBED_CALL(cli_inspect_tree_size_internal.tree_base_get, CliInspectTreeSizeCtx, .file = from,
+                      .base = args->name, .size = size, .depth = depth + 1u, .found_file = found_file,
+                      .found_class = found_class);
 }
 
 // the class a bare `name` names in the file at `file`
-static int bases_bare(unsigned int file, const char *name, unsigned long long size, unsigned int depth,
-                      unsigned int *found_file, unsigned int *found_class)
+EMBED_INLINE int bases_bare(const InspectTreeBasesCtx *args)
 {
-    const CliFacts *const facts = &CLI_TREE_FILE(file).facts;
+    unsigned int *found_file = args->found_file;
+    unsigned int *found_class = args->found_class;
+    const CliFacts *const facts = &CLI_TREE_FILE(args->file).facts;
     for (unsigned int at = 0u; at < facts->classes; at += 1u)
     {
-        if (bases_same(facts, facts->class_of[at].name, name, size))
+        if (EMBED_CALL(bases_same, InspectTreeBasesCtx, .facts = facts, .text = facts->class_of[at].name,
+                       .bytes = args->name, .size = args->size))
         {
-            *found_file = file;
+            *found_file = args->file;
             *found_class = at;
             return 1;
         }
@@ -69,10 +100,14 @@ static int bases_bare(unsigned int file, const char *name, unsigned long long si
         for (unsigned int at = 0u; at < one->names; at += 1u)
         {
             const CliInspectName *const taken = &facts->name[one->name_first + at];
-            if (bases_same(facts, bases_called(taken), name, size))
+            if (EMBED_CALL(bases_same, InspectTreeBasesCtx, .facts = facts,
+                           .text = EMBED_CALL(bases_call, InspectTreeBasesCtx, .name_inspect_name_pointer = taken),
+                           .bytes = args->name, .size = args->size))
             {
-                return bases_in_module(file, facts->text + one->spec.at, one->spec.size, NULL, 0ull,
-                                       facts->text + taken->name.at, taken->name.size, depth, found_file, found_class);
+                return EMBED_CALL(bases_in_module, InspectTreeBasesCtx, .file = args->file,
+                                  .spec = facts->text + one->spec.at, .spec_size = one->spec.size, .taken = NULL,
+                                  .taken_size = 0ull, .name = facts->text + taken->name.at, .size = taken->name.size,
+                                  .depth = args->depth, .found_file = found_file, .found_class = found_class);
             }
         }
     }
@@ -80,46 +115,58 @@ static int bases_bare(unsigned int file, const char *name, unsigned long long si
 }
 
 // the class `name` names in the module the file at `file` reads as `module`
-static int bases_dotted(unsigned int file, const char *module, unsigned long long module_size, const char *name,
-                        unsigned long long size, unsigned int depth, unsigned int *found_file,
-                        unsigned int *found_class)
+EMBED_INLINE int bases_dot(const InspectTreeBasesCtx *args)
 {
-    const CliFacts *const facts = &CLI_TREE_FILE(file).facts;
+    const CliFacts *const facts = &CLI_TREE_FILE(args->file).facts;
     for (unsigned int import = 0u; import < facts->imports; import += 1u)
     {
         const CliInspectImport *const one = &facts->import[import];
         const char *const spec = facts->text + one->spec.at;
-        const int whole = one->has_alias ? bases_same(facts, one->alias, module, module_size)
-                                         : bases_same(facts, one->spec, module, module_size);
+        const int whole = one->has_alias
+                              ? EMBED_CALL(bases_same, InspectTreeBasesCtx, .facts = facts, .text = one->alias,
+                                           .bytes = args->module, .size = args->module_size)
+                              : EMBED_CALL(bases_same, InspectTreeBasesCtx, .facts = facts, .text = one->spec,
+                                           .bytes = args->module, .size = args->module_size);
         if ((one->names == 0u) && whole)
         {
-            return bases_in_module(file, spec, one->spec.size, NULL, 0ull, name, size, depth, found_file, found_class);
+            return EMBED_CALL(bases_in_module, InspectTreeBasesCtx, .file = args->file, .spec = spec,
+                              .spec_size = one->spec.size, .taken = NULL, .taken_size = 0ull, .name = args->name,
+                              .size = args->size, .depth = args->depth, .found_file = args->found_file,
+                              .found_class = args->found_class);
         }
         for (unsigned int at = 0u; at < one->names; at += 1u)
         {
             const CliInspectName *const taken = &facts->name[one->name_first + at];
-            if (bases_same(facts, bases_called(taken), module, module_size))
+            if (EMBED_CALL(bases_same, InspectTreeBasesCtx, .facts = facts,
+                           .text = EMBED_CALL(bases_call, InspectTreeBasesCtx, .name_inspect_name_pointer = taken),
+                           .bytes = args->module, .size = args->module_size))
             {
-                return bases_in_module(file, spec, one->spec.size, facts->text + taken->name.at, taken->name.size, name,
-                                       size, depth, found_file, found_class);
+                return EMBED_CALL(bases_in_module, InspectTreeBasesCtx, .file = args->file, .spec = spec,
+                                  .spec_size = one->spec.size, .taken = facts->text + taken->name.at,
+                                  .taken_size = taken->name.size, .name = args->name, .size = args->size,
+                                  .depth = args->depth, .found_file = args->found_file,
+                                  .found_class = args->found_class);
             }
         }
     }
     return 0;
 }
 
-int cli_tree_base_of(unsigned int file, const char *base, unsigned long long size, unsigned int depth,
-                     unsigned int *found_file, unsigned int *found_class)
+int cli_tree_base_get(const CliInspectTreeSizeCtx *args)
 {
-    if (depth > CLI_TREE_BASE_DEPTH)
+    if (args->depth > CLI_TREE_BASE_DEPTH)
     {
         return 0;
     }
-    unsigned long long dot = size;
-    dot = cli_text_back_any(base, dot, ".");
+    unsigned long long dot = args->size;
+    dot = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->base, .at = dot,
+                     .set = ".");
     if (dot == 0u)
     {
-        return bases_bare(file, base, size, depth, found_file, found_class);
+        return EMBED_CALL(bases_bare, InspectTreeBasesCtx, .file = args->file, .name = args->base, .size = args->size,
+                          .depth = args->depth, .found_file = args->found_file, .found_class = args->found_class);
     }
-    return bases_dotted(file, base, dot - 1u, base + dot, size - dot, depth, found_file, found_class);
+    return EMBED_CALL(bases_dot, InspectTreeBasesCtx, .file = args->file, .module = args->base, .module_size = dot - 1u,
+                      .name = args->base + dot, .size = args->size - dot, .depth = args->depth,
+                      .found_file = args->found_file, .found_class = args->found_class);
 }

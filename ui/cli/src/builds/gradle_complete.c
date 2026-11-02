@@ -5,6 +5,7 @@
 // what the block it stands in takes, a settings script's own words or a build script's at the top, and in
 // `dependencies` the configurations, what the block calls beside them, and those the script declares. Nothing completes
 // in a string or a comment
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -27,27 +28,41 @@ static const char *const s_settings_top[9] = {"rootProject",
                                               "gradle"};
 
 // whether a letter goes in a catalog's accessor chain
-static int complete_chain_letter(unsigned int letter)
+static int complete_chain_letter(const CliEachLetterCfg *args)
 {
-    return cli_build_word_letter(letter) || (letter == '.');
+    return cli_each_letter.build_word_letter(args) || (args->letter == '.');
 }
 
-// the aliases of the catalog `first` of the build of the script at `path`, put after `rest`
-static void complete_catalog(const char *root, const char *path, const char *first, unsigned long long first_size,
-                             const char *rest, unsigned long long rest_size, CliCompletions *items)
+typedef struct
 {
+    const char *root;
+    const char *path;
+    const char *first;
+    unsigned long long first_size;
+    const char *rest;
+    unsigned long long rest_size;
+    CliCompletions *items;
+} GradleCompleteCtx;
+// the aliases of the catalog `first` of the build of the script at `path`, put after `rest`
+EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
+{
+    const char *root = args->root;
+    const char *path = args->path;
+    CliCompletions *items = args->items;
     static CliGradleCatalogs s_catalogs;
     static char s_value[1u << 12u];
     char folder[CLI_PATH_MAX_LEN];
-    cli_gradle_build_root(root, path, folder);
-    cli_gradle_catalogs(folder, &s_catalogs);
+    EMBED_CALL(cli_gradle_root_internal.build_root, CliGradleRootCtx, .root = root, .path = path, .out = folder);
+    EMBED_CALL(cli_gradle_folder_internal.catalogs, CliGradleFolderCtx, .folder = folder, .catalogs = &s_catalogs);
     unsigned int chosen = s_catalogs.count;
     for (unsigned int at = 0u; (chosen == s_catalogs.count) && (at < s_catalogs.count); at += 1u)
     {
-        chosen = ((cellul.len(&(CatenaFinitaCfg){.src = s_catalogs.name[at], .cap = CLI_CELLS_POOL}) == first_size) &&
-                  (memor.cmp(&(MemoriaCfg){.src = s_catalogs.name[at], .other = first, .bytes = first_size}) == 0))
-                     ? at
-                     : chosen;
+        chosen =
+            ((cellul.len(&(CatenaFinitaCfg){.src = s_catalogs.name[at], .cap = CLI_CELLS_POOL}) == args->first_size) &&
+             (memor.cmp(&(MemoriaCfg){.src = s_catalogs.name[at], .other = args->first, .bytes = args->first_size}) ==
+              0))
+                ? at
+                : chosen;
     }
     if (chosen == s_catalogs.count)
     {
@@ -55,12 +70,16 @@ static void complete_catalog(const char *root, const char *path, const char *fir
     }
     // the catalog read where it lies, mapped while its aliases are read and let go after
     unsigned long long read = 0ull;
-    const unsigned char *const catalog = cli_file_taken(s_catalogs.path[chosen], &read, &g_cli_gradle_cells);
+    const unsigned char *const catalog =
+        EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = s_catalogs.path[chosen], .size_pointer = &read,
+                   .owner = &g_cli_gradle_cells);
     CliVersionsAliases aliases;
-    const int whole = (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
-                      cli_utf8_whole((const char *)catalog, read) &&
-                      cli_versions_aliases((const char *)catalog, read, &aliases);
-    cli_file_given(catalog, &g_cli_gradle_cells);
+    const int whole =
+        (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
+        EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)catalog, .size = read) &&
+        EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases, CliVersionCatalogTextSizeAliasesCtx,
+                   .text = (const char *)catalog, .size = read, .aliases = &aliases);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = catalog, .owner = &g_cli_gradle_cells);
     if (!whole)
     {
         return;
@@ -80,24 +99,29 @@ static void complete_catalog(const char *root, const char *path, const char *fir
             }
             VerbaLinea value = {s_value, sizeof(s_value), 0ull};
             mmgr_line_put(&value, s_leads[one]);
-            cli_versions_accessor(aliases.text + alias->alias_at, alias->alias_size, &value);
+            EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
+                       .alias = aliases.text + alias->alias_at, .size = alias->alias_size, .out = &value);
             if (mmgr_line_ok(&value))
             {
-                cli_build_relative(items, rest, rest_size, s_value, value.at, s_kinds[one],
-                                   aliases.text + alias->about_at, alias->about_size);
+                EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->rest,
+                           .token_size = args->rest_size, .value = s_value, .value_size = value.at,
+                           .kind = s_kinds[one], .detail = aliases.text + alias->about_at,
+                           .detail_size = alias->about_size);
             }
         }
     }
-    cli_versions_aliases_given(&aliases);
+    EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases_free,
+               CliVersionCatalogTextSizeAliasesCtx, .aliases = &aliases);
 }
 
 // whether the file at `path` is a settings script, by its name in lower case
-static int complete_settings(const char *path)
+EMBED_INLINE int complete_settings(const GradleCompleteCtx *args)
 {
-    const char *name = path;
+    const char *name = args->path;
     const unsigned long long name_past =
-        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
-    name = (name_past != 0ull) ? (path + name_past) : name;
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+    name = (name_past != 0ull) ? (args->path + name_past) : name;
     static const char s_settings[] = "settings.gradle";
     for (unsigned int at = 0u; at < sizeof(s_settings) - 1u; at += 1u)
     {
@@ -111,82 +135,99 @@ static int complete_settings(const char *path)
 }
 
 // a configuration the script declares put as an item
-static void complete_declared(CliCompletions *items)
+EMBED_INLINE void complete_declare(const GradleCompleteCtx *args)
 {
+    CliCompletions *items = args->items;
     for (unsigned int at = 0u; at < g_cli_gradle.declares; at += 1u)
     {
-        (void)cli_completion_put(items, g_cli_gradle.declared[at], g_cli_gradle.declared_size[at], "function",
-                                 "declared configuration", 22u, g_cli_gradle.declared[at],
-                                 g_cli_gradle.declared_size[at], 0);
+        (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = items,
+                         .label = g_cli_gradle.declared[at], .label_size = g_cli_gradle.declared_size[at],
+                         .kind = "function", .detail = "declared configuration", .detail_size = 22u,
+                         .insert = g_cli_gradle.declared[at], .insert_size = g_cli_gradle.declared_size[at],
+                         .snippet = 0);
     }
 }
 
-void cli_gradle_complete(const char *root, const char *path, const char *text, unsigned long long size,
-                         unsigned long long at, CliCompletions *items)
+void cli_gradle_complete(const CliGradleTextCtx *args)
 {
-    if (at > CLI_GRADLE_TEXT)
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    CliCompletions *items = args->items;
+    if (args->at > CLI_GRADLE_TEXT)
     {
         return;
     }
-    cli_lock_take(&g_cli_gradle_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_gradle_lock);
     // the bytes before the cursor classed in a cell of their own, given back once the last of them is read
-    unsigned char *const before = g_cli_cells->temporary_buf_alloc(at + 1ull, &g_cli_gradle_cells);
+    unsigned char *const before = g_cli_cells->temporary_buf_alloc(args->at + 1ull, &g_cli_gradle_cells);
     if (before == NULL)
     {
-        cli_lock_give(&g_cli_gradle_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
-    cli_gradle_classes(text, at, before);
-    const int open = (at > 0u) && (before[at - 1u] != CLI_GRADLE_CODE) && (text[at - 1u] != '\n');
+    EMBED_CALL(cli_gradle_text_size_class_of_internal.classes, CliGradleTextSizeClassOfCtx, .text = text,
+               .size = args->at, .class_of = before);
+    const int open = (args->at > 0u) && (before[args->at - 1u] != CLI_GRADLE_CODE) && (text[args->at - 1u] != '\n');
     g_cli_cells->persistent_buf_release(before, &g_cli_gradle_cells);
-    const unsigned long long token = cli_build_run_before(text, at, complete_chain_letter);
-    const char *const dot = memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(at - token)});
+    const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text,
+                                                .at = args->at, .of = complete_chain_letter);
+    const char *const dot =
+        memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(args->at - token)});
     if (open)
     {
-        cli_lock_give(&g_cli_gradle_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
     if (dot != NULL)
     {
         const unsigned long long first = (unsigned long long)(dot - text);
-        complete_catalog(root, path, text + token, first - token, dot + 1, at - first - 1u, items);
-        cli_lock_give(&g_cli_gradle_lock);
+        EMBED_CALL(complete_catalog, GradleCompleteCtx, .root = args->root, .path = args->path, .first = text + token,
+                   .first_size = first - token, .rest = dot + 1, .rest_size = args->at - first - 1u, .items = items);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
     unsigned long long line_start = token;
-    line_start = cli_text_back_any(text, line_start, "\n");
+    line_start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text, .at = line_start,
+                            .set = "\n");
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    cli_text_trimmed(text + line_start, token - line_start, &from, &to);
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + line_start,
+               .size = token - line_start, .from_u64s = &from, .to_u64s = &to);
     const char last = (to > from) ? text[line_start + to - 1u] : '\0';
     if ((to > from) && (last != '{') && (last != ';'))
     {
-        cli_lock_give(&g_cli_gradle_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
-    if (!cli_gradle_read(text, size))
+    if (!EMBED_CALL(cli_gradle_text_size_internal.read, CliGradleTextSizeCtx, .text = text, .size = size))
     {
-        cli_lock_give(&g_cli_gradle_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
-    const unsigned int inner = cli_gradle_block_at(at);
+    const unsigned int inner = cli_gradle_text_internal.block_at(args);
     if (inner == CLI_GRADLE_BLOCKS)
     {
-        if (complete_settings(path))
+        if (EMBED_CALL(complete_settings, GradleCompleteCtx, .path = args->path))
         {
-            cli_build_items(items, s_settings_top, 9u, "keyword", "settings");
+            EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
+                       .words = s_settings_top, .count = 9u, .kind = "keyword", .detail = "settings");
         }
         else
         {
             unsigned int count = 0u;
-            const char *const *const words = cli_gradle_block_words("allprojects", 11u, &count);
-            cli_build_items(items, words, count, "keyword", "Gradle");
+            const char *const *const words = EMBED_CALL(cli_gradle_size_internal.block_words, CliGradleSizeCtx,
+                                                        .name = "allprojects", .size = 11u, .count = &count);
+            EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items, .words = words,
+                       .count = count, .kind = "keyword", .detail = "Gradle");
         }
     }
-    else if (cli_gradle_block_named(&g_cli_gradle.block[inner], "dependencies"))
+    else if (EMBED_CALL(cli_gradle_internal.block_by_name, CliGradleCtx, .block = &g_cli_gradle.block[inner],
+                        .name = "dependencies"))
     {
-        cli_build_items(items, g_cli_gradle_configurations, 30u, "function", "configuration");
-        cli_build_items(items, g_cli_gradle_helpers, 12u, "function", "dependencies");
+        EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
+                   .words = g_cli_gradle_configurations, .count = 30u, .kind = "function", .detail = "configuration");
+        EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items,
+                   .words = g_cli_gradle_helpers, .count = 12u, .kind = "function", .detail = "dependencies");
         // the script's lines a cell of their count, each line's start, given back once the declared are read
         unsigned long long count = 1ull;
         for (unsigned long long byte = 0ull; byte < size; byte += 1ull)
@@ -200,9 +241,10 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
         {
             CliBuildLines lines;
             // a count no more than CLI_GRADLE_LINES, which an unsigned int stores
-            cli_build_lines_of(text, size, starts, (unsigned int)count, &lines);
-            cli_gradle_declared(&lines);
-            complete_declared(items);
+            EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = text, .size = size,
+                       .starts = starts, .most = (unsigned int)count, .lines_out = &lines);
+            EMBED_CALL(cli_gradle_lines_internal.declare, CliGradleLinesCtx, .lines = &lines);
+            EMBED_CALL(complete_declare, GradleCompleteCtx, .items = items);
         }
         g_cli_cells->persistent_buf_release(starts, &g_cli_gradle_cells);
     }
@@ -214,9 +256,11 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
         memor.cpy(&(MemoriaCfg){.dst = s_name, .src = text + block->name, .bytes = (size_t)name_size});
         s_name[name_size] = '\0';
         unsigned int count = 0u;
-        const char *const *const words = cli_gradle_block_words(s_name, name_size, &count);
-        cli_build_items(items, words, count, "keyword", s_name);
+        const char *const *const words = EMBED_CALL(cli_gradle_size_internal.block_words, CliGradleSizeCtx,
+                                                    .name = s_name, .size = name_size, .count = &count);
+        EMBED_CALL(cli_builds_items_kind.build_items, CliBuildsItemsKindCfg, .items = items, .words = words,
+                   .count = count, .kind = "keyword", .detail = s_name);
     }
-    cli_gradle_released();
-    cli_lock_give(&g_cli_gradle_lock);
+    cli_gradle_release();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
 }

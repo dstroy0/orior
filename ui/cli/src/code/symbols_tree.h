@@ -4,7 +4,15 @@
 // lock they are read and written under, and whether a walk goes
 #ifndef SYMBOLS_TREE_H
 #define SYMBOLS_TREE_H
+typedef struct CliSymbolsTreeBranchCfg CliSymbolsTreeBranchCfg;
+typedef struct CliSymbolsTreeBranchScratchCfg CliSymbolsTreeBranchScratchCfg;
+typedef struct CliSymbolsTreeCountCfg CliSymbolsTreeCountCfg;
+typedef struct CliSymbolsTreePathCfg CliSymbolsTreePathCfg;
+typedef struct CliSymbolsTreeBranchPathCfg CliSymbolsTreeBranchPathCfg;
+typedef struct CliSymbolsTreeCfg CliSymbolsTreeCfg;
+typedef struct CliSymbolsTreeFileCfg CliSymbolsTreeFileCfg;
 
+#include "embed_dispatch_layout.h"
 #include "symbols.h"
 
 // the most branches stored; and what a branch's closest parent reads where it stands at the tree's top, and where it
@@ -52,25 +60,134 @@ extern CliLock g_cli_walk_lock;
 extern int g_cli_tree_walking;
 
 // a cell for a reader to scan a file's cell in, sized for the largest stored, NULL where the cells cannot meet it; a
-// file's cell copied into it; and it given back. A reader scans its copy: a stored cell moves, and the guard is the only
-// way to it. Then a copy's path and declarations, a stored file's path copied into `path`, sized for CLI_PATH_MAX_LEN,
-// and a cell's bytes counted toward the largest stored; the place of a path's branch, CLI_BRANCHES_MOST where none is
-// stored; the branch of `path` standing, joined where none is, every folder down to it joined as it goes, a cell of its
-// path alone: its place, or CLI_BRANCHES_MOST where the table or the cells cannot meet it; a branch let go, its place
-// taken out of the paths' table and its cell given back, and each folder over it left with nothing under it let go in
-// turn; the files standing, how many and the bytes of their paths with their ends; and every branch let go with the
-// table's cells. Called under the lock (symbols_table.c)
-char *cli_branch_copy_taken(void);
-void cli_branch_copied(const CliTreeBranch *branch, char *scratch);
-void cli_branch_copy_given(char *scratch);
-const char *cli_branch_copy_path(const CliTreeBranch *branch, const char *scratch);
-const CliDeclaration *cli_branch_copy_declarations(const char *scratch);
-void cli_branch_path_read(const CliTreeBranch *branch, char *path);
-void cli_branch_cell_counted(unsigned int bytes);
-unsigned int cli_branch_of(const char *path);
-unsigned int cli_branch_stands(const char *path, int folder);
-void cli_branch_left(unsigned int file);
-void cli_branch_files_counted(unsigned int *count, unsigned long long *bytes);
-void cli_tree_cleared(void);
+// file's cell copied into it; and it given back. A reader scans its copy: a stored cell moves, and the guard is the
+// only way to it. Then a copy's path and declarations, a stored file's path copied into `path`, sized for
+// CLI_PATH_MAX_LEN, and a cell's bytes counted toward the largest stored; the place of a path's branch,
+// CLI_BRANCHES_MOST where none is stored; the branch of `path` standing, joined where none is, every folder down to it
+// joined as it goes, a cell of its path alone: its place, or CLI_BRANCHES_MOST where the table or the cells cannot meet
+// it; a branch let go, its place taken out of the paths' table and its cell given back, and each folder over it left
+// with nothing under it let go in turn; the files standing, how many and the bytes of their paths with their ends; and
+// every branch let go with the table's cells. Called under the lock (symbols_table.c)
+char *cli_branch_copy_take(void);
+void cli_branch_copy(const CliSymbolsTreeBranchCfg *args);
+void cli_branch_copy_free(const CliSymbolsTreeBranchCfg *args);
+const char *cli_branch_copy_path(const CliSymbolsTreeBranchScratchCfg *args);
+const CliDeclaration *cli_branch_copy_declarations(const CliSymbolsTreeBranchScratchCfg *args);
+void cli_branch_path_read(const CliSymbolsTreeBranchPathCfg *args);
+void cli_branch_cell_count(const CliSymbolsTreeCfg *args);
+unsigned int cli_branch_get(const CliSymbolsTreePathCfg *args);
+unsigned int cli_branch_stands(const CliSymbolsTreePathCfg *args);
+void cli_branch_leave(const CliSymbolsTreeFileCfg *args);
+void cli_branch_files_count(const CliSymbolsTreeCountCfg *args);
+void cli_tree_clear(void);
+
+struct CliSymbolsTreeBranchCfg
+{
+    const CliTreeBranch *branch;
+    char *scratch;
+};
+
+struct CliSymbolsTreeBranchScratchCfg
+{
+    const CliTreeBranch *branch;
+    const char *scratch_read;
+};
+
+struct CliSymbolsTreeCountCfg
+{
+    unsigned int *count;
+    unsigned long long *bytes_u64s;
+};
+
+struct CliSymbolsTreePathCfg
+{
+    const char *path;
+    int folder;
+};
+
+struct CliSymbolsTreeBranchPathCfg
+{
+    const CliTreeBranch *branch;
+    char *path_out;
+};
+
+struct CliSymbolsTreeCfg
+{
+    unsigned int bytes;
+};
+
+struct CliSymbolsTreeFileCfg
+{
+    unsigned int file;
+};
+
+typedef struct
+{
+    void (*branch_copy)(const CliSymbolsTreeBranchCfg *args);
+    void (*branch_copy_free)(const CliSymbolsTreeBranchCfg *args);
+} CliSymbolsTreeBranchNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTreeBranchNs, branch_copy, branch_copy_free);
+EMBED_TABLE_STORAGE CliSymbolsTreeBranchNs cli_symbols_tree_branch EMBED_UNUSED = {
+    .branch_copy = cli_branch_copy,
+    .branch_copy_free = cli_branch_copy_free,
+};
+
+typedef struct
+{
+    const char *(*branch_copy_path)(const CliSymbolsTreeBranchScratchCfg *args);
+    const CliDeclaration *(*branch_copy_declarations)(const CliSymbolsTreeBranchScratchCfg *args);
+} CliSymbolsTreeBranchScratchNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTreeBranchScratchNs, branch_copy_path, branch_copy_declarations);
+EMBED_TABLE_STORAGE CliSymbolsTreeBranchScratchNs cli_symbols_tree_branch_scratch EMBED_UNUSED = {
+    .branch_copy_path = cli_branch_copy_path,
+    .branch_copy_declarations = cli_branch_copy_declarations,
+};
+
+typedef struct
+{
+    void (*branch_path_read)(const CliSymbolsTreeBranchPathCfg *args);
+} CliSymbolsTreeBranchPathNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTreeBranchPathNs, branch_path_read);
+EMBED_TABLE_STORAGE CliSymbolsTreeBranchPathNs cli_symbols_tree_branch_path EMBED_UNUSED = {
+    .branch_path_read = cli_branch_path_read,
+};
+
+typedef struct
+{
+    void (*branch_cell_count)(const CliSymbolsTreeCfg *args);
+} CliSymbolsTreeNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTreeNs, branch_cell_count);
+EMBED_TABLE_STORAGE CliSymbolsTreeNs cli_symbols_tree EMBED_UNUSED = {
+    .branch_cell_count = cli_branch_cell_count,
+};
+
+typedef struct
+{
+    unsigned int (*branch_get)(const CliSymbolsTreePathCfg *args);
+    unsigned int (*branch_stands)(const CliSymbolsTreePathCfg *args);
+} CliSymbolsTreePathNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTreePathNs, branch_get, branch_stands);
+EMBED_TABLE_STORAGE CliSymbolsTreePathNs cli_symbols_tree_path EMBED_UNUSED = {
+    .branch_get = cli_branch_get,
+    .branch_stands = cli_branch_stands,
+};
+
+typedef struct
+{
+    void (*branch_leave)(const CliSymbolsTreeFileCfg *args);
+} CliSymbolsTreeFileNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTreeFileNs, branch_leave);
+EMBED_TABLE_STORAGE CliSymbolsTreeFileNs cli_symbols_tree_file EMBED_UNUSED = {
+    .branch_leave = cli_branch_leave,
+};
+
+typedef struct
+{
+    void (*branch_files_count)(const CliSymbolsTreeCountCfg *args);
+} CliSymbolsTreeCountNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTreeCountNs, branch_files_count);
+EMBED_TABLE_STORAGE CliSymbolsTreeCountNs cli_symbols_tree_count EMBED_UNUSED = {
+    .branch_files_count = cli_branch_files_count,
+};
 
 #endif

@@ -14,9 +14,21 @@
 // and at most 65536 bytes of it; of any other record, its name and its count
 #ifndef CLI_QRY_H
 #define CLI_QRY_H
+typedef struct CliQryPathCfg CliQryPathCfg;
+typedef struct CliQryPathNameCfg CliQryPathNameCfg;
+typedef struct CliQryPathOutCfg CliQryPathOutCfg;
+typedef struct CliQryOutCfg CliQryOutCfg;
+typedef struct CliQryDataCfg CliQryDataCfg;
+typedef struct CliQryPathFromCfg CliQryPathFromCfg;
+typedef struct CliQryOutSizeCfg CliQryOutSizeCfg;
+typedef struct CliQryPathRootCfg CliQryPathRootCfg;
+typedef struct CliQryOutRootCfg CliQryOutRootCfg;
+typedef struct CliQryPathPanickedCfg CliQryPathPanickedCfg;
+typedef struct CliQryCfg CliQryCfg;
 
 #include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the cells a tree's runs are listed in (qry_listed.c)
 extern CellOwner g_cli_qry_listed_cells;
@@ -39,55 +51,248 @@ enum
 // "nanoseconds", "priority", "size", "text": string or null, "whole": bool}...], "next", "stepped", "table",
 // "panicked"}`: from its shared memory while its writer runs, the records past place `from` of its schedule, "table"
 // false; from its .qry where none does, the records past the byte `from`, "table" true. 1, or 0 with why given
-int cli_qry_read(const char *path, unsigned long long from, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_qry_read(const CliQryPathFromCfg *args);
 // a .qry file read going on from the byte `from`, written as cli_qry_read writes it: 1, or 0 with why given
-int cli_qry_read_file_from(const char *path, unsigned long long from, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_qry_read_file_from(const CliQryPathFromCfg *args);
 // the bytes of every record of the run at `path` named `name`, joined in the order the writer wrote them, put into
 // `out`: from its shared memory while its writer runs, from its .qry where none does. 1, or 0 with why given
-int cli_qry_joined_bytes(const char *path, const char *name, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_qry_joined_bytes(const CliQryPathOutCfg *args);
 // the names of the records of the .qry whose bytes are `data`, in the order of their first records, each into
 // `names`, sized for `room` of CLI_NAME_MAX_LEN: their count; and each record of `name` joined into `out`
-unsigned int cli_qry_member_names(const unsigned char *data, unsigned long long size, char (*names)[CLI_NAME_MAX_LEN],
-                                  unsigned int room);
-void cli_qry_member_joined(const unsigned char *data, unsigned long long size, const char *name, VerbaLinea *out);
+unsigned int cli_qry_member_names(const CliQryDataCfg *args);
+void cli_qry_member_join(const CliQryOutCfg *args);
 // the bytes the blobs of `name` in `size` bytes of a .qry join to
-unsigned long long cli_qry_member_size(const unsigned char *data, unsigned long long size, const char *name);
+unsigned long long cli_qry_member_size(const CliQryOutCfg *args);
 // `size` bytes appended to the run at `path` as a record of `name` at `priority`, the window a member of that run; a
 // panic or a critical record waited on until it is on the disk: 1, or 0 with why given
-int cli_qry_append(const char *path, const char *name, const void *bytes, unsigned long long size,
-                   unsigned int priority, VerbaLinea *err_msg);
+int cli_qry_append(const CliQryPathCfg *args);
 // 1 once the writer of the run at `path` has made its shared memory and writes, waiting up to thirty seconds
-int cli_qry_ready(const char *path);
+int cli_qry_ready(const CliQryPathPanickedCfg *args);
 // the writer of the run at `path` requested to write the rest of the run and stop, the window a member of the run for
 // the requesting and of none after: 1, or 0 with why given
-int cli_qry_stop(const char *path, VerbaLinea *err_msg);
+int cli_qry_stop(const CliQryPathOutCfg *args);
 // the run the window's own work is appended to, into `path`, sized for CLI_PATH_MAX_LEN: the one QRY names where the
 // window was started inside a run, or the one it has last joined to; 1, or 0 where none. And the window joined to the
 // run at `path`, or to none where `path` is NULL
-int cli_qry_joined(char *path);
-void cli_qry_join_window(const char *path);
+int cli_qry_join(const CliQryCfg *args);
+void cli_qry_join_window(const CliQryPathPanickedCfg *args);
 // `size` bytes queued to be appended to the run at `path` as the record `name` at `priority`, on `channel`; a panic
 // or a critical record on the signal channel whatever channel is named, and a record larger than half a channel's
 // ring appended before the call returns; and what the queue has done so far written as
 // `{"handed", "dumped", "failed", "message"}` (qry_queue.c)
-void cli_qry_queue(unsigned int channel, const char *path, const char *name, const void *bytes, unsigned long long size,
-                   unsigned int priority);
-void cli_qry_queued(VerbaLinea *out);
+void cli_qry_queue(const CliQryPathNameCfg *args);
+void cli_qry_on_queue(const CliQryOutRootCfg *args);
 // whether the run at `path` is live, and the place of the panic on its line where it is
-int cli_qry_standing(const char *path, unsigned long long *panicked);
+int cli_qry_standing(const CliQryPathPanickedCfg *args);
 // every run of the tree at `root`, the newest first, and its folders of runs with their lessons, written as
 // `{"runs": [{"path", "folder", "size", "changed", "live", "panicked"}...], "folders": [{"folder", "lessons":
 // [{"cause", "carrier", "stand_in"}...]}...]}` (qry_listed.c)
-void cli_qry_listed(const char *root, VerbaLinea *out);
+void cli_qry_list(const CliQryOutRootCfg *args);
 // a file the watch of the tree at `root` saw written, `length` bytes of its path from the top of the tree: where it is
 // a run, its folder put among the tree's folders of runs; and the watch's changes lost, so the tree is walked again for
 // its folders of runs at its next listing (qry_listed.c)
-void cli_qry_run_written(const char *root, const char *path, unsigned long long length);
-void cli_qry_runs_lost(const char *root);
+void cli_qry_run_write(const CliQryPathRootCfg *args);
+void cli_qry_runs_lose(const CliQryOutRootCfg *args);
 // the lessons in `size` bytes of an overseer's text, one `lesson <cause> <carrier or *> <stand-in>` a line, each
 // written as
 // `{"cause", "carrier", "stand_in"}`, a comma between them, for an array's items; any other line passed over
 // (qry_listed.c)
-void cli_qry_lessons_written(const char *text, unsigned long long size, VerbaLinea *out);
+void cli_qry_lessons_write(const CliQryOutSizeCfg *args);
+
+struct CliQryPathCfg
+{
+    const char *path;
+    VerbaLinea *err_msg;
+    const char *name;
+    unsigned long long size;
+    const void *bytes;
+    unsigned int priority;
+};
+
+struct CliQryPathNameCfg
+{
+    const char *path;
+    const char *name;
+    unsigned long long size;
+    const void *bytes;
+    unsigned int priority;
+    unsigned int channel_named;
+};
+
+struct CliQryPathOutCfg
+{
+    const char *path;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+    const char *name;
+};
+
+struct CliQryOutCfg
+{
+    VerbaLinea *out;
+    const char *name;
+    const unsigned char *data;
+    unsigned long long size;
+};
+
+struct CliQryDataCfg
+{
+    const unsigned char *data;
+    unsigned long long size;
+    char (*names)[CLI_NAME_MAX_LEN];
+    unsigned int room;
+};
+
+struct CliQryPathFromCfg
+{
+    const char *path;
+    unsigned long long from;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+};
+
+struct CliQryOutSizeCfg
+{
+    VerbaLinea *out;
+    unsigned long long size;
+    const char *text;
+};
+
+struct CliQryPathRootCfg
+{
+    const char *path;
+    const char *root;
+    unsigned long long length;
+};
+
+struct CliQryOutRootCfg
+{
+    VerbaLinea *out;
+    const char *root;
+};
+
+struct CliQryPathPanickedCfg
+{
+    const char *path;
+    unsigned long long *panicked;
+};
+
+struct CliQryCfg
+{
+    char *path_out;
+};
+
+typedef struct
+{
+    int (*read)(const CliQryPathFromCfg *args);
+    int (*read_file_from)(const CliQryPathFromCfg *args);
+} CliQryPathFromNs;
+EMBED_TABLE_LAYOUT(CliQryPathFromNs, read, read_file_from);
+EMBED_TABLE_STORAGE CliQryPathFromNs cli_qry_path_from EMBED_UNUSED = {
+    .read = cli_qry_read,
+    .read_file_from = cli_qry_read_file_from,
+};
+
+typedef struct
+{
+    int (*joined_bytes)(const CliQryPathOutCfg *args);
+    int (*stop)(const CliQryPathOutCfg *args);
+} CliQryPathOutNs;
+EMBED_TABLE_LAYOUT(CliQryPathOutNs, joined_bytes, stop);
+EMBED_TABLE_STORAGE CliQryPathOutNs cli_qry_path_out EMBED_UNUSED = {
+    .joined_bytes = cli_qry_joined_bytes,
+    .stop = cli_qry_stop,
+};
+
+typedef struct
+{
+    unsigned int (*member_names)(const CliQryDataCfg *args);
+} CliQryDataNs;
+EMBED_TABLE_LAYOUT(CliQryDataNs, member_names);
+EMBED_TABLE_STORAGE CliQryDataNs cli_qry_data EMBED_UNUSED = {
+    .member_names = cli_qry_member_names,
+};
+
+typedef struct
+{
+    void (*member_join)(const CliQryOutCfg *args);
+    unsigned long long (*member_size)(const CliQryOutCfg *args);
+} CliQryOutNs;
+EMBED_TABLE_LAYOUT(CliQryOutNs, member_join, member_size);
+EMBED_TABLE_STORAGE CliQryOutNs cli_qry_out EMBED_UNUSED = {
+    .member_join = cli_qry_member_join,
+    .member_size = cli_qry_member_size,
+};
+
+typedef struct
+{
+    int (*append)(const CliQryPathCfg *args);
+} CliQryPathNs;
+EMBED_TABLE_LAYOUT(CliQryPathNs, append);
+EMBED_TABLE_STORAGE CliQryPathNs cli_qry_path EMBED_UNUSED = {
+    .append = cli_qry_append,
+};
+
+typedef struct
+{
+    int (*ready)(const CliQryPathPanickedCfg *args);
+    void (*join_window)(const CliQryPathPanickedCfg *args);
+    int (*standing)(const CliQryPathPanickedCfg *args);
+} CliQryPathPanickedNs;
+EMBED_TABLE_LAYOUT(CliQryPathPanickedNs, ready, join_window, standing);
+EMBED_TABLE_STORAGE CliQryPathPanickedNs cli_qry_path_panicked EMBED_UNUSED = {
+    .ready = cli_qry_ready,
+    .join_window = cli_qry_join_window,
+    .standing = cli_qry_standing,
+};
+
+typedef struct
+{
+    int (*join)(const CliQryCfg *args);
+} CliQryNs;
+EMBED_TABLE_LAYOUT(CliQryNs, join);
+EMBED_TABLE_STORAGE CliQryNs cli_qry EMBED_UNUSED = {
+    .join = cli_qry_join,
+};
+
+typedef struct
+{
+    void (*queue)(const CliQryPathNameCfg *args);
+} CliQryPathNameNs;
+EMBED_TABLE_LAYOUT(CliQryPathNameNs, queue);
+EMBED_TABLE_STORAGE CliQryPathNameNs cli_qry_path_name EMBED_UNUSED = {
+    .queue = cli_qry_queue,
+};
+
+typedef struct
+{
+    void (*queue)(const CliQryOutRootCfg *args);
+    void (*list)(const CliQryOutRootCfg *args);
+    void (*runs_lose)(const CliQryOutRootCfg *args);
+} CliQryOutRootNs;
+EMBED_TABLE_LAYOUT(CliQryOutRootNs, queue, list, runs_lose);
+EMBED_TABLE_STORAGE CliQryOutRootNs cli_qry_out_root EMBED_UNUSED = {
+    .queue = cli_qry_on_queue,
+    .list = cli_qry_list,
+    .runs_lose = cli_qry_runs_lose,
+};
+
+typedef struct
+{
+    void (*run_write)(const CliQryPathRootCfg *args);
+} CliQryPathRootNs;
+EMBED_TABLE_LAYOUT(CliQryPathRootNs, run_write);
+EMBED_TABLE_STORAGE CliQryPathRootNs cli_qry_path_root EMBED_UNUSED = {
+    .run_write = cli_qry_run_write,
+};
+
+typedef struct
+{
+    void (*lessons_write)(const CliQryOutSizeCfg *args);
+} CliQryOutSizeNs;
+EMBED_TABLE_LAYOUT(CliQryOutSizeNs, lessons_write);
+EMBED_TABLE_STORAGE CliQryOutSizeNs cli_qry_out_size EMBED_UNUSED = {
+    .lessons_write = cli_qry_lessons_write,
+};
 
 #endif

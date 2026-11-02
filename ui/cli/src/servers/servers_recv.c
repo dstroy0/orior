@@ -11,6 +11,7 @@
 // within `python`, and other servers for `python.analysis` alone. A setting the analysis leaves out is taken as off:
 // the ones on by default are given
 #include "../code/python_paths.h"
+#include "../command_line/callback_cfg.h"
 #include "../toolchains/toolchains.h"
 #include "servers_internal.h"
 
@@ -20,35 +21,56 @@
 // what is received read, under the reading's lock
 static CliServersReading s_reading = {CLI_LOCK_INIT};
 
-// whether `length` bytes of JSON contain an array with no items
-static int recv_empty_array(const char *text, unsigned long long length)
+typedef struct
 {
-    unsigned long long at = cli_text_lead(text, length);
-    if ((at == length) || (text[at] != '['))
+    const char *text;
+    unsigned long long length;
+    const CliServersSink *sink;
+    const char *params;
+    unsigned long long size;
+    const CliJson *json;
+    unsigned int item;
+    VerbaLinea *answer;
+} ServersRecvCtx;
+// whether `length` bytes of JSON contain an array with no items
+EMBED_INLINE int recv_empty_array(const ServersRecvCtx *args)
+{
+    const char *text = args->text;
+    unsigned long long at =
+        EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = text, .size = args->length);
+    if ((at == args->length) || (text[at] != '['))
     {
         return 0;
     }
     at += 1ull;
-    at += cli_text_lead(text + at, length - at);
-    return (at < length) && (text[at] == ']');
+    at +=
+        EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = text + at, .size = args->length - at);
+    return (at < args->length) && (text[at] == ']');
 }
 
 // a file's diagnostics stored, by its key with its URI, and passed on whole
-static void recv_diagnostics(const CliServersSink *sink, const char *params, unsigned long long size)
+EMBED_INLINE void recv_diagnostics(const ServersRecvCtx *args)
 {
+    const CliServersSink *sink = args->sink;
+    const char *params = args->params;
+    unsigned long long size = args->size;
     unsigned long long uri_at = 0ull;
     unsigned long long uri_length = 0ull;
     unsigned long long all_at = 0ull;
     unsigned long long all_length = 0ull;
     char uri[CLI_PATH_MAX_LEN];
-    if (!cli_lsp_member(params, size, "uri", &uri_at, &uri_length) ||
-        !cli_lsp_member(params, size, "diagnostics", &all_at, &all_length) ||
-        !cli_lsp_string(params + uri_at, uri_length, uri, sizeof(uri)))
+    if (!EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = params, .size_value = size, .name = "uri",
+                    .start = &uri_at, .length_pointer = &uri_length) ||
+        !EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = params, .size_value = size, .name = "diagnostics",
+                    .start = &all_at, .length_pointer = &all_length) ||
+        !EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = params + uri_at, .length = uri_length, .out_room = uri,
+                    .room = sizeof(uri)))
     {
         return;
     }
     const char *all = params + all_at;
-    const unsigned long long lead = cli_text_lead(all, all_length);
+    const unsigned long long lead =
+        EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = all, .size = all_length);
     if ((lead == all_length) || (all[lead] != '['))
     {
         return;
@@ -56,46 +78,58 @@ static void recv_diagnostics(const CliServersSink *sink, const char *params, uns
     // a sliced file's diagnostics are of its slice, and stand on the file's own lines once moved there
     const unsigned long long uri_size = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL});
     char path[CLI_PATH_MAX_LEN];
-    const int sliced = cli_lsp_path_of(uri, uri_size, path) && cli_servers_sliced(path);
-    char *const mapped =
-        sliced ? cli_servers_slice_diagnostics(path, params, size, all, all_length, &all_length, &g_cli_servers_cells)
-               : NULL;
+    const int sliced =
+        EMBED_CALL(cli_lsp_length_uri.path_get, CliLspLengthUriCfg, .uri = uri, .length = uri_size, .path_out = path) &&
+        EMBED_CALL(cli_servers_path_lsp_internal.slice, CliServersPathLspCtx, .path = path);
+    char *const mapped = sliced
+                             ? EMBED_CALL(cli_servers_path_size_internal.slice_diagnostics, CliServersPathSizeCtx,
+                                          .path = path, .params_text = params, .params_size = size, .all = all,
+                                          .size = all_length, .mapped_size = &all_length, .owner = &g_cli_servers_cells)
+                             : NULL;
     if (sliced && (mapped == NULL))
     {
         return;
     }
     all = sliced ? mapped : all;
     char key[CLI_PATH_MAX_LEN];
-    cli_lsp_key_of(uri, uri_size, key);
-    if ((recv_empty_array(all, all_length) && cli_servers_letting_go(key)) ||
-        cli_servers_gathered(key, all, all_length))
+    EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri, .length = uri_size, .key = key);
+    if ((EMBED_CALL(recv_empty_array, ServersRecvCtx, .text = all, .length = all_length) &&
+         EMBED_CALL(cli_servers_key_checker_internal.letting_go, CliServersKeyCheckerCtx, .key = key)) ||
+        EMBED_CALL(cli_servers_size_key_internal.gather, CliServersSizeKeyCtx, .key = key, .all = all,
+                   .size = all_length))
     {
         g_cli_cells->persistent_buf_release(mapped, &g_cli_servers_cells);
         return;
     }
-    cli_servers_woken(key);
-    cli_lock_take(&g_cli_servers_published_lock);
-    (void)cli_keyed_put(&g_cli_servers_published, key, uri, all, all_length);
-    cli_lock_give(&g_cli_servers_published_lock);
+    EMBED_CALL(cli_servers_key_checker_internal.wake, CliServersKeyCheckerCtx, .key = key);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
+    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_published, .key = key,
+                     .beside_value = uri, .text = all, .size_value = all_length);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
     g_cli_cells->persistent_buf_release(mapped, &g_cli_servers_cells);
-    cli_servers_emit_whole(key, uri, sink);
+    EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri, .sink = sink);
 }
 
 // an edit the server requests passed on as each file's edits
-static void recv_edit(const CliServersSink *sink, const char *params, unsigned long long size)
+EMBED_INLINE void recv_edit(const ServersRecvCtx *args)
 {
-    cli_servers_reading_locked(&s_reading);
-    const unsigned int root = cli_servers_read(&s_reading, params, size);
+    unsigned long long size = args->size;
+    EMBED_CALL(cli_servers_reading_answer_internal.reading_lock, CliServersReadingAnswerCtx, .reading = &s_reading);
+    const unsigned int root = EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx, .reading = &s_reading,
+                                         .text = args->params, .size = size);
     char *const edits = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
     VerbaLinea edits_line = mmgr_line_over(edits, CLI_SERVERS_ANSWER);
-    cli_servers_workspace_edit_of(&s_reading.json, cli_json_member(&s_reading.json, root, "edit"), sink->tree,
-                                  &edits_line);
-    if (mmgr_line_ok(&edits_line) && (sink->emit != NULL))
+    EMBED_CALL(cli_servers_json_tree_out_internal.workspace_edit_get, CliServersJsonTreeOutCtx, .json = &s_reading.json,
+               .edit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_reading.json,
+                                  .object = root, .name = "edit"),
+               .tree = args->sink->tree, .out = &edits_line);
+    if (mmgr_line_ok(&edits_line) && (args->sink->emit != NULL))
     {
-        sink->emit(sink->context, "lsp-edits", edits_line.out, edits_line.at);
+        EMBED_CALL(args->sink->emit, CliEachEventJsonSizeCfg, .context = args->sink->context, .event = "lsp-edits",
+                   .json = edits_line.out, .size = edits_line.at);
     }
     g_cli_cells->persistent_buf_release(edits, &g_cli_servers_cells);
-    cli_servers_reading_released(&s_reading);
+    EMBED_CALL(cli_servers_reading_answer_internal.reading_release, CliServersReadingAnswerCtx, .reading = &s_reading);
 }
 
 // One folder of the analysis written: where it is written and whether one is
@@ -106,109 +140,139 @@ typedef struct
 } CliRecvPaths;
 
 // a folder the tree's scripts put on `sys.path` written as a JSON string after those written
-static void recv_path(void *context, const char *path)
+static void recv_path(const CliEachPathCfg *args)
 {
-    CliRecvPaths *const paths = context;
+    CliRecvPaths *const paths = args->context;
     mmgr_line_put(paths->answer, paths->written ? "," : "");
-    cli_json_quoted_lossy(paths->answer, (const unsigned char *)path,
-                          cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = paths->answer,
+               .text_bytes = (const unsigned char *)args->path,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
     paths->written = 1;
 }
 
 // Python's analysis for the item `item` requests of: the folders the scripts of its tree put on `sys.path`
-static void recv_analysis(const CliJson *json, unsigned int item, VerbaLinea *answer)
+EMBED_INLINE void recv_analysis(const ServersRecvCtx *args)
 {
+    const CliJson *json = args->json;
     unsigned long long length = 0ull;
-    const char *const scope = cli_json_string(json, cli_json_member(json, item, "scopeUri"), &length);
+    const char *const scope =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->item, .name = "scopeUri"),
+                   .length_pointer = &length);
     char root[CLI_PATH_MAX_LEN];
-    mmgr_line_put(answer, "{\"autoImportCompletions\":true,\"autoSearchPaths\":true,\"extraPaths\":[");
-    CliRecvPaths paths = {answer, 0};
-    if ((scope != NULL) && cli_lsp_path_of(scope, length, root))
+    mmgr_line_put(args->answer, "{\"autoImportCompletions\":true,\"autoSearchPaths\":true,\"extraPaths\":[");
+    CliRecvPaths paths = {args->answer, 0};
+    if ((scope != NULL) &&
+        EMBED_CALL(cli_lsp_length_uri.path_get, CliLspLengthUriCfg, .uri = scope, .length = length, .path_out = root))
     {
-        (void)cli_python_paths(root, CLI_SERVERS_EXTRA_PATHS, recv_path, &paths);
+        (void)EMBED_CALL(cli_python_paths_table.python_paths, CliPythonPathsCfg, .root = root,
+                         .most = CLI_SERVERS_EXTRA_PATHS, .each = recv_path, .context = &paths);
     }
-    mmgr_line_put(answer, "],\"useLibraryCodeForTypes\":true}");
+    mmgr_line_put(args->answer, "],\"useLibraryCodeForTypes\":true}");
 }
 
 // each setting the server requests: Python's and its analysis given, every other left to its own default
-static void recv_configuration(const char *params, unsigned long long size, VerbaLinea *answer)
+EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
 {
-    cli_servers_reading_locked(&s_reading);
+    unsigned long long size = args->size;
+    EMBED_CALL(cli_servers_reading_answer_internal.reading_lock, CliServersReadingAnswerCtx, .reading = &s_reading);
     const CliJson *const json = &s_reading.json;
-    const unsigned int items = cli_json_member(json, cli_servers_read(&s_reading, params, size), "items");
+    const unsigned int items =
+        EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                   .object = EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx, .reading = &s_reading,
+                                        .text = args->params, .size = size),
+                   .name = "items");
     static CliTreeEnvironment s_environment;
-    const int python = cli_toolchains_environment(&s_environment) && s_environment.has_python;
-    mmgr_line_ch(answer, '[');
+    const int python =
+        EMBED_CALL(cli_toolchains_table.environment, CliToolchainsCfg, .environment_out = &s_environment) &&
+        s_environment.has_python;
+    mmgr_line_ch(args->answer, '[');
     int first = 1;
-    for (unsigned int item = cli_json_is(json, items, CFG_JSON_ARRAY) ? json->node[items].first : CLI_JSON_NONE;
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                        .node = items, .kind = CFG_JSON_ARRAY)
+                                 ? json->node[items].first
+                                 : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
-        mmgr_line_put(answer, first ? "" : ",");
+        mmgr_line_put(args->answer, first ? "" : ",");
         first = 0;
         unsigned long long length = 0ull;
-        const char *const section = cli_json_string(json, cli_json_member(json, item, "section"), &length);
+        const char *const section =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = item, .name = "section"),
+                       .length_pointer = &length);
         if ((section != NULL) && (length == 6ull) &&
             (memor.cmp(&(MemoriaCfg){.src = section, .other = "python", .bytes = 6u}) == 0))
         {
-            mmgr_line_put(answer, "{\"analysis\":");
-            recv_analysis(json, item, answer);
+            mmgr_line_put(args->answer, "{\"analysis\":");
+            EMBED_CALL(recv_analysis, ServersRecvCtx, .json = json, .item = item, .answer = args->answer);
             if (python)
             {
-                mmgr_line_put(answer, ",\"defaultInterpreterPath\":");
-                cli_json_quoted_lossy(
-                    answer, (const unsigned char *)s_environment.python,
-                    cellul.len(&(CatenaFinitaCfg){.src = s_environment.python, .cap = CLI_CELLS_POOL}));
-                mmgr_line_put(answer, ",\"pythonPath\":");
-                cli_json_quoted_lossy(
-                    answer, (const unsigned char *)s_environment.python,
-                    cellul.len(&(CatenaFinitaCfg){.src = s_environment.python, .cap = CLI_CELLS_POOL}));
+                mmgr_line_put(args->answer, ",\"defaultInterpreterPath\":");
+                EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->answer,
+                           .text_bytes = (const unsigned char *)s_environment.python,
+                           .length =
+                               cellul.len(&(CatenaFinitaCfg){.src = s_environment.python, .cap = CLI_CELLS_POOL}));
+                mmgr_line_put(args->answer, ",\"pythonPath\":");
+                EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->answer,
+                           .text_bytes = (const unsigned char *)s_environment.python,
+                           .length =
+                               cellul.len(&(CatenaFinitaCfg){.src = s_environment.python, .cap = CLI_CELLS_POOL}));
             }
-            mmgr_line_ch(answer, '}');
+            mmgr_line_ch(args->answer, '}');
         }
         else if ((section != NULL) && (length == 15ull) &&
                  (memor.cmp(&(MemoriaCfg){.src = section, .other = "python.analysis", .bytes = 15u}) == 0))
         {
-            recv_analysis(json, item, answer);
+            EMBED_CALL(recv_analysis, ServersRecvCtx, .json = json, .item = item, .answer = args->answer);
         }
         else
         {
-            mmgr_line_put(answer, "null");
+            mmgr_line_put(args->answer, "null");
         }
     }
-    mmgr_line_ch(answer, ']');
-    cli_servers_reading_released(&s_reading);
+    mmgr_line_ch(args->answer, ']');
+    EMBED_CALL(cli_servers_reading_answer_internal.reading_release, CliServersReadingAnswerCtx, .reading = &s_reading);
 }
 
-void cli_servers_recv(void *context, const char *method, const char *params, unsigned long long size,
-                      VerbaLinea *answer)
+void cli_servers_recv(const CliLspRecvCfg *args)
 {
-    const CliServersSink *const sink = context;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "textDocument/publishDiagnostics", .cap = CLI_CELLS_POOL}))
+    const char *params = args->params;
+    unsigned long long size = args->size;
+    VerbaLinea *answer = args->answer;
+    const CliServersSink *const sink = args->context;
+    if (cellul.eq(
+            &(CatenaFinitaCfg){.src = args->method, .other = "textDocument/publishDiagnostics", .cap = CLI_CELLS_POOL}))
     {
-        recv_diagnostics(sink, params, size);
+        EMBED_CALL(recv_diagnostics, ServersRecvCtx, .sink = sink, .params = params, .size = size);
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "workspace/applyEdit", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->method, .other = "workspace/applyEdit", .cap = CLI_CELLS_POOL}))
     {
-        recv_edit(sink, params, size);
+        EMBED_CALL(recv_edit, ServersRecvCtx, .sink = sink, .params = params, .size = size);
         mmgr_line_put(answer, "{\"applied\":true}");
     }
-    else if (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "workspace/configuration", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(
+                 &(CatenaFinitaCfg){.src = args->method, .other = "workspace/configuration", .cap = CLI_CELLS_POOL}))
     {
-        recv_configuration(params, size, answer);
+        EMBED_CALL(recv_configuration, ServersRecvCtx, .params = params, .size = size, .answer = answer);
     }
-    else if ((cellul.eq(
-                 &(CatenaFinitaCfg){.src = method, .other = "workspace/inlayHint/refresh", .cap = CLI_CELLS_POOL})) &&
+    else if ((cellul.eq(&(CatenaFinitaCfg){
+                 .src = args->method, .other = "workspace/inlayHint/refresh", .cap = CLI_CELLS_POOL})) &&
              (sink->emit != NULL))
     {
-        sink->emit(sink->context, "lsp-hints", "null", 4ull);
+        EMBED_CALL(sink->emit, CliEachEventJsonSizeCfg, .context = sink->context, .event = "lsp-hints", .json = "null",
+                   .size = 4ull);
     }
-    else if (cellul.eq(
-                 &(CatenaFinitaCfg){.src = method, .other = "workspace/semanticTokens/refresh", .cap = CLI_CELLS_POOL}))
+    else if (cellul.eq(&(CatenaFinitaCfg){
+                 .src = args->method, .other = "workspace/semanticTokens/refresh", .cap = CLI_CELLS_POOL}))
     {
         cli_servers_forget_tokens();
         if (sink->emit != NULL)
         {
-            sink->emit(sink->context, "lsp-parse", "null", 4ull);
+            EMBED_CALL(sink->emit, CliEachEventJsonSizeCfg, .context = sink->context, .event = "lsp-parse",
+                       .json = "null", .size = 4ull);
         }
     }
 }

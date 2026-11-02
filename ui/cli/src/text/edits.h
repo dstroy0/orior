@@ -7,8 +7,15 @@
 // completions.c)
 #ifndef EDITS_H
 #define EDITS_H
+typedef struct CliEditsItemsCfg CliEditsItemsCfg;
+typedef struct CliEditsOutCfg CliEditsOutCfg;
+typedef struct CliEditsOutItemsCfg CliEditsOutItemsCfg;
+typedef struct CliEditsLineCfg CliEditsLineCfg;
+typedef struct CliEditsCfg CliEditsCfg;
+typedef struct CliEditsPlaceCfg CliEditsPlaceCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most edits written over a text at once
 #define CLI_TEXT_EDITS 65536u
@@ -30,16 +37,15 @@ typedef struct
 } CliTextEdit;
 
 // a place written as `{"line", "col"}`, and an edit as `{"from", "to", "text"}`
-void cli_text_place_written(CliTextPlace place, VerbaLinea *out);
-void cli_text_edit_written(const CliTextEdit *edit, VerbaLinea *out);
+void cli_text_place_write(const CliEditsPlaceCfg *args);
+void cli_text_edit_write(const CliEditsCfg *args);
 
 // the byte where the UTF-16 column `col` of `size` bytes of a line falls, the line's end where it is past it
-unsigned long long cli_text_byte_of(const char *line, unsigned long long size, unsigned int col);
+unsigned long long cli_text_byte_get(const CliEditsLineCfg *args);
 
 // `size` bytes of `text` with `edits`, `count` of them, written over it into `out`: 1, or 0 where there are more than
 // CLI_TEXT_EDITS of them or the cellblock cannot meet the places they are found at
-int cli_text_applied(const char *text, unsigned long long size, const CliTextEdit *edits, unsigned int count,
-                     VerbaLinea *out);
+int cli_text_apply(const CliEditsOutCfg *args);
 
 // the most completion items one request gives, and the bytes their texts take
 #define CLI_COMPLETIONS_MOST 4096u
@@ -72,11 +78,115 @@ typedef struct
 // items made empty; an item put after the others: 1, or 0 where it does not fit; the items made unique by what they
 // show, the first of each retained; and an item written as the page reads one, `{"label", "kind", "detail", "insert"}`
 // and `"snippet": true` where it is one (completions.c)
-void cli_completions_begun(CliCompletions *items);
-int cli_completion_put(CliCompletions *items, const char *label, unsigned long long label_size, const char *kind,
-                       const char *detail, unsigned long long detail_size, const char *insert,
-                       unsigned long long insert_size, int snippet);
-void cli_completions_unique(CliCompletions *items);
-void cli_completion_written(const CliCompletions *items, unsigned int at, VerbaLinea *out);
+void cli_completions_begin(const CliEditsItemsCfg *args);
+int cli_completion_put(const CliEditsItemsCfg *args);
+void cli_completions_unique(const CliEditsItemsCfg *args);
+void cli_completion_write(const CliEditsOutItemsCfg *args);
+
+struct CliEditsItemsCfg
+{
+    CliCompletions *items;
+    const char *label;
+    unsigned long long label_size;
+    const char *kind;
+    const char *detail;
+    unsigned long long detail_size;
+    const char *insert;
+    unsigned long long insert_size;
+    int snippet;
+};
+
+struct CliEditsOutCfg
+{
+    VerbaLinea *out;
+    unsigned long long size;
+    const char *text;
+    const CliTextEdit *edits;
+    unsigned int count;
+};
+
+struct CliEditsOutItemsCfg
+{
+    VerbaLinea *out;
+    const CliCompletions *items_read;
+    unsigned int at;
+};
+
+struct CliEditsLineCfg
+{
+    const char *line;
+    unsigned long long size;
+    unsigned int col;
+};
+
+struct CliEditsCfg
+{
+    VerbaLinea *out;
+    const CliTextEdit *edit;
+};
+
+struct CliEditsPlaceCfg
+{
+    CliTextPlace place;
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    void (*text_place_write)(const CliEditsPlaceCfg *args);
+} CliEditsPlaceNs;
+EMBED_TABLE_LAYOUT(CliEditsPlaceNs, text_place_write);
+EMBED_TABLE_STORAGE CliEditsPlaceNs cli_edits_place EMBED_UNUSED = {
+    .text_place_write = cli_text_place_write,
+};
+
+typedef struct
+{
+    void (*text_edit_write)(const CliEditsCfg *args);
+} CliEditsNs;
+EMBED_TABLE_LAYOUT(CliEditsNs, text_edit_write);
+EMBED_TABLE_STORAGE CliEditsNs cli_edits EMBED_UNUSED = {
+    .text_edit_write = cli_text_edit_write,
+};
+
+typedef struct
+{
+    unsigned long long (*text_byte_get)(const CliEditsLineCfg *args);
+} CliEditsLineNs;
+EMBED_TABLE_LAYOUT(CliEditsLineNs, text_byte_get);
+EMBED_TABLE_STORAGE CliEditsLineNs cli_edits_line EMBED_UNUSED = {
+    .text_byte_get = cli_text_byte_get,
+};
+
+typedef struct
+{
+    int (*text_apply)(const CliEditsOutCfg *args);
+} CliEditsOutNs;
+EMBED_TABLE_LAYOUT(CliEditsOutNs, text_apply);
+EMBED_TABLE_STORAGE CliEditsOutNs cli_edits_out EMBED_UNUSED = {
+    .text_apply = cli_text_apply,
+};
+
+typedef struct
+{
+    void (*completions_begin)(const CliEditsItemsCfg *args);
+    int (*completion_put)(const CliEditsItemsCfg *args);
+    void (*completions_unique)(const CliEditsItemsCfg *args);
+} CliEditsItemsNs;
+EMBED_TABLE_LAYOUT(CliEditsItemsNs, completions_begin, completion_put, completions_unique);
+EMBED_TABLE_STORAGE CliEditsItemsNs cli_edits_items EMBED_UNUSED = {
+    .completions_begin = cli_completions_begin,
+    .completion_put = cli_completion_put,
+    .completions_unique = cli_completions_unique,
+};
+
+typedef struct
+{
+    void (*completion_write)(const CliEditsOutItemsCfg *args);
+} CliEditsOutItemsNs;
+EMBED_TABLE_LAYOUT(CliEditsOutItemsNs, completion_write);
+EMBED_TABLE_STORAGE CliEditsOutItemsNs cli_edits_out_items EMBED_UNUSED = {
+    .completion_write = cli_completion_write,
+};
 
 #endif

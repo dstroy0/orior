@@ -9,6 +9,13 @@
 #include "../runs/runner.h"
 #include "serve_internal.h"
 
+// A run's gathering, a cell taken as its run starts and given back as it ends: its place among the gatherings, and the
+// lines it printed since they last went, a line containing a JSON array's opening and its items
+typedef struct
+{
+    unsigned int place;
+    VerbaLinea lines;
+} CliServeGathering;
 // the most jobs, params, steps, arguments, list items and bytes of text the catalog read for the page contains
 #define CLI_SERVE_JOBS 1024u
 #define CLI_SERVE_PARAMS 4096u
@@ -41,80 +48,88 @@ typedef struct
 static CliServeCatalogRoom *s_catalog;
 static CliLock s_catalog_lock = CLI_LOCK_INIT;
 
-// A run's gathering, a cell taken as its run starts and given back as it ends: its place among the gatherings, and the
-// lines it printed since they last went, a line containing a JSON array's opening and its items
-typedef struct
-{
-    unsigned int place;
-    VerbaLinea lines;
-} CliServeGathering;
-
 static CliServeGathering *s_gathering[CLI_SERVE_GATHERING];
 static CliLock s_gathering_lock = CLI_LOCK_INIT;
 static CliThread s_flusher;
 static int s_flushing;
 
-CliCatalog *cli_serve_catalog_taken(const char *root, VerbaLinea *err_msg)
+CliCatalog *cli_serve_catalog_take(const CliServeErrMsgRootCtx *args)
 {
-    cli_lock_take(&s_catalog_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_catalog_lock);
     // the catalog outlives the call that reads it: its cell is the shared cellblock's, never a lane's
     s_catalog = g_cli_cells->persistent_buf_alloc(sizeof(*s_catalog), &g_cli_serve_gathering_cells);
     if (s_catalog == NULL)
     {
-        mmgr_line_put(err_msg, "the tree's catalog: the cells cannot meet it");
-        cli_lock_give(&s_catalog_lock);
+        mmgr_line_put(args->err_msg, "the tree's catalog: the cells cannot meet it");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_catalog_lock);
         return NULL;
     }
     CliServeCatalogRoom *const room = s_catalog;
-    cli_catalog_begun(&room->catalog, room->jobs, CLI_SERVE_JOBS, room->params, CLI_SERVE_PARAMS, room->steps,
-                      CLI_SERVE_STEPS, room->args, CLI_SERVE_ARGS, room->lists, CLI_SERVE_LISTS, room->text,
-                      CLI_SERVE_CATALOG_TEXT);
-    cli_catalog_read(root, &room->catalog);
+    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &room->catalog, .jobs = room->jobs,
+               .jobs_most = CLI_SERVE_JOBS, .params = room->params, .params_most = CLI_SERVE_PARAMS,
+               .steps = room->steps, .steps_most = CLI_SERVE_STEPS, .request = room->args, .args_most = CLI_SERVE_ARGS,
+               .lists = room->lists, .lists_most = CLI_SERVE_LISTS, .text_out = room->text,
+               .text_most = CLI_SERVE_CATALOG_TEXT);
+    EMBED_CALL(cli_catalog_root.read, CliCatalogRootCfg, .root = args->root_read, .catalog = &room->catalog);
     return &room->catalog;
 }
 
-void cli_serve_catalog_given(void)
+void cli_serve_catalog_free(void)
 {
     g_cli_cells->persistent_buf_release(s_catalog, &g_cli_serve_gathering_cells);
     s_catalog = NULL;
-    cli_lock_give(&s_catalog_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_catalog_lock);
 }
 
-CliValues *cli_serve_values_of(const CliServeArgs *args)
+CliValues *cli_serve_values_get(const CliServeErrMsgOutCtx *args)
 {
     CliValues *const given = &s_catalog->values;
-    cli_values_begun(given);
-    const unsigned int values = cli_serve_arg(args, "values");
-    const CliJson *const json = args->json;
-    for (unsigned int key = cli_json_is(json, values, CFG_JSON_OBJECT) ? json->node[values].first : CLI_JSON_NONE;
+    EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = given);
+    const unsigned int values =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = args->request, .key = "values");
+    const CliJson *const json = args->request->json;
+    for (unsigned int key = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                       .node = values, .kind = CFG_JSON_OBJECT)
+                                ? json->node[values].first
+                                : CLI_JSON_NONE;
          key != CLI_JSON_NONE; key = json->node[key].next)
     {
-        for (unsigned int one = cli_json_is(json, key, CFG_JSON_ARRAY) ? json->node[key].first : CLI_JSON_NONE;
+        for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                           .node = key, .kind = CFG_JSON_ARRAY)
+                                    ? json->node[key].first
+                                    : CLI_JSON_NONE;
              one != CLI_JSON_NONE; one = json->node[one].next)
         {
-            const char *const value = cli_json_string(json, one, NULL);
+            const char *const value = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                 .json_read = json, .node = one, .length_pointer = NULL);
             if (value != NULL)
             {
-                cli_values_put(given, json->text + json->node[key].key, value);
+                EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = given,
+                           .key = json->text + json->node[key].key, .value = value);
             }
         }
     }
     return given;
 }
 
-// the lines of a gathering sent to the page as run-lines, where it has any; under the gathering's lock
-static void jobs_flushed(CliServeGathering *one)
+typedef struct
 {
-    if (one->lines.at <= 1ull)
+    CliServeGathering *one;
+} ServeJobsCtx;
+// the lines of a gathering sent to the page as run-lines, where it has any; under the gathering's lock
+EMBED_INLINE void jobs_flush(const ServeJobsCtx *args)
+{
+    if (args->one->lines.at <= 1ull)
     {
         return;
     }
-    mmgr_line_ch(&one->lines, ']');
-    if (mmgr_line_ok(&one->lines))
+    mmgr_line_ch(&args->one->lines, ']');
+    if (mmgr_line_ok(&args->one->lines))
     {
-        cli_serve_emitted("run-lines", one->lines.out, one->lines.at);
+        EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-lines", .body = args->one->lines.out,
+                   .size = args->one->lines.at);
     }
-    one->lines.at = 1ull;
+    args->one->lines.at = 1ull;
 }
 
 // every gathering's lines sent to the page every fifty milliseconds
@@ -123,44 +138,45 @@ static void jobs_flusher(void *context)
     (void)context;
     for (;;)
     {
-        query_paused(CLI_SERVE_FLUSH);
-        cli_lock_take(&s_gathering_lock);
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = CLI_SERVE_FLUSH);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_gathering_lock);
         for (unsigned int at = 0u; at < CLI_SERVE_GATHERING; at += 1u)
         {
             if (s_gathering[at] != NULL)
             {
-                jobs_flushed(s_gathering[at]);
+                EMBED_CALL(jobs_flush, ServeJobsCtx, .one = s_gathering[at]);
             }
         }
-        cli_lock_give(&s_gathering_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
     }
 }
 
 // what a run prints, its gathering its context: its start sent at once, each line gathered, and its end sent after the
 // lines gathered, its gathering given back
-static void jobs_run_event(void *context, const CliRunEvent *event)
+static void jobs_run_event(const CliEachEventCfg *args)
 {
-    CliServeGathering *const one = context;
-    cli_lock_take(&s_gathering_lock);
+    const CliRunEvent *event = args->event;
+    CliServeGathering *const one = args->context;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_gathering_lock);
     if ((event->kind == CLI_RUN_EVENT_LINE) && (one != NULL))
     {
         if (one->lines.at > CLI_SERVE_GATHERED)
         {
-            jobs_flushed(one);
+            EMBED_CALL(jobs_flush, ServeJobsCtx, .one = one);
         }
         // a line whose room cannot be met is left out, the lines before it retained
         const unsigned long long mark = one->lines.at;
         mmgr_line_put(&one->lines, (mark > 1ull) ? "," : "");
-        cli_run_event_written(event, &one->lines);
+        EMBED_CALL(cli_runner_event.run_event_write, CliRunnerEventCfg, .event = event, .out = &one->lines);
         one->lines.at = mmgr_line_ok(&one->lines) ? one->lines.at : mark;
-        cli_lock_give(&s_gathering_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
         return;
     }
     // the line printed written after an array's opening, which a line printed where it has no gathering goes in alone
     char *const line_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_EVENT_ROOM, &g_cli_serve_gathering_cells);
     VerbaLinea line = mmgr_line_over(line_cell, CLI_SERVE_EVENT_ROOM);
     mmgr_line_ch(&line, '[');
-    cli_run_event_written(event, &line);
+    EMBED_CALL(cli_runner_event.run_event_write, CliRunnerEventCfg, .event = event, .out = &line);
     if (event->kind == CLI_RUN_EVENT_LINE)
     {
         mmgr_line_ch(&line, ']');
@@ -168,48 +184,54 @@ static void jobs_run_event(void *context, const CliRunEvent *event)
     const int fits = mmgr_line_ok(&line);
     if ((event->kind == CLI_RUN_EVENT_START) && fits)
     {
-        cli_serve_emitted("run-start", line.out + 1u, line.at - 1u);
+        EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-start", .body = line.out + 1u,
+                   .size = line.at - 1u);
     }
     else if ((event->kind == CLI_RUN_EVENT_LINE) && fits)
     {
-        cli_serve_emitted("run-lines", line.out, line.at);
+        EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-lines", .body = line.out,
+                   .size = line.at);
     }
     else if ((event->kind != CLI_RUN_EVENT_START) && (event->kind != CLI_RUN_EVENT_LINE))
     {
         if (one != NULL)
         {
-            jobs_flushed(one);
+            EMBED_CALL(jobs_flush, ServeJobsCtx, .one = one);
             s_gathering[one->place] = NULL;
             g_cli_cells->persistent_buf_release(one->lines.out, &g_cli_serve_gathering_cells);
             g_cli_cells->persistent_buf_release(one, &g_cli_serve_gathering_cells);
         }
-        cli_serve_emitted("run-end", fits ? line.out + 1u : "", fits ? line.at - 1u : 0ull);
+        EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-end",
+                   .body = fits ? line.out + 1u : "", .size = fits ? line.at - 1u : 0ull);
     }
-    cli_lock_give(&s_gathering_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
     g_cli_cells->persistent_buf_release(line.out, &g_cli_serve_gathering_cells);
 }
 
 // a run's gathering given back where its run did not start, NULL given back as nothing
-static void jobs_gathering_given(CliServeGathering *one)
+EMBED_INLINE void jobs_gathering_free(const ServeJobsCtx *args)
 {
-    if (one != NULL)
+    if (args->one != NULL)
     {
-        cli_lock_take(&s_gathering_lock);
-        s_gathering[one->place] = NULL;
-        cli_lock_give(&s_gathering_lock);
-        g_cli_cells->persistent_buf_release(one->lines.out, &g_cli_serve_gathering_cells);
-        g_cli_cells->persistent_buf_release(one, &g_cli_serve_gathering_cells);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_gathering_lock);
+        s_gathering[args->one->place] = NULL;
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
+        g_cli_cells->persistent_buf_release(args->one->lines.out, &g_cli_serve_gathering_cells);
+        g_cli_cells->persistent_buf_release(args->one, &g_cli_serve_gathering_cells);
     }
 }
 
-int cli_serve_job_start(const char *job, const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_job_start(const CliServeErrMsgOutCtx *args)
 {
+    const char *job = args->job;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    cli_lock_take(&s_gathering_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_gathering_lock);
     unsigned int place = 0u;
     while ((place < CLI_SERVE_GATHERING) && (s_gathering[place] != NULL))
     {
@@ -240,25 +262,29 @@ int cli_serve_job_start(const char *job, const CliServeArgs *args, VerbaLinea *o
     }
     const int started = s_flushing;
     s_flushing = 1;
-    cli_lock_give(&s_gathering_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
     if (!started)
     {
         s_flusher = (CliThread){jobs_flusher, NULL};
-        (void)cli_thread_started(&s_flusher);
+        (void)EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_flusher);
     }
     // a place is free while fewer runs than the places allow at once; the run's lines go at once where none is
     const CliRunSink sink = {jobs_run_event, one};
-    CliCatalog *const catalog = cli_serve_catalog_taken(root, err_msg);
+    CliCatalog *const catalog = EMBED_CALL(cli_serve_err_msg_root_internal.catalog_take, CliServeErrMsgRootCtx,
+                                           .root_read = root, .err_msg = err_msg);
     if (catalog == NULL)
     {
-        jobs_gathering_given(one);
+        EMBED_CALL(jobs_gathering_free, ServeJobsCtx, .one = one);
         return 0;
     }
-    const unsigned int found = cli_catalog_find(catalog, job);
+    const unsigned int found = EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = catalog, .id = job);
     unsigned long long run = 0ull;
-    const int done = (found != CLI_CATALOG_NONE) &&
-                     cli_runs_start(sink, root, catalog, found, cli_serve_values_of(args), &run, err_msg);
-    cli_serve_catalog_given();
+    const int done =
+        (found != CLI_CATALOG_NONE) &&
+        EMBED_CALL(cli_runner_err_msg.runs_start, CliRunnerErrMsgCfg, .sink = sink, .root = root, .catalog = catalog,
+                   .job = found, .values = cli_serve_err_msg_out_internal.values_get(args), .run_number_pointer = &run,
+                   .err_msg = err_msg);
+    cli_serve_catalog_free();
     if (found == CLI_CATALOG_NONE)
     {
         mmgr_line_put(err_msg, "no job ");
@@ -266,43 +292,45 @@ int cli_serve_job_start(const char *job, const CliServeArgs *args, VerbaLinea *o
     }
     if (!done)
     {
-        jobs_gathering_given(one);
+        EMBED_CALL(jobs_gathering_free, ServeJobsCtx, .one = one);
     }
     if (done)
     {
-        mmgr_line_decimal(out, run, 1u);
+        mmgr_line_decimal(args->out, run, 1u);
     }
     return done;
 }
 
-int cli_serve_catalog_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_catalog_read(const CliServeErrMsgOutRequestCtx *args)
 {
-    (void)args;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
-    CliCatalog *const catalog = cli_serve_catalog_taken(root, err_msg);
+    CliCatalog *const catalog = EMBED_CALL(cli_serve_err_msg_root_internal.catalog_take, CliServeErrMsgRootCtx,
+                                           .root_read = root, .err_msg = args->err_msg);
     if (catalog == NULL)
     {
         return 0;
     }
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     for (unsigned int at = 0u; at < catalog->jobs; at += 1u)
     {
-        mmgr_line_put(out, (at > 0u) ? "," : "");
-        const unsigned long long start = out->at;
-        cli_catalog_job_written(catalog, at, out);
-        if ((out->at > start) && (out->out[out->at - 1u] == '}'))
+        mmgr_line_put(args->out, (at > 0u) ? "," : "");
+        const unsigned long long start = args->out->at;
+        EMBED_CALL(cli_catalog_index.job_write, CliCatalogIndexCfg, .catalog_read = catalog, .index = at,
+                   .out = args->out);
+        if ((args->out->at > start) && (args->out->out[args->out->at - 1u] == '}'))
         {
-            out->at -= 1u;
-            mmgr_line_put(out, ",\"steps\":");
-            mmgr_line_decimal(out, catalog->job[at].steps, 1u);
-            mmgr_line_ch(out, '}');
+            args->out->at -= 1u;
+            mmgr_line_put(args->out, ",\"steps\":");
+            mmgr_line_decimal(args->out, catalog->job[at].steps, 1u);
+            mmgr_line_ch(args->out, '}');
         }
     }
-    mmgr_line_ch(out, ']');
-    cli_serve_catalog_given();
+    mmgr_line_ch(args->out, ']');
+    cli_serve_catalog_free();
     return 1;
 }

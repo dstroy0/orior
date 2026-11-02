@@ -4,9 +4,28 @@
 // tunnel, SQLite's process, and the rows a statement gave, buffered in a file of their own as they are read
 #ifndef DB_INTERNAL_H
 #define DB_INTERNAL_H
+typedef struct CliDbLinkCtx CliDbLinkCtx;
+typedef struct CliDbLinkFailureCtx CliDbLinkFailureCtx;
+typedef struct CliDbFailureCtx CliDbFailureCtx;
+typedef struct CliDbLinkFailureDoneCtx CliDbLinkFailureDoneCtx;
+typedef struct CliDbLinkFailureStatementCtx CliDbLinkFailureStatementCtx;
+typedef struct CliDbStatementCtx CliDbStatementCtx;
+typedef struct CliDbContextCtx CliDbContextCtx;
+typedef struct CliDbHostCtx CliDbHostCtx;
+typedef struct CliDbFailureStatementCtx CliDbFailureStatementCtx;
+typedef struct CliDbFailureContextCtx CliDbFailureContextCtx;
+typedef struct CliDbLinkContextCtx CliDbLinkContextCtx;
+typedef struct CliDbFailureFileCtx CliDbFailureFileCtx;
+typedef struct CliDbOutCtx CliDbOutCtx;
+typedef struct CliDbOutNameCtx CliDbOutNameCtx;
+typedef struct CliDbCtx CliDbCtx;
+typedef struct CliDbErrMsgCtx CliDbErrMsgCtx;
+typedef struct CliDbStopCtx CliDbStopCtx;
 
+#include "../command_line/callback_cfg.h"
 #include "../toolchains/toolchains.h"
 #include "db.h"
+#include "embed_dispatch_layout.h"
 #include "mysql.h"
 #include "pg.h"
 
@@ -137,63 +156,376 @@ struct CliDbOpen
 // statement gives handed to `each_row`; the transaction's state, idle, open or failed; what stops it into `stop`: 1, or
 // 0 where nothing does; what the server noted while the last statement ran, each handed to `each`; the link ended; and
 // a stop sent (db_link.c)
-int cli_db_link_open(CliDbLink *link, const char *root, const CliDbConnection *config, const char *password,
-                     const char *host, unsigned int port, int runs, CliDbFailure *failure);
-int cli_db_link_start(CliDbLink *link, const char *statement, unsigned long long size, CliDbFailure *failure);
-const CliDbHead *cli_db_link_head(const CliDbLink *link);
-int cli_db_link_rows(CliDbLink *link, unsigned long long count, CliDbRowFn each_row, void *context, int *done,
-                     char *tag, CliDbFailure *failure);
-int cli_db_link_all(CliDbLink *link, const char *statement, unsigned long long size, CliDbRowFn each_row, void *context,
-                    CliDbFailure *failure);
-const char *cli_db_link_transaction(const CliDbLink *link);
-int cli_db_link_stopper(const CliDbLink *link, CliDbStop *stop);
-void cli_db_link_notices(CliDbLink *link, void (*each)(void *context, const char *notice), void *context);
-void cli_db_link_closed(CliDbLink *link);
-int cli_db_stop_sent(const CliDbStop *stop, VerbaLinea *err_msg);
+int cli_db_link_open(const CliDbLinkCtx *args);
+int cli_db_link_start(const CliDbLinkFailureStatementCtx *args);
+const CliDbHead *cli_db_link_head(const CliDbCtx *args);
+int cli_db_link_rows(const CliDbLinkFailureCtx *args);
+int cli_db_link_all(const CliDbLinkFailureStatementCtx *args);
+const char *cli_db_link_transaction(const CliDbCtx *args);
+int cli_db_link_stopper(const CliDbCtx *args);
+void cli_db_link_notices(const CliDbLinkContextCtx *args);
+void cli_db_link_close(const CliDbLinkCtx *args);
+int cli_db_stop_send(const CliDbStopCtx *args);
 
 // SQLite's process started on the database `file`, read-only where `read_only`; a statement started on it; up to
 // `count` rows more of it; whether a transaction is open; an interrupt sent to the statement it runs; and the process
 // ended (db_lite.c)
-CliDbLite *cli_db_lite_open(const char *file, int read_only, CliDbFailure *failure);
-int cli_db_lite_start(CliDbLite *lite, const char *statement, unsigned long long size, CliDbFailure *failure);
-int cli_db_lite_rows(CliDbLite *lite, unsigned long long count, CliDbRowFn each_row, void *context, int *done,
-                     char *tag, CliDbFailure *failure);
-int cli_db_lite_interrupted(CliDbLite *lite, VerbaLinea *err_msg);
-void cli_db_lite_closed(CliDbLite *lite);
+CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args);
+int cli_db_lite_start(const CliDbFailureStatementCtx *args);
+int cli_db_lite_rows(const CliDbFailureCtx *args);
+int cli_db_lite_interrupt(const CliDbErrMsgCtx *args);
+void cli_db_lite_close(const CliDbErrMsgCtx *args);
 
 // the shim SQLite's process runs (db_lite_shim.c)
 extern const char g_cli_db_lite_shim[];
 
 // a tunnel opened through the ssh `through` names to `host`:`port`: 1, or 0 with the failure given; whether it stands;
 // and it ended (db_tunnel.c)
-int cli_db_tunnel_open(CliDbTunnel *tunnel, const char *through, const char *host, unsigned int port,
-                       CliDbFailure *failure);
-int cli_db_tunnel_alive(CliDbTunnel *tunnel);
-void cli_db_tunnel_closed(CliDbTunnel *tunnel);
+int cli_db_tunnel_open(const CliDbHostCtx *args);
+int cli_db_tunnel_alive(const CliDbHostCtx *args);
+void cli_db_tunnel_close(const CliDbHostCtx *args);
+
+typedef struct
+{
+    void *context;
+    CliDbLink *link;
+    CliDbFailure *failure;
+} CliEachLinkFailureCfg;
 
 // the query link acquired and handed to `work`, made again where its connection broke; and the same of the schema's
 // link. Each what `work` gives, 0 with the failure given (db_open.c)
-int cli_db_with_query(CliDbOpen *open, int (*work)(void *context, CliDbLink *link, CliDbFailure *failure),
-                      void *context, CliDbFailure *failure);
-int cli_db_with_meta(CliDbOpen *open, int (*work)(void *context, CliDbLink *link, CliDbFailure *failure), void *context,
-                     CliDbFailure *failure);
+int cli_db_with_query(const CliDbFailureContextCtx *args);
+int cli_db_with_meta(const CliDbFailureContextCtx *args);
 // the zone the session reads times in read again (db_open.c)
-void cli_db_zone_read(CliDbOpen *open);
+void cli_db_zone_read(const CliDbFailureContextCtx *args);
 
 // the rows of a statement that began on the query link buffered anew, its first `page` rows read into the file and
 // written into `out` as a JSON array: 1, or 0 with the failure given; and the statement recorded in the connection's
 // history with how long it took and its tag, or the failure where `failed` (db_results.c, db_history.c)
-int cli_db_results_begun(CliDbOpen *open, CliDbLink *link, unsigned long long page, VerbaLinea *out, int *done,
-                         char *tag, CliDbFailure *failure);
+int cli_db_results_begin(const CliDbLinkFailureDoneCtx *args);
 // the lines of the rows buffered from `start` to `end`, each a JSON array of the row's values, handed to `each`, under
 // the buffered rows' lock (db_results.c)
-void cli_db_results_lines(CliDbResults *results, unsigned long long start, unsigned long long end,
-                          void (*each)(void *context, const char *line, unsigned long long size), void *context);
-void cli_db_remembered(CliDbOpen *open, const char *statement, unsigned long long size, unsigned long long took,
-                       const char *err_text, int failed);
+void cli_db_results_lines(const CliDbContextCtx *args);
+void cli_db_remembered(const CliDbStatementCtx *args);
 
 // `name` quoted as the dialect quotes a name, and `text` as a string it reads back as itself (db_children.c)
-void cli_db_quoted_name(const char *name, unsigned int dialect, VerbaLinea *out);
-void cli_db_literal(const char *text, unsigned int dialect, VerbaLinea *out);
+void cli_db_quoted_name(const CliDbOutNameCtx *args);
+void cli_db_literal(const CliDbOutCtx *args);
+
+struct CliDbLinkCtx
+{
+    CliDbLink *link;
+    const char *root;
+    const CliDbConnection *config;
+    const char *password;
+    const char *host;
+    unsigned int port;
+    int runs;
+    CliDbFailure *failure;
+};
+
+struct CliDbLinkFailureCtx
+{
+    CliDbLink *link;
+    CliDbFailure *failure;
+    unsigned long long count;
+    CliDbRowFn each_row;
+    void *context;
+    int *done;
+    char *tag;
+};
+
+struct CliDbFailureCtx
+{
+    CliDbFailure *failure;
+    unsigned long long count;
+    CliDbRowFn each_row;
+    void *context;
+    int *done;
+    char *tag;
+    CliDbLite *lite;
+};
+
+struct CliDbLinkFailureDoneCtx
+{
+    CliDbLink *link;
+    CliDbFailure *failure;
+    int *done;
+    char *tag;
+    CliDbOpen *open;
+    unsigned long long page;
+    VerbaLinea *out;
+};
+
+struct CliDbLinkFailureStatementCtx
+{
+    CliDbLink *link;
+    CliDbFailure *failure;
+    const char *statement;
+    unsigned long long size;
+    CliDbRowFn each_row;
+    void *context;
+};
+
+struct CliDbStatementCtx
+{
+    const char *statement;
+    unsigned long long size;
+    CliDbOpen *open;
+    unsigned long long took;
+    const char *err_text;
+    int failed;
+};
+
+struct CliDbContextCtx
+{
+    void *context;
+    CliDbResults *results;
+    unsigned long long start;
+    unsigned long long end;
+    void (*each_callback)(const CliEachLineSizeCfg *args);
+};
+
+struct CliDbHostCtx
+{
+    const char *host;
+    unsigned int port;
+    CliDbFailure *failure;
+    CliDbTunnel *tunnel;
+    const char *through;
+};
+
+struct CliDbFailureStatementCtx
+{
+    CliDbFailure *failure;
+    const char *statement;
+    unsigned long long size;
+    CliDbLite *lite;
+};
+
+struct CliDbFailureContextCtx
+{
+    CliDbFailure *failure;
+    void *context;
+    CliDbOpen *open;
+    int (*work)(const CliEachLinkFailureCfg *args);
+};
+
+struct CliDbLinkContextCtx
+{
+    CliDbLink *link;
+    void *context;
+    void (*each)(const CliEachNoticeCfg *args);
+};
+
+struct CliDbFailureFileCtx
+{
+    CliDbFailure *failure;
+    const char *file;
+    int read_only;
+};
+
+struct CliDbOutCtx
+{
+    VerbaLinea *out;
+    unsigned int dialect;
+    const char *text;
+};
+
+struct CliDbOutNameCtx
+{
+    VerbaLinea *out;
+    const char *name;
+    unsigned int dialect;
+};
+
+struct CliDbCtx
+{
+    const CliDbLink *link_read;
+    CliDbStop *stop;
+};
+
+struct CliDbErrMsgCtx
+{
+    VerbaLinea *err_msg;
+    CliDbLite *lite;
+};
+
+struct CliDbStopCtx
+{
+    const CliDbStop *stop_read;
+    VerbaLinea *err_msg;
+};
+
+typedef struct
+{
+    int (*link_open)(const CliDbLinkCtx *args);
+    void (*link_close)(const CliDbLinkCtx *args);
+} CliDbLinkNs;
+EMBED_TABLE_LAYOUT(CliDbLinkNs, link_open, link_close);
+EMBED_TABLE_STORAGE CliDbLinkNs cli_db_link_internal EMBED_UNUSED = {
+    .link_open = cli_db_link_open,
+    .link_close = cli_db_link_close,
+};
+
+typedef struct
+{
+    int (*link_start)(const CliDbLinkFailureStatementCtx *args);
+    int (*link_all)(const CliDbLinkFailureStatementCtx *args);
+} CliDbLinkFailureStatementNs;
+EMBED_TABLE_LAYOUT(CliDbLinkFailureStatementNs, link_start, link_all);
+EMBED_TABLE_STORAGE CliDbLinkFailureStatementNs cli_db_link_failure_statement_internal EMBED_UNUSED = {
+    .link_start = cli_db_link_start,
+    .link_all = cli_db_link_all,
+};
+
+typedef struct
+{
+    const CliDbHead *(*link_head)(const CliDbCtx *args);
+    const char *(*link_transaction)(const CliDbCtx *args);
+    int (*link_stopper)(const CliDbCtx *args);
+} CliDbNsTable;
+EMBED_TABLE_LAYOUT(CliDbNsTable, link_head, link_transaction, link_stopper);
+EMBED_TABLE_STORAGE CliDbNsTable cli_db_internal EMBED_UNUSED = {
+    .link_head = cli_db_link_head,
+    .link_transaction = cli_db_link_transaction,
+    .link_stopper = cli_db_link_stopper,
+};
+
+typedef struct
+{
+    int (*link_rows)(const CliDbLinkFailureCtx *args);
+} CliDbLinkFailureNs;
+EMBED_TABLE_LAYOUT(CliDbLinkFailureNs, link_rows);
+EMBED_TABLE_STORAGE CliDbLinkFailureNs cli_db_link_failure_internal EMBED_UNUSED = {
+    .link_rows = cli_db_link_rows,
+};
+
+typedef struct
+{
+    void (*link_notices)(const CliDbLinkContextCtx *args);
+} CliDbLinkContextNs;
+EMBED_TABLE_LAYOUT(CliDbLinkContextNs, link_notices);
+EMBED_TABLE_STORAGE CliDbLinkContextNs cli_db_link_context_internal EMBED_UNUSED = {
+    .link_notices = cli_db_link_notices,
+};
+
+typedef struct
+{
+    int (*stop_send)(const CliDbStopCtx *args);
+} CliDbStopNs;
+EMBED_TABLE_LAYOUT(CliDbStopNs, stop_send);
+EMBED_TABLE_STORAGE CliDbStopNs cli_db_stop_internal EMBED_UNUSED = {
+    .stop_send = cli_db_stop_send,
+};
+
+typedef struct
+{
+    CliDbLite *(*lite_open)(const CliDbFailureFileCtx *args);
+} CliDbFailureFileNs;
+EMBED_TABLE_LAYOUT(CliDbFailureFileNs, lite_open);
+EMBED_TABLE_STORAGE CliDbFailureFileNs cli_db_failure_file_internal EMBED_UNUSED = {
+    .lite_open = cli_db_lite_open,
+};
+
+typedef struct
+{
+    int (*lite_start)(const CliDbFailureStatementCtx *args);
+} CliDbFailureStatementNs;
+EMBED_TABLE_LAYOUT(CliDbFailureStatementNs, lite_start);
+EMBED_TABLE_STORAGE CliDbFailureStatementNs cli_db_failure_statement_internal EMBED_UNUSED = {
+    .lite_start = cli_db_lite_start,
+};
+
+typedef struct
+{
+    int (*lite_rows)(const CliDbFailureCtx *args);
+} CliDbFailureNs;
+EMBED_TABLE_LAYOUT(CliDbFailureNs, lite_rows);
+EMBED_TABLE_STORAGE CliDbFailureNs cli_db_failure_internal EMBED_UNUSED = {
+    .lite_rows = cli_db_lite_rows,
+};
+
+typedef struct
+{
+    int (*lite_interrupt)(const CliDbErrMsgCtx *args);
+    void (*lite_close)(const CliDbErrMsgCtx *args);
+} CliDbErrMsgNsTable;
+EMBED_TABLE_LAYOUT(CliDbErrMsgNsTable, lite_interrupt, lite_close);
+EMBED_TABLE_STORAGE CliDbErrMsgNsTable cli_db_err_msg_internal EMBED_UNUSED = {
+    .lite_interrupt = cli_db_lite_interrupt,
+    .lite_close = cli_db_lite_close,
+};
+
+typedef struct
+{
+    int (*tunnel_open)(const CliDbHostCtx *args);
+    int (*tunnel_alive)(const CliDbHostCtx *args);
+    void (*tunnel_close)(const CliDbHostCtx *args);
+} CliDbHostNs;
+EMBED_TABLE_LAYOUT(CliDbHostNs, tunnel_open, tunnel_alive, tunnel_close);
+EMBED_TABLE_STORAGE CliDbHostNs cli_db_host_internal EMBED_UNUSED = {
+    .tunnel_open = cli_db_tunnel_open,
+    .tunnel_alive = cli_db_tunnel_alive,
+    .tunnel_close = cli_db_tunnel_close,
+};
+
+typedef struct
+{
+    int (*with_query)(const CliDbFailureContextCtx *args);
+    int (*with_meta)(const CliDbFailureContextCtx *args);
+    void (*zone_read)(const CliDbFailureContextCtx *args);
+} CliDbFailureContextNs;
+EMBED_TABLE_LAYOUT(CliDbFailureContextNs, with_query, with_meta, zone_read);
+EMBED_TABLE_STORAGE CliDbFailureContextNs cli_db_failure_context_internal EMBED_UNUSED = {
+    .with_query = cli_db_with_query,
+    .with_meta = cli_db_with_meta,
+    .zone_read = cli_db_zone_read,
+};
+
+typedef struct
+{
+    int (*results_begin)(const CliDbLinkFailureDoneCtx *args);
+} CliDbLinkFailureDoneNs;
+EMBED_TABLE_LAYOUT(CliDbLinkFailureDoneNs, results_begin);
+EMBED_TABLE_STORAGE CliDbLinkFailureDoneNs cli_db_link_failure_done_internal EMBED_UNUSED = {
+    .results_begin = cli_db_results_begin,
+};
+
+typedef struct
+{
+    void (*results_lines)(const CliDbContextCtx *args);
+} CliDbContextNs;
+EMBED_TABLE_LAYOUT(CliDbContextNs, results_lines);
+EMBED_TABLE_STORAGE CliDbContextNs cli_db_context_internal EMBED_UNUSED = {
+    .results_lines = cli_db_results_lines,
+};
+
+typedef struct
+{
+    void (*remembered)(const CliDbStatementCtx *args);
+} CliDbStatementNs;
+EMBED_TABLE_LAYOUT(CliDbStatementNs, remembered);
+EMBED_TABLE_STORAGE CliDbStatementNs cli_db_statement_internal EMBED_UNUSED = {
+    .remembered = cli_db_remembered,
+};
+
+typedef struct
+{
+    void (*quoted_name)(const CliDbOutNameCtx *args);
+} CliDbOutNameNs;
+EMBED_TABLE_LAYOUT(CliDbOutNameNs, quoted_name);
+EMBED_TABLE_STORAGE CliDbOutNameNs cli_db_out_name_internal EMBED_UNUSED = {
+    .quoted_name = cli_db_quoted_name,
+};
+
+typedef struct
+{
+    void (*literal)(const CliDbOutCtx *args);
+} CliDbOutNsTable;
+EMBED_TABLE_LAYOUT(CliDbOutNsTable, literal);
+EMBED_TABLE_STORAGE CliDbOutNsTable cli_db_out_internal EMBED_UNUSED = {
+    .literal = cli_db_literal,
+};
 
 #endif

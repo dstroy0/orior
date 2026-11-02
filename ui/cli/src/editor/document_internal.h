@@ -3,8 +3,11 @@
 // document_internal.h: a text stored as document_store.c stores it and document_branch.c colors it
 #ifndef DOCUMENT_INTERNAL_H
 #define DOCUMENT_INTERNAL_H
+typedef struct CliDocumentCtx CliDocumentCtx;
+typedef struct CliDocumentKeyCtx CliDocumentKeyCtx;
 
 #include "document.h"
+#include "embed_dispatch_layout.h"
 
 // the line past the last of a text read whole whose runs are handed on: every line's
 #define CLI_DOC_CACHED_ALL 0xffffffffu
@@ -40,11 +43,11 @@
 // names its grammar's tokens take, each by its name's place, CLI_DOC_ROLES_KNOWN with the roles once read and 0 before,
 // and above them from CLI_DOC_RANK_AT one more than how many names before it count the depth of a pair, 0 before it is
 // read, in a cell at their most; whether its lines' regions moved since its folds were handed on; and the runs the walk
-// found on its lines, kept as it colors them, each line's how many, then their columns, then their names as the walk
-// names them, a line's place among them in its `runs`, in a cell taken again at the runs its lines keep and a share
-// past them where a line's runs do not fit, and how much of the room is written. A paged text keeps the runs of the
+// found on its lines, saved as it colors them, each line's how many, then their columns, then their names as the walk
+// names them, a line's place among them in its `runs`, in a cell taken again at the runs its lines save and a share
+// past them where a line's runs do not fit, and how much of the room is written. A paged text saves the runs of the
 // lines the page holds alone. Its lines are colored with the lock given back: a coloring claims lines under the lock,
-// colors them with no lock taken and puts what it found in under the lock again. For that the text keeps the serial its
+// colors them with no lock taken and puts what it found in under the lock again. For that the text saves the serial its
 // lines and states stand at, a number no text took before, taken anew each time they are stored again, edited or
 // colored by another grammar, so a coloring that finds it moved puts nothing in; how many colorings and walks hold it
 // across the lock given back, and whether it was let go while one did, its cells given back as the last ends; whether a
@@ -95,8 +98,8 @@ typedef struct CliStoredText
     unsigned int claim_to[CLI_DOC_CLAIMS];
 } CliStoredText;
 
-// a name's roles read and kept among a text's roles; where its rank among the names that count the depth of a pair is
-// kept above them, and the most ranks kept
+// a name's roles read and saved among a text's roles; where its rank among the names that count the depth of a pair is
+// saved above them, and the most ranks saved
 #define CLI_DOC_ROLES_KNOWN 0x8000u
 #define CLI_DOC_RANK_AT 16u
 #define CLI_DOC_RANKS 0xfffeu
@@ -107,17 +110,53 @@ typedef struct CliStoredText
 void cli_document_lock_take(void);
 void cli_document_lock_give(void);
 CliStoredText *cli_document_texts(void);
-CliStoredText *cli_document_stored(const char *key);
-int cli_document_paged_counted(CliStoredText *one);
-// the serial of `one` taken anew, a number no text took before; `one` kept across the lock given back, and let go of,
-// its cells given back where it was let go while kept and this was the last to keep it. Each under the lock
+CliStoredText *cli_document_on_store(const CliDocumentKeyCtx *args);
+int cli_document_paged_count(const CliDocumentCtx *args);
+// the serial of `one` taken anew, a number no text took before; `one` saved across the lock given back, and let go of,
+// its cells given back where it was let go while saved and this was the last to save it. Each under the lock
 // (document_store.c)
-void cli_document_serial_moved(CliStoredText *one);
-void cli_document_holder_added(CliStoredText *one);
-void cli_document_holder_ended(CliStoredText *one);
+void cli_document_serial_move(const CliDocumentCtx *args);
+void cli_document_holder_add(const CliDocumentCtx *args);
+void cli_document_holder_end(const CliDocumentCtx *args);
 // the walk of the texts' colors woken for `one`, which moved: a walker started on a thread of its own where the walk
 // runs on threads, another text than those walked has lines to color, and fewer walk than the machine has processors
 // to spare; under the lock (document_branch.c)
-void cli_document_woken(CliStoredText *one);
+void cli_document_wake(const CliDocumentCtx *args);
+
+struct CliDocumentCtx
+{
+    CliStoredText *one;
+};
+
+struct CliDocumentKeyCtx
+{
+    const char *key;
+};
+
+typedef struct
+{
+    CliStoredText *(*store)(const CliDocumentKeyCtx *args);
+} CliDocumentKeyNsTable;
+EMBED_TABLE_LAYOUT(CliDocumentKeyNsTable, store);
+EMBED_TABLE_STORAGE CliDocumentKeyNsTable cli_document_key_internal EMBED_UNUSED = {
+    .store = cli_document_on_store,
+};
+
+typedef struct
+{
+    int (*paged_count)(const CliDocumentCtx *args);
+    void (*serial_move)(const CliDocumentCtx *args);
+    void (*holder_add)(const CliDocumentCtx *args);
+    void (*holder_end)(const CliDocumentCtx *args);
+    void (*wake)(const CliDocumentCtx *args);
+} CliDocumentNsTable;
+EMBED_TABLE_LAYOUT(CliDocumentNsTable, paged_count, serial_move, holder_add, holder_end, wake);
+EMBED_TABLE_STORAGE CliDocumentNsTable cli_document_internal EMBED_UNUSED = {
+    .paged_count = cli_document_paged_count,
+    .serial_move = cli_document_serial_move,
+    .holder_add = cli_document_holder_add,
+    .holder_end = cli_document_holder_end,
+    .wake = cli_document_wake,
+};
 
 #endif

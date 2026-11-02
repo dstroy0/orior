@@ -5,6 +5,8 @@
 #ifndef FORMS_BLOB_H
 #define FORMS_BLOB_H
 
+#include <assert.h>
+
 // the record's name the vendor's writer appends the forms under
 #define FORMS_BLOB_NAME "forms_blob"
 
@@ -19,6 +21,6 @@ typedef struct
     char text[176];
 } FormsBlobRow;
 
-_Static_assert(sizeof(FormsBlobRow) == 256u, "FormsBlobRow must be the 256 bytes of a row");
+static_assert(sizeof(FormsBlobRow) == 256u, "FormsBlobRow must be the 256 bytes of a row");
 
 #endif

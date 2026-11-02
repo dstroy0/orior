@@ -7,21 +7,34 @@
 #include "../text/text.h"
 #include "pg_internal.h"
 
+typedef struct
+{
+    const unsigned char *at;
+    unsigned int width;
+    unsigned long long oid;
+    int *numeric;
+    CliPg *pg;
+    const CliPg *pg_read;
+    char *tag;
+} PgRowsCtx;
+
 // a big-endian number of `width` bytes at `at`
-static unsigned long long rows_number(const unsigned char *at, unsigned int width)
+EMBED_INLINE unsigned long long rows_number(const PgRowsCtx *args)
 {
     unsigned long long value = 0ull;
-    for (unsigned int byte = 0u; byte < width; byte += 1u)
+    for (unsigned int byte = 0u; byte < args->width; byte += 1u)
     {
-        value = (value << 8u) | at[byte];
+        value = (value << 8u) | args->at[byte];
     }
     return value;
 }
 
 // the type name of the types a result most often contains, by their oid, and whether they are numbers: "" where orior
 // names it by its oid
-static const char *rows_type_name(unsigned long long oid, int *numeric)
+EMBED_INLINE const char *rows_type_name(const PgRowsCtx *args)
 {
+    unsigned long long oid = args->oid;
+    int *numeric = args->numeric;
     static const struct
     {
         unsigned int oid;
@@ -47,26 +60,28 @@ static const char *rows_type_name(unsigned long long oid, int *numeric)
 }
 
 // the columns a RowDescription names, into the connection's head
-static void rows_columns(CliPg *pg)
+EMBED_INLINE void rows_columns(const PgRowsCtx *args)
 {
-    const unsigned char *const body = pg->message;
-    const unsigned long long size = pg->size;
-    const unsigned long long count = (size >= 2u) ? rows_number(body, 2u) : 0ull;
+    const unsigned char *const body = args->pg->message;
+    const unsigned long long size = args->pg->size;
+    const unsigned long long count = (size >= 2u) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body, .width = 2u) : 0ull;
     unsigned long long at = 2ull;
-    pg->head.column_count = 0u;
-    for (unsigned long long one = 0ull; (one < count) && (pg->head.column_count < CLI_DB_COLUMNS); one += 1ull)
+    args->pg->head.column_count = 0u;
+    for (unsigned long long one = 0ull; (one < count) && (args->pg->head.column_count < CLI_DB_COLUMNS); one += 1ull)
     {
         const unsigned char *const nul =
             (at < size) ? memor.chr(&(MemoriaCfg){.src = body + at, .val = 0, .bytes = (size_t)(size - at)}) : NULL;
         const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - body) : size;
-        CliDbColumn *const column = &pg->head.columns[pg->head.column_count];
+        CliDbColumn *const column = &args->pg->head.columns[args->pg->head.column_count];
         VerbaLinea name = {column->name, sizeof(column->name), 0ull};
-        cli_lossy(&name, body + at, end - at);
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &name, .text_bytes = body + at,
+                   .length = end - at);
         mmgr_line_finish(&name);
         at = end + 1ull;
-        const unsigned long long oid = (at + 10u <= size) ? rows_number(body + at + 6u, 4u) : 0ull;
+        const unsigned long long oid =
+            (at + 10u <= size) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body + at + 6u, .width = 4u) : 0ull;
         at += 18ull;
-        const char *const kind = rows_type_name(oid, &column->numeric);
+        const char *const kind = EMBED_CALL(rows_type_name, PgRowsCtx, .oid = oid, .numeric = &column->numeric);
         VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ull};
         if (kind[0] == '\0')
         {
@@ -78,24 +93,24 @@ static void rows_columns(CliPg *pg)
             mmgr_line_put(&kind_line, kind);
         }
         mmgr_line_finish(&kind_line);
-        pg->head.column_count += 1u;
+        args->pg->head.column_count += 1u;
     }
 }
 
 // a DataRow's values, each pointing into the message, into the connection's row: their count
-static unsigned int rows_row(CliPg *pg)
+EMBED_INLINE unsigned int rows_row(const PgRowsCtx *args)
 {
-    const unsigned char *const body = pg->message;
-    const unsigned long long size = pg->size;
-    const unsigned long long count = (size >= 2u) ? rows_number(body, 2u) : 0ull;
+    const unsigned char *const body = args->pg->message;
+    const unsigned long long size = args->pg->size;
+    const unsigned long long count = (size >= 2u) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body, .width = 2u) : 0ull;
     unsigned long long at = 2ull;
     unsigned int values = 0u;
     for (unsigned long long one = 0ull; (one < count) && (values < CLI_DB_COLUMNS) && (at + 4u <= size); one += 1ull)
     {
         // the length is a signed number of four bytes, -1 for NULL
-        const unsigned long long raw = rows_number(body + at, 4u);
+        const unsigned long long raw = EMBED_CALL(rows_number, PgRowsCtx, .at = body + at, .width = 4u);
         at += 4ull;
-        CliDbValue *const value = &pg->row[values];
+        CliDbValue *const value = &args->pg->row[values];
         value->null = (raw & 0x80000000ull) != 0ull;
         const unsigned long long length = value->null ? 0ull : raw;
         const unsigned long long end = (at + length < size) ? at + length : size;
@@ -108,95 +123,105 @@ static unsigned int rows_row(CliPg *pg)
 }
 
 // a CommandComplete's tag into `tag`
-static void rows_tag(const CliPg *pg, char *tag)
+EMBED_INLINE void rows_tag(const PgRowsCtx *args)
 {
-    const unsigned long long size = ((pg->size > 0u) && (pg->message[pg->size - 1u] == 0u)) ? pg->size - 1u : pg->size;
-    VerbaLinea line = {tag, CLI_DB_TAG, 0ull};
-    cli_lossy(&line, pg->message, size);
+    const unsigned long long size =
+        ((args->pg_read->size > 0u) && (args->pg_read->message[args->pg_read->size - 1u] == 0u))
+            ? args->pg_read->size - 1u
+            : args->pg_read->size;
+    VerbaLinea line = {args->tag, CLI_DB_TAG, 0ull};
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
+               .text_bytes = args->pg_read->message, .length = size);
     mmgr_line_finish(&line);
 }
 
-int cli_pg_start(CliPg *pg, const char *sql, unsigned long long size, CliDbFailure *failure)
+int cli_pg_start(const CliPgFailureSqlCfg *args)
 {
+    CliDbFailure *failure = args->failure;
     char tag[CLI_DB_TAG];
-    if (pg->reading && !cli_pg_finish(pg, tag, failure))
+    if (args->pg->reading &&
+        !EMBED_CALL(cli_pg_failure.finish, CliPgFailureCfg, .pg = args->pg, .tag = tag, .failure = failure))
     {
         return 0;
     }
-    pg->notice_count = 0u;
-    pg->has_failed = 0;
-    const void *const parts[2] = {sql, ""};
-    const unsigned long long sizes[2] = {size, 1ull};
-    if (!cli_pg_sent(pg, 'Q', parts, sizes, 2u, failure))
+    args->pg->notice_count = 0u;
+    args->pg->has_failed = 0;
+    const void *const parts[2] = {args->sql, ""};
+    const unsigned long long sizes[2] = {args->size, 1ull};
+    if (!EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = args->pg, .kind_value = 'Q',
+                    .parts = parts, .sizes = sizes, .count = 2u, .failure = failure))
     {
         return 0;
     }
-    pg->head.rows = 0;
-    pg->head.tag[0] = '\0';
+    args->pg->head.rows = 0;
+    args->pg->head.tag[0] = '\0';
     for (;;)
     {
         unsigned char kind = 0u;
-        if (!cli_pg_message(pg, &kind, failure))
+        if (!EMBED_CALL(cli_pg_kind_internal.message, CliPgKindCtx, .pg = args->pg, .kind = &kind, .failure = failure))
         {
             return 0;
         }
         if (kind == 'T')
         {
-            pg->reading = 1;
-            pg->head.rows = 1;
-            rows_columns(pg);
+            args->pg->reading = 1;
+            args->pg->head.rows = 1;
+            EMBED_CALL(rows_columns, PgRowsCtx, .pg = args->pg);
             return 1;
         }
         if (kind == 'C')
         {
-            rows_tag(pg, pg->head.tag);
+            EMBED_CALL(rows_tag, PgRowsCtx, .pg_read = args->pg, .tag = args->pg->head.tag);
         }
         else if (kind == 'E')
         {
-            cli_pg_failure_of(pg->message, pg->size, &pg->failed);
-            pg->has_failed = 1;
+            EMBED_CALL(cli_pg_internal.failure_get, CliPgCtx, .body = args->pg->message, .size = args->pg->size,
+                       .failure = &args->pg->failed);
+            args->pg->has_failed = 1;
         }
         else if (kind == 'N')
         {
-            cli_pg_notice_stored(pg);
+            EMBED_CALL(cli_pg_failure_password_internal.notice_store, CliPgFailurePasswordCtx, .pg = args->pg);
         }
         else if (kind == 'S')
         {
-            cli_pg_parameter_stored(pg, pg->message, pg->size);
+            EMBED_CALL(cli_pg_body_internal.parameter_store, CliPgBodyCtx, .pg = args->pg, .body = args->pg->message,
+                       .size = args->pg->size);
         }
         else if (kind == 'G')
         {
             static const char s_reason[] = "orior_cli sends no data to COPY FROM STDIN";
             const void *const reason[1] = {s_reason};
             const unsigned long long reason_size[1] = {sizeof(s_reason)};
-            if (!cli_pg_sent(pg, 'f', reason, reason_size, 1u, failure))
+            if (!EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = args->pg, .kind_value = 'f',
+                            .parts = reason, .sizes = reason_size, .count = 1u, .failure = failure))
             {
                 return 0;
             }
         }
         else if (kind == 'H')
         {
-            pg->reading = 1;
-            pg->head.rows = 1;
-            pg->head.column_count = 1u;
+            args->pg->reading = 1;
+            args->pg->head.rows = 1;
+            args->pg->head.column_count = 1u;
             memor.cpy(
-                &(MemoriaCfg){.dst = pg->head.columns[0].name,
+                &(MemoriaCfg){.dst = args->pg->head.columns[0].name,
                               .src = "copy",
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "copy", .cap = CLI_CELLS_POOL}) + 1u});
             memor.cpy(
-                &(MemoriaCfg){.dst = pg->head.columns[0].kind,
+                &(MemoriaCfg){.dst = args->pg->head.columns[0].kind,
                               .src = "text",
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "text", .cap = CLI_CELLS_POOL}) + 1u});
-            pg->head.columns[0].numeric = 0;
+            args->pg->head.columns[0].numeric = 0;
             return 1;
         }
         else if (kind == 'Z')
         {
-            pg->status = (pg->size > 0u) ? (char)pg->message[0] : 'I';
-            if (pg->has_failed)
+            args->pg->status = (args->pg->size > 0u) ? (char)args->pg->message[0] : 'I';
+            if (args->pg->has_failed)
             {
-                pg->has_failed = 0;
-                *failure = pg->failed;
+                args->pg->has_failed = 0;
+                *failure = args->pg->failed;
                 return 0;
             }
             return 1;
@@ -204,72 +229,78 @@ int cli_pg_start(CliPg *pg, const char *sql, unsigned long long size, CliDbFailu
     }
 }
 
-int cli_pg_rows(CliPg *pg, unsigned long long count, CliDbRowFn each_row, void *context, int *done, char *tag,
-                CliDbFailure *failure)
+int cli_pg_rows(const CliPgFailureCfg *args)
 {
+    int *done = args->done;
+    CliDbFailure *failure = args->failure;
     unsigned long long read = 0ull;
     int has_tag = 0;
     *done = 0;
-    tag[0] = '\0';
-    if (!pg->reading)
+    args->tag[0] = '\0';
+    if (!args->pg->reading)
     {
         *done = 1;
         return 1;
     }
     // once the tag has come the rows are read on to the ReadyForQuery that follows it
-    while ((read < count) || has_tag)
+    while ((read < args->count) || has_tag)
     {
         unsigned char kind = 0u;
-        if (!cli_pg_message(pg, &kind, failure))
+        if (!EMBED_CALL(cli_pg_kind_internal.message, CliPgKindCtx, .pg = args->pg, .kind = &kind, .failure = failure))
         {
             return 0;
         }
         if (kind == 'D')
         {
-            const unsigned int values = rows_row(pg);
+            const unsigned int values = EMBED_CALL(rows_row, PgRowsCtx, .pg = args->pg);
             read += 1ull;
-            if (!each_row(context, pg->row, values))
+            if (!EMBED_CALL(args->each_row, CliDbRowCfg, .context = args->context, .values = args->pg->row,
+                            .count = values))
             {
                 return 1;
             }
         }
         else if (kind == 'd')
         {
-            unsigned long long size = pg->size;
-            size = cli_text_back_past(pg->message, size, "\n");
-            pg->row[0] = (CliDbValue){(const char *)pg->message, size, 0};
+            unsigned long long size = args->pg->size;
+            size = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->pg->message,
+                              .at = size, .set = "\n");
+            args->pg->row[0] = (CliDbValue){(const char *)args->pg->message, size, 0};
             read += 1ull;
-            if (!each_row(context, pg->row, 1u))
+            if (!EMBED_CALL(args->each_row, CliDbRowCfg, .context = args->context, .values = args->pg->row,
+                            .count = 1u))
             {
                 return 1;
             }
         }
         else if (kind == 'C')
         {
-            rows_tag(pg, tag);
+            EMBED_CALL(rows_tag, PgRowsCtx, .pg_read = args->pg, .tag = args->tag);
             has_tag = 1;
         }
         else if (kind == 'E')
         {
-            cli_pg_failure_of(pg->message, pg->size, &pg->failed);
-            pg->has_failed = 1;
+            EMBED_CALL(cli_pg_internal.failure_get, CliPgCtx, .body = args->pg->message, .size = args->pg->size,
+                       .failure = &args->pg->failed);
+            args->pg->has_failed = 1;
         }
         else if (kind == 'N')
         {
-            cli_pg_notice_stored(pg);
+            EMBED_CALL(cli_pg_failure_password_internal.notice_store, CliPgFailurePasswordCtx, .pg = args->pg);
         }
         else if (kind == 'S')
         {
-            cli_pg_parameter_stored(pg, pg->message, pg->size);
+            EMBED_CALL(cli_pg_body_internal.parameter_store, CliPgBodyCtx, .pg = args->pg, .body = args->pg->message,
+                       .size = args->pg->size);
         }
         else if (kind == 'Z')
         {
-            pg->status = (pg->size > 0u) ? (char)pg->message[0] : 'I';
-            pg->reading = 0;
-            if (pg->has_failed)
+            args->pg->status = (args->pg->size > 0u) ? (char)args->pg->message[0] : 'I';
+            args->pg->reading = 0;
+            if (args->pg->has_failed)
             {
-                pg->has_failed = 0;
-                *failure = pg->failed;
+                args->pg->has_failed = 0;
+                *failure = args->pg->failed;
                 return 0;
             }
             *done = 1;
@@ -280,29 +311,28 @@ int cli_pg_rows(CliPg *pg, unsigned long long count, CliDbRowFn each_row, void *
 }
 
 // a row passed over, as finishing reads it
-static int rows_passed(void *context, const CliDbValue *values, unsigned int count)
+static int rows_pass(const CliDbRowCfg *args)
 {
-    (void)context;
-    (void)values;
-    (void)count;
+    (void)args;
     return 1;
 }
 
-int cli_pg_finish(CliPg *pg, char *tag, CliDbFailure *failure)
+int cli_pg_finish(const CliPgFailureCfg *args)
 {
     char done_tag[CLI_DB_TAG];
-    tag[0] = '\0';
-    while (pg->reading)
+    args->tag[0] = '\0';
+    while (args->pg->reading)
     {
         int done = 0;
-        if (!cli_pg_rows(pg, 4096ull, rows_passed, NULL, &done, done_tag, failure))
+        if (!EMBED_CALL(cli_pg_failure.rows, CliPgFailureCfg, .pg = args->pg, .count = 4096ull, .each_row = rows_pass,
+                        .context = NULL, .done = &done, .tag = done_tag, .failure = args->failure))
         {
             return 0;
         }
         if (done)
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = tag,
+                &(MemoriaCfg){.dst = args->tag,
                               .src = done_tag,
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = done_tag, .cap = CLI_CELLS_POOL}) + 1u});
         }
@@ -310,17 +340,18 @@ int cli_pg_finish(CliPg *pg, char *tag, CliDbFailure *failure)
     return 1;
 }
 
-int cli_pg_all(CliPg *pg, const char *sql, unsigned long long size, CliDbRowFn each_row, void *context,
-               CliDbFailure *failure)
+int cli_pg_all(const CliPgFailureSqlCfg *args)
 {
     char tag[CLI_DB_TAG];
-    if (!cli_pg_start(pg, sql, size, failure))
+    if (!cli_pg_failure_sql.start(args))
     {
         return 0;
     }
-    for (int done = !pg->head.rows; !done;)
+    for (int done = !args->pg->head.rows; !done;)
     {
-        if (!cli_pg_rows(pg, 4096ull, each_row, context, &done, tag, failure))
+        if (!EMBED_CALL(cli_pg_failure.rows, CliPgFailureCfg, .pg = args->pg, .count = 4096ull,
+                        .each_row = args->each_row, .context = args->context, .done = &done, .tag = tag,
+                        .failure = args->failure))
         {
             return 0;
         }

@@ -2,34 +2,61 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // font.c: a font's tables read, its character map, a glyph's advance and place, and the system's monospace fonts
 #include "font.h"
+#include "../command_line/callback_cfg.h"
 
-unsigned int cli_font_u16(const CliFont *font, unsigned long long at)
+unsigned int cli_font_u16(const CliFontAtCfg *args)
 {
-    return ((at + 2ull) <= font->size) ? (((unsigned int)font->data[at] << 8u) | font->data[at + 1u]) : 0u;
+    return ((args->at + 2ull) <= args->font->size)
+               ? (((unsigned int)args->font->data[args->at] << 8u) | args->font->data[args->at + 1u])
+               : 0u;
 }
 
-int cli_font_i16(const CliFont *font, unsigned long long at)
+int cli_font_i16(const CliFontAtCfg *args)
 {
-    const unsigned int value = cli_font_u16(font, at);
+    const unsigned int value = cli_font_at.u16(args);
     // the two bytes read as the signed number they write
     return (value >= 0x8000u) ? ((int)value - 0x10000) : (int)value;
 }
 
-static unsigned long long cli_u32(const CliFont *font, unsigned long long at)
+typedef struct
 {
+    const CliFont *font;
+    unsigned long long at;
+    const char *tag;
+    unsigned long long *at_pointer;
+    CliFont *font_out;
+    unsigned int start;
+    unsigned int end;
+    unsigned int glyph;
+    const char *one;
+    const char *other;
+    char (*folders)[CLI_PATH_MAX_LEN];
+    unsigned int count;
+    const char *name;
+    char *found;
+    unsigned int *count_pointer;
+    const char *base;
+    const char *under;
+} FontCtx;
+EMBED_INLINE unsigned long long cli_u32(const FontCtx *args)
+{
+    const CliFont *font = args->font;
+    unsigned long long at = args->at;
     return ((at + 4ull) <= font->size)
-               ? (((unsigned long long)cli_font_u16(font, at) << 16u) | cli_font_u16(font, at + 2u))
+               ? (((unsigned long long)EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = at) << 16u) |
+                  EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = at + 2u))
                : 0ull;
 }
 
 // the place of the table `tag`, 1 where it is found
-static int cli_table(const CliFont *font, const char *tag, unsigned long long *at)
+EMBED_INLINE int cli_table(const FontCtx *args)
 {
-    for (unsigned int index = font->tables; index > 0u; index -= 1u)
+    unsigned long long *at = args->at_pointer;
+    for (unsigned int index = args->font->tables; index > 0u; index -= 1u)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = font->tag[index - 1u], .other = tag, .bytes = 4u}) == 0)
+        if (memor.cmp(&(MemoriaCfg){.src = args->font->tag[index - 1u], .other = args->tag, .bytes = 4u}) == 0)
         {
-            *at = font->table[index - 1u];
+            *at = args->font->table[index - 1u];
             return 1;
         }
     }
@@ -37,36 +64,37 @@ static int cli_table(const CliFont *font, const char *tag, unsigned long long *a
 }
 
 // a range of characters put after the map's
-static void cli_range(CliFont *font, unsigned int start, unsigned int end, unsigned int glyph)
+EMBED_INLINE void cli_range(const FontCtx *args)
 {
-    if (font->ranges < CLI_FONT_RANGES)
+    if (args->font_out->ranges < CLI_FONT_RANGES)
     {
-        font->range[font->ranges][0] = start;
-        font->range[font->ranges][1] = end;
-        font->range[font->ranges][2] = glyph;
-        font->ranges += 1u;
+        args->font_out->range[args->font_out->ranges][0] = args->start;
+        args->font_out->range[args->font_out->ranges][1] = args->end;
+        args->font_out->range[args->font_out->ranges][2] = args->glyph;
+        args->font_out->ranges += 1u;
     }
 }
 
 // The character map as ranges of characters and the glyph each range starts at: format 12 where the font has it,
 // else format 4. 1, or 0 where it has neither
-static int cli_cmap_read(CliFont *font)
+EMBED_INLINE int cli_cmap_read(const FontCtx *args)
 {
+    CliFont *font = args->font_out;
     unsigned long long cmap = 0ull;
-    if (!cli_table(font, "cmap", &cmap))
+    if (!EMBED_CALL(cli_table, FontCtx, .font = font, .tag = "cmap", .at_pointer = &cmap))
     {
         return 0;
     }
-    const unsigned int count = cli_font_u16(font, cmap + 2u);
+    const unsigned int count = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = cmap + 2u);
     unsigned int best_rank = 0u;
     unsigned long long best = 0ull;
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const unsigned long long at = cmap + 4u + (index * 8ull);
-        const unsigned int platform = cli_font_u16(font, at);
-        const unsigned int encoding = cli_font_u16(font, at + 2u);
-        const unsigned long long offset = cmap + cli_u32(font, at + 4u);
-        const unsigned int format = cli_font_u16(font, offset);
+        const unsigned int platform = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = at);
+        const unsigned int encoding = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = at + 2u);
+        const unsigned long long offset = cmap + EMBED_CALL(cli_u32, FontCtx, .font = font, .at = at + 4u);
+        const unsigned int format = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = offset);
         const unsigned int rank =
             (((platform == 3u) && (encoding == 10u) && (format == 12u)) ||
              ((platform == 0u) && ((encoding == 4u) || (encoding == 6u)) && (format == 12u)))
@@ -84,29 +112,34 @@ static int cli_cmap_read(CliFont *font)
         return 0;
     }
     font->ranges = 0u;
-    if (cli_font_u16(font, best) == 12u)
+    if (EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = best) == 12u)
     {
-        const unsigned long long groups = cli_u32(font, best + 12u);
+        const unsigned long long groups = EMBED_CALL(cli_u32, FontCtx, .font = font, .at = best + 12u);
         for (unsigned long long group = 0ull; group < groups; group += 1ull)
         {
             const unsigned long long at = best + 16u + (group * 12ull);
             // each is a 32 bit field of the table
-            cli_range(font, (unsigned int)cli_u32(font, at), (unsigned int)cli_u32(font, at + 4u),
-                      (unsigned int)cli_u32(font, at + 8u));
+            EMBED_CALL(cli_range, FontCtx, .font_out = font,
+                       .start = (unsigned int)EMBED_CALL(cli_u32, FontCtx, .font = font, .at = at),
+                       .end = (unsigned int)EMBED_CALL(cli_u32, FontCtx, .font = font, .at = at + 4u),
+                       .glyph = (unsigned int)EMBED_CALL(cli_u32, FontCtx, .font = font, .at = at + 8u));
         }
         return 1;
     }
-    const unsigned int segments = cli_font_u16(font, best + 6u) / 2u;
+    const unsigned int segments = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = best + 6u) / 2u;
     const unsigned long long ends = best + 14u;
     const unsigned long long starts = ends + (segments * 2ull) + 2ull;
     const unsigned long long deltas = starts + (segments * 2ull);
     const unsigned long long offsets = deltas + (segments * 2ull);
     for (unsigned int segment = 0u; segment < segments; segment += 1u)
     {
-        const unsigned int end = cli_font_u16(font, ends + (segment * 2ull));
-        const unsigned int start = cli_font_u16(font, starts + (segment * 2ull));
-        const unsigned int delta = cli_font_u16(font, deltas + (segment * 2ull));
-        const unsigned int range_offset = cli_font_u16(font, offsets + (segment * 2ull));
+        const unsigned int end = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = ends + (segment * 2ull));
+        const unsigned int start =
+            EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = starts + (segment * 2ull));
+        const unsigned int delta =
+            EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = deltas + (segment * 2ull));
+        const unsigned int range_offset =
+            EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = offsets + (segment * 2ull));
         if (start == 0xffffu)
         {
             continue;
@@ -117,17 +150,21 @@ static int cli_cmap_read(CliFont *font)
             if (range_offset != 0u)
             {
                 const unsigned long long at = offsets + (segment * 2ull) + range_offset + ((code - start) * 2ull);
-                const unsigned int found = cli_font_u16(font, at);
+                const unsigned int found = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = at);
                 glyph = (found == 0u) ? 0u : ((found + delta) & 0xffffu);
             }
-            cli_range(font, code, code, glyph);
+            EMBED_CALL(cli_range, FontCtx, .font_out = font, .start = code, .end = code, .glyph = glyph);
         }
     }
     return 1;
 }
 
-int cli_font_read(CliFont *font, const unsigned char *data, unsigned long long size, unsigned int (*ranges)[3])
+int cli_font_read(const CliFontDataCfg *args)
 {
+    CliFont *font = args->font_out;
+    const unsigned char *data = args->data;
+    unsigned long long size = args->size;
+    unsigned int (*ranges)[3] = args->ranges;
     font->data = data;
     font->size = size;
     font->range = ranges;
@@ -135,9 +172,9 @@ int cli_font_read(CliFont *font, const unsigned char *data, unsigned long long s
     font->tables = 0u;
     const unsigned long long base =
         ((size >= 4u) && (memor.cmp(&(MemoriaCfg){.src = data, .other = "ttcf", .bytes = 4u}) == 0))
-            ? cli_u32(font, 12u)
+            ? EMBED_CALL(cli_u32, FontCtx, .font = font, .at = 12u)
             : 0ull;
-    const unsigned int count = cli_font_u16(font, base + 4u);
+    const unsigned int count = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = base + 4u);
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const unsigned long long at = base + 12u + (index * 16ull);
@@ -146,36 +183,39 @@ int cli_font_read(CliFont *font, const unsigned char *data, unsigned long long s
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = font->tag[font->tables], .src = data + at, .bytes = 4u});
-        font->table[font->tables] = cli_u32(font, at + 8u);
+        font->table[font->tables] = EMBED_CALL(cli_u32, FontCtx, .font = font, .at = at + 8u);
         font->tables += 1u;
     }
     unsigned long long head = 0ull;
     unsigned long long hhea = 0ull;
     unsigned long long maxp = 0ull;
     unsigned long long place = 0ull;
-    if (!cli_table(font, "head", &head) || !cli_table(font, "hhea", &hhea) || !cli_table(font, "maxp", &maxp) ||
-        !cli_table(font, "glyf", &place) || !cli_table(font, "loca", &place))
+    if (!EMBED_CALL(cli_table, FontCtx, .font = font, .tag = "head", .at_pointer = &head) ||
+        !EMBED_CALL(cli_table, FontCtx, .font = font, .tag = "hhea", .at_pointer = &hhea) ||
+        !EMBED_CALL(cli_table, FontCtx, .font = font, .tag = "maxp", .at_pointer = &maxp) ||
+        !EMBED_CALL(cli_table, FontCtx, .font = font, .tag = "glyf", .at_pointer = &place) ||
+        !EMBED_CALL(cli_table, FontCtx, .font = font, .tag = "loca", .at_pointer = &place))
     {
         return 0;
     }
-    font->units = (float)cli_font_u16(font, head + 18u);
-    font->long_loca = cli_font_i16(font, head + 50u) == 1;
-    font->ascent = (float)cli_font_i16(font, hhea + 4u);
-    font->descent = (float)cli_font_i16(font, hhea + 6u);
-    font->metrics = cli_font_u16(font, hhea + 34u);
-    font->glyphs = cli_font_u16(font, maxp + 4u);
-    return cli_cmap_read(font);
+    font->units = (float)EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = head + 18u);
+    font->long_loca = EMBED_CALL(cli_font_at.i16, CliFontAtCfg, .font = font, .at = head + 50u) == 1;
+    font->ascent = (float)EMBED_CALL(cli_font_at.i16, CliFontAtCfg, .font = font, .at = hhea + 4u);
+    font->descent = (float)EMBED_CALL(cli_font_at.i16, CliFontAtCfg, .font = font, .at = hhea + 6u);
+    font->metrics = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = hhea + 34u);
+    font->glyphs = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = maxp + 4u);
+    return EMBED_CALL(cli_cmap_read, FontCtx, .font_out = font);
 }
 
-unsigned int cli_font_glyph(const CliFont *font, unsigned int letter)
+unsigned int cli_font_glyph(const CliFontCfg *args)
 {
     // the first range whose last character is not before the letter, found by halves
     unsigned int low = 0u;
-    unsigned int high = font->ranges;
+    unsigned int high = args->font->ranges;
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (font->range[middle][1] < letter)
+        if (args->font->range[middle][1] < args->letter)
         {
             low = middle + 1u;
         }
@@ -184,37 +224,46 @@ unsigned int cli_font_glyph(const CliFont *font, unsigned int letter)
             high = middle;
         }
     }
-    if ((low < font->ranges) && (font->range[low][0] <= letter))
+    if ((low < args->font->ranges) && (args->font->range[low][0] <= args->letter))
     {
-        return (font->range[low][2] + (letter - font->range[low][0])) & 0xffffu;
+        return (args->font->range[low][2] + (args->letter - args->font->range[low][0])) & 0xffffu;
     }
     return 0u;
 }
 
-float cli_font_advance(const CliFont *font, unsigned int glyph)
+float cli_font_advance(const CliFontGlyphCfg *args)
 {
     unsigned long long hmtx = 0ull;
-    if (!cli_table(font, "hmtx", &hmtx))
+    if (!EMBED_CALL(cli_table, FontCtx, .font = args->font, .tag = "hmtx", .at_pointer = &hmtx))
     {
-        return font->units / 2.0f;
+        return args->font->units / 2.0f;
     }
-    const unsigned int last = (font->metrics > 0u) ? (font->metrics - 1u) : 0u;
-    const unsigned int index = (glyph < last) ? glyph : last;
-    return (float)cli_font_u16(font, hmtx + (index * 4ull));
+    const unsigned int last = (args->font->metrics > 0u) ? (args->font->metrics - 1u) : 0u;
+    const unsigned int index = (args->glyph < last) ? args->glyph : last;
+    return (float)EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = args->font, .at = hmtx + (index * 4ull));
 }
 
-int cli_font_glyph_range(const CliFont *font, unsigned int glyph, unsigned long long *from, unsigned long long *to)
+int cli_font_glyph_range(const CliFontGlyphCfg *args)
 {
+    unsigned long long *from = args->from;
+    unsigned long long *to = args->to;
     unsigned long long loca = 0ull;
     unsigned long long glyf = 0ull;
-    if ((glyph >= font->glyphs) || !cli_table(font, "loca", &loca) || !cli_table(font, "glyf", &glyf))
+    if ((args->glyph >= args->font->glyphs) ||
+        !EMBED_CALL(cli_table, FontCtx, .font = args->font, .tag = "loca", .at_pointer = &loca) ||
+        !EMBED_CALL(cli_table, FontCtx, .font = args->font, .tag = "glyf", .at_pointer = &glyf))
     {
         return 0;
     }
     const unsigned long long start =
-        font->long_loca ? cli_u32(font, loca + (glyph * 4ull)) : (cli_font_u16(font, loca + (glyph * 2ull)) * 2ull);
-    const unsigned long long end = font->long_loca ? cli_u32(font, loca + (glyph * 4ull) + 4u)
-                                                   : (cli_font_u16(font, loca + (glyph * 2ull) + 2u) * 2ull);
+        args->font->long_loca
+            ? EMBED_CALL(cli_u32, FontCtx, .font = args->font, .at = loca + (args->glyph * 4ull))
+            : (EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = args->font, .at = loca + (args->glyph * 2ull)) * 2ull);
+    const unsigned long long end =
+        args->font->long_loca
+            ? EMBED_CALL(cli_u32, FontCtx, .font = args->font, .at = loca + (args->glyph * 4ull) + 4u)
+            : (EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = args->font, .at = loca + (args->glyph * 2ull) + 2u) *
+               2ull);
     *from = glyf + start;
     *to = glyf + end;
     return end > start;
@@ -229,13 +278,15 @@ typedef struct
     unsigned int depth;
 } CliFontWalk;
 
-static int cli_same_name(const char *one, const char *other)
+EMBED_INLINE int cli_same_name(const FontCtx *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = CLI_CELLS_POOL, .ci = 1});
+    const char *other = args->other;
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->one, .other = other, .cap = CLI_CELLS_POOL, .ci = 1});
 }
 
-static void cli_walk_each(void *context, const char *name, int is_folder)
+static void cli_walk_each(const CliEachNameIsFolderCfg *args)
 {
+    void *context = args->context;
     CliFontWalk *const walk = (CliFontWalk *)context;
     if (walk->found[0] != '\0')
     {
@@ -245,17 +296,18 @@ static void cli_walk_each(void *context, const char *name, int is_folder)
     VerbaLinea line = {path, sizeof(path), 0ull};
     mmgr_line_put(&line, walk->folder);
     mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
     if (mmgr_line_finish(&line) == 0ull)
     {
         return;
     }
-    if (is_folder && (walk->depth > 1u))
+    if (args->is_folder && (walk->depth > 1u))
     {
         CliFontWalk inner = {walk->name, walk->found, path, walk->depth - 1u};
-        query_folder_each(path, cli_walk_each, &inner);
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = path, .each = cli_walk_each,
+                   .context_bytess = &inner);
     }
-    else if (!is_folder && cli_same_name(name, walk->name))
+    else if (!args->is_folder && EMBED_CALL(cli_same_name, FontCtx, .one = args->name, .other = walk->name))
     {
         memor.cpy(&(MemoriaCfg){.dst = walk->found,
                                 .src = path,
@@ -265,28 +317,30 @@ static void cli_walk_each(void *context, const char *name, int is_folder)
 
 // The font file `name` found in the folders: in one of them, or, off Windows, under one to a depth of four, as the
 // fonts of Linux distributions stand in folders of their own under the fonts folder
-static int cli_find(char (*folders)[CLI_PATH_MAX_LEN], unsigned int count, const char *name, char *found)
+EMBED_INLINE int cli_find(const FontCtx *args)
 {
-    found[0] = '\0';
-    if (name[0] == '\0')
+    args->found[0] = '\0';
+    if (args->name[0] == '\0')
     {
         return 0;
     }
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        VerbaLinea line = {found, CLI_PATH_MAX_LEN, 0ull};
-        mmgr_line_put(&line, folders[at]);
+        VerbaLinea line = {args->found, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, args->folders[at]);
         mmgr_line_ch(&line, '/');
-        mmgr_line_put(&line, name);
-        if ((mmgr_line_finish(&line) != 0ull) && query_is_file(found))
+        mmgr_line_put(&line, args->name);
+        if ((mmgr_line_finish(&line) != 0ull) &&
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->found))
         {
             return 1;
         }
-        found[0] = '\0';
+        args->found[0] = '\0';
 #if !defined(_WIN32)
-        CliFontWalk walk = {name, found, folders[at], 4u};
-        query_folder_each(folders[at], cli_walk_each, &walk);
-        if (found[0] != '\0')
+        CliFontWalk walk = {args->name, args->found, args->folders[at], 4u};
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folders[at],
+                   .each = cli_walk_each, .context_bytess = &walk);
+        if (args->found[0] != '\0')
         {
             return 1;
         }
@@ -296,68 +350,84 @@ static int cli_find(char (*folders)[CLI_PATH_MAX_LEN], unsigned int count, const
 }
 
 // a folder put after the folders looked in, `under` after `base`
-static void cli_folder(char (*folders)[CLI_PATH_MAX_LEN], unsigned int *count, const char *base, const char *under)
+EMBED_INLINE void cli_folder(const FontCtx *args)
 {
-    VerbaLinea line = {folders[*count], CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, base);
-    mmgr_line_put(&line, under);
+    unsigned int *count = args->count_pointer;
+    VerbaLinea line = {args->folders[*count], CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->base);
+    mmgr_line_put(&line, args->under);
     *count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
 }
 
-// the folders the system keeps its fonts in, into `folders`, which is sized for four: their count
-static unsigned int cli_font_folders(char (*folders)[CLI_PATH_MAX_LEN])
+// the folders the system saves its fonts in, into `folders`, which is sized for four: their count
+EMBED_INLINE unsigned int cli_font_folders(const FontCtx *args)
 {
     unsigned int count = 0u;
     char named[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
-    if (query_environment_read("WINDIR", named, sizeof(named)))
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "WINDIR", .value_out = named,
+                   .room = sizeof(named)))
     {
-        cli_folder(folders, &count, named, "/Fonts");
+        EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = named,
+                   .under = "/Fonts");
     }
-    if (query_environment_read("LOCALAPPDATA", named, sizeof(named)))
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "LOCALAPPDATA",
+                   .value_out = named, .room = sizeof(named)))
     {
-        cli_folder(folders, &count, named, "/Microsoft/Windows/Fonts");
+        EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = named,
+                   .under = "/Microsoft/Windows/Fonts");
     }
 #elif defined(__APPLE__)
-    cli_folder(folders, &count, "/System/Library/Fonts", "");
-    cli_folder(folders, &count, "/Library/Fonts", "");
-    if (query_environment_read("HOME", named, sizeof(named)))
+    EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = "/System/Library/Fonts",
+               .under = "");
+    EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = "/Library/Fonts",
+               .under = "");
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = named,
+                   .room = sizeof(named)))
     {
-        cli_folder(folders, &count, named, "/Library/Fonts");
+        EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = named,
+                   .under = "/Library/Fonts");
     }
 #else
-    cli_folder(folders, &count, "/usr/share/fonts", "");
-    cli_folder(folders, &count, "/usr/local/share/fonts", "");
-    if (query_environment_read("HOME", named, sizeof(named)))
+    EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = "/usr/share/fonts",
+               .under = "");
+    EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = "/usr/local/share/fonts",
+               .under = "");
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = named,
+                   .room = sizeof(named)))
     {
-        cli_folder(folders, &count, named, "/.local/share/fonts");
+        EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = named,
+                   .under = "/.local/share/fonts");
     }
 #endif
     return count;
 }
 
-void cli_font_found(const char *const (*families)[4], unsigned int count, char (*paths)[CLI_PATH_MAX_LEN])
+void cli_font_find(const CliFontFamiliesCfg *args)
 {
+    unsigned int count = args->count;
     char folders[4][CLI_PATH_MAX_LEN];
-    const unsigned int folder_count = cli_font_folders(folders);
+    const unsigned int folder_count = EMBED_CALL(cli_font_folders, FontCtx, .folders = folders);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
-        paths[face][0] = '\0';
+        args->paths[face][0] = '\0';
     }
     for (unsigned int family = 0u; family < count; family += 1u)
     {
-        if (cli_find(folders, folder_count, families[family][0], paths[0]))
+        if (EMBED_CALL(cli_find, FontCtx, .folders = folders, .count = folder_count, .name = args->families[family][0],
+                       .found = args->paths[0]))
         {
             for (unsigned int face = 1u; face < 4u; face += 1u)
             {
-                cli_find(folders, folder_count, families[family][face], paths[face]);
+                EMBED_CALL(cli_find, FontCtx, .folders = folders, .count = folder_count,
+                           .name = args->families[family][face], .found = args->paths[face]);
             }
             return;
         }
     }
 }
 
-void cli_font_monospace(char (*paths)[CLI_PATH_MAX_LEN])
+void cli_font_monospace(const CliFontFamiliesCfg *args)
 {
     static const char *const s_families[8][4] = {
         {"IBMPlexMono-Regular.ttf", "IBMPlexMono-Bold.ttf", "IBMPlexMono-Italic.ttf", "IBMPlexMono-BoldItalic.ttf"},
@@ -370,5 +440,5 @@ void cli_font_monospace(char (*paths)[CLI_PATH_MAX_LEN])
         {"Menlo.ttc", "", "", ""},
         {"cour.ttf", "courbd.ttf", "couri.ttf", "courbi.ttf"},
         {"Courier New.ttf", "Courier New Bold.ttf", "Courier New Italic.ttf", "Courier New Bold Italic.ttf"}};
-    cli_font_found(s_families, 8u, paths);
+    EMBED_CALL(cli_font_families.find, CliFontFamiliesCfg, .families = s_families, .count = 8u, .paths = args->paths);
 }

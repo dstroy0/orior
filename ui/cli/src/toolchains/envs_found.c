@@ -1,17 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// envs_found.c: the environments a tree contains found, at any depth to CLI_ENVS_DEPTH, nearest the top first, each
+// envs_find.c: the environments a tree contains found, at any depth to CLI_ENVS_DEPTH, nearest the top first, each
 // with the packages the files beside it require
+#include "../command_line/callback_cfg.h"
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "envs_internal.h"
-
-// how many folders below the top a search for environments goes, the most folders it queues to look in, and the most
-// environments found; and the folders and the environments their rooms are taken with
-#define CLI_ENVS_DEPTH 5u
-#define CLI_ENVS_PENDING 4096u
-#define CLI_ENVS_MOST 1024u
 
 // A folder to look in, and how deep it is below the top
 typedef struct
@@ -19,7 +14,6 @@ typedef struct
     char path[CLI_PATH_MAX_LEN];
     unsigned int depth;
 } CliEnvFolder;
-
 // An environment found: its kind, its place in the tree, and where its requirements are read
 typedef struct
 {
@@ -27,7 +21,6 @@ typedef struct
     char place[CLI_PATH_MAX_LEN];
     char requires_from[CLI_PATH_MAX_LEN];
 } CliFoundEnv;
-
 // The search: the folders to look in, the folder whose folders are being read and its depth, what it found, the order
 // it is written in, and the names an environment's folder requires
 typedef struct
@@ -43,165 +36,208 @@ typedef struct
     unsigned int *order;
     CliRequired required;
 } CliEnvSearch;
+// how many folders below the top a search for environments goes, the most folders it queues to look in, and the most
+// environments found; and the folders and the environments their rooms are taken with
+#define CLI_ENVS_DEPTH 5u
+#define CLI_ENVS_PENDING 4096u
+#define CLI_ENVS_MOST 1024u
 
-static void cli_below_each(void *context, const char *name, int is_folder)
+static void cli_below_each(const CliEachNameIsFolderCfg *args)
 {
-    CliEnvSearch *const search = context;
+    int is_folder = args->is_folder;
+    CliEnvSearch *const search = args->context;
     static const char *const s_not[6] = {".git", "node_modules", "target", "build", "__pycache__", ".tox"};
     for (unsigned int at = 0u; is_folder && (at < 6u); at += 1u)
     {
-        is_folder = !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_not[at], .cap = CLI_CELLS_POOL});
+        is_folder = !cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_not[at], .cap = CLI_CELLS_POOL});
     }
     if (is_folder && (search->pending_count < search->pending_room))
     {
         CliEnvFolder *const below = &search->pending[search->pending_count];
-        cli_full(search->folder, name, below->path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = search->folder, .relative = args->name,
+                   .joined = below->path);
         below->depth = search->folder_depth + 1u;
         search->pending_count += 1u;
     }
 }
 
-// an environment put among those found
-static void cli_env_put(CliEnvSearch *search, const char *kind, const char *place, const char *requires_from)
+typedef struct
 {
-    if (search->found_room == 0u)
+    CliEnvSearch *search;
+    const char *kind;
+    const char *place;
+    const char *requires_from;
+    const CliFoundEnv *one;
+    const CliFoundEnv *other;
+    const char *folder;
+    const char *name;
+    const char *root;
+} EnvsFoundCtx;
+// an environment put among those found
+EMBED_INLINE void cli_env_put(const EnvsFoundCtx *args)
+{
+    const char *kind = args->kind;
+    if (args->search->found_room == 0u)
     {
-        search->found = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_ENVS_MOST * sizeof(CliFoundEnv),
-                                                         &g_cli_envs_cells);
-        search->found_room = (search->found != NULL) ? CLI_ENVS_MOST : 0u;
+        args->search->found = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_ENVS_MOST * sizeof(CliFoundEnv),
+                                                               &g_cli_envs_cells);
+        args->search->found_room = (args->search->found != NULL) ? CLI_ENVS_MOST : 0u;
     }
-    if (search->count < search->found_room)
+    if (args->search->count < args->search->found_room)
     {
-        CliFoundEnv *const one = &search->found[search->count];
+        CliFoundEnv *const one = &args->search->found[args->search->count];
         one->kind = kind;
-        memor.cpy(&(MemoriaCfg){.dst = one->place,
-                                .src = place,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}) + 1u});
         memor.cpy(
-            &(MemoriaCfg){.dst = one->requires_from,
-                          .src = requires_from,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = requires_from, .cap = CLI_CELLS_POOL}) + 1u});
-        search->count += 1u;
+            &(MemoriaCfg){.dst = one->place,
+                          .src = args->place,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->place, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(&(MemoriaCfg){
+            .dst = one->requires_from,
+            .src = args->requires_from,
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->requires_from, .cap = CLI_CELLS_POOL}) + 1u});
+        args->search->count += 1u;
     }
 }
 
 // how deep an environment's place is, for its order: its slashes, and one more where it is not the top
-static unsigned int cli_env_depth(const CliFoundEnv *one)
+EMBED_INLINE unsigned int cli_env_depth(const EnvsFoundCtx *args)
 {
-    unsigned int depth = (one->place[0] != '\0') ? 1u : 0u;
-    depth += (unsigned int)cli_text_counted(
-        one->place, cellul.len(&(CatenaFinitaCfg){.src = one->place, .cap = CLI_CELLS_POOL}), '/');
+    unsigned int depth = (args->one->place[0] != '\0') ? 1u : 0u;
+    depth += (unsigned int)EMBED_CALL(
+        cli_text_size_byte.count, CliTextSizeByteCfg, .text = args->one->place,
+        .size = cellul.len(&(CatenaFinitaCfg){.src = args->one->place, .cap = CLI_CELLS_POOL}), .byte = '/');
     return depth;
 }
 
 // whether one environment comes before another: by depth, then place, then kind
-static int cli_env_before(const CliFoundEnv *one, const CliFoundEnv *other)
+EMBED_INLINE int cli_env_before(const EnvsFoundCtx *args)
 {
-    const unsigned int one_depth = cli_env_depth(one);
-    const unsigned int other_depth = cli_env_depth(other);
+    const CliFoundEnv *one = args->one;
+    const CliFoundEnv *other = args->other;
+    const unsigned int one_depth = EMBED_CALL(cli_env_depth, EnvsFoundCtx, .one = one);
+    const unsigned int other_depth = EMBED_CALL(cli_env_depth, EnvsFoundCtx, .one = other);
     if (one_depth != other_depth)
     {
         return one_depth < other_depth;
     }
-    const int order = cli_text_order(one->place, other->place);
-    return (order < 0) || ((order == 0) && (cli_text_order(one->kind, other->kind) < 0));
+    const int order =
+        EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = one->place, .other_pointer = other->place);
+    return (order < 0) || ((order == 0) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = one->kind,
+                                                       .other_pointer = other->kind) < 0));
 }
 
 // whether the file `name` is in `folder`
-static int cli_has_file(const char *folder, const char *name)
+EMBED_INLINE int cli_has_file(const EnvsFoundCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    cli_full(folder, name, path);
-    return query_is_file(path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = args->name, .joined = path);
+    return EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
 }
 
 // the folders below `root` walked to CLI_ENVS_DEPTH, each environment found put
-static void cli_envs_searched(CliEnvSearch *search, const char *root)
+EMBED_INLINE void cli_envs_search(const EnvsFoundCtx *args)
 {
-    search->pending = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_ENVS_PENDING * sizeof(CliEnvFolder),
-                                                       &g_cli_envs_cells);
-    if (search->pending == NULL)
+    const char *root = args->root;
+    args->search->pending = g_cli_cells->temporary_buf_alloc(
+        (unsigned long long)CLI_ENVS_PENDING * sizeof(CliEnvFolder), &g_cli_envs_cells);
+    if (args->search->pending == NULL)
     {
         return;
     }
-    search->pending_room = CLI_ENVS_PENDING;
-    memor.cpy(&(MemoriaCfg){.dst = search->pending[0].path,
+    args->search->pending_room = CLI_ENVS_PENDING;
+    memor.cpy(&(MemoriaCfg){.dst = args->search->pending[0].path,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    search->pending[0].depth = 0u;
-    search->pending_count = 1u;
-    while (search->pending_count > 0u)
+    args->search->pending[0].depth = 0u;
+    args->search->pending_count = 1u;
+    while (args->search->pending_count > 0u)
     {
-        search->pending_count -= 1u;
+        args->search->pending_count -= 1u;
         char folder[CLI_PATH_MAX_LEN];
-        memor.cpy(
-            &(MemoriaCfg){.dst = folder, .bytes = sizeof(folder), .src = search->pending[search->pending_count].path});
-        const unsigned int depth = search->pending[search->pending_count].depth;
+        memor.cpy(&(MemoriaCfg){
+            .dst = folder, .bytes = sizeof(folder), .src = args->search->pending[args->search->pending_count].path});
+        const unsigned int depth = args->search->pending[args->search->pending_count].depth;
         char place[CLI_PATH_MAX_LEN];
-        cli_relative(root, folder, place);
-        cli_text_swapped(place, cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}), '\\', '/');
-        if (cli_has_file(folder, "pyvenv.cfg"))
+        EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = folder,
+                   .relative_out = place);
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = place,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}), .from = '\\',
+                   .to = '/');
+        if (EMBED_CALL(cli_has_file, EnvsFoundCtx, .folder = folder, .name = "pyvenv.cfg"))
         {
             char parent[CLI_PATH_MAX_LEN];
-            cli_env_put(search, "venv", place, cli_path_parent(folder, parent) ? parent : "");
+            EMBED_CALL(cli_env_put, EnvsFoundCtx, .search = args->search, .kind = "venv", .place = place,
+                       .requires_from = EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx,
+                                                   .path = folder, .out = parent)
+                                            ? parent
+                                            : "");
             continue;
         }
-        if (cli_has_file(folder, "Pipfile"))
+        if (EMBED_CALL(cli_has_file, EnvsFoundCtx, .folder = folder, .name = "Pipfile"))
         {
-            cli_env_put(search, "pipenv", place, folder);
+            EMBED_CALL(cli_env_put, EnvsFoundCtx, .search = args->search, .kind = "pipenv", .place = place,
+                       .requires_from = folder);
         }
-        if (cli_has_file(folder, "shell.nix") || cli_has_file(folder, "flake.nix") ||
-            cli_has_file(folder, "default.nix"))
+        if (EMBED_CALL(cli_has_file, EnvsFoundCtx, .folder = folder, .name = "shell.nix") ||
+            EMBED_CALL(cli_has_file, EnvsFoundCtx, .folder = folder, .name = "flake.nix") ||
+            EMBED_CALL(cli_has_file, EnvsFoundCtx, .folder = folder, .name = "default.nix"))
         {
-            cli_env_put(search, "nix", place, folder);
+            EMBED_CALL(cli_env_put, EnvsFoundCtx, .search = args->search, .kind = "nix", .place = place,
+                       .requires_from = folder);
         }
         if (depth >= CLI_ENVS_DEPTH)
         {
             continue;
         }
-        search->folder = folder;
-        search->folder_depth = depth;
-        query_folder_each(folder, cli_below_each, search);
+        args->search->folder = folder;
+        args->search->folder_depth = depth;
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_below_each,
+                   .context_bytess = args->search);
     }
 }
 
-void cli_envs_found(const char *root, VerbaLinea *out)
+void cli_envs_find(const CliEnvsCfg *args)
 {
     CliEnvSearch search = {NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, NULL, {NULL, 0u, 0u, NULL, 0u, 0u}};
-    cli_required_taken(&search.required);
-    cli_envs_searched(&search, root);
+    EMBED_CALL(cli_envs_internal.required_take, CliEnvsCtx, .required = &search.required);
+    EMBED_CALL(cli_envs_search, EnvsFoundCtx, .search = &search, .root = args->root);
     search.order = g_cli_cells->persistent_buf_alloc(((unsigned long long)search.count + 1ull) * sizeof(unsigned int),
                                                      &g_cli_envs_cells);
     const unsigned int count = (search.order != NULL) ? search.count : 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         unsigned int place = at;
-        while ((place > 0u) && cli_env_before(&search.found[at], &search.found[search.order[place - 1u]]))
+        while ((place > 0u) && EMBED_CALL(cli_env_before, EnvsFoundCtx, .one = &search.found[at],
+                                          .other = &search.found[search.order[place - 1u]]))
         {
             search.order[place] = search.order[place - 1u];
             place -= 1u;
         }
         search.order[place] = at;
     }
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliFoundEnv *const one = &search.found[search.order[at]];
-        mmgr_line_put(out, (at != 0u) ? ",{\"kind\":" : "{\"kind\":");
-        cli_json_quoted(out, one->kind, cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, ",\"place\":");
-        cli_json_quoted(out, one->place, cellul.len(&(CatenaFinitaCfg){.src = one->place, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, ",\"requires\":");
+        mmgr_line_put(args->out, (at != 0u) ? ",{\"kind\":" : "{\"kind\":");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = one->kind,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(args->out, ",\"place\":");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = one->place,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = one->place, .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(args->out, ",\"requires\":");
         search.required.count = 0u;
         if (one->requires_from[0] != '\0')
         {
-            cli_required_in(one->requires_from, &search.required);
+            EMBED_CALL(cli_envs_internal.required_in, CliEnvsCtx, .folder = one->requires_from,
+                       .required = &search.required);
         }
-        cli_required_written(&search.required, out);
-        mmgr_line_ch(out, '}');
+        EMBED_CALL(cli_envs_out_internal.required_write, CliEnvsOutCtx, .required_read = &search.required,
+                   .out = args->out);
+        mmgr_line_ch(args->out, '}');
     }
-    mmgr_line_ch(out, ']');
-    cli_required_given(&search.required);
+    mmgr_line_ch(args->out, ']');
+    EMBED_CALL(cli_envs_internal.required_free, CliEnvsCtx, .required = &search.required);
     g_cli_cells->persistent_buf_release(search.order, &g_cli_envs_cells);
     g_cli_cells->persistent_buf_release(search.found, &g_cli_envs_cells);
     g_cli_cells->persistent_buf_release(search.pending, &g_cli_envs_cells);

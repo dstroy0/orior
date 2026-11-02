@@ -9,137 +9,167 @@
 
 #include "../command_line/cells.h"
 
+typedef struct
+{
+    CliRegexpRun *run;
+    const CliRegexpItem *item;
+    unsigned int letter;
+    const CliRegexp *regexp;
+    const CliRegexpNode *node;
+    unsigned int node_u32;
+    unsigned int count;
+    unsigned long long at;
+    const CliRegexpThen *then;
+} RegexpMatchCtx;
+
 // room for one more end in the run's ends, moved once into a cell at their most where they fill the match's own stack:
 // 1, or 0 where they contain the most or the cellblock cannot meet the cell
-static int match_end_room(CliRegexpRun *run)
+EMBED_INLINE int match_end_room(const RegexpMatchCtx *args)
 {
-    if (run->ends_top < run->ends_room)
+    if (args->run->ends_top < args->run->ends_room)
     {
         return 1;
     }
     // the caller's storage full, the stack goes once into a cell of the most it stands at
     unsigned int *const cell =
-        run->ends_reserved
+        args->run->ends_reserved
             ? NULL
             : g_cli_cells->temporary_buf_alloc(CLI_REGEXP_ENDS_MOST * sizeof(unsigned int), &g_cli_text_cells);
     if (cell == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = cell, .src = run->ends, .bytes = (size_t)(run->ends_top * sizeof(unsigned int))});
-    run->ends = cell;
-    run->ends_room = CLI_REGEXP_ENDS_MOST;
-    run->ends_reserved = 1;
+    memor.cpy(&(MemoriaCfg){
+        .dst = cell, .src = args->run->ends, .bytes = (size_t)(args->run->ends_top * sizeof(unsigned int))});
+    args->run->ends = cell;
+    args->run->ends_room = CLI_REGEXP_ENDS_MOST;
+    args->run->ends_reserved = 1;
     return 1;
 }
 
-int cli_regexp_word(unsigned int letter)
+int cli_regexp_word(const CliRegexpMatchCtx *args)
 {
-    return ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-           ((letter >= '0') && (letter <= '9')) || (letter == '_');
+    return ((args->letter >= 'a') && (args->letter <= 'z')) || ((args->letter >= 'A') && (args->letter <= 'Z')) ||
+           ((args->letter >= '0') && (args->letter <= '9')) || (args->letter == '_');
 }
 
-int cli_regexp_space(unsigned int letter)
+int cli_regexp_space(const CliRegexpMatchCtx *args)
 {
     static const unsigned int s_spaces[] = {'\t',    '\n',    0x0bu,   0x0cu,   '\r',    ' ',     0xa0u,
                                             0x1680u, 0x2028u, 0x2029u, 0x202fu, 0x205fu, 0x3000u, 0xfeffu};
     for (unsigned int at = 0u; at < (sizeof(s_spaces) / sizeof(s_spaces[0])); at += 1u)
     {
-        if (letter == s_spaces[at])
+        if (args->letter == s_spaces[at])
         {
             return 1;
         }
     }
-    return (letter >= 0x2000u) && (letter <= 0x200au);
+    return (args->letter >= 0x2000u) && (args->letter <= 0x200au);
 }
 
-int cli_regexp_ends_line(unsigned int letter)
+int cli_regexp_ends_line(const CliRegexpMatchCtx *args)
 {
-    return (letter == '\n') || (letter == '\r') || (letter == 0x2028u) || (letter == 0x2029u);
+    return (args->letter == '\n') || (args->letter == '\r') || (args->letter == 0x2028u) || (args->letter == 0x2029u);
 }
 
-int cli_regexp_same(const CliRegexp *regexp, unsigned int a, unsigned int b)
+int cli_regexp_same(const CliRegexpMatchACtx *args)
 {
-    return (a == b) || (regexp->fold && (cli_regexp_lower(a) == cli_regexp_lower(b)));
+    return (args->a == args->b) ||
+           (args->regexp->fold && (EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = args->a) ==
+                                   EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = args->b)));
 }
 
 // whether one item of a class matches `letter`
-static int cli_item_matches(const CliRegexpItem *item, unsigned int letter)
+EMBED_INLINE int cli_item_matches(const RegexpMatchCtx *args)
 {
-    switch (item->kind)
+    unsigned int letter = args->letter;
+    switch (args->item->kind)
     {
     case CLI_REGEXP_RANGE:
-        return (letter >= item->low) && (letter <= item->high);
+        return (letter >= args->item->low) && (letter <= args->item->high);
     case CLI_REGEXP_DIGIT:
-        return ((letter >= '0') && (letter <= '9')) != item->negated;
+        return ((letter >= '0') && (letter <= '9')) != args->item->negated;
     case CLI_REGEXP_WORD:
-        return cli_regexp_word(letter) != item->negated;
+        return EMBED_CALL(cli_regexp_match_internal.regexp_word, CliRegexpMatchCtx, .letter = letter) !=
+               args->item->negated;
     case CLI_REGEXP_SPACE:
-        return cli_regexp_space(letter) != item->negated;
+        return EMBED_CALL(cli_regexp_match_internal.regexp_space, CliRegexpMatchCtx, .letter = letter) !=
+               args->item->negated;
     default:
-        return cli_regexp_property(item->low, letter) != item->negated;
+        return EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = args->item->low,
+                          .letter = letter) != args->item->negated;
     }
 }
 
 // whether the class node `node` matches `letter`: any item matches it, or under `i` of its lower or upper case
-static int cli_class_matches(const CliRegexp *regexp, const CliRegexpNode *node, unsigned int letter)
+EMBED_INLINE int cli_class_matches(const RegexpMatchCtx *args)
 {
-    const unsigned int tried[3] = {letter, cli_regexp_lower(letter), cli_regexp_upper(letter)};
+    unsigned int letter = args->letter;
+    const unsigned int tried[3] = {letter, EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letter),
+                                   EMBED_CALL(cli_regexp_letter.upper, CliRegexpLetterCfg, .letter = letter)};
     int found = 0;
-    for (unsigned int each = 0u; !found && (each < (regexp->fold ? 3u : 1u)); each += 1u)
+    for (unsigned int each = 0u; !found && (each < (args->regexp->fold ? 3u : 1u)); each += 1u)
     {
-        for (unsigned int at = 0u; !found && (at < node->count); at += 1u)
+        for (unsigned int at = 0u; !found && (at < args->node->count); at += 1u)
         {
-            found = cli_item_matches(&regexp->item[node->first + at], tried[each]);
+            found = EMBED_CALL(cli_item_matches, RegexpMatchCtx, .item = &args->regexp->item[args->node->first + at],
+                               .letter = tried[each]);
         }
     }
-    return found != node->negated;
+    return found != args->node->negated;
 }
 
-int cli_regexp_one(const CliRegexp *regexp, unsigned int index, unsigned int letter)
+int cli_regexp_one(const CliRegexpMatchCtx *args)
 {
-    const CliRegexpNode *const node = &regexp->node[index];
-    if (node->ascii_known && (letter < 128u))
+    const CliRegexpNode *const node = &args->regexp->node[args->index];
+    if (node->ascii_known && (args->letter < 128u))
     {
-        return (int)((node->ascii[letter / 64u] >> (letter % 64u)) & 1ull);
+        return (int)((node->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ull);
     }
     switch (node->kind)
     {
     case CLI_REGEXP_CHAR:
-        return cli_regexp_same(regexp, node->letter, letter);
+        return EMBED_CALL(cli_regexp_match_a_internal.regexp_same, CliRegexpMatchACtx, .regexp = args->regexp,
+                          .a = node->letter, .b = args->letter);
     case CLI_REGEXP_ANY:
-        return !cli_regexp_ends_line(letter);
+        return !cli_regexp_match_internal.regexp_ends_line(args);
     case CLI_REGEXP_CLASS:
-        return cli_class_matches(regexp, node, letter);
+        return EMBED_CALL(cli_class_matches, RegexpMatchCtx, .regexp = args->regexp, .node = node,
+                          .letter = args->letter);
     default:
         return -1;
     }
 }
 
-int cli_regexp_allows(const CliRegexpFirst *first, unsigned int letter)
+int cli_regexp_allows(const CliRegexpCfg *args)
 {
-    return (letter < 128u) ? (int)((first->ascii[letter / 64u] >> (letter % 64u)) & 1ull) : first->other;
+    return (args->letter < 128u) ? (int)((args->first->ascii[args->letter / 64u] >> (args->letter % 64u)) & 1ull)
+                                 : args->first->other;
 }
 
 // the parts of a sequence from `index` taken in turn, the rest handed to `then`
-int cli_regexp_chain(const CliRegexp *regexp, unsigned int node, unsigned int index, unsigned long long at,
-                     CliRegexpRun *run, const CliRegexpThen *then)
+int cli_regexp_chain(const CliRegexpMatchIndexCtx *args)
 {
-    const CliRegexpNode *const concat = &regexp->node[node];
-    if (index == concat->count)
+    const CliRegexpNode *const concat = &args->regexp->node[args->node];
+    if (args->index == concat->count)
     {
-        return cli_regexp_then(regexp, then, at, run);
+        return cli_regexp_match_index_internal.regexp_then(args);
     }
-    const CliRegexpThen frame = {CLI_THEN_CHAIN, node, index + 1u, 0u, 0ull, then};
-    return cli_regexp_walk(regexp, regexp->part[concat->first + index], at, run, &frame);
+    const CliRegexpThen frame = {CLI_THEN_CHAIN, args->node, args->index + 1u, 0u, 0ull, args->then};
+    return EMBED_CALL(cli_regexp_match_index_internal.regexp_walk, CliRegexpMatchIndexCtx, .regexp = args->regexp,
+                      .index = args->regexp->part[concat->first + args->index], .at = args->at, .run = args->run,
+                      .then = &frame);
 }
 
 // one more iteration of a repetition, and the rest of it after, one pass deeper
-static int cli_again(const CliRegexp *regexp, unsigned int node, unsigned int count, unsigned long long at,
-                     CliRegexpRun *run, const CliRegexpThen *then)
+EMBED_INLINE int cli_again(const RegexpMatchCtx *args)
 {
-    const CliRegexpNode *const repeat = &regexp->node[node];
-    if ((repeat->max != CLI_REGEXP_UNBOUNDED) && (count >= repeat->max))
+    const CliRegexp *regexp = args->regexp;
+    unsigned long long at = args->at;
+    CliRegexpRun *run = args->run;
+    const CliRegexpThen *then = args->then;
+    const CliRegexpNode *const repeat = &regexp->node[args->node_u32];
+    if ((repeat->max != CLI_REGEXP_UNBOUNDED) && (args->count >= repeat->max))
     {
         return 0;
     }
@@ -152,77 +182,89 @@ static int cli_again(const CliRegexp *regexp, unsigned int node, unsigned int co
         run->steps = CLI_REGEXP_STEPS + 1ull;
         return 0;
     }
-    const CliRegexpThen frame = {CLI_THEN_REPEAT, node, 0u, count, at, then};
-    return cli_regexp_walk(regexp, repeat->child, at, run, &frame);
+    const CliRegexpThen frame = {CLI_THEN_REPEAT, args->node_u32, 0u, args->count, at, then};
+    return EMBED_CALL(cli_regexp_match_index_internal.regexp_walk, CliRegexpMatchIndexCtx, .regexp = regexp,
+                      .index = repeat->child, .at = at, .run = run, .then = &frame);
 }
 
 // a repetition at its `count`th pass: greedy tries one more pass before handing on, lazy hands on first
-int cli_regexp_repeat(const CliRegexp *regexp, unsigned int node, unsigned int count, unsigned long long at,
-                      CliRegexpRun *run, const CliRegexpThen *then)
+int cli_regexp_repeat(const CliRegexpMatchIndexCtx *args)
 {
-    const CliRegexpNode *const repeat = &regexp->node[node];
-    if (count < repeat->min)
+    const CliRegexpNode *const repeat = &args->regexp->node[args->node];
+    if (args->count < repeat->min)
     {
-        return cli_again(regexp, node, count, at, run, then);
+        return EMBED_CALL(cli_again, RegexpMatchCtx, .regexp = args->regexp, .node_u32 = args->node,
+                          .count = args->count, .at = args->at, .run = args->run, .then = args->then);
     }
     if (repeat->greedy)
     {
-        return cli_again(regexp, node, count, at, run, then) || cli_regexp_then(regexp, then, at, run);
+        return EMBED_CALL(cli_again, RegexpMatchCtx, .regexp = args->regexp, .node_u32 = args->node,
+                          .count = args->count, .at = args->at, .run = args->run, .then = args->then) ||
+               cli_regexp_match_index_internal.regexp_then(args);
     }
-    return cli_regexp_then(regexp, then, at, run) || cli_again(regexp, node, count, at, run, then);
+    return cli_regexp_match_index_internal.regexp_then(args) ||
+           EMBED_CALL(cli_again, RegexpMatchCtx, .regexp = args->regexp, .node_u32 = args->node, .count = args->count,
+                      .at = args->at, .run = args->run, .then = args->then);
 }
 
-int cli_regexp_then(const CliRegexp *regexp, const CliRegexpThen *then, unsigned long long at, CliRegexpRun *run)
+int cli_regexp_then(const CliRegexpMatchIndexCtx *args)
 {
-    switch (then->kind)
+    switch (args->then->kind)
     {
     case CLI_THEN_END:
-        run->end = at;
+        args->run->end = args->at;
         return 1;
     case CLI_THEN_CHAIN:
-        return cli_regexp_chain(regexp, then->node, then->index, at, run, then->next);
+        return EMBED_CALL(cli_regexp_match_index_internal.regexp_chain, CliRegexpMatchIndexCtx, .regexp = args->regexp,
+                          .node = args->then->node, .index = args->then->index, .at = args->at, .run = args->run,
+                          .then = args->then->next);
     case CLI_THEN_GROUP: {
-        const CliRegexpSpan group_span = run->groups[then->index];
-        run->groups[then->index] = (CliRegexpSpan){then->from, at, 1};
-        if (cli_regexp_then(regexp, then->next, at, run))
+        const CliRegexpSpan group_span = args->run->groups[args->then->index];
+        args->run->groups[args->then->index] = (CliRegexpSpan){args->then->from, args->at, 1};
+        if (EMBED_CALL(cli_regexp_match_index_internal.regexp_then, CliRegexpMatchIndexCtx, .regexp = args->regexp,
+                       .then = args->then->next, .at = args->at, .run = args->run))
         {
             return 1;
         }
-        run->groups[then->index] = group_span;
+        args->run->groups[args->then->index] = group_span;
         return 0;
     }
     case CLI_THEN_TRUE:
         return 1;
     default: {
         // an iteration that takes nothing ends the repetition, once the fewest are taken
-        if ((at == then->from) && (then->count >= regexp->node[then->node].min))
+        if ((args->at == args->then->from) && (args->then->count >= args->regexp->node[args->then->node].min))
         {
             return 0;
         }
-        return cli_regexp_repeat(regexp, then->node, then->count + 1u, at, run, then->next);
+        return EMBED_CALL(cli_regexp_match_index_internal.regexp_repeat, CliRegexpMatchIndexCtx, .regexp = args->regexp,
+                          .node = args->then->node, .count = args->then->count + 1u, .at = args->at, .run = args->run,
+                          .then = args->then->next);
     }
     }
 }
 
 // a repeat over one character: counts how far the run goes, then hands on from the longest to the shortest, or the
 // other way where lazy
-int cli_regexp_counted(const CliRegexp *regexp, const CliRegexpNode *repeat, unsigned long long at, CliRegexpRun *run,
-                       const CliRegexpThen *then)
+int cli_regexp_count(const CliRegexpMatchThenCtx *args)
 {
     unsigned long long reach = 0ull;
-    while (((repeat->max == CLI_REGEXP_UNBOUNDED) || (reach < repeat->max)) && ((at + reach) < run->length) &&
-           (cli_regexp_one(regexp, repeat->child, run->text[at + reach]) == 1))
+    while (((args->repeat->max == CLI_REGEXP_UNBOUNDED) || (reach < args->repeat->max)) &&
+           ((args->at + reach) < args->run->length) &&
+           (EMBED_CALL(cli_regexp_match_internal.regexp_one, CliRegexpMatchCtx, .regexp = args->regexp,
+                       .index = args->repeat->child, .letter = args->run->text[args->at + reach]) == 1))
     {
         reach += 1ull;
     }
-    if (reach < repeat->min)
+    if (reach < args->repeat->min)
     {
         return 0;
     }
-    for (unsigned long long step = 0ull; step <= (reach - repeat->min); step += 1ull)
+    for (unsigned long long step = 0ull; step <= (reach - args->repeat->min); step += 1ull)
     {
-        const unsigned long long count = repeat->greedy ? (reach - step) : (repeat->min + step);
-        if (cli_regexp_then(regexp, then, at + count, run))
+        const unsigned long long count = args->repeat->greedy ? (reach - step) : (args->repeat->min + step);
+        if (EMBED_CALL(cli_regexp_match_index_internal.regexp_then, CliRegexpMatchIndexCtx, .regexp = args->regexp,
+                       .then = args->then, .at = args->at + count, .run = args->run))
         {
             return 1;
         }
@@ -232,44 +274,46 @@ int cli_regexp_counted(const CliRegexp *regexp, const CliRegexpNode *repeat, uns
 
 // a repeat whose pass takes the text one way or none: counts the passes, each where the one before ended, and hands
 // on from the most to the fewest, or the other way where lazy
-int cli_regexp_passed(const CliRegexp *regexp, const CliRegexpNode *repeat, unsigned long long at, CliRegexpRun *run,
-                      const CliRegexpThen *then)
+int cli_regexp_on_pass(const CliRegexpMatchThenCtx *args)
 {
-    const unsigned long long begun = run->ends_top;
-    if (!match_end_room(run))
+    const unsigned long long begun = args->run->ends_top;
+    if (!EMBED_CALL(match_end_room, RegexpMatchCtx, .run = args->run))
     {
-        run->steps = CLI_REGEXP_STEPS + 1ull;
+        args->run->steps = CLI_REGEXP_STEPS + 1ull;
         return 0;
     }
     // a place in the text far below what an unsigned int counts
-    run->ends[begun] = (unsigned int)at;
-    run->ends_top = begun + 1ull;
-    while (((run->ends_top - begun - 1ull) < repeat->max) || (repeat->max == CLI_REGEXP_UNBOUNDED))
+    args->run->ends[begun] = (unsigned int)args->at;
+    args->run->ends_top = begun + 1ull;
+    while (((args->run->ends_top - begun - 1ull) < args->repeat->max) || (args->repeat->max == CLI_REGEXP_UNBOUNDED))
     {
-        run->steps += 1ull;
-        if ((run->steps > CLI_REGEXP_STEPS) || !match_end_room(run))
+        args->run->steps += 1ull;
+        if ((args->run->steps > CLI_REGEXP_STEPS) || !EMBED_CALL(match_end_room, RegexpMatchCtx, .run = args->run))
         {
-            run->ends_top = begun;
-            run->steps = CLI_REGEXP_STEPS + 1ull;
+            args->run->ends_top = begun;
+            args->run->steps = CLI_REGEXP_STEPS + 1ull;
             return 0;
         }
-        const unsigned long long from = run->ends[run->ends_top - 1u];
-        const unsigned long long to = cli_regexp_pass(regexp, repeat->child, run, from);
+        const unsigned long long from = args->run->ends[args->run->ends_top - 1u];
+        const unsigned long long to =
+            EMBED_CALL(cli_regexp_match_index_at_internal.regexp_pass, CliRegexpMatchIndexAtCtx, .regexp = args->regexp,
+                       .index = args->repeat->child, .run_read = args->run, .at = from);
         if ((to == CLI_REGEXP_NO_PASS) || (to <= from))
         {
             break;
         }
-        run->ends[run->ends_top] = (unsigned int)to;
-        run->ends_top += 1ull;
+        args->run->ends[args->run->ends_top] = (unsigned int)to;
+        args->run->ends_top += 1ull;
     }
-    const unsigned long long passes = run->ends_top - begun - 1ull;
+    const unsigned long long passes = args->run->ends_top - begun - 1ull;
     int found = 0;
-    for (unsigned long long step = 0ull; !found && (passes >= repeat->min) && (step <= (passes - repeat->min));
-         step += 1ull)
+    for (unsigned long long step = 0ull;
+         !found && (passes >= args->repeat->min) && (step <= (passes - args->repeat->min)); step += 1ull)
     {
-        const unsigned long long count = repeat->greedy ? (passes - step) : (repeat->min + step);
-        found = cli_regexp_then(regexp, then, run->ends[begun + count], run);
+        const unsigned long long count = args->repeat->greedy ? (passes - step) : (args->repeat->min + step);
+        found = EMBED_CALL(cli_regexp_match_index_internal.regexp_then, CliRegexpMatchIndexCtx, .regexp = args->regexp,
+                           .then = args->then, .at = args->run->ends[begun + count], .run = args->run);
     }
-    run->ends_top = begun;
+    args->run->ends_top = begun;
     return found;
 }

@@ -3,6 +3,7 @@
 // version_catalog_complete.c: what completes the word before the cursor in a version catalog: a section's name after
 // `[`; in a string, the versions' aliases after `version.ref =` or `ref =`, and in a bundle the libraries'; and a
 // table's keys after its `{` or a `,`, by the section the cursor's line stands under
+#include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 #include "version_catalog_internal.h"
 
@@ -13,31 +14,49 @@ static const char *const s_plugin_keys[3] = {"id", "version", "version.ref"};
 static const char *const s_version_keys[5] = {"strictly", "require", "prefer", "reject", "rejectAll"};
 
 // whether a letter is of a section's name, of an alias, and of a table's key
-static int complete_alphanumeric(unsigned int letter)
+static int complete_alphanumeric(const CliEachLetterCfg *args)
 {
-    return cli_text_alphanumeric(letter);
+    unsigned int letter = args->letter;
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter);
 }
 
-static int complete_alias_letter(unsigned int letter)
+static int complete_alias_letter(const CliEachLetterCfg *args)
 {
-    return cli_text_alphanumeric(letter) || (letter == '_') || (letter == '.') || (letter == '-');
+    unsigned int letter = args->letter;
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) || (letter == '_') ||
+           (letter == '.') || (letter == '-');
 }
 
-static int complete_key_letter(unsigned int letter)
+static int complete_key_letter(const CliEachLetterCfg *args)
 {
-    return cli_text_alphanumeric(letter) || (letter == '.');
+    unsigned int letter = args->letter;
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = letter) || (letter == '.');
 }
 
+typedef struct
+{
+    const char *text;
+    unsigned long long line_start;
+    unsigned long long *size;
+    unsigned long long size_value;
+    const char *chosen;
+    const char *token;
+    unsigned long long token_size;
+    CliCompletions *items;
+} VersionCatalogCompleteCtx;
 // the section the line starting at `line_start` stands under, the last line above it that starts with `[`, into
 // `name`, `*size` bytes
-static const char *complete_section(const char *text, unsigned long long line_start, unsigned long long *size)
+EMBED_INLINE const char *complete_section(const VersionCatalogCompleteCtx *args)
 {
-    unsigned long long end = line_start;
+    const char *text = args->text;
+    unsigned long long *size = args->size;
+    unsigned long long end = args->line_start;
     while (end > 0u)
     {
         const unsigned long long line_end = (end > 0u) ? end - 1u : 0u;
         unsigned long long start = line_end;
-        start = cli_text_back_any(text, start, "\n");
+        start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text, .at = start,
+                           .set = "\n");
         if ((start < line_end) && (text[start] == '['))
         {
             const char *const close = memor.chr(
@@ -46,7 +65,8 @@ static const char *complete_section(const char *text, unsigned long long line_st
             stop = ((stop > start + 1u) && (close == NULL) && (text[stop - 1u] == '\r')) ? stop - 1u : stop;
             unsigned long long from = 0ull;
             unsigned long long to = 0ull;
-            cli_text_trimmed(text + start + 1u, stop - start - 1u, &from, &to);
+            EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + start + 1u,
+                       .size = stop - start - 1u, .from_u64s = &from, .to_u64s = &to);
             *size = to - from;
             return text + start + 1u + from;
         }
@@ -57,19 +77,26 @@ static const char *complete_section(const char *text, unsigned long long line_st
 }
 
 // the aliases of the catalog's section `chosen` put as items after `token`, each with what it stands for
-static void complete_names(const char *text, unsigned long long size, const char *chosen, const char *token,
-                           unsigned long long token_size, CliCompletions *items)
+EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
 {
-    cli_lock_take(&g_cli_versions_lock);
+    const char *text = args->text;
+    unsigned long long size = args->size_value;
+    const char *token = args->token;
+    unsigned long long token_size = args->token_size;
+    CliCompletions *items = args->items;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_versions_lock);
     // a description names texts of the catalog's, with a few bytes between them and two a string of a list
-    const int read = cli_versions_parse(text, size);
+    const int read = EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx,
+                                .text = text, .size = size);
     const unsigned long long room = g_cli_versions.used + 16ull + (2ull * g_cli_versions.items);
     char *const about_text = read ? g_cli_cells->temporary_buf_alloc(room, &g_cli_versions_cells) : NULL;
     for (unsigned int at = 0u; (about_text != NULL) && (at < g_cli_versions.sections); at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
-        if (!cellul.eq(
-                &(CatenaFinitaCfg){.src = cli_versions_text(section->name_at), .other = chosen, .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text,
+                                                            CliVersionCatalogCtx, .at = section->name_at),
+                                          .other = args->chosen,
+                                          .cap = CLI_CELLS_POOL}))
         {
             continue;
         }
@@ -77,34 +104,46 @@ static void complete_names(const char *text, unsigned long long size, const char
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
             VerbaLinea about = {about_text, room, 0ull};
-            cli_versions_describe(field, &about);
-            cli_build_relative(items, token, token_size, cli_versions_text(field->key_at), field->key_size, "constant",
-                               about_text, about.at);
+            EMBED_CALL(cli_version_catalog_field_out_internal.versions_describe, CliVersionCatalogFieldOutCtx,
+                       .field = field, .out = &about);
+            EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
+                       .token_size = token_size,
+                       .value = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
+                                           .at = field->key_at),
+                       .value_size = field->key_size, .kind = "constant", .detail = about_text,
+                       .detail_size = about.at);
         }
     }
     g_cli_cells->persistent_buf_release(about_text, &g_cli_versions_cells);
-    cli_versions_released();
-    cli_lock_give(&g_cli_versions_lock);
+    cli_versions_release();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
 }
 
-void cli_versions_complete(const char *text, unsigned long long size, unsigned long long at, CliCompletions *items)
+void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
 {
-    unsigned long long line_start = at;
-    line_start = cli_text_back_any(text, line_start, "\n");
-    const char *const before = text + line_start;
-    const unsigned long long before_size = at - line_start;
+    CliCompletions *items = args->items;
+    unsigned long long line_start = args->at_u64;
+    line_start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->text,
+                            .at = line_start, .set = "\n");
+    const char *const before = args->text + line_start;
+    const unsigned long long before_size = args->at_u64 - line_start;
     unsigned long long section_size = 0ull;
-    const char *const section = complete_section(text, line_start, &section_size);
-    const unsigned long long lead = cli_text_lead(before, before_size);
+    const char *const section = EMBED_CALL(complete_section, VersionCatalogCompleteCtx, .text = args->text,
+                                           .line_start = line_start, .size = &section_size);
+    const unsigned long long lead =
+        EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = before, .size = before_size);
     if ((lead < before_size) && (before[lead] == '[') &&
         (memor.chr(&(MemoriaCfg){.src = before, .val = ']', .bytes = (size_t)before_size}) == NULL))
     {
-        const unsigned long long start = cli_build_run_before(text, at, complete_alphanumeric);
+        const unsigned long long start =
+            EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = args->text, .at = args->at_u64,
+                       .of = complete_alphanumeric);
         for (unsigned int one = 0u; one < 5u; one += 1u)
         {
-            cli_build_relative(items, text + start, at - start, s_sections[one],
-                               cellul.len(&(CatenaFinitaCfg){.src = s_sections[one], .cap = CLI_CELLS_POOL}), "module",
-                               "section", 7u);
+            EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->text + start,
+                       .token_size = args->at_u64 - start, .value = s_sections[one],
+                       .value_size = cellul.len(&(CatenaFinitaCfg){.src = s_sections[one], .cap = CLI_CELLS_POOL}),
+                       .kind = "module", .detail = "section", .detail_size = 7u);
         }
         return;
     }
@@ -113,26 +152,34 @@ void cli_versions_complete(const char *text, unsigned long long size, unsigned l
     {
         quotes += ((before[one] == '"') || (before[one] == '\'')) ? 1u : 0u;
     }
-    const unsigned long long token = cli_build_run_before(text, at, complete_alias_letter);
+    const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg,
+                                                .text = args->text, .at = args->at_u64, .of = complete_alias_letter);
     if ((quotes % 2u) == 1u)
     {
         unsigned long long opened = token - line_start;
-        opened = cli_text_back_past(before, opened, "\"'");
-        opened = cli_text_trimmed_end(before, opened);
+        opened = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = before, .at = opened,
+                            .set = "\"'");
+        opened = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = before, .size = opened);
         if ((opened > 0u) && (before[opened - 1u] == '='))
         {
             unsigned long long named = opened;
-            named = cli_text_back_past(before, named, "=");
-            named = cli_text_trimmed_end(before, named);
-            if (cli_text_ends(before, named, "ref"))
+            named = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = before, .at = named,
+                               .set = "=");
+            named = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = before, .size = named);
+            if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = before, .size = named,
+                           .suffix = "ref"))
             {
-                complete_names(text, size, "versions", text + token, at - token, items);
+                EMBED_CALL(complete_names, VersionCatalogCompleteCtx, .text = args->text, .size_value = args->size,
+                           .chosen = "versions", .token = args->text + token, .token_size = args->at_u64 - token,
+                           .items = items);
                 return;
             }
         }
         if ((section_size == 7u) && (memor.cmp(&(MemoriaCfg){.src = section, .other = "bundles", .bytes = 7u}) == 0))
         {
-            complete_names(text, size, "libraries", text + token, at - token, items);
+            EMBED_CALL(complete_names, VersionCatalogCompleteCtx, .text = args->text, .size_value = args->size,
+                       .chosen = "libraries", .token = args->text + token, .token_size = args->at_u64 - token,
+                       .items = items);
         }
         return;
     }
@@ -182,11 +229,13 @@ void cli_versions_complete(const char *text, unsigned long long size, unsigned l
     mmgr_line_put(&detail, "key of [");
     mmgr_line_put_n(&detail, section, section_size);
     mmgr_line_ch(&detail, ']');
-    const unsigned long long start = cli_build_run_before(text, at, complete_key_letter);
+    const unsigned long long start = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg,
+                                                .text = args->text, .at = args->at_u64, .of = complete_key_letter);
     for (unsigned int one = 0u; one < count; one += 1u)
     {
-        cli_build_relative(items, text + start, at - start, keys[one],
-                           cellul.len(&(CatenaFinitaCfg){.src = keys[one], .cap = CLI_CELLS_POOL}), "field", s_detail,
-                           detail.at);
+        EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->text + start,
+                   .token_size = args->at_u64 - start, .value = keys[one],
+                   .value_size = cellul.len(&(CatenaFinitaCfg){.src = keys[one], .cap = CLI_CELLS_POOL}),
+                   .kind = "field", .detail = s_detail, .detail_size = detail.at);
     }
 }

@@ -14,7 +14,8 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py run --at HASH              the suites of orior as it was at a commit
     harness.py run --idle SECONDS         a suite silent this long once admitted is hung (1800; 0 never)
     harness.py build gui | mmgr           the window's program and MMgr's suites built (harness_build.py)
-    harness.py cli build | test           the CLI built and its checks run (harness_cli.py)
+    harness.py cli build | test | coverage  the CLI built, its Unity suites run, and their coverage merged (harness_cli.py)
+    harness.py cu wrappers | build        every .cu given a thin wrapper, and nvcc building the wrappers (harness_cu.py)
     harness.py container ...              the window's systems as containers that stay up, each with its own copy of the
                                           tree: Linux, Ubuntu on arm64, Raspberry Pi's Debian, Windows, macOS (harness_container.py)
     harness.py source ...                 the C sources read by the compiler and the linker's tools (harness_build.py)
@@ -79,6 +80,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import harness_build  # noqa: E402
 import harness_cli  # noqa: E402
 import harness_container  # noqa: E402
+import harness_cu  # noqa: E402
 import harness_wsl  # noqa: E402
 import harness_sonarqube  # noqa: E402
 import harness_window  # noqa: E402
@@ -510,6 +512,10 @@ def script_command(name, e, tessera, root=ROOT, script_build=SCRIPT_BUILD):
         cache = os.path.join(out, "cycle_cache")
         os.makedirs(cache, exist_ok=True)
         env["CYCLE_CACHE"] = cache.replace("\\", "/")
+    # a suite the harness runs itself names its command, and any other names its script
+    if e.get("harness"):
+        return [tessera, "--processors", str(e.get("processors", PROCESSORS)), "--name", "harness " + name, "--",
+                sys.executable, os.path.join(root, "utils", "test", "harness.py"), *e["harness"]], env
     script = os.path.join(root, *e["script"].split("/"))
     if e.get("wsl"):
         # WSL takes no environment from here: the settings ride on the command line. The script is the copy on the
@@ -771,7 +777,7 @@ def build_parser():
     p.add_argument("--at", metavar="HASH", help="run the suites of orior as it was at this commit (fetched from origin if need be)")
     p.add_argument("--idle", type=int, default=IDLE_SECONDS, metavar="SECONDS", help="end a suite whose log has not grown this long once admitted (0: never)")
     p.set_defaults(fn=cmd_run)
-    for module in (harness_build, harness_cli, harness_container, harness_sonarqube, harness_window, harness_wsl):
+    for module in (harness_build, harness_cli, harness_container, harness_cu, harness_sonarqube, harness_window, harness_wsl):
         module.register(sub)
     return ap
 

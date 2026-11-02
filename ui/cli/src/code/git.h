@@ -11,9 +11,44 @@
 // git_lines.c, git_clone.c)
 #ifndef GIT_H
 #define GIT_H
+typedef struct CliGitRootCfg CliGitRootCfg;
+typedef struct CliGitRootOutCfg CliGitRootOutCfg;
+typedef struct CliGitRootOutCountCfg CliGitRootOutCountCfg;
+typedef struct CliGitLengthCfg CliGitLengthCfg;
+typedef struct CliGitRootOutMessageCfg CliGitRootOutMessageCfg;
+typedef struct CliGitRootReposCfg CliGitRootReposCfg;
+typedef struct CliGitErrMsgCfg CliGitErrMsgCfg;
+typedef struct CliGitRootOutCountErrMsgCfg CliGitRootOutCountErrMsgCfg;
+typedef struct CliGitRootFileCfg CliGitRootFileCfg;
+typedef struct CliGitErrMsgFolderCfg CliGitErrMsgFolderCfg;
+typedef struct CliGitRootFileErrMsgCfg CliGitRootFileErrMsgCfg;
+typedef struct CliGitRootQueryCfg CliGitRootQueryCfg;
+typedef struct CliGitRootCommitCfg CliGitRootCommitCfg;
+typedef struct CliGitRootIdCfg CliGitRootIdCfg;
+typedef struct CliGitRootFileStageCfg CliGitRootFileStageCfg;
+typedef struct CliGitRootErrMsgCfg CliGitRootErrMsgCfg;
+typedef struct CliGitRootAheadCfg CliGitRootAheadCfg;
+typedef struct CliGitOutCfg CliGitOutCfg;
+typedef struct CliGitRootErrMsgPathCfg CliGitRootErrMsgPathCfg;
+typedef struct CliGitTextCfg CliGitTextCfg;
+typedef struct CliGitOutFoundTouchedListCfg CliGitOutFoundTouchedListCfg;
+typedef struct CliGitCfg CliGitCfg;
+typedef struct CliGitRootFoundBranchesCfg CliGitRootFoundBranchesCfg;
+typedef struct CliGitOutFoundBranchesCfg CliGitOutFoundBranchesCfg;
+typedef struct CliGitOutFoundChangedListCfg CliGitOutFoundChangedListCfg;
+typedef struct CliGitOutFoundCfg CliGitOutFoundCfg;
+typedef struct CliGitOutFoundGraphCfg CliGitOutFoundGraphCfg;
+typedef struct CliGitOutFoundLineHistoryCfg CliGitOutFoundLineHistoryCfg;
+typedef struct CliGitRootFoundRepositoriesCfg CliGitRootFoundRepositoriesCfg;
+typedef struct CliGitOutFoundRepositoriesCfg CliGitOutFoundRepositoriesCfg;
+typedef struct CliGitRootFoundStashesCfg CliGitRootFoundStashesCfg;
+typedef struct CliGitOutFoundStashesCfg CliGitOutFoundStashesCfg;
+typedef struct CliGitTextAtCfg CliGitTextAtCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the cells the lists git gives store their texts in (git_run.c)
 extern CellOwner g_cli_git_cells;
@@ -37,10 +72,10 @@ typedef struct
 // the texts made empty, a list containing none before, or one given back; `length` bytes of `from` stored: their place;
 // the text at a place, the empty text where the list has no cell; and the texts' cell given back, the list containing
 // none
-void cli_git_text_begun(CliGitText *text);
-unsigned int cli_git_text_put(CliGitText *text, const char *from, unsigned long long length);
-const char *cli_git_text_of(const CliGitText *text, unsigned int at);
-void cli_git_text_given(CliGitText *text);
+void cli_git_text_begin(const CliGitTextCfg *args);
+unsigned int cli_git_text_put(const CliGitTextCfg *args);
+const char *cli_git_text_get(const CliGitTextAtCfg *args);
+void cli_git_text_free(const CliGitTextCfg *args);
 
 // the most repositories, changed files, branches, stashes and commits a list contains
 #define CLI_GIT_REPOSITORIES 256u
@@ -145,76 +180,72 @@ typedef struct
 
 // the commit the tree at `root` stands at into `commit`, sized for CLI_NAME_MAX_LEN, its time in seconds since 1970,
 // and whether the tree has no change past it: 1, or 0 where the tree is in no repository or has no commit
-int cli_git_head(const char *root, char *commit, long long *when, int *clean);
+int cli_git_head(const CliGitRootCommitCfg *args);
 // the branch the tree is on, or the short id of the commit it stands at where it is on none, into `name`, sized for
 // CLI_NAME_MAX_LEN: 1, or 0 where git cannot determine
-int cli_git_branch(const char *root, char *name);
+int cli_git_branch(const CliGitCfg *args);
 // the name of the repository at `root` into `name`, sized for CLI_NAME_MAX_LEN: the last part of its `origin`
 // remote's address, without a `.git` ending, the folder's name where it has no `origin`
-void cli_git_name(const char *root, char *name);
+void cli_git_name(const CliGitCfg *args);
 // the repositories of the tree: the one the tree is in, where it is in one, then each folder under it, four deep at
 // most, that contains a repository of its own, a submodule among them, by path; hidden folders and those a build or a
 // package manager fills are not searched
-void cli_git_repositories(const char *root, CliRepositories *found);
+void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args);
 // the text of a file a merge left in conflict, as one of its stages stores it: 1 the base, 2 the branch merged into, 3
 // the branch merged, into `out`: 1, or 0 where git has none
-int cli_git_stage_text(const char *root, const char *file, unsigned int stage, VerbaLinea *out);
+int cli_git_stage_text(const CliGitRootFileStageCfg *args);
 // every file under the tree that differs from the last commit of the repository that contains it, by its path in the
 // tree, for the `count` repositories at `repos` where `named`, or every one of the tree where not
-void cli_git_changed(const char *root, const char *const *repos, unsigned int count, int named, CliChangedList *found);
+void cli_git_change(const CliGitRootReposCfg *args);
 // the files at `paths` committed with `message`, each as it stands, in the repository that contains it, a commit to
 // each repository that contains some; and the files of `whole` as each stands and the files of `parts` with the text
 // each is given, the same way: git's line for each commit into `out`, 1, or 0 with why given
-int cli_git_commit(const char *root, const char *message, const char *const *paths, unsigned int count, VerbaLinea *out,
-                   VerbaLinea *err_msg);
-int cli_git_commit_parts(const char *root, const char *message, const char *const *whole, unsigned int whole_count,
-                         const CliGitPart *parts, unsigned int part_count, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_git_commit(const CliGitRootOutCountCfg *args);
+int cli_git_commit_parts(const CliGitRootCfg *args);
 // git run at `root` with nothing to answer a prompt with, `args`, `count` of them: what it wrote into `out`, 1, or 0
 // with what it reported went wrong
-int cli_git_run(const char *root, const char *const *args, unsigned int count, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_git_run(const CliGitRootOutCountErrMsgCfg *args);
 // every local and remote branch, the one with the newest commit first, less each remote's HEAD
-void cli_git_branches(const char *root, CliBranches *found);
+void cli_git_branches(const CliGitRootFoundBranchesCfg *args);
 // what the branches list requests done to a branch: `create` makes one from the branch open and goes on it, `switch`
 // goes on one, a remote one made a local branch that follows it, `rename` names it `to`, `delete` takes it out where
 // its commits are merged and `delete-unmerged` where they are not, `merge` merges it into the branch open, and `rebase`
 // sets the branch open's own commits on it: git's words into `out`, 1, or 0 with why given
-int cli_git_branch_act(const char *root, const char *act, const char *name, const char *to, VerbaLinea *out,
-                       VerbaLinea *err_msg);
+int cli_git_branch_act(const CliGitRootOutCfg *args);
 // every stash, the newest first
-void cli_git_stashes(const char *root, CliStashes *found);
+void cli_git_stashes(const CliGitRootFoundStashesCfg *args);
 // what is requested done to the stashes: `push` puts every change aside, new files with them, under `message` where one
 // is given; `apply` brings stash `name` back and retains it; `pop` brings it back and drops it where it comes back
 // whole; `drop` throws it away: git's words into `out`, 1, or 0 with why given
-int cli_git_stash_act(const char *root, const char *act, const char *name, const char *message, VerbaLinea *out,
-                      VerbaLinea *err_msg);
+int cli_git_stash_act(const CliGitRootOutMessageCfg *args);
 // the commits of other branches, local and remote, that the branch the tree is on does not contain, merges aside, the
 // newest first; a commit already applied to it under another id is not one
-void cli_git_elsewhere(const char *root, CliCommits *found);
+void cli_git_elsewhere(const CliGitRootFileErrMsgCfg *args);
 // commit `id` applied to the branch the tree is on as a commit of its own: git's words into `out`, 1, or 0 with why
 // given, where the change does not fit leaving the files in conflict for the merge window
-int cli_git_cherry_pick(const char *root, const char *id, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_git_cherry_pick(const CliGitRootFileCfg *args);
 // a file a merge left in conflict marked resolved, as it now stands, by staging it: 1, or 0 with why given
-int cli_git_resolve(const char *root, const char *path, VerbaLinea *err_msg);
+int cli_git_resolve(const CliGitRootErrMsgPathCfg *args);
 // the branch pushed to the remote it follows, or to origin under its own name where it follows none; and the commits of
 // the remote branch it follows brought in, only where its own commits are all among them: git's words into `out`, 1,
 // or 0 with why given
-int cli_git_push(const char *root, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_git_pull(const char *root, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_git_push(const CliGitRootOutCountErrMsgCfg *args);
+int cli_git_pull(const CliGitRootOutCountErrMsgCfg *args);
 // how many commits the branch has that its remote does not, and the other way: 1, or 0 where it follows no remote
-int cli_git_ahead_behind(const char *root, unsigned int *ahead, unsigned int *behind);
+int cli_git_ahead_behind(const CliGitRootAheadCfg *args);
 // the file at `path` put back as the last commit left it, its changes in the tree and in what is staged taken back; a
 // file the last commit does not contain is refused: 1, or 0 with why given
-int cli_git_rollback(const char *root, const char *path, VerbaLinea *err_msg);
+int cli_git_rollback(const CliGitRootErrMsgPathCfg *args);
 // the commits that touched `file`, the newest first, following it through renames: 1, or 0 with why given
-int cli_git_commits(const char *root, const char *file, CliCommits *found, VerbaLinea *err_msg);
+int cli_git_commits(const CliGitRootFileErrMsgCfg *args);
 // the text of `file` as commit `id` left it into `out`: 1, or 0 with why given; as the first parent of `id` left it: 1,
 // or 0 where the commit has no parent or the parent does not contain the file; as the last commit left it: 1, or 0
 // where the tree is not git's or the last commit does not contain the file
-int cli_git_text_at(const char *root, const char *file, const char *id, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_git_text_before(const char *root, const char *file, const char *id, VerbaLinea *out);
-int cli_git_head_text(const char *root, const char *file, VerbaLinea *out);
+int cli_git_text_at(const CliGitRootFileCfg *args);
+int cli_git_text_before(const CliGitRootFileCfg *args);
+int cli_git_head_text(const CliGitRootFileStageCfg *args);
 // who made commit `id` into `name`, and its subject into `subject`: 1, or 0 where git cannot determine
-int cli_git_made_by(const char *root, const char *id, VerbaLinea *name, VerbaLinea *subject);
+int cli_git_new_by(const CliGitRootIdCfg *args);
 
 // the most commits the graph draws, and the most a search over them finds; the most parents and names of a commit
 // stored; and the most strokes of every row
@@ -259,7 +290,7 @@ typedef struct
 // the commits of every branch, the newest first and none before its children, laid out as a graph; with a `query`, the
 // commits whose subject, id or branches contain each of its words, in any case, and their author where `authors`, from
 // the whole history, each on a line of its own (git_graph.c)
-void cli_git_graph(const char *root, const char *query, int authors, CliGraph *found);
+void cli_git_graph(const CliGitRootQueryCfg *args);
 
 // the most files a commit is reported to have changed
 #define CLI_GIT_TOUCHED 16384u
@@ -282,7 +313,7 @@ typedef struct
 } CliTouchedList;
 
 // the files under the tree that commit `id` changed: 1, or 0 with why given (git_lists.c)
-int cli_git_touched(const char *root, const char *id, CliTouchedList *found, VerbaLinea *err_msg);
+int cli_git_touch(const CliGitRootErrMsgCfg *args);
 
 // the most lines of a file and the most commits its history contains
 #define CLI_GIT_LINES (1u << 20u)
@@ -319,8 +350,7 @@ typedef struct
 
 // the commit that last changed each line of `file` as `text`, `length` bytes, contains it, the file as the editor has
 // it, edits and all, a line the last commit does not contain being no commit's: 1, or 0 with why given (git_lines.c)
-int cli_git_line_history(const char *root, const char *file, const char *text, unsigned long long length,
-                         CliLineHistory *found, VerbaLinea *err_msg);
+int cli_git_line_history(const CliGitLengthCfg *args);
 
 // the folder a clone goes in where none is named, the reader's home, and the folder File, Open, Repository clones
 // into, one of orior's own, apart from the reader's, each into `folder`, sized for CLI_PATH_MAX_LEN: 1, or 0 where
@@ -328,25 +358,595 @@ int cli_git_line_history(const char *root, const char *file, const char *text, u
 // a clone of `url` makes under `parent` into `folder`, the last part of the address without `.git`, as git itself
 // names it; and `url` cloned into `target`, a folder that is not there yet or is empty, each line of git's progress
 // handed to `progress_line` as it comes with whether the line is finished. Each 1, or 0 with why given (git_clone.c)
-int cli_git_clone_parent(char *folder);
-int cli_git_opened_parent(char *folder);
-int cli_git_init(const char *folder, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_git_clone_folder(const char *url, const char *parent, char *folder, VerbaLinea *err_msg);
-int cli_git_clone(const char *url, const char *target,
-                  void (*progress_line)(void *context, const char *line, int ended), void *context,
-                  VerbaLinea *err_msg);
+int cli_git_clone_parent(const CliGitErrMsgFolderCfg *args);
+int cli_git_opened_parent(const CliGitErrMsgFolderCfg *args);
+int cli_git_init(const CliGitOutCfg *args);
+int cli_git_clone_folder(const CliGitErrMsgFolderCfg *args);
+int cli_git_clone(const CliGitErrMsgCfg *args);
 
 // each list written as the page reads it, a JSON array of objects whose members are the fields above by their names, a
 // state a letter of its own, a path or a branch one has not `null`; a touched file's path and the path it had each
 // written after `repo` and a `/` where `repo` is not empty; and a file's line history as `{"commits", "lines"}`
 // (git_written.c)
-void cli_git_repositories_written(const CliRepositories *found, VerbaLinea *out);
-void cli_git_changed_written(const CliChangedList *found, VerbaLinea *out);
-void cli_git_commits_written(const CliCommits *found, VerbaLinea *out);
-void cli_git_branches_written(const CliBranches *found, VerbaLinea *out);
-void cli_git_stashes_written(const CliStashes *found, VerbaLinea *out);
-void cli_git_graph_written(const CliGraph *found, VerbaLinea *out);
-void cli_git_touched_written(const CliTouchedList *found, const char *repo, VerbaLinea *out);
-void cli_git_line_history_written(const CliLineHistory *found, VerbaLinea *out);
+void cli_git_repositories_write(const CliGitOutFoundRepositoriesCfg *args);
+void cli_git_changed_write(const CliGitOutFoundChangedListCfg *args);
+void cli_git_commits_write(const CliGitOutFoundCfg *args);
+void cli_git_branches_write(const CliGitOutFoundBranchesCfg *args);
+void cli_git_stashes_write(const CliGitOutFoundStashesCfg *args);
+void cli_git_graph_write(const CliGitOutFoundGraphCfg *args);
+void cli_git_touched_write(const CliGitOutFoundTouchedListCfg *args);
+void cli_git_line_history_write(const CliGitOutFoundLineHistoryCfg *args);
+
+struct CliGitRootCfg
+{
+    const char *root;
+    VerbaLinea *out;
+    const char *message;
+    VerbaLinea *err_msg;
+    const char *const *whole;
+    unsigned int whole_count;
+    const CliGitPart *parts;
+    unsigned int part_count;
+};
+
+struct CliGitRootOutCfg
+{
+    const char *root;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+    const char *act;
+    const char *name_read;
+    const char *to;
+};
+
+struct CliGitRootOutCountCfg
+{
+    const char *root;
+    VerbaLinea *out;
+    unsigned int count;
+    const char *message;
+    const char *const *paths;
+    VerbaLinea *err_msg;
+};
+
+struct CliGitLengthCfg
+{
+    unsigned long long length;
+    const char *root;
+    const char *file;
+    VerbaLinea *err_msg;
+    const char *text_text;
+    CliLineHistory *found_line_history_pointer;
+};
+
+struct CliGitRootOutMessageCfg
+{
+    const char *root;
+    VerbaLinea *out;
+    const char *message;
+    VerbaLinea *err_msg;
+    const char *act;
+    const char *name_read;
+};
+
+struct CliGitRootReposCfg
+{
+    const char *root;
+    const char *const *repos;
+    unsigned int count;
+    int named;
+    CliChangedList *found_changed_list_pointer;
+};
+
+struct CliGitErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    const char *url;
+    const char *target;
+    void (*progress_line)(const CliEachLineEndedCfg *args);
+    void *context;
+};
+
+struct CliGitRootOutCountErrMsgCfg
+{
+    const char *root;
+    VerbaLinea *out;
+    unsigned int count;
+    VerbaLinea *err_msg;
+    const char *const *request;
+};
+
+struct CliGitRootFileCfg
+{
+    const char *root;
+    const char *file;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+    const char *id;
+};
+
+struct CliGitErrMsgFolderCfg
+{
+    VerbaLinea *err_msg;
+    char *folder;
+    const char *url;
+    const char *parent;
+};
+
+struct CliGitRootFileErrMsgCfg
+{
+    const char *root;
+    const char *file;
+    VerbaLinea *err_msg;
+    CliCommits *found;
+};
+
+struct CliGitRootQueryCfg
+{
+    const char *root;
+    const char *query;
+    int authors;
+    CliGraph *found_graph_pointer;
+};
+
+struct CliGitRootCommitCfg
+{
+    const char *root;
+    char *commit;
+    long long *when;
+    int *clean;
+};
+
+struct CliGitRootIdCfg
+{
+    const char *root;
+    const char *id;
+    VerbaLinea *name_verba_linea_pointer;
+    VerbaLinea *subject;
+};
+
+struct CliGitRootFileStageCfg
+{
+    const char *root;
+    const char *file;
+    unsigned int stage;
+    VerbaLinea *out;
+};
+
+struct CliGitRootErrMsgCfg
+{
+    const char *root;
+    VerbaLinea *err_msg;
+    const char *id;
+    CliTouchedList *found_touched_list_pointer;
+};
+
+struct CliGitRootAheadCfg
+{
+    const char *root;
+    unsigned int *ahead;
+    unsigned int *behind;
+};
+
+struct CliGitOutCfg
+{
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+    const char *folder_read;
+};
+
+struct CliGitRootErrMsgPathCfg
+{
+    const char *root;
+    VerbaLinea *err_msg;
+    const char *path;
+};
+
+struct CliGitTextCfg
+{
+    CliGitText *text;
+    const char *from;
+    unsigned long long length;
+};
+
+struct CliGitOutFoundTouchedListCfg
+{
+    VerbaLinea *out;
+    const CliTouchedList *found_touched_list_pointer_other;
+    const char *repo;
+};
+
+struct CliGitCfg
+{
+    const char *root;
+    char *name;
+};
+
+struct CliGitRootFoundBranchesCfg
+{
+    const char *root;
+    CliBranches *found_branches_pointer;
+};
+
+struct CliGitOutFoundBranchesCfg
+{
+    VerbaLinea *out;
+    const CliBranches *found_branches_pointer_other;
+};
+
+struct CliGitOutFoundChangedListCfg
+{
+    VerbaLinea *out;
+    const CliChangedList *found_changed_list_pointer_other;
+};
+
+struct CliGitOutFoundCfg
+{
+    VerbaLinea *out;
+    const CliCommits *found_read;
+};
+
+struct CliGitOutFoundGraphCfg
+{
+    VerbaLinea *out;
+    const CliGraph *found_graph_pointer_other;
+};
+
+struct CliGitOutFoundLineHistoryCfg
+{
+    VerbaLinea *out;
+    const CliLineHistory *found_line_history_pointer_other;
+};
+
+struct CliGitRootFoundRepositoriesCfg
+{
+    const char *root;
+    CliRepositories *found_repositories_pointer;
+};
+
+struct CliGitOutFoundRepositoriesCfg
+{
+    VerbaLinea *out;
+    const CliRepositories *found_repositories_pointer_other;
+};
+
+struct CliGitRootFoundStashesCfg
+{
+    const char *root;
+    CliStashes *found_stashes_pointer;
+};
+
+struct CliGitOutFoundStashesCfg
+{
+    VerbaLinea *out;
+    const CliStashes *found_stashes_pointer_other;
+};
+
+struct CliGitTextAtCfg
+{
+    const CliGitText *text_read;
+    unsigned int at;
+};
+
+typedef struct
+{
+    void (*text_begin)(const CliGitTextCfg *args);
+    unsigned int (*text_put)(const CliGitTextCfg *args);
+    void (*text_free)(const CliGitTextCfg *args);
+} CliGitTextNs;
+EMBED_TABLE_LAYOUT(CliGitTextNs, text_begin, text_put, text_free);
+EMBED_TABLE_STORAGE CliGitTextNs cli_git_text EMBED_UNUSED = {
+    .text_begin = cli_git_text_begin,
+    .text_put = cli_git_text_put,
+    .text_free = cli_git_text_free,
+};
+
+typedef struct
+{
+    const char *(*text_get)(const CliGitTextAtCfg *args);
+} CliGitTextAtNs;
+EMBED_TABLE_LAYOUT(CliGitTextAtNs, text_get);
+EMBED_TABLE_STORAGE CliGitTextAtNs cli_git_text_at_table EMBED_UNUSED = {
+    .text_get = cli_git_text_get,
+};
+
+typedef struct
+{
+    int (*head)(const CliGitRootCommitCfg *args);
+} CliGitRootCommitNs;
+EMBED_TABLE_LAYOUT(CliGitRootCommitNs, head);
+EMBED_TABLE_STORAGE CliGitRootCommitNs cli_git_root_commit EMBED_UNUSED = {
+    .head = cli_git_head,
+};
+
+typedef struct
+{
+    int (*branch)(const CliGitCfg *args);
+    void (*name)(const CliGitCfg *args);
+} CliGitNs;
+EMBED_TABLE_LAYOUT(CliGitNs, branch, name);
+EMBED_TABLE_STORAGE CliGitNs cli_git_table EMBED_UNUSED = {
+    .branch = cli_git_branch,
+    .name = cli_git_name,
+};
+
+typedef struct
+{
+    void (*repositories)(const CliGitRootFoundRepositoriesCfg *args);
+} CliGitRootFoundRepositoriesNs;
+EMBED_TABLE_LAYOUT(CliGitRootFoundRepositoriesNs, repositories);
+EMBED_TABLE_STORAGE CliGitRootFoundRepositoriesNs cli_git_root_found_repositories EMBED_UNUSED = {
+    .repositories = cli_git_repositories,
+};
+
+typedef struct
+{
+    int (*stage_text)(const CliGitRootFileStageCfg *args);
+    int (*head_text)(const CliGitRootFileStageCfg *args);
+} CliGitRootFileStageNs;
+EMBED_TABLE_LAYOUT(CliGitRootFileStageNs, stage_text, head_text);
+EMBED_TABLE_STORAGE CliGitRootFileStageNs cli_git_root_file_stage EMBED_UNUSED = {
+    .stage_text = cli_git_stage_text,
+    .head_text = cli_git_head_text,
+};
+
+typedef struct
+{
+    void (*change)(const CliGitRootReposCfg *args);
+} CliGitRootReposNs;
+EMBED_TABLE_LAYOUT(CliGitRootReposNs, change);
+EMBED_TABLE_STORAGE CliGitRootReposNs cli_git_root_repos EMBED_UNUSED = {
+    .change = cli_git_change,
+};
+
+typedef struct
+{
+    int (*commit)(const CliGitRootOutCountCfg *args);
+} CliGitRootOutCountNs;
+EMBED_TABLE_LAYOUT(CliGitRootOutCountNs, commit);
+EMBED_TABLE_STORAGE CliGitRootOutCountNs cli_git_root_out_count EMBED_UNUSED = {
+    .commit = cli_git_commit,
+};
+
+typedef struct
+{
+    int (*commit_parts)(const CliGitRootCfg *args);
+} CliGitRootNs;
+EMBED_TABLE_LAYOUT(CliGitRootNs, commit_parts);
+EMBED_TABLE_STORAGE CliGitRootNs cli_git_root EMBED_UNUSED = {
+    .commit_parts = cli_git_commit_parts,
+};
+
+typedef struct
+{
+    int (*run)(const CliGitRootOutCountErrMsgCfg *args);
+    int (*push)(const CliGitRootOutCountErrMsgCfg *args);
+    int (*pull)(const CliGitRootOutCountErrMsgCfg *args);
+} CliGitRootOutCountErrMsgNs;
+EMBED_TABLE_LAYOUT(CliGitRootOutCountErrMsgNs, run, push, pull);
+EMBED_TABLE_STORAGE CliGitRootOutCountErrMsgNs cli_git_root_out_count_err_msg EMBED_UNUSED = {
+    .run = cli_git_run,
+    .push = cli_git_push,
+    .pull = cli_git_pull,
+};
+
+typedef struct
+{
+    void (*branches)(const CliGitRootFoundBranchesCfg *args);
+} CliGitRootFoundBranchesNs;
+EMBED_TABLE_LAYOUT(CliGitRootFoundBranchesNs, branches);
+EMBED_TABLE_STORAGE CliGitRootFoundBranchesNs cli_git_root_found_branches EMBED_UNUSED = {
+    .branches = cli_git_branches,
+};
+
+typedef struct
+{
+    int (*branch_act)(const CliGitRootOutCfg *args);
+} CliGitRootOutNs;
+EMBED_TABLE_LAYOUT(CliGitRootOutNs, branch_act);
+EMBED_TABLE_STORAGE CliGitRootOutNs cli_git_root_out EMBED_UNUSED = {
+    .branch_act = cli_git_branch_act,
+};
+
+typedef struct
+{
+    void (*stashes)(const CliGitRootFoundStashesCfg *args);
+} CliGitRootFoundStashesNs;
+EMBED_TABLE_LAYOUT(CliGitRootFoundStashesNs, stashes);
+EMBED_TABLE_STORAGE CliGitRootFoundStashesNs cli_git_root_found_stashes EMBED_UNUSED = {
+    .stashes = cli_git_stashes,
+};
+
+typedef struct
+{
+    int (*stash_act)(const CliGitRootOutMessageCfg *args);
+} CliGitRootOutMessageNs;
+EMBED_TABLE_LAYOUT(CliGitRootOutMessageNs, stash_act);
+EMBED_TABLE_STORAGE CliGitRootOutMessageNs cli_git_root_out_message EMBED_UNUSED = {
+    .stash_act = cli_git_stash_act,
+};
+
+typedef struct
+{
+    void (*elsewhere)(const CliGitRootFileErrMsgCfg *args);
+    int (*commits)(const CliGitRootFileErrMsgCfg *args);
+} CliGitRootFileErrMsgNs;
+EMBED_TABLE_LAYOUT(CliGitRootFileErrMsgNs, elsewhere, commits);
+EMBED_TABLE_STORAGE CliGitRootFileErrMsgNs cli_git_root_file_err_msg EMBED_UNUSED = {
+    .elsewhere = cli_git_elsewhere,
+    .commits = cli_git_commits,
+};
+
+typedef struct
+{
+    int (*cherry_pick)(const CliGitRootFileCfg *args);
+    int (*text_at)(const CliGitRootFileCfg *args);
+    int (*text_before)(const CliGitRootFileCfg *args);
+} CliGitRootFileNs;
+EMBED_TABLE_LAYOUT(CliGitRootFileNs, cherry_pick, text_at, text_before);
+EMBED_TABLE_STORAGE CliGitRootFileNs cli_git_root_file EMBED_UNUSED = {
+    .cherry_pick = cli_git_cherry_pick,
+    .text_at = cli_git_text_at,
+    .text_before = cli_git_text_before,
+};
+
+typedef struct
+{
+    int (*resolve)(const CliGitRootErrMsgPathCfg *args);
+    int (*rollback)(const CliGitRootErrMsgPathCfg *args);
+} CliGitRootErrMsgPathNs;
+EMBED_TABLE_LAYOUT(CliGitRootErrMsgPathNs, resolve, rollback);
+EMBED_TABLE_STORAGE CliGitRootErrMsgPathNs cli_git_root_err_msg_path EMBED_UNUSED = {
+    .resolve = cli_git_resolve,
+    .rollback = cli_git_rollback,
+};
+
+typedef struct
+{
+    int (*ahead_behind)(const CliGitRootAheadCfg *args);
+} CliGitRootAheadNs;
+EMBED_TABLE_LAYOUT(CliGitRootAheadNs, ahead_behind);
+EMBED_TABLE_STORAGE CliGitRootAheadNs cli_git_root_ahead EMBED_UNUSED = {
+    .ahead_behind = cli_git_ahead_behind,
+};
+
+typedef struct
+{
+    int (*new_by)(const CliGitRootIdCfg *args);
+} CliGitRootIdNs;
+EMBED_TABLE_LAYOUT(CliGitRootIdNs, new_by);
+EMBED_TABLE_STORAGE CliGitRootIdNs cli_git_root_id EMBED_UNUSED = {
+    .new_by = cli_git_new_by,
+};
+
+typedef struct
+{
+    void (*graph)(const CliGitRootQueryCfg *args);
+} CliGitRootQueryNs;
+EMBED_TABLE_LAYOUT(CliGitRootQueryNs, graph);
+EMBED_TABLE_STORAGE CliGitRootQueryNs cli_git_root_query EMBED_UNUSED = {
+    .graph = cli_git_graph,
+};
+
+typedef struct
+{
+    int (*touch)(const CliGitRootErrMsgCfg *args);
+} CliGitRootErrMsgNs;
+EMBED_TABLE_LAYOUT(CliGitRootErrMsgNs, touch);
+EMBED_TABLE_STORAGE CliGitRootErrMsgNs cli_git_root_err_msg EMBED_UNUSED = {
+    .touch = cli_git_touch,
+};
+
+typedef struct
+{
+    int (*line_history)(const CliGitLengthCfg *args);
+} CliGitLengthNs;
+EMBED_TABLE_LAYOUT(CliGitLengthNs, line_history);
+EMBED_TABLE_STORAGE CliGitLengthNs cli_git_length EMBED_UNUSED = {
+    .line_history = cli_git_line_history,
+};
+
+typedef struct
+{
+    int (*clone_parent)(const CliGitErrMsgFolderCfg *args);
+    int (*opened_parent)(const CliGitErrMsgFolderCfg *args);
+    int (*clone_folder)(const CliGitErrMsgFolderCfg *args);
+} CliGitErrMsgFolderNs;
+EMBED_TABLE_LAYOUT(CliGitErrMsgFolderNs, clone_parent, opened_parent, clone_folder);
+EMBED_TABLE_STORAGE CliGitErrMsgFolderNs cli_git_err_msg_folder EMBED_UNUSED = {
+    .clone_parent = cli_git_clone_parent,
+    .opened_parent = cli_git_opened_parent,
+    .clone_folder = cli_git_clone_folder,
+};
+
+typedef struct
+{
+    int (*init)(const CliGitOutCfg *args);
+} CliGitOutNs;
+EMBED_TABLE_LAYOUT(CliGitOutNs, init);
+EMBED_TABLE_STORAGE CliGitOutNs cli_git_out EMBED_UNUSED = {
+    .init = cli_git_init,
+};
+
+typedef struct
+{
+    int (*clone)(const CliGitErrMsgCfg *args);
+} CliGitErrMsgNs;
+EMBED_TABLE_LAYOUT(CliGitErrMsgNs, clone);
+EMBED_TABLE_STORAGE CliGitErrMsgNs cli_git_err_msg EMBED_UNUSED = {
+    .clone = cli_git_clone,
+};
+
+typedef struct
+{
+    void (*repositories_write)(const CliGitOutFoundRepositoriesCfg *args);
+} CliGitOutFoundRepositoriesNs;
+EMBED_TABLE_LAYOUT(CliGitOutFoundRepositoriesNs, repositories_write);
+EMBED_TABLE_STORAGE CliGitOutFoundRepositoriesNs cli_git_out_found_repositories EMBED_UNUSED = {
+    .repositories_write = cli_git_repositories_write,
+};
+
+typedef struct
+{
+    void (*changed_write)(const CliGitOutFoundChangedListCfg *args);
+} CliGitOutFoundChangedListNs;
+EMBED_TABLE_LAYOUT(CliGitOutFoundChangedListNs, changed_write);
+EMBED_TABLE_STORAGE CliGitOutFoundChangedListNs cli_git_out_found_changed_list EMBED_UNUSED = {
+    .changed_write = cli_git_changed_write,
+};
+
+typedef struct
+{
+    void (*commits_write)(const CliGitOutFoundCfg *args);
+} CliGitOutFoundNs;
+EMBED_TABLE_LAYOUT(CliGitOutFoundNs, commits_write);
+EMBED_TABLE_STORAGE CliGitOutFoundNs cli_git_out_found EMBED_UNUSED = {
+    .commits_write = cli_git_commits_write,
+};
+
+typedef struct
+{
+    void (*branches_write)(const CliGitOutFoundBranchesCfg *args);
+} CliGitOutFoundBranchesNs;
+EMBED_TABLE_LAYOUT(CliGitOutFoundBranchesNs, branches_write);
+EMBED_TABLE_STORAGE CliGitOutFoundBranchesNs cli_git_out_found_branches EMBED_UNUSED = {
+    .branches_write = cli_git_branches_write,
+};
+
+typedef struct
+{
+    void (*stashes_write)(const CliGitOutFoundStashesCfg *args);
+} CliGitOutFoundStashesNs;
+EMBED_TABLE_LAYOUT(CliGitOutFoundStashesNs, stashes_write);
+EMBED_TABLE_STORAGE CliGitOutFoundStashesNs cli_git_out_found_stashes EMBED_UNUSED = {
+    .stashes_write = cli_git_stashes_write,
+};
+
+typedef struct
+{
+    void (*graph_write)(const CliGitOutFoundGraphCfg *args);
+} CliGitOutFoundGraphNs;
+EMBED_TABLE_LAYOUT(CliGitOutFoundGraphNs, graph_write);
+EMBED_TABLE_STORAGE CliGitOutFoundGraphNs cli_git_out_found_graph EMBED_UNUSED = {
+    .graph_write = cli_git_graph_write,
+};
+
+typedef struct
+{
+    void (*touched_write)(const CliGitOutFoundTouchedListCfg *args);
+} CliGitOutFoundTouchedListNs;
+EMBED_TABLE_LAYOUT(CliGitOutFoundTouchedListNs, touched_write);
+EMBED_TABLE_STORAGE CliGitOutFoundTouchedListNs cli_git_out_found_touched_list EMBED_UNUSED = {
+    .touched_write = cli_git_touched_write,
+};
+
+typedef struct
+{
+    void (*line_history_write)(const CliGitOutFoundLineHistoryCfg *args);
+} CliGitOutFoundLineHistoryNs;
+EMBED_TABLE_LAYOUT(CliGitOutFoundLineHistoryNs, line_history_write);
+EMBED_TABLE_STORAGE CliGitOutFoundLineHistoryNs cli_git_out_found_line_history EMBED_UNUSED = {
+    .line_history_write = cli_git_line_history_write,
+};
 
 #endif

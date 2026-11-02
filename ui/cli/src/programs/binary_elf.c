@@ -16,9 +16,6 @@ typedef struct
     char origin[CLI_PATH_MAX_LEN];
     char paths[CLI_PATH_MAX_LEN * 2u];
 } CliElfQueued;
-
-// the libraries a reading's queue is taken with
-
 // A reading of a program's libraries, one cell for the call: the program's dynamic section and a library's, and the
 // folders the loader's settings name; and the libraries queued, a cell of `room` at their most
 typedef struct
@@ -30,9 +27,40 @@ typedef struct
     unsigned int room;
 } CliElfReading;
 
-// a glibc version's numbers compared: below 0 where `a` is older
-static int cli_glibc_order(const char *a, const char *b)
+// the libraries a reading's queue is taken with
+
+typedef struct
 {
+    const char *a;
+    const char *b;
+    const unsigned char *bytes;
+    unsigned long long size;
+    unsigned long long strings;
+    unsigned long long offset;
+    char *out;
+    unsigned long long room;
+    const char *path;
+    CliElfReading *reading;
+    unsigned int queued;
+    const char *name;
+    const char *by;
+    const char *origin;
+    const CliDynamic *dynamic;
+    const char *entry;
+    unsigned long long length;
+    const CliElfQueued *one;
+    char *at;
+    int *beside;
+    CliBinaryReport *report;
+    const CliElfReading *reading_read;
+    unsigned int next;
+    VerbaLinea *err_msg;
+} BinaryElfCtx;
+// a glibc version's numbers compared: below 0 where `a` is older
+EMBED_INLINE int cli_glibc_order(const BinaryElfCtx *args)
+{
+    const char *a = args->a;
+    const char *b = args->b;
     a += (cellul.starts(&(CatenaFinitaCfg){.src = a, .other = "GLIBC_", .cap = CLI_CELLS_POOL})) ? 6 : 0;
     b += (cellul.starts(&(CatenaFinitaCfg){.src = b, .other = "GLIBC_", .cap = CLI_CELLS_POOL})) ? 6 : 0;
     for (;;)
@@ -42,10 +70,12 @@ static int cli_glibc_order(const char *a, const char *b)
         const int has_left = (a[0] >= '0') && (a[0] <= '9');
         const int has_right = (b[0] >= '0') && (b[0] <= '9');
         unsigned long long past_left = 0ull;
-        left = cli_text_number(a, 0ull, cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}), &past_left);
+        left = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = a, .at = 0ull,
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}), .end = &past_left);
         a += past_left;
         unsigned long long past_right = 0ull;
-        right = cli_text_number(b, 0ull, cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}), &past_right);
+        right = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = b, .at = 0ull,
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}), .end = &past_right);
         b += past_right;
         if (!has_left || !has_right)
         {
@@ -61,37 +91,47 @@ static int cli_glibc_order(const char *a, const char *b)
 }
 
 // a text of the string table at `offset` of the dynamic section's strings
-static int cli_string(const unsigned char *bytes, unsigned long long size, unsigned long long strings,
-                      unsigned long long offset, char *out, unsigned long long room)
+EMBED_INLINE int cli_string(const BinaryElfCtx *args)
 {
-    return cli_binary_text(bytes, size, strings + offset, out, room);
+    const unsigned char *bytes = args->bytes;
+    unsigned long long size = args->size;
+    char *out = args->out;
+    unsigned long long room = args->room;
+    return EMBED_CALL(cli_binary_bytes.text, CliBinaryBytesCfg, .bytes = bytes, .size = size,
+                      .at = args->strings + args->offset, .out = out, .room = room);
 }
 
-int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDynamic *found, VerbaLinea *err_msg)
+int cli_elf_dynamic(const CliBinaryErrMsgBytesCfg *args)
 {
-    memor.set(&(MemoriaCfg){.dst = found, .val = 0, .bytes = sizeof(*found)});
-    if ((size < 6u) || (bytes[4] != 2u) || (bytes[5] != 1u))
+    const unsigned char *bytes = args->bytes;
+    memor.set(&(MemoriaCfg){.dst = args->found, .val = 0, .bytes = sizeof(*args->found)});
+    if ((args->size < 6u) || (bytes[4] != 2u) || (bytes[5] != 1u))
     {
-        mmgr_line_put(err_msg, "orior_cli reads 64-bit little-endian Linux programs");
+        mmgr_line_put(args->err_msg, "orior_cli reads 64-bit little-endian Linux programs");
         return 0;
     }
-    if (size < 0x28u)
+    if (args->size < 0x28u)
     {
-        mmgr_line_put(err_msg, "the file ends inside its headers");
+        mmgr_line_put(args->err_msg, "the file ends inside its headers");
         return 0;
     }
-    const unsigned long long phoff = cli_binary_number(bytes, size, 0x20u, 8u);
-    const unsigned long long count = cli_binary_number(bytes, size, 0x38u, 2u);
+    const unsigned long long phoff = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                .size = args->size, .at = 0x20u, .width = 8u);
+    const unsigned long long count = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                .size = args->size, .at = 0x38u, .width = 2u);
     unsigned long long dynamic_start = 0ull;
     unsigned long long dynamic_size = 0ull;
     int has_dynamic = 0;
     for (unsigned long long index = 0ull; index < count; index += 1ull)
     {
         const unsigned long long header = phoff + (index * 56ull);
-        if (!has_dynamic && (cli_binary_number(bytes, size, header, 4u) == 2u))
+        if (!has_dynamic && (EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                        .size = args->size, .at = header, .width = 4u) == 2u))
         {
-            dynamic_start = cli_binary_number(bytes, size, header + 8u, 8u);
-            dynamic_size = cli_binary_number(bytes, size, header + 32u, 8u);
+            dynamic_start = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                       .size = args->size, .at = header + 8u, .width = 8u);
+            dynamic_size = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                      .size = args->size, .at = header + 32u, .width = 8u);
             has_dynamic = 1;
         }
     }
@@ -106,19 +146,32 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
     unsigned long long verneed_count = 0ull;
     unsigned long long entries = 0ull;
     for (; (entries < (dynamic_size / 16u)) &&
-           (cli_binary_number(bytes, size, dynamic_start + (entries * 16u), 8u) != 0ull);
+           (EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                       .at = dynamic_start + (entries * 16u), .width = 8u) != 0ull);
          entries += 1ull)
     {
-        const unsigned long long tag = cli_binary_number(bytes, size, dynamic_start + (entries * 16u), 8u);
-        const unsigned long long value = cli_binary_number(bytes, size, dynamic_start + (entries * 16u) + 8u, 8u);
+        const unsigned long long tag =
+            EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                       .at = dynamic_start + (entries * 16u), .width = 8u);
+        const unsigned long long value =
+            EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                       .at = dynamic_start + (entries * 16u) + 8u, .width = 8u);
         // the place in the file of a virtual address, by the loaded segments
         for (unsigned long long segment = 0ull; segment < count; segment += 1ull)
         {
             const unsigned long long header = phoff + (segment * 56ull);
-            const unsigned long long offset = cli_binary_number(bytes, size, header + 8u, 8u);
-            const unsigned long long start = cli_binary_number(bytes, size, header + 16u, 8u);
-            const unsigned long long length = cli_binary_number(bytes, size, header + 32u, 8u);
-            if ((cli_binary_number(bytes, size, header, 4u) == 1u) && (value >= start) && (value < (start + length)))
+            const unsigned long long offset =
+                EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                           .at = header + 8u, .width = 8u);
+            const unsigned long long start =
+                EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                           .at = header + 16u, .width = 8u);
+            const unsigned long long length =
+                EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                           .at = header + 32u, .width = 8u);
+            if ((EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                            .at = header, .width = 4u) == 1u) &&
+                (value >= start) && (value < (start + length)))
             {
                 if ((tag == 5ull) && !has_strings)
                 {
@@ -136,23 +189,28 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
     }
     if (!has_strings)
     {
-        mmgr_line_put(err_msg, "the program names no string table");
+        mmgr_line_put(args->err_msg, "the program names no string table");
         return 0;
     }
     for (unsigned long long index = 0ull; index < entries; index += 1ull)
     {
-        const unsigned long long tag = cli_binary_number(bytes, size, dynamic_start + (index * 16u), 8u);
-        const unsigned long long value = cli_binary_number(bytes, size, dynamic_start + (index * 16u) + 8u, 8u);
-        if ((tag == 1ull) && (found->count < 64u) &&
-            cli_string(bytes, size, strings, value, found->needed[found->count], CLI_NAME_MAX_LEN))
+        const unsigned long long tag = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                  .size = args->size, .at = dynamic_start + (index * 16u), .width = 8u);
+        const unsigned long long value =
+            EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                       .at = dynamic_start + (index * 16u) + 8u, .width = 8u);
+        if ((tag == 1ull) && (args->found->count < 64u) &&
+            EMBED_CALL(cli_string, BinaryElfCtx, .bytes = bytes, .size = args->size, .strings = strings,
+                       .offset = value, .out = args->found->needed[args->found->count], .room = CLI_NAME_MAX_LEN))
         {
-            found->count += 1u;
+            args->found->count += 1u;
         }
         else if ((tag == 15ull) || (tag == 29ull))
         {
-            char *const into = (tag == 15ull) ? found->rpath : found->runpath;
+            char *const into = (tag == 15ull) ? args->found->rpath : args->found->runpath;
             char text[CLI_PATH_MAX_LEN * 2u];
-            if (cli_string(bytes, size, strings, value, text, sizeof(text)))
+            if (EMBED_CALL(cli_string, BinaryElfCtx, .bytes = bytes, .size = args->size, .strings = strings,
+                           .offset = value, .out = text, .room = sizeof(text)))
             {
                 VerbaLinea line = {into, CLI_PATH_MAX_LEN * 2u,
                                    cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL})};
@@ -165,30 +223,38 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
     unsigned long long at = verneed;
     for (unsigned long long need = 0ull; has_verneed && (need < verneed_count); need += 1ull)
     {
-        unsigned long long aux = at + cli_binary_number(bytes, size, at + 8u, 4u);
-        const unsigned long long aux_count = cli_binary_number(bytes, size, at + 2u, 2u);
+        unsigned long long aux = at + EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                 .size = args->size, .at = at + 8u, .width = 4u);
+        const unsigned long long aux_count = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg,
+                                                        .bytes = bytes, .size = args->size, .at = at + 2u, .width = 2u);
         for (unsigned long long each = 0ull; each < aux_count; each += 1ull)
         {
             char version[CLI_NAME_MAX_LEN];
-            if (cli_string(bytes, size, strings, cli_binary_number(bytes, size, aux + 8u, 4u), version,
-                           sizeof(version)) &&
+            if (EMBED_CALL(cli_string, BinaryElfCtx, .bytes = bytes, .size = args->size, .strings = strings,
+                           .offset = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                .size = args->size, .at = aux + 8u, .width = 4u),
+                           .out = version, .room = sizeof(version)) &&
                 (cellul.starts(&(CatenaFinitaCfg){.src = version, .other = "GLIBC_2", .cap = CLI_CELLS_POOL})) &&
-                (!found->has_glibc || (cli_glibc_order(version, found->glibc) > 0)))
+                (!args->found->has_glibc ||
+                 (EMBED_CALL(cli_glibc_order, BinaryElfCtx, .a = version, .b = args->found->glibc) > 0)))
             {
                 memor.cpy(
-                    &(MemoriaCfg){.dst = found->glibc,
+                    &(MemoriaCfg){.dst = args->found->glibc,
                                   .src = version,
                                   .bytes = cellul.len(&(CatenaFinitaCfg){.src = version, .cap = CLI_CELLS_POOL}) + 1u});
-                found->has_glibc = 1;
+                args->found->has_glibc = 1;
             }
-            const unsigned long long next = cli_binary_number(bytes, size, aux + 12u, 4u);
+            const unsigned long long next =
+                EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = args->size,
+                           .at = aux + 12u, .width = 4u);
             if (next == 0ull)
             {
                 break;
             }
             aux += next;
         }
-        const unsigned long long next = cli_binary_number(bytes, size, at + 12u, 4u);
+        const unsigned long long next = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                   .size = args->size, .at = at + 12u, .width = 4u);
         if (next == 0ull)
         {
             break;
@@ -199,75 +265,80 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
 }
 
 // the folder of a path into `out`, sized for CLI_PATH_MAX_LEN, "." where it has none
-static void cli_folder_of(const char *path, char *out)
+EMBED_INLINE void cli_folder_get(const BinaryElfCtx *args)
 {
-    memor.cpy(&(MemoriaCfg){
-        .dst = out, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-    char *const slash = cli_text_last(out, cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL}), '/');
+    memor.cpy(&(MemoriaCfg){.dst = args->out,
+                            .src = args->path,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+    char *const slash = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->out,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_CELLS_POOL}), .byte = '/');
     if (slash != NULL)
     {
         slash[0] = '\0';
     }
     else
     {
-        memor.cpy(&(MemoriaCfg){
-            .dst = out, .src = ".", .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = args->out,
+                                .src = ".",
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
 }
 
 // a library queued with the run paths its loader names, its RUNPATH where it has one, else its RPATH
-static unsigned int cli_queued(CliElfReading *reading, unsigned int queued, const char *name, const char *by,
-                               const char *origin, const CliDynamic *dynamic)
+EMBED_INLINE unsigned int cli_on_queue(const BinaryElfCtx *args)
 {
-    if (reading->room == 0u)
+    if (args->reading->room == 0u)
     {
-        reading->queue =
-            g_cli_cells->temporary_buf_alloc(CLI_BINARY_LIBRARIES * sizeof(*reading->queue), &g_cli_programs_cells);
-        reading->room = (reading->queue != NULL) ? CLI_BINARY_LIBRARIES : 0u;
+        args->reading->queue = g_cli_cells->temporary_buf_alloc(CLI_BINARY_LIBRARIES * sizeof(*args->reading->queue),
+                                                                &g_cli_programs_cells);
+        args->reading->room = (args->reading->queue != NULL) ? CLI_BINARY_LIBRARIES : 0u;
     }
-    if (queued >= reading->room)
+    if (args->queued >= args->reading->room)
     {
-        return queued;
+        return args->queued;
     }
-    CliElfQueued *const one = &reading->queue[queued];
+    CliElfQueued *const one = &args->reading->queue[args->queued];
     memor.cpy(&(MemoriaCfg){.dst = one->name,
-                            .src = name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(&(MemoriaCfg){
-        .dst = one->by, .src = by, .bytes = cellul.len(&(CatenaFinitaCfg){.src = by, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->name,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = one->by,
+                            .src = args->by,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->by, .cap = CLI_CELLS_POOL}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = one->origin,
-                            .src = origin,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = origin, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->origin,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->origin, .cap = CLI_CELLS_POOL}) + 1u});
     memor.cpy(&(MemoriaCfg){
         .dst = one->paths,
-        .src = (dynamic->runpath[0] != '\0') ? dynamic->runpath : dynamic->rpath,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (dynamic->runpath[0] != '\0') ? dynamic->runpath : dynamic->rpath,
+        .src = (args->dynamic->runpath[0] != '\0') ? args->dynamic->runpath : args->dynamic->rpath,
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (args->dynamic->runpath[0] != '\0') ? args->dynamic->runpath
+                                                                                          : args->dynamic->rpath,
                                                .cap = CLI_CELLS_POOL}) +
                  1u});
-    return queued + 1u;
+    return args->queued + 1u;
 }
 
 // a run path with $ORIGIN and ${ORIGIN} read as the folder of the file that names it into `out`
-static void cli_expanded(const char *entry, unsigned long long length, const char *origin, char *out)
+EMBED_INLINE void cli_on_expand(const BinaryElfCtx *args)
 {
-    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
-    for (unsigned long long at = 0ull; at < length;)
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    for (unsigned long long at = 0ull; at < args->length;)
     {
-        if (((length - at) >= 9u) &&
-            (memor.cmp(&(MemoriaCfg){.src = entry + at, .other = "${ORIGIN}", .bytes = 9u}) == 0))
+        if (((args->length - at) >= 9u) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->entry + at, .other = "${ORIGIN}", .bytes = 9u}) == 0))
         {
-            mmgr_line_put(&line, origin);
+            mmgr_line_put(&line, args->origin);
             at += 9ull;
         }
-        else if (((length - at) >= 7u) &&
-                 (memor.cmp(&(MemoriaCfg){.src = entry + at, .other = "$ORIGIN", .bytes = 7u}) == 0))
+        else if (((args->length - at) >= 7u) &&
+                 (memor.cmp(&(MemoriaCfg){.src = args->entry + at, .other = "$ORIGIN", .bytes = 7u}) == 0))
         {
-            mmgr_line_put(&line, origin);
+            mmgr_line_put(&line, args->origin);
             at += 7ull;
         }
         else
         {
-            mmgr_line_ch(&line, entry[at]);
+            mmgr_line_ch(&line, args->entry[at]);
             at += 1ull;
         }
     }
@@ -275,10 +346,11 @@ static void cli_expanded(const char *entry, unsigned long long length, const cha
 }
 
 // the library found among a queued one's run paths, its path into `at`, and whether that path is beside it by $ORIGIN
-static int cli_in_paths(const CliElfQueued *one, char *at, int *beside)
+EMBED_INLINE int cli_in_paths(const BinaryElfCtx *args)
 {
-    const char *from = one->paths;
-    for (const char *place = one->paths;; place += 1)
+    int *beside = args->beside;
+    const char *from = args->one->paths;
+    for (const char *place = args->one->paths;; place += 1)
     {
         if ((place[0] == ':') || (place[0] == '\0'))
         {
@@ -286,12 +358,14 @@ static int cli_in_paths(const CliElfQueued *one, char *at, int *beside)
             if (length != 0ull)
             {
                 char folder[CLI_PATH_MAX_LEN];
-                cli_expanded(from, length, one->origin, folder);
-                VerbaLinea line = {at, CLI_PATH_MAX_LEN, 0ull};
+                EMBED_CALL(cli_on_expand, BinaryElfCtx, .entry = from, .length = length, .origin = args->one->origin,
+                           .out = folder);
+                VerbaLinea line = {args->at, CLI_PATH_MAX_LEN, 0ull};
                 mmgr_line_put(&line, folder);
                 mmgr_line_ch(&line, '/');
-                mmgr_line_put(&line, one->name);
-                if ((mmgr_line_finish(&line) != 0ull) && query_is_file(at))
+                mmgr_line_put(&line, args->one->name);
+                if ((mmgr_line_finish(&line) != 0ull) &&
+                    EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->at))
                 {
                     char entry[CLI_PATH_MAX_LEN];
                     VerbaLinea entry_line = {entry, sizeof(entry), 0ull};
@@ -315,11 +389,11 @@ static int cli_in_paths(const CliElfQueued *one, char *at, int *beside)
 
 // the run paths of the program's dynamic section that name no $ORIGIN, folders of the machine that built it, put in
 // the report
-static void cli_build_paths(const CliDynamic *dynamic, CliBinaryReport *report)
+EMBED_INLINE void cli_build_paths(const BinaryElfCtx *args)
 {
     for (unsigned int list = 0u; list < 2u; list += 1u)
     {
-        const char *const text = (list == 0u) ? dynamic->rpath : dynamic->runpath;
+        const char *const text = (list == 0u) ? args->dynamic->rpath : args->dynamic->runpath;
         const char *from = text;
         for (const char *place = text;; place += 1)
         {
@@ -329,11 +403,11 @@ static void cli_build_paths(const CliDynamic *dynamic, CliBinaryReport *report)
                 if ((length != 0ull) &&
                     (!cellul.starts(&(CatenaFinitaCfg){.src = from, .other = "$ORIGIN", .cap = CLI_CELLS_POOL})) &&
                     (!cellul.starts(&(CatenaFinitaCfg){.src = from, .other = "${ORIGIN}", .cap = CLI_CELLS_POOL})) &&
-                    (report->build_paths < CLI_BINARY_BUILD_PATHS))
+                    (args->report->build_paths < CLI_BINARY_BUILD_PATHS))
                 {
-                    VerbaLinea line = {report->build_path[report->build_paths], CLI_PATH_MAX_LEN, 0ull};
+                    VerbaLinea line = {args->report->build_path[args->report->build_paths], CLI_PATH_MAX_LEN, 0ull};
                     mmgr_line_put_n(&line, from, length);
-                    report->build_paths += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
+                    args->report->build_paths += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
                 }
                 if (place[0] == '\0')
                 {
@@ -346,12 +420,13 @@ static void cli_build_paths(const CliDynamic *dynamic, CliBinaryReport *report)
 }
 
 // whether a library queued at `next` was queued before it, by its name
-static int cli_queued_before(const CliElfReading *reading, unsigned int next)
+EMBED_INLINE int cli_queued_before(const BinaryElfCtx *args)
 {
-    for (unsigned int at = 0u; at < next; at += 1u)
+    for (unsigned int at = 0u; at < args->next; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){
-                .src = reading->queue[at].name, .other = reading->queue[next].name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->reading_read->queue[at].name,
+                                         .other = args->reading_read->queue[args->next].name,
+                                         .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -360,41 +435,52 @@ static int cli_queued_before(const CliElfReading *reading, unsigned int next)
 }
 
 // the libraries the program loads read into the report, the reading's cells allocated: as cli_binary_elf_read specifies
-static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsigned long long size, const char *path,
-                        CliBinaryReport *report, VerbaLinea *err_msg)
+EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
 {
-    const unsigned int folders = cli_binary_linux_folders(reading->folders);
-    CliDynamic *const dynamic = reading->dynamic;
-    if (!cli_elf_dynamic(bytes, size, dynamic, err_msg))
+    const unsigned char *bytes = args->bytes;
+    unsigned long long size = args->size;
+    const char *path = args->path;
+    VerbaLinea *err_msg = args->err_msg;
+    const unsigned int folders = EMBED_CALL(cli_binary.linux_folders, CliBinaryCfg, .folders = args->reading->folders);
+    CliDynamic *const dynamic = args->reading->dynamic;
+    if (!EMBED_CALL(cli_binary_err_msg_bytes.elf_dynamic, CliBinaryErrMsgBytesCfg, .bytes = bytes, .size = size,
+                    .found = dynamic, .err_msg = err_msg))
     {
         return 0;
     }
-    report->has_glibc = dynamic->has_glibc;
+    args->report->has_glibc = dynamic->has_glibc;
     memor.cpy(
-        &(MemoriaCfg){.dst = report->glibc,
+        &(MemoriaCfg){.dst = args->report->glibc,
                       .src = dynamic->glibc,
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = dynamic->glibc, .cap = CLI_CELLS_POOL}) + 1u});
     char origin[CLI_PATH_MAX_LEN];
-    cli_folder_of(path, origin);
+    EMBED_CALL(cli_folder_get, BinaryElfCtx, .path = path, .out = origin);
     const char *const program =
-        (cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/') != NULL)
-            ? (cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/') + 1)
+        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
+                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
+                    .byte = '/') != NULL)
+            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
+                          .byte = '/') +
+               1)
             : path;
     unsigned int queued = 0u;
     for (unsigned int at = 0u; at < dynamic->count; at += 1u)
     {
-        queued = cli_queued(reading, queued, dynamic->needed[at], program, origin, dynamic);
+        queued = EMBED_CALL(cli_on_queue, BinaryElfCtx, .reading = args->reading, .queued = queued,
+                            .name = dynamic->needed[at], .by = program, .origin = origin, .dynamic = dynamic);
     }
-    cli_build_paths(dynamic, report);
+    EMBED_CALL(cli_build_paths, BinaryElfCtx, .dynamic = dynamic, .report = args->report);
     for (unsigned int next = 0u; next < queued; next += 1u)
     {
-        const CliElfQueued *const one = &reading->queue[next];
-        if (cli_queued_before(reading, next) || (report->libraries >= CLI_BINARY_LIBRARIES))
+        const CliElfQueued *const one = &args->reading->queue[next];
+        if (EMBED_CALL(cli_queued_before, BinaryElfCtx, .reading_read = args->reading, .next = next) ||
+            (args->report->libraries >= CLI_BINARY_LIBRARIES))
         {
             continue;
         }
-        CliLibrary *const library = &report->library[report->libraries];
-        report->libraries += 1u;
+        CliLibrary *const library = &args->report->library[args->report->libraries];
+        args->report->libraries += 1u;
         memor.cpy(&(MemoriaCfg){.dst = library->name,
                                 .src = one->name,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->name, .cap = CLI_CELLS_POOL}) + 1u});
@@ -403,7 +489,7 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->by, .cap = CLI_CELLS_POOL}) + 1u});
         library->has_at = 1;
         int beside = 0;
-        if (cli_in_paths(one, library->at, &beside))
+        if (EMBED_CALL(cli_in_paths, BinaryElfCtx, .one = one, .at = library->at, .beside = &beside))
         {
             library->found = beside ? CLI_FOUND_BESIDE : CLI_FOUND_BUILD_PATH;
         }
@@ -414,10 +500,12 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
             for (unsigned int at = 0u; !library->has_at && (at < folders); at += 1u)
             {
                 VerbaLinea line = {library->at, CLI_PATH_MAX_LEN, 0ull};
-                mmgr_line_put(&line, reading->folders[at]);
+                mmgr_line_put(&line, args->reading->folders[at]);
                 mmgr_line_ch(&line, '/');
                 mmgr_line_put(&line, one->name);
-                library->has_at = (mmgr_line_finish(&line) != 0ull) && query_is_file(library->at);
+                library->has_at =
+                    (mmgr_line_finish(&line) != 0ull) &&
+                    EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = library->at);
             }
             library->found = library->has_at ? CLI_FOUND_SYSTEM : CLI_FOUND_MISSING;
         }
@@ -426,34 +514,40 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
             continue;
         }
         unsigned long long more_size = 0ull;
-        const unsigned char *const more = cli_file_taken(library->at, &more_size, &g_cli_programs_cells);
+        const unsigned char *const more = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = library->at,
+                                                     .size_pointer = &more_size, .owner = &g_cli_programs_cells);
         char err_buf[CLI_PATH_MAX_LEN];
         VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
-        CliDynamic *const loaded = reading->more;
-        if ((more != NULL) && cli_elf_dynamic(more, more_size, loaded, &ignored))
+        CliDynamic *const loaded = args->reading->more;
+        if ((more != NULL) && EMBED_CALL(cli_binary_err_msg_bytes.elf_dynamic, CliBinaryErrMsgBytesCfg, .bytes = more,
+                                         .size = more_size, .found = loaded, .err_msg = &ignored))
         {
-            if (loaded->has_glibc && (!report->has_glibc || (cli_glibc_order(loaded->glibc, report->glibc) > 0)))
+            if (loaded->has_glibc &&
+                (!args->report->has_glibc ||
+                 (EMBED_CALL(cli_glibc_order, BinaryElfCtx, .a = loaded->glibc, .b = args->report->glibc) > 0)))
             {
                 memor.cpy(&(MemoriaCfg){
-                    .dst = report->glibc,
+                    .dst = args->report->glibc,
                     .src = loaded->glibc,
                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = loaded->glibc, .cap = CLI_CELLS_POOL}) + 1u});
-                report->has_glibc = 1;
+                args->report->has_glibc = 1;
             }
             char more_origin[CLI_PATH_MAX_LEN];
-            cli_folder_of(library->at, more_origin);
+            EMBED_CALL(cli_folder_get, BinaryElfCtx, .path = library->at, .out = more_origin);
             for (unsigned int at = 0u; at < loaded->count; at += 1u)
             {
-                queued = cli_queued(reading, queued, loaded->needed[at], library->name, more_origin, loaded);
+                queued = EMBED_CALL(cli_on_queue, BinaryElfCtx, .reading = args->reading, .queued = queued,
+                                    .name = loaded->needed[at], .by = library->name, .origin = more_origin,
+                                    .dynamic = loaded);
             }
         }
-        cli_file_given(more, &g_cli_programs_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = more,
+                   .owner = &g_cli_programs_cells);
     }
     return 1;
 }
 
-int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, const char *path, CliBinaryReport *report,
-                        VerbaLinea *err_msg)
+int cli_binary_elf_read(const CliBinaryPathReportCfg *args)
 {
     // the two dynamic sections on the cell's boundary, then the folders
     const unsigned long long dynamics = 2ull * sizeof(CliDynamic);
@@ -461,12 +555,14 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
         dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN), &g_cli_programs_cells);
     if (cell == NULL)
     {
-        mmgr_line_put(err_msg, "a reading of a program's libraries could not be given a cell");
+        mmgr_line_put(args->err_msg, "a reading of a program's libraries could not be given a cell");
         return 0;
     }
     CliElfReading reading = {(CliDynamic *)(void *)cell, ((CliDynamic *)(void *)cell) + 1,
                              (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + dynamics), NULL, 0u};
-    const int read = cli_elf_read(&reading, bytes, size, path, report, err_msg);
+    const int read =
+        EMBED_CALL(cli_elf_read, BinaryElfCtx, .reading = &reading, .bytes = args->bytes, .size = args->size,
+                   .path = args->path, .report = args->report, .err_msg = args->err_msg);
     g_cli_cells->persistent_buf_release(reading.queue, &g_cli_programs_cells);
     g_cli_cells->persistent_buf_release(cell, &g_cli_programs_cells);
     return read;

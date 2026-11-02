@@ -51,14 +51,26 @@ static const CliViewType s_types[] = {
     {"wav", "audio/wav"},
 };
 
-// the media type the name `path` ends in gives it
-static const char *view_media_type(const char *path)
+typedef struct
 {
-    const char *ending = path;
+    const char *path;
+    VerbaLinea *out;
+    char digit;
+    CliWindowServed served;
+    void *context;
+    unsigned int status;
+    const VerbaLinea *why;
+    const char *media_type;
+} WindowCallViewCtx;
+// the media type the name `path` ends in gives it
+EMBED_INLINE const char *view_media_type(const WindowCallViewCtx *args)
+{
+    const char *ending = args->path;
     const unsigned long long ending_past =
-        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), ".");
-    ending = (ending_past != 0ull) ? (path + ending_past) : path;
-    for (unsigned int at = 0u; (ending != path) && (at < sizeof(s_types) / sizeof(s_types[0])); at += 1u)
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = ".");
+    ending = (ending_past != 0ull) ? (args->path + ending_past) : args->path;
+    for (unsigned int at = 0u; (ending != args->path) && (at < sizeof(s_types) / sizeof(s_types[0])); at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = ending, .other = s_types[at].ending, .cap = CLI_CELLS_POOL}))
         {
@@ -68,118 +80,131 @@ static const char *view_media_type(const char *path)
     return CLI_VIEW_BYTES;
 }
 
-// `path` written into an address's path, each byte a path's segment does not keep written as `%XX`
-static void view_path_written(VerbaLinea *out, const char *path)
+// `path` written into an address's path, each byte a path's segment does not save written as `%XX`
+EMBED_INLINE void view_path_write(const WindowCallViewCtx *args)
 {
     static const char s_digits[] = "0123456789ABCDEF";
-    for (const unsigned char *at = (const unsigned char *)path; *at != 0u; at += 1)
+    for (const unsigned char *at = (const unsigned char *)args->path; *at != 0u; at += 1)
     {
-        const int kept = ((*at >= 'a') && (*at <= 'z')) || ((*at >= 'A') && (*at <= 'Z')) ||
-                         ((*at >= '0') && (*at <= '9')) || (*at == '-') || (*at == '_') || (*at == '.') ||
-                         (*at == '~') || (*at == '/');
-        if (kept)
+        const int saved = ((*at >= 'a') && (*at <= 'z')) || ((*at >= 'A') && (*at <= 'Z')) ||
+                          ((*at >= '0') && (*at <= '9')) || (*at == '-') || (*at == '_') || (*at == '.') ||
+                          (*at == '~') || (*at == '/');
+        if (saved)
         {
-            // a byte an address keeps is an ASCII letter
-            mmgr_line_ch(out, (char)*at);
+            // a byte an address saves is an ASCII letter
+            mmgr_line_ch(args->out, (char)*at);
         }
         else
         {
-            mmgr_line_ch(out, '%');
-            mmgr_line_ch(out, s_digits[*at >> 4u]);
-            mmgr_line_ch(out, s_digits[*at & 0x0fu]);
+            mmgr_line_ch(args->out, '%');
+            mmgr_line_ch(args->out, s_digits[*at >> 4u]);
+            mmgr_line_ch(args->out, s_digits[*at & 0x0fu]);
         }
     }
 }
 
 // the value of the hexadecimal digit `digit`, or 16 where it is none
-static unsigned int view_hex_of(char digit)
+EMBED_INLINE unsigned int view_hex_get(const WindowCallViewCtx *args)
 {
     // a digit's distance from the first of its run is below 16 where the digit is one
-    return ((digit >= '0') && (digit <= '9'))   ? (unsigned int)(digit - '0')
-           : ((digit >= 'a') && (digit <= 'f')) ? (unsigned int)(digit - 'a') + 10u
-           : ((digit >= 'A') && (digit <= 'F')) ? (unsigned int)(digit - 'A') + 10u
-                                                : 16u;
+    return ((args->digit >= '0') && (args->digit <= '9'))   ? (unsigned int)(args->digit - '0')
+           : ((args->digit >= 'a') && (args->digit <= 'f')) ? (unsigned int)(args->digit - 'a') + 10u
+           : ((args->digit >= 'A') && (args->digit <= 'F')) ? (unsigned int)(args->digit - 'A') + 10u
+                                                            : 16u;
 }
 
 // a page under the tree opened in a window of its own: `{label, url, title}`, the file refused where it is none of the
 // tree's on this machine
-static int view_window(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int view_window(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
     CliLinkAddress address;
-    const int linked = (path != NULL) && cli_link_address(&address);
-    if ((path == NULL) || (!linked && (!cli_serve_root(root, err_msg) || !cli_inside(root, path, full, err_msg))))
+    const int linked = (path != NULL) && EMBED_CALL(cli_link_text.address, CliLinkTextCfg, .address_out = &address);
+    if ((path == NULL) || (!linked && (!EMBED_CALL(cli_serve_err_msg_root.root, CliServeErrMsgRootCfg, .root_out = root,
+                                                   .err_msg = err_msg) ||
+                                       !EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = root, .relative = path,
+                                                   .joined = full, .err_msg = err_msg))))
     {
         return 0;
     }
-    if (!linked && !query_is_file(full))
+    if (!linked && !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = full))
     {
         mmgr_line_put(err_msg, path);
         mmgr_line_put(err_msg, " is not a file");
         return 0;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_next_view += 1ull;
     const unsigned long long view = s_next_view;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     mmgr_line_put(out, "{\"label\":\"view-");
     mmgr_line_decimal(out, view, 1u);
     mmgr_line_put(out, "\",\"url\":\"" CLI_VIEW_BASE);
-    view_path_written(out, path);
+    EMBED_CALL(view_path_write, WindowCallViewCtx, .out = out, .path = path);
     mmgr_line_put(out, "\",\"title\":");
-    cli_window_quoted(out, path);
+    EMBED_CALL(cli_window_out_text_internal.quote, CliWindowOutTextCtx, .out = out, .text = path);
     mmgr_line_ch(out, '}');
     return 1;
 }
 
 // why a file is not served handed on as its answer's body
-static void view_refused(CliWindowServed served, void *context, unsigned int status, const VerbaLinea *why)
+EMBED_INLINE void view_reject(const WindowCallViewCtx *args)
 {
-    served(context, status, CLI_VIEW_TEXT, (const unsigned char *)why->out, mmgr_line_ok(why) ? why->at : 0ull);
+    args->served(args->context, args->status, CLI_VIEW_TEXT, (const unsigned char *)args->why->out,
+                 mmgr_line_ok(args->why) ? args->why->at : 0ull);
 }
 
 // the file `path` of the tree on another machine read over the link, its bytes as base64 made bytes again, and handed
 // to `served`
-static void view_linked_served(const char *path, const char *media_type, CliWindowServed served, void *context)
+EMBED_INLINE void view_linked_serve(const WindowCallViewCtx *args)
 {
     char why[CLI_PATH_MAX_LEN + 64u];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     char args_text[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea args = {args_text, sizeof(args_text), 0ull};
-    mmgr_line_put(&args, "{\"path\":");
-    cli_window_quoted(&args, path);
-    mmgr_line_ch(&args, '}');
+    VerbaLinea arguments = {args_text, sizeof(args_text), 0ull};
+    mmgr_line_put(&arguments, "{\"path\":");
+    EMBED_CALL(cli_window_out_text_internal.quote, CliWindowOutTextCtx, .out = &arguments, .text = args->path);
+    mmgr_line_ch(&arguments, '}');
     char *const read_cell =
-        mmgr_line_ok(&args) ? g_cli_cells->temporary_buf_alloc(CLI_VIEW_LINKED_ROOM, &g_cli_window_cells) : NULL;
+        mmgr_line_ok(&arguments) ? g_cli_cells->temporary_buf_alloc(CLI_VIEW_LINKED_ROOM, &g_cli_window_cells) : NULL;
     VerbaLinea read = mmgr_line_over(read_cell, CLI_VIEW_LINKED_ROOM);
     if (read_cell == NULL)
     {
         mmgr_line_put(&err_msg, "the file's cells could not be taken");
-        view_refused(served, context, 404u, &err_msg);
+        EMBED_CALL(view_reject, WindowCallViewCtx, .served = args->served, .context = args->context, .status = 404u,
+                   .why = &err_msg);
         return;
     }
-    const int answered = cli_window_tree_call("file_bytes", args.out, args.at, &read, &err_msg) &&
-                         mmgr_line_ok(&read) && (read.at >= 2ull);
+    const int answered =
+        EMBED_CALL(cli_window_out_size_internal.tree_call, CliWindowOutSizeCtx, .name = "file_bytes",
+                   .args_text = arguments.out, .size = arguments.at, .out = &read, .err_msg = &err_msg) &&
+        mmgr_line_ok(&read) && (read.at >= 2ull);
     unsigned char *const bytes =
         answered ? g_cli_cells->temporary_buf_alloc(((read.at / 4ull) * 3ull) + 3ull, &g_cli_window_cells) : NULL;
     unsigned long long size = 0ull;
     // the answer is a JSON string of base64, whose letters need no escape, its quotes about it
-    const int decoded =
-        (bytes != NULL) && cli_unbase64(read.out + 1, read.at - 2ull, bytes, ((read.at / 4ull) * 3ull) + 3ull, &size);
+    const int decoded = (bytes != NULL) && EMBED_CALL(cli_base64_text.unbase64, CliBase64TextCfg, .text = read.out + 1,
+                                                      .length = read.at - 2ull, .out_bytes = bytes,
+                                                      .room = ((read.at / 4ull) * 3ull) + 3ull, .size_pointer = &size);
     if (decoded)
     {
-        served(context, 200u, media_type, bytes, size);
+        args->served(args->context, 200u, args->media_type, bytes, size);
     }
     else
     {
         if (answered)
         {
-            mmgr_line_put(&err_msg, path);
+            mmgr_line_put(&err_msg, args->path);
             mmgr_line_put(&err_msg, " is not a file");
         }
-        view_refused(served, context, 404u, &err_msg);
+        EMBED_CALL(view_reject, WindowCallViewCtx, .served = args->served, .context = args->context, .status = 404u,
+                   .why = &err_msg);
     }
     g_cli_cells->persistent_buf_release(bytes, &g_cli_window_cells);
     g_cli_cells->persistent_buf_release(read.out, &g_cli_window_cells);
@@ -190,46 +215,59 @@ void cli_window_view_served(const char *path, unsigned long long size, CliWindow
     char decoded[CLI_PATH_MAX_LEN];
     VerbaLinea named = {decoded, sizeof(decoded), 0ull};
     const unsigned long long lead = ((size > 0ull) && (path[0] == '/')) ? 1ull : 0ull;
-    cli_text_put_unescaped(&named, path + lead, size - lead);
+    EMBED_CALL(cli_text_size_set.put_unescaped, CliTextSizeSetCfg, .out = &named, .text = path + lead,
+               .size = size - lead);
     char why[CLI_PATH_MAX_LEN + 64u];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (mmgr_line_finish(&named) == 0ull)
     {
         mmgr_line_put(&err_msg, "the path is longer than a file's");
-        view_refused(served, context, 404u, &err_msg);
+        EMBED_CALL(view_reject, WindowCallViewCtx, .served = served, .context = context, .status = 404u,
+                   .why = &err_msg);
         return;
     }
-    const char *const media_type = view_media_type(decoded);
+    const char *const media_type = EMBED_CALL(view_media_type, WindowCallViewCtx, .path = decoded);
     CliLinkAddress address;
-    if (cli_link_address(&address))
+    if (EMBED_CALL(cli_link_text.address, CliLinkTextCfg, .address_out = &address))
     {
-        view_linked_served(decoded, media_type, served, context);
+        EMBED_CALL(view_linked_serve, WindowCallViewCtx, .path = decoded, .media_type = media_type, .served = served,
+                   .context = context);
         return;
     }
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
-    if (!cli_serve_root(root, &err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_root.root, CliServeErrMsgRootCfg, .root_out = root, .err_msg = &err_msg))
     {
-        view_refused(served, context, 404u, &err_msg);
+        EMBED_CALL(view_reject, WindowCallViewCtx, .served = served, .context = context, .status = 404u,
+                   .why = &err_msg);
         return;
     }
-    if (!cli_inside(root, decoded, full, &err_msg))
+    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = root, .relative = decoded, .joined = full,
+                    .err_msg = &err_msg))
     {
-        view_refused(served, context, 403u, &err_msg);
+        EMBED_CALL(view_reject, WindowCallViewCtx, .served = served, .context = context, .status = 403u,
+                   .why = &err_msg);
         return;
     }
     unsigned long long file_size = 0ull;
     const unsigned char *const mapped =
-        query_is_file(full) ? cli_file_taken(full, &file_size, &g_cli_window_cells) : NULL;
-    if ((mapped == NULL) && (!query_is_file(full) || !cli_file_size(full, &file_size) || (file_size > 0ull)))
+        EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = full)
+            ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full, .size_pointer = &file_size,
+                         .owner = &g_cli_window_cells)
+            : NULL;
+    if ((mapped == NULL) &&
+        (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = full) ||
+         !EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = full, .size_pointer = &file_size) ||
+         (file_size > 0ull)))
     {
         mmgr_line_put(&err_msg, decoded);
         mmgr_line_put(&err_msg, " is not a file");
-        view_refused(served, context, 404u, &err_msg);
+        EMBED_CALL(view_reject, WindowCallViewCtx, .served = served, .context = context, .status = 404u,
+                   .why = &err_msg);
         return;
     }
     served(context, 200u, media_type, (mapped != NULL) ? mapped : (const unsigned char *)"", file_size);
-    cli_file_given(mapped, &g_cli_window_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_window_cells);
 }
 
 const CliServeCall g_cli_window_view_calls[] = {

@@ -4,11 +4,9 @@
 // window's calls: listed, saved, taken out, connected and closed, a statement run and its rows read a page at a time,
 // stopped, the schema's children read, the rows exported, the history read, and the statements of a text found. A
 // connection in use stays open until its call ends, one closed meanwhile closing then
+#include "../command_line/callback_cfg.h"
 #include "../databases/db.h"
 #include "serve_internal.h"
-
-// the most connections open at once
-#define CLI_SERVE_DATABASES 64u
 
 // A connection open: whether its place is taken, its name, the connection, how many calls use it, and whether it is
 // let go, to close as its last call ends; and what its server last reported went wrong, under its own lock, which a
@@ -23,43 +21,55 @@ typedef struct
     CliLock failing;
     CliDbFailure failure;
 } CliServeDatabase;
+// the most connections open at once
+#define CLI_SERVE_DATABASES 64u
 
 static CliServeDatabase s_database[CLI_SERVE_DATABASES];
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// a connection let go of its name, closed now where no call uses it; under the lock
-static void databases_let_go(CliServeDatabase *one)
+typedef struct
 {
-    one->name[0] = '\0';
-    one->letting_go = 1;
-    if (one->users == 0u)
+    CliServeDatabase *one;
+    const char *name;
+    VerbaLinea *err_msg;
+    unsigned int at;
+    const CliDbFailure *failure;
+    VerbaLinea *out;
+    const CliServeArgs *request;
+} ServeDatabasesCtx;
+// a connection let go of its name, closed now where no call uses it; under the lock
+EMBED_INLINE void databases_let_go(const ServeDatabasesCtx *args)
+{
+    args->one->name[0] = '\0';
+    args->one->letting_go = 1;
+    if (args->one->users == 0u)
     {
-        cli_db_close(one->open);
-        one->used = 0;
+        EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = args->one->open);
+        args->one->used = 0;
     }
 }
 
-void cli_serve_databases_closed(void)
+void cli_serve_databases_close(void)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < CLI_SERVE_DATABASES; at += 1u)
     {
         if (s_database[at].used && !s_database[at].letting_go)
         {
-            databases_let_go(&s_database[at]);
+            EMBED_CALL(databases_let_go, ServeDatabasesCtx, .one = &s_database[at]);
         }
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the connection open as `name` taken for a call: its place, or CLI_SERVE_DATABASES with why given
-static unsigned int databases_taken(const char *name, VerbaLinea *err_msg)
+EMBED_INLINE unsigned int databases_take(const ServeDatabasesCtx *args)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int at = 0u;
     while ((at < CLI_SERVE_DATABASES) &&
            (!s_database[at].used || s_database[at].letting_go ||
-            (!cellul.eq(&(CatenaFinitaCfg){.src = s_database[at].name, .other = name, .cap = CLI_CELLS_POOL}))))
+            (!cellul.eq(&(CatenaFinitaCfg){.src = s_database[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))))
     {
         at += 1u;
     }
@@ -67,90 +77,95 @@ static unsigned int databases_taken(const char *name, VerbaLinea *err_msg)
     {
         s_database[at].users += 1u;
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (at == CLI_SERVE_DATABASES)
     {
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " is not connected");
+        mmgr_line_put(args->err_msg, args->name);
+        mmgr_line_put(args->err_msg, " is not connected");
     }
     return at;
 }
 
 // a call's use of a connection ended, the connection closed where it was let go meanwhile
-static void databases_given(unsigned int at)
+EMBED_INLINE void databases_free(const ServeDatabasesCtx *args)
 {
-    cli_lock_take(&s_lock);
-    s_database[at].users -= 1u;
-    if (s_database[at].letting_go && (s_database[at].users == 0u))
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    s_database[args->at].users -= 1u;
+    if (s_database[args->at].letting_go && (s_database[args->at].users == 0u))
     {
-        cli_db_close(s_database[at].open);
-        s_database[at].used = 0;
+        EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = s_database[args->at].open);
+        s_database[args->at].used = 0;
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the connection open as `name` let go, where one is
-static void databases_named_let_go(const char *name)
+EMBED_INLINE void databases_name_let_go(const ServeDatabasesCtx *args)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < CLI_SERVE_DATABASES; at += 1u)
     {
         if (s_database[at].used && !s_database[at].letting_go &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = s_database[at].name, .other = name, .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = s_database[at].name, .other = args->name, .cap = CLI_CELLS_POOL})))
         {
-            databases_let_go(&s_database[at]);
+            EMBED_CALL(databases_let_go, ServeDatabasesCtx, .one = &s_database[at]);
         }
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // what a server reported went wrong, as one text: its message, its code, its detail and its hint
-static void databases_failure_msg_written(const CliDbFailure *failure, VerbaLinea *err_msg)
+EMBED_INLINE void databases_failure_msg_write(const ServeDatabasesCtx *args)
 {
-    mmgr_line_put(err_msg, failure->message);
-    if (failure->code[0] != '\0')
+    mmgr_line_put(args->err_msg, args->failure->message);
+    if (args->failure->code[0] != '\0')
     {
-        mmgr_line_put(err_msg, " (");
-        mmgr_line_put(err_msg, failure->code);
-        mmgr_line_ch(err_msg, ')');
+        mmgr_line_put(args->err_msg, " (");
+        mmgr_line_put(args->err_msg, args->failure->code);
+        mmgr_line_ch(args->err_msg, ')');
     }
-    if (failure->detail[0] != '\0')
+    if (args->failure->detail[0] != '\0')
     {
-        mmgr_line_ch(err_msg, '\n');
-        mmgr_line_put(err_msg, failure->detail);
+        mmgr_line_ch(args->err_msg, '\n');
+        mmgr_line_put(args->err_msg, args->failure->detail);
     }
-    if (failure->hint[0] != '\0')
+    if (args->failure->hint[0] != '\0')
     {
-        mmgr_line_ch(err_msg, '\n');
-        mmgr_line_put(err_msg, failure->hint);
+        mmgr_line_ch(args->err_msg, '\n');
+        mmgr_line_put(args->err_msg, args->failure->hint);
     }
 }
 
 // what a server reported went wrong as the page reads it: `{"message", "code", "detail", "hint", "position"}`
-static void databases_failure_written(const CliDbFailure *failure, VerbaLinea *out)
+EMBED_INLINE void databases_failure_write(const ServeDatabasesCtx *args)
 {
+    VerbaLinea *out = args->out;
     const char *const field_name[4] = {"{\"message\":", ",\"code\":", ",\"detail\":", ",\"hint\":"};
-    const char *const field[4] = {failure->message, failure->code, failure->detail, failure->hint};
+    const char *const field[4] = {args->failure->message, args->failure->code, args->failure->detail,
+                                  args->failure->hint};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         mmgr_line_put(out, field_name[at]);
-        cli_json_quoted(out, field[at], cellul.len(&(CatenaFinitaCfg){.src = field[at], .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = field[at],
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = field[at], .cap = CLI_CELLS_POOL}));
     }
     mmgr_line_put(out, ",\"position\":");
-    mmgr_line_decimal(out, failure->position, 1u);
+    mmgr_line_decimal(out, args->failure->position, 1u);
     mmgr_line_ch(out, '}');
 }
 
-static int db_list(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_list(const CliServeAnswerCfg *args)
 {
-    (void)args;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
     static CliDbOpen *s_open[CLI_SERVE_DATABASES];
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < CLI_SERVE_DATABASES; at += 1u)
     {
@@ -160,133 +175,177 @@ static int db_list(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_ms
             count += 1u;
         }
     }
-    const int listed = cli_db_listed(root, s_open, count, out, err_msg);
-    cli_lock_give(&s_lock);
+    const int listed = EMBED_CALL(cli_db_out_root.list, CliDbOutRootCfg, .root = root, .opens = s_open, .count = count,
+                                  .out = out, .err_msg = err_msg);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return listed;
 }
 
-static int db_save(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_save(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     static CliDbConnection s_connection;
     static CliLock s_connection_lock = CLI_LOCK_INIT;
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    cli_lock_take(&s_connection_lock);
-    int done = cli_db_connection_of(args->json, cli_serve_arg(args, "connection"), &s_connection, err_msg) &&
-               cli_db_save(root, &s_connection, cli_serve_string_or(args, "was", NULL), err_msg);
-    const char *const password = cli_serve_string_or(args, "password", "");
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_connection_lock);
+    int done = EMBED_CALL(cli_db_connection_err_msg.connection_get, CliDbConnectionErrMsgCfg, .json = arguments->json,
+                          .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments,
+                                             .key = "connection"),
+                          .connection_out = &s_connection, .err_msg = err_msg) &&
+               EMBED_CALL(cli_db_connection.save, CliDbConnectionCfg, .root = root, .connection = &s_connection,
+                          .was = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                            .request = arguments, .key = "was", .otherwise = NULL),
+                          .err_msg = err_msg);
+    const char *const password = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                            .request = arguments, .key = "password", .otherwise = "");
     if (done && (password[0] != '\0'))
     {
         char account[CLI_NAME_MAX_LEN * 2u];
         VerbaLinea named = {account, sizeof(account), 0ull};
-        cli_db_account(&s_connection, &named);
+        EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &s_connection,
+                   .out = &named);
         (void)mmgr_line_finish(&named);
-        done = cli_keychain_store("database", account, password, err_msg);
+        done = EMBED_CALL(cli_err_msg_service_internal.keychain_store, CliErrMsgServiceCtx, .service = "database",
+                          .account = account, .secret = password, .err_msg = err_msg);
     }
-    cli_lock_give(&s_connection_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_connection_lock);
     mmgr_line_put(out, done ? "null" : "");
     return done;
 }
 
-static int db_remove(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_remove(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    if ((name == NULL) || !cli_serve_tree(root, err_msg))
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    if ((name == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx,
+                                      .root = root, .err_msg = err_msg))
     {
         return 0;
     }
-    databases_named_let_go(name);
-    const int done = cli_db_remove(root, name, err_msg);
-    mmgr_line_put(out, done ? "null" : "");
+    EMBED_CALL(databases_name_let_go, ServeDatabasesCtx, .name = name);
+    const int done =
+        EMBED_CALL(cli_db_root_name.remove, CliDbRootNameCfg, .root = root, .name = name, .err_msg = err_msg);
+    mmgr_line_put(args->out, done ? "null" : "");
     return done;
 }
 
-static int db_forget_password(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_forget_password(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     static CliDbConnection s_connection;
     static CliLock s_connection_lock = CLI_LOCK_INIT;
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    if ((name == NULL) || !cli_serve_tree(root, err_msg))
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    if ((name == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx,
+                                      .root = root, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_lock_take(&s_connection_lock);
-    int done = cli_db_named(root, name, &s_connection, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_connection_lock);
+    int done = EMBED_CALL(cli_db_root_name.by_name, CliDbRootNameCfg, .root = root, .name = name,
+                          .connection_out = &s_connection, .err_msg = err_msg);
     if (done)
     {
         char account[CLI_NAME_MAX_LEN * 2u];
         VerbaLinea named = {account, sizeof(account), 0ull};
-        cli_db_account(&s_connection, &named);
+        EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &s_connection,
+                   .out = &named);
         (void)mmgr_line_finish(&named);
-        done = cli_keychain_forget("database", account, err_msg);
+        done = EMBED_CALL(cli_err_msg_service_internal.keychain_forget, CliErrMsgServiceCtx, .service = "database",
+                          .account = account, .err_msg = err_msg);
     }
-    cli_lock_give(&s_connection_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_connection_lock);
     mmgr_line_put(out, done ? "null" : "");
     return done;
 }
 
-static int db_connect(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_connect(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     static CliDbConnection s_connection;
     static CliDbFailure s_failure;
     static CliLock s_connection_lock = CLI_LOCK_INIT;
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    if ((name == NULL) || !cli_serve_tree(root, err_msg))
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    if ((name == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx,
+                                      .root = root, .err_msg = err_msg))
     {
         return 0;
     }
-    const char *const password = cli_serve_string_or(args, "password", NULL);
-    const int save_password = cli_serve_bool_or(args, "save", 0);
-    cli_lock_take(&s_connection_lock);
-    if (!cli_db_named(root, name, &s_connection, err_msg))
+    const char *const password = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                            .request = arguments, .key = "password", .otherwise = NULL);
+    const int save_password = EMBED_CALL(cli_serve_err_msg_internal.bool_or, CliServeErrMsgCtx, .request = arguments,
+                                         .key = "save", .otherwise_i32 = 0);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_connection_lock);
+    if (!EMBED_CALL(cli_db_root_name.by_name, CliDbRootNameCfg, .root = root, .name = name,
+                    .connection_out = &s_connection, .err_msg = err_msg))
     {
-        cli_lock_give(&s_connection_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_connection_lock);
         return 0;
     }
-    databases_named_let_go(name);
+    EMBED_CALL(databases_name_let_go, ServeDatabasesCtx, .name = name);
     memor.set(&(MemoriaCfg){.dst = &s_failure, .val = 0, .bytes = sizeof(s_failure)});
-    CliDbOpen *const open = cli_db_connect(root, &s_connection, password, &s_failure);
+    CliDbOpen *const open = EMBED_CALL(cli_db_root.connect, CliDbRootCfg, .root = root, .config = &s_connection,
+                                       .password = password, .failure = &s_failure);
     int done = (open != NULL);
     if (!done)
     {
-        databases_failure_msg_written(&s_failure, err_msg);
+        EMBED_CALL(databases_failure_msg_write, ServeDatabasesCtx, .failure = &s_failure, .err_msg = err_msg);
     }
     if (done && save_password && (password != NULL) && (password[0] != '\0'))
     {
         char account[CLI_NAME_MAX_LEN * 2u];
         VerbaLinea named = {account, sizeof(account), 0ull};
-        cli_db_account(&s_connection, &named);
+        EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &s_connection,
+                   .out = &named);
         (void)mmgr_line_finish(&named);
-        done = cli_keychain_store("database", account, password, err_msg);
+        done = EMBED_CALL(cli_err_msg_service_internal.keychain_store, CliErrMsgServiceCtx, .service = "database",
+                          .account = account, .secret = password, .err_msg = err_msg);
     }
-    cli_lock_give(&s_connection_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_connection_lock);
     if (!done)
     {
         if (open != NULL)
         {
-            cli_db_close(open);
+            EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = open);
         }
         return 0;
     }
     mmgr_line_put(out, "{\"version\":");
-    cli_json_quoted(out, cli_db_version(open),
-                    cellul.len(&(CatenaFinitaCfg){.src = cli_db_version(open), .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
+               .text = EMBED_CALL(cli_db.version, CliDbCfg, .open_read = open),
+               .length = cellul.len(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_db.version, CliDbCfg, .open_read = open),
+                                                       .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"transaction\":");
-    cli_json_quoted(out, cli_db_transaction(open),
-                    cellul.len(&(CatenaFinitaCfg){.src = cli_db_transaction(open), .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(
+        cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
+        .text = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = open),
+        .length = cellul.len(&(CatenaFinitaCfg){
+            .src = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = open), .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"zone\":\"");
     char zone[CLI_NAME_MAX_LEN];
     VerbaLinea zoned = {zone, sizeof(zone), 0ull};
-    cli_db_zone(open, &zoned);
-    cli_json_escaped_lossy(out, (const unsigned char *)zone, mmgr_line_ok(&zoned) ? zoned.at : 0ull);
+    EMBED_CALL(cli_db_out_count.zone, CliDbOutCountCfg, .open = open, .out = &zoned);
+    EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)zone, .length = mmgr_line_ok(&zoned) ? zoned.at : 0ull);
     mmgr_line_put(out, "\"}");
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int at = 0u;
     while ((at < CLI_SERVE_DATABASES) && s_database[at].used)
     {
@@ -299,190 +358,237 @@ static int db_connect(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
                                 .src = name,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (at == CLI_SERVE_DATABASES)
     {
-        cli_db_close(open);
+        EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = open);
     }
     return done;
 }
 
-static int db_close(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_close(const CliServeAnswerCfg *args)
 {
-    const char *const name = cli_serve_string(args, "name", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
     if (name == NULL)
     {
         return 0;
     }
-    databases_named_let_go(name);
-    mmgr_line_put(out, "null");
+    EMBED_CALL(databases_name_let_go, ServeDatabasesCtx, .name = name);
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-static int db_run(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_run(const CliServeAnswerCfg *args)
 {
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    const char *const sql = (name != NULL) ? cli_serve_string(args, "sql", err_msg) : NULL;
-    const unsigned int at = (sql != NULL) ? databases_taken(name, err_msg) : CLI_SERVE_DATABASES;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    const char *const sql = (name != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                        .request = arguments, .key = "sql", .err_msg = err_msg)
+                                           : NULL;
+    const unsigned int at = (sql != NULL)
+                                ? EMBED_CALL(databases_take, ServeDatabasesCtx, .name = name, .err_msg = err_msg)
+                                : CLI_SERVE_DATABASES;
     if (at == CLI_SERVE_DATABASES)
     {
         return 0;
     }
     CliServeDatabase *const one = &s_database[at];
-    cli_lock_take(&one->failing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &one->failing);
     memor.set(&(MemoriaCfg){.dst = &one->failure, .val = 0, .bytes = sizeof(one->failure)});
     const unsigned long long start = out->at;
-    if (!cli_db_run(one->open, sql, cellul.len(&(CatenaFinitaCfg){.src = sql, .cap = CLI_CELLS_POOL}),
-                    cli_serve_bool_or(args, "answered", 0), cli_serve_whole_or(args, "page", 200ull), out,
-                    &one->failure))
+    if (!EMBED_CALL(cli_db_out_failure.run, CliDbOutFailureCfg, .open = one->open, .statement = sql,
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = sql, .cap = CLI_CELLS_POOL}),
+                    .answered = EMBED_CALL(cli_serve_err_msg_internal.bool_or, CliServeErrMsgCtx, .request = arguments,
+                                           .key = "answered", .otherwise_i32 = 0),
+                    .page = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "page", .otherwise_u64 = 200ull),
+                    .out = out, .failure = &one->failure))
     {
         out->at = start;
         mmgr_line_put(out, "{\"failure\":");
-        databases_failure_written(&one->failure, out);
+        EMBED_CALL(databases_failure_write, ServeDatabasesCtx, .failure = &one->failure, .out = out);
         mmgr_line_put(out, ",\"transaction\":");
-        const char *const transaction = cli_db_transaction(one->open);
-        cli_json_quoted(out, transaction, cellul.len(&(CatenaFinitaCfg){.src = transaction, .cap = CLI_CELLS_POOL}));
+        const char *const transaction = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = one->open);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = transaction,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = transaction, .cap = CLI_CELLS_POOL}));
         mmgr_line_ch(out, '}');
     }
-    cli_lock_give(&one->failing);
-    databases_given(at);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &one->failing);
+    EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
     return 1;
 }
 
 // the connection of the argument `name` taken, its place, or CLI_SERVE_DATABASES with why given
-static unsigned int databases_of(const CliServeArgs *args, VerbaLinea *err_msg)
+EMBED_INLINE unsigned int databases_get(const ServeDatabasesCtx *args)
 {
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    return (name != NULL) ? databases_taken(name, err_msg) : CLI_SERVE_DATABASES;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    return (name != NULL) ? EMBED_CALL(databases_take, ServeDatabasesCtx, .name = name, .err_msg = err_msg)
+                          : CLI_SERVE_DATABASES;
 }
 
-static int db_rows(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_rows(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long from = 0ull;
     unsigned long long count = 0ull;
-    const unsigned int at = databases_of(args, err_msg);
-    if ((at == CLI_SERVE_DATABASES) || !cli_serve_whole(args, "from", &from, err_msg) ||
-        !cli_serve_whole(args, "count", &count, err_msg))
+    const unsigned int at = EMBED_CALL(databases_get, ServeDatabasesCtx, .request = arguments, .err_msg = err_msg);
+    if ((at == CLI_SERVE_DATABASES) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "from",
+                    .value = &from, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "count",
+                    .value = &count, .err_msg = err_msg))
     {
         if (at != CLI_SERVE_DATABASES)
         {
-            databases_given(at);
+            EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
         }
         return 0;
     }
     CliServeDatabase *const one = &s_database[at];
-    cli_lock_take(&one->failing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &one->failing);
     memor.set(&(MemoriaCfg){.dst = &one->failure, .val = 0, .bytes = sizeof(one->failure)});
-    const int done = cli_db_rows(one->open, from, count, out, &one->failure);
+    const int done = EMBED_CALL(cli_db_out_failure_open.rows, CliDbOutFailureOpenCfg, .open = one->open, .from = from,
+                                .count_u64 = count, .out = out, .failure = &one->failure);
     if (!done)
     {
-        databases_failure_msg_written(&one->failure, err_msg);
+        EMBED_CALL(databases_failure_msg_write, ServeDatabasesCtx, .failure = &one->failure, .err_msg = err_msg);
     }
-    cli_lock_give(&one->failing);
-    databases_given(at);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &one->failing);
+    EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
     return done;
 }
 
-static int db_stop(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_stop(const CliServeAnswerCfg *args)
 {
-    const unsigned int at = databases_of(args, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const unsigned int at = EMBED_CALL(databases_get, ServeDatabasesCtx, .request = arguments, .err_msg = err_msg);
     if (at == CLI_SERVE_DATABASES)
     {
         return 0;
     }
-    const int done = cli_db_stop(s_database[at].open, err_msg);
-    databases_given(at);
-    mmgr_line_put(out, done ? "null" : "");
+    const int done = EMBED_CALL(cli_db_err_msg.stop, CliDbErrMsgCfg, .open = s_database[at].open, .err_msg = err_msg);
+    EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
+    mmgr_line_put(args->out, done ? "null" : "");
     return done;
 }
 
-static int db_stop_reading(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_stop_reading(const CliServeAnswerCfg *args)
 {
-    const unsigned int at = databases_of(args, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const unsigned int at = EMBED_CALL(databases_get, ServeDatabasesCtx, .request = arguments, .err_msg = err_msg);
     if (at == CLI_SERVE_DATABASES)
     {
         return 0;
     }
-    const int done = cli_db_stop_reading(s_database[at].open, err_msg);
-    databases_given(at);
-    mmgr_line_put(out, done ? "null" : "");
+    const int done =
+        EMBED_CALL(cli_db_err_msg.stop_reading, CliDbErrMsgCfg, .open = s_database[at].open, .err_msg = err_msg);
+    EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
+    mmgr_line_put(args->out, done ? "null" : "");
     return done;
 }
 
-static int db_children(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_children(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     static const char *s_path[64];
     unsigned int count = 0u;
-    const unsigned int at = databases_of(args, err_msg);
-    if ((at == CLI_SERVE_DATABASES) || !cli_serve_strings(args, "path", s_path, 64u, &count, err_msg))
+    const unsigned int at = EMBED_CALL(databases_get, ServeDatabasesCtx, .request = arguments, .err_msg = err_msg);
+    if ((at == CLI_SERVE_DATABASES) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.strings, CliServeErrMsgCtx, .request = arguments, .key = "path",
+                    .items = s_path, .room = 64u, .count = &count, .err_msg = err_msg))
     {
         if (at != CLI_SERVE_DATABASES)
         {
-            databases_given(at);
+            EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
         }
         return 0;
     }
     CliServeDatabase *const one = &s_database[at];
-    cli_lock_take(&one->failing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &one->failing);
     memor.set(&(MemoriaCfg){.dst = &one->failure, .val = 0, .bytes = sizeof(one->failure)});
-    const int done = cli_db_children(one->open, s_path, count, out, &one->failure);
+    const int done = EMBED_CALL(cli_db_out_count.children, CliDbOutCountCfg, .open = one->open, .path_pointer = s_path,
+                                .count = count, .out = out, .failure = &one->failure);
     if (!done)
     {
-        databases_failure_msg_written(&one->failure, err_msg);
+        EMBED_CALL(databases_failure_msg_write, ServeDatabasesCtx, .failure = &one->failure, .err_msg = err_msg);
     }
-    cli_lock_give(&one->failing);
-    databases_given(at);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &one->failing);
+    EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
     return done;
 }
 
 // how far along an export is reported to the window as it writes
-static void databases_exported(void *context, unsigned long long written)
+static void databases_export(const CliEachWrittenCfg *args)
 {
-    (void)context;
     char body[128];
     VerbaLinea line = {body, sizeof(body), 0ull};
     mmgr_line_put(&line, "{\"call\":\"db_export\",\"done\":");
-    mmgr_line_decimal(&line, written, 1u);
+    mmgr_line_decimal(&line, args->written, 1u);
     mmgr_line_put(&line, ",\"unit\":\"rows written\"}");
-    cli_serve_emitted("call-progress", body, line.at);
+    EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "call-progress", .body = body,
+               .size = line.at);
 }
 
-static int db_export(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_export(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char target[CLI_PATH_MAX_LEN];
-    const char *const format = cli_serve_string(args, "format", err_msg);
-    if ((format == NULL) || !cli_serve_at(args, root, target, err_msg))
+    const char *const format = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                          .key = "format", .err_msg = err_msg);
+    if ((format == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx,
+                                        .request = arguments, .root = root, .full = target, .err_msg = err_msg))
     {
         return 0;
     }
-    const unsigned int at = databases_of(args, err_msg);
+    const unsigned int at = EMBED_CALL(databases_get, ServeDatabasesCtx, .request = arguments, .err_msg = err_msg);
     if (at == CLI_SERVE_DATABASES)
     {
         return 0;
     }
     CliServeDatabase *const one = &s_database[at];
-    cli_lock_take(&one->failing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &one->failing);
     memor.set(&(MemoriaCfg){.dst = &one->failure, .val = 0, .bytes = sizeof(one->failure)});
-    const int done = cli_db_export(one->open, target, format, databases_exported, NULL, out, &one->failure);
+    const int done = EMBED_CALL(cli_db_out.export, CliDbOutCfg, .open = one->open, .path = target, .format = format,
+                                .progress = databases_export, .context = NULL, .out = out, .failure = &one->failure);
     if (!done)
     {
-        databases_failure_msg_written(&one->failure, err_msg);
+        EMBED_CALL(databases_failure_msg_write, ServeDatabasesCtx, .failure = &one->failure, .err_msg = err_msg);
     }
-    cli_lock_give(&one->failing);
-    databases_given(at);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &one->failing);
+    EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
     return done;
 }
 
-static int db_history(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int db_history(const CliServeAnswerCfg *args)
 {
-    const unsigned int at = databases_of(args, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const unsigned int at = EMBED_CALL(databases_get, ServeDatabasesCtx, .request = arguments, .err_msg = err_msg);
     if (at == CLI_SERVE_DATABASES)
     {
         return 0;
     }
-    cli_db_history(s_database[at].open, out);
-    databases_given(at);
+    EMBED_CALL(cli_db_out_count.history, CliDbOutCountCfg, .open = s_database[at].open, .out = out);
+    EMBED_CALL(databases_free, ServeDatabasesCtx, .at = at);
     return 1;
 }
 

@@ -7,128 +7,193 @@
 #include "../text/text.h"
 #include "db_internal.h"
 
+// The writing of one connection: where it goes, whether it is laid out a member to a line, the indent of its braces,
+// and whether a member is written yet
+typedef struct
+{
+    VerbaLinea *out;
+    int pretty;
+    const char *indent;
+    int written;
+} CliDbConfigWriting;
 // the most connections a tree names that are read, and the bytes databases.json is written in
 #define CLI_DB_CONNECTIONS 256u
 #define CLI_DB_CONFIG_ROOM (1ull << 20u)
 
 // the connections read, a cell of their count and one more for one saved, guarded under the lock from the read to
-// config_released
+// config_release
 static CliDbConnection *s_connections;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // the connections read given back, and the lock with them
-static void config_released(void)
+static void config_release(void)
 {
     g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
     s_connections = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
-unsigned int cli_db_port(const CliDbConnection *connection)
+unsigned int cli_db_port(const CliDbConnectionOutKindCfg *args)
 {
-    if (connection->port != 0u)
+    if (args->connection->port != 0u)
     {
-        return connection->port;
+        return args->connection->port;
     }
-    return (cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "mysql", .cap = CLI_CELLS_POOL})) ? 3306u
-                                                                                                             : 5432u;
+    return (cellul.eq(&(CatenaFinitaCfg){.src = args->connection->kind, .other = "mysql", .cap = CLI_CELLS_POOL}))
+               ? 3306u
+               : 5432u;
 }
 
-void cli_db_account(const CliDbConnection *connection, VerbaLinea *out)
+void cli_db_account(const CliDbConnectionOutKindCfg *args)
 {
-    mmgr_line_put(out, connection->kind);
-    mmgr_line_put(out, "://");
-    mmgr_line_put(out, connection->user);
-    mmgr_line_ch(out, '@');
-    mmgr_line_put(out, connection->host);
-    mmgr_line_ch(out, ':');
-    mmgr_line_decimal(out, cli_db_port(connection), 1u);
-    mmgr_line_ch(out, '/');
-    mmgr_line_put(out, connection->database);
-    if (connection->ssh[0] != '\0')
+    mmgr_line_put(args->out, args->connection->kind);
+    mmgr_line_put(args->out, "://");
+    mmgr_line_put(args->out, args->connection->user);
+    mmgr_line_ch(args->out, '@');
+    mmgr_line_put(args->out, args->connection->host);
+    mmgr_line_ch(args->out, ':');
+    mmgr_line_decimal(args->out, cli_db_connection_out_kind.port(args), 1u);
+    mmgr_line_ch(args->out, '/');
+    mmgr_line_put(args->out, args->connection->database);
+    if (args->connection->ssh[0] != '\0')
     {
-        mmgr_line_put(out, " via ");
-        mmgr_line_put(out, connection->ssh);
+        mmgr_line_put(args->out, " via ");
+        mmgr_line_put(args->out, args->connection->ssh);
     }
 }
 
+typedef struct
+{
+    const CliJson *json;
+    unsigned int node;
+    const char *name;
+    char *out;
+    unsigned long long room;
+    const char *root;
+    VerbaLinea *err_msg;
+    CliDbConfigWriting *writing;
+    const char *text;
+    int always;
+    const CliDbConnection *connection;
+    int pretty;
+    const char *indent;
+    VerbaLinea *out_verba_linea_pointer;
+    unsigned int count;
+} DbConfigCtx;
 // a string member of the connection into `out`, sized for `room`, empty where it is none: 0 where it is there and is
 // no string
-static int config_text(const CliJson *json, unsigned int node, const char *name, char *out, unsigned long long room)
+EMBED_INLINE int config_text(const DbConfigCtx *args)
 {
-    const unsigned int member = cli_json_member(json, node, name);
-    const char *const text = cli_json_string(json, member, NULL);
-    cli_text_copied_or(out, text, "");
+    const CliJson *json = args->json;
+    unsigned int node = args->node;
+    const char *name = args->name;
+    char *out = args->out;
+    const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = node, .name = name);
+    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                        .json_read = json, .node = member, .length_pointer = NULL);
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = out, .text = text, .otherwise = "");
     return (member == CLI_JSON_NONE) || (text != NULL);
 }
 
-int cli_db_connection_of(const CliJson *json, unsigned int node, CliDbConnection *connection, VerbaLinea *err_msg)
+int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
 {
-    memor.set(&(MemoriaCfg){.dst = connection, .val = 0, .bytes = sizeof(*connection)});
-    if ((cli_json_string(json, cli_json_member(json, node, "name"), NULL) == NULL) ||
-        (cli_json_string(json, cli_json_member(json, node, "kind"), NULL) == NULL))
+    memor.set(&(MemoriaCfg){.dst = args->connection_out, .val = 0, .bytes = sizeof(*args->connection_out)});
+    if ((EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                       .object = args->node, .name = "name"),
+                    .length_pointer = NULL) == NULL) ||
+        (EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                       .object = args->node, .name = "kind"),
+                    .length_pointer = NULL) == NULL))
     {
-        mmgr_line_put(err_msg, "a connection names no name or no kind");
+        mmgr_line_put(args->err_msg, "a connection names no name or no kind");
         return 0;
     }
-    const unsigned int port = cli_json_member(json, node, "port");
-    const char *const digits = cli_json_is(json, port, CFG_JSON_NUMBER) ? json->text + json->node[port].text : NULL;
+    const unsigned int port = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                         .json_read = args->json, .object = args->node, .name = "port");
+    const char *const digits = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                          .json_read = args->json, .node = port, .kind = CFG_JSON_NUMBER)
+                                   ? args->json->text + args->json->node[port].text
+                                   : NULL;
     unsigned long long value = 0ull;
-    int whole = (port == CLI_JSON_NONE) || ((digits != NULL) && (json->node[port].length <= 5ull));
-    for (unsigned long long at = 0ull; (digits != NULL) && whole && (at < json->node[port].length); at += 1ull)
+    int whole = (port == CLI_JSON_NONE) || ((digits != NULL) && (args->json->node[port].length <= 5ull));
+    for (unsigned long long at = 0ull; (digits != NULL) && whole && (at < args->json->node[port].length); at += 1ull)
     {
         whole = (digits[at] >= '0') && (digits[at] <= '9');
         value = (value * 10ull) + (unsigned long long)(digits[at] - '0');
     }
-    const unsigned int matters = cli_json_member(json, node, "matters");
-    const int texts = config_text(json, node, "name", connection->name, sizeof(connection->name)) &&
-                      config_text(json, node, "kind", connection->kind, sizeof(connection->kind)) &&
-                      config_text(json, node, "host", connection->host, sizeof(connection->host)) &&
-                      config_text(json, node, "user", connection->user, sizeof(connection->user)) &&
-                      config_text(json, node, "database", connection->database, sizeof(connection->database)) &&
-                      config_text(json, node, "file", connection->file, sizeof(connection->file)) &&
-                      config_text(json, node, "ssh", connection->ssh, sizeof(connection->ssh)) &&
-                      config_text(json, node, "guard", connection->guard, sizeof(connection->guard));
+    const unsigned int matters = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                            .json_read = args->json, .object = args->node, .name = "matters");
+    const int texts =
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "name",
+                   .out = args->connection_out->name, .room = sizeof(args->connection_out->name)) &&
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "kind",
+                   .out = args->connection_out->kind, .room = sizeof(args->connection_out->kind)) &&
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "host",
+                   .out = args->connection_out->host, .room = sizeof(args->connection_out->host)) &&
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "user",
+                   .out = args->connection_out->user, .room = sizeof(args->connection_out->user)) &&
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "database",
+                   .out = args->connection_out->database, .room = sizeof(args->connection_out->database)) &&
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "file",
+                   .out = args->connection_out->file, .room = sizeof(args->connection_out->file)) &&
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "ssh",
+                   .out = args->connection_out->ssh, .room = sizeof(args->connection_out->ssh)) &&
+        EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "guard",
+                   .out = args->connection_out->guard, .room = sizeof(args->connection_out->guard));
     if (!texts || !whole || (value > 65535ull) ||
-        ((matters != CLI_JSON_NONE) && !cli_json_is(json, matters, CFG_JSON_TRUE) &&
-         !cli_json_is(json, matters, CFG_JSON_FALSE)))
+        ((matters != CLI_JSON_NONE) &&
+         !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = matters,
+                     .kind = CFG_JSON_TRUE) &&
+         !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = matters,
+                     .kind = CFG_JSON_FALSE)))
     {
-        mmgr_line_put(err_msg, "a connection names a setting of the wrong kind");
+        mmgr_line_put(args->err_msg, "a connection names a setting of the wrong kind");
         return 0;
     }
-    connection->port = (unsigned int)value;
-    connection->matters = cli_json_is(json, matters, CFG_JSON_TRUE);
+    args->connection_out->port = (unsigned int)value;
+    args->connection_out->matters = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                               .json_read = args->json, .node = matters, .kind = CFG_JSON_TRUE);
     return 1;
 }
 
 // the connections databases.json at the tree's top folder names, under the lock, in a cell of their count and one
-// more, given back with config_released either way: their count, 0 where it is not there; -1 with why given where it
+// more, given back with config_release either way: their count, 0 where it is not there; -1 with why given where it
 // does not read or the cellblock could not meet them
-static int config_read(const char *root, VerbaLinea *err_msg)
+static int config_read(const DbConfigCtx *args)
 {
+    const char *root = args->root;
+    VerbaLinea *err_msg = args->err_msg;
     char path[CLI_PATH_MAX_LEN];
-    cli_full(root, "databases.json", path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "databases.json", .joined = path);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_db_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                  .size_pointer = &size, .owner = &g_cli_db_cells);
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
     // the file's bytes read as the text they are
     const unsigned int root_node =
-        (bytes != NULL) ? cli_json_taken(&json, (const char *)bytes, size, 0u, 0ull, &read_err_msg, &g_cli_db_cells)
+        (bytes != NULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+                                     .json = &json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
+                                     .text_more = 0ull, .err_msg = &read_err_msg, .owner = &g_cli_db_cells)
                         : CLI_JSON_NONE;
-    cli_file_given(bytes, &g_cli_db_cells);
-    const unsigned int connections = cli_json_member(&json, root_node, "connections");
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_db_cells);
+    const unsigned int connections = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = &json, .object = root_node, .name = "connections");
     unsigned int named = 0u;
     while ((root_node != CLI_JSON_NONE) && (named < CLI_DB_CONNECTIONS) &&
-           (cli_json_item(&json, connections, named) != CLI_JSON_NONE))
+           (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json,
+                       .array = connections, .index = named) != CLI_JSON_NONE))
     {
         named += 1u;
     }
     s_connections = g_cli_cells->persistent_buf_alloc((named + 1ull) * sizeof(*s_connections), &g_cli_db_cells);
     if (s_connections == NULL)
     {
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         mmgr_line_put(err_msg, "databases.json: the cells cannot meet its connections");
         return -1;
     }
@@ -137,19 +202,28 @@ static int config_read(const char *root, VerbaLinea *err_msg)
         return 0;
     }
     int count = 0;
-    for (unsigned int at = 0u; (root_node != CLI_JSON_NONE) && (cli_json_item(&json, connections, at) != CLI_JSON_NONE);
+    for (unsigned int at = 0u; (root_node != CLI_JSON_NONE) &&
+                               (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                           .json_read = &json, .array = connections, .index = at) != CLI_JSON_NONE);
          at += 1u)
     {
         if ((count < (int)CLI_DB_CONNECTIONS) &&
-            !cli_db_connection_of(&json, cli_json_item(&json, connections, at), &s_connections[count], &read_err_msg))
+            !EMBED_CALL(cli_db_connection_err_msg.connection_get, CliDbConnectionErrMsgCfg, .json = &json,
+                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                           .json_read = &json, .array = connections, .index = at),
+                        .connection_out = &s_connections[count], .err_msg = &read_err_msg))
         {
             break;
         }
         count += (count < (int)CLI_DB_CONNECTIONS) ? 1 : 0;
     }
-    const int object = (root_node != CLI_JSON_NONE) && cli_json_is(&json, root_node, CFG_JSON_OBJECT) &&
-                       ((connections == CLI_JSON_NONE) || cli_json_is(&json, connections, CFG_JSON_ARRAY));
-    cli_json_given(&json);
+    const int object =
+        (root_node != CLI_JSON_NONE) &&
+        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = root_node,
+                   .kind = CFG_JSON_OBJECT) &&
+        ((connections == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                      .json_read = &json, .node = connections, .kind = CFG_JSON_ARRAY));
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     if (!object || (read_err_msg.at > 0ull))
     {
         mmgr_line_put(err_msg, "databases.json: ");
@@ -163,155 +237,161 @@ static int config_read(const char *root, VerbaLinea *err_msg)
     return count;
 }
 
-// The writing of one connection: where it goes, whether it is laid out a member to a line, the indent of its braces,
-// and whether a member is written yet
-typedef struct
-{
-    VerbaLinea *out;
-    int pretty;
-    const char *indent;
-    int written;
-} CliDbConfigWriting;
-
 // a member's name written, after the one before it
-static void config_member(CliDbConfigWriting *writing, const char *name)
+EMBED_INLINE void config_member(const DbConfigCtx *args)
 {
-    mmgr_line_put(writing->out, writing->written ? (writing->pretty ? ",\n" : ",") : (writing->pretty ? "\n" : ""));
-    mmgr_line_put(writing->out, writing->pretty ? writing->indent : "");
-    mmgr_line_put(writing->out, writing->pretty ? "  \"" : "\"");
-    mmgr_line_put(writing->out, name);
-    mmgr_line_put(writing->out, writing->pretty ? "\": " : "\":");
-    writing->written = 1;
+    mmgr_line_put(args->writing->out,
+                  args->writing->written ? (args->writing->pretty ? ",\n" : ",") : (args->writing->pretty ? "\n" : ""));
+    mmgr_line_put(args->writing->out, args->writing->pretty ? args->writing->indent : "");
+    mmgr_line_put(args->writing->out, args->writing->pretty ? "  \"" : "\"");
+    mmgr_line_put(args->writing->out, args->name);
+    mmgr_line_put(args->writing->out, args->writing->pretty ? "\": " : "\":");
+    args->writing->written = 1;
 }
 
 // a text member written where it is set, or always where `always`
-static void config_text_written(CliDbConfigWriting *writing, const char *name, const char *text, int always)
+EMBED_INLINE void config_text_write(const DbConfigCtx *args)
 {
-    if (always || (text[0] != '\0'))
+    const char *text = args->text;
+    if (args->always || (text[0] != '\0'))
     {
-        config_member(writing, name);
-        cli_json_quoted(writing->out, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+        config_member(args);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->writing->out,
+                   .text = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
     }
 }
 
 // a connection written as databases.json stores it, in the order of its settings, those it leaves unset left out, a
 // member to a line at `indent` spaces in where `pretty`, else on one line
-static void config_written(const CliDbConnection *connection, int pretty, const char *indent, VerbaLinea *out)
+EMBED_INLINE void config_on_write(const DbConfigCtx *args)
 {
-    CliDbConfigWriting writing = {out, pretty, indent, 0};
-    mmgr_line_ch(out, '{');
-    config_text_written(&writing, "name", connection->name, 1);
-    config_text_written(&writing, "kind", connection->kind, 1);
-    config_text_written(&writing, "host", connection->host, 0);
-    if (connection->port != 0u)
+    CliDbConfigWriting writing = {args->out_verba_linea_pointer, args->pretty, args->indent, 0};
+    mmgr_line_ch(args->out_verba_linea_pointer, '{');
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "name", .text = args->connection->name,
+               .always = 1);
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "kind", .text = args->connection->kind,
+               .always = 1);
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "host", .text = args->connection->host,
+               .always = 0);
+    if (args->connection->port != 0u)
     {
-        config_member(&writing, "port");
-        mmgr_line_decimal(out, connection->port, 1u);
+        EMBED_CALL(config_member, DbConfigCtx, .writing = &writing, .name = "port");
+        mmgr_line_decimal(args->out_verba_linea_pointer, args->connection->port, 1u);
     }
-    config_text_written(&writing, "user", connection->user, 0);
-    config_text_written(&writing, "database", connection->database, 0);
-    config_text_written(&writing, "file", connection->file, 0);
-    config_text_written(&writing, "ssh", connection->ssh, 0);
-    if (connection->matters)
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "user", .text = args->connection->user,
+               .always = 0);
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "database",
+               .text = args->connection->database, .always = 0);
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "file", .text = args->connection->file,
+               .always = 0);
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "ssh", .text = args->connection->ssh,
+               .always = 0);
+    if (args->connection->matters)
     {
-        config_member(&writing, "matters");
-        mmgr_line_put(out, "true");
+        EMBED_CALL(config_member, DbConfigCtx, .writing = &writing, .name = "matters");
+        mmgr_line_put(args->out_verba_linea_pointer, "true");
     }
-    config_text_written(&writing, "guard", connection->guard, 0);
-    mmgr_line_put(out, pretty ? "\n" : "");
-    mmgr_line_put(out, pretty ? indent : "");
-    mmgr_line_ch(out, '}');
+    EMBED_CALL(config_text_write, DbConfigCtx, .writing = &writing, .name = "guard", .text = args->connection->guard,
+               .always = 0);
+    mmgr_line_put(args->out_verba_linea_pointer, args->pretty ? "\n" : "");
+    mmgr_line_put(args->out_verba_linea_pointer, args->pretty ? args->indent : "");
+    mmgr_line_ch(args->out_verba_linea_pointer, '}');
 }
 
 // the connections, `count` of them, written to databases.json as serde_json's pretty writer lays them out, under the
 // lock: 1, or 0 with why given
-static int config_write(const char *root, unsigned int count, VerbaLinea *err_msg)
+EMBED_INLINE int config_write(const DbConfigCtx *args)
 {
+    const char *root = args->root;
     char path[CLI_PATH_MAX_LEN];
-    cli_full(root, "databases.json", path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "databases.json", .joined = path);
     char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_DB_CONFIG_ROOM, &g_cli_db_cells);
     VerbaLinea out = mmgr_line_over(out_cell, CLI_DB_CONFIG_ROOM);
-    mmgr_line_put(&out, (count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
-    for (unsigned int at = 0u; at < count; at += 1u)
+    mmgr_line_put(&out, (args->count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         mmgr_line_put(&out, "    ");
-        config_written(&s_connections[at], 1, "    ", &out);
-        mmgr_line_put(&out, (at + 1u < count) ? ",\n" : "\n  ]\n}\n");
+        EMBED_CALL(config_on_write, DbConfigCtx, .connection = &s_connections[at], .pretty = 1, .indent = "    ",
+                   .out_verba_linea_pointer = &out);
+        mmgr_line_put(&out, (at + 1u < args->count) ? ",\n" : "\n  ]\n}\n");
     }
-    const int written = mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
+    const int written =
+        mmgr_line_ok(&out) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
+                                         .bytes = out.out, .size = out.at);
     g_cli_cells->persistent_buf_release(out.out, &g_cli_db_cells);
     if (!written)
     {
-        mmgr_line_put(err_msg, "databases.json: it could not be written");
+        mmgr_line_put(args->err_msg, "databases.json: it could not be written");
         return 0;
     }
     return 1;
 }
 
-int cli_db_named(const char *root, const char *name, CliDbConnection *connection, VerbaLinea *err_msg)
+int cli_db_by_name(const CliDbRootNameCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const int count = config_read(root, err_msg);
+    CliDbConnection *connection = args->connection_out;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     for (int at = 0; at < count; at += 1)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_connections[at].name, .other = name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_connections[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
         {
             *connection = s_connections[at];
-            config_released();
+            config_release();
             return 1;
         }
     }
-    config_released();
+    config_release();
     if (count >= 0)
     {
-        mmgr_line_put(err_msg, "databases.json names no connection ");
-        mmgr_line_put(err_msg, name);
+        mmgr_line_put(args->err_msg, "databases.json names no connection ");
+        mmgr_line_put(args->err_msg, args->name);
     }
     return 0;
 }
 
-int cli_db_save(const char *root, const CliDbConnection *connection, const char *was, VerbaLinea *err_msg)
+int cli_db_save(const CliDbConnectionCfg *args)
 {
     unsigned long long start = 0ull;
-    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = connection->name, .cap = CLI_CELLS_POOL});
+    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->connection->name, .cap = CLI_CELLS_POOL});
     while ((start < end) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = connection->name[start]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->connection->name[start]}) != NULL))
     {
         start += 1ull;
     }
     if (start == end)
     {
-        mmgr_line_put(err_msg, "a connection needs a name");
+        mmgr_line_put(args->err_msg, "a connection needs a name");
         return 0;
     }
-    if ((!cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "postgres", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "mysql", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "sqlite", .cap = CLI_CELLS_POOL})))
+    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->kind, .other = "postgres", .cap = CLI_CELLS_POOL})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->kind, .other = "mysql", .cap = CLI_CELLS_POOL})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->kind, .other = "sqlite", .cap = CLI_CELLS_POOL})))
     {
-        mmgr_line_put(err_msg, connection->kind);
-        mmgr_line_put(err_msg, " is no kind of database orior_cli supports: postgres, mysql or sqlite");
+        mmgr_line_put(args->err_msg, args->connection->kind);
+        mmgr_line_put(args->err_msg, " is no kind of database orior_cli supports: postgres, mysql or sqlite");
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const int count = config_read(root, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (count < 0)
     {
-        config_released();
+        config_release();
         return 0;
     }
-    const char *const old = (was != NULL) ? was : connection->name;
+    const char *const old = (args->was != NULL) ? args->was : args->connection->name;
     int found = -1;
     for (int at = 0; at < count; at += 1)
     {
-        if ((!cellul.eq(&(CatenaFinitaCfg){.src = old, .other = connection->name, .cap = CLI_CELLS_POOL})) &&
-            (cellul.eq(
-                &(CatenaFinitaCfg){.src = s_connections[at].name, .other = connection->name, .cap = CLI_CELLS_POOL})))
+        if ((!cellul.eq(&(CatenaFinitaCfg){.src = old, .other = args->connection->name, .cap = CLI_CELLS_POOL})) &&
+            (cellul.eq(&(CatenaFinitaCfg){
+                .src = s_connections[at].name, .other = args->connection->name, .cap = CLI_CELLS_POOL})))
         {
-            config_released();
-            mmgr_line_put(err_msg, "the tree names a connection ");
-            mmgr_line_put(err_msg, connection->name);
-            mmgr_line_put(err_msg, " already");
+            config_release();
+            mmgr_line_put(args->err_msg, "the tree names a connection ");
+            mmgr_line_put(args->err_msg, args->connection->name);
+            mmgr_line_put(args->err_msg, " already");
             return 0;
         }
         found = ((found < 0) &&
@@ -321,100 +401,114 @@ int cli_db_save(const char *root, const CliDbConnection *connection, const char 
     }
     if ((found < 0) && (count == (int)CLI_DB_CONNECTIONS))
     {
-        config_released();
-        mmgr_line_put(err_msg, "databases.json names as many connections as orior_cli reads");
+        config_release();
+        mmgr_line_put(args->err_msg, "databases.json names as many connections as orior_cli reads");
         return 0;
     }
-    s_connections[(found >= 0) ? found : count] = *connection;
-    const int written = config_write(root, (found >= 0) ? (unsigned int)count : (unsigned int)count + 1u, err_msg);
-    config_released();
+    s_connections[(found >= 0) ? found : count] = *args->connection;
+    const int written =
+        EMBED_CALL(config_write, DbConfigCtx, .root = args->root,
+                   .count = (found >= 0) ? (unsigned int)count : (unsigned int)count + 1u, .err_msg = args->err_msg);
+    config_release();
     return written;
 }
 
-int cli_db_remove(const char *root, const char *name, VerbaLinea *err_msg)
+int cli_db_remove(const CliDbRootNameCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const int count = config_read(root, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (count < 0)
     {
-        config_released();
+        config_release();
         return 0;
     }
     unsigned int remaining = 0u;
     for (int at = 0; at < count; at += 1)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_connections[at].name, .other = name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_connections[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
         {
             char account[CLI_PATH_MAX_LEN];
             char why[CLI_ERR_MSG_MAX_LEN];
             VerbaLinea account_line = {account, sizeof(account), 0ull};
             VerbaLinea forgot = {why, sizeof(why), 0ull};
-            cli_db_account(&s_connections[at], &account_line);
+            EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = &s_connections[at],
+                       .out = &account_line);
             mmgr_line_finish(&account_line);
-            (void)cli_keychain_forget("database", account, &forgot);
+            (void)EMBED_CALL(cli_err_msg_service_internal.keychain_forget, CliErrMsgServiceCtx, .service = "database",
+                             .account = account, .err_msg = &forgot);
             continue;
         }
         s_connections[remaining] = s_connections[at];
         remaining += 1u;
     }
-    const int written = config_write(root, remaining, err_msg);
-    config_released();
+    const int written =
+        EMBED_CALL(config_write, DbConfigCtx, .root = args->root, .count = remaining, .err_msg = args->err_msg);
+    config_release();
     return written;
 }
 
-int cli_db_listed(const char *root, CliDbOpen *const *opens, unsigned int count, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_db_list(const CliDbOutRootCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const int read = config_read(root, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int read = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (read < 0)
     {
-        config_released();
+        config_release();
         return 0;
     }
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     for (int at = 0; at < read; at += 1)
     {
         const CliDbConnection *const connection = &s_connections[at];
         CliDbOpen *opened = NULL;
-        for (unsigned int one = 0u; (one < count) && (opened == NULL); one += 1u)
+        for (unsigned int one = 0u; (one < args->count) && (opened == NULL); one += 1u)
         {
-            opened = (cellul.eq(&(CatenaFinitaCfg){
-                         .src = cli_db_name(opens[one]), .other = connection->name, .cap = CLI_CELLS_POOL}))
-                         ? opens[one]
-                         : NULL;
+            opened =
+                (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_db.name, CliDbCfg, .open_read = args->opens[one]),
+                                              .other = connection->name,
+                                              .cap = CLI_CELLS_POOL}))
+                    ? args->opens[one]
+                    : NULL;
         }
         char account[CLI_PATH_MAX_LEN];
         char password[CLI_NAME_MAX_LEN];
         VerbaLinea account_line = {account, sizeof(account), 0ull};
-        cli_db_account(connection, &account_line);
+        EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = connection,
+                   .out = &account_line);
         mmgr_line_finish(&account_line);
         const int listed =
             (!cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "sqlite", .cap = CLI_CELLS_POOL})) &&
-            cli_keychain_read("database", account, password, sizeof(password));
-        mmgr_line_put(out, (at > 0) ? ",{\"connection\":" : "{\"connection\":");
-        config_written(connection, 0, "", out);
-        mmgr_line_put(out, (opened != NULL) ? ",\"open\":true,\"version\":" : ",\"open\":false,\"version\":null");
+            EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account,
+                       .out = password, .room = sizeof(password));
+        mmgr_line_put(args->out, (at > 0) ? ",{\"connection\":" : "{\"connection\":");
+        EMBED_CALL(config_on_write, DbConfigCtx, .connection = connection, .pretty = 0, .indent = "",
+                   .out_verba_linea_pointer = args->out);
+        mmgr_line_put(args->out, (opened != NULL) ? ",\"open\":true,\"version\":" : ",\"open\":false,\"version\":null");
         if (opened != NULL)
         {
-            const char *const version = cli_db_version(opened);
-            const char *const transaction = cli_db_transaction(opened);
-            cli_json_quoted(out, version, cellul.len(&(CatenaFinitaCfg){.src = version, .cap = CLI_CELLS_POOL}));
-            mmgr_line_put(out, ",\"transaction\":");
-            cli_json_quoted(out, transaction,
-                            cellul.len(&(CatenaFinitaCfg){.src = transaction, .cap = CLI_CELLS_POOL}));
-            mmgr_line_put(out, ",\"zone\":");
+            const char *const version = EMBED_CALL(cli_db.version, CliDbCfg, .open_read = opened);
+            const char *const transaction = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = opened);
+            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                       .text = version,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = version, .cap = CLI_CELLS_POOL}));
+            mmgr_line_put(args->out, ",\"transaction\":");
+            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                       .text = transaction,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = transaction, .cap = CLI_CELLS_POOL}));
+            mmgr_line_put(args->out, ",\"zone\":");
             char zone[CLI_NAME_MAX_LEN];
             VerbaLinea zone_line = {zone, sizeof(zone), 0ull};
-            cli_db_zone(opened, &zone_line);
-            cli_json_quoted(out, zone_line.out, zone_line.at);
+            EMBED_CALL(cli_db_out_count.zone, CliDbOutCountCfg, .open = opened, .out = &zone_line);
+            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                       .text = zone_line.out, .length = zone_line.at);
         }
         else
         {
-            mmgr_line_put(out, ",\"transaction\":null,\"zone\":null");
+            mmgr_line_put(args->out, ",\"transaction\":null,\"zone\":null");
         }
-        mmgr_line_put(out, listed ? ",\"passwordKept\":true}" : ",\"passwordKept\":false}");
+        mmgr_line_put(args->out, listed ? ",\"passwordKept\":true}" : ",\"passwordKept\":false}");
     }
-    mmgr_line_ch(out, ']');
-    config_released();
+    mmgr_line_ch(args->out, ']');
+    config_release();
     return 1;
 }

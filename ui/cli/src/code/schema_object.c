@@ -7,15 +7,43 @@
 // own value is checked as a string that stands where the key does
 #include "schema_internal.h"
 
-// whether the object contains the key `name`
-static int object_has(const CliSchemaRead *read, unsigned int node, const char *name, unsigned long long size)
+typedef struct
 {
-    for (unsigned int at = read->node[node].first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
+    const CliSchemaRead *read;
+    unsigned int node;
+    const char *name;
+    unsigned long long size;
+    const CliSchemaCheck *check_read;
+    unsigned int names;
+    VerbaLinea *out;
+    CliSchemaCheck *check;
+    unsigned long long from;
+    unsigned long long to;
+    unsigned long long count;
+    const char *middle;
+    unsigned long long bound;
+    const char *after;
+    unsigned int map;
+    const char *base;
+    CliSchemaKey key;
+    unsigned int depth;
+    unsigned int member;
+    unsigned int properties;
+    unsigned int additional;
+} SchemaObjectCtx;
+
+// whether the object contains the key `name`
+EMBED_INLINE int object_has(const SchemaObjectCtx *args)
+{
+    const CliSchemaRead *read = args->read;
+    for (unsigned int at = read->node[args->node].first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
     {
         const CliSchemaMember *const member = &read->member[at];
-        if ((member->key_size == size) &&
-            (memor.cmp(&(MemoriaCfg){
-                 .src = cli_schema_text(read, member->key_at), .other = name, .bytes = (size_t)size}) == 0))
+        if ((member->key_size == args->size) &&
+            (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                                       .read = read, .at = member->key_at),
+                                     .other = args->name,
+                                     .bytes = (size_t)args->size}) == 0))
         {
             return 1;
         }
@@ -25,51 +53,65 @@ static int object_has(const CliSchemaRead *read, unsigned int node, const char *
 
 // the names of `names`, a schema's array, the object does not contain, each between backticks, written into `out`:
 // their count
-static unsigned int object_missing(const CliSchemaCheck *check, unsigned int node, unsigned int names, VerbaLinea *out)
+EMBED_INLINE unsigned int object_missing(const SchemaObjectCtx *args)
 {
-    const CliJson *const json = &check->store->json;
+    unsigned int node = args->node;
+    const CliJson *const json = &args->check_read->store->json;
     unsigned int count = 0u;
-    for (unsigned int one = json->node[names].first; one != CLI_JSON_NONE; one = json->node[one].next)
+    for (unsigned int one = json->node[args->names].first; one != CLI_JSON_NONE; one = json->node[one].next)
     {
         unsigned long long size = 0ull;
-        const char *const name = cli_json_string(json, one, &size);
-        if ((name == NULL) || object_has(check->read, node, name, size))
+        const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = one, .length_pointer = &size);
+        if ((name == NULL) || EMBED_CALL(object_has, SchemaObjectCtx, .read = args->check_read->read, .node = node,
+                                         .name = name, .size = size))
         {
             continue;
         }
-        mmgr_line_put(out, (count > 0u) ? ", `" : "`");
-        mmgr_line_put_n(out, name, size);
-        mmgr_line_ch(out, '`');
+        mmgr_line_put(args->out, (count > 0u) ? ", `" : "`");
+        mmgr_line_put_n(args->out, name, size);
+        mmgr_line_ch(args->out, '`');
         count += 1u;
     }
     return count;
 }
 
 // a count of members past a bound reported over `from` to `to`
-static void object_count_finding_put(CliSchemaCheck *check, unsigned long long from, unsigned long long to,
-                                     unsigned long long count, const char *middle, unsigned long long bound,
-                                     const char *after)
+EMBED_INLINE void object_count_finding_put(const SchemaObjectCtx *args)
 {
-    VerbaLinea msg = cli_build_msg_line(check->found);
+    unsigned long long from = args->from;
+    unsigned long long to = args->to;
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
     mmgr_line_put(&msg, "This object contains ");
-    mmgr_line_decimal(&msg, count, 1u);
-    mmgr_line_put(&msg, middle);
-    mmgr_line_decimal(&msg, bound, 1u);
-    mmgr_line_put(&msg, after);
-    (void)cli_build_finding(check->found, &msg, check->lines, from, to, CLI_BUILD_WARNING, "schema-properties");
+    mmgr_line_decimal(&msg, args->count, 1u);
+    mmgr_line_put(&msg, args->middle);
+    mmgr_line_decimal(&msg, args->bound, 1u);
+    mmgr_line_put(&msg, args->after);
+    (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found, .message = &msg,
+                     .lines = args->check->lines, .from = from, .to = to, .severity = CLI_BUILD_WARNING,
+                     .code = "schema-properties");
 }
 
 // what the dependency keywords require of each key the object contains
-static void object_dependent(CliSchemaCheck *check, unsigned int node, unsigned int map, const char *base,
-                             CliSchemaKey key, unsigned int depth)
+EMBED_INLINE void object_dependent(const SchemaObjectCtx *args)
 {
+    CliSchemaCheck *check = args->check;
+    unsigned int node = args->node;
+    unsigned int map = args->map;
+    const char *base = args->base;
+    CliSchemaKey key = args->key;
+    unsigned int depth = args->depth;
     const CliJson *const json = &check->store->json;
     const CliSchemaRead *const read = check->read;
     static const char *const s_words[3] = {"dependencies", "dependentRequired", "dependentSchemas"};
     for (unsigned int word = 0u; word < 3u; word += 1u)
     {
-        const unsigned int all = cli_schema_get(json, map, s_words[word]);
-        for (unsigned int needs = cli_json_is(json, all, CFG_JSON_OBJECT) ? json->node[all].first : CLI_JSON_NONE;
+        const unsigned int all =
+            EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = s_words[word]);
+        for (unsigned int needs = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                             .node = all, .kind = CFG_JSON_OBJECT)
+                                      ? json->node[all].first
+                                      : CLI_JSON_NONE;
              needs != CLI_JSON_NONE; needs = json->node[needs].next)
         {
             const char *const name = json->text + json->node[needs].key;
@@ -79,30 +121,37 @@ static void object_dependent(CliSchemaCheck *check, unsigned int node, unsigned 
                  at = read->member[at].next)
             {
                 const CliSchemaMember *const one = &read->member[at];
-                member = ((one->key_size == size) &&
-                          (memor.cmp(&(MemoriaCfg){
-                               .src = cli_schema_text(read, one->key_at), .other = name, .bytes = (size_t)size}) == 0))
-                             ? at
-                             : member;
+                member =
+                    ((one->key_size == size) &&
+                     (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                                                .read = read, .at = one->key_at),
+                                              .other = name,
+                                              .bytes = (size_t)size}) == 0))
+                        ? at
+                        : member;
             }
             if (member == CLI_SCHEMA_NONE)
             {
                 continue;
             }
             const CliSchemaMember *const one = &read->member[member];
-            if (!cli_json_is(json, needs, CFG_JSON_ARRAY))
+            if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = needs,
+                            .kind = CFG_JSON_ARRAY))
             {
-                cli_schema_node(check, node, needs, base, key, depth + 1u);
+                EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = check, .node = node,
+                           .schema = needs, .base = base, .key_schema_key = key, .depth = depth + 1u);
                 continue;
             }
-            VerbaLinea msg = cli_build_msg_line(check->found);
+            VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
             mmgr_line_put_n(&msg, check->text + one->from, one->to - one->from);
             mmgr_line_put(&msg, " requires ");
-            if (object_missing(check, node, needs, &msg) > 0u)
+            if (EMBED_CALL(object_missing, SchemaObjectCtx, .check_read = check, .node = node, .names = needs,
+                           .out = &msg) > 0u)
             {
                 mmgr_line_put(&msg, " beside it, which this object has not");
-                (void)cli_build_finding(check->found, &msg, check->lines, one->from, one->to, CLI_BUILD_WARNING,
-                                        "schema-required");
+                (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found,
+                                 .message = &msg, .lines = check->lines, .from = one->from, .to = one->to,
+                                 .severity = CLI_BUILD_WARNING, .code = "schema-required");
             }
         }
     }
@@ -110,140 +159,191 @@ static void object_dependent(CliSchemaCheck *check, unsigned int node, unsigned 
 
 // a member no schema gives the object: a finding offering the keys near it where `additionalProperties` is `false`,
 // and otherwise its value checked against it
-static void object_additional(CliSchemaCheck *check, unsigned int member, unsigned int properties,
-                              unsigned int additional, const char *base, unsigned int depth)
+EMBED_INLINE void object_additional(const SchemaObjectCtx *args)
 {
+    CliSchemaCheck *check = args->check;
+    const char *base = args->base;
+    unsigned int depth = args->depth;
     const CliJson *const json = &check->store->json;
-    const CliSchemaMember *const one = &check->read->member[member];
-    if (additional == CLI_JSON_NONE)
+    const CliSchemaMember *const one = &check->read->member[args->member];
+    if (args->additional == CLI_JSON_NONE)
     {
         return;
     }
-    if (!cli_schema_false(json, additional))
+    if (!EMBED_CALL(cli_schema_json_node_internal.schema_false, CliSchemaJsonNodeCtx, .json = json,
+                    .node = args->additional))
     {
         if (one->value != CLI_SCHEMA_NONE)
         {
             const CliSchemaKey key = {1, one->from, one->to};
-            cli_schema_node(check, one->value, additional, base, key, depth + 1u);
+            EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = check, .node = one->value,
+                       .schema = args->additional, .base = base, .key_schema_key = key, .depth = depth + 1u);
         }
         return;
     }
-    VerbaLinea msg = cli_build_msg_line(check->found);
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
     mmgr_line_put_n(&msg, check->text + one->from, one->to - one->from);
     mmgr_line_put(&msg, " is no property the schema gives this object");
-    const unsigned int finding =
-        cli_build_finding(check->found, &msg, check->lines, one->from, one->to, CLI_BUILD_WARNING, "schema-property");
+    const unsigned int finding = EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found,
+                                            .message = &msg, .lines = check->lines, .from = one->from, .to = one->to,
+                                            .severity = CLI_BUILD_WARNING, .code = "schema-property");
     CliBuildNear near;
-    cli_build_near_begun(&near, cli_schema_text(check->read, one->key_at), one->key_size);
-    for (unsigned int at = cli_json_is(json, properties, CFG_JSON_OBJECT) ? json->node[properties].first
-                                                                          : CLI_JSON_NONE;
+    EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near,
+               .name = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = check->read,
+                                  .at = one->key_at),
+               .size = one->key_size);
+    for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                      .node = args->properties, .kind = CFG_JSON_OBJECT)
+                               ? json->node[args->properties].first
+                               : CLI_JSON_NONE;
          at != CLI_JSON_NONE; at = json->node[at].next)
     {
         const char *const name = json->text + json->node[at].key;
-        cli_build_near_offered(&near, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near, .one = name,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     }
     for (unsigned int at = 0u; at < near.count; at += 1u)
     {
-        VerbaLinea title = cli_build_msg_line(check->found);
+        VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_put(&title, "Change to \"");
         mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
         mmgr_line_ch(&title, '"');
         static char s_quoted[1u << 13u];
         VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ull};
-        cli_json_quoted(&quoted, near.near[at], near.near_size[at]);
-        cli_build_edit_fix(check->found, finding, &title, check->lines, one->from, one->to, s_quoted, quoted.at);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted,
+                   .text = near.near[at], .length = near.near_size[at]);
+        EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = check->found, .finding = finding,
+                   .title = &title, .lines = check->lines, .from = one->from, .to = one->to, .text = s_quoted,
+                   .size = quoted.at);
     }
 }
 
 // a key checked against `propertyNames`, as a string standing where the key does
-static void object_name(CliSchemaCheck *check, unsigned int member, unsigned int names, const char *base,
-                        unsigned int depth)
+EMBED_INLINE void object_name(const SchemaObjectCtx *args)
 {
+    CliSchemaCheck *check = args->check;
+    const char *base = args->base;
+    unsigned int depth = args->depth;
     CliSchemaRead *const read = check->read;
     if (read->nodes == read->nodes_most)
     {
         return;
     }
-    const CliSchemaMember *const one = &read->member[member];
+    const CliSchemaMember *const one = &read->member[args->member];
     const unsigned int at = read->nodes;
     read->node[at] = (CliSchemaNode){
         CLI_SCHEMA_TEXT, 0, 0.0, one->from, one->to, one->key_at, one->key_size, CLI_SCHEMA_NONE, 0u, CLI_SCHEMA_NONE};
     read->nodes += 1u;
     const CliSchemaKey none = {0, 0ull, 0ull};
-    cli_schema_node(check, at, names, base, none, depth + 1u);
+    EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = check, .node = at, .schema = args->names,
+               .base = base, .key_schema_key = none, .depth = depth + 1u);
     read->nodes = at;
 }
 
-void cli_schema_object_checked(CliSchemaCheck *check, unsigned int node, unsigned int map, const char *base,
-                               CliSchemaKey key, unsigned int depth)
+void cli_schema_object_check(const CliSchemaBaseMapCtx *args)
 {
-    const CliJson *const json = &check->store->json;
-    const CliSchemaRead *const read = check->read;
-    const unsigned long long from = key.has_key ? key.from : read->node[node].from;
-    const unsigned long long to = key.has_key ? key.to : read->node[node].from + 1u;
-    const unsigned long long count = read->node[node].count;
+    const CliJson *const json = &args->check->store->json;
+    const CliSchemaRead *const read = args->check->read;
+    const unsigned long long from =
+        args->key_schema_key.has_key ? args->key_schema_key.from : read->node[args->node].from;
+    const unsigned long long to =
+        args->key_schema_key.has_key ? args->key_schema_key.to : read->node[args->node].from + 1u;
+    const unsigned long long count = read->node[args->node].count;
     unsigned long long bound = 0ull;
-    if (cli_schema_u64(json, cli_schema_get(json, map, "minProperties"), &bound) && (count < bound))
+    if (EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
+                   .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
+                                      .name = "minProperties"),
+                   .value_u64s = &bound) &&
+        (count < bound))
     {
-        object_count_finding_put(check, from, to, count, ", fewer than the ", bound, " properties the schema requires");
+        EMBED_CALL(object_count_finding_put, SchemaObjectCtx, .check = args->check, .from = from, .to = to,
+                   .count = count, .middle = ", fewer than the ", .bound = bound,
+                   .after = " properties the schema requires");
     }
-    if (cli_schema_u64(json, cli_schema_get(json, map, "maxProperties"), &bound) && (count > bound))
+    if (EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
+                   .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
+                                      .name = "maxProperties"),
+                   .value_u64s = &bound) &&
+        (count > bound))
     {
-        object_count_finding_put(check, from, to, count, ", more than the ", bound, " properties the schema allows");
+        EMBED_CALL(object_count_finding_put, SchemaObjectCtx, .check = args->check, .from = from, .to = to,
+                   .count = count, .middle = ", more than the ", .bound = bound,
+                   .after = " properties the schema allows");
     }
-    const unsigned int required = cli_schema_get(json, map, "required");
-    if ((required != CLI_JSON_NONE) && cli_json_is(json, required, CFG_JSON_ARRAY))
+    const unsigned int required =
+        EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map, .name = "required");
+    if ((required != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                  .json_read = json, .node = required, .kind = CFG_JSON_ARRAY))
     {
-        VerbaLinea msg = cli_build_msg_line(check->found);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
         mmgr_line_put(&msg, "This object has no ");
-        if (object_missing(check, node, required, &msg) > 0u)
+        if (EMBED_CALL(object_missing, SchemaObjectCtx, .check_read = args->check, .node = args->node,
+                       .names = required, .out = &msg) > 0u)
         {
             mmgr_line_put(&msg, ", which the schema requires");
-            (void)cli_build_finding(check->found, &msg, check->lines, from, to, CLI_BUILD_WARNING, "schema-required");
+            (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
+                             .message = &msg, .lines = args->check->lines, .from = from, .to = to,
+                             .severity = CLI_BUILD_WARNING, .code = "schema-required");
         }
     }
-    object_dependent(check, node, map, base, key, depth);
-    const unsigned int properties = cli_schema_get(json, map, "properties");
-    const unsigned int patterns = cli_schema_get(json, map, "patternProperties");
-    const unsigned int additional = cli_schema_get(json, map, "additionalProperties");
-    const unsigned int names = cli_schema_get(json, map, "propertyNames");
-    for (unsigned int member = read->node[node].first; member != CLI_SCHEMA_NONE; member = read->member[member].next)
+    EMBED_CALL(object_dependent, SchemaObjectCtx, .check = args->check, .node = args->node, .map = args->map,
+               .base = args->base, .key = args->key_schema_key, .depth = args->depth);
+    const unsigned int properties = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                               .map = args->map, .name = "properties");
+    const unsigned int patterns = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                             .map = args->map, .name = "patternProperties");
+    const unsigned int additional = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                               .map = args->map, .name = "additionalProperties");
+    const unsigned int names = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                          .map = args->map, .name = "propertyNames");
+    for (unsigned int member = read->node[args->node].first; member != CLI_SCHEMA_NONE;
+         member = read->member[member].next)
     {
         const CliSchemaMember *const one = &read->member[member];
-        const char *const name = cli_schema_text(read, one->key_at);
+        const char *const name =
+            EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = read, .at = one->key_at);
         const CliSchemaKey here = {1, one->from, one->to};
         if (names != CLI_JSON_NONE)
         {
-            object_name(check, member, names, base, depth);
+            EMBED_CALL(object_name, SchemaObjectCtx, .check = args->check, .member = member, .names = names,
+                       .base = args->base, .depth = args->depth);
         }
         int matched = 0;
-        const unsigned int schema = cli_schema_get(json, properties, name);
+        const unsigned int schema =
+            EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = properties, .name = name);
         if (schema != CLI_JSON_NONE)
         {
             matched = 1;
             if (one->value != CLI_SCHEMA_NONE)
             {
-                cli_schema_node(check, one->value, schema, base, here, depth + 1u);
+                EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = one->value,
+                           .schema = schema, .base = args->base, .key_schema_key = here, .depth = args->depth + 1u);
             }
         }
-        for (unsigned int at = cli_json_is(json, patterns, CFG_JSON_OBJECT) ? json->node[patterns].first
-                                                                            : CLI_JSON_NONE;
+        for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                          .node = patterns, .kind = CFG_JSON_OBJECT)
+                                   ? json->node[patterns].first
+                                   : CLI_JSON_NONE;
              at != CLI_JSON_NONE; at = json->node[at].next)
         {
             const char *const pattern = json->text + json->node[at].key;
-            if (cli_schema_matches(pattern, cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}), name,
-                                   one->key_size) == 1)
+            if (EMBED_CALL(cli_schema_text_internal.matches, CliSchemaTextCtx, .pattern = pattern,
+                           .pattern_size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}),
+                           .text = name, .size = one->key_size) == 1)
             {
                 matched = 1;
                 if (one->value != CLI_SCHEMA_NONE)
                 {
-                    cli_schema_node(check, one->value, at, base, here, depth + 1u);
+                    EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check,
+                               .node = one->value, .schema = at, .base = args->base, .key_schema_key = here,
+                               .depth = args->depth + 1u);
                 }
             }
         }
         if (!matched)
         {
-            object_additional(check, member, properties, additional, base, depth);
+            EMBED_CALL(object_additional, SchemaObjectCtx, .check = args->check, .member = member,
+                       .properties = properties, .additional = additional, .base = args->base, .depth = args->depth);
         }
     }
 }

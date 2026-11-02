@@ -10,54 +10,70 @@
 // the bytes of a PWG page's head
 #define CLI_PWG_HEAD 1796u
 
-// whether the pixels at `a` and `b` of a row are the same
-static int cli_same_pixel(const unsigned char *row, unsigned long long a, unsigned long long b,
-                          unsigned long long pixel)
+typedef struct
 {
-    return memor.cmp(&(MemoriaCfg){.src = row + (a * pixel), .other = row + (b * pixel), .bytes = pixel}) == 0;
+    const unsigned char *row;
+    unsigned long long a;
+    unsigned long long b;
+    unsigned long long pixel;
+    unsigned char *head;
+    unsigned int at;
+    unsigned long long value;
+} RasterWriteCtx;
+// whether the pixels at `a` and `b` of a row are the same
+EMBED_INLINE int cli_same_pixel(const RasterWriteCtx *args)
+{
+    return memor.cmp(&(MemoriaCfg){.src = args->row + (args->a * args->pixel),
+                                   .other = args->row + (args->b * args->pixel),
+                                   .bytes = args->pixel}) == 0;
 }
 
-void cli_print_compress(const CliPixels *page, VerbaLinea *out)
+void cli_print_compress(const CliPrintLayoutCfg *args)
 {
-    const unsigned long long line = page->width * page->channels;
-    const unsigned long long pixel = page->channels;
+    const unsigned long long line = args->page->width * args->page->channels;
+    const unsigned long long pixel = args->page->channels;
     unsigned long long y = 0ull;
-    while (y < page->height)
+    while (y < args->page->height)
     {
-        const unsigned char *const row = page->data + (y * line);
+        const unsigned char *const row = args->page->data + (y * line);
         unsigned long long repeat = 1ull;
-        while (((y + repeat) < page->height) && (repeat < 256ull) &&
-               (memor.cmp(&(MemoriaCfg){.src = page->data + ((y + repeat) * line), .other = row, .bytes = line}) == 0))
+        while (((y + repeat) < args->page->height) && (repeat < 256ull) &&
+               (memor.cmp(
+                    &(MemoriaCfg){.src = args->page->data + ((y + repeat) * line), .other = row, .bytes = line}) == 0))
         {
             repeat += 1ull;
         }
         // a count of at most 256 written less one as a byte
-        mmgr_line_ch(out, (char)(unsigned char)(repeat - 1ull));
+        mmgr_line_ch(args->out, (char)(unsigned char)(repeat - 1ull));
         unsigned long long x = 0ull;
-        while (x < page->width)
+        while (x < args->page->width)
         {
-            if (((x + 1ull) < page->width) && cli_same_pixel(row, x, x + 1ull, pixel))
+            if (((x + 1ull) < args->page->width) &&
+                EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x, .b = x + 1ull, .pixel = pixel))
             {
                 unsigned long long run = 2ull;
-                while (((x + run) < page->width) && (run < 128ull) && cli_same_pixel(row, x + run, x, pixel))
+                while (((x + run) < args->page->width) && (run < 128ull) &&
+                       EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x + run, .b = x, .pixel = pixel))
                 {
                     run += 1ull;
                 }
-                mmgr_line_ch(out, (char)(unsigned char)(run - 1ull));
-                mmgr_line_put_n(out, (const char *)(row + (x * pixel)), pixel);
+                mmgr_line_ch(args->out, (char)(unsigned char)(run - 1ull));
+                mmgr_line_put_n(args->out, (const char *)(row + (x * pixel)), pixel);
                 x += run;
             }
             else
             {
                 unsigned long long run = 1ull;
-                while (((x + run) < page->width) && (run < 128ull) &&
-                       !(((x + run + 1ull) < page->width) && cli_same_pixel(row, x + run, x + run + 1ull, pixel)))
+                while (((x + run) < args->page->width) && (run < 128ull) &&
+                       !(((x + run + 1ull) < args->page->width) &&
+                         EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x + run, .b = x + run + 1ull,
+                                    .pixel = pixel)))
                 {
                     run += 1ull;
                 }
                 // a run of different pixels written as 257 less its length, a byte
-                mmgr_line_ch(out, (char)(unsigned char)((run == 1ull) ? 0ull : (257ull - run)));
-                mmgr_line_put_n(out, (const char *)(row + (x * pixel)), run * pixel);
+                mmgr_line_ch(args->out, (char)(unsigned char)((run == 1ull) ? 0ull : (257ull - run)));
+                mmgr_line_put_n(args->out, (const char *)(row + (x * pixel)), run * pixel);
                 x += run;
             }
         }
@@ -65,78 +81,79 @@ void cli_print_compress(const CliPixels *page, VerbaLinea *out)
     }
 }
 
-void cli_print_pwg_begin(VerbaLinea *out)
+void cli_print_pwg_begin(const CliPrintLayoutListingOutCfg *args)
 {
-    mmgr_line_put(out, "RaS2");
+    mmgr_line_put(args->out, "RaS2");
 }
 
 // a number put in a head at `at` as its four bytes, the high first
-static void cli_put(unsigned char *head, unsigned int at, unsigned long long value)
+EMBED_INLINE void cli_put(const RasterWriteCtx *args)
 {
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
     {
         // each byte of the low 32 bits in turn
-        head[at + byte] = (unsigned char)((value >> (8u * (3u - byte))) & 0xffu);
+        args->head[args->at + byte] = (unsigned char)((args->value >> (8u * (3u - byte))) & 0xffu);
     }
 }
 
-void cli_print_pwg_page(VerbaLinea *out, const CliPixels *page, const CliPrintLayout *layout, unsigned int dpi,
-                        unsigned int count)
+void cli_print_pwg_page(const CliPrintLayoutCfg *args)
 {
     unsigned char head[CLI_PWG_HEAD];
     memor.set(&(MemoriaCfg){.dst = head, .val = 0, .bytes = sizeof(head)});
-    CliPrintLayout upright = *layout;
+    CliPrintLayout upright = *args->layout;
     upright.landscape = 0;
     float width_points = 0.0f;
     float height_points = 0.0f;
-    cli_print_size(&upright, &width_points, &height_points);
+    EMBED_CALL(cli_print_layout_width.size, CliPrintLayoutWidthCfg, .layout = &upright, .width = &width_points,
+               .height = &height_points);
     memor.cpy(&(MemoriaCfg){.dst = head, .src = "PwgRaster", .bytes = 9u});
-    cli_put(head, 276u, dpi);
-    cli_put(head, 280u, dpi);
-    cli_put(head, 340u, (layout->copies > 1u) ? layout->copies : 1u);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 276u, .value = args->dpi);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 280u, .value = args->dpi);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 340u,
+               .value = (args->layout->copies > 1u) ? args->layout->copies : 1u);
     // a paper's size in points, rounded, is whole and small
-    cli_put(head, 352u, (unsigned long long)roundf(width_points));
-    cli_put(head, 356u, (unsigned long long)roundf(height_points));
-    cli_put(head, 372u, page->width);
-    cli_put(head, 376u, page->height);
-    cli_put(head, 384u, 8u);
-    cli_put(head, 388u, 8u * page->channels);
-    cli_put(head, 392u, page->width * page->channels);
-    cli_put(head, 400u, (page->channels == 1u) ? 18u : 19u);
-    cli_put(head, 420u, page->channels);
-    cli_put(head, 452u, count);
-    cli_put(head, 456u, 1u);
-    cli_put(head, 460u, 1u);
-    cli_put(head, 480u, 0x00ffffffu);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 352u, .value = (unsigned long long)roundf(width_points));
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 356u, .value = (unsigned long long)roundf(height_points));
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 372u, .value = args->page->width);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 376u, .value = args->page->height);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 384u, .value = 8u);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 388u, .value = 8u * args->page->channels);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 392u, .value = args->page->width * args->page->channels);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 400u, .value = (args->page->channels == 1u) ? 18u : 19u);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 420u, .value = args->page->channels);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 452u, .value = args->count);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 456u, .value = 1u);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 460u, .value = 1u);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 480u, .value = 0x00ffffffu);
     memor.cpy(&(MemoriaCfg){.dst = head + 1668u, .src = "perceptual", .bytes = 10u});
-    const char *const media = cli_print_media(layout);
+    const char *const media = cli_print_layout.media(args);
     memor.cpy(&(MemoriaCfg){.dst = head + 1732u,
                             .src = media,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = media, .cap = CLI_CELLS_POOL})});
-    mmgr_line_put_n(out, (const char *)head, sizeof(head));
-    cli_print_compress(page, out);
+    mmgr_line_put_n(args->out, (const char *)head, sizeof(head));
+    cli_print_layout.compress(args);
 }
 
-void cli_print_urf_begin(VerbaLinea *out, unsigned int count)
+void cli_print_urf_begin(const CliPrintLayoutCfg *args)
 {
     unsigned char head[4];
-    mmgr_line_put_n(out, "UNIRAST", 8u);
-    cli_put(head, 0u, count);
-    mmgr_line_put_n(out, (const char *)head, 4u);
+    mmgr_line_put_n(args->out, "UNIRAST", 8u);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 0u, .value = args->count);
+    mmgr_line_put_n(args->out, (const char *)head, 4u);
 }
 
-void cli_print_urf_page(VerbaLinea *out, const CliPixels *page, unsigned int dpi)
+void cli_print_urf_page(const CliPrintLayoutCfg *args)
 {
     unsigned char head[32];
     memor.set(&(MemoriaCfg){.dst = head, .val = 0, .bytes = sizeof(head)});
     // the bits a pixel takes, its color space and its quality are each a byte
-    head[0] = (unsigned char)(8u * page->channels);
-    head[1] = (page->channels == 1u) ? 0u : 1u;
+    head[0] = (unsigned char)(8u * args->page->channels);
+    head[1] = (args->page->channels == 1u) ? 0u : 1u;
     head[2] = 1u;
     head[3] = 4u;
-    cli_put(head, 12u, page->width);
-    cli_put(head, 16u, page->height);
-    cli_put(head, 20u, dpi);
-    mmgr_line_put_n(out, (const char *)head, sizeof(head));
-    cli_print_compress(page, out);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 12u, .value = args->page->width);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 16u, .value = args->page->height);
+    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 20u, .value = args->dpi);
+    mmgr_line_put_n(args->out, (const char *)head, sizeof(head));
+    cli_print_layout.compress(args);
 }

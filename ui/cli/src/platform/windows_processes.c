@@ -3,6 +3,7 @@
 // windows_processes.c: the processes of the machine as Windows lists them, read in one snapshot, and the line each was
 // started with, read from the process where it lets that be read; and a process's memory, its start and its program's
 // name
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
 
@@ -13,32 +14,45 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 
+typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG kind, PVOID info, ULONG length, PULONG returned);
+
 // what NtQueryInformationProcess is queried for: the line a process was started with; the most bytes it is read in; and
 // the access a process is opened with to read it
 #define CLI_PROCESS_COMMAND_LINE 60u
 #define CLI_PROCESS_COMMAND_MOST (1u << 20u)
 #define CLI_PROCESS_QUERY_LIMITED 0x1000u
 
-typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG kind, PVOID info, ULONG length, PULONG returned);
-
 // the text the name is written in, under its lock
 static char s_name[MAX_PATH * 4u];
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// `count` UTF-16 units written as UTF-8 into `out`, sized for `room`, each unit that starts no whole letter as U+FFFD
-static void processes_utf8(const wchar_t *text, int count, char *out, int room)
+typedef struct
 {
-    const int written = (count > 0) ? WideCharToMultiByte(CP_UTF8, 0u, text, count, out, room - 1, NULL, NULL) : 0;
-    out[(written > 0) ? written : 0] = '\0';
+#if (defined(_WIN32))
+    const wchar_t *text;
+    int count;
+    char *out;
+    int room;
+    CliQueryProcess query;
+    DWORD pid;
+#endif
+} WindowsProcessesCtx;
+// `count` UTF-16 units written as UTF-8 into `out`, sized for `room`, each unit that starts no whole letter as U+FFFD
+EMBED_INLINE void processes_utf8(const WindowsProcessesCtx *args)
+{
+    const int written = (args->count > 0) ? WideCharToMultiByte(CP_UTF8, 0u, args->text, args->count, args->out,
+                                                                args->room - 1, NULL, NULL)
+                                          : 0;
+    args->out[(written > 0) ? written : 0] = '\0';
 }
 
 // the line process `pid` was started with, a counted string, its length in bytes first and the address of its text
 // after, the text following in the same room, read into a cell of the bytes the system reports it takes: the line as
 // UTF-8 in a cell of its own, given back with g_cli_cells->persistent_buf_release, or NULL where it cannot be read
-static char *processes_command_of(CliQueryProcess query, DWORD pid)
+EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
 {
-    const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, pid);
-    if ((process == NULL) || (query == NULL))
+    const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, args->pid);
+    if ((process == NULL) || (args->query == NULL))
     {
         if (process != NULL)
         {
@@ -48,13 +62,13 @@ static char *processes_command_of(CliQueryProcess query, DWORD pid)
     }
     char *command = NULL;
     ULONG needed = 0u;
-    (void)query(process, CLI_PROCESS_COMMAND_LINE, NULL, 0u, &needed);
+    (void)args->query(process, CLI_PROCESS_COMMAND_LINE, NULL, 0u, &needed);
     const ULONG room = needed;
     // the room taken on a cell's boundary, aligned for the string's header
     unsigned char *const base = ((room > 2u * sizeof(void *)) && (room < CLI_PROCESS_COMMAND_MOST))
                                     ? g_cli_cells->temporary_buf_alloc(room, &g_cli_platform_cells)
                                     : NULL;
-    if ((base != NULL) && (query(process, CLI_PROCESS_COMMAND_LINE, base, room, &needed) >= 0))
+    if ((base != NULL) && (args->query(process, CLI_PROCESS_COMMAND_LINE, base, room, &needed) >= 0))
     {
         unsigned short bytes = 0u;
         const wchar_t *start = NULL;
@@ -71,7 +85,8 @@ static char *processes_command_of(CliQueryProcess query, DWORD pid)
         }
         if (command != NULL)
         {
-            processes_utf8(start, (int)length, command, (int)((3u * length) + 1u));
+            EMBED_CALL(processes_utf8, WindowsProcessesCtx, .text = start, .count = (int)length, .out = command,
+                       .room = (int)((3u * length) + 1u));
         }
     }
     g_cli_cells->persistent_buf_release(base, &g_cli_platform_cells);
@@ -79,8 +94,7 @@ static char *processes_command_of(CliQueryProcess query, DWORD pid)
     return command;
 }
 
-void cli_processes_each(void (*each)(void *context, unsigned int pid, const char *name, const char *command),
-                        void *context)
+void cli_processes_each(const CliContextCtx *args)
 {
     const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
     // the function's address taken as the type it has, as GetProcAddress gives every function's
@@ -91,7 +105,7 @@ void cli_processes_each(void (*each)(void *context, unsigned int pid, const char
     {
         return;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     PROCESSENTRY32W entry;
     memor.set(&(MemoriaCfg){.dst = &entry, .val = 0, .bytes = sizeof(entry)});
     entry.dwSize = sizeof(entry);
@@ -102,18 +116,22 @@ void cli_processes_each(void (*each)(void *context, unsigned int pid, const char
         {
             end += 1;
         }
-        processes_utf8(entry.szExeFile, end, s_name, (int)sizeof(s_name));
-        char *const command = processes_command_of(query, entry.th32ProcessID);
-        each(context, (unsigned int)entry.th32ProcessID, s_name, (command != NULL) ? command : "");
+        EMBED_CALL(processes_utf8, WindowsProcessesCtx, .text = entry.szExeFile, .count = end, .out = s_name,
+                   .room = (int)sizeof(s_name));
+        char *const command =
+            EMBED_CALL(processes_command_get, WindowsProcessesCtx, .query = query, .pid = entry.th32ProcessID);
+        EMBED_CALL(args->each_callback, CliEachPidNameCommandCfg, .context = args->context,
+                   .pid = (unsigned int)entry.th32ProcessID, .name = s_name,
+                   .command = (command != NULL) ? command : "");
         g_cli_cells->persistent_buf_release(command, &g_cli_platform_cells);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     CloseHandle(snapshot);
 }
 
-int cli_process_running(unsigned int pid)
+int cli_process_running(const CliPidCtx *args)
 {
-    const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, (DWORD)pid);
+    const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, (DWORD)args->pid);
     if (process == NULL)
     {
         return 0;
@@ -124,9 +142,9 @@ int cli_process_running(unsigned int pid)
     return (read != 0) && (code == STILL_ACTIVE);
 }
 
-int cli_process_memory(unsigned int pid, CliProcessMemory *memory)
+int cli_process_memory(const CliPidCtx *args)
 {
-    const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, (DWORD)pid);
+    const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, (DWORD)args->pid);
     if (process == NULL)
     {
         return 0;
@@ -146,15 +164,15 @@ int cli_process_memory(unsigned int pid, CliProcessMemory *memory)
     {
         return 0;
     }
-    memory->working = counters.PrivateWorkingSetSize;
-    memory->commit = counters.PrivateUsage;
-    memory->started = ((unsigned long long)made.dwHighDateTime << 32u) | made.dwLowDateTime;
+    args->memory->working = counters.PrivateWorkingSetSize;
+    args->memory->commit = counters.PrivateUsage;
+    args->memory->started = ((unsigned long long)made.dwHighDateTime << 32u) | made.dwLowDateTime;
     return 1;
 }
 
-int cli_process_named(unsigned int pid, char *name, size_t room)
+int cli_process_by_name(const CliRoomPidCtx *args)
 {
-    const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, (DWORD)pid);
+    const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, (DWORD)args->pid);
     if (process == NULL)
     {
         return 0;
@@ -179,7 +197,8 @@ int cli_process_named(unsigned int pid, char *name, size_t room)
         end -= 4u;
     }
     // a name's units are fewer than a path's, which an int counts, and the room is far below what an int counts
-    processes_utf8(path + start, (int)(end - start), name, (int)room);
+    EMBED_CALL(processes_utf8, WindowsProcessesCtx, .text = path + start, .count = (int)(end - start),
+               .out = args->name_out, .room = (int)args->room_size);
     return 1;
 }
 #endif

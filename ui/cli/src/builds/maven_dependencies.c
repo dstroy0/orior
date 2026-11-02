@@ -17,51 +17,75 @@ static unsigned int s_seen;
 static char s_seen_text[CLI_MAVEN_LISTED_TEXT];
 static unsigned int s_seen_used;
 
-// the child `name` of `of`, with the properties it names given, into `out`: 1, or 0 where it has none
-static int dependencies_get(const CliMavenCheck *check, unsigned int of, const char *name, VerbaLinea *out)
+typedef struct
 {
+    const CliMavenCheck *check;
+    unsigned int of;
+    const char *name;
+    VerbaLinea *out;
+    const char *whole;
+    unsigned long long size;
+    unsigned int dependency;
+    const CliMavenModel *model;
+    const char *key;
+    int managing;
+} MavenDependenciesCtx;
+// the child `name` of `of`, with the properties it names given, into `out`: 1, or 0 where it has none
+EMBED_INLINE int dependencies_get(const MavenDependenciesCtx *args)
+{
+    unsigned int of = args->of;
+    const char *name = args->name;
+    VerbaLinea *out = args->out;
     static char s_raw[1u << 14u];
     VerbaLinea raw = {s_raw, sizeof(s_raw), 0ull};
-    if (!cli_xml_text_of(check->xml, of, name, &raw) || !mmgr_line_ok(&raw))
+    if (!EMBED_CALL(cli_maven_xml_out_internal.xml_text_get, CliMavenXmlOutCtx, .xml = args->check->xml, .of = of,
+                    .name = name, .out = &raw) ||
+        !mmgr_line_ok(&raw))
     {
         return 0;
     }
-    cli_maven_resolve(s_raw, raw.at, check->model, out);
+    EMBED_CALL(cli_maven_size_out_internal.resolve, CliMavenSizeOutCtx, .value = s_raw, .size = raw.at,
+               .model_read = args->check->model, .out = out);
     return 1;
 }
 
 // whether `size` bytes of `whole` were listed above in this list, and recorded where they were not
-static int dependencies_seen(const char *whole, unsigned long long size)
+EMBED_INLINE int dependencies_visit(const MavenDependenciesCtx *args)
 {
     for (unsigned int at = 0u; at < s_seen; at += 1u)
     {
-        if ((s_seen_size[at] == size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_seen_text + s_seen_at[at], .other = whole, .bytes = (size_t)size}) == 0))
+        if ((s_seen_size[at] == args->size) &&
+            (memor.cmp(&(MemoriaCfg){
+                 .src = s_seen_text + s_seen_at[at], .other = args->whole, .bytes = (size_t)args->size}) == 0))
         {
             return 1;
         }
     }
-    if ((s_seen < CLI_MAVEN_LISTED) && (size <= CLI_MAVEN_LISTED_TEXT - s_seen_used))
+    if ((s_seen < CLI_MAVEN_LISTED) && (args->size <= CLI_MAVEN_LISTED_TEXT - s_seen_used))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_seen_text + s_seen_used, .src = whole, .bytes = (size_t)size});
+        memor.cpy(&(MemoriaCfg){.dst = s_seen_text + s_seen_used, .src = args->whole, .bytes = (size_t)args->size});
         s_seen_at[s_seen] = s_seen_used;
-        s_seen_size[s_seen] = (unsigned int)size;
+        s_seen_size[s_seen] = (unsigned int)args->size;
         s_seen += 1u;
-        s_seen_used += (unsigned int)size;
+        s_seen_used += (unsigned int)args->size;
     }
     return 0;
 }
 
 // the scope of a dependency checked against those Maven knows
-static void dependencies_scope(const CliMavenCheck *check, unsigned int dependency)
+EMBED_INLINE void dependencies_scope(const MavenDependenciesCtx *args)
 {
-    const CliXml *const xml = check->xml;
-    const unsigned int scope = cli_xml_child(xml, dependency, "scope");
+    const CliXml *const xml = args->check->xml;
+    const unsigned int scope = EMBED_CALL(cli_maven_xml_out_internal.xml_child, CliMavenXmlOutCtx, .xml = xml,
+                                          .of = args->dependency, .name = "scope");
     static char s_value[1u << 12u];
     VerbaLinea value = {s_value, sizeof(s_value), 0ull};
     unsigned long long found = 0ull;
-    if ((scope == CLI_XML_NONE) || !cli_xml_text(xml, scope, &value) || !mmgr_line_ok(&value) ||
-        cli_text_find(s_value, value.at, "${", 2u, &found))
+    if ((scope == CLI_XML_NONE) ||
+        !EMBED_CALL(cli_maven_xml_out_internal.xml_text, CliMavenXmlOutCtx, .xml = xml, .of = scope, .out = &value) ||
+        !mmgr_line_ok(&value) ||
+        EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = s_value, .length_value = value.at, .wanted = "${",
+                   .size = 2u, .at_pointer = &found))
     {
         return;
     }
@@ -74,7 +98,7 @@ static void dependencies_scope(const CliMavenCheck *check, unsigned int dependen
         }
     }
     const CliXmlElement *const element = &xml->element[scope];
-    VerbaLinea msg = cli_build_msg_line(check->found);
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
     mmgr_line_ch(&msg, '`');
     mmgr_line_put_n(&msg, s_value, value.at);
     mmgr_line_put(&msg, "` is no scope: a scope is ");
@@ -84,33 +108,38 @@ static void dependencies_scope(const CliMavenCheck *check, unsigned int dependen
         mmgr_line_put(&msg, g_cli_maven_scopes[at]);
         mmgr_line_ch(&msg, '`');
     }
-    const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, element->inner_from,
-                                                   element->inner_to, CLI_BUILD_ERROR, "pom-scope");
+    const unsigned int finding =
+        EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found, .message = &msg,
+                   .lines = args->check->lines, .from = element->inner_from, .to = element->inner_to,
+                   .severity = CLI_BUILD_ERROR, .code = "pom-scope");
     CliBuildNear near;
-    cli_build_near_begun(&near, s_value, value.at);
+    EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near, .name = s_value, .size = value.at);
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        cli_build_near_offered(&near, g_cli_maven_scopes[at],
-                               cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_scopes[at], .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near,
+                   .one = g_cli_maven_scopes[at],
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_scopes[at], .cap = CLI_CELLS_POOL}));
     }
     for (unsigned int at = 0u; at < near.count; at += 1u)
     {
-        VerbaLinea title = cli_build_msg_line(check->found);
+        VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
         mmgr_line_put(&title, "Change to ");
         mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
-        cli_build_edit_fix(check->found, finding, &title, check->lines, element->inner_from, element->inner_to,
-                           near.near[at], near.near_size[at]);
+        EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found, .finding = finding,
+                   .title = &title, .lines = args->check->lines, .from = element->inner_from, .to = element->inner_to,
+                   .text = near.near[at], .size = near.near_size[at]);
     }
 }
 
 // whether the model's management gives `size` bytes of `key` a version
-static int dependencies_managed(const CliMavenModel *model, const char *key, unsigned long long size)
+EMBED_INLINE int dependencies_managed(const MavenDependenciesCtx *args)
 {
-    for (unsigned int at = 0u; at < model->managed; at += 1u)
+    for (unsigned int at = 0u; at < args->model->managed; at += 1u)
     {
-        if ((model->managed_size[at] == size) &&
-            (memor.cmp(
-                 &(MemoriaCfg){.src = model->text + model->managed_at[at], .other = key, .bytes = (size_t)size}) == 0))
+        if ((args->model->managed_size[at] == args->size) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->model->text + args->model->managed_at[at],
+                                     .other = args->key,
+                                     .bytes = (size_t)args->size}) == 0))
         {
             return 1;
         }
@@ -119,96 +148,115 @@ static int dependencies_managed(const CliMavenModel *model, const char *key, uns
 }
 
 // one dependency of the list checked
-static void dependencies_one(const CliMavenCheck *check, unsigned int dependency, int managing)
+EMBED_INLINE void dependencies_one(const MavenDependenciesCtx *args)
 {
+    const CliMavenCheck *check = args->check;
     const CliXml *const xml = check->xml;
-    const CliXmlElement *const element = &xml->element[dependency];
+    const CliXmlElement *const element = &xml->element[args->dependency];
     static char s_key[1u << 14u];
     static char s_whole[1u << 14u];
     static char s_version[1u << 14u];
     VerbaLinea key = {s_key, sizeof(s_key), 0ull};
-    if (!dependencies_get(check, dependency, "groupId", &key))
+    if (!EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency, .name = "groupId",
+                    .out = &key))
     {
-        VerbaLinea msg = cli_build_msg_line(check->found);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_put(&msg, "A dependency names its `<groupId>` and its `<artifactId>`");
-        (void)cli_build_finding(check->found, &msg, check->lines, element->from, element->to, CLI_BUILD_ERROR,
-                                "pom-dependency");
+        (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+                         .lines = check->lines, .from = element->from, .to = element->to, .severity = CLI_BUILD_ERROR,
+                         .code = "pom-dependency");
         return;
     }
     mmgr_line_ch(&key, ':');
-    if (!dependencies_get(check, dependency, "artifactId", &key))
+    if (!EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency,
+                    .name = "artifactId", .out = &key))
     {
-        VerbaLinea msg = cli_build_msg_line(check->found);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_put(&msg, "A dependency names its `<groupId>` and its `<artifactId>`");
-        (void)cli_build_finding(check->found, &msg, check->lines, element->from, element->to, CLI_BUILD_ERROR,
-                                "pom-dependency");
+        (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+                         .lines = check->lines, .from = element->from, .to = element->to, .severity = CLI_BUILD_ERROR,
+                         .code = "pom-dependency");
         return;
     }
     VerbaLinea whole = {s_whole, sizeof(s_whole), 0ull};
     mmgr_line_put_n(&whole, s_key, key.at);
     mmgr_line_ch(&whole, ':');
-    if (!dependencies_get(check, dependency, "type", &whole))
+    if (!EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency, .name = "type",
+                    .out = &whole))
     {
         mmgr_line_put(&whole, "jar");
     }
     mmgr_line_ch(&whole, ':');
-    (void)dependencies_get(check, dependency, "classifier", &whole);
-    if (dependencies_seen(s_whole, whole.at))
+    (void)EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency,
+                     .name = "classifier", .out = &whole);
+    if (EMBED_CALL(dependencies_visit, MavenDependenciesCtx, .whole = s_whole, .size = whole.at))
     {
-        VerbaLinea msg = cli_build_msg_line(check->found);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_ch(&msg, '`');
         mmgr_line_put_n(&msg, s_key, key.at);
         mmgr_line_put(&msg, "` is listed above it in these dependencies");
-        (void)cli_build_finding(check->found, &msg, check->lines, element->from, element->to, CLI_BUILD_WARNING,
-                                "pom-duplicate");
+        (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+                         .lines = check->lines, .from = element->from, .to = element->to, .severity = CLI_BUILD_WARNING,
+                         .code = "pom-duplicate");
     }
-    dependencies_scope(check, dependency);
+    EMBED_CALL(dependencies_scope, MavenDependenciesCtx, .check = check, .dependency = args->dependency);
     VerbaLinea version = {s_version, sizeof(s_version), 0ull};
-    if (!dependencies_get(check, dependency, "version", &version))
+    if (!EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency, .name = "version",
+                    .out = &version))
     {
         const CliMavenModel *const model = check->model;
-        if (!managing && model->whole && !model->imports && !dependencies_managed(model, s_key, key.at))
+        if (!args->managing && model->whole && !model->imports &&
+            !EMBED_CALL(dependencies_managed, MavenDependenciesCtx, .model = model, .key = s_key, .size = key.at))
         {
-            VerbaLinea msg = cli_build_msg_line(check->found);
+            VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
             mmgr_line_ch(&msg, '`');
             mmgr_line_put_n(&msg, s_key, key.at);
             mmgr_line_put(&msg, "` has no version, and no `<dependencyManagement>` gives it one");
-            (void)cli_build_finding(check->found, &msg, check->lines, element->from, element->to, CLI_BUILD_WARNING,
-                                    "pom-version");
+            (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+                             .lines = check->lines, .from = element->from, .to = element->to,
+                             .severity = CLI_BUILD_WARNING, .code = "pom-version");
         }
         return;
     }
-    if (!cli_build_snapshot(s_version, version.at))
+    if (!EMBED_CALL(cli_builds_size_version.build_snapshot, CliBuildsSizeVersionCfg, .version = s_version,
+                    .size = version.at))
     {
         return;
     }
-    const unsigned int child = cli_xml_child(xml, dependency, "version");
-    const CliXmlElement *const at = &xml->element[(child != CLI_XML_NONE) ? child : dependency];
+    const unsigned int child = EMBED_CALL(cli_maven_xml_out_internal.xml_child, CliMavenXmlOutCtx, .xml = xml,
+                                          .of = args->dependency, .name = "version");
+    const CliXmlElement *const at = &xml->element[(child != CLI_XML_NONE) ? child : args->dependency];
     VerbaLinea coordinates = {s_whole, sizeof(s_whole), 0ull};
     mmgr_line_put_n(&coordinates, s_key, key.at);
     mmgr_line_ch(&coordinates, ':');
     mmgr_line_put_n(&coordinates, s_version, version.at);
-    VerbaLinea msg = cli_build_msg_line(check->found);
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
     mmgr_line_ch(&msg, '`');
     mmgr_line_put_n(&msg, s_whole, coordinates.at);
     mmgr_line_put(&msg, "` is a snapshot, whose newest build Maven fetches with `-U`");
-    const unsigned int finding =
-        cli_build_finding(check->found, &msg, check->lines, at->inner_from, at->inner_to, CLI_BUILD_NOTE, "snapshot");
-    cli_maven_update(check, finding, s_whole, coordinates.at);
+    const unsigned int finding = EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found,
+                                            .message = &msg, .lines = check->lines, .from = at->inner_from,
+                                            .to = at->inner_to, .severity = CLI_BUILD_NOTE, .code = "snapshot");
+    EMBED_CALL(cli_maven_size_check_internal.update, CliMavenSizeCheckCtx, .check = check, .finding = finding,
+               .coordinates = s_whole, .size = coordinates.at);
 }
 
-void cli_maven_dependencies(const CliMavenCheck *check, unsigned int list)
+void cli_maven_dependencies(const CliMavenCheckCtx *args)
 {
-    const CliXml *const xml = check->xml;
-    const unsigned int parent = xml->element[list].parent;
-    const int managing = (parent != CLI_XML_NONE) && cli_xml_named(xml, parent, "dependencyManagement");
+    const CliXml *const xml = args->check->xml;
+    const unsigned int parent = xml->element[args->list].parent;
+    const int managing =
+        (parent != CLI_XML_NONE) && EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = xml,
+                                               .element = parent, .name = "dependencyManagement");
     s_seen = 0u;
     s_seen_used = 0u;
-    for (unsigned int one = xml->element[list].first; one != CLI_XML_NONE; one = xml->element[one].next)
+    for (unsigned int one = xml->element[args->list].first; one != CLI_XML_NONE; one = xml->element[one].next)
     {
-        if (cli_xml_named(xml, one, "dependency"))
+        if (EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = xml, .element = one,
+                       .name = "dependency"))
         {
-            dependencies_one(check, one, managing);
+            EMBED_CALL(dependencies_one, MavenDependenciesCtx, .check = args->check, .dependency = one,
+                       .managing = managing);
         }
     }
 }

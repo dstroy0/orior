@@ -7,40 +7,50 @@
 // the most letters of a query or a name compared
 #define CLI_SCORED_LETTERS 1024u
 
-// the bytes a letter takes in UTF-8
-static unsigned long long cli_bytes_of(unsigned int letter)
+typedef struct
 {
-    return (letter < 0x80u) ? 1ull : (letter < 0x800u) ? 2ull : (letter < 0x10000u) ? 3ull : 4ull;
+    unsigned int letter;
+} SymbolsScoreCtx;
+// the bytes a letter takes in UTF-8
+EMBED_INLINE unsigned long long cli_bytes_get(const SymbolsScoreCtx *args)
+{
+    return (args->letter < 0x80u) ? 1ull : (args->letter < 0x800u) ? 2ull : (args->letter < 0x10000u) ? 3ull : 4ull;
 }
 
-int cli_symbols_score(const char *query, const char *name, unsigned long long name_length, long long *points)
+int cli_symbols_score(const CliSymbolsQueryCfg *args)
 {
+    long long *points = args->points;
     unsigned int query_letters[CLI_SCORED_LETTERS];
     unsigned int letters[CLI_SCORED_LETTERS];
     unsigned int lower[CLI_SCORED_LETTERS];
-    const unsigned long long query_length = cellul.len(&(CatenaFinitaCfg){.src = query, .cap = CLI_CELLS_POOL});
+    const unsigned long long query_length = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL});
     if (query_length == 0ull)
     {
         *points = 0ll;
         return 1;
     }
-    const unsigned long long query_count = cli_regexp_letters(query, query_length, query_letters, CLI_SCORED_LETTERS);
-    const unsigned long long count = cli_regexp_letters(name, name_length, letters, CLI_SCORED_LETTERS);
+    const unsigned long long query_count =
+        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->query, .size = query_length,
+                   .letters = query_letters, .room_u64 = CLI_SCORED_LETTERS);
+    const unsigned long long count =
+        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->name, .size = args->name_length,
+                   .letters = letters, .room_u64 = CLI_SCORED_LETTERS);
     for (unsigned long long at = 0ull; at < query_count; at += 1ull)
     {
-        query_letters[at] = cli_regexp_lower(query_letters[at]);
+        query_letters[at] = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = query_letters[at]);
     }
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
-        lower[at] = cli_regexp_lower(letters[at]);
+        lower[at] = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letters[at]);
     }
     // a name's length is below what a long long stores
-    const long long shortness = -(long long)name_length;
+    const long long shortness = -(long long)args->name_length;
     if ((count == query_count) &&
         (memor.cmp(&(MemoriaCfg){.src = lower, .other = query_letters, .bytes = count * sizeof(lower[0])}) == 0))
     {
-        const int exact = (name_length == query_length) &&
-                          (memor.cmp(&(MemoriaCfg){.src = name, .other = query, .bytes = name_length}) == 0);
+        const int exact =
+            (args->name_length == query_length) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->name, .other = args->query, .bytes = args->name_length}) == 0);
         *points = 10000ll + (exact ? 50ll : 0ll);
         return 1;
     }
@@ -60,7 +70,7 @@ int cli_symbols_score(const char *query, const char *name, unsigned long long na
             *points = 6000ll - ((long long)byte * 10ll) + shortness;
             return 1;
         }
-        byte += cli_bytes_of(lower[at]);
+        byte += EMBED_CALL(cli_bytes_get, SymbolsScoreCtx, .letter = lower[at]);
     }
     // The first letter of each word: after `_`, `-`, `.`, a space, or a capital after a small letter
     unsigned int initials[CLI_SCORED_LETTERS];
@@ -69,12 +79,16 @@ int cli_symbols_score(const char *query, const char *name, unsigned long long na
     {
         const unsigned int letter = letters[at];
         const unsigned int before = (at != 0ull) ? letters[at - 1u] : 0u;
-        const int starts =
-            (at == 0ull) || (before == '_') || (before == '-') || (before == '.') || (before == ' ') ||
-            (cli_regexp_property(CLI_REGEXP_UPPER, letter) && cli_regexp_property(CLI_REGEXP_LOWER, before));
+        const int starts = (at == 0ull) || (before == '_') || (before == '-') || (before == '.') || (before == ' ') ||
+                           (EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_UPPER,
+                                       .letter = letter) &&
+                            EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LOWER,
+                                       .letter = before));
         const unsigned int folded = ((letter >= 'A') && (letter <= 'Z')) ? (letter + 32u) : letter;
-        if (starts &&
-            (cli_regexp_property(CLI_REGEXP_LETTER, folded) || cli_regexp_property(CLI_REGEXP_NUMBER, folded)))
+        if (starts && (EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_LETTER,
+                                  .letter = folded) ||
+                       EMBED_CALL(cli_regexp_letter.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER,
+                                  .letter = folded)))
         {
             initials[initial_count] = folded;
             initial_count += 1ull;

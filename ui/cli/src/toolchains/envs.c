@@ -15,41 +15,59 @@ typedef struct
     unsigned long long length;
 } CliSpan;
 
-// the span with the whitespace at either end left off
-static CliSpan cli_trimmed(CliSpan span)
+typedef struct
 {
-    unsigned long long start = span.length;
+    CliSpan span;
+    const char *text;
+    CliRequired *required;
+    CliSpan name;
+    const char *folder;
+    const char *name_text;
+    unsigned long long *size_pointer;
+    const unsigned char *bytes;
+    unsigned long long size;
+    unsigned long long *at;
+    CliSpan *line;
+} EnvsCtx;
+// the span with the whitespace at either end left off
+EMBED_INLINE CliSpan cli_trim(const EnvsCtx *args)
+{
+    unsigned long long start = args->span.length;
     unsigned long long end = 0ull;
     unsigned long long at = 0ull;
-    while (at < span.length)
+    while (at < args->span.length)
     {
         unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter((const unsigned char *)span.at, span.length, at, &letter);
-        if (!cli_fuzzy_white(letter))
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                   .text_bytes = (const unsigned char *)args->span.at,
+                                                   .length = args->span.length, .at = at, .letter = &letter);
+        if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
         {
-            start = (start == span.length) ? at : start;
+            start = (start == args->span.length) ? at : start;
             end = at + step;
         }
         at += step;
     }
-    return (start < end) ? (CliSpan){span.at + start, end - start} : (CliSpan){span.at, 0ull};
+    return (start < end) ? (CliSpan){args->span.at + start, end - start} : (CliSpan){args->span.at, 0ull};
 }
 
 // whether the span starts with `text`, and whether it is `text`
-static int cli_starts(CliSpan span, const char *text)
+EMBED_INLINE int cli_starts(const EnvsCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    return (span.length >= length) && (memor.cmp(&(MemoriaCfg){.src = span.at, .other = text, .bytes = length}) == 0);
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    return (args->span.length >= length) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->span.at, .other = args->text, .bytes = length}) == 0);
 }
 
-static int cli_is(CliSpan span, const char *text)
+EMBED_INLINE int cli_is(const EnvsCtx *args)
 {
-    return (span.length == cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})) &&
-           cli_starts(span, text);
+    return (args->span.length == cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL})) &&
+           cli_starts(args);
 }
 
-void cli_required_taken(CliRequired *required)
+void cli_required_take(const CliEnvsCtx *args)
 {
+    CliRequired *required = args->required;
     const unsigned long long name_bytes = (unsigned long long)CLI_ENVS_NAMES * sizeof(CliRequiredName);
     char *const cell = g_cli_cells->temporary_buf_alloc(name_bytes + CLI_ENVS_TEXT, &g_cli_envs_cells);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
@@ -62,34 +80,38 @@ void cli_required_taken(CliRequired *required)
 
 // a name put among those required: the letters, numbers, `-`, `_` and `.` it starts with, where they are some and no
 // name the same but for ASCII's case is there
-static void cli_added(CliRequired *required, CliSpan name)
+static void cli_add(const EnvsCtx *args)
 {
     unsigned long long length = 0ull;
-    while (length < name.length)
+    while (length < args->name.length)
     {
         unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter((const unsigned char *)name.at, name.length, length, &letter);
-        if (!cli_hit_wordy(letter) && (letter != '-') && (letter != '.'))
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                   .text_bytes = (const unsigned char *)args->name.at,
+                                                   .length = args->name.length, .at = length, .letter = &letter);
+        if (!EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = letter) && (letter != '-') &&
+            (letter != '.'))
         {
             break;
         }
         length += step;
     }
-    if ((length == 0ull) || (required->count >= CLI_ENVS_NAMES) || ((required->used + length) > CLI_ENVS_TEXT))
+    if ((length == 0ull) || (args->required->count >= CLI_ENVS_NAMES) ||
+        ((args->required->used + length) > CLI_ENVS_TEXT))
     {
         return;
     }
-    for (unsigned int at = 0u; at < required->count; at += 1u)
+    for (unsigned int at = 0u; at < args->required->count; at += 1u)
     {
-        if (required->name[at].length != length)
+        if (args->required->name[at].length != length)
         {
             continue;
         }
         unsigned long long same = 0ull;
         while (same < length)
         {
-            const char one = required->text[required->name[at].start + same];
-            const char other = name.at[same];
+            const char one = args->required->text[args->required->name[at].start + same];
+            const char other = args->name.at[same];
             const char one_lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one + 32) : one;
             const char other_lower = ((other >= 'A') && (other <= 'Z')) ? (char)(other + 32) : other;
             if (one_lower != other_lower)
@@ -103,70 +125,78 @@ static void cli_added(CliRequired *required, CliSpan name)
             return;
         }
     }
-    if ((required->count >= required->room) || ((required->used + length) > required->text_room))
+    if ((args->required->count >= args->required->room) ||
+        ((args->required->used + length) > args->required->text_room))
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = required->text + required->used, .src = name.at, .bytes = length});
-    required->name[required->count].start = required->used;
+    memor.cpy(&(MemoriaCfg){.dst = args->required->text + args->required->used, .src = args->name.at, .bytes = length});
+    args->required->name[args->required->count].start = args->required->used;
     // a name is below CLI_ENVS_TEXT bytes, which an unsigned int represents
-    required->name[required->count].length = (unsigned int)length;
-    required->used += (unsigned int)length;
-    required->count += 1u;
+    args->required->name[args->required->count].length = (unsigned int)length;
+    args->required->used += (unsigned int)length;
+    args->required->count += 1u;
 }
 
 // the file `name` in `folder` mapped, where it is UTF-8 whole: its bytes, or NULL
-static const unsigned char *cli_text_mapped(const char *folder, const char *name, unsigned long long *size)
+EMBED_INLINE const unsigned char *cli_text_map(const EnvsCtx *args)
 {
+    unsigned long long *size = args->size_pointer;
     char path[CLI_PATH_MAX_LEN];
-    cli_full(folder, name, path);
-    return cli_file_taken_utf8(path, size, &g_cli_envs_cells);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = args->name_text, .joined = path);
+    return EMBED_CALL(cli_path_internal.file_take_utf8, CliPathCtx, .path = path, .size_pointer = size,
+                      .owner = &g_cli_envs_cells);
 }
 
 // the next line of `size` bytes from `*at`, `*at` moved past it: 1, or 0 where the text has ended
-static int cli_next_line(const unsigned char *bytes, unsigned long long size, unsigned long long *at, CliSpan *line)
+EMBED_INLINE int cli_next_line(const EnvsCtx *args)
 {
+    unsigned long long size = args->size;
+    unsigned long long *at = args->at;
+    CliSpan *line = args->line;
     if (*at >= size)
     {
         return 0;
     }
-    const CliTextLine bounds = cli_text_line_at((const char *)bytes, *at, size);
+    const CliTextLine bounds =
+        EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = (const char *)args->bytes, .at = *at, .size = size);
     const unsigned long long end = bounds.stop;
-    *line = (CliSpan){(const char *)bytes + *at, end - *at};
+    *line = (CliSpan){(const char *)args->bytes + *at, end - *at};
     line->length -= bounds.stop - bounds.cut;
     *at = end + 1ull;
     return 1;
 }
 
 // the names `setup.cfg` requires under `[options]`, `install_requires`, those on its line and those indented below it
-static void cli_setup_read(CliRequired *required, const unsigned char *bytes, unsigned long long size)
+EMBED_INLINE void cli_setup_read(const EnvsCtx *args)
 {
     CliSpan line;
     unsigned long long at = 0ull;
     int options = 0;
     int taking = 0;
-    while (cli_next_line(bytes, size, &at, &line))
+    while (EMBED_CALL(cli_next_line, EnvsCtx, .bytes = args->bytes, .size = args->size, .at = &at, .line = &line))
     {
-        const CliSpan trimmed = cli_trimmed(line);
-        if (cli_starts(trimmed, "["))
+        const CliSpan trimmed = EMBED_CALL(cli_trim, EnvsCtx, .span = line);
+        if (EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "["))
         {
-            options = cli_is(trimmed, "[options]");
+            options = EMBED_CALL(cli_is, EnvsCtx, .span = trimmed, .text = "[options]");
             taking = 0;
             continue;
         }
-        if (!options || cli_starts(trimmed, "#") || (trimmed.length == 0ull))
+        if (!options || EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "#") || (trimmed.length == 0ull))
         {
             continue;
         }
-        if (cli_starts(trimmed, "install_requires"))
+        if (EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "install_requires"))
         {
             taking = 1;
             CliSpan rest = {trimmed.at + 16, trimmed.length - 16ull};
-            while ((rest.length > 0ull) && cli_fuzzy_white((unsigned char)rest.at[0]))
+            while ((rest.length > 0ull) && EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx,
+                                                      .letter = (unsigned char)rest.at[0]))
             {
                 rest = (CliSpan){rest.at + 1, rest.length - 1ull};
             }
-            if (!cli_starts(rest, "="))
+            if (!EMBED_CALL(cli_starts, EnvsCtx, .span = rest, .text = "="))
             {
                 continue;
             }
@@ -175,14 +205,15 @@ static void cli_setup_read(CliRequired *required, const unsigned char *bytes, un
             {
                 if ((place == rest.length) || (rest.at[place] == ',') || (rest.at[place] == ';'))
                 {
-                    cli_added(required, (CliSpan){rest.at + from, place - from});
+                    EMBED_CALL(cli_add, EnvsCtx, .required = args->required,
+                               .name = (CliSpan){rest.at + from, place - from});
                     from = place + 1ull;
                 }
             }
         }
         else if (taking && (line.length > 0ull) && ((line.at[0] == ' ') || (line.at[0] == '\t')))
         {
-            cli_added(required, trimmed);
+            EMBED_CALL(cli_add, EnvsCtx, .required = args->required, .name = trimmed);
         }
         else
         {
@@ -193,17 +224,19 @@ static void cli_setup_read(CliRequired *required, const unsigned char *bytes, un
 
 // the names a Pipfile requires under `[packages]`, and those of `requirements.txt`, each a line not a comment or an
 // option
-static void cli_pipfile_read(CliRequired *required, const unsigned char *bytes, unsigned long long size)
+EMBED_INLINE void cli_pipfile_read(const EnvsCtx *args)
 {
+    const unsigned char *bytes = args->bytes;
+    unsigned long long size = args->size;
     CliSpan line;
     unsigned long long at = 0ull;
     int packages = 0;
-    while (cli_next_line(bytes, size, &at, &line))
+    while (EMBED_CALL(cli_next_line, EnvsCtx, .bytes = bytes, .size = size, .at = &at, .line = &line))
     {
-        const CliSpan trimmed = cli_trimmed(line);
-        if (cli_starts(trimmed, "["))
+        const CliSpan trimmed = EMBED_CALL(cli_trim, EnvsCtx, .span = line);
+        if (EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "["))
         {
-            packages = cli_is(trimmed, "[packages]");
+            packages = EMBED_CALL(cli_is, EnvsCtx, .span = trimmed, .text = "[packages]");
             continue;
         }
         const char *const equals =
@@ -211,80 +244,88 @@ static void cli_pipfile_read(CliRequired *required, const unsigned char *bytes, 
         if (equals != NULL)
         {
             // the name before the equals sign, trimmed and with its quotes left off
-            CliSpan name = cli_trimmed((CliSpan){trimmed.at, (unsigned long long)(equals - trimmed.at)});
-            const unsigned long long lead = cli_text_past_any(name.at, 0ull, name.length, "\"");
+            CliSpan name =
+                EMBED_CALL(cli_trim, EnvsCtx, .span = (CliSpan){trimmed.at, (unsigned long long)(equals - trimmed.at)});
+            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                                                       .text = name.at, .at = 0ull, .size = name.length, .set = "\"");
             name = (CliSpan){name.at + lead, name.length - lead};
-            name.length = cli_text_back_past(name.at, name.length, "\"");
-            cli_added(required, name);
+            name.length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = name.at,
+                                     .at = name.length, .set = "\"");
+            EMBED_CALL(cli_add, EnvsCtx, .required = args->required, .name = name);
         }
     }
 }
 
-static void cli_requirements_read(CliRequired *required, const unsigned char *bytes, unsigned long long size)
+EMBED_INLINE void cli_requirements_read(const EnvsCtx *args)
 {
     CliSpan line;
     unsigned long long at = 0ull;
-    while (cli_next_line(bytes, size, &at, &line))
+    while (EMBED_CALL(cli_next_line, EnvsCtx, .bytes = args->bytes, .size = args->size, .at = &at, .line = &line))
     {
-        const CliSpan trimmed = cli_trimmed(line);
-        if ((trimmed.length > 0ull) && !cli_starts(trimmed, "#") && !cli_starts(trimmed, "-"))
+        const CliSpan trimmed = EMBED_CALL(cli_trim, EnvsCtx, .span = line);
+        if ((trimmed.length > 0ull) && !EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "#") &&
+            !EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "-"))
         {
-            cli_added(required, trimmed);
+            EMBED_CALL(cli_add, EnvsCtx, .required = args->required, .name = trimmed);
         }
     }
 }
 
-void cli_required_in(const char *folder, CliRequired *required)
+void cli_required_in(const CliEnvsCtx *args)
 {
-    required->count = 0u;
-    required->used = 0u;
+    args->required->count = 0u;
+    args->required->used = 0u;
     static const char *const s_files[3] = {"setup.cfg", "Pipfile", "requirements.txt"};
     for (unsigned int file = 0u; file < 3u; file += 1u)
     {
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_text_mapped(folder, s_files[file], &size);
+        const unsigned char *const bytes = EMBED_CALL(cli_text_map, EnvsCtx, .folder = args->folder,
+                                                      .name_text = s_files[file], .size_pointer = &size);
         if (bytes == NULL)
         {
             continue;
         }
         if (file == 0u)
         {
-            cli_setup_read(required, bytes, size);
+            EMBED_CALL(cli_setup_read, EnvsCtx, .required = args->required, .bytes = bytes, .size = size);
         }
         else if (file == 1u)
         {
-            cli_pipfile_read(required, bytes, size);
+            EMBED_CALL(cli_pipfile_read, EnvsCtx, .required = args->required, .bytes = bytes, .size = size);
         }
         else
         {
-            cli_requirements_read(required, bytes, size);
+            EMBED_CALL(cli_requirements_read, EnvsCtx, .required = args->required, .bytes = bytes, .size = size);
         }
-        cli_file_given(bytes, &g_cli_envs_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_envs_cells);
     }
 }
 
-void cli_required_written(const CliRequired *required, VerbaLinea *out)
+void cli_required_write(const CliEnvsOutCtx *args)
 {
-    mmgr_line_ch(out, '[');
-    for (unsigned int at = 0u; at < required->count; at += 1u)
+    mmgr_line_ch(args->out, '[');
+    for (unsigned int at = 0u; at < args->required_read->count; at += 1u)
     {
-        mmgr_line_put(out, (at != 0u) ? "," : "");
-        cli_json_quoted(out, required->text + required->name[at].start, required->name[at].length);
+        mmgr_line_put(args->out, (at != 0u) ? "," : "");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = args->required_read->text + args->required_read->name[at].start,
+                   .length = args->required_read->name[at].length);
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
 }
 
-void cli_required_given(CliRequired *required)
+void cli_required_free(const CliEnvsCtx *args)
 {
+    CliRequired *required = args->required;
     g_cli_cells->persistent_buf_release(required->name, &g_cli_envs_cells);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
 }
 
-void cli_envs_requires_in(const char *folder, VerbaLinea *out)
+void cli_envs_requires_in(const CliEnvsOutFolderCfg *args)
 {
     CliRequired required;
-    cli_required_taken(&required);
-    cli_required_in(folder, &required);
-    cli_required_written(&required, out);
-    cli_required_given(&required);
+    EMBED_CALL(cli_envs_internal.required_take, CliEnvsCtx, .required = &required);
+    EMBED_CALL(cli_envs_internal.required_in, CliEnvsCtx, .folder = args->folder, .required = &required);
+    EMBED_CALL(cli_envs_out_internal.required_write, CliEnvsOutCtx, .required_read = &required, .out = args->out);
+    EMBED_CALL(cli_envs_internal.required_free, CliEnvsCtx, .required = &required);
 }

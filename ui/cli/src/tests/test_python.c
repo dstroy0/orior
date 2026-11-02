@@ -7,83 +7,117 @@
 
 #include "../text/text.h"
 
-int cli_test_python(char *python)
+int cli_test_python(const CliTestRunsCfg *args)
 {
     static CliTreeEnvironment s_environment;
     static CliFound s_found;
     static CliLock s_python_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_python_lock);
-    int found = cli_toolchains_environment(&s_environment) && s_environment.has_python;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_python_lock);
+    int found = EMBED_CALL(cli_toolchains_table.environment, CliToolchainsCfg, .environment_out = &s_environment) &&
+                s_environment.has_python;
     if (found)
     {
-        memor.cpy(&(MemoriaCfg){.dst = python, .src = s_environment.python, .bytes = CLI_PATH_MAX_LEN});
+        memor.cpy(&(MemoriaCfg){.dst = args->python, .src = s_environment.python, .bytes = CLI_PATH_MAX_LEN});
     }
     CliJson json;
-    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
-    const unsigned int manifest = found ? CLI_JSON_NONE : cli_toolchains_manifest(&json, 0u, 0ull);
-    for (unsigned int index = 0u; !found && (cli_json_item(&json, manifest, index) != CLI_JSON_NONE); index += 1u)
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
+               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+    const unsigned int manifest =
+        found ? CLI_JSON_NONE
+              : EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &json,
+                           .nodes_more = 0u, .text_more = 0ull);
+    for (unsigned int index = 0u;
+         !found && (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json,
+                               .array = manifest, .index = index) != CLI_JSON_NONE);
+         index += 1u)
     {
-        const unsigned int tool = cli_json_item(&json, manifest, index);
-        const char *const id = cli_json_string(&json, cli_json_member(&json, tool, "id"), NULL);
+        const unsigned int tool = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = &json, .array = manifest, .index = index);
+        const char *const id =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = tool, .name = "id"),
+                       .length_pointer = NULL);
         if ((id == NULL) || (!cellul.eq(&(CatenaFinitaCfg){.src = id, .other = "python", .cap = CLI_CELLS_POOL})))
         {
             continue;
         }
         unsigned int count = 0u;
         char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_tests_cells);
-        cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &s_found);
+        EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool,
+                   .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &s_found);
         g_cli_cells->persistent_buf_release(folders, &g_cli_tests_cells);
         found = s_found.has_program;
         if (found)
         {
-            memor.cpy(&(MemoriaCfg){.dst = python, .src = s_found.program, .bytes = CLI_PATH_MAX_LEN});
+            memor.cpy(&(MemoriaCfg){.dst = args->python, .src = s_found.program, .bytes = CLI_PATH_MAX_LEN});
         }
         break;
     }
-    cli_json_given(&json);
-    cli_lock_give(&s_python_lock);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_python_lock);
     return found;
 }
 
-int cli_test_has_pytest(const char *python, const char *root)
+int cli_test_has_pytest(const CliTestRunsPythonCtx *args)
 {
     static char s_path[CLI_PATH_TEXT];
     static CliLock s_path_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_path_lock);
-    cli_toolchains_run_path(s_path, sizeof(s_path));
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_path_lock);
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
     const CliSetting settings[1] = {{"PATH", s_path}};
-    const char *const words[4] = {python, "-c", "import pytest", NULL};
-    CliRan *const ran = cli_ran_taken();
+    const char *const words[4] = {args->python, "-c", "import pytest", NULL};
+    CliRan *const ran = cli_ran_take();
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int has = cli_ran(words, root, settings, 1u, ran, &err_msg) && (ran->code == 0ll);
-    cli_ran_given(ran);
-    cli_lock_give(&s_path_lock);
+    const int has = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->root,
+                               .settings = settings, .count = 1u, .ran = ran, .err_msg = &err_msg) &&
+                    (ran->code == 0ll);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_path_lock);
     return has;
 }
 
-// the length of the file part of a test's name, before its first `::`
-static unsigned long long test_file_length(const char *id)
+typedef struct
 {
-    const char *const path =
-        cellul.find(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
-    return (path != NULL) ? (unsigned long long)(path - id)
-                          : cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL});
+    const char *id;
+    CliTestWorker *worker;
+    unsigned long long size;
+    const char *outcome;
+    const char *seen;
+    unsigned long long seen_size;
+    const char *errors;
+    unsigned long long errors_size;
+    const CliTestRun *run;
+    const char *stem;
+    unsigned int share;
+    const char *extension;
+    char *path;
+} TestPythonCtx;
+// the length of the file part of a test's name, before its first `::`
+EMBED_INLINE unsigned long long test_file_length(const TestPythonCtx *args)
+{
+    const char *const path = cellul.find(
+        &(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
+    return (path != NULL) ? (unsigned long long)(path - args->id)
+                          : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL});
 }
 
-void cli_test_shares(CliTestRun *run, unsigned int count, unsigned int most)
+void cli_test_shares(const CliTestRunsRunCountCtx *args)
 {
     static unsigned int s_file_of[CLI_TEST_NAMED];
     static unsigned int s_file_first[CLI_TEST_NAMED];
     static unsigned int s_file_size[CLI_TEST_NAMED];
     static unsigned int s_by_size[CLI_TEST_NAMED];
     unsigned int files = 0u;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const unsigned long long length = test_file_length(run->given[at]);
+        const unsigned long long length = EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->given[at]);
         unsigned int file = 0u;
-        while ((file < files) && !((test_file_length(run->given[s_file_first[file]]) == length) &&
-                                   cli_text_same(run->given[s_file_first[file]], run->given[at], length)))
+        while ((file < files) &&
+               !((EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->given[s_file_first[file]]) == length) &&
+                 EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->run->given[s_file_first[file]],
+                            .other_pointer = args->run->given[at], .size = length)))
         {
             file += 1u;
         }
@@ -102,11 +136,13 @@ void cli_test_shares(CliTestRun *run, unsigned int count, unsigned int most)
         while (place > 0u)
         {
             const unsigned int before = s_by_size[place - 1u];
-            const unsigned long long before_length = test_file_length(run->given[s_file_first[before]]);
-            const unsigned long long length = test_file_length(run->given[s_file_first[file]]);
+            const unsigned long long before_length =
+                EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->given[s_file_first[before]]);
+            const unsigned long long length =
+                EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->given[s_file_first[file]]);
             const embed_iword named_after =
-                memor.cmp(&(MemoriaCfg){.src = run->given[s_file_first[before]],
-                                        .other = run->given[s_file_first[file]],
+                memor.cmp(&(MemoriaCfg){.src = args->run->given[s_file_first[before]],
+                                        .other = args->run->given[s_file_first[file]],
                                         .bytes = (size_t)((before_length < length) ? before_length : length)});
             const int after = (s_file_size[before] < s_file_size[file]) ||
                               ((s_file_size[before] == s_file_size[file]) &&
@@ -120,7 +156,7 @@ void cli_test_shares(CliTestRun *run, unsigned int count, unsigned int most)
         }
         s_by_size[place] = file;
     }
-    unsigned int shares = (most < 1u) ? 1u : most;
+    unsigned int shares = (args->most < 1u) ? 1u : args->most;
     shares = (shares > ((files > 1u) ? files : 1u)) ? ((files > 1u) ? files : 1u) : shares;
     shares = (shares > CLI_TEST_WORKERS) ? CLI_TEST_WORKERS : shares;
     unsigned int share_of[CLI_TEST_NAMED];
@@ -137,7 +173,7 @@ void cli_test_shares(CliTestRun *run, unsigned int count, unsigned int most)
         share_of[file] = least;
         sizes[least] += s_file_size[file];
     }
-    run->shares = 0u;
+    args->run->shares = 0u;
     unsigned int placed = 0u;
     for (unsigned int share = 0u; share < shares; share += 1u)
     {
@@ -145,67 +181,78 @@ void cli_test_shares(CliTestRun *run, unsigned int count, unsigned int most)
         {
             continue;
         }
-        run->share_from[run->shares] = placed;
+        args->run->share_from[args->run->shares] = placed;
         for (unsigned int at = 0u; at < files; at += 1u)
         {
             const unsigned int file = s_by_size[at];
-            for (unsigned int one = 0u; (share_of[file] == share) && (one < count); one += 1u)
+            for (unsigned int one = 0u; (share_of[file] == share) && (one < args->count); one += 1u)
             {
                 if (s_file_of[one] == file)
                 {
-                    run->order[placed] = one;
+                    args->run->order[placed] = one;
                     placed += 1u;
                 }
             }
         }
-        run->share_size[run->shares] = placed - run->share_from[run->shares];
-        run->shares += 1u;
+        args->run->share_size[args->run->shares] = placed - args->run->share_from[args->run->shares];
+        args->run->shares += 1u;
     }
 }
 
 // a result received of a Python process: counted where it is new, and reported
-static void python_result_seen(CliTestWorker *worker, const char *id, unsigned long long size, const char *outcome)
+EMBED_INLINE void python_result_visit(const TestPythonCtx *args)
 {
+    CliTestWorker *worker = args->worker;
+    const char *id = args->id;
+    const char *outcome = args->outcome;
     char named[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {named, sizeof(named), 0ull};
-    mmgr_line_put_n(&line, id, size);
+    mmgr_line_put_n(&line, id, args->size);
     mmgr_line_finish(&line);
-    if (cli_test_seen(worker->run, worker->index, id, size, outcome))
+    if (EMBED_CALL(cli_test_runs_run_length_internal.test_visit, CliTestRunsRunLengthCtx, .run = worker->run,
+                   .worker_u32 = worker->index, .name = id, .length = args->size, .outcome = outcome))
     {
-        cli_test_outcome_counted(worker->run, outcome);
+        EMBED_CALL(cli_test_runs_run_length_internal.test_outcome_count, CliTestRunsRunLengthCtx, .run = worker->run,
+                   .outcome = outcome);
     }
-    cli_test_result_emitted(worker, named, outcome, "", 0ull, NULL, -1ll, 0.0);
+    EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker, .id = named,
+               .outcome = outcome, .message = "", .message_size = 0ull, .file = NULL, .line_i64 = -1ll, .seconds = 0.0);
 }
 
 // a line of pytest's verbose report received
-static void python_line(CliTestWorker *worker, const char *text, unsigned long long size)
+static void python_line(const CliWorkerTextSizeCfg *args)
 {
+    CliTestWorker *worker = args->worker;
+    unsigned long long size = args->size;
     unsigned long long id = 0ull;
     unsigned long long id_size = 0ull;
     const char *outcome = NULL;
-    if (worker->pytest && cli_test_pytest_line(text, size, &id, &id_size, &outcome))
+    if (worker->pytest &&
+        EMBED_CALL(cli_test_runs_size_internal.test_pytest_line, CliTestRunsSizeCtx, .line = args->text, .size = size,
+                   .id_u64s = &id, .id_size = &id_size, .outcome_pointer = &outcome))
     {
-        python_result_seen(worker, text + id, id_size, outcome);
+        EMBED_CALL(python_result_visit, TestPythonCtx, .worker = worker, .id = args->text + id, .size = id_size,
+                   .outcome = outcome);
     }
 }
 
 // the last three lines a process wrote that are not blank, of its output then its errors, joined by "\n", given as why
 // it ran no test
-static void python_tail_message(CliTestWorker *worker, const char *seen, unsigned long long seen_size,
-                                const char *errors, unsigned long long errors_size)
+EMBED_INLINE void python_tail_message(const TestPythonCtx *args)
 {
     const char *starts[3];
     unsigned long long sizes[3];
     unsigned int line_count = 0u;
-    const char *const texts[2] = {seen, errors};
-    const unsigned long long text_sizes[2] = {seen_size, errors_size};
+    const char *const texts[2] = {args->seen, args->errors};
+    const unsigned long long text_sizes[2] = {args->seen_size, args->errors_size};
     for (unsigned int which = 0u; which < 2u; which += 1u)
     {
         unsigned long long at = 0ull;
         while (at < text_sizes[which])
         {
             const char *const text = texts[which];
-            const CliTextLine bounds = cli_text_line_at(text, at, text_sizes[which]);
+            const CliTextLine bounds =
+                EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = text_sizes[which]);
             const unsigned long long end = bounds.cut;
             const unsigned long long start = at;
             at = bounds.next;
@@ -230,7 +277,8 @@ static void python_tail_message(CliTestWorker *worker, const char *seen, unsigne
         mmgr_line_put(&line, (line.at > 0ull) ? "\n" : "");
         mmgr_line_put_n(&line, starts[one % 3u], sizes[one % 3u]);
     }
-    cli_test_message_set(worker->run, message_buf, mmgr_line_ok(&line) ? line.at : sizeof(message_buf));
+    EMBED_CALL(cli_test_runs_run_text_internal.test_message_set, CliTestRunsRunTextCtx, .run = args->worker->run,
+               .text = message_buf, .length = mmgr_line_ok(&line) ? line.at : sizeof(message_buf));
 }
 
 // a Python process read until it ends: each result reported as it is printed, then unittest's report of its errors, or
@@ -238,89 +286,112 @@ static void python_tail_message(CliTestWorker *worker, const char *seen, unsigne
 static void python_worker(void *context)
 {
     CliTestWorker *const worker = (CliTestWorker *)context;
-    cli_test_lines_read(worker, python_line);
-    cli_test_errors_waited(worker);
+    EMBED_CALL(cli_test_runs_worker_line_internal.test_lines_read, CliTestRunsWorkerLineCtx, .worker = worker,
+               .line_callback = python_line);
+    EMBED_CALL(cli_test_runs_worker_line_internal.test_errors_wait, CliTestRunsWorkerLineCtx, .worker = worker);
     unsigned long long errors_size = 0ull;
-    const char *const errors = cli_test_file_read(worker->errors, &errors_size);
+    const char *const errors = EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
+                                          .path = worker->errors, .size_pointer = &errors_size);
     if (!worker->pytest && (errors != NULL))
     {
         unsigned long long at = 0ull;
         while (at < errors_size)
         {
-            const CliTextLine bounds = cli_text_line_at(errors, at, errors_size);
+            const CliTextLine bounds =
+                EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = errors, .at = at, .size = errors_size);
             unsigned long long end = bounds.stop;
             const unsigned long long start = at;
             at = bounds.next;
             end -= bounds.stop - bounds.cut;
             char id[CLI_PATH_MAX_LEN * 2u];
             const char *outcome = NULL;
-            if (cli_test_unittest_line(errors + start, end - start, id, sizeof(id), &outcome))
+            if (EMBED_CALL(cli_test_runs_size_line_internal.test_unittest_line, CliTestRunsSizeLineCtx,
+                           .line = errors + start, .size = end - start, .id_out = id, .room = sizeof(id),
+                           .outcome_pointer = &outcome))
             {
-                python_result_seen(worker, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}),
-                                   outcome);
+                EMBED_CALL(python_result_visit, TestPythonCtx, .worker = worker, .id = id,
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}),
+                           .outcome = outcome);
             }
         }
-        cli_test_unittest_failures_emitted(worker, errors, errors_size);
+        EMBED_CALL(cli_test_runs_text_worker_internal.test_unittest_failures_emit, CliTestRunsTextWorkerCtx,
+                   .worker = worker, .text = errors, .size = errors_size);
     }
     else if (worker->pytest)
     {
         unsigned long long report_size = 0ull;
-        const char *const report = cli_test_file_read(worker->report, &report_size);
+        const char *const report = EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
+                                              .path = worker->report, .size_pointer = &report_size);
         if (report != NULL)
         {
-            cli_test_report_emitted(worker, report, report_size);
+            EMBED_CALL(cli_test_runs_worker_internal.test_report_emit, CliTestRunsWorkerCtx, .worker = worker,
+                       .xml = report, .size = report_size);
         }
-        cli_test_file_let_go(report, report_size);
+        EMBED_CALL(cli_test_runs_text_worker_internal.test_file_let_go, CliTestRunsTextWorkerCtx, .text = report,
+                   .size = report_size);
     }
-    if (!cli_test_seen_any(worker->run, worker->index) && !cli_test_stopped())
+    if (!EMBED_CALL(cli_test_runs_run_length_internal.test_seen_any, CliTestRunsRunLengthCtx, .run = worker->run,
+                    .worker_u32 = worker->index) &&
+        !cli_test_stop())
     {
         unsigned long long seen_size = 0ull;
-        const char *const seen = cli_test_file_read(worker->seen, &seen_size);
-        python_tail_message(worker, (seen != NULL) ? seen : "", seen_size, (errors != NULL) ? errors : "", errors_size);
-        cli_test_file_let_go(seen, seen_size);
+        const char *const seen = EMBED_CALL(cli_test_runs_path_internal.test_file_read, CliTestRunsPathCtx,
+                                            .path = worker->seen, .size_pointer = &seen_size);
+        EMBED_CALL(python_tail_message, TestPythonCtx, .worker = worker, .seen = (seen != NULL) ? seen : "",
+                   .seen_size = seen_size, .errors = (errors != NULL) ? errors : "", .errors_size = errors_size);
+        EMBED_CALL(cli_test_runs_text_worker_internal.test_file_let_go, CliTestRunsTextWorkerCtx, .text = seen,
+                   .size = seen_size);
     }
-    cli_test_file_let_go(errors, errors_size);
+    EMBED_CALL(cli_test_runs_text_worker_internal.test_file_let_go, CliTestRunsTextWorkerCtx, .text = errors,
+               .size = errors_size);
     CliTestRun *const run = worker->run;
-    cli_lock_take(&run->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     run->going -= 1u;
-    cli_wake_all(&run->wake);
-    cli_lock_give(&run->lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &run->wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
 }
 
 // a file of the run's folder named for a share into `path`, sized for CLI_PATH_MAX_LEN
-static void python_file(const CliTestRun *run, const char *stem, unsigned int share, const char *extension, char *path)
+EMBED_INLINE void python_file(const TestPythonCtx *args)
 {
     char name[64];
     VerbaLinea line = {name, sizeof(name), 0ull};
-    mmgr_line_put(&line, stem);
-    mmgr_line_decimal(&line, share, 1u);
-    mmgr_line_put(&line, extension);
+    mmgr_line_put(&line, args->stem);
+    mmgr_line_decimal(&line, args->share, 1u);
+    mmgr_line_put(&line, args->extension);
     mmgr_line_finish(&line);
-    cli_full(run->scratch, name, path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->run->scratch, .relative = name, .joined = args->path);
 }
 
-int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, int cover, VerbaLinea *err_msg)
+int cli_python_workers_start(const CliTestRunsRunCtx *args)
 {
+    CliTestRun *run = args->run;
+    int pytest = args->pytest;
     static CliWords s_words;
     static char s_path[CLI_PATH_TEXT];
-    cli_toolchains_run_path(s_path, sizeof(s_path));
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
     const CliSetting settings[2] = {{"PATH", s_path}, {"PYTHONIOENCODING", "utf-8"}};
     for (unsigned int share = 0u; share < run->shares; share += 1u)
     {
         if (run->worker_count == CLI_TEST_WORKERS)
         {
-            mmgr_line_put(err_msg, "no more processes are run at once");
+            mmgr_line_put(args->err_msg, "no more processes are run at once");
             return 0;
         }
         CliTestWorker *const worker = &run->workers[run->worker_count];
-        python_file(run, "report-", share, ".xml", worker->report);
-        python_file(run, "coverage-", share, ".json", worker->covered);
-        python_file(run, "python-", share, ".err", worker->errors);
-        python_file(run, "python-", share, ".out", worker->seen);
+        EMBED_CALL(python_file, TestPythonCtx, .run = run, .stem = "report-", .share = share, .extension = ".xml",
+                   .path = worker->report);
+        EMBED_CALL(python_file, TestPythonCtx, .run = run, .stem = "coverage-", .share = share, .extension = ".json",
+                   .path = worker->covered);
+        EMBED_CALL(python_file, TestPythonCtx, .run = run, .stem = "python-", .share = share, .extension = ".err",
+                   .path = worker->errors);
+        EMBED_CALL(python_file, TestPythonCtx, .run = run, .stem = "python-", .share = share, .extension = ".out",
+                   .path = worker->seen);
         s_words.count = 0u;
         s_words.used = 0u;
         s_words.full = 0;
-        cli_words_put(&s_words, python);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                   .word = args->python);
         if (pytest)
         {
             char junit[CLI_PATH_MAX_LEN + 16u];
@@ -334,9 +405,10 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = worker->report, .cap = CLI_CELLS_POOL}) + 1u});
             const char *const head[4] = {"-c", g_cli_test_shim, worker->covered, run->root};
             const char *const module[2] = {"-m", "pytest"};
-            for (unsigned int at = 0u; at < (cover ? 4u : 2u); at += 1u)
+            for (unsigned int at = 0u; at < (args->cover ? 4u : 2u); at += 1u)
             {
-                cli_words_put(&s_words, cover ? head[at] : module[at]);
+                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                           .word = args->cover ? head[at] : module[at]);
             }
             // the process starts in the run's root, and pytest is bound to it as its rootdir: the ids its lines and
             // its report give are the ids the run was given though a folder above contains a configuration of its own
@@ -344,7 +416,8 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
                 "-v", "-p", "no:cacheprovider", "--tb=short", "-o", "junit_family=xunit1", "--rootdir=.", junit};
             for (unsigned int at = 0u; at < 8u; at += 1u)
             {
-                cli_words_put(&s_words, words[at]);
+                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                           .word = words[at]);
             }
         }
         else
@@ -352,7 +425,8 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
             const char *const words[3] = {"-m", "unittest", "-v"};
             for (unsigned int at = 0u; at < 3u; at += 1u)
             {
-                cli_words_put(&s_words, words[at]);
+                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                           .word = words[at]);
             }
         }
         for (unsigned int at = 0u; at < run->share_size[share]; at += 1u)
@@ -360,11 +434,12 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
             const char *const id = run->given[run->order[run->share_from[share] + at]];
             if (pytest)
             {
-                cli_words_put(&s_words, id);
+                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                           .word = id);
             }
             else
             {
-                cli_test_dotted(&s_words, id);
+                EMBED_CALL(cli_test_runs_internal.test_dot, CliTestRunsCtx, .words = &s_words, .id = id);
             }
         }
         worker->run = run;
@@ -374,21 +449,23 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
         worker->seen_count = 0u;
         worker->named = run->share_from[share];
         worker->named_count = run->share_size[share];
-        cli_lock_take(&g_cli_test_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
         const int started =
-            cli_spawn_as(CLI_PRIORITY_GUEST, &worker->spawned, s_words.word, run->root, settings, 2u, 1, err_msg);
+            EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
+                       .spawned = &worker->spawned, .words = s_words.word, .folder = run->root, .settings = settings,
+                       .count = 2u, .detached = 1, .err_msg = args->err_msg);
         run->worker_count += started ? 1u : 0u;
-        cli_lock_give(&g_cli_test_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
         if (!started)
         {
             return 0;
         }
-        cli_test_errors_started(worker);
-        cli_lock_take(&run->lock);
+        EMBED_CALL(cli_test_runs_worker_line_internal.test_errors_start, CliTestRunsWorkerLineCtx, .worker = worker);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
         run->going += 1u;
-        cli_lock_give(&run->lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
         worker->thread = (CliThread){python_worker, worker, CLI_PRIORITY_GUEST};
-        if (!cli_thread_started(&worker->thread))
+        if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &worker->thread))
         {
             python_worker(worker);
         }

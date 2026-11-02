@@ -13,8 +13,12 @@ typedef struct
     const unsigned int *count;
 } CliServeTable;
 
+typedef struct
+{
+    const char *name;
+} ServeCallCtx;
 // the answer to the call `name` among the tables: it, or NULL where none answers it
-static CliServeAnswer call_answer_of(const char *name)
+EMBED_INLINE CliServeAnswer call_answer_get(const ServeCallCtx *args)
 {
     static const CliServeTable s_tables[] = {
         {g_cli_serve_tree_calls, &g_cli_serve_tree_count},
@@ -36,8 +40,8 @@ static CliServeAnswer call_answer_of(const char *name)
     {
         for (unsigned int at = 0u; at < *s_tables[table].count; at += 1u)
         {
-            if (cellul.eq(
-                    &(CatenaFinitaCfg){.src = s_tables[table].call[at].name, .other = name, .cap = CLI_CELLS_POOL}))
+            if (cellul.eq(&(CatenaFinitaCfg){
+                    .src = s_tables[table].call[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
             {
                 return s_tables[table].call[at].answer;
             }
@@ -46,26 +50,33 @@ static CliServeAnswer call_answer_of(const char *name)
     return NULL;
 }
 
-int cli_serve_call(const char *name, const char *args, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_call(const CliServeErrMsgCfg *args)
 {
-    const CliServeAnswer answer = call_answer_of(name);
+    const CliServeAnswer answer = EMBED_CALL(call_answer_get, ServeCallCtx, .name = args->name);
     if (answer == NULL)
     {
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " is not a command of the tree's");
+        mmgr_line_put(args->err_msg, args->name);
+        mmgr_line_put(args->err_msg, " is not a command of the tree's");
         return 0;
     }
-    return cli_serve_answered(answer, args, size, out, err_msg);
+    return EMBED_CALL(cli_serve_size_internal.answer, CliServeSizeCtx, .answer = answer, .args_text = args->request,
+                      .size = args->size, .out = args->out, .err_msg = args->err_msg);
 }
 
-int cli_serve_answered(CliServeAnswer answer, const char *args, unsigned long long size, VerbaLinea *out,
-                       VerbaLinea *err_msg)
+int cli_serve_on_answer(const CliServeSizeCtx *args)
 {
+    unsigned long long size = args->size;
+    VerbaLinea *err_msg = args->err_msg;
     CliJson json;
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    unsigned int object = cli_json_taken_temporary(&json, args, size, 1u, 0ull, &ignored, &g_cli_window_cells);
-    object = cli_json_is(&json, object, CFG_JSON_OBJECT) ? object : cli_json_made(&json, CFG_JSON_OBJECT);
+    unsigned int object = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take_temporary, CliJsonTreeTextSizeErrMsgCfg,
+                                     .json = &json, .text = args->args_text, .size = size, .nodes_more = 1u,
+                                     .text_more = 0ull, .err_msg = &ignored, .owner = &g_cli_window_cells);
+    object = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = object,
+                        .kind = CFG_JSON_OBJECT)
+                 ? object
+                 : EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &json, .kind = CFG_JSON_OBJECT);
     int answered = 0;
     if (object == CLI_JSON_NONE)
     {
@@ -74,10 +85,10 @@ int cli_serve_answered(CliServeAnswer answer, const char *args, unsigned long lo
     else
     {
         const CliServeArgs read = {&json, object};
-        answered = answer(&read, out, err_msg);
+        answered = EMBED_CALL(args->answer, CliServeAnswerCfg, .request = &read, .out = args->out, .err_msg = err_msg);
         // the pool leaves a cell as it is, and a password a call carries lies in its arguments' cell
-        cli_serve_secret_wiped(&read, "password");
+        EMBED_CALL(cli_serve_err_msg_internal.secret_wiped, CliServeErrMsgCtx, .request = &read, .key = "password");
     }
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     return answered;
 }

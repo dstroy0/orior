@@ -4,10 +4,23 @@
 // below a build finds, a command line's words, and a JSON file read into a tree
 #ifndef COMPILE_DB_INTERNAL_H
 #define COMPILE_DB_INTERNAL_H
+typedef struct CliCompileDbFoundCtx CliCompileDbFoundCtx;
+typedef struct CliCompileDbTextCtx CliCompileDbTextCtx;
+typedef struct CliCompileDbFoundTopCtx CliCompileDbFoundTopCtx;
+typedef struct CliCompileDbTextLengthCtx CliCompileDbTextLengthCtx;
+typedef struct CliCompileDbRootCtx CliCompileDbRootCtx;
+typedef struct CliCompileDbIndexCtx CliCompileDbIndexCtx;
+typedef struct CliCompileDbInputsCtx CliCompileDbInputsCtx;
+typedef struct CliCompileDbPathCtx CliCompileDbPathCtx;
+typedef struct CliCompileDbReplyCtx CliCompileDbReplyCtx;
+typedef struct CliCompileDbPathStampedCtx CliCompileDbPathStampedCtx;
+typedef struct CliCompileDbCtx CliCompileDbCtx;
 
+#include "../command_line/callback_cfg.h"
 #include "../text/json_tree.h"
 #include "../text/reply.h"
 #include "compile_db.h"
+#include "embed_dispatch_layout.h"
 
 // how deep below build/cmake and build/meson a build is looked for; the most files a look reads; the most folders a
 // search below a build finds; and the files and folders their rooms are taken with
@@ -27,7 +40,7 @@ typedef struct
 } CliStamped;
 
 // What a look reads: the tree's own database, where it has one, or each build orior_cli configured, in a cell at their
-// most, given back with cli_compile_inputs_given
+// most, given back with cli_compile_inputs_free
 typedef struct
 {
     int own;
@@ -36,7 +49,7 @@ typedef struct
     unsigned int room;
 } CliInputs;
 
-// Folders a search below a build finds, in a cell at their most, given back with cli_compile_found_given
+// Folders a search below a build finds, in a cell at their most, given back with cli_compile_found_free
 typedef struct
 {
     char (*path)[CLI_PATH_MAX_LEN];
@@ -46,32 +59,31 @@ typedef struct
 
 // the cells of what a look read, and of the folders a search found, given back, each left empty; and the folders' cell
 // taken at their most, the list with no room where it is refused (compile_db.c)
-void cli_compile_inputs_given(CliInputs *inputs);
-void cli_compile_found_given(CliFoundFolders *found);
-void cli_compile_found_taken(CliFoundFolders *found);
+void cli_compile_inputs_free(const CliCompileDbInputsCtx *args);
+void cli_compile_found_free(const CliCompileDbFoundTopCtx *args);
+void cli_compile_found_take(const CliCompileDbFoundTopCtx *args);
 
 // the file at `path` with when it last changed into `stamped`: 1, or 0 where it is not there; each folder below `top`,
 // at most CLI_COMPILE_DEPTH down, that ends in the folders `tail`, `count` of them, into `found`; each file named
 // `name` below `top`, the same; and the newest file of a CMake reply folder whose name starts `index-` into `index`:
 // 1, or 0 where it contains none (compile_db.c)
-int cli_compile_stamped(const char *path, CliStamped *stamped);
-void cli_compile_folders_named(const char *top, const char *const *tail, unsigned int count, CliFoundFolders *found);
-void cli_compile_files_named(const char *top, const char *name, CliFoundFolders *found);
-int cli_compile_newest_index(const char *reply, char *index);
+int cli_compile_stamp(const CliCompileDbPathStampedCtx *args);
+void cli_compile_folders_by_name(const CliCompileDbFoundCtx *args);
+void cli_compile_files_by_name(const CliCompileDbFoundTopCtx *args);
+int cli_compile_newest_index(const CliCompileDbReplyCtx *args);
 
 // whether a letter is whitespace as a command line is read; the words of a command line, a word in double quotes
 // retained whole, the first into `first`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it has none; and each of them
 // handed to `each` (compile_db.c)
-int cli_compile_white(char letter);
-int cli_compile_first_word(const char *text, unsigned long long length, char *first);
-void cli_compile_words_each(const char *text, unsigned long long length,
-                            void (*each)(void *context, const char *word, unsigned long long size), void *context);
+int cli_compile_white(const CliCompileDbCtx *args);
+int cli_compile_first_word(const CliCompileDbTextLengthCtx *args);
+void cli_compile_words_each(const CliCompileDbTextCtx *args);
 
 // the JSON file at `path` read into `json`, a tree, its tokens a cell of their count given back as the read ends: its
 // root, or CLI_JSON_NONE where it is not there or is no JSON (compile_db.c)
-unsigned int cli_compile_json_read(CliJson *json, const char *path);
+unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args);
 // what a look at the tree at `root` reads into `inputs` (compile_db_look.c)
-void cli_compile_inputs(const char *root, CliInputs *inputs);
+void cli_compile_inputs(const CliCompileDbInputsCtx *args);
 
 // the nodes and bytes the entries gathered are taken with, the most projects, languages and flags of one compile group,
 // and the bytes the database and a compile group's flags are written in
@@ -118,10 +130,187 @@ extern CliGathering g_cli_gather;
 
 // the entries of the CMake build whose file API reply `index` is, made in the gathered tree, and the project's source
 // folder into `source`: the entries, or CLI_JSON_NONE where the reply does not read (compile_db_cmake.c)
-unsigned int cli_compile_cmake_entries(const char *index, char *source);
+unsigned int cli_compile_cmake_entries(const CliCompileDbIndexCtx *args);
 
 // the database `inputs` make into `database`: the tree's own, read for its compilers, or the builds' written together,
 // a project configured more than once taking its configuration configured last (compile_db_gather.c)
-void cli_compile_gather(const char *root, const CliInputs *inputs, CliDatabase *database);
+void cli_compile_gather(const CliCompileDbRootCtx *args);
+
+struct CliCompileDbFoundCtx
+{
+    CliFoundFolders *found;
+    const char *top;
+    const char *const *tail;
+    unsigned int count;
+};
+
+struct CliCompileDbTextCtx
+{
+    const char *text;
+    unsigned long long length;
+    void (*each)(const CliEachWordSizeCfg *args);
+    void *context;
+};
+
+struct CliCompileDbFoundTopCtx
+{
+    CliFoundFolders *found;
+    const char *top;
+    const char *name;
+};
+
+struct CliCompileDbTextLengthCtx
+{
+    const char *text;
+    unsigned long long length;
+    char *first;
+};
+
+struct CliCompileDbRootCtx
+{
+    const char *root;
+    const CliInputs *inputs_read;
+    CliDatabase *database;
+};
+
+struct CliCompileDbIndexCtx
+{
+    const char *index_read;
+    char *source;
+};
+
+struct CliCompileDbInputsCtx
+{
+    CliInputs *inputs;
+    const char *root;
+};
+
+struct CliCompileDbPathCtx
+{
+    const char *path;
+    CliJson *json;
+};
+
+struct CliCompileDbReplyCtx
+{
+    const char *reply;
+    char *index;
+};
+
+struct CliCompileDbPathStampedCtx
+{
+    const char *path;
+    CliStamped *stamped;
+};
+
+struct CliCompileDbCtx
+{
+    char letter;
+};
+
+typedef struct
+{
+    void (*compile_inputs_free)(const CliCompileDbInputsCtx *args);
+    void (*compile_inputs)(const CliCompileDbInputsCtx *args);
+} CliCompileDbInputsNs;
+EMBED_TABLE_LAYOUT(CliCompileDbInputsNs, compile_inputs_free, compile_inputs);
+EMBED_TABLE_STORAGE CliCompileDbInputsNs cli_compile_db_inputs_internal EMBED_UNUSED = {
+    .compile_inputs_free = cli_compile_inputs_free,
+    .compile_inputs = cli_compile_inputs,
+};
+
+typedef struct
+{
+    void (*compile_found_free)(const CliCompileDbFoundTopCtx *args);
+    void (*compile_found_take)(const CliCompileDbFoundTopCtx *args);
+    void (*compile_files_by_name)(const CliCompileDbFoundTopCtx *args);
+} CliCompileDbFoundTopNs;
+EMBED_TABLE_LAYOUT(CliCompileDbFoundTopNs, compile_found_free, compile_found_take, compile_files_by_name);
+EMBED_TABLE_STORAGE CliCompileDbFoundTopNs cli_compile_db_found_top_internal EMBED_UNUSED = {
+    .compile_found_free = cli_compile_found_free,
+    .compile_found_take = cli_compile_found_take,
+    .compile_files_by_name = cli_compile_files_by_name,
+};
+
+typedef struct
+{
+    int (*compile_stamp)(const CliCompileDbPathStampedCtx *args);
+} CliCompileDbPathStampedNs;
+EMBED_TABLE_LAYOUT(CliCompileDbPathStampedNs, compile_stamp);
+EMBED_TABLE_STORAGE CliCompileDbPathStampedNs cli_compile_db_path_stamped_internal EMBED_UNUSED = {
+    .compile_stamp = cli_compile_stamp,
+};
+
+typedef struct
+{
+    void (*compile_folders_by_name)(const CliCompileDbFoundCtx *args);
+} CliCompileDbFoundNs;
+EMBED_TABLE_LAYOUT(CliCompileDbFoundNs, compile_folders_by_name);
+EMBED_TABLE_STORAGE CliCompileDbFoundNs cli_compile_db_found_internal EMBED_UNUSED = {
+    .compile_folders_by_name = cli_compile_folders_by_name,
+};
+
+typedef struct
+{
+    int (*compile_newest_index)(const CliCompileDbReplyCtx *args);
+} CliCompileDbReplyNs;
+EMBED_TABLE_LAYOUT(CliCompileDbReplyNs, compile_newest_index);
+EMBED_TABLE_STORAGE CliCompileDbReplyNs cli_compile_db_reply_internal EMBED_UNUSED = {
+    .compile_newest_index = cli_compile_newest_index,
+};
+
+typedef struct
+{
+    int (*compile_white)(const CliCompileDbCtx *args);
+} CliCompileDbNsTable;
+EMBED_TABLE_LAYOUT(CliCompileDbNsTable, compile_white);
+EMBED_TABLE_STORAGE CliCompileDbNsTable cli_compile_db_internal EMBED_UNUSED = {
+    .compile_white = cli_compile_white,
+};
+
+typedef struct
+{
+    int (*compile_first_word)(const CliCompileDbTextLengthCtx *args);
+} CliCompileDbTextLengthNs;
+EMBED_TABLE_LAYOUT(CliCompileDbTextLengthNs, compile_first_word);
+EMBED_TABLE_STORAGE CliCompileDbTextLengthNs cli_compile_db_text_length_internal EMBED_UNUSED = {
+    .compile_first_word = cli_compile_first_word,
+};
+
+typedef struct
+{
+    void (*compile_words_each)(const CliCompileDbTextCtx *args);
+} CliCompileDbTextNs;
+EMBED_TABLE_LAYOUT(CliCompileDbTextNs, compile_words_each);
+EMBED_TABLE_STORAGE CliCompileDbTextNs cli_compile_db_text_internal EMBED_UNUSED = {
+    .compile_words_each = cli_compile_words_each,
+};
+
+typedef struct
+{
+    unsigned int (*compile_json_read)(const CliCompileDbPathCtx *args);
+} CliCompileDbPathNs;
+EMBED_TABLE_LAYOUT(CliCompileDbPathNs, compile_json_read);
+EMBED_TABLE_STORAGE CliCompileDbPathNs cli_compile_db_path_internal EMBED_UNUSED = {
+    .compile_json_read = cli_compile_json_read,
+};
+
+typedef struct
+{
+    unsigned int (*compile_cmake_entries)(const CliCompileDbIndexCtx *args);
+} CliCompileDbIndexNs;
+EMBED_TABLE_LAYOUT(CliCompileDbIndexNs, compile_cmake_entries);
+EMBED_TABLE_STORAGE CliCompileDbIndexNs cli_compile_db_index_internal EMBED_UNUSED = {
+    .compile_cmake_entries = cli_compile_cmake_entries,
+};
+
+typedef struct
+{
+    void (*compile_gather)(const CliCompileDbRootCtx *args);
+} CliCompileDbRootNsTable;
+EMBED_TABLE_LAYOUT(CliCompileDbRootNsTable, compile_gather);
+EMBED_TABLE_STORAGE CliCompileDbRootNsTable cli_compile_db_root_internal EMBED_UNUSED = {
+    .compile_gather = cli_compile_gather,
+};
 
 #endif

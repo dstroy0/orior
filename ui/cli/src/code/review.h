@@ -11,16 +11,53 @@
 // named apart (review.c, review_compare.c, review_text.c)
 #ifndef REVIEW_H
 #define REVIEW_H
+typedef struct CliReviewPathsCfg CliReviewPathsCfg;
+typedef struct CliReviewCfg CliReviewCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the change of the tree `root` against its last commit, or of commit `commit` against its first parent where it is
 // given, reviewed by its structure, written as `{"pieces": [{"path", "name", "kind", "how", "from", "line", "was",
 // "now", "calls"}], "groups", "other", "by", "subject"}`: 1, or 0 with why given
-int cli_review(const char *root, const char *commit, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_review(const CliReviewCfg *args);
 // the change of `count` files given whole reviewed by its structure: each at `paths`, its text as it was and as it is,
 // NULL where it has none, written as cli_review writes one, with no one who made it
-void cli_review_files(const char *const *paths, const char *const *was, const char *const *now, unsigned int count,
-                      VerbaLinea *out);
+void cli_review_files(const CliReviewPathsCfg *args);
+
+struct CliReviewPathsCfg
+{
+    VerbaLinea *out;
+    const char *const *paths;
+    const char *const *was;
+    const char *const *now;
+    unsigned int count;
+};
+
+struct CliReviewCfg
+{
+    const char *root;
+    const char *commit;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+};
+
+typedef struct
+{
+    int (*review)(const CliReviewCfg *args);
+} CliReviewNs;
+EMBED_TABLE_LAYOUT(CliReviewNs, review);
+EMBED_TABLE_STORAGE CliReviewNs cli_review_table EMBED_UNUSED = {
+    .review = cli_review,
+};
+
+typedef struct
+{
+    void (*files)(const CliReviewPathsCfg *args);
+} CliReviewPathsNs;
+EMBED_TABLE_LAYOUT(CliReviewPathsNs, files);
+EMBED_TABLE_STORAGE CliReviewPathsNs cli_review_paths EMBED_UNUSED = {
+    .files = cli_review_files,
+};
 
 #endif

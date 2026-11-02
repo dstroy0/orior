@@ -99,6 +99,8 @@ def cmd_scan(a):
         "-Dsonar.projectKey=" + PROJECT, "-Dsonar.projectName=" + PROJECT,
         "-Dsonar.sources=" + ",".join(a.sources), "-Dsonar.sourceEncoding=UTF-8", "-Dsonar.scm.disabled=true",
         "-Dsonar.exclusions=" + EXCLUSIONS, "-Dsonar.cpd.exclusions=",
+        # sonar-project.properties has SonarCloud's settings, the coverage report among them; the folders it names as tests overlap these sources
+        "-Dsonar.tests=utils/test/src", "-Dsonar.test.inclusions=utils/test/src/**",
         # the C sources, read by the sonar-cxx plugin where the server holds it, and the reports `source tidy` wrote
         "-Dsonar.cxx.file.suffixes=.c,.h,.cu,.cuh",
         "-Dsonar.cxx.includeDirectories=src/cu/includes/mmgr/include,src/cu/includes/mmgr/src,src/cu/includes/embedded_types/include,src/cu/includes,ui/cli/src,ui/query/src",

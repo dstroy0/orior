@@ -9,6 +9,11 @@
 // palette changes (base.c)
 #ifndef GUI_BASE_H
 #define GUI_BASE_H
+typedef struct GuiBaseRasterCfg GuiBaseRasterCfg;
+typedef struct GuiBaseFrameCfg GuiBaseFrameCfg;
+typedef struct GuiBaseCfg GuiBaseCfg;
+typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
+#include "embed_dispatch_layout.h"
 #include "frame.h"
 #include "palette.h"
 #include "parts/glass.h"
@@ -29,7 +34,7 @@
 #define GUI_BASE_ENTRIES (GUI_BASE_PANE_PART + ((GUI_BASE_PARTS - 1u) * GUI_BASE_GRAIN_LEVELS))
 
 // An entry: a layer's lanes over the lattice, red and blue in one word and green in another, each lane the layer's
-// share of its color with half of 255 in it, and the rest of 255 the lattice's pixel keeps
+// share of its color with half of 255 in it, and the rest of 255 the lattice's pixel saves
 typedef struct
 {
     unsigned int red_blue;
@@ -101,20 +106,95 @@ typedef struct
 
 // the base made for a window `width` by `height`, its tile tables in a cell of their own, laid for nothing yet: 1,
 // or 0 where the cell could not be taken; and its cell given back
-int gui_base_made(GuiBase *base, unsigned int width, unsigned int height);
-void gui_base_given(GuiBase *base);
-// the base's map sized to a window `width` by `height`, its tile tables kept, laid for nothing until it is laid again
-void gui_base_sized(GuiBase *base, unsigned int width, unsigned int height);
+int gui_base_init(const GuiBaseWidthCfg *args);
+void gui_base_free(const GuiBaseWidthCfg *args);
+// the base's map sized to a window `width` by `height`, its tile tables saved, laid for nothing until it is laid again
+void gui_base_resize(const GuiBaseWidthCfg *args);
 // the map laid for `frame` in `palette`'s colors, the controls' pane laid as a pane where `controls_steady` is set,
 // where the base is not already laid for them: 1 where it was laid, 0 where it stood
-int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palette, int controls_steady);
+int gui_base_layout(const GuiBaseFrameCfg *args);
 // the layer the map holds at x, y: the last rectangle laid over the pixel, or nothing
-unsigned int gui_base_layer_at(const GuiBase *base, int x, int y);
-// the entries made for `palette`'s colors, where they are not already; a map read over them keeps its runs
-void gui_base_painted(GuiBase *base, const GuiPalette *palette);
+unsigned int gui_base_layer_at(const GuiBaseCfg *args);
+// the entries made for `palette`'s colors, where they are not already; a map read over them saves its runs
+void gui_base_paint(const GuiBaseFrameCfg *args);
 // every pixel of `raster` written once from `ground`'s pixel, or `color` where the ground is not the raster's
 // size, through the runs of its row's band; and the same through `map`, a map made for a stage, which the base's own
 // entries color
-void gui_base_drawn(const GuiBase *base, GuiRaster *raster, const GuiRaster *ground, GuiColor color);
-void gui_base_map_drawn(const GuiBase *base, const GuiBaseMap *map, GuiRaster *raster, const GuiRaster *ground, GuiColor color);
+void gui_base_draw(const GuiBaseRasterCfg *args);
+void gui_base_map_draw(const GuiBaseRasterCfg *args);
+struct GuiBaseRasterCfg
+{
+    const GuiBase *base_read;
+    GuiRaster *raster;
+    const GuiRaster *ground;
+    GuiColor color;
+    const GuiBaseMap *map;
+};
+
+struct GuiBaseFrameCfg
+{
+    GuiBase *base;
+    const GuiFrame *frame;
+    const GuiPalette *palette;
+    int controls_steady;
+};
+
+struct GuiBaseCfg
+{
+    const GuiBase *base_read;
+    int x;
+    int y;
+};
+
+struct GuiBaseWidthCfg
+{
+    GuiBase *base;
+    unsigned int width;
+    unsigned int height;
+};
+
+typedef struct
+{
+    int (*init)(const GuiBaseWidthCfg *args);
+    void (*free)(const GuiBaseWidthCfg *args);
+    void (*resize)(const GuiBaseWidthCfg *args);
+} GuiBaseWidthNs;
+EMBED_TABLE_LAYOUT(GuiBaseWidthNs, init, free, resize);
+EMBED_TABLE_STORAGE GuiBaseWidthNs gui_base_width EMBED_UNUSED = {
+    .init = gui_base_init,
+    .free = gui_base_free,
+    .resize = gui_base_resize,
+};
+
+typedef struct
+{
+    int (*layout)(const GuiBaseFrameCfg *args);
+    void (*paint)(const GuiBaseFrameCfg *args);
+} GuiBaseFrameNs;
+EMBED_TABLE_LAYOUT(GuiBaseFrameNs, layout, paint);
+EMBED_TABLE_STORAGE GuiBaseFrameNs gui_base_frame EMBED_UNUSED = {
+    .layout = gui_base_layout,
+    .paint = gui_base_paint,
+};
+
+typedef struct
+{
+    unsigned int (*layer_at)(const GuiBaseCfg *args);
+} GuiBaseNs;
+EMBED_TABLE_LAYOUT(GuiBaseNs, layer_at);
+EMBED_TABLE_STORAGE GuiBaseNs gui_base_table EMBED_UNUSED = {
+    .layer_at = gui_base_layer_at,
+};
+
+typedef struct
+{
+    void (*draw)(const GuiBaseRasterCfg *args);
+    void (*map_draw)(const GuiBaseRasterCfg *args);
+} GuiBaseRasterNs;
+EMBED_TABLE_LAYOUT(GuiBaseRasterNs, draw, map_draw);
+EMBED_TABLE_STORAGE GuiBaseRasterNs gui_base_raster EMBED_UNUSED = {
+    .draw = gui_base_draw,
+    .map_draw = gui_base_map_draw,
+};
+
 #endif

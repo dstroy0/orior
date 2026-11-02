@@ -9,8 +9,10 @@
 // .ksc. The query reads them the same way (query_jobs.c)
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
+typedef struct CliProtocolCfg CliProtocolCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the programs as the toolchains find them: the gcc or the llvm toolchain's compilers, whichever is chosen, the cuda
 // toolchain's nvcc and the programs beside it, the msvc toolchain's cl, the python toolchain's program; the PATH alone
@@ -20,6 +22,23 @@ QueryPrograms cli_protocol_programs(void);
 
 // `orior_cli protocol <words>`, `count` of them, run on the tree at `root`, each line printed through `sink`: the code
 // to exit with, or -1 with why the words could not be run printed through `sink`
-int cli_protocol_run(const char *root, const char *const *words, unsigned int count, QuerySink sink);
+int cli_protocol_run(const CliProtocolCfg *args);
+
+struct CliProtocolCfg
+{
+    const char *root;
+    const char *const *words;
+    unsigned int count;
+    QuerySink sink;
+};
+
+typedef struct
+{
+    int (*run)(const CliProtocolCfg *args);
+} CliProtocolNs;
+EMBED_TABLE_LAYOUT(CliProtocolNs, run);
+EMBED_TABLE_STORAGE CliProtocolNs cli_protocol EMBED_UNUSED = {
+    .run = cli_protocol_run,
+};
 
 #endif

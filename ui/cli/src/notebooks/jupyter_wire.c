@@ -16,17 +16,18 @@
 static CliLock s_next_lock = CLI_LOCK_INIT;
 static unsigned long long s_next = 1ull;
 
-void cli_kernel_key_made(char *key)
+void cli_kernel_key_init(const CliJupyterKeyCtx *args)
 {
     unsigned char bytes[32];
-    if (!cli_random_bytes(bytes, sizeof(bytes)))
+    if (!EMBED_CALL(cli_size_bytes_internal.random_bytes, CliSizeBytesCtx, .bytes_out = bytes, .size = sizeof(bytes)))
     {
         // where the system gives no randomness, the clocks, this process and a number of its own are hashed
         const unsigned long long seed[4] = {cli_wall_milliseconds(), cli_clock_milliseconds(), cli_process_own(),
                                             cli_kernel_next()};
-        cli_sha256_bytes(seed, sizeof(seed), bytes);
+        EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = seed, .size = sizeof(seed),
+                   .digest = bytes);
     }
-    VerbaLinea line = {key, 65ull, 0ull};
+    VerbaLinea line = {args->key, 65ull, 0ull};
     static const char s_hex[17] = "0123456789abcdef";
     for (unsigned int at = 0u; at < sizeof(bytes); at += 1u)
     {
@@ -38,23 +39,23 @@ void cli_kernel_key_made(char *key)
 
 unsigned long long cli_kernel_next(void)
 {
-    cli_lock_take(&s_next_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_next_lock);
     const unsigned long long next = s_next;
     s_next += 1ull;
-    cli_lock_give(&s_next_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_next_lock);
     return next;
 }
 
-void cli_kernel_id_made(const char *session, char *id)
+void cli_kernel_id_init(const CliJupyterSessionCtx *args)
 {
-    VerbaLinea line = {id, CLI_KERNEL_ID, 0ull};
-    mmgr_line_put(&line, session);
+    VerbaLinea line = {args->id, CLI_KERNEL_ID, 0ull};
+    mmgr_line_put(&line, args->session);
     mmgr_line_ch(&line, '_');
     mmgr_line_decimal(&line, cli_kernel_next(), 1u);
     mmgr_line_finish(&line);
 }
 
-void cli_kernel_now_written(VerbaLinea *out)
+void cli_kernel_now_write(const CliJupyterOutCtx *args)
 {
     const unsigned long long milliseconds = cli_wall_milliseconds();
     const unsigned long long seconds = milliseconds / 1000ull;
@@ -71,37 +72,55 @@ void cli_kernel_now_written(VerbaLinea *out)
     const unsigned long long month = (month_index < 10ull) ? month_index + 3ull : month_index - 9ull;
     const unsigned long long year = year_of_era + (era * 400ull) + ((month <= 2ull) ? 1ull : 0ull);
     const unsigned long long rest = seconds % 86400ull;
-    mmgr_line_decimal(out, year, 4u);
-    mmgr_line_ch(out, '-');
-    mmgr_line_decimal(out, month, 2u);
-    mmgr_line_ch(out, '-');
-    mmgr_line_decimal(out, day, 2u);
-    mmgr_line_ch(out, 'T');
-    mmgr_line_decimal(out, rest / 3600ull, 2u);
-    mmgr_line_ch(out, ':');
-    mmgr_line_decimal(out, (rest % 3600ull) / 60ull, 2u);
-    mmgr_line_ch(out, ':');
-    mmgr_line_decimal(out, rest % 60ull, 2u);
-    mmgr_line_ch(out, '.');
+    mmgr_line_decimal(args->out, year, 4u);
+    mmgr_line_ch(args->out, '-');
+    mmgr_line_decimal(args->out, month, 2u);
+    mmgr_line_ch(args->out, '-');
+    mmgr_line_decimal(args->out, day, 2u);
+    mmgr_line_ch(args->out, 'T');
+    mmgr_line_decimal(args->out, rest / 3600ull, 2u);
+    mmgr_line_ch(args->out, ':');
+    mmgr_line_decimal(args->out, (rest % 3600ull) / 60ull, 2u);
+    mmgr_line_ch(args->out, ':');
+    mmgr_line_decimal(args->out, rest % 60ull, 2u);
+    mmgr_line_ch(args->out, '.');
     // the wall clock reads milliseconds, written to the microsecond as Jupyter's headers are
-    mmgr_line_decimal(out, (milliseconds % 1000ull) * 1000ull, 6u);
-    mmgr_line_ch(out, 'Z');
+    mmgr_line_decimal(args->out, (milliseconds % 1000ull) * 1000ull, 6u);
+    mmgr_line_ch(args->out, 'Z');
 }
 
+typedef struct
+{
+    const char *key;
+    const CliZmtpFrame *parts;
+    unsigned int count;
+    char *hex;
+    CliKernel *kernel;
+    const char *id;
+    const unsigned char *message;
+    unsigned long long size;
+    CliKernelReader *reader;
+    const CliZmtpFrame *header;
+    const char *name;
+    VerbaLinea *out;
+    char *copy;
+    unsigned long long room;
+} JupyterWireCtx;
 // the HMAC by SHA-256 of `count` frames taken one after another, with the kernel's key, as RFC 2104 sets it out, in
 // lowercase hex into `hex`, sized for 65
-static void jupyter_signed(const char *key, const CliZmtpFrame *parts, unsigned int count, char *hex)
+static void jupyter_sign(const JupyterWireCtx *args)
 {
     unsigned char block[64];
     memor.set(&(MemoriaCfg){.dst = block, .val = 0, .bytes = sizeof(block)});
-    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
+    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
     if (key_size > sizeof(block))
     {
-        cli_sha256_bytes(key, key_size, block);
+        EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = args->key, .size = key_size,
+                   .digest = block);
     }
     else
     {
-        memor.cpy(&(MemoriaCfg){.dst = block, .src = key, .bytes = key_size});
+        memor.cpy(&(MemoriaCfg){.dst = block, .src = args->key, .bytes = key_size});
     }
     unsigned char pad[64];
     unsigned char inner[32];
@@ -111,94 +130,99 @@ static void jupyter_signed(const char *key, const CliZmtpFrame *parts, unsigned 
     {
         pad[at] = (unsigned char)(block[at] ^ 0x36u);
     }
-    cli_sha256_begun(&sha);
-    cli_sha256_taken(&sha, pad, sizeof(pad));
-    for (unsigned int part = 0u; part < count; part += 1u)
+    EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = sizeof(pad));
+    for (unsigned int part = 0u; part < args->count; part += 1u)
     {
-        cli_sha256_taken(&sha, parts[part].bytes, parts[part].size);
+        EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = args->parts[part].bytes,
+                   .size = args->parts[part].size);
     }
-    cli_sha256_ended(&sha, inner);
+    EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = inner);
     for (unsigned int at = 0u; at < sizeof(pad); at += 1u)
     {
         pad[at] = (unsigned char)(block[at] ^ 0x5cu);
     }
-    cli_sha256_begun(&sha);
-    cli_sha256_taken(&sha, pad, sizeof(pad));
-    cli_sha256_taken(&sha, inner, sizeof(inner));
-    cli_sha256_ended(&sha, outer);
+    EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = sizeof(pad));
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = inner, .size = sizeof(inner));
+    EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = outer);
     static const char s_hex[17] = "0123456789abcdef";
     for (unsigned int at = 0u; at < sizeof(outer); at += 1u)
     {
-        hex[at * 2u] = s_hex[outer[at] >> 4u];
-        hex[(at * 2u) + 1u] = s_hex[outer[at] & 0x0fu];
+        args->hex[at * 2u] = s_hex[outer[at] >> 4u];
+        args->hex[(at * 2u) + 1u] = s_hex[outer[at] & 0x0fu];
     }
-    hex[64] = '\0';
+    args->hex[64] = '\0';
 }
 
 // the request `id`, `size` bytes of `message` whole, put after those queued on the shell, under the shell's lock: 1, or
 // 0 where the cells cannot meet it
-static int jupyter_shell_queued(CliKernel *kernel, const char *id, const unsigned char *message,
-                                unsigned long long size)
+EMBED_INLINE int jupyter_shell_queue(const JupyterWireCtx *args)
 {
-    if (kernel->shell_queue.out == NULL)
+    if (args->kernel->shell_queue.out == NULL)
     {
         char *const queue_cell = g_cli_cells->persistent_buf_alloc(CLI_KERNEL_QUEUE_ROOM, &g_cli_notebook_cells);
-        kernel->shell_queue = mmgr_line_over(queue_cell, CLI_KERNEL_QUEUE_ROOM);
+        args->kernel->shell_queue = mmgr_line_over(queue_cell, CLI_KERNEL_QUEUE_ROOM);
     }
     char named[CLI_KERNEL_ID];
     memor.set(&(MemoriaCfg){.dst = named, .val = 0, .bytes = sizeof(named)});
     VerbaLinea name = {named, sizeof(named), 0ull};
-    mmgr_line_put(&name, id);
-    mmgr_line_put_n(&kernel->shell_queue, named, sizeof(named));
-    mmgr_line_put_n(&kernel->shell_queue, (const char *)&size, sizeof(size));
+    mmgr_line_put(&name, args->id);
+    mmgr_line_put_n(&args->kernel->shell_queue, named, sizeof(named));
+    mmgr_line_put_n(&args->kernel->shell_queue, (const char *)&args->size, sizeof(args->size));
     // a message is below the cells' pool, which a size_t counts
-    mmgr_line_put_n(&kernel->shell_queue, (const char *)message, (size_t)size);
-    return mmgr_line_ok(&kernel->shell_queue);
+    mmgr_line_put_n(&args->kernel->shell_queue, (const char *)args->message, (size_t)args->size);
+    return mmgr_line_ok(&args->kernel->shell_queue);
 }
 
-void cli_kernel_shell_answered(CliKernel *kernel, const char *parent)
+void cli_kernel_shell_answer(const CliJupyterKernelParentCtx *args)
 {
-    cli_lock_take(&kernel->shell_lock);
-    if ((kernel->shell_flight[0] != '\0') &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = kernel->shell_flight, .other = parent, .cap = CLI_CELLS_POOL})))
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->shell_lock);
+    if ((args->kernel->shell_flight[0] != '\0') &&
+        (cellul.eq(
+            &(CatenaFinitaCfg){.src = args->kernel->shell_flight, .other = args->parent, .cap = CLI_CELLS_POOL})))
     {
-        kernel->shell_flight[0] = '\0';
+        args->kernel->shell_flight[0] = '\0';
         // the next queued request sent, one the connection refuses passed over for the one after it
-        while ((kernel->shell_flight[0] == '\0') && (kernel->shell_queue_from < kernel->shell_queue.at))
+        while ((args->kernel->shell_flight[0] == '\0') &&
+               (args->kernel->shell_queue_from < args->kernel->shell_queue.at))
         {
-            const char *const named = kernel->shell_queue.out + kernel->shell_queue_from;
+            const char *const named = args->kernel->shell_queue.out + args->kernel->shell_queue_from;
             unsigned long long size = 0ull;
             memor.cpy(&(MemoriaCfg){.dst = &size, .src = named + CLI_KERNEL_ID, .bytes = sizeof(size)});
             const unsigned char *const message = (const unsigned char *)(named + CLI_KERNEL_ID + sizeof(size));
-            if (cli_socket_written(&kernel->shell, message, size))
+            if (EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->kernel->shell,
+                           .bytes = message, .size = size))
             {
-                memor.cpy(&(MemoriaCfg){.dst = kernel->shell_flight, .src = named, .bytes = CLI_KERNEL_ID});
+                memor.cpy(&(MemoriaCfg){.dst = args->kernel->shell_flight, .src = named, .bytes = CLI_KERNEL_ID});
             }
-            kernel->shell_queue_from += CLI_KERNEL_ID + sizeof(size) + size;
+            args->kernel->shell_queue_from += CLI_KERNEL_ID + sizeof(size) + size;
         }
-        if (kernel->shell_queue_from >= kernel->shell_queue.at)
+        if (args->kernel->shell_queue_from >= args->kernel->shell_queue.at)
         {
-            kernel->shell_queue_from = 0ull;
-            kernel->shell_queue.at = 0u;
+            args->kernel->shell_queue_from = 0ull;
+            args->kernel->shell_queue.at = 0u;
         }
     }
-    cli_lock_give(&kernel->shell_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->shell_lock);
 }
 
-int cli_kernel_frames_sent(CliKernel *kernel, const CliSocket *socket, CliLock *lock, const char *id,
-                           const char *msg_type, const char *content, unsigned long long length)
+int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
 {
     char header[2048];
     VerbaLinea line = {header, sizeof(header), 0ull};
     mmgr_line_put(&line, "{\"msg_id\":");
-    cli_json_quoted(&line, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = args->id_read,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->id_read, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&line, ",\"session\":");
-    cli_json_quoted(&line, kernel->session,
-                    cellul.len(&(CatenaFinitaCfg){.src = kernel->session, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line,
+               .text = args->kernel->session,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->kernel->session, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&line, ",\"username\":\"orior\",\"date\":\"");
-    cli_kernel_now_written(&line);
+    EMBED_CALL(cli_jupyter_out_internal.kernel_now_write, CliJupyterOutCtx, .out = &line);
     mmgr_line_put(&line, "\",\"msg_type\":");
-    cli_json_quoted(&line, msg_type, cellul.len(&(CatenaFinitaCfg){.src = msg_type, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = args->msg_type,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->msg_type, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&line, ",\"version\":\"5.3\"}");
     if (!mmgr_line_ok(&line))
     {
@@ -210,28 +234,33 @@ int cli_kernel_frames_sent(CliKernel *kernel, const CliSocket *socket, CliLock *
         {(const unsigned char *)header, line.at},
         {(const unsigned char *)"{}", 2ull},
         {(const unsigned char *)"{}", 2ull},
-        {(const unsigned char *)content, length},
+        {(const unsigned char *)args->content, args->length},
     };
     char signature[72];
-    jupyter_signed(kernel->key, frames + 2, 4u, signature);
+    EMBED_CALL(jupyter_sign, JupyterWireCtx, .key = args->kernel->key, .parts = frames + 2, .count = 4u,
+               .hex = signature);
     frames[1].bytes = (const unsigned char *)signature;
     unsigned long long size = 0ull;
-    unsigned char *const message = cli_zmtp_message_made(frames, 6u, &size);
+    unsigned char *const message =
+        EMBED_CALL(cli_zmtp.message_init, CliZmtpCfg, .frames = frames, .count = 6u, .size = &size);
     if (message == NULL)
     {
         return 0;
     }
-    const int shell = socket == &kernel->shell;
-    cli_lock_take(lock);
-    const int now = !shell || (kernel->shell_flight[0] == '\0');
-    const int sent = now ? cli_socket_written(socket, message, size) : jupyter_shell_queued(kernel, id, message, size);
+    const int shell = args->socket == &args->kernel->shell;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = args->lock);
+    const int now = !shell || (args->kernel->shell_flight[0] == '\0');
+    const int sent = now ? EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->socket,
+                                      .bytes = message, .size = size)
+                         : EMBED_CALL(jupyter_shell_queue, JupyterWireCtx, .kernel = args->kernel, .id = args->id_read,
+                                      .message = message, .size = size);
     if (shell && now && sent)
     {
-        VerbaLinea flight = {kernel->shell_flight, sizeof(kernel->shell_flight), 0ull};
-        mmgr_line_put(&flight, id);
+        VerbaLinea flight = {args->kernel->shell_flight, sizeof(args->kernel->shell_flight), 0ull};
+        mmgr_line_put(&flight, args->id_read);
         (void)mmgr_line_finish(&flight);
     }
-    cli_lock_give(lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = args->lock);
     g_cli_cells->persistent_buf_release(message, &g_cli_notebook_cells);
     return sent;
 }
@@ -239,79 +268,97 @@ int cli_kernel_frames_sent(CliKernel *kernel, const CliSocket *socket, CliLock *
 // the string member `name` of a header `size` bytes long, read into the reader's room, written as JSON into `out`, ""
 // where it has none, and into `copy`, sized for `room`, where it is given and fits: 1, or 0 where the header is no
 // JSON
-static int jupyter_header_member(CliKernelReader *reader, const CliZmtpFrame *header, const char *name, VerbaLinea *out,
-                                 char *copy, unsigned long long room)
+EMBED_INLINE int jupyter_header_member(const JupyterWireCtx *args)
 {
+    const char *name = args->name;
+    VerbaLinea *out = args->out;
     CliJson json;
-    cli_json_begun(&json, reader->nodes, CLI_KERNEL_HEADER_NODES, reader->text, CLI_KERNEL_HEADER_TEXT);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
+               .node_json_node_pointer = args->reader->nodes, .nodes_most = CLI_KERNEL_HEADER_NODES,
+               .text_out = args->reader->text, .text_most = CLI_KERNEL_HEADER_TEXT);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const char *const text = (const char *)header->bytes;
+    const char *const text = (const char *)args->header->bytes;
     const unsigned int root =
-        cli_utf8_whole(text, header->size)
-            ? cli_json_read(&json, text, header->size, reader->tokens, CLI_KERNEL_HEADER_NODES, &unread)
+        EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = text, .size = args->header->size)
+            ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &json,
+                         .text = text, .size = args->header->size, .tokens = args->reader->tokens,
+                         .tokens_most = CLI_KERNEL_HEADER_NODES, .err_msg = &unread)
             : CLI_JSON_NONE;
     if (root == CLI_JSON_NONE)
     {
         return 0;
     }
     unsigned long long length = 0ull;
-    const char *const value = cli_json_string(&json, cli_json_member(&json, root, name), &length);
-    cli_json_quoted(out, (value != NULL) ? value : "", length);
-    if (copy != NULL)
+    const char *const value =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = root, .name = name),
+                   .length_pointer = &length);
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
+               .text = (value != NULL) ? value : "", .length = length);
+    if (args->copy != NULL)
     {
-        const int fits = (value != NULL) && (length < room) &&
+        const int fits = (value != NULL) && (length < args->room) &&
                          (memor.chr(&(MemoriaCfg){.src = value, .val = '\0', .bytes = length}) == NULL);
-        memor.cpy(&(MemoriaCfg){.dst = copy, .src = fits ? value : "", .bytes = fits ? length : 0ull});
-        copy[fits ? length : 0ull] = '\0';
+        memor.cpy(&(MemoriaCfg){.dst = args->copy, .src = fits ? value : "", .bytes = fits ? length : 0ull});
+        args->copy[fits ? length : 0ull] = '\0';
     }
     return 1;
 }
 
-int cli_kernel_message_written(CliKernelReader *reader, const CliZmtpFrame *frames, unsigned int count, VerbaLinea *out,
-                               char *parent)
+int cli_kernel_message_write(const CliJupyterOutCtx *args)
 {
     const unsigned long long mark = sizeof(CLI_KERNEL_MARK) - 1ull;
     unsigned int at = 0u;
-    while ((at < count) &&
-           !((frames[at].size == mark) &&
-             (memor.cmp(&(MemoriaCfg){.src = frames[at].bytes, .other = CLI_KERNEL_MARK, .bytes = mark}) == 0)))
+    while ((at < args->count) &&
+           !((args->frames[at].size == mark) &&
+             (memor.cmp(&(MemoriaCfg){.src = args->frames[at].bytes, .other = CLI_KERNEL_MARK, .bytes = mark}) == 0)))
     {
         at += 1u;
     }
-    if ((at >= count) || (count - at - 1u < CLI_KERNEL_PARTS))
+    if ((at >= args->count) || (args->count - at - 1u < CLI_KERNEL_PARTS))
     {
         return 0;
     }
-    const CliZmtpFrame *const parts = frames + at + 1u;
-    const char *const key = reader->kernel->key;
+    const CliZmtpFrame *const parts = args->frames + at + 1u;
+    const char *const key = args->reader->kernel->key;
     if (key[0] != '\0')
     {
         char signature[72];
-        jupyter_signed(key, parts + 1, 4u, signature);
+        EMBED_CALL(jupyter_sign, JupyterWireCtx, .key = key, .parts = parts + 1, .count = 4u, .hex = signature);
         if ((parts[0].size != 64ull) ||
             (memor.cmp(&(MemoriaCfg){.src = parts[0].bytes, .other = signature, .bytes = 64u}) != 0))
         {
             return 0;
         }
     }
-    const unsigned long long from = out->at;
-    mmgr_line_put(out, "{\"channel\":");
-    cli_json_quoted(out, reader->channel,
-                    cellul.len(&(CatenaFinitaCfg){.src = reader->channel, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, ",\"msg_type\":");
-    const int header = jupyter_header_member(reader, &parts[1], "msg_type", out, NULL, 0ull);
-    mmgr_line_put(out, ",\"msg_id\":");
-    const int id = header && jupyter_header_member(reader, &parts[1], "msg_id", out, NULL, 0ull);
-    mmgr_line_put(out, ",\"parent\":");
-    const int parented = id && jupyter_header_member(reader, &parts[2], "msg_id", out, parent, CLI_KERNEL_ID);
-    mmgr_line_put(out, ",\"content\":");
-    const int whole = parented && cli_utf8_whole((const char *)parts[4].bytes, parts[4].size) &&
-                      cli_json_compacted((const char *)parts[4].bytes, parts[4].size, out);
-    mmgr_line_ch(out, '}');
-    if (!whole || !mmgr_line_ok(out))
+    const unsigned long long from = args->out->at;
+    mmgr_line_put(args->out, "{\"channel\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+               .text = args->reader->channel,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->reader->channel, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->out, ",\"msg_type\":");
+    const int header = EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[1],
+                                  .name = "msg_type", .out = args->out, .copy = NULL, .room = 0ull);
+    mmgr_line_put(args->out, ",\"msg_id\":");
+    const int id =
+        header && EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[1],
+                             .name = "msg_id", .out = args->out, .copy = NULL, .room = 0ull);
+    mmgr_line_put(args->out, ",\"parent\":");
+    const int parented =
+        id && EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[2],
+                         .name = "msg_id", .out = args->out, .copy = args->parent_out, .room = CLI_KERNEL_ID);
+    mmgr_line_put(args->out, ",\"content\":");
+    const int whole = parented &&
+                      EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg,
+                                 .bytes = (const char *)parts[4].bytes, .size = parts[4].size) &&
+                      EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
+                                 .text = (const char *)parts[4].bytes, .size = parts[4].size, .out = args->out);
+    mmgr_line_ch(args->out, '}');
+    if (!whole || !mmgr_line_ok(args->out))
     {
-        out->at = from;
+        args->out->at = from;
         return 0;
     }
     return 1;

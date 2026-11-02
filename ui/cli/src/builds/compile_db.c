@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db.c: what a look for the tree's compilation database reads with: a file and when it changed, the folders and
 // files of a name below a build, a CMake reply's newest index, a command line's words, and a JSON file read
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "compile_db_internal.h"
@@ -9,33 +10,38 @@
 // the most folders a search below a build tracks to look in
 #define CLI_COMPILE_PENDING 4096u
 
-int cli_compile_stamped(const char *path, CliStamped *stamped)
+int cli_compile_stamp(const CliCompileDbPathStampedCtx *args)
 {
     unsigned long long size = 0ull;
-    if (!query_is_file(path) || !cli_file_stamp(path, &size, &stamped->time))
+    if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->path) ||
+        !EMBED_CALL(cli_path_size_internal.file_stamp, CliPathSizeCtx, .path = args->path, .size_pointer = &size,
+                    .changed = &args->stamped->time))
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = stamped->path,
-                            .src = path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = args->stamped->path,
+                            .src = args->path,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
     return 1;
 }
 
-void cli_compile_inputs_given(CliInputs *inputs)
+void cli_compile_inputs_free(const CliCompileDbInputsCtx *args)
 {
+    CliInputs *inputs = args->inputs;
     g_cli_cells->persistent_buf_release(inputs->file, &g_cli_compile_cells);
     *inputs = (CliInputs){0, NULL, 0u, 0u};
 }
 
-void cli_compile_found_given(CliFoundFolders *found)
+void cli_compile_found_free(const CliCompileDbFoundTopCtx *args)
 {
+    CliFoundFolders *found = args->found;
     g_cli_cells->persistent_buf_release(found->path, &g_cli_compile_cells);
     *found = (CliFoundFolders){NULL, 0u, 0u};
 }
 
-void cli_compile_found_taken(CliFoundFolders *found)
+void cli_compile_found_take(const CliCompileDbFoundTopCtx *args)
 {
+    CliFoundFolders *found = args->found;
     char (*const paths)[CLI_PATH_MAX_LEN] = g_cli_cells->temporary_buf_alloc(
         (unsigned long long)CLI_COMPILE_FOUND * CLI_PATH_MAX_LEN, &g_cli_compile_cells);
     *found = (CliFoundFolders){paths, 0u, (paths != NULL) ? CLI_COMPILE_FOUND : 0u};
@@ -58,20 +64,28 @@ typedef struct
     unsigned int folder_depth;
 } CliBelow;
 
-static void cli_below_each(void *context, const char *name, int is_folder)
+static void cli_below_each(const CliEachNameIsFolderCfg *args)
 {
-    CliBelow *const below = context;
-    if (is_folder && (name[0] != '.') && (below->count < below->room))
+    CliBelow *const below = args->context;
+    if (args->is_folder && (args->name[0] != '.') && (below->count < below->room))
     {
-        cli_full(below->folder, name, below->pending[below->count].path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = below->folder, .relative = args->name,
+                   .joined = below->pending[below->count].path);
         below->pending[below->count].depth = below->folder_depth + 1u;
         below->count += 1u;
     }
 }
 
+typedef struct
+{
+    const char *top;
+    int (*each)(const CliEachFolderDepthCfg *args);
+    void *context;
+    CliFoundFolders *found;
+    const char *path;
+} CompileDbCtx;
 // the folders below `top` walked, each handed to `each` with its depth: whether to look below it
-static void cli_walked_below(const char *top, int (*each)(void *context, const char *folder, unsigned int depth),
-                             void *context)
+EMBED_INLINE void cli_walked_below(const CompileDbCtx *args)
 {
     CliBelow below = {NULL, 0u, CLI_COMPILE_PENDING, NULL, 0u};
     below.pending = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_COMPILE_PENDING * sizeof(CliBelowFolder),
@@ -81,8 +95,8 @@ static void cli_walked_below(const char *top, int (*each)(void *context, const c
         return;
     }
     memor.cpy(&(MemoriaCfg){.dst = below.pending[0].path,
-                            .src = top,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->top,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->top, .cap = CLI_CELLS_POOL}) + 1u});
     below.pending[0].depth = 0u;
     below.count = 1u;
     while (below.count > 0u)
@@ -91,13 +105,16 @@ static void cli_walked_below(const char *top, int (*each)(void *context, const c
         char folder[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = folder, .src = below.pending[below.count].path, .bytes = sizeof(folder)});
         const unsigned int depth = below.pending[below.count].depth;
-        if (!each(context, folder, depth) || (depth >= CLI_COMPILE_DEPTH))
+        if (!EMBED_CALL(args->each, CliEachFolderDepthCfg, .context = args->context, .folder = folder,
+                        .depth = depth) ||
+            (depth >= CLI_COMPILE_DEPTH))
         {
             continue;
         }
         below.folder = folder;
         below.folder_depth = depth;
-        query_folder_each(folder, cli_below_each, &below);
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_below_each,
+                   .context_bytess = &below);
     }
     g_cli_cells->persistent_buf_release(below.pending, &g_cli_compile_cells);
 }
@@ -111,66 +128,66 @@ typedef struct
     CliFoundFolders *found;
 } CliNamedSearch;
 
-static void cli_found_put(CliFoundFolders *found, const char *path)
+EMBED_INLINE void cli_found_put(const CompileDbCtx *args)
 {
-    if (found->count < found->room)
+    if (args->found->count < args->found->room)
     {
-        memor.cpy(&(MemoriaCfg){.dst = found->path[found->count],
-                                .src = path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-        found->count += 1u;
+        memor.cpy(
+            &(MemoriaCfg){.dst = args->found->path[args->found->count],
+                          .src = args->path,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
+        args->found->count += 1u;
     }
 }
 
-static int cli_tail_each(void *context, const char *folder, unsigned int depth)
+static int cli_tail_each(const CliEachFolderDepthCfg *args)
 {
-    (void)depth;
-    const CliNamedSearch *const search = (const CliNamedSearch *)context;
+    const CliNamedSearch *const search = (const CliNamedSearch *)args->context;
     char below[CLI_PATH_MAX_LEN];
     char next[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = below,
-                            .src = folder,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->folder,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}) + 1u});
     for (unsigned int at = 0u; at < search->count; at += 1u)
     {
-        cli_full(below, search->tail[at], next);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = below, .relative = search->tail[at], .joined = next);
         memor.cpy(&(MemoriaCfg){.dst = below,
                                 .src = next,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    if (query_is_folder(below))
+    if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = below))
     {
-        cli_found_put(search->found, below);
+        EMBED_CALL(cli_found_put, CompileDbCtx, .found = search->found, .path = below);
         return 0;
     }
     return 1;
 }
 
-void cli_compile_folders_named(const char *top, const char *const *tail, unsigned int count, CliFoundFolders *found)
+void cli_compile_folders_by_name(const CliCompileDbFoundCtx *args)
 {
-    found->count = 0u;
-    CliNamedSearch search = {tail, count, NULL, found};
-    cli_walked_below(top, cli_tail_each, &search);
+    unsigned int count = args->count;
+    args->found->count = 0u;
+    CliNamedSearch search = {args->tail, count, NULL, args->found};
+    EMBED_CALL(cli_walked_below, CompileDbCtx, .top = args->top, .each = cli_tail_each, .context = &search);
 }
 
-static int cli_name_each(void *context, const char *folder, unsigned int depth)
+static int cli_name_each(const CliEachFolderDepthCfg *args)
 {
-    (void)depth;
-    const CliNamedSearch *const search = (const CliNamedSearch *)context;
+    const CliNamedSearch *const search = (const CliNamedSearch *)args->context;
     char file[CLI_PATH_MAX_LEN];
-    cli_full(folder, search->name, file);
-    if (query_is_file(file))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = search->name, .joined = file);
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = file))
     {
-        cli_found_put(search->found, file);
+        EMBED_CALL(cli_found_put, CompileDbCtx, .found = search->found, .path = file);
     }
     return 1;
 }
 
-void cli_compile_files_named(const char *top, const char *name, CliFoundFolders *found)
+void cli_compile_files_by_name(const CliCompileDbFoundTopCtx *args)
 {
-    found->count = 0u;
-    CliNamedSearch search = {NULL, 0u, name, found};
-    cli_walked_below(top, cli_name_each, &search);
+    args->found->count = 0u;
+    CliNamedSearch search = {NULL, 0u, args->name, args->found};
+    EMBED_CALL(cli_walked_below, CompileDbCtx, .top = args->top, .each = cli_name_each, .context = &search);
 }
 
 // The newest index file of a reply folder as its entries are read
@@ -181,17 +198,19 @@ typedef struct
     int found;
 } CliNewest;
 
-static void cli_index_each(void *context, const char *name, int is_folder)
+static void cli_index_each(const CliEachNameIsFolderCfg *args)
 {
-    CliNewest *const newest = (CliNewest *)context;
+    CliNewest *const newest = (CliNewest *)args->context;
     char path[CLI_PATH_MAX_LEN];
-    cli_full(newest->reply, name, path);
-    if (is_folder || (!cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "index-", .cap = CLI_CELLS_POOL})) ||
-        !query_is_file(path))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = newest->reply, .relative = args->name, .joined = path);
+    if (args->is_folder ||
+        (!cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "index-", .cap = CLI_CELLS_POOL})) ||
+        !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
     {
         return;
     }
-    if (!newest->found || (cli_text_order(path, newest->index) > 0))
+    if (!newest->found ||
+        (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = path, .other_pointer = newest->index) > 0))
     {
         memor.cpy(&(MemoriaCfg){.dst = newest->index,
                                 .src = path,
@@ -200,40 +219,40 @@ static void cli_index_each(void *context, const char *name, int is_folder)
     }
 }
 
-int cli_compile_newest_index(const char *reply, char *index)
+int cli_compile_newest_index(const CliCompileDbReplyCtx *args)
 {
-    CliNewest newest = {reply, index, 0};
-    query_folder_each(reply, cli_index_each, &newest);
+    CliNewest newest = {args->reply, args->index, 0};
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->reply,
+               .each = cli_index_each, .context_bytess = &newest);
     return newest.found;
 }
 
-int cli_compile_white(char letter)
+int cli_compile_white(const CliCompileDbCtx *args)
 {
-    return (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
+    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
 }
 
-void cli_compile_words_each(const char *text, unsigned long long length,
-                            void (*each)(void *context, const char *word, unsigned long long size), void *context)
+void cli_compile_words_each(const CliCompileDbTextCtx *args)
 {
     static char s_word[1u << 16u];
     static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned long long size = 0ull;
     int quoted = 0;
     int any = 0;
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
     {
-        const char letter = text[at];
+        const char letter = args->text[at];
         if (letter == '"')
         {
             quoted = !quoted;
             any = 1;
         }
-        else if (cli_compile_white(letter) && !quoted)
+        else if (EMBED_CALL(cli_compile_db_internal.compile_white, CliCompileDbCtx, .letter = letter) && !quoted)
         {
             if (any)
             {
-                each(context, s_word, size);
+                EMBED_CALL(args->each, CliEachWordSizeCfg, .context = args->context, .word = s_word, .size = size);
                 size = 0ull;
                 any = 0;
             }
@@ -250,9 +269,9 @@ void cli_compile_words_each(const char *text, unsigned long long length,
     }
     if (any)
     {
-        each(context, s_word, size);
+        EMBED_CALL(args->each, CliEachWordSizeCfg, .context = args->context, .word = s_word, .size = size);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // The first word of a command line as the words are read
@@ -262,43 +281,50 @@ typedef struct
     int found;
 } CliFirst;
 
-static void cli_first_each(void *context, const char *word, unsigned long long size)
+static void cli_first_each(const CliEachWordSizeCfg *args)
 {
-    CliFirst *const first = (CliFirst *)context;
-    if (!first->found && (size < CLI_PATH_MAX_LEN))
+    CliFirst *const first = (CliFirst *)args->context;
+    if (!first->found && (args->size < CLI_PATH_MAX_LEN))
     {
-        memor.cpy(&(MemoriaCfg){.dst = first->first, .src = word, .bytes = size});
-        first->first[size] = '\0';
+        memor.cpy(&(MemoriaCfg){.dst = first->first, .src = args->word, .bytes = args->size});
+        first->first[args->size] = '\0';
         first->found = 1;
     }
 }
 
-int cli_compile_first_word(const char *text, unsigned long long length, char *first)
+int cli_compile_first_word(const CliCompileDbTextLengthCtx *args)
 {
-    CliFirst found = {first, 0};
-    cli_compile_words_each(text, length, cli_first_each, &found);
+    CliFirst found = {args->first, 0};
+    EMBED_CALL(cli_compile_db_text_internal.compile_words_each, CliCompileDbTextCtx, .text = args->text,
+               .length = args->length, .each = cli_first_each, .context = &found);
     return found.found;
 }
 
-unsigned int cli_compile_json_read(CliJson *json, const char *path)
+unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_compile_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+                                                  .size_pointer = &size, .owner = &g_cli_compile_cells);
     if (bytes == NULL)
     {
         return CLI_JSON_NONE;
     }
-    const unsigned int tokens_most = cli_json_tokens_counted((const char *)bytes, size) + 1u;
+    const unsigned int tokens_most = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
+                                                .text = (const char *)bytes, .size = size) +
+                                     1u;
     CfgJsonToken *const tokens =
         g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_compile_cells);
     unsigned int root = CLI_JSON_NONE;
-    if ((tokens != NULL) && cli_json_room(json, tokens_most, size))
+    if ((tokens != NULL) && EMBED_CALL(cli_json_tree_nodes.json_room, CliJsonTreeNodesCfg, .json = args->json,
+                                       .nodes = tokens_most, .text_u64 = size))
     {
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea unread = {why, sizeof(why), 0ull};
-        root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
+        root = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = args->json,
+                          .text = (const char *)bytes, .size = size, .tokens = tokens, .tokens_most = tokens_most,
+                          .err_msg = &unread);
     }
     g_cli_cells->persistent_buf_release(tokens, &g_cli_compile_cells);
-    cli_file_given(bytes, &g_cli_compile_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_compile_cells);
     return root;
 }

@@ -7,75 +7,102 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-// whether a letter is white as Rust's char::is_whitespace has it
-static int words_white(unsigned int letter)
+typedef struct
 {
-    return ((letter >= 0x09u) && (letter <= 0x0du)) || (letter == 0x20u) || (letter == 0x85u) || (letter == 0xa0u) ||
-           (letter == 0x1680u) || ((letter >= 0x2000u) && (letter <= 0x200au)) || (letter == 0x2028u) ||
-           (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u);
+    unsigned int letter;
+    const char *line;
+    unsigned long long size;
+    unsigned long long at_value;
+    unsigned int *letter_pointer;
+    CliRequestsWords *words;
+    const char *bytes;
+    unsigned long long *start;
+    unsigned long long *at;
+} RequestsWordsCtx;
+
+// whether a letter is white as Rust's char::is_whitespace has it
+EMBED_INLINE int words_white(const RequestsWordsCtx *args)
+{
+    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
+           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
+           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
+           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
+           (args->letter == 0x3000u);
 }
 
 // the bytes of the letter at `at` of `size` bytes, one at the fewest
-static unsigned long long words_letter(const char *line, unsigned long long size, unsigned long long at,
-                                       unsigned int *letter)
+EMBED_INLINE unsigned long long words_letter(const RequestsWordsCtx *args)
 {
-    return cli_lossy_letter((const unsigned char *)line, size, at, letter);
+    unsigned long long at = args->at_value;
+    unsigned int *letter = args->letter_pointer;
+    return EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                      .text_bytes = (const unsigned char *)args->line, .length = args->size, .at = at,
+                      .letter = letter);
 }
 
 // `size` bytes put on the word being read: 1, or 0 where the pool is full
-static int words_put(CliRequestsWords *words, const char *bytes, unsigned long long size)
+EMBED_INLINE int words_put(const RequestsWordsCtx *args)
 {
-    if (words->used + size + 1u > sizeof(words->text))
+    const char *bytes = args->bytes;
+    if (args->words->used + args->size + 1u > sizeof(args->words->text))
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = words->text + words->used, .src = bytes, .bytes = (size_t)size});
-    words->used += size;
+    memor.cpy(&(MemoriaCfg){.dst = args->words->text + args->words->used, .src = bytes, .bytes = (size_t)args->size});
+    args->words->used += args->size;
     return 1;
 }
 
 // the word being read ended and stored: 1, or 0 where the pool or the list is full
-static int words_ended(CliRequestsWords *words, unsigned long long *start)
+EMBED_INLINE int words_end(const RequestsWordsCtx *args)
 {
-    if ((words->count == CLI_REQUESTS_CURL_WORDS) || (words->used + 1u > sizeof(words->text)))
+    unsigned long long *start = args->start;
+    if ((args->words->count == CLI_REQUESTS_CURL_WORDS) || (args->words->used + 1u > sizeof(args->words->text)))
     {
         return 0;
     }
-    words->word[words->count].at = *start;
-    words->word[words->count].size = words->used - *start;
-    words->text[words->used] = '\0';
-    words->used += 1u;
-    words->count += 1u;
-    *start = words->used;
+    args->words->word[args->words->count].at = *start;
+    args->words->word[args->words->count].size = args->words->used - *start;
+    args->words->text[args->words->used] = '\0';
+    args->words->used += 1u;
+    args->words->count += 1u;
+    *start = args->words->used;
     return 1;
 }
 
 // a `$'...'` quote read from its letters at `*at`, past its closing quote, onto the word: 1, or 0 where the pool is
 // full
-static int words_dollar(const char *line, unsigned long long size, unsigned long long *at, CliRequestsWords *words)
+EMBED_INLINE int words_dollar(const RequestsWordsCtx *args)
 {
+    unsigned long long *at = args->at;
     int fits = 1;
-    while (fits && (*at < size) && (line[*at] != '\''))
+    while (fits && (*at < args->size) && (args->line[*at] != '\''))
     {
-        if ((line[*at] == '\\') && (*at + 1u < size))
+        if ((args->line[*at] == '\\') && (*at + 1u < args->size))
         {
             *at += 1u;
-            const char letter = line[*at];
+            const char letter = args->line[*at];
             const char plain = (letter == 'n')   ? '\n'
                                : (letter == 't') ? '\t'
                                : (letter == 'r') ? '\r'
                                : (letter == '0') ? '\0'
                                                  : letter;
             unsigned int whole = 0u;
-            const unsigned long long taken = words_letter(line, size, *at, &whole);
-            fits = (plain != letter) ? words_put(words, &plain, 1u) : words_put(words, line + *at, taken);
+            const unsigned long long taken = EMBED_CALL(words_letter, RequestsWordsCtx, .line = args->line,
+                                                        .size = args->size, .at_value = *at, .letter_pointer = &whole);
+            fits = (plain != letter)
+                       ? EMBED_CALL(words_put, RequestsWordsCtx, .words = args->words, .bytes = &plain, .size = 1u)
+                       : EMBED_CALL(words_put, RequestsWordsCtx, .words = args->words, .bytes = args->line + *at,
+                                    .size = taken);
             *at += taken;
         }
         else
         {
             unsigned int whole = 0u;
-            const unsigned long long taken = words_letter(line, size, *at, &whole);
-            fits = words_put(words, line + *at, taken);
+            const unsigned long long taken = EMBED_CALL(words_letter, RequestsWordsCtx, .line = args->line,
+                                                        .size = args->size, .at_value = *at, .letter_pointer = &whole);
+            fits =
+                EMBED_CALL(words_put, RequestsWordsCtx, .words = args->words, .bytes = args->line + *at, .size = taken);
             *at += taken;
         }
     }
@@ -85,23 +112,26 @@ static int words_dollar(const char *line, unsigned long long size, unsigned long
 
 // a double quote read from its letters at `*at`, past its closing quote, onto the word: 1, 0 where the pool is full,
 // or -1 where it does not close
-static int words_double(const char *line, unsigned long long size, unsigned long long *at, CliRequestsWords *words)
+EMBED_INLINE int words_double(const RequestsWordsCtx *args)
 {
+    unsigned long long *at = args->at;
     int fits = 1;
-    while (fits && (*at < size) && (line[*at] != '"'))
+    while (fits && (*at < args->size) && (args->line[*at] != '"'))
     {
-        if ((line[*at] == '\\') && (*at + 1u < size) &&
-            (cellul.chr(&(CatenaFinitaCfg){.src = "\"\\$`", .cap = CLI_CELLS_POOL, .byte = line[*at + 1u]}) != NULL) &&
-            (line[*at + 1u] != '\0'))
+        if ((args->line[*at] == '\\') && (*at + 1u < args->size) &&
+            (cellul.chr(&(CatenaFinitaCfg){.src = "\"\\$`", .cap = CLI_CELLS_POOL, .byte = args->line[*at + 1u]}) !=
+             NULL) &&
+            (args->line[*at + 1u] != '\0'))
         {
             *at += 1u;
         }
         unsigned int whole = 0u;
-        const unsigned long long taken = words_letter(line, size, *at, &whole);
-        fits = words_put(words, line + *at, taken);
+        const unsigned long long taken = EMBED_CALL(words_letter, RequestsWordsCtx, .line = args->line,
+                                                    .size = args->size, .at_value = *at, .letter_pointer = &whole);
+        fits = EMBED_CALL(words_put, RequestsWordsCtx, .words = args->words, .bytes = args->line + *at, .size = taken);
         *at += taken;
     }
-    if (*at >= size)
+    if (*at >= args->size)
     {
         return -1;
     }
@@ -109,106 +139,117 @@ static int words_double(const char *line, unsigned long long size, unsigned long
     return fits;
 }
 
-int cli_requests_words(const char *line, unsigned long long size, CliRequestsWords *words, VerbaLinea *err_msg)
+int cli_requests_words(const CliRequestsSizeCtx *args)
 {
-    words->count = 0u;
-    words->used = 0ull;
+    args->words->count = 0u;
+    args->words->used = 0ull;
     unsigned long long start = 0ull;
     int started = 0;
     int read = 1;
     unsigned long long at = 0ull;
-    while ((read == 1) && (at < size))
+    while ((read == 1) && (at < args->size))
     {
-        const char letter = line[at];
-        const int joined =
-            (letter == '\\') && (at + 1u < size) &&
-            ((line[at + 1u] == '\n') || ((line[at + 1u] == '\r') && (at + 2u < size) && (line[at + 2u] == '\n')));
+        const char letter = args->line[at];
+        const int joined = (letter == '\\') && (at + 1u < args->size) &&
+                           ((args->line[at + 1u] == '\n') ||
+                            ((args->line[at + 1u] == '\r') && (at + 2u < args->size) && (args->line[at + 2u] == '\n')));
         if (joined)
         {
-            at += (line[at + 1u] == '\r') ? 3u : 2u;
+            at += (args->line[at + 1u] == '\r') ? 3u : 2u;
         }
         else if (letter == '\\')
         {
             unsigned int whole = 0u;
-            const unsigned long long taken = (at + 1u < size) ? words_letter(line, size, at + 1u, &whole) : 0u;
-            read = (taken == 0u) || words_put(words, line + at + 1u, taken);
+            const unsigned long long taken =
+                (at + 1u < args->size) ? EMBED_CALL(words_letter, RequestsWordsCtx, .line = args->line,
+                                                    .size = args->size, .at_value = at + 1u, .letter_pointer = &whole)
+                                       : 0u;
+            read = (taken == 0u) || EMBED_CALL(words_put, RequestsWordsCtx, .words = args->words,
+                                               .bytes = args->line + at + 1u, .size = taken);
             started = started || (taken > 0u);
             at += 1u + ((taken > 0u) ? taken : 1u);
         }
         else if (letter == '\'')
         {
-            const char *const close =
-                memor.chr(&(MemoriaCfg){.src = line + at + 1u, .val = '\'', .bytes = (size_t)(size - at - 1u)});
+            const char *const close = memor.chr(
+                &(MemoriaCfg){.src = args->line + at + 1u, .val = '\'', .bytes = (size_t)(args->size - at - 1u)});
             if (close == NULL)
             {
                 read = -1;
                 break;
             }
-            const unsigned long long end = (unsigned long long)(close - line);
-            read = words_put(words, line + at + 1u, end - at - 1u);
+            const unsigned long long end = (unsigned long long)(close - args->line);
+            read = EMBED_CALL(words_put, RequestsWordsCtx, .words = args->words, .bytes = args->line + at + 1u,
+                              .size = end - at - 1u);
             started = 1;
             at = end + 1u;
         }
-        else if ((letter == '$') && (at + 1u < size) && (line[at + 1u] == '\''))
+        else if ((letter == '$') && (at + 1u < args->size) && (args->line[at + 1u] == '\''))
         {
             at += 2u;
-            read = words_dollar(line, size, &at, words);
+            read = EMBED_CALL(words_dollar, RequestsWordsCtx, .line = args->line, .size = args->size, .at = &at,
+                              .words = args->words);
             started = 1;
         }
         else if (letter == '"')
         {
             at += 1u;
-            read = words_double(line, size, &at, words);
+            read = EMBED_CALL(words_double, RequestsWordsCtx, .line = args->line, .size = args->size, .at = &at,
+                              .words = args->words);
             started = 1;
         }
         else
         {
             unsigned int whole = 0u;
-            const unsigned long long taken = words_letter(line, size, at, &whole);
-            if (words_white(whole))
+            const unsigned long long taken = EMBED_CALL(words_letter, RequestsWordsCtx, .line = args->line,
+                                                        .size = args->size, .at_value = at, .letter_pointer = &whole);
+            if (EMBED_CALL(words_white, RequestsWordsCtx, .letter = whole))
             {
-                read = !started || words_ended(words, &start);
+                read = !started || EMBED_CALL(words_end, RequestsWordsCtx, .words = args->words, .start = &start);
                 started = 0;
             }
             else
             {
-                read = words_put(words, line + at, taken);
+                read = EMBED_CALL(words_put, RequestsWordsCtx, .words = args->words, .bytes = args->line + at,
+                                  .size = taken);
                 started = 1;
             }
             at += taken;
         }
     }
-    read = ((read == 1) && started) ? words_ended(words, &start) : read;
+    read = ((read == 1) && started) ? EMBED_CALL(words_end, RequestsWordsCtx, .words = args->words, .start = &start)
+                                    : read;
     if (read == -1)
     {
-        mmgr_line_put(err_msg, "a quote does not close");
+        mmgr_line_put(args->err_msg, "a quote does not close");
     }
     else if (read == 0)
     {
-        mmgr_line_put(err_msg, "the curl line is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
     }
     return read == 1;
 }
 
-void cli_requests_uncareted(const char *line, unsigned long long size, VerbaLinea *out)
+void cli_requests_uncareted(const CliRequestsSizeOutCtx *args)
 {
     unsigned long long at = 0ull;
-    while (at < size)
+    while (at < args->size)
     {
-        if ((line[at] == '^') && (at + 1u < size))
+        if ((args->line[at] == '^') && (at + 1u < args->size))
         {
-            const char next = line[at + 1u];
+            const char next = args->line[at + 1u];
             if ((next == '\r') || (next == '\n'))
             {
                 at += 2u;
-                at += ((next == '\r') && (at < size) && (line[at] == '\n')) ? 1u : 0u;
+                at += ((next == '\r') && (at < args->size) && (args->line[at] == '\n')) ? 1u : 0u;
                 continue;
             }
             at += 1u;
         }
         unsigned int whole = 0u;
-        const unsigned long long taken = words_letter(line, size, at, &whole);
-        mmgr_line_put_n(out, line + at, taken);
+        const unsigned long long taken = EMBED_CALL(words_letter, RequestsWordsCtx, .line = args->line,
+                                                    .size = args->size, .at_value = at, .letter_pointer = &whole);
+        mmgr_line_put_n(args->out, args->line + at, taken);
         at += taken;
     }
 }

@@ -11,11 +11,19 @@
 #include "../tests/testing.h"
 #include "../text/text.h"
 
+// The files of the tree's tests as a run of them is gathered, each once: their paths, each ended by a 0, on a line over
+// a cell of the most their bytes are, the last path put, and how many are put
+typedef struct
+{
+    VerbaLinea line;
+    char last[CLI_PATH_MAX_LEN];
+    unsigned int count;
+} CliTerminalFiles;
 // the most files of tests one run of the tree's tests is given, and the most bytes of their paths
 #define CLI_AT_TERMINAL_FILES 65536u
 #define CLI_AT_TERMINAL_FILES_TEXT (1u << 22u)
 
-int cli_at_terminal_runs(const char *command)
+int cli_at_terminal_runs(const CliAtTerminalCommandCfg *args)
 {
     static const char *const s_commands[] = {
         "push",          "pull",          "branches",      "new-branch", "branch-switch", "branch-merge",
@@ -24,7 +32,7 @@ int cli_at_terminal_runs(const char *command)
         "test-cover",    "carry-send",    "carry-take",    "carry-undo"};
     for (unsigned int at = 0u; at < sizeof(s_commands) / sizeof(s_commands[0]); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_commands[at], .other = command, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_commands[at], .other = args->command, .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -32,122 +40,151 @@ int cli_at_terminal_runs(const char *command)
     return 0;
 }
 
-// the first word, NULL with what the command takes given where none is given
-static const char *at_terminal_named(const char *command, const char *const *args, unsigned int count, const char *what,
-                                     VerbaLinea *err_msg)
+typedef struct
 {
-    if ((count == 0u) || (args[0][0] == '\0'))
+    const char *command;
+    const char *const *request;
+    unsigned int count;
+    const char *what;
+    VerbaLinea *err_msg;
+    char *home;
+    const char *root;
+    VerbaLinea *out;
+    CliTerminalFiles *found;
+    int cover;
+} AtTerminalCtx;
+// the first word, NULL with what the command takes given where none is given
+EMBED_INLINE const char *at_terminal_by_name(const AtTerminalCtx *args)
+{
+    if ((args->count == 0u) || (args->request[0][0] == '\0'))
     {
-        mmgr_line_put(err_msg, command);
-        mmgr_line_put(err_msg, " takes ");
-        mmgr_line_put(err_msg, what);
+        mmgr_line_put(args->err_msg, args->command);
+        mmgr_line_put(args->err_msg, " takes ");
+        mmgr_line_put(args->err_msg, args->what);
         return NULL;
     }
-    return args[0];
+    return args->request[0];
 }
 
 // orior's own folder into `home`, which sized for CLI_PATH_MAX_LEN: 1, or 0 with why given
-static int at_terminal_home(char *home, VerbaLinea *err_msg)
+EMBED_INLINE int at_terminal_home(const AtTerminalCtx *args)
 {
-    if (!cli_home_folder(home))
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = args->home))
     {
-        mmgr_line_put(err_msg, "orior_cli has no folder of its own");
+        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own");
         return 0;
     }
     return 1;
 }
 
 // every branch, the one the tree is on marked, each with its last commit's subject, a line each
-static void at_terminal_branches(const char *root, VerbaLinea *out)
+EMBED_INLINE void at_terminal_branches(const AtTerminalCtx *args)
 {
+    const char *root = args->root;
     CliBranches *const found = g_cli_cells->temporary_buf_alloc(sizeof(*found), &g_cli_git_cells);
     if (found == NULL)
     {
         return;
     }
-    cli_git_branches(root, found);
+    EMBED_CALL(cli_git_root_found_branches.branches, CliGitRootFoundBranchesCfg, .root = root,
+               .found_branches_pointer = found);
     for (unsigned int at = 0u; at < found->count; at += 1u)
     {
         const CliBranch *const one = &found->item[at];
-        const char *const subject = cli_git_text_of(&found->text, one->subject);
-        mmgr_line_put(out, (at > 0u) ? "\n" : "");
-        mmgr_line_put(out, one->current ? "* " : "  ");
-        mmgr_line_put(out, cli_git_text_of(&found->text, one->name));
+        const char *const subject =
+            EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text, .at = one->subject);
+        mmgr_line_put(args->out, (at > 0u) ? "\n" : "");
+        mmgr_line_put(args->out, one->current ? "* " : "  ");
+        mmgr_line_put(args->out, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
+                                            .at = one->name));
         if (subject[0] != '\0')
         {
-            mmgr_line_put(out, "  ");
-            mmgr_line_put(out, subject);
+            mmgr_line_put(args->out, "  ");
+            mmgr_line_put(args->out, subject);
         }
     }
-    cli_git_text_given(&found->text);
+    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &found->text);
     g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
 }
 
 // every stash with its line, a line each
-static void at_terminal_stashes(const char *root, VerbaLinea *out)
+EMBED_INLINE void at_terminal_stashes(const AtTerminalCtx *args)
 {
+    const char *root = args->root;
     CliStashes *const found = g_cli_cells->temporary_buf_alloc(sizeof(*found), &g_cli_git_cells);
     if (found == NULL)
     {
         return;
     }
-    cli_git_stashes(root, found);
+    EMBED_CALL(cli_git_root_found_stashes.stashes, CliGitRootFoundStashesCfg, .root = root,
+               .found_stashes_pointer = found);
     for (unsigned int at = 0u; at < found->count; at += 1u)
     {
-        mmgr_line_put(out, (at > 0u) ? "\n" : "");
-        mmgr_line_put(out, cli_git_text_of(&found->text, found->item[at].name));
-        mmgr_line_put(out, "  ");
-        mmgr_line_put(out, cli_git_text_of(&found->text, found->item[at].subject));
+        mmgr_line_put(args->out, (at > 0u) ? "\n" : "");
+        mmgr_line_put(args->out, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
+                                            .at = found->item[at].name));
+        mmgr_line_put(args->out, "  ");
+        mmgr_line_put(args->out, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
+                                            .at = found->item[at].subject));
     }
-    cli_git_text_given(&found->text);
+    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &found->text);
     g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
 }
 
 // the commits of the other branches the branch open does not contain, each by its short id with its subject, a line
 // each
-static void at_terminal_elsewhere(const char *root, VerbaLinea *out)
+EMBED_INLINE void at_terminal_elsewhere(const AtTerminalCtx *args)
 {
+    const char *root = args->root;
     CliCommits *const found = g_cli_cells->temporary_buf_alloc(sizeof(*found), &g_cli_git_cells);
     if (found == NULL)
     {
         return;
     }
-    cli_git_elsewhere(root, found);
+    EMBED_CALL(cli_git_root_file_err_msg.elsewhere, CliGitRootFileErrMsgCfg, .root = root, .found = found);
     for (unsigned int at = 0u; at < found->count; at += 1u)
     {
-        const char *const id = cli_git_text_of(&found->text, found->item[at].id);
+        const char *const id = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
+                                          .at = found->item[at].id);
         const size_t length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL});
-        mmgr_line_put(out, (at > 0u) ? "\n" : "");
-        mmgr_line_put_n(out, id, (length < 7u) ? length : 7u);
-        mmgr_line_put(out, "  ");
-        mmgr_line_put(out, cli_git_text_of(&found->text, found->item[at].subject));
+        mmgr_line_put(args->out, (at > 0u) ? "\n" : "");
+        mmgr_line_put_n(args->out, id, (length < 7u) ? length : 7u);
+        mmgr_line_put(args->out, "  ");
+        mmgr_line_put(args->out, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
+                                            .at = found->item[at].subject));
     }
-    cli_git_text_given(&found->text);
+    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &found->text);
     g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
 }
 
 // a branch deleted, with --force where it is given, a branch whose commits no other branch contains refused with how to
 // delete it
-static int at_terminal_branch_delete(const char *root, const char *const *args, unsigned int count, VerbaLinea *out,
-                                     VerbaLinea *err_msg)
+EMBED_INLINE int at_terminal_branch_delete(const AtTerminalCtx *args)
 {
+    const char *root = args->root;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     int force = 0;
     const char *name = NULL;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const int flag = (cellul.eq(&(CatenaFinitaCfg){.src = args[at], .other = "--force", .cap = CLI_CELLS_POOL}));
+        const int flag =
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->request[at], .other = "--force", .cap = CLI_CELLS_POOL}));
         force |= flag;
-        name = ((name == NULL) && !flag) ? args[at] : name;
+        name = ((name == NULL) && !flag) ? args->request[at] : name;
     }
     name = (name != NULL) ? name : "";
     char why[4096];
     VerbaLinea refused = {why, sizeof(why), 0ull};
-    if (cli_git_branch_act(root, force ? "delete-unmerged" : "delete", name, "", out, &refused))
+    if (EMBED_CALL(cli_git_root_out.branch_act, CliGitRootOutCfg, .root = root,
+                   .act = force ? "delete-unmerged" : "delete", .name_read = name, .to = "", .out = out,
+                   .err_msg = &refused))
     {
         return 1;
     }
     unsigned long long at = 0ull;
-    if (cli_text_find(why, refused.at, "not fully merged", 16ull, &at))
+    if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = why, .length_value = refused.at,
+                   .wanted = "not fully merged", .size = 16ull, .at_pointer = &at))
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, " has commits no other branch contains: branch-delete ");
@@ -159,44 +196,38 @@ static int at_terminal_branch_delete(const char *root, const char *const *args, 
     return 0;
 }
 
-// The files of the tree's tests as a run of them is gathered, each once: their paths, each ended by a 0, on a line over
-// a cell of the most their bytes are, the last path put, and how many are put
-typedef struct
-{
-    VerbaLinea line;
-    char last[CLI_PATH_MAX_LEN];
-    unsigned int count;
-} CliTerminalFiles;
-
 // a file of tests put among the files, after the last where it is not that one, up to the most files and their bytes
-static void at_terminal_test_file(void *context, const CliTest *test)
+static void at_terminal_test_file(const CliTestEachCfg *args)
 {
-    CliTerminalFiles *const found = context;
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = test->file, .cap = CLI_CELLS_POOL}) + 1u;
+    CliTerminalFiles *const found = args->context;
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->test->file, .cap = CLI_CELLS_POOL}) + 1u;
     if (((found->count > 0u) &&
-         (cellul.eq(&(CatenaFinitaCfg){.src = found->last, .other = test->file, .cap = CLI_CELLS_POOL}))) ||
+         (cellul.eq(&(CatenaFinitaCfg){.src = found->last, .other = args->test->file, .cap = CLI_CELLS_POOL}))) ||
         (found->count == CLI_AT_TERMINAL_FILES) || (found->line.at + size > CLI_AT_TERMINAL_FILES_TEXT))
     {
         return;
     }
-    mmgr_line_put_n(&found->line, test->file, size);
+    mmgr_line_put_n(&found->line, args->test->file, size);
     found->last[0] = '\0';
     if (size <= sizeof(found->last))
     {
-        memor.cpy(&(MemoriaCfg){.dst = found->last, .src = test->file, .bytes = size});
+        memor.cpy(&(MemoriaCfg){.dst = found->last, .src = args->test->file, .bytes = size});
     }
     found->count += 1u;
 }
 
 // the tree's tests run over the files `found` gathered: their paths listed in a cell of their count, given back once
 // the run is done
-static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int cover, VerbaLinea *out,
-                                 VerbaLinea *err_msg)
+EMBED_INLINE int at_terminal_files_run(const AtTerminalCtx *args)
 {
-    const char *const joined = found->line.out;
+    const char *root = args->root;
+    int cover = args->cover;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const joined = args->found->line.out;
     const char **const files =
-        mmgr_line_ok(&found->line)
-            ? g_cli_cells->temporary_buf_alloc((found->count + 1ull) * sizeof(const char *), &g_cli_git_cells)
+        mmgr_line_ok(&args->found->line)
+            ? g_cli_cells->temporary_buf_alloc((args->found->count + 1ull) * sizeof(const char *), &g_cli_git_cells)
             : NULL;
     if (files == NULL)
     {
@@ -204,142 +235,173 @@ static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int 
         return 0;
     }
     unsigned long long at = 0ull;
-    for (unsigned int one = 0u; one < found->count; one += 1u)
+    for (unsigned int one = 0u; one < args->found->count; one += 1u)
     {
         files[one] = joined + at;
         at += cellul.len(&(CatenaFinitaCfg){.src = joined + at, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    const int good = cli_at_terminal_tests(root, files, found->count, cover, out, err_msg);
+    const int good = EMBED_CALL(cli_at_terminal_root.tests, CliAtTerminalRootCfg, .root = root, .given = files,
+                                .count = args->found->count, .cover = cover, .out = out, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(files, &g_cli_git_cells);
     return good;
 }
 
-int cli_at_terminal_run(const char *root, const char *command, const char *const *args, unsigned int count,
-                        VerbaLinea *out, VerbaLinea *err_msg)
+int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
 {
-    const char *const first = (count > 0u) ? args[0] : "";
+    const char *root = args->root;
+    unsigned int count = args->count;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const first = (count > 0u) ? args->request[0] : "";
     static char s_words[4096];
     VerbaLinea words = {s_words, sizeof(s_words), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         mmgr_line_put(&words, (at > 0u) ? " " : "");
-        mmgr_line_put(&words, args[at]);
+        mmgr_line_put(&words, args->request[at]);
     }
     (void)mmgr_line_finish(&words);
     const char *name = NULL;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "push", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "push", .cap = CLI_CELLS_POOL}))
     {
-        return cli_git_push(root, out, err_msg);
+        return EMBED_CALL(cli_git_root_out_count_err_msg.push, CliGitRootOutCountErrMsgCfg, .root = root, .out = out,
+                          .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "pull", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "pull", .cap = CLI_CELLS_POOL}))
     {
-        return cli_git_pull(root, out, err_msg);
+        return EMBED_CALL(cli_git_root_out_count_err_msg.pull, CliGitRootOutCountErrMsgCfg, .root = root, .out = out,
+                          .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "branches", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "branches", .cap = CLI_CELLS_POOL}))
     {
-        at_terminal_branches(root, out);
+        EMBED_CALL(at_terminal_branches, AtTerminalCtx, .root = root, .out = out);
         return 1;
     }
     static const char *const s_acts[4][2] = {
         {"new-branch", "create"}, {"branch-switch", "switch"}, {"branch-merge", "merge"}, {"branch-rebase", "rebase"}};
     for (unsigned int act = 0u; act < 4u; act += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = s_acts[act][0], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = s_acts[act][0], .cap = CLI_CELLS_POOL}))
         {
-            name = at_terminal_named(command, args, count, (act == 0u) ? "the new branch's name" : "a branch", err_msg);
-            return (name != NULL) && cli_git_branch_act(root, s_acts[act][1], name, "", out, err_msg);
+            name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
+                              .count = count, .what = (act == 0u) ? "the new branch's name" : "a branch",
+                              .err_msg = err_msg);
+            return (name != NULL) &&
+                   EMBED_CALL(cli_git_root_out.branch_act, CliGitRootOutCfg, .root = root, .act = s_acts[act][1],
+                              .name_read = name, .to = "", .out = out, .err_msg = err_msg);
         }
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "branch-rename", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "branch-rename", .cap = CLI_CELLS_POOL}))
     {
-        name = at_terminal_named(command, args, count, "a branch", err_msg);
+        name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
+                          .count = count, .what = "a branch", .err_msg = err_msg);
         if ((name != NULL) && (count < 2u))
         {
             mmgr_line_put(err_msg, "branch-rename takes a branch and its new name");
             return 0;
         }
-        return (name != NULL) && cli_git_branch_act(root, "rename", name, args[1], out, err_msg);
+        return (name != NULL) &&
+               EMBED_CALL(cli_git_root_out.branch_act, CliGitRootOutCfg, .root = root, .act = "rename",
+                          .name_read = name, .to = args->request[1], .out = out, .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "branch-delete", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "branch-delete", .cap = CLI_CELLS_POOL}))
     {
-        return at_terminal_branch_delete(root, args, count, out, err_msg);
+        return EMBED_CALL(at_terminal_branch_delete, AtTerminalCtx, .root = root, .request = args->request,
+                          .count = count, .out = out, .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "stash", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stash", .cap = CLI_CELLS_POOL}))
     {
-        return cli_git_stash_act(root, "push", "", s_words, out, err_msg);
+        return EMBED_CALL(cli_git_root_out_message.stash_act, CliGitRootOutMessageCfg, .root = root, .act = "push",
+                          .name_read = "", .message = s_words, .out = out, .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "stashes", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "stashes", .cap = CLI_CELLS_POOL}))
     {
-        at_terminal_stashes(root, out);
+        EMBED_CALL(at_terminal_stashes, AtTerminalCtx, .root = root, .out = out);
         return 1;
     }
     static const char *const s_stashes[3][2] = {{"stash-apply", "apply"}, {"stash-pop", "pop"}, {"stash-drop", "drop"}};
     for (unsigned int act = 0u; act < 3u; act += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = s_stashes[act][0], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = s_stashes[act][0], .cap = CLI_CELLS_POOL}))
         {
-            name = at_terminal_named(command, args, count, "a stash", err_msg);
-            return (name != NULL) && cli_git_stash_act(root, s_stashes[act][1], name, "", out, err_msg);
+            name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
+                              .count = count, .what = "a stash", .err_msg = err_msg);
+            return (name != NULL) && EMBED_CALL(cli_git_root_out_message.stash_act, CliGitRootOutMessageCfg,
+                                                .root = root, .act = s_stashes[act][1], .name_read = name,
+                                                .message = "", .out = out, .err_msg = err_msg);
         }
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "cherry-pick", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "cherry-pick", .cap = CLI_CELLS_POOL}))
     {
         // with no commit named, the commits of the other branches the branch open does not contain, to name one of
         if (first[0] == '\0')
         {
-            at_terminal_elsewhere(root, out);
+            EMBED_CALL(at_terminal_elsewhere, AtTerminalCtx, .root = root, .out = out);
             return 1;
         }
-        return cli_git_cherry_pick(root, first, out, err_msg);
+        return EMBED_CALL(cli_git_root_file.cherry_pick, CliGitRootFileCfg, .root = root, .id = first, .out = out,
+                          .err_msg = err_msg);
     }
-    const int cover = (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "cover-tests", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "test-cover", .cap = CLI_CELLS_POOL}));
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "run-tests", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "cover-tests", .cap = CLI_CELLS_POOL})))
+    const int cover =
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "cover-tests", .cap = CLI_CELLS_POOL})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "test-cover", .cap = CLI_CELLS_POOL}));
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "run-tests", .cap = CLI_CELLS_POOL})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "cover-tests", .cap = CLI_CELLS_POOL})))
     {
         static CliTerminalFiles s_found;
         static CliLock s_found_lock = CLI_LOCK_INIT;
-        cli_lock_take(&s_found_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
         const unsigned long long room = CLI_AT_TERMINAL_FILES_TEXT + 1ull;
         char *const found_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_git_cells);
         s_found.line = mmgr_line_over(found_text, room);
         s_found.last[0] = '\0';
         s_found.count = 0u;
-        cli_tests_found(root, at_terminal_test_file, &s_found);
-        const int good = at_terminal_files_run(root, &s_found, cover, out, err_msg);
+        EMBED_CALL(cli_testing_root.tests_find, CliTestingRootCfg, .root = root, .each = at_terminal_test_file,
+                   .context = &s_found);
+        const int good = EMBED_CALL(at_terminal_files_run, AtTerminalCtx, .root = root, .found = &s_found,
+                                    .cover = cover, .out = out, .err_msg = err_msg);
         g_cli_cells->persistent_buf_release(found_text, &g_cli_git_cells);
-        cli_lock_give(&s_found_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
         return good;
     }
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "test-run", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "test-cover", .cap = CLI_CELLS_POOL})))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "test-run", .cap = CLI_CELLS_POOL})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "test-cover", .cap = CLI_CELLS_POOL})))
     {
         if (count == 0u)
         {
-            mmgr_line_put(err_msg, command);
+            mmgr_line_put(err_msg, args->command);
             mmgr_line_put(err_msg, " takes the tests or files of tests to run");
             return 0;
         }
-        return cli_at_terminal_tests(root, args, count, cover, out, err_msg);
+        return EMBED_CALL(cli_at_terminal_root.tests, CliAtTerminalRootCfg, .root = root, .given = args->request,
+                          .count = count, .cover = cover, .out = out, .err_msg = err_msg);
     }
     char home[CLI_PATH_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "carry-send", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "carry-send", .cap = CLI_CELLS_POOL}))
     {
-        name = at_terminal_named(command, args, count, "the file or folder the settings go to", err_msg);
-        return (name != NULL) && at_terminal_home(home, err_msg) && cli_carry_send(home, name, out, err_msg);
+        name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
+                          .count = count, .what = "the file or folder the settings go to", .err_msg = err_msg);
+        return (name != NULL) && EMBED_CALL(at_terminal_home, AtTerminalCtx, .home = home, .err_msg = err_msg) &&
+               EMBED_CALL(cli_carry_home_to.send, CliCarryHomeToCfg, .home = home, .to = name, .out = out,
+                          .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "carry-take", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "carry-take", .cap = CLI_CELLS_POOL}))
     {
-        name = at_terminal_named(command, args, count, "the file or folder the settings come from", err_msg);
-        return (name != NULL) && at_terminal_home(home, err_msg) &&
-               cli_at_terminal_take(home, name, args + 1, count - 1u, out, err_msg);
+        name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
+                          .count = count, .what = "the file or folder the settings come from", .err_msg = err_msg);
+        return (name != NULL) && EMBED_CALL(at_terminal_home, AtTerminalCtx, .home = home, .err_msg = err_msg) &&
+               EMBED_CALL(cli_at_terminal_count.take, CliAtTerminalCountCfg, .home = home, .from = name,
+                          .chosen = args->request + 1, .count = count - 1u, .out = out, .err_msg = err_msg);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "carry-undo", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "carry-undo", .cap = CLI_CELLS_POOL}))
     {
-        name = at_terminal_named(command, args, count, "a taking", err_msg);
-        return (name != NULL) && at_terminal_home(home, err_msg) && cli_at_terminal_undo(home, name, out, err_msg);
+        name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
+                          .count = count, .what = "a taking", .err_msg = err_msg);
+        return (name != NULL) && EMBED_CALL(at_terminal_home, AtTerminalCtx, .home = home, .err_msg = err_msg) &&
+               EMBED_CALL(cli_at_terminal.undo, CliAtTerminalCfg, .home = home, .id = name, .out = out,
+                          .err_msg = err_msg);
     }
-    mmgr_line_put(err_msg, command);
+    mmgr_line_put(err_msg, args->command);
     mmgr_line_put(err_msg, " runs in a window");
     return 0;
 }

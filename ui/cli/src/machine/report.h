@@ -17,8 +17,17 @@
 // window or at the terminal. One error files once a run, and a run files at most five on its own.
 #ifndef REPORT_H
 #define REPORT_H
+typedef struct CliReportCategoryCfg CliReportCategoryCfg;
+typedef struct CliReportRootCfg CliReportRootCfg;
+typedef struct CliReportCategoryTextCfg CliReportCategoryTextCfg;
+typedef struct CliReportRootOutCfg CliReportRootOutCfg;
+typedef struct CliReportTextCfg CliReportTextCfg;
+typedef struct CliReportErrMsgCfg CliReportErrMsgCfg;
+typedef struct CliReportOnCfg CliReportOnCfg;
+typedef struct CliReportCfg CliReportCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the repository issues are filed on, and the question the reporter is prompted once, at installation or on the first
 // run
@@ -59,35 +68,169 @@ typedef struct
 } CliFiled;
 
 // whether `category` is one the template's dropdown names: "library", "cli", "ui" or "unknown"
-int cli_report_category_known(const char *category);
+int cli_report_category_know(const CliReportCategoryTextCfg *args);
 // whether errors file on their own: as the reporter answered, and not where they have not answered; whether the
 // reporter has answered; the reporter prompted once at the terminal, where they have not answered, nothing turned
 // reports off, and the run is at a terminal that can answer, Enter answering yes; and the answer stored: 1, or 0 with
 // why given (report.c)
 int cli_report_auto(void);
-int cli_report_prompted(void);
+int cli_report_prompt(void);
 void cli_report_prompt_once(void);
-int cli_report_set_auto(int on, VerbaLinea *err_msg);
+int cli_report_set_auto(const CliReportOnCfg *args);
 // `text` with the reporter's home folder, the tree's path and the reporter's name in a path struck, each written either
 // way its slashes lean, into `out`; a short name for an error that stays the same each time it happens, its category
 // and its text with the numbers in it struck, hashed, sixteen hex digits into `out`, sized for 17; an error stored
 // among the run's recent ones, struck of what identifies the reporter; the run's recent errors, oldest first, into
 // `out`; and the category of a panic, from where its backtrace first enters orior's own code (report.c)
-void cli_report_scrub(const char *text, const char *root, VerbaLinea *out);
-void cli_report_fingerprint(const char *category, const char *text, char *out);
-void cli_report_saved(const char *text, const char *root);
-void cli_report_recent(VerbaLinea *out);
-const char *cli_report_panic_category(const char *trace);
+void cli_report_scrub(const CliReportTextCfg *args);
+void cli_report_fingerprint(const CliReportCategoryTextCfg *args);
+void cli_report_save(const CliReportTextCfg *args);
+void cli_report_recent(const CliReportRootOutCfg *args);
+const char *cli_report_panic_category(const CliReportCfg *args);
 // the new-issue page with the template's fields filled in, its logs cut to bring the address within CLI_REPORT_ADDRESS,
 // into `out`; a page of orior's repository opened in the browser, any other address refused; `url` opened in the
 // reader's browser, started outside orior's container so it stays as orior_cli ends; a report filed, as an issue
 // through the reporter's GitHub CLI where it is signed in, as nothing where its error is already an open issue, and
 // otherwise as the filled-in page, opened; and an error filed on its own where the reporter lets errors file, where it
 // has not filed this run, and where the run has filed fewer than five, 1 where it went somewhere (report_file.c)
-void cli_report_page(const CliReport *report, const char *root, VerbaLinea *out);
-int cli_report_open_page(const char *url, VerbaLinea *err_msg);
-int cli_report_open_url(const char *url, VerbaLinea *err_msg);
-void cli_report_file(const CliReport *report, const char *root, CliFiled *filed);
-int cli_report_error(const char *category, const char *message, const char *detail, const char *root, CliFiled *filed);
+void cli_report_page(const CliReportRootOutCfg *args);
+int cli_report_open_page(const CliReportErrMsgCfg *args);
+int cli_report_open_url(const CliReportErrMsgCfg *args);
+void cli_report_file(const CliReportRootCfg *args);
+int cli_report_error(const CliReportCategoryCfg *args);
+
+struct CliReportCategoryCfg
+{
+    const char *category;
+    const char *root;
+    CliFiled *filed;
+    const char *message;
+    const char *detail;
+};
+
+struct CliReportRootCfg
+{
+    const char *root;
+    const CliReport *report;
+    CliFiled *filed;
+};
+
+struct CliReportCategoryTextCfg
+{
+    const char *category;
+    const char *text;
+    char *out_room;
+};
+
+struct CliReportRootOutCfg
+{
+    const char *root;
+    VerbaLinea *out;
+    const CliReport *report;
+};
+
+struct CliReportTextCfg
+{
+    const char *text;
+    const char *root;
+    VerbaLinea *out;
+};
+
+struct CliReportErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    const char *url;
+};
+
+struct CliReportOnCfg
+{
+    int on;
+    VerbaLinea *err_msg;
+};
+
+struct CliReportCfg
+{
+    const char *trace;
+};
+
+typedef struct
+{
+    int (*category_know)(const CliReportCategoryTextCfg *args);
+    void (*fingerprint)(const CliReportCategoryTextCfg *args);
+} CliReportCategoryTextNs;
+EMBED_TABLE_LAYOUT(CliReportCategoryTextNs, category_know, fingerprint);
+EMBED_TABLE_STORAGE CliReportCategoryTextNs cli_report_category_text EMBED_UNUSED = {
+    .category_know = cli_report_category_know,
+    .fingerprint = cli_report_fingerprint,
+};
+
+typedef struct
+{
+    int (*set_auto)(const CliReportOnCfg *args);
+} CliReportOnNs;
+EMBED_TABLE_LAYOUT(CliReportOnNs, set_auto);
+EMBED_TABLE_STORAGE CliReportOnNs cli_report_on EMBED_UNUSED = {
+    .set_auto = cli_report_set_auto,
+};
+
+typedef struct
+{
+    void (*scrub)(const CliReportTextCfg *args);
+    void (*save)(const CliReportTextCfg *args);
+} CliReportTextNs;
+EMBED_TABLE_LAYOUT(CliReportTextNs, scrub, save);
+EMBED_TABLE_STORAGE CliReportTextNs cli_report_text EMBED_UNUSED = {
+    .scrub = cli_report_scrub,
+    .save = cli_report_save,
+};
+
+typedef struct
+{
+    void (*recent)(const CliReportRootOutCfg *args);
+    void (*page)(const CliReportRootOutCfg *args);
+} CliReportRootOutNs;
+EMBED_TABLE_LAYOUT(CliReportRootOutNs, recent, page);
+EMBED_TABLE_STORAGE CliReportRootOutNs cli_report_root_out EMBED_UNUSED = {
+    .recent = cli_report_recent,
+    .page = cli_report_page,
+};
+
+typedef struct
+{
+    const char *(*panic_category)(const CliReportCfg *args);
+} CliReportNsTable;
+EMBED_TABLE_LAYOUT(CliReportNsTable, panic_category);
+EMBED_TABLE_STORAGE CliReportNsTable cli_report EMBED_UNUSED = {
+    .panic_category = cli_report_panic_category,
+};
+
+typedef struct
+{
+    int (*open_page)(const CliReportErrMsgCfg *args);
+    int (*open_url)(const CliReportErrMsgCfg *args);
+} CliReportErrMsgNs;
+EMBED_TABLE_LAYOUT(CliReportErrMsgNs, open_page, open_url);
+EMBED_TABLE_STORAGE CliReportErrMsgNs cli_report_err_msg EMBED_UNUSED = {
+    .open_page = cli_report_open_page,
+    .open_url = cli_report_open_url,
+};
+
+typedef struct
+{
+    void (*file)(const CliReportRootCfg *args);
+} CliReportRootNs;
+EMBED_TABLE_LAYOUT(CliReportRootNs, file);
+EMBED_TABLE_STORAGE CliReportRootNs cli_report_root EMBED_UNUSED = {
+    .file = cli_report_file,
+};
+
+typedef struct
+{
+    int (*error)(const CliReportCategoryCfg *args);
+} CliReportCategoryNs;
+EMBED_TABLE_LAYOUT(CliReportCategoryNs, error);
+EMBED_TABLE_STORAGE CliReportCategoryNs cli_report_category EMBED_UNUSED = {
+    .error = cli_report_error,
+};
 
 #endif

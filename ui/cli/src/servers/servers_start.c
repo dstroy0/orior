@@ -8,6 +8,7 @@
 // each project the tree contains; the options of a tree whose own code is disabled, or whose code runs, are added to
 // its own
 #include "../builds/compile_db.h"
+#include "../command_line/callback_cfg.h"
 #include "../toolchains/toolchains.h"
 #include "servers_internal.h"
 
@@ -20,24 +21,50 @@ static CliKeyed s_reopen;
 
 // the manifest read, under its own lock
 
-// a string member of a manifest object copied into `out`, sized for `room`
-static void start_string(const CliJson *json, unsigned int object, const char *name, char *out, unsigned long long room)
+typedef struct
 {
+    const CliJson *json;
+    unsigned int object;
+    const char *name;
+    char *out;
+    unsigned long long room;
+    unsigned int tool_u32;
+    unsigned int server;
+    CliServerSpec *spec;
+    const char *tool;
+    const char *err_msg;
+} ServersStartCtx;
+// a string member of a manifest object copied into `out`, sized for `room`
+EMBED_INLINE void start_string(const ServersStartCtx *args)
+{
+    const CliJson *json = args->json;
+    unsigned int object = args->object;
+    const char *name = args->name;
     unsigned long long size = 0ull;
-    const char *const text = cli_json_string(json, cli_json_member(json, object, name), &size);
-    const unsigned long long copied_len = ((text != NULL) && (size < room)) ? size : 0ull;
-    memor.cpy(&(MemoriaCfg){.dst = out, .src = (text != NULL) ? text : "", .bytes = (size_t)copied_len});
-    out[copied_len] = '\0';
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = object, .name = name),
+                   .length_pointer = &size);
+    const unsigned long long copied_len = ((text != NULL) && (size < args->room)) ? size : 0ull;
+    memor.cpy(&(MemoriaCfg){.dst = args->out, .src = (text != NULL) ? text : "", .bytes = (size_t)copied_len});
+    args->out[copied_len] = '\0';
 }
 
 // a JSON member of a manifest object written into `out`, sized for `room`, empty where it has none
-static void start_json(const CliJson *json, unsigned int object, const char *name, char *out, unsigned long long room)
+EMBED_INLINE void start_json(const ServersStartCtx *args)
 {
-    const unsigned int member = cli_json_member(json, object, name);
-    VerbaLinea line = {out, room, 0ull};
+    const CliJson *json = args->json;
+    unsigned int object = args->object;
+    const char *name = args->name;
+    char *out = args->out;
+    const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = object, .name = name);
+    VerbaLinea line = {out, args->room, 0ull};
     if (member != CLI_JSON_NONE)
     {
-        cli_json_write(json, member, &line, 0u, 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = member,
+                   .out = &line, .indent = 0u, .sorted = 0);
     }
     if (!mmgr_line_ok(&line))
     {
@@ -47,167 +74,208 @@ static void start_json(const CliJson *json, unsigned int object, const char *nam
 }
 
 // a server's spec read from the manifest's tool at `tool`
-static void start_spec(const CliJson *json, unsigned int tool, unsigned int server, CliServerSpec *spec)
+EMBED_INLINE void start_spec(const ServersStartCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = spec, .val = 0, .bytes = sizeof(*spec)});
-    start_string(json, tool, "id", spec->tool, sizeof(spec->tool));
-    start_string(json, tool, "name", spec->name, sizeof(spec->name));
-    start_string(json, server, "program", spec->program, sizeof(spec->program));
-    const unsigned int args = cli_json_member(json, server, "args");
-    for (unsigned int at = cli_json_is(json, args, CFG_JSON_ARRAY) ? json->node[args].first : CLI_JSON_NONE;
-         (at != CLI_JSON_NONE) && (spec->args < CLI_SERVERS_ARGS); at = json->node[at].next)
+    const CliJson *json = args->json;
+    memor.set(&(MemoriaCfg){.dst = args->spec, .val = 0, .bytes = sizeof(*args->spec)});
+    EMBED_CALL(start_string, ServersStartCtx, .json = json, .object = args->tool_u32, .name = "id",
+               .out = args->spec->tool, .room = sizeof(args->spec->tool));
+    EMBED_CALL(start_string, ServersStartCtx, .json = json, .object = args->tool_u32, .name = "name",
+               .out = args->spec->name, .room = sizeof(args->spec->name));
+    EMBED_CALL(start_string, ServersStartCtx, .json = json, .object = args->server, .name = "program",
+               .out = args->spec->program, .room = sizeof(args->spec->program));
+    const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                              .object = args->server, .name = "args");
+    for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                      .node = arguments, .kind = CFG_JSON_ARRAY)
+                               ? json->node[arguments].first
+                               : CLI_JSON_NONE;
+         (at != CLI_JSON_NONE) && (args->spec->args < CLI_SERVERS_ARGS); at = json->node[at].next)
     {
         unsigned long long size = 0ull;
-        const char *const text = cli_json_string(json, at, &size);
-        if ((text != NULL) && (size < sizeof(spec->arg[0])))
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = at, .length_pointer = &size);
+        if ((text != NULL) && (size < sizeof(args->spec->arg[0])))
         {
-            memor.cpy(&(MemoriaCfg){.dst = spec->arg[spec->args], .src = text, .bytes = (size_t)size});
-            spec->arg[spec->args][size] = '\0';
-            spec->args += 1u;
+            memor.cpy(&(MemoriaCfg){.dst = args->spec->arg[args->spec->args], .src = text, .bytes = (size_t)size});
+            args->spec->arg[args->spec->args][size] = '\0';
+            args->spec->args += 1u;
         }
     }
-    const unsigned int languages = cli_json_member(json, server, "languages");
-    for (unsigned int at = cli_json_is(json, languages, CFG_JSON_ARRAY) ? json->node[languages].first : CLI_JSON_NONE;
-         (at != CLI_JSON_NONE) && (spec->languages < CLI_SERVERS_LANGUAGES); at = json->node[at].next)
+    const unsigned int languages = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                              .object = args->server, .name = "languages");
+    for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                      .node = languages, .kind = CFG_JSON_ARRAY)
+                               ? json->node[languages].first
+                               : CLI_JSON_NONE;
+         (at != CLI_JSON_NONE) && (args->spec->languages < CLI_SERVERS_LANGUAGES); at = json->node[at].next)
     {
         unsigned long long size = 0ull;
-        const char *const text = cli_json_string(json, at, &size);
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = at, .length_pointer = &size);
         if ((text != NULL) && (size < CLI_NAME_MAX_LEN))
         {
-            memor.cpy(&(MemoriaCfg){.dst = spec->language[spec->languages], .src = text, .bytes = (size_t)size});
-            spec->language[spec->languages][size] = '\0';
-            spec->languages += 1u;
+            memor.cpy(
+                &(MemoriaCfg){.dst = args->spec->language[args->spec->languages], .src = text, .bytes = (size_t)size});
+            args->spec->language[args->spec->languages][size] = '\0';
+            args->spec->languages += 1u;
         }
     }
-    const unsigned int ids = cli_json_member(json, server, "ids");
-    for (unsigned int at = cli_json_is(json, ids, CFG_JSON_OBJECT) ? json->node[ids].first : CLI_JSON_NONE;
-         (at != CLI_JSON_NONE) && (spec->ids < CLI_SERVERS_LANGUAGES); at = json->node[at].next)
+    const unsigned int ids = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = args->server, .name = "ids");
+    for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                      .node = ids, .kind = CFG_JSON_OBJECT)
+                               ? json->node[ids].first
+                               : CLI_JSON_NONE;
+         (at != CLI_JSON_NONE) && (args->spec->ids < CLI_SERVERS_LANGUAGES); at = json->node[at].next)
     {
         unsigned long long size = 0ull;
-        const char *const text = cli_json_string(json, at, &size);
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = at, .length_pointer = &size);
         const char *const key = json->text + json->node[at].key;
         if ((text != NULL) && (size < CLI_NAME_MAX_LEN) &&
-            (cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) < sizeof(spec->id_extension[0])))
+            (cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) < sizeof(args->spec->id_extension[0])))
         {
-            memor.cpy(&(MemoriaCfg){.dst = spec->id_extension[spec->ids],
+            memor.cpy(&(MemoriaCfg){.dst = args->spec->id_extension[args->spec->ids],
                                     .src = key,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
-            memor.cpy(&(MemoriaCfg){.dst = spec->id_name[spec->ids], .src = text, .bytes = (size_t)size});
-            spec->id_name[spec->ids][size] = '\0';
-            spec->ids += 1u;
+            memor.cpy(&(MemoriaCfg){.dst = args->spec->id_name[args->spec->ids], .src = text, .bytes = (size_t)size});
+            args->spec->id_name[args->spec->ids][size] = '\0';
+            args->spec->ids += 1u;
         }
     }
-    start_string(json, server, "setup", spec->setup, sizeof(spec->setup));
-    start_string(json, server, "projects", spec->projects, sizeof(spec->projects));
-    start_string(json, server, "checks", spec->checks, sizeof(spec->checks));
-    start_json(json, server, "blocked", spec->blocked_args, sizeof(spec->blocked_args));
-    start_json(json, server, "trusted", spec->trusted, sizeof(spec->trusted));
-    spec->slices = cli_json_is(json, cli_json_member(json, server, "slices"), CFG_JSON_TRUE);
+    EMBED_CALL(start_string, ServersStartCtx, .json = json, .object = args->server, .name = "setup",
+               .out = args->spec->setup, .room = sizeof(args->spec->setup));
+    EMBED_CALL(start_string, ServersStartCtx, .json = json, .object = args->server, .name = "projects",
+               .out = args->spec->projects, .room = sizeof(args->spec->projects));
+    EMBED_CALL(start_string, ServersStartCtx, .json = json, .object = args->server, .name = "checks",
+               .out = args->spec->checks, .room = sizeof(args->spec->checks));
+    EMBED_CALL(start_json, ServersStartCtx, .json = json, .object = args->server, .name = "blocked",
+               .out = args->spec->blocked_args, .room = sizeof(args->spec->blocked_args));
+    EMBED_CALL(start_json, ServersStartCtx, .json = json, .object = args->server, .name = "trusted",
+               .out = args->spec->trusted, .room = sizeof(args->spec->trusted));
+    args->spec->slices = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                       .json_read = json, .object = args->server, .name = "slices"),
+                                    .kind = CFG_JSON_TRUE);
 }
 
-int cli_servers_spec_for(const char *language, CliServerSpec *spec)
+int cli_servers_spec_for(const CliServersLanguageCtx *args)
 {
     CliJson manifest_json;
-    const unsigned int manifest = cli_toolchains_manifest(&manifest_json, 0u, 0ull);
+    const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
     int found = 0;
     for (unsigned int tool = (manifest != CLI_JSON_NONE) ? manifest_json.node[manifest].first : CLI_JSON_NONE;
          !found && (tool != CLI_JSON_NONE); tool = manifest_json.node[tool].next)
     {
-        const unsigned int server = cli_json_member(&manifest_json, tool, "server");
-        const unsigned int languages = cli_json_member(&manifest_json, server, "languages");
-        for (unsigned int at = cli_json_is(&manifest_json, languages, CFG_JSON_ARRAY)
+        const unsigned int server = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = &manifest_json, .object = tool, .name = "server");
+        const unsigned int languages = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                  .json_read = &manifest_json, .object = server, .name = "languages");
+        for (unsigned int at = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                          .json_read = &manifest_json, .node = languages, .kind = CFG_JSON_ARRAY)
                                    ? manifest_json.node[languages].first
                                    : CLI_JSON_NONE;
              !found && (at != CLI_JSON_NONE); at = manifest_json.node[at].next)
         {
             unsigned long long size = 0ull;
-            const char *const text = cli_json_string(&manifest_json, at, &size);
+            const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                .json_read = &manifest_json, .node = at, .length_pointer = &size);
             found = (text != NULL) &&
-                    (cellul.len(&(CatenaFinitaCfg){.src = language, .cap = CLI_CELLS_POOL}) == size) &&
-                    (memor.cmp(&(MemoriaCfg){.src = text, .other = language, .bytes = (size_t)size}) == 0);
+                    (cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_CELLS_POOL}) == size) &&
+                    (memor.cmp(&(MemoriaCfg){.src = text, .other = args->language, .bytes = (size_t)size}) == 0);
         }
         if (found)
         {
-            start_spec(&manifest_json, tool, server, spec);
+            EMBED_CALL(start_spec, ServersStartCtx, .json = &manifest_json, .tool_u32 = tool, .server = server,
+                       .spec = args->spec);
         }
     }
-    cli_json_given(&manifest_json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &manifest_json);
     return found;
 }
 
-void cli_servers_id_of(const CliServerSpec *spec, const char *path, const char *language, char *id)
+void cli_servers_id_get(const CliServersPathLanguageCtx *args)
 {
-    const char *const dot =
-        cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '.');
-    const char *const slash =
-        cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/');
-    const char *const back =
-        cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '\\');
+    const char *const dot = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->path,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '.');
+    const char *const slash = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->path,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '/');
+    const char *const back = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->path,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '\\');
     const int named = (dot != NULL) && ((slash == NULL) || (dot > slash)) && ((back == NULL) || (dot > back));
     char extension[32] = {0};
     if (named)
     {
-        (void)cli_text_lowered_into(extension, sizeof(extension), dot + 1);
+        (void)EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = extension,
+                         .room = sizeof(extension), .text = dot + 1);
     }
-    VerbaLinea line = {id, CLI_NAME_MAX_LEN, 0ull};
-    for (unsigned int at = 0u; at < spec->ids; at += 1u)
+    VerbaLinea line = {args->id_out, CLI_NAME_MAX_LEN, 0ull};
+    for (unsigned int at = 0u; at < args->spec_read->ids; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = spec->id_extension[at], .other = extension, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){
+                .src = args->spec_read->id_extension[at], .other = extension, .cap = CLI_CELLS_POOL}))
         {
-            mmgr_line_put(&line, spec->id_name[at]);
+            mmgr_line_put(&line, args->spec_read->id_name[at]);
             (void)mmgr_line_finish(&line);
             return;
         }
     }
-    mmgr_line_put(&line, language);
+    mmgr_line_put(&line, args->language);
     (void)mmgr_line_finish(&line);
 }
 
-CliLsp *cli_servers_owner_of(const char *path)
+CliLsp *cli_servers_owner_get(const CliServersPathLspCtx *args)
 {
-    cli_lock_take(&g_cli_servers.lock);
+    const char *path = args->path;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     CliLsp *found = NULL;
     for (unsigned int at = 0u; (found == NULL) && (at < CLI_SERVERS_MOST); at += 1u)
     {
         CliServerRunning *const one = &g_cli_servers.running[at];
-        if (one->used && cli_lsp_has(one->lsp, path))
+        if (one->used && EMBED_CALL(cli_lsp_path_out.has, CliLspPathOutCfg, .lsp = one->lsp, .path = path))
         {
             found = one->lsp;
-            cli_lsp_ref(found);
+            EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = found);
         }
     }
-    cli_lock_give(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return found;
 }
 
-int cli_servers_slicing(const CliLsp *server)
+int cli_servers_slicing(const CliServersCtx *args)
 {
-    cli_lock_take(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     int slicing = 0;
     for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
     {
         const CliServerRunning *const one = &g_cli_servers.running[at];
-        slicing |= one->used && (one->lsp == server) && one->spec.slices;
+        slicing |= one->used && (one->lsp == args->server_read) && one->spec.slices;
     }
-    cli_lock_give(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return slicing;
 }
 
 // a file a server had open retained to be given back to the one started after it
-static void start_reopen_stored(void *context, const char *path, const char *text, unsigned long long length)
+static void start_reopen_store(const CliEachPathTextLengthCfg *args)
 {
-    (void)context;
-    (void)cli_keyed_put(&s_reopen, path, "", text, length);
+    const char *text = args->text;
+    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_reopen, .key = args->path,
+                     .beside_value = "", .text = text, .size_value = args->length);
 }
 
 // the running server of `tool`: its place, CLI_SERVERS_MOST where none runs
-static unsigned int start_running(const char *tool)
+EMBED_INLINE unsigned int start_running(const ServersStartCtx *args)
 {
     for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
     {
         if (g_cli_servers.running[at].used &&
-            (cellul.eq(
-                &(CatenaFinitaCfg){.src = g_cli_servers.running[at].spec.tool, .other = tool, .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){
+                .src = g_cli_servers.running[at].spec.tool, .other = args->tool, .cap = CLI_CELLS_POOL})))
         {
             return at;
         }
@@ -216,11 +284,12 @@ static unsigned int start_running(const char *tool)
 }
 
 // why the toolchain `tool` failed, NULL where it did not
-static const char *start_failed(const char *tool)
+EMBED_INLINE const char *start_fail(const ServersStartCtx *args)
 {
     for (unsigned int at = 0u; at < g_cli_servers.failed; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = tool, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(
+                &(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = args->tool, .cap = CLI_CELLS_POOL}))
         {
             return g_cli_servers.failed_msg[at];
         }
@@ -229,11 +298,12 @@ static const char *start_failed(const char *tool)
 }
 
 // why the toolchain `tool` failed recorded
-static void start_failure(const char *tool, const char *err_msg)
+EMBED_INLINE void start_failure(const ServersStartCtx *args)
 {
     unsigned int at = 0u;
     while ((at < g_cli_servers.failed) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = tool, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(
+               &(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = args->tool, .cap = CLI_CELLS_POOL})))
     {
         at += 1u;
     }
@@ -243,20 +313,20 @@ static void start_failure(const char *tool, const char *err_msg)
     }
     g_cli_servers.failed += (at == g_cli_servers.failed) ? 1u : 0u;
     VerbaLinea line = {g_cli_servers.failed_tool[at], CLI_NAME_MAX_LEN, 0ull};
-    mmgr_line_put(&line, tool);
+    mmgr_line_put(&line, args->tool);
     (void)mmgr_line_finish(&line);
     VerbaLinea why = {g_cli_servers.failed_msg[at], sizeof(g_cli_servers.failed_msg[at]), 0ull};
-    mmgr_line_put(&why, err_msg);
+    mmgr_line_put(&why, args->err_msg);
     (void)mmgr_line_finish(&why);
 }
 
 // whether the toolchain `tool`'s server, which ended, may be started again, its end counted
-static int start_again(const char *tool)
+EMBED_INLINE int start_again(const ServersStartCtx *args)
 {
     unsigned int at = 0u;
-    while (
-        (at < g_cli_servers.restarted) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.restart_tool[at], .other = tool, .cap = CLI_CELLS_POOL})))
+    while ((at < g_cli_servers.restarted) &&
+           (!cellul.eq(
+               &(CatenaFinitaCfg){.src = g_cli_servers.restart_tool[at], .other = args->tool, .cap = CLI_CELLS_POOL})))
     {
         at += 1u;
     }
@@ -267,59 +337,69 @@ static int start_again(const char *tool)
     if (at == g_cli_servers.restarted)
     {
         VerbaLinea line = {g_cli_servers.restart_tool[at], CLI_NAME_MAX_LEN, 0ull};
-        mmgr_line_put(&line, tool);
+        mmgr_line_put(&line, args->tool);
         (void)mmgr_line_finish(&line);
-        cli_restarts_made(&g_cli_servers.restarts[at], CLI_SERVERS_RESTARTS, CLI_SERVERS_RESTARTS_WITHIN);
+        EMBED_CALL(cli_container_restarts.restarts_init, CliContainerRestartsCfg,
+                   .restarts = &g_cli_servers.restarts[at], .most = CLI_SERVERS_RESTARTS,
+                   .within = CLI_SERVERS_RESTARTS_WITHIN);
         g_cli_servers.restarted += 1u;
     }
-    return cli_restarts_died(&g_cli_servers.restarts[at], cli_clock_milliseconds());
+    return EMBED_CALL(cli_container_restarts_at.restarts_dy, CliContainerRestartsAtCfg,
+                      .restarts = &g_cli_servers.restarts[at], .at = cli_clock_milliseconds());
 }
 
-CliLsp *cli_servers_server(const char *root, const char *language, const CliServersSink *sink, CliServerSpec *spec,
-                           VerbaLinea *err_msg)
+CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
 {
-    if (!cli_servers_spec_for(language, spec))
+    const char *root = args->root;
+    CliServerSpec *spec = args->spec;
+    VerbaLinea *err_msg = args->err_msg;
+    if (!EMBED_CALL(cli_servers_language_internal.spec_for, CliServersLanguageCtx, .language = args->language,
+                    .spec = spec))
     {
         return NULL;
     }
-    cli_lock_take(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.root, .other = root, .cap = CLI_CELLS_POOL}))
     {
-        cli_lock_give(&g_cli_servers.lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         cli_servers_stop_all();
-        cli_lock_take(&g_cli_servers.lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
         VerbaLinea line = {g_cli_servers.root, CLI_PATH_MAX_LEN, 0ull};
         mmgr_line_put(&line, root);
         (void)mmgr_line_finish(&line);
     }
-    cli_keyed_clear(&s_reopen);
-    cli_keyed_begun(&s_reopen, "files to open again", 256u);
-    const unsigned int at = start_running(spec->tool);
+    EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_reopen);
+    EMBED_CALL(cli_keyed_name.begin, CliKeyedNameCfg, .keyed_out = &s_reopen, .name = "files to open again",
+               .entries_most = 256u);
+    const unsigned int at = EMBED_CALL(start_running, ServersStartCtx, .tool = spec->tool);
     static CliDatabase s_database;
     if ((at < CLI_SERVERS_MOST) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = spec->program, .other = "clangd", .cap = CLI_CELLS_POOL})) &&
-        cli_lsp_alive(g_cli_servers.running[at].lsp) && cli_compile_db_refresh(root, &s_database))
+        EMBED_CALL(cli_lsp_context.alive, CliLspContextCfg, .lsp = g_cli_servers.running[at].lsp) &&
+        EMBED_CALL(cli_compile_db_root_database.refresh, CliCompileDbRootDatabaseCfg, .root = root,
+                   .database = &s_database))
     {
         CliLsp *const old = g_cli_servers.running[at].lsp;
         g_cli_servers.running[at].used = 0;
-        cli_lsp_open_each(old, start_reopen_stored, NULL);
-        cli_servers_stop_later(old);
+        EMBED_CALL(cli_lsp_context.open_each, CliLspContextCfg, .lsp = old, .each = start_reopen_store,
+                   .context = NULL);
+        EMBED_CALL(cli_servers_path_lsp_internal.stop_later, CliServersPathLspCtx, .lsp = old);
     }
     else if (at < CLI_SERVERS_MOST)
     {
         CliLsp *const server = g_cli_servers.running[at].lsp;
-        if (cli_lsp_alive(server))
+        if (EMBED_CALL(cli_lsp_context.alive, CliLspContextCfg, .lsp = server))
         {
-            cli_lsp_ref(server);
-            cli_lock_give(&g_cli_servers.lock);
+            EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = server);
+            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
             return server;
         }
         g_cli_servers.running[at].used = 0;
-        if (!start_again(spec->tool))
+        if (!EMBED_CALL(start_again, ServersStartCtx, .tool = spec->tool))
         {
             char why[CLI_LSP_COMPLAINT];
             VerbaLinea complaint = {why, sizeof(why), 0ull};
-            cli_lsp_complaint(server, &complaint);
+            EMBED_CALL(cli_lsp_path_out.complaint, CliLspPathOutCfg, .lsp = server, .out = &complaint);
             mmgr_line_put(err_msg, spec->program);
             mmgr_line_put(err_msg, " ended ");
             mmgr_line_decimal(err_msg, CLI_SERVERS_RESTARTS + 1u, 1u);
@@ -332,44 +412,49 @@ CliLsp *cli_servers_server(const char *root, const char *language, const CliServ
                 mmgr_line_put_n(err_msg, why, complaint.at);
             }
             (void)mmgr_line_finish(err_msg);
-            start_failure(spec->tool, err_msg->out);
-            cli_lsp_unref(server);
-            cli_lock_give(&g_cli_servers.lock);
+            EMBED_CALL(start_failure, ServersStartCtx, .tool = spec->tool, .err_msg = err_msg->out);
+            EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
+            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
             return NULL;
         }
-        cli_lsp_open_each(server, start_reopen_stored, NULL);
-        cli_lsp_unref(server);
+        EMBED_CALL(cli_lsp_context.open_each, CliLspContextCfg, .lsp = server, .each = start_reopen_store,
+                   .context = NULL);
+        EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     }
-    const char *const failed = start_failed(spec->tool);
+    const char *const failed = EMBED_CALL(start_fail, ServersStartCtx, .tool = spec->tool);
     if (failed != NULL)
     {
         mmgr_line_put(err_msg, failed);
-        cli_lock_give(&g_cli_servers.lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         return NULL;
     }
-    CliLsp *const server = cli_servers_launch(root, spec, sink, err_msg);
+    CliLsp *const server = EMBED_CALL(cli_servers_root_internal.launch, CliServersRootCtx, .root = root,
+                                      .spec_read = spec, .sink = args->sink, .err_msg = err_msg);
     if (server == NULL)
     {
         (void)mmgr_line_finish(err_msg);
-        start_failure(spec->tool, err_msg->out);
-        cli_lock_give(&g_cli_servers.lock);
+        EMBED_CALL(start_failure, ServersStartCtx, .tool = spec->tool, .err_msg = err_msg->out);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         return NULL;
     }
     for (unsigned int one = 0u; one < s_reopen.entries; one += 1u)
     {
-        if (!cli_keyed_entry(&s_reopen, one)->used)
+        if (!EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_reopen, .at = one)->used)
         {
             continue;
         }
-        const char *const path = cli_keyed_entry(&s_reopen, one)->cell;
+        const char *const path = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_reopen, .at = one)->cell;
         const char *beside = NULL;
         unsigned long long size = 0ull;
-        const char *const text = cli_keyed_get(&s_reopen, path, &beside, &size);
+        const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_reopen,
+                                            .key = path, .beside = &beside, .size = &size);
         char id[CLI_NAME_MAX_LEN];
-        cli_servers_id_of(spec, path, language, id);
+        EMBED_CALL(cli_servers_path_language_internal.id_get, CliServersPathLanguageCtx, .spec_read = spec,
+                   .path = path, .language = args->language, .id_out = id);
         char ignored[256];
         VerbaLinea quiet = {ignored, sizeof(ignored), 0ull};
-        (void)cli_lsp_opened(server, path, id, text, size, &quiet);
+        (void)EMBED_CALL(cli_lsp_err_msg_text.open, CliLspErrMsgTextCfg, .lsp = server, .path = path, .language_id = id,
+                         .text = text, .length = size, .err_msg = &quiet);
     }
     for (unsigned int index = 0u; index < CLI_SERVERS_MOST; index += 1u)
     {
@@ -384,7 +469,7 @@ CliLsp *cli_servers_server(const char *root, const char *language, const CliServ
             break;
         }
     }
-    cli_lsp_ref(server);
-    cli_lock_give(&g_cli_servers.lock);
+    EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = server);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return server;
 }

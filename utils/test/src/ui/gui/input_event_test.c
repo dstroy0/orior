@@ -1,0 +1,59 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// input_event_test.c: the input's check: each input carries what its kind says and leaves the rest zero, and the table hands an input
+// to the function named for its kind and to nothing else
+#include "../../../../../ui/gui/src/input_event.h"
+#include "../cli/cli_check.h"
+
+// the input each function last took, by the function
+static const GuiInput *s_pressed;
+static const GuiInput *s_moved;
+static struct GuiWindow *s_window_handed;
+
+static void handed_pressed(const GuiInputHandlerCfg *args)
+{
+    s_window_handed = args->window;
+    s_pressed = args->input;
+}
+
+static void handed_moved(const GuiInputHandlerCfg *args)
+{
+    s_window_handed = args->window;
+    s_moved = args->input;
+}
+
+int main(void)
+{
+    const GuiInput *const down = GUI_DOWN_INPUT(7, 9, GUI_MOD_SHIFT);
+    cli_check((down->kind == GUI_INPUT_DOWN) && (down->x == 7) && (down->y == 9) && (down->mods == GUI_MOD_SHIFT), "a press carries its place and its modifiers");
+    cli_check((down->button == 0u) && (down->name == NULL) && (down->text == NULL) && (down->size == 0ull), "and the rest of it is zero");
+    const GuiInput *const moved = GUI_MOVED_INPUT(3, 4);
+    cli_check((moved->kind == GUI_INPUT_MOVED) && (moved->x == 3) && (moved->y == 4), "the pointer moved carries its place");
+    const GuiInput *const up = GUI_UP_INPUT(5, 6);
+    cli_check((up->kind == GUI_INPUT_UP) && (up->x == 5) && (up->y == 6), "a release carries its place");
+    cli_check(GUI_LEFT_INPUT()->kind == GUI_INPUT_LEFT, "the pointer gone carries its kind");
+    const GuiInput *const wheel = GUI_WHEEL_INPUT(1, 2, -3);
+    cli_check((wheel->kind == GUI_INPUT_WHEEL) && (wheel->x == 1) && (wheel->y == 2) && (wheel->rows == -3), "the wheel carries its place and its rows");
+    const GuiInput *const key = GUI_KEY_INPUT("Mod+Left");
+    cli_check((key->kind == GUI_INPUT_KEY) && (key->name != NULL) && (key->name[0] == 'M'), "a key carries its name");
+    const GuiInput *const text = GUI_TEXT_INPUT("ab", 2ull);
+    cli_check((text->kind == GUI_INPUT_TEXT) && (text->size == 2ull) && (text->text[1] == 'b'), "text typed carries its bytes");
+
+    // the table hands each kind to the function it names, and a kind it names none for goes nowhere
+    GuiInputHandlers handlers = {{NULL}};
+    handlers.by_type[GUI_INPUT_DOWN] = handed_pressed;
+    handlers.by_type[GUI_INPUT_MOVED] = handed_moved;
+    struct GuiWindow *const window = (struct GuiWindow *)&handlers;
+    EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = down);
+    cli_check((s_pressed == down) && (s_moved == NULL) && (s_window_handed == window), "a press reaches the function its table names, with the window");
+    EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = moved);
+    cli_check((s_moved == moved) && (s_pressed == down), "the pointer moved reaches its own");
+    s_pressed = NULL;
+    s_moved = NULL;
+    EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = key);
+    cli_check((s_pressed == NULL) && (s_moved == NULL), "a kind the table does not answer goes nowhere");
+    EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = &(GuiInput){.type = GUI_INPUT_TYPES});
+    EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = &(GuiInput){.kind = 0xffffffffu});
+    cli_check((s_pressed == NULL) && (s_moved == NULL), "and a kind no table knows goes nowhere");
+    return cli_on_check();
+}

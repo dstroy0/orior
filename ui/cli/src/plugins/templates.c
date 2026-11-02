@@ -3,19 +3,20 @@
 // templates.c: the reader's templates listed, a project begun from one with its name written in, and a tree saved as
 // one
 #include "templates.h"
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../editor/files.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-int cli_templates_folder(char *folder)
+int cli_templates_folder(const CliTemplatesCfg *args)
 {
     char home[CLI_PATH_MAX_LEN];
-    if (!cli_home_folder(home))
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home))
     {
         return 0;
     }
-    cli_full(home, "templates", folder);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = "templates", .joined = args->folder);
     return 1;
 }
 
@@ -31,32 +32,33 @@ typedef struct
     unsigned long long text_most;
 } CliTemplateNames;
 
-static void cli_name_each(void *context, const char *name, int is_folder)
+static void cli_name_each(const CliEachNameIsFolderCfg *args)
 {
-    CliTemplateNames *const names = (CliTemplateNames *)context;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1ull;
-    if (!is_folder ||
+    CliTemplateNames *const names = (CliTemplateNames *)args->context;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1ull;
+    if (!args->is_folder ||
         ((names->name != NULL) && ((names->count >= names->most) || ((names->used + length) > names->text_most))))
     {
         return;
     }
     if (names->name != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = names->text + names->used, .src = name, .bytes = length});
+        memor.cpy(&(MemoriaCfg){.dst = names->text + names->used, .src = args->name, .bytes = length});
         names->name[names->count] = names->text + names->used;
     }
     names->count += 1u;
     names->used += length;
 }
 
-void cli_templates_list(VerbaLinea *out)
+void cli_templates_list(const CliTemplatesOutCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     CliTemplateNames names = {NULL, NULL, 0u, 0u, 0ull, 0ull};
-    const int has_folder = cli_templates_folder(folder);
+    const int has_folder = EMBED_CALL(cli_templates_table.folder, CliTemplatesCfg, .folder = folder);
     if (has_folder)
     {
-        query_folder_each(folder, cli_name_each, &names);
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_name_each,
+                   .context_bytess = &names);
     }
     // the names in a cell of the count and bytes a first reading found, read again into it
     const unsigned int most = names.count;
@@ -69,56 +71,78 @@ void cli_templates_list(VerbaLinea *out)
     if (names.name != NULL)
     {
         names.text = (char *)(names.name + most);
-        query_folder_each(folder, cli_name_each, &names);
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_name_each,
+                   .context_bytess = &names);
     }
     for (unsigned int at = 1u; at < names.count; at += 1u)
     {
         const char *const name = names.name[at];
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(names.name[place - 1u], name) > 0))
+        while ((place > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = names.name[place - 1u],
+                                           .other_pointer = name) > 0))
         {
             names.name[place] = names.name[place - 1u];
             place -= 1u;
         }
         names.name[place] = name;
     }
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     for (unsigned int at = 0u; at < names.count; at += 1u)
     {
-        mmgr_line_put(out, (at != 0u) ? "," : "");
-        cli_json_quoted(out, names.name[at],
-                        cellul.len(&(CatenaFinitaCfg){.src = names.name[at], .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(args->out, (at != 0u) ? "," : "");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = names.name[at],
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = names.name[at], .cap = CLI_CELLS_POOL}));
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
     g_cli_cells->persistent_buf_release(names.name, &g_cli_templates_cells);
 }
 
+typedef struct
+{
+    const char *name;
+    const char *text;
+    char *out;
+    unsigned long long room;
+    const char *from;
+    const char *to;
+    VerbaLinea *err_msg;
+    const char *path;
+} TemplatesCtx;
 // whether a name is one a folder may take: not blank, no separator, no `..`, and none of the characters a path reads
 // as more than a name
-static int cli_plain(const char *name)
+EMBED_INLINE int cli_plain(const TemplatesCtx *args)
 {
     int blank = 1;
     unsigned long long at = 0ull;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     while (at < length)
     {
         unsigned int letter = 0u;
-        at += cli_lossy_letter((const unsigned char *)name, length, at, &letter);
+        at +=
+            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->name, .length = length, .at = at, .letter = &letter);
         blank = blank &&
                 ((letter == ' ') || ((letter >= '\t') && (letter <= '\r')) || (letter == 0x85u) || (letter == 0xa0u) ||
                  (letter == 0x1680u) || ((letter >= 0x2000u) && (letter <= 0x200au)) || (letter == 0x2028u) ||
                  (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u));
     }
-    return !blank && (name[cli_text_upto(name, "/\\:*?\"<>|")] == '\0') &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".", .cap = CLI_CELLS_POOL})) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "..", .cap = CLI_CELLS_POOL}));
+    return !blank &&
+           (args->name[EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = args->name, .set = "/\\:*?\"<>|")] ==
+            '\0') &&
+           (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = ".", .cap = CLI_CELLS_POOL})) &&
+           (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "..", .cap = CLI_CELLS_POOL}));
 }
 
 // `text` with every `{{name}}` in it written as `name`, into `out`, sized for `room`: 1, or 0 where it does not fit
-static int cli_named(const char *text, const char *name, char *out, unsigned long long room)
+EMBED_INLINE int cli_by_name(const TemplatesCtx *args)
 {
-    VerbaLinea line = {out, room, 0ull};
-    cli_text_put_filled(&line, text, "{{name}}", name);
+    const char *text = args->text;
+    const char *name = args->name;
+    char *out = args->out;
+    VerbaLinea line = {out, args->room, 0ull};
+    EMBED_CALL(cli_text_out_name.put_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = "{{name}}",
+               .value = name);
     mmgr_line_finish(&line);
     return mmgr_line_ok(&line);
 }
@@ -133,30 +157,32 @@ typedef struct
     int failed;
 } CliCopy;
 
-static int cli_copied(const char *from, const char *to, const char *name, VerbaLinea *err_msg);
+EMBED_INLINE int cli_copy(const TemplatesCtx *args);
 
 // that a path could not be copied, reported
-static int cli_uncopied(const char *path, VerbaLinea *err_msg)
+EMBED_INLINE int cli_uncopied(const TemplatesCtx *args)
 {
-    mmgr_line_put(err_msg, path);
-    mmgr_line_put(err_msg, ": it could not be copied");
+    mmgr_line_put(args->err_msg, args->path);
+    mmgr_line_put(args->err_msg, ": it could not be copied");
     return 0;
 }
 
 // a file copied with `{{name}}` written as the name in its text where it is UTF-8
-static int cli_file_copied(const char *from, const char *to, const char *name, VerbaLinea *err_msg)
+EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(from, &size, &g_cli_templates_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->from,
+                                                  .size_pointer = &size, .owner = &g_cli_templates_cells);
     if (bytes == NULL)
     {
-        return cli_uncopied(from, err_msg);
+        return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
     }
     int text = 1;
     for (unsigned long long at = 0ull; text && (at < size);)
     {
         unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter(bytes, size, at, &letter);
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                   .text_bytes = bytes, .length = size, .at = at, .letter = &letter);
         text = !((step == 1ull) && (bytes[at] >= 0x80u));
         at += step;
     }
@@ -172,8 +198,9 @@ static int cli_file_copied(const char *from, const char *to, const char *name, V
         g_cli_cells->temporary_buf_alloc(((2ull * named) + 1ull) * sizeof(*piece), &g_cli_templates_cells);
     if (piece == NULL)
     {
-        cli_file_given(bytes, &g_cli_templates_cells);
-        return cli_uncopied(from, err_msg);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
+                   .owner = &g_cli_templates_cells);
+        return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
     }
     unsigned int pieces = 0u;
     unsigned long long start = 0ull;
@@ -185,7 +212,8 @@ static int cli_file_copied(const char *from, const char *to, const char *name, V
             continue;
         }
         piece[pieces] = (CliFilePiece){bytes + start, at - start};
-        piece[pieces + 1u] = (CliFilePiece){name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL})};
+        piece[pieces + 1u] =
+            (CliFilePiece){args->name, cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL})};
         pieces += 2u;
         at += 8ull;
         start = at;
@@ -193,15 +221,16 @@ static int cli_file_copied(const char *from, const char *to, const char *name, V
     piece[pieces] = (CliFilePiece){bytes + start, size - start};
     pieces += 1u;
     // a piece of no bytes contains no zeros either
-    const int written = cli_file_pieces_written(to, piece, pieces);
+    const int written = EMBED_CALL(cli_path_count_internal.file_pieces_write, CliPathCountCtx, .path = args->to,
+                                   .pieces = piece, .count = pieces);
     g_cli_cells->persistent_buf_release(piece, &g_cli_templates_cells);
-    cli_file_given(bytes, &g_cli_templates_cells);
-    return written || cli_uncopied(to, err_msg);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_templates_cells);
+    return written || EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->to, .err_msg = args->err_msg);
 }
 
-static void cli_copy_each(void *context, const char *entry, int is_folder)
+static void cli_copy_each(const CliEachNameIsFolderCfg *args)
 {
-    CliCopy *const copy = (CliCopy *)context;
+    CliCopy *const copy = (CliCopy *)args->context;
     if (copy->failed)
     {
         return;
@@ -209,96 +238,103 @@ static void cli_copy_each(void *context, const char *entry, int is_folder)
     char named[CLI_PATH_MAX_LEN];
     char from[CLI_PATH_MAX_LEN];
     char to[CLI_PATH_MAX_LEN];
-    if (!cli_named(entry, copy->name, named, sizeof(named)))
+    if (!EMBED_CALL(cli_by_name, TemplatesCtx, .text = args->name, .name = copy->name, .out = named,
+                    .room = sizeof(named)))
     {
-        copy->failed = !cli_uncopied(entry, copy->err_msg);
+        copy->failed = !EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->name, .err_msg = copy->err_msg);
         return;
     }
-    cli_full(copy->from, entry, from);
-    cli_full(copy->to, named, to);
-    copy->failed = is_folder ? !cli_copied(from, to, copy->name, copy->err_msg)
-                             : !cli_file_copied(from, to, copy->name, copy->err_msg);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = copy->from, .relative = args->name, .joined = from);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = copy->to, .relative = named, .joined = to);
+    copy->failed = args->is_folder ? !EMBED_CALL(cli_copy, TemplatesCtx, .from = from, .to = to, .name = copy->name,
+                                                 .err_msg = copy->err_msg)
+                                   : !EMBED_CALL(cli_file_copy, TemplatesCtx, .from = from, .to = to,
+                                                 .name = copy->name, .err_msg = copy->err_msg);
 }
 
 // `from` copied into `to`, made, `{{name}}` written as `name` in each file's name and in each file's text where it is
 // text: 1, or 0 with why given
-static int cli_copied(const char *from, const char *to, const char *name, VerbaLinea *err_msg)
+EMBED_INLINE int cli_copy(const TemplatesCtx *args)
 {
-    if (!query_folder_made(to))
+    if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = args->to))
     {
-        return cli_uncopied(to, err_msg);
+        return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->to, .err_msg = args->err_msg);
     }
-    CliCopy copy = {from, to, name, err_msg, 0};
-    if (!query_folder_each(from, cli_copy_each, &copy))
+    CliCopy copy = {args->from, args->to, args->name, args->err_msg, 0};
+    if (!EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->from,
+                    .each = cli_copy_each, .context_bytess = &copy))
     {
-        return cli_uncopied(from, err_msg);
+        return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
     }
     return !copy.failed;
 }
 
-int cli_templates_create(const char *template_name, const char *parent, const char *name, char *made,
-                         VerbaLinea *err_msg)
+int cli_templates_create(const CliTemplatesTemplateNameCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    if (!cli_templates_folder(folder))
+    if (!EMBED_CALL(cli_templates_table.folder, CliTemplatesCfg, .folder = folder))
     {
-        mmgr_line_put(err_msg, "orior_cli has no folder of its own to store templates in");
+        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store templates in");
         return 0;
     }
-    if (!cli_plain(name))
+    if (!EMBED_CALL(cli_plain, TemplatesCtx, .name = args->name))
     {
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " is no name a folder may take");
+        mmgr_line_put(args->err_msg, args->name);
+        mmgr_line_put(args->err_msg, " is no name a folder may take");
         return 0;
     }
     char source[CLI_PATH_MAX_LEN];
-    cli_full(folder, template_name, source);
-    if (!cli_plain(template_name) || !query_is_folder(source))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = args->template_name, .joined = source);
+    if (!EMBED_CALL(cli_plain, TemplatesCtx, .name = args->template_name) ||
+        !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = source))
     {
-        mmgr_line_put(err_msg, template_name);
-        mmgr_line_put(err_msg, " is no template of yours: they are the folders in ");
-        mmgr_line_put(err_msg, folder);
+        mmgr_line_put(args->err_msg, args->template_name);
+        mmgr_line_put(args->err_msg, " is no template of yours: they are the folders in ");
+        mmgr_line_put(args->err_msg, folder);
         return 0;
     }
-    cli_full(parent, name, made);
-    if (query_is_file(made) || query_is_folder(made))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->parent, .relative = args->name, .joined = args->made);
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->made) ||
+        EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->made))
     {
-        mmgr_line_put(err_msg, made);
-        mmgr_line_put(err_msg, " is there already");
+        mmgr_line_put(args->err_msg, args->made);
+        mmgr_line_put(args->err_msg, " is there already");
         return 0;
     }
     static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    const int copied = cli_copied(source, made, name, err_msg);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int copied = EMBED_CALL(cli_copy, TemplatesCtx, .from = source, .to = args->made, .name = args->name,
+                                  .err_msg = args->err_msg);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return copied;
 }
 
-int cli_templates_save(const char *root, const char *name, char *made, VerbaLinea *err_msg)
+int cli_templates_save(const CliTemplatesNameCfg *args)
 {
-    if (!cli_plain(name))
+    if (!EMBED_CALL(cli_plain, TemplatesCtx, .name = args->name))
     {
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " is no name a template may take");
+        mmgr_line_put(args->err_msg, args->name);
+        mmgr_line_put(args->err_msg, " is no name a template may take");
         return 0;
     }
     char folder[CLI_PATH_MAX_LEN];
-    if (!cli_templates_folder(folder))
+    if (!EMBED_CALL(cli_templates_table.folder, CliTemplatesCfg, .folder = folder))
     {
-        mmgr_line_put(err_msg, "orior_cli has no folder of its own to store templates in");
+        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store templates in");
         return 0;
     }
-    cli_full(folder, name, made);
-    if (query_is_file(made) || query_is_folder(made))
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = args->name, .joined = args->made);
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->made) ||
+        EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->made))
     {
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " is a template already");
+        mmgr_line_put(args->err_msg, args->name);
+        mmgr_line_put(args->err_msg, " is a template already");
         return 0;
     }
-    const CliFiles *const files = cli_files_view(root);
+    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
     {
-        const char *const file = cli_files_at(files, index);
+        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
         if ((cellul.eq(&(CatenaFinitaCfg){.src = file, .other = ".git", .cap = CLI_CELLS_POOL})) ||
             (cellul.starts(&(CatenaFinitaCfg){.src = file, .other = ".git/", .cap = CLI_CELLS_POOL})))
         {
@@ -307,20 +343,21 @@ int cli_templates_save(const char *root, const char *name, char *made, VerbaLine
         char from[CLI_PATH_MAX_LEN];
         char to[CLI_PATH_MAX_LEN];
         char parent[CLI_PATH_MAX_LEN];
-        cli_full(root, file, from);
-        cli_full(made, file, to);
-        if (cli_path_parent(to, parent) && !query_folder_made(parent))
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = file, .joined = from);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->made, .relative = file, .joined = to);
+        if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = to, .out = parent) &&
+            !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent))
         {
-            cli_files_let(files);
-            return cli_uncopied(parent, err_msg);
+            EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+            return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = parent, .err_msg = args->err_msg);
         }
-        if (!query_file_copied(from, to))
+        if (!EMBED_CALL(query_from_internal.file_copy, QueryFromCtx, .from = from, .to = to))
         {
-            const int uncopied = cli_uncopied(file, err_msg);
-            cli_files_let(files);
+            const int uncopied = EMBED_CALL(cli_uncopied, TemplatesCtx, .path = file, .err_msg = args->err_msg);
+            EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
             return uncopied;
         }
     }
-    cli_files_let(files);
+    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
     return 1;
 }

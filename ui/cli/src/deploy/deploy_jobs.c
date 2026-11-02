@@ -12,12 +12,12 @@
 static CliDeployTree s_tree;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-int cli_deploy_act_of(const char *word)
+int cli_deploy_act_get(const CliDeployCfg *args)
 {
     static const char *const acts[3] = {"preview", "send", "roll back"};
     for (int act = 0; act < 3; act += 1)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = acts[act], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = acts[act], .cap = CLI_CELLS_POOL}))
         {
             return act;
         }
@@ -25,26 +25,39 @@ int cli_deploy_act_of(const char *word)
     return -1;
 }
 
-// a choice param put on the last job, its first choice its default
-static void jobs_choice(CliCatalog *catalog, const char *key, const char *first, const char *second, const char *third)
+typedef struct
 {
-    cli_catalog_param(catalog, key, "choice", 1);
-    cli_catalog_choice(catalog, first);
-    cli_catalog_choice(catalog, second);
-    if (third != NULL)
+    CliCatalog *catalog;
+    const char *key;
+    const char *first;
+    const char *second;
+    const char *third;
+} DeployJobsCtx;
+// a choice param put on the last job, its first choice its default
+EMBED_INLINE void jobs_choice(const DeployJobsCtx *args)
+{
+    CliCatalog *catalog = args->catalog;
+    const char *key = args->key;
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = key, .kind = "choice",
+               .required = 1);
+    EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog, .choice = args->first);
+    EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog, .choice = args->second);
+    if (args->third != NULL)
     {
-        cli_catalog_choice(catalog, third);
+        EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog, .choice = args->third);
     }
 }
 
-void cli_deploy_jobs(const char *root, CliCatalog *catalog)
+void cli_deploy_jobs(const CliCatalogRootCfg *args)
 {
-    cli_lock_take(&s_lock);
+    const char *root = args->root;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int count = 0u;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea none = {why, sizeof(why), 0ull};
     const CliDeployment *deployments = NULL;
-    if (!cli_deploy_read(root, &s_tree, &deployments, &count, &none))
+    if (!EMBED_CALL(cli_deploy_root_internal.read, CliDeployRootCtx, .root = root, .tree = &s_tree,
+                    .deployments = &deployments, .count_pointer = &count, .err_msg = &none))
     {
         count = 0u;
     }
@@ -69,23 +82,33 @@ void cli_deploy_jobs(const char *root, CliCatalog *catalog)
         }
         mmgr_line_put(&about, ", a new release at each turned to once every place has it.");
         const int listed = (mmgr_line_finish(&id) != 0ull) && mmgr_line_ok(&about) &&
-                           (cli_catalog_job(catalog, s_id, "deploy", deployment->name, "deploy.json", about_text, "") !=
-                            CLI_CATALOG_NONE);
+                           (EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->catalog,
+                                       .id = s_id, .group = "deploy", .title = deployment->name, .file = "deploy.json",
+                                       .about = about_text, .opens = "") != CLI_CATALOG_NONE);
         g_cli_cells->persistent_buf_release(about_text, &g_cli_deploy_cells);
         if (!listed)
         {
             continue;
         }
-        jobs_choice(catalog, "do", "preview", "send", "roll back");
-        jobs_choice(catalog, "changed there", "retain them", "replace them", NULL);
-        jobs_choice(catalog, "gone there", "retain them", "delete them", NULL);
-        cli_catalog_step(catalog, CLI_PROGRAM_ORIOR, NULL, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_LIT, "deploy", NULL, NULL, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_LIT, deployment->name, NULL, NULL, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_VALUE, "do", NULL, NULL, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_VALUE, "changed there", NULL, NULL, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_VALUE, "gone there", NULL, NULL, NULL, 0);
+        EMBED_CALL(jobs_choice, DeployJobsCtx, .catalog = args->catalog, .key = "do", .first = "preview",
+                   .second = "send", .third = "roll back");
+        EMBED_CALL(jobs_choice, DeployJobsCtx, .catalog = args->catalog, .key = "changed there", .first = "retain them",
+                   .second = "replace them", .third = NULL);
+        EMBED_CALL(jobs_choice, DeployJobsCtx, .catalog = args->catalog, .key = "gone there", .first = "retain them",
+                   .second = "delete them", .third = NULL);
+        EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = args->catalog,
+                   .program = CLI_PROGRAM_ORIOR, .text = NULL, .tool_program = NULL, .system = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_LIT,
+                   .a = "deploy", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_LIT,
+                   .a = deployment->name, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_VALUE,
+                   .a = "do", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_VALUE,
+                   .a = "changed there", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_VALUE,
+                   .a = "gone there", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
-    cli_deploy_tree_given(&s_tree);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_deploy_root_internal.tree_free, CliDeployRootCtx, .tree = &s_tree);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

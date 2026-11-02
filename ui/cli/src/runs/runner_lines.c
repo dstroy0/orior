@@ -2,54 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // runner_lines.c: a run's output and errors carried line by line as they come, each printed and stored, and the pages a
 // job wrote found
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "runner_internal.h"
 
 #include "../text/text.h"
-
-// the most bytes of one line carried whole: a longer one is printed in pieces of this size
-#define CLI_CARRIED_LINE (1u << 18u)
-
-void cli_run_line(CliRun *run, const char *stream, const char *text)
-{
-    const double ms = cli_run_since(run);
-    cli_runs_take();
-    cli_lines_put(run->lines, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
-    if (!run->has_first)
-    {
-        run->first = ms;
-        run->has_first = 1;
-    }
-    cli_runs_give();
-    const CliRunEvent event = {CLI_RUN_EVENT_LINE, run->run, NULL, stream, text, 0, 0ll, 0, NULL, 0u, NULL, ms};
-    run->sink.emit(run->sink.context, &event);
-}
-
-// the bytes of the UTF-8 sequence at `at` before `end` that is whole and in its shortest form, 0 where none is
-static unsigned int cli_sequence(const unsigned char *at, const unsigned char *end)
-{
-    const unsigned char lead = at[0];
-    const unsigned int bytes = (lead < 0x80u)                         ? 1u
-                               : ((lead >= 0xc2u) && (lead <= 0xdfu)) ? 2u
-                               : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3u
-                               : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4u
-                                                                      : 0u;
-    if ((bytes == 0u) || ((unsigned long long)(end - at) < bytes))
-    {
-        return 0u;
-    }
-    for (unsigned int step = 1u; step < bytes; step += 1u)
-    {
-        if ((at[step] & 0xc0u) != 0x80u)
-        {
-            return 0u;
-        }
-    }
-    const unsigned char second = (bytes > 1u) ? at[1] : 0x80u;
-    const int shortest = !((lead == 0xe0u) && (second < 0xa0u)) && !((lead == 0xedu) && (second >= 0xa0u)) &&
-                         !((lead == 0xf0u) && (second < 0x90u)) && !((lead == 0xf4u) && (second >= 0x90u));
-    return shortest ? bytes : 0u;
-}
 
 // What one stream's carrier reads: its run, its pipe, its stream's name, whether it has ended, and the line it buffers
 // so far, in a cell of the most a line carried whole holds, and its size
@@ -62,12 +19,73 @@ typedef struct
     char *pending;
     unsigned long long pending_size;
 } CliCarrier;
+// the most bytes of one line carried whole: a longer one is printed in pieces of this size
+#define CLI_CARRIED_LINE (1u << 18u)
+
+void cli_run_line(const CliRunnerRunStreamCtx *args)
+{
+    const char *text = args->text;
+    const double ms = EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = args->run);
+    cli_runs_take();
+    EMBED_CALL(cli_runner_lines.lines_put, CliRunnerLinesCfg, .lines = args->run->lines, .text = text,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    if (!args->run->has_first)
+    {
+        args->run->first = ms;
+        args->run->has_first = 1;
+    }
+    cli_runs_give();
+    const CliRunEvent event = {
+        CLI_RUN_EVENT_LINE, args->run->run, NULL, args->stream, text, 0, 0ll, 0, NULL, 0u, NULL, ms};
+    EMBED_CALL(args->run->sink.emit, CliEachEventCfg, .context = args->run->sink.context, .event = &event);
+}
+
+typedef struct
+{
+    const unsigned char *at;
+    const unsigned char *end;
+    CliCarrier *carrier;
+    const char *bytes;
+    unsigned long long length;
+    unsigned long long size;
+    const char *root;
+    const char *path;
+    char (*views)[CLI_PATH_MAX_LEN];
+    unsigned int *count;
+} RunnerLinesCtx;
+// the bytes of the UTF-8 sequence at `at` before `end` that is whole and in its shortest form, 0 where none is
+EMBED_INLINE unsigned int cli_sequence(const RunnerLinesCtx *args)
+{
+    const unsigned char lead = args->at[0];
+    const unsigned int bytes = (lead < 0x80u)                         ? 1u
+                               : ((lead >= 0xc2u) && (lead <= 0xdfu)) ? 2u
+                               : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3u
+                               : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4u
+                                                                      : 0u;
+    if ((bytes == 0u) || ((unsigned long long)(args->end - args->at) < bytes))
+    {
+        return 0u;
+    }
+    for (unsigned int step = 1u; step < bytes; step += 1u)
+    {
+        if ((args->at[step] & 0xc0u) != 0x80u)
+        {
+            return 0u;
+        }
+    }
+    const unsigned char second = (bytes > 1u) ? args->at[1] : 0x80u;
+    const int shortest = !((lead == 0xe0u) && (second < 0xa0u)) && !((lead == 0xedu) && (second >= 0xa0u)) &&
+                         !((lead == 0xf0u) && (second < 0x90u)) && !((lead == 0xf4u) && (second >= 0x90u));
+    return shortest ? bytes : 0u;
+}
 
 // one line of a stream printed: its `\r` and `\n` at the end left off, each byte that starts no letter read as U+FFFD,
 // written into a cell of its size, a letter read as U+FFFD three bytes for one
-static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned long long length)
+EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
 {
-    length = cli_text_back_past(bytes, length, "\n\r");
+    unsigned long long length = args->length;
+    length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->bytes, .at = length,
+                        .set = "\n\r");
     const unsigned long long room = (3ull * length) + 1ull;
     char *const text = g_cli_cells->temporary_buf_alloc(room, &g_cli_runs_cells);
     if (text == NULL)
@@ -75,11 +93,11 @@ static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned lo
         return;
     }
     VerbaLinea line = {text, room, 0ull};
-    const unsigned char *at = (const unsigned char *)bytes;
+    const unsigned char *at = (const unsigned char *)args->bytes;
     const unsigned char *const end = at + length;
     while (at < end)
     {
-        const unsigned int size = cli_sequence(at, end);
+        const unsigned int size = EMBED_CALL(cli_sequence, RunnerLinesCtx, .at = at, .end = end);
         if (size == 0u)
         {
             mmgr_line_put(&line, "\xef\xbf\xbd");
@@ -90,22 +108,26 @@ static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned lo
         at += size;
     }
     mmgr_line_finish(&line);
-    cli_run_line(carrier->run, carrier->stream, text);
+    EMBED_CALL(cli_runner_run_stream_internal.run_line, CliRunnerRunStreamCtx, .run = args->carrier->run,
+               .stream = args->carrier->stream, .text = text);
     g_cli_cells->persistent_buf_release(text, &g_cli_runs_cells);
 }
 
 // the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered, else from
 // the buffer, which holds both, a line ending at the most it holds at the latest
-static void cli_pending_emitted(CliCarrier *carrier, const char *bytes, unsigned long long size)
+EMBED_INLINE void cli_pending_emit(const RunnerLinesCtx *args)
 {
-    if (carrier->pending_size == 0ull)
+    const char *bytes = args->bytes;
+    if (args->carrier->pending_size == 0ull)
     {
-        cli_line_emitted(carrier, bytes, size);
+        EMBED_CALL(cli_line_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = bytes, .length = args->size);
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = carrier->pending + carrier->pending_size, .src = bytes, .bytes = (size_t)size});
-    cli_line_emitted(carrier, carrier->pending, carrier->pending_size + size);
-    carrier->pending_size = 0ull;
+    memor.cpy(&(MemoriaCfg){
+        .dst = args->carrier->pending + args->carrier->pending_size, .src = bytes, .bytes = (size_t)args->size});
+    EMBED_CALL(cli_line_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = args->carrier->pending,
+               .length = args->carrier->pending_size + args->size);
+    args->carrier->pending_size = 0ull;
 }
 
 static CliLock s_carried = CLI_LOCK_INIT;
@@ -113,12 +135,14 @@ static CliWake s_carried_wake = CLI_WAKE_INIT;
 
 // a stream read to its end, each line printed as it is whole, a line of CLI_CARRIED_LINE bytes printed where it has
 // come to that many with no end
-static void cli_carried(CliCarrier *carrier)
+EMBED_INLINE void cli_on_carry(const RunnerLinesCtx *args)
 {
     char piece[4096];
     for (;;)
     {
-        const unsigned long long got = cli_spawn_read(carrier->pipe, piece, sizeof(piece));
+        const unsigned long long got =
+            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
+                       .pipe_handle = args->carrier->pipe, .piece = piece, .room = sizeof(piece));
         if (got == 0ull)
         {
             break;
@@ -126,87 +150,95 @@ static void cli_carried(CliCarrier *carrier)
         unsigned long long from = 0ull;
         for (unsigned long long at = 0ull; at < got; at += 1ull)
         {
-            const unsigned long long pending_size = carrier->pending_size + (at + 1ull - from);
+            const unsigned long long pending_size = args->carrier->pending_size + (at + 1ull - from);
             if ((piece[at] == '\n') || (pending_size == CLI_CARRIED_LINE))
             {
-                cli_pending_emitted(carrier, piece + from, at + 1ull - from);
+                EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = piece + from,
+                           .size = at + 1ull - from);
                 from = at + 1ull;
             }
         }
-        if ((got > from) && (carrier->pending != NULL))
+        if ((got > from) && (args->carrier->pending != NULL))
         {
-            memor.cpy(&(MemoriaCfg){
-                .dst = carrier->pending + carrier->pending_size, .src = piece + from, .bytes = (size_t)(got - from)});
-            carrier->pending_size += got - from;
+            memor.cpy(&(MemoriaCfg){.dst = args->carrier->pending + args->carrier->pending_size,
+                                    .src = piece + from,
+                                    .bytes = (size_t)(got - from)});
+            args->carrier->pending_size += got - from;
         }
         else if (got > from)
         {
             // a stream whose cell the pool could not meet is printed as it comes
-            cli_line_emitted(carrier, piece + from, got - from);
+            EMBED_CALL(cli_line_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = piece + from,
+                       .length = got - from);
         }
     }
-    if (carrier->pending_size != 0ull)
+    if (args->carrier->pending_size != 0ull)
     {
-        cli_pending_emitted(carrier, "", 0ull);
+        EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = "", .size = 0ull);
     }
 }
 
-static void cli_errors_carried(void *context)
+static void cli_errors_carry(void *context)
 {
     CliCarrier *const carrier = (CliCarrier *)context;
-    cli_carried(carrier);
-    cli_lock_take(&s_carried);
+    EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = carrier);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_carried);
     carrier->ended = 1;
-    cli_wake_all(&s_carried_wake);
-    cli_lock_give(&s_carried);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_carried_wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_carried);
 }
 
-void cli_run_carry(CliRun *run, const CliSpawned *spawned)
+void cli_run_carry(const CliRunnerRunSpawnedCtx *args)
 {
     // the step's two carriers, retained as long as the step goes, each with a cell of the most a line holds
-    CliCarrier out_carrier = {run, spawned->out, "stdout", 0, NULL, 0ull};
-    CliCarrier err_carrier = {run, spawned->err, "stderr", 0, NULL, 0ull};
+    CliCarrier out_carrier = {args->run, args->spawned->out, "stdout", 0, NULL, 0ull};
+    CliCarrier err_carrier = {args->run, args->spawned->err, "stderr", 0, NULL, 0ull};
     out_carrier.pending = g_cli_cells->temporary_buf_alloc(CLI_CARRIED_LINE, &g_cli_runs_cells);
     err_carrier.pending = g_cli_cells->temporary_buf_alloc(CLI_CARRIED_LINE, &g_cli_runs_cells);
     CliCarrier *const out = &out_carrier;
     CliCarrier *const err = &err_carrier;
-    CliThread errors = {cli_errors_carried, err};
-    const int threaded = cli_thread_started(&errors);
+    CliThread errors = {cli_errors_carry, err};
+    const int threaded = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &errors);
     if (!threaded)
     {
-        cli_carried(err);
+        EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = err);
     }
-    cli_carried(out);
-    cli_lock_take(&s_carried);
+    EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = out);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_carried);
     while (threaded && !err->ended)
     {
-        cli_wake_wait(&s_carried_wake, &s_carried);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_carried_wake, .lock = &s_carried);
     }
-    cli_lock_give(&s_carried);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_carried);
     g_cli_cells->persistent_buf_release(out_carrier.pending, &g_cli_runs_cells);
     g_cli_cells->persistent_buf_release(err_carrier.pending, &g_cli_runs_cells);
 }
 
 // a path put among the pages where it is in the tree, by its path there, once
-static void cli_page_put(const char *root, const char *path, char (*views)[CLI_PATH_MAX_LEN], unsigned int *count)
+static void cli_page_put(const RunnerLinesCtx *args)
 {
+    const char *root = args->root;
+    const char *path = args->path;
+    unsigned int *count = args->count;
     char full[CLI_PATH_MAX_LEN];
     char relative[CLI_PATH_MAX_LEN];
-    if (!query_path_full(path, full, sizeof(full)) || !query_is_file(full))
+    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = path, .full = full,
+                    .room = sizeof(full)) ||
+        !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = full))
     {
         return;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
-    if (!cli_text_same(full, root, length) ||
+    if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = full, .other_pointer = root, .size = length) ||
         ((full[length] != '/') && (full[length] != '\\') && (full[length] != '\0')))
     {
         return;
     }
-    cli_relative(root, full, relative);
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = full, .relative_out = relative);
     unsigned int place = *count;
     for (unsigned int at = 0u; at < *count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = views[at], .other = relative, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->views[at], .other = relative, .cap = CLI_CELLS_POOL}))
         {
             return;
         }
@@ -215,15 +247,16 @@ static void cli_page_put(const char *root, const char *path, char (*views)[CLI_P
     {
         return;
     }
-    while ((place > 0u) && (cli_text_order(views[place - 1u], relative) > 0))
+    while ((place > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = args->views[place - 1u],
+                                       .other_pointer = relative) > 0))
     {
         memor.cpy(&(MemoriaCfg){
-            .dst = views[place],
-            .src = views[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = views[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
+            .dst = args->views[place],
+            .src = args->views[place - 1u],
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->views[place - 1u], .cap = CLI_CELLS_POOL}) + 1u});
         place -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = views[place],
+    memor.cpy(&(MemoriaCfg){.dst = args->views[place],
                             .src = relative,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}) + 1u});
     *count += 1u;
@@ -238,42 +271,50 @@ typedef struct
     unsigned int *count;
 } CliPageWalk;
 
-static void cli_page_each(void *context, const char *name, int is_folder)
+static void cli_page_each(const CliEachNameIsFolderCfg *args)
 {
-    const CliPageWalk *const walk = (const CliPageWalk *)context;
-    const char *const dot =
-        cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
-    if (!is_folder && (dot != NULL) &&
+    const CliPageWalk *const walk = (const CliPageWalk *)args->context;
+    const char *const dot = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->name,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .byte = '.');
+    if (!args->is_folder && (dot != NULL) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = ".html", .cap = CLI_CELLS_POOL})))
     {
         char path[CLI_PATH_MAX_LEN];
         VerbaLinea line = {path, sizeof(path), 0ull};
         mmgr_line_put(&line, walk->folder);
         mmgr_line_ch(&line, '/');
-        mmgr_line_put(&line, name);
+        mmgr_line_put(&line, args->name);
         if (mmgr_line_finish(&line) != 0ull)
         {
-            cli_page_put(walk->root, path, walk->views, walk->count);
+            EMBED_CALL(cli_page_put, RunnerLinesCtx, .root = walk->root, .path = path, .views = walk->views,
+                       .count = walk->count);
         }
     }
 }
 
-unsigned int cli_run_pages(const char *root, const char *view_out, const CliLines *lines,
-                           char (*views)[CLI_PATH_MAX_LEN])
+unsigned int cli_run_pages(const CliRunnerRootCtx *args)
 {
+    const char *root = args->root;
+    const CliLines *lines = args->lines;
+    char (*views)[CLI_PATH_MAX_LEN] = args->views;
     unsigned int count = 0u;
-    CliPageWalk walk = {root, view_out, views, &count};
-    query_folder_each(view_out, cli_page_each, &walk);
+    CliPageWalk walk = {root, args->view_out, views, &count};
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->view_out,
+               .each = cli_page_each, .context_bytess = &walk);
     for (unsigned int index = 0u; index < lines->count; index += 1u)
     {
-        const char *at = cli_lines_at(lines, index);
+        const char *at =
+            EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg, .lines_read = lines, .index = index);
         while (at[0] != '\0')
         {
-            at += cli_text_past_any(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}),
-                                    CLI_TEXT_WHITE);
+            at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+                             .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}),
+                             .set = CLI_TEXT_WHITE);
             const char *end = at;
-            end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
-                                   CLI_TEXT_WHITE);
+            end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
+                              .set = CLI_TEXT_WHITE);
             // the word trimmed of the quotes, commas and colons about it
             const char *from = at;
             const char *to = end;
@@ -305,9 +346,10 @@ unsigned int cli_run_pages(const char *root, const char *view_out, const CliLine
                     }
                     else
                     {
-                        cli_full(root, word, path);
+                        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = word, .joined = path);
                     }
-                    cli_page_put(root, path, views, &count);
+                    EMBED_CALL(cli_page_put, RunnerLinesCtx, .root = root, .path = path, .views = views,
+                               .count = &count);
                 }
             }
             at = end;

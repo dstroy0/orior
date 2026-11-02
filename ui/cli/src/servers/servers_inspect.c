@@ -7,6 +7,7 @@
 // attribute are passed on again, for a family that sets it to decide whether the report passes; a file the editor
 // opens receives its diagnostics, changed or the same. The findings and the files whose findings changed are written
 // through pieces into cells of their size
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../editor/files.h"
 #include "../inspect/inspect_tree.h"
@@ -14,6 +15,15 @@
 
 #include "../text/text.h"
 
+// The findings of the tree as they are written: the line they go on, each file's path ended by a 0 then its findings
+// as an array ended by a 0, whether a file is begun and whether it has a finding yet, and how many files are begun
+typedef struct
+{
+    VerbaLinea *found;
+    int file_begun;
+    int has_finding;
+    unsigned long long files;
+} CliServersInspectFound;
 // the most files with names supplied and findings seen
 #define CLI_SERVERS_INSPECT_FILES (1u << 16u)
 
@@ -29,16 +39,6 @@ typedef struct
     unsigned long long size;
 } CliServersInspectJob;
 
-// The findings of the tree as they are written: the line they go on, each file's path ended by a 0 then its findings
-// as an array ended by a 0, whether a file is begun and whether it has a finding yet, and how many files are begun
-typedef struct
-{
-    VerbaLinea *found;
-    int file_begun;
-    int has_finding;
-    unsigned long long files;
-} CliServersInspectFound;
-
 // how many trees were let go, under its own lock; and the root the tree was read from and when, under the tree's
 // lock, which a read acquires
 static unsigned long long s_generation;
@@ -53,46 +53,60 @@ static CliKeyed s_seen = {"findings seen", {NULL}, 0u, CLI_SERVERS_INSPECT_FILES
 // how many trees were let go
 static unsigned long long inspect_generation(void)
 {
-    cli_lock_take(&s_generation_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_generation_lock);
     const unsigned long long generation = s_generation;
-    cli_lock_give(&s_generation_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_generation_lock);
     return generation;
 }
 
+typedef struct
+{
+    const char *root;
+    CliServersInspectFound *found;
+    VerbaLinea *changed;
+    const char *key;
+    const char *uri;
+    const char *found_text;
+    unsigned long long size;
+    unsigned long long found_files;
+    const CliServersSink *sink;
+    unsigned long long born;
+} ServersInspectCtx;
 // whether the tree was read from `root` since the last tree was let go; under the tree's lock
-static int inspect_has_tree(const char *root)
+EMBED_INLINE int inspect_has_tree(const ServersInspectCtx *args)
 {
     return (s_tree_root[0] != '\0') && (s_tree_generation == inspect_generation()) &&
-           (cellul.eq(&(CatenaFinitaCfg){.src = s_tree_root, .other = root, .cap = CLI_CELLS_POOL}));
+           (cellul.eq(&(CatenaFinitaCfg){.src = s_tree_root, .other = args->root, .cap = CLI_CELLS_POOL}));
 }
 
-int cli_servers_tree_read(char *root)
+int cli_servers_tree_read(const CliServersRootKindCtx *args)
 {
-    cli_lock_take(&s_tree_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_tree_lock);
     const int read = (s_tree_root[0] != '\0') && (s_tree_generation == inspect_generation());
-    memor.cpy(&(MemoriaCfg){.dst = root, .src = s_tree_root, .bytes = CLI_PATH_MAX_LEN});
-    cli_lock_give(&s_tree_lock);
+    memor.cpy(&(MemoriaCfg){.dst = args->root_out, .src = s_tree_root, .bytes = CLI_PATH_MAX_LEN});
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tree_lock);
     return read;
 }
 
 // the array of the file begun on the findings' line closed and ended by a 0
-static void inspect_file_closed(CliServersInspectFound *found)
+EMBED_INLINE void inspect_file_close(const ServersInspectCtx *args)
 {
-    if (found->file_begun)
+    if (args->found->file_begun)
     {
-        mmgr_line_ch(found->found, ']');
-        mmgr_line_ch(found->found, '\0');
+        mmgr_line_ch(args->found->found, ']');
+        mmgr_line_ch(args->found->found, '\0');
     }
 }
 
 // a finding of a file of the tree put after its file's, a file's path with none first
-static void inspect_found(void *context, const char *path, const char *finding, unsigned long long size)
+static void inspect_find(const CliInspectFoundCfg *args)
 {
-    CliServersInspectFound *const found = context;
-    if (finding == NULL)
+    CliServersInspectFound *const found = args->context;
+    if (args->finding == NULL)
     {
-        inspect_file_closed(found);
-        mmgr_line_put_n(found->found, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1ull);
+        EMBED_CALL(inspect_file_close, ServersInspectCtx, .found = found);
+        mmgr_line_put_n(found->found, args->path,
+                        cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1ull);
         mmgr_line_ch(found->found, '[');
         found->file_begun = 1;
         found->has_finding = 0;
@@ -104,23 +118,27 @@ static void inspect_found(void *context, const char *path, const char *finding, 
         return;
     }
     mmgr_line_put(found->found, found->has_finding ? "," : "");
-    mmgr_line_put_n(found->found, finding, size);
+    mmgr_line_put_n(found->found, args->finding, args->size);
     found->has_finding = 1;
 }
 
 // an attribute a class's family sets stored, by its file's key, as `class attribute` on a line after those stored
-static void inspect_supplied(void *context, const char *path, const char *class_name, const char *attribute)
+static void inspect_supplied(const CliInspectSuppliedCfg *args)
 {
-    const char *const root = context;
+    const char *path = args->path;
+    const char *const root = args->context;
     char full[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
-    cli_full(root, path, full);
-    cli_servers_key_of(full, key);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = full, .key_out = key);
     const char *beside = NULL;
     unsigned long long size = 0ull;
-    const char *const stored = cli_keyed_get(&s_supplied_new, key, &beside, &size);
-    const unsigned long long class_size = cellul.len(&(CatenaFinitaCfg){.src = class_name, .cap = CLI_CELLS_POOL});
-    const unsigned long long attribute_size = cellul.len(&(CatenaFinitaCfg){.src = attribute, .cap = CLI_CELLS_POOL});
+    const char *const stored = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_supplied_new,
+                                          .key = key, .beside = &beside, .size = &size);
+    const unsigned long long class_size =
+        cellul.len(&(CatenaFinitaCfg){.src = args->class_name, .cap = CLI_CELLS_POOL});
+    const unsigned long long attribute_size =
+        cellul.len(&(CatenaFinitaCfg){.src = args->attribute, .cap = CLI_CELLS_POOL});
     const unsigned long long line_size = size + class_size + 1ull + attribute_size + 1ull;
     char *const line = g_cli_cells->temporary_buf_alloc(line_size, &g_cli_servers_cells);
     if (line == NULL)
@@ -129,11 +147,13 @@ static void inspect_supplied(void *context, const char *path, const char *class_
     }
     // each size is a path's, a name's or a line of them, far inside what a size_t counts
     memor.cpy(&(MemoriaCfg){.dst = line, .src = (stored != NULL) ? stored : "", .bytes = (size_t)size});
-    memor.cpy(&(MemoriaCfg){.dst = line + size, .src = class_name, .bytes = (size_t)class_size});
+    memor.cpy(&(MemoriaCfg){.dst = line + size, .src = args->class_name, .bytes = (size_t)class_size});
     line[size + class_size] = ' ';
-    memor.cpy(&(MemoriaCfg){.dst = line + size + class_size + 1ull, .src = attribute, .bytes = (size_t)attribute_size});
+    memor.cpy(
+        &(MemoriaCfg){.dst = line + size + class_size + 1ull, .src = args->attribute, .bytes = (size_t)attribute_size});
     line[line_size - 1ull] = '\n';
-    (void)cli_keyed_put(&s_supplied_new, key, "", line, line_size);
+    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_supplied_new, .key = key,
+                     .beside_value = "", .text = line, .size_value = line_size);
     g_cli_cells->persistent_buf_release(line, &g_cli_servers_cells);
 }
 
@@ -145,11 +165,13 @@ static int inspect_supplied_put(void)
     int moved = 0;
     for (unsigned int at = 0u; at < g_cli_servers_supplied.entries; at += 1u)
     {
-        count += cli_keyed_entry(&g_cli_servers_supplied, at)->used ? 1u : 0u;
+        count +=
+            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_supplied, .at = at)->used ? 1u : 0u;
     }
     for (unsigned int at = 0u; !moved && (at < s_supplied_new.entries); at += 1u)
     {
-        const CliKeyedEntry *const one = cli_keyed_entry(&s_supplied_new, at);
+        const CliKeyedEntry *const one =
+            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_supplied_new, .at = at);
         if (!one->used)
         {
             continue;
@@ -159,8 +181,11 @@ static int inspect_supplied_put(void)
         unsigned long long size = 0ull;
         unsigned long long other = 0ull;
         const char *const key = one->cell;
-        const char *const text = cli_keyed_get(&s_supplied_new, key, &beside, &size);
-        const char *const was = cli_keyed_get(&g_cli_servers_supplied, key, &beside, &other);
+        const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_supplied_new,
+                                            .key = key, .beside = &beside, .size = &size);
+        const char *const was =
+            EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_supplied, .key = key,
+                       .beside = &beside, .size = &other);
         moved = (was == NULL) || (other != size) ||
                 (memor.cmp(&(MemoriaCfg){.src = was, .other = text, .bytes = (size_t)size}) != 0);
     }
@@ -168,89 +193,106 @@ static int inspect_supplied_put(void)
     {
         return 0;
     }
-    cli_keyed_clear(&g_cli_servers_supplied);
+    EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_supplied);
     for (unsigned int at = 0u; at < s_supplied_new.entries; at += 1u)
     {
-        const CliKeyedEntry *const one = cli_keyed_entry(&s_supplied_new, at);
+        const CliKeyedEntry *const one =
+            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_supplied_new, .at = at);
         if (!one->used)
         {
             continue;
         }
         const char *beside = NULL;
         unsigned long long size = 0ull;
-        const char *const text = cli_keyed_get(&s_supplied_new, one->cell, &beside, &size);
+        const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_supplied_new,
+                                            .key = one->cell, .beside = &beside, .size = &size);
         if (text != NULL)
         {
-            (void)cli_keyed_put(&g_cli_servers_supplied, one->cell, "", text, size);
+            (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_supplied,
+                             .key = one->cell, .beside_value = "", .text = text, .size_value = size);
         }
     }
     return 1;
 }
 
 // a file whose findings changed put on the line that is `changed`, its key then its URI, each ended by a 0
-static void inspect_changed(VerbaLinea *changed, const char *key, const char *uri)
+EMBED_INLINE void inspect_change(const ServersInspectCtx *args)
 {
-    mmgr_line_put_n(changed, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1ull);
-    mmgr_line_put_n(changed, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1ull);
+    mmgr_line_put_n(args->changed, args->key,
+                    cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1ull);
+    mmgr_line_put_n(args->changed, args->uri,
+                    cellul.len(&(CatenaFinitaCfg){.src = args->uri, .cap = CLI_CELLS_POOL}) + 1ull);
 }
 
 // each file's findings of `size` bytes of `found`, `found_files` files, stored, by its key with its URI, and each file
 // whose findings changed passed on
-static void inspect_passed_on(const char *root, const char *found, unsigned long long size,
-                              unsigned long long found_files, const CliServersSink *sink)
+EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
 {
-    cli_keyed_clear(&s_seen);
-    cli_lock_take(&g_cli_servers_checks_lock);
+    const char *root = args->root;
+    unsigned long long size = args->size;
+    const CliServersSink *sink = args->sink;
+    EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_seen);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     // a file found changes by its key and its URI, each at most a path's; one stored and no longer found by what it
     // stored
     const unsigned long long room =
-        (found_files * CLI_PATH_MAX_LEN * 2ull) + cli_keyed_listed_size(&g_cli_servers_inspected) + 1ull;
+        (args->found_files * CLI_PATH_MAX_LEN * 2ull) +
+        EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_inspected) + 1ull;
     char *const files = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
     VerbaLinea changed = mmgr_line_over(files, room);
     for (unsigned long long at = 0ull; at < size;)
     {
-        const char *const path = found + at;
+        const char *const path = args->found_text + at;
         const char *const values = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u;
         const unsigned long long values_size = cellul.len(&(CatenaFinitaCfg){.src = values, .cap = CLI_CELLS_POOL});
         at += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u + values_size + 1u;
         char full[CLI_PATH_MAX_LEN];
         char uri[CLI_PATH_MAX_LEN];
         char key[CLI_PATH_MAX_LEN];
-        cli_full(root, path, full);
-        cli_servers_uri_of(full, uri);
-        cli_lsp_key_of(uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), key);
-        (void)cli_keyed_put(&s_seen, key, "", "", 0ull);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
+        EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = full, .uri_out = uri);
+        EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .key = key);
+        (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_seen, .key = key,
+                         .beside_value = "", .text = "", .size_value = 0ull);
         const char *beside = NULL;
         unsigned long long stored_size = 0ull;
-        const char *const stored = cli_keyed_get(&g_cli_servers_inspected, key, &beside, &stored_size);
+        const char *const stored =
+            EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_inspected, .key = key,
+                       .beside = &beside, .size = &stored_size);
         const int same = (stored != NULL) && (stored_size == values_size) &&
                          (memor.cmp(&(MemoriaCfg){.src = stored, .other = values, .bytes = (size_t)values_size}) == 0);
         if (((stored != NULL) || (values_size > 2u)) && !same)
         {
-            (void)cli_keyed_put(&g_cli_servers_inspected, key, uri, values, values_size);
-            inspect_changed(&changed, key, uri);
+            (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_inspected,
+                             .key = key, .beside_value = uri, .text = values, .size_value = values_size);
+            EMBED_CALL(inspect_change, ServersInspectCtx, .changed = &changed, .key = key, .uri = uri);
         }
     }
     for (unsigned int at = 0u; at < g_cli_servers_inspected.entries; at += 1u)
     {
-        CliKeyedEntry *const one = cli_keyed_entry(&g_cli_servers_inspected, at);
+        CliKeyedEntry *const one =
+            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_inspected, .at = at);
         const char *const key = one->cell;
         const char *beside = NULL;
         unsigned long long stored_size = 0ull;
-        if (one->used && (cli_keyed_get(&s_seen, key, &beside, &stored_size) == NULL))
+        if (one->used && (EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_seen, .key = key,
+                                     .beside = &beside, .size = &stored_size) == NULL))
         {
-            (void)cli_keyed_get(&g_cli_servers_inspected, key, &beside, &stored_size);
-            inspect_changed(&changed, key, beside);
+            (void)EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_inspected,
+                             .key = key, .beside = &beside, .size = &stored_size);
+            EMBED_CALL(inspect_change, ServersInspectCtx, .changed = &changed, .key = key, .uri = beside);
             one->used = 0;
         }
     }
-    cli_lock_give(&g_cli_servers_checks_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     const unsigned long long changed_size = mmgr_line_ok(&changed) ? changed.at : 0ull;
     for (unsigned long long at = 0ull; at < changed_size;)
     {
         const char *const key = files + at;
         const char *const uri = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;
-        cli_servers_emit_whole(key, uri, sink);
+        EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
+                   .sink = sink);
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
@@ -259,88 +301,98 @@ static void inspect_passed_on(const char *root, const char *found, unsigned long
 
 // the tree read from `root`, each Python and JavaScript file of it read where it lies, the tree's files laid flat for
 // the read: 1, or 0 where a tree was let go meanwhile or the list could not be taken
-static int inspect_tree_read(const char *root, unsigned long long born)
+EMBED_INLINE int inspect_tree_read(const ServersInspectCtx *args)
 {
-    const CliFiles *const files = cli_files_view(root);
+    const char *root = args->root;
+    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
     if (files == NULL)
     {
         return 0;
     }
-    cli_inspect_tree_cleared();
-    for (unsigned int at = 0u; (at < files->count) && (inspect_generation() == born); at += 1u)
+    cli_inspect_tree_clear();
+    for (unsigned int at = 0u; (at < files->count) && (inspect_generation() == args->born); at += 1u)
     {
-        const char *const one = cli_files_at(files, at);
-        const char *const language = cli_inspect_language_of(one);
+        const char *const one = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
+        const char *const language = EMBED_CALL(cli_inspect_table.language_get, CliInspectCfg, .path = one);
         if (language == NULL)
         {
             continue;
         }
         char path[CLI_PATH_MAX_LEN];
-        cli_full(root, one, path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = one, .joined = path);
         unsigned long long size = 0ull;
-        const unsigned char *const mapped = cli_file_taken(path, &size, &g_cli_servers_cells);
-        if ((mapped != NULL) && cli_utf8_whole((const char *)mapped, size))
+        const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                       .size_pointer = &size, .owner = &g_cli_servers_cells);
+        if ((mapped != NULL) &&
+            EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size))
         {
-            (void)cli_inspect_tree_set(one, language, (const char *)mapped, size);
+            (void)EMBED_CALL(cli_inspect_tree_path_language.set, CliInspectTreePathLanguageCfg, .path = one,
+                             .language = language, .text = (const char *)mapped, .size = size);
         }
-        cli_file_given(mapped, &g_cli_servers_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
+                   .owner = &g_cli_servers_cells);
     }
-    cli_files_let(files);
-    if (inspect_generation() != born)
+    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+    if (inspect_generation() != args->born)
     {
-        cli_inspect_tree_cleared();
+        cli_inspect_tree_clear();
         s_tree_root[0] = '\0';
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = s_tree_root,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    s_tree_generation = born;
+    s_tree_generation = args->born;
     return 1;
 }
 
 // a file read into the tree, the root's read first where the tree contains another, and the findings passed on
-static void inspect_job(const void *job, unsigned long long size)
+static void inspect_job(const CliServersJobCfg *args)
 {
-    const CliServersInspectJob *const read = job;
+    unsigned long long size = args->size;
+    const CliServersInspectJob *const read = args->job;
     if (size < sizeof(*read) + read->size)
     {
         return;
     }
-    cli_lock_take(&s_tree_lock);
-    if (!inspect_has_tree(read->root) && !inspect_tree_read(read->root, read->born))
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_tree_lock);
+    if (!EMBED_CALL(inspect_has_tree, ServersInspectCtx, .root = read->root) &&
+        !EMBED_CALL(inspect_tree_read, ServersInspectCtx, .root = read->root, .born = read->born))
     {
-        cli_lock_give(&s_tree_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tree_lock);
         return;
     }
-    const char *const language = cli_inspect_language_of(read->file);
+    const char *const language = EMBED_CALL(cli_inspect_table.language_get, CliInspectCfg, .path = read->file);
     if (read->has_text && (language != NULL))
     {
-        (void)cli_inspect_tree_set(read->file, language, (const char *)job + sizeof(*read), read->size);
+        (void)EMBED_CALL(cli_inspect_tree_path_language.set, CliInspectTreePathLanguageCfg, .path = read->file,
+                         .language = language, .text = (const char *)args->job + sizeof(*read), .size = read->size);
     }
     else
     {
-        cli_inspect_tree_remove(read->file);
+        EMBED_CALL(cli_inspect_tree_path_line.remove, CliInspectTreePathLineCfg, .path = read->file);
     }
     char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FINDINGS, &g_cli_servers_cells);
     VerbaLinea line = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
     CliServersInspectFound found = {&line, 0, 0, 0ull};
-    cli_inspect_tree_findings(inspect_found, &found);
-    inspect_file_closed(&found);
-    cli_keyed_clear(&s_supplied_new);
-    cli_inspect_tree_supplied(inspect_supplied, (void *)read->root);
-    cli_lock_take(&g_cli_servers_checks_lock);
+    EMBED_CALL(cli_inspect_tree.findings, CliInspectTreeCfg, .each_inspect_found = inspect_find, .context = &found);
+    EMBED_CALL(inspect_file_close, ServersInspectCtx, .found = &found);
+    EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_supplied_new);
+    EMBED_CALL(cli_inspect_tree_context_each_supplied.supplied, CliInspectTreeContextEachSuppliedCfg,
+               .each_inspect_supplied = inspect_supplied, .context = (void *)read->root);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     const int moved = inspect_supplied_put();
-    cli_lock_give(&g_cli_servers_checks_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     if (mmgr_line_ok(&line))
     {
-        inspect_passed_on(read->root, line.out, line.at, found.files, &read->sink);
+        EMBED_CALL(inspect_passed_on, ServersInspectCtx, .root = read->root, .found_text = line.out, .size = line.at,
+                   .found_files = found.files, .sink = &read->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
     // what a family sets decides whether a server's reports of an attribute pass on
     if (moved)
     {
-        cli_servers_emit_reporting_attributes(&read->sink);
+        EMBED_CALL(cli_servers_sink_key_internal.emit_reporting_attributes, CliServersSinkKeyCtx, .sink = &read->sink);
     }
     // a file the editor opens receives its diagnostics, changed or the same
     if (read->has_text)
@@ -348,25 +400,30 @@ static void inspect_job(const void *job, unsigned long long size)
         char full[CLI_PATH_MAX_LEN];
         char uri[CLI_PATH_MAX_LEN];
         char key[CLI_PATH_MAX_LEN];
-        cli_full(read->root, read->file, full);
-        cli_servers_uri_of(full, uri);
-        cli_lsp_key_of(uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), key);
-        cli_servers_emit_whole(key, uri, &read->sink);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = read->root, .relative = read->file, .joined = full);
+        EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = full, .uri_out = uri);
+        EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .key = key);
+        EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
+                   .sink = &read->sink);
     }
-    cli_lock_give(&s_tree_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tree_lock);
 }
 
-void cli_servers_inspect(const char *root, const char *path, const char *text, unsigned long long size,
-                         const CliServersSink *sink)
+void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args)
 {
-    const size_t top = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
-    if (!cli_text_same(path, root, top) || ((path[top] != '/') && (path[top] != '\\')) ||
-        (cli_inspect_language_of(path) == NULL))
+    const char *path = args->path;
+    unsigned long long size = args->size;
+    const CliServersSink *sink = args->sink;
+    const size_t top = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
+    if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = path, .other_pointer = args->root, .size = top) ||
+        ((path[top] != '/') && (path[top] != '\\')) ||
+        (EMBED_CALL(cli_inspect_table.language_get, CliInspectCfg, .path = path) == NULL))
     {
         return;
     }
     // the read made in a cell of its size, the text after it where it is given
-    const int has_text = (text != NULL) && (size <= CLI_SERVERS_LARGEST);
+    const int has_text = (args->text != NULL) && (size <= CLI_SERVERS_LARGEST);
     const unsigned long long text_size = has_text ? size : 0ull;
     char *const job = g_cli_cells->temporary_buf_alloc(sizeof(CliServersInspectJob) + text_size, &g_cli_servers_cells);
     if (job == NULL)
@@ -375,9 +432,10 @@ void cli_servers_inspect(const char *root, const char *path, const char *text, u
     }
     CliServersInspectJob *const read = (CliServersInspectJob *)(void *)job;
     memor.set(&(MemoriaCfg){.dst = read, .val = 0, .bytes = sizeof(*read)});
-    memor.cpy(&(MemoriaCfg){.dst = read->root, .src = root, .bytes = top + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = read->root, .src = args->root, .bytes = top + 1u});
     VerbaLinea file = {read->file, CLI_PATH_MAX_LEN, 0ull};
-    (void)cli_text_put_swapped(&file, path + top + 1u, '\\', '/');
+    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &file, .text = path + top + 1u, .from = '\\',
+                     .to = '/');
     (void)mmgr_line_finish(&file);
     read->sink = *sink;
     read->has_text = has_text;
@@ -385,45 +443,47 @@ void cli_servers_inspect(const char *root, const char *path, const char *text, u
     if (has_text)
     {
         // a size under CLI_SERVERS_LARGEST fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*read), .src = text, .bytes = (size_t)text_size});
+        memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*read), .src = args->text, .bytes = (size_t)text_size});
     }
-    cli_lock_take(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     g_cli_servers.sink = *sink;
     g_cli_servers.has_sink = 1;
-    cli_lock_give(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     read->born = inspect_generation();
-    cli_lock_take(&s_tree_lock);
-    const int ready = inspect_has_tree(root);
-    cli_lock_give(&s_tree_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_tree_lock);
+    const int ready = EMBED_CALL(inspect_has_tree, ServersInspectCtx, .root = args->root);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tree_lock);
     if (ready)
     {
-        inspect_job(job, sizeof(*read) + text_size);
+        EMBED_CALL(inspect_job, CliServersJobCfg, .job = job, .size = sizeof(*read) + text_size);
         g_cli_cells->persistent_buf_release(job, &g_cli_servers_cells);
         return;
     }
-    (void)cli_servers_later_handed(inspect_job, job, sizeof(*read) + text_size);
+    (void)EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = inspect_job,
+                     .bytes = job, .size = sizeof(*read) + text_size);
 }
 
-void cli_servers_inspect_again(const char *path, const char *text, unsigned long long size)
+void cli_servers_inspect_again(const CliServersPathSizeLanguageCtx *args)
 {
     char root[CLI_PATH_MAX_LEN];
     static CliServersSink s_sink;
     static CliLock s_sink_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_sink_lock);
-    cli_lock_take(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sink_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     const int has_sink = g_cli_servers.has_sink;
     s_sink = g_cli_servers.sink;
-    cli_lock_give(&g_cli_servers.lock);
-    if (has_sink && cli_servers_tree_read(root))
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
+    if (has_sink && EMBED_CALL(cli_servers_root_kind_internal.tree_read, CliServersRootKindCtx, .root_out = root))
     {
-        cli_servers_inspect(root, path, text, size, &s_sink);
+        EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = root,
+                   .path = args->path, .text = args->text, .size = args->size, .sink = &s_sink);
     }
-    cli_lock_give(&s_sink_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sink_lock);
 }
 
 void cli_servers_inspect_let_go(void)
 {
-    cli_lock_take(&s_generation_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_generation_lock);
     s_generation += 1ull;
-    cli_lock_give(&s_generation_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_generation_lock);
 }

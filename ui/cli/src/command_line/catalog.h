@@ -12,8 +12,27 @@
 // hands it, so the whole catalog and a run's one job are each stored in a room of their own and nothing is allocated
 #ifndef CATALOG_H
 #define CATALOG_H
+typedef struct CliCatalogJobsMostCfg CliCatalogJobsMostCfg;
+typedef struct CliCatalogKindCfg CliCatalogKindCfg;
+typedef struct CliCatalogIdGroupCfg CliCatalogIdGroupCfg;
+typedef struct CliCatalogTextProgramCfg CliCatalogTextProgramCfg;
+typedef struct CliCatalogKeyKindCfg CliCatalogKeyKindCfg;
+typedef struct CliCatalogFromCfg CliCatalogFromCfg;
+typedef struct CliCatalogFromIndexCfg CliCatalogFromIndexCfg;
+typedef struct CliCatalogIndexCfg CliCatalogIndexCfg;
+typedef struct CliCatalogCellsCfg CliCatalogCellsCfg;
+typedef struct CliCatalogKeyCfg CliCatalogKeyCfg;
+typedef struct CliCatalogKeyValuesCfg CliCatalogKeyValuesCfg;
+typedef struct CliCatalogCfg CliCatalogCfg;
+typedef struct CliCatalogTextCfg CliCatalogTextCfg;
+typedef struct CliCatalogChoiceCfg CliCatalogChoiceCfg;
+typedef struct CliCatalogIdCfg CliCatalogIdCfg;
+typedef struct CliCatalogRootCfg CliCatalogRootCfg;
+typedef struct CliCatalogWordCfg CliCatalogWordCfg;
+typedef struct CliCatalogTextValuesCfg CliCatalogTextValuesCfg;
 
 #include "cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // none: no text, no job
 #define CLI_CATALOG_NONE 0xffffffffu
@@ -189,35 +208,29 @@ typedef struct
 
 // a catalog made empty whose lists and texts are taken at their most in one cell counted to `cells`, `jobs_most` jobs
 // at the most; and its cell given back, the catalog left empty and containing nothing
-void cli_catalog_taken(CliCatalog *catalog, CellOwner *cells, unsigned int jobs_most);
-void cli_catalog_given(CliCatalog *catalog);
+void cli_catalog_take(const CliCatalogCellsCfg *args);
+void cli_catalog_free(const CliCatalogChoiceCfg *args);
 // a catalog made empty over the storage handed it
-void cli_catalog_begun(CliCatalog *catalog, CliJob *jobs, unsigned int jobs_most, CliParam *params,
-                       unsigned int params_most, CliStep *steps, unsigned int steps_most, CliArg *args,
-                       unsigned int args_most, unsigned int *lists, unsigned int lists_most, char *text,
-                       unsigned int text_most);
+void cli_catalog_begin(const CliCatalogJobsMostCfg *args);
 // a text stored in the catalog: where it starts; and the text at a place, the empty text for none
-unsigned int cli_catalog_text(CliCatalog *catalog, const char *text);
-const char *cli_catalog_at(const CliCatalog *catalog, unsigned int text);
+unsigned int cli_catalog_text(const CliCatalogTextProgramCfg *args);
+const char *cli_catalog_at(const CliCatalogTextCfg *args);
 // a job begun with its id, group, title, file and about: its place, CLI_CATALOG_NONE where the catalog is full; a
 // param put on the last job; a choice put on the last param; a step put on the last job; an argument put on the last
 // step, its texts NULL past the last it contains; and a word put on the last argument's list
-unsigned int cli_catalog_job(CliCatalog *catalog, const char *id, const char *group, const char *title,
-                             const char *file, const char *about, const char *opens);
-void cli_catalog_param(CliCatalog *catalog, const char *key, const char *kind, int required);
-void cli_catalog_choice(CliCatalog *catalog, const char *choice);
-void cli_catalog_step(CliCatalog *catalog, unsigned int program, const char *text, const char *tool_program,
-                      int system);
-void cli_catalog_arg(CliCatalog *catalog, unsigned int kind, const char *a, const char *b, const char *c, const char *d,
-                     int separated);
-void cli_catalog_word(CliCatalog *catalog, const char *word);
+unsigned int cli_catalog_job(const CliCatalogIdGroupCfg *args);
+void cli_catalog_param(const CliCatalogKeyKindCfg *args);
+void cli_catalog_choice(const CliCatalogChoiceCfg *args);
+void cli_catalog_step(const CliCatalogTextProgramCfg *args);
+void cli_catalog_arg(const CliCatalogKindCfg *args);
+void cli_catalog_word(const CliCatalogWordCfg *args);
 // the params of a free-words input, and of the build's trace, a choice of verbose or quiet, verbose the first
-void cli_catalog_words(CliCatalog *catalog);
-void cli_catalog_trace(CliCatalog *catalog);
+void cli_catalog_words(const CliCatalogChoiceCfg *args);
+void cli_catalog_trace(const CliCatalogChoiceCfg *args);
 // the job of `id`, CLI_CATALOG_NONE where none is; and the job at `index` of `from` copied whole into `to`: its place
 // there, CLI_CATALOG_NONE where it does not fit
-unsigned int cli_catalog_find(const CliCatalog *catalog, const char *id);
-unsigned int cli_catalog_copy(const CliCatalog *from, unsigned int index, CliCatalog *to);
+unsigned int cli_catalog_find(const CliCatalogIdCfg *args);
+unsigned int cli_catalog_copy(const CliCatalogFromCfg *args);
 // The room a job copied takes: its params, steps, args and list entries, and the bytes of its texts
 typedef struct
 {
@@ -228,28 +241,348 @@ typedef struct
     unsigned long long text;
 } CliCatalogExtent;
 // the room the job at `index` of `from` takes copied into a catalog of its own
-void cli_catalog_job_extent(const CliCatalog *from, unsigned int index, CliCatalogExtent *extent);
+void cli_catalog_job_extent(const CliCatalogFromIndexCfg *args);
 // the job at `index` written as the window reads it: `{"id", "group", "title", "file", "about", "params": [{"key",
 // "kind", "choices", "default", "required"}], "opens"}`
-void cli_catalog_job_written(const CliCatalog *catalog, unsigned int index, VerbaLinea *out);
+void cli_catalog_job_write(const CliCatalogIndexCfg *args);
 
 // the values made empty; `value` put after the values of `key`; the values of `key`, `count` of them into `count`,
 // NULL where it has none; and the first value of `key`, NULL where it has none
-void cli_values_begun(CliValues *values);
-void cli_values_put(CliValues *values, const char *key, const char *value);
-const unsigned int *cli_values_of(const CliValues *values, const char *key, unsigned int *count);
-const char *cli_values_first(const CliValues *values, const char *key);
-const char *cli_values_at(const CliValues *values, unsigned int text);
+void cli_values_begin(const CliCatalogKeyValuesCfg *args);
+void cli_values_put(const CliCatalogKeyValuesCfg *args);
+const unsigned int *cli_values_get(const CliCatalogKeyCfg *args);
+const char *cli_values_first(const CliCatalogKeyCfg *args);
+const char *cli_values_at(const CliCatalogTextValuesCfg *args);
 
 // The whole catalog read from the tree at `root` into `catalog`, in the order the engine's own steps run
 // (catalog_read.c); and the opening paragraph a file gives of itself: a Python module's docstring, or the comment
 // lines a script or a source file opens with, past its license lines, into `out` (catalog_scan.c)
-void cli_catalog_read(const char *root, CliCatalog *catalog);
-void cli_catalog_about(const char *path, VerbaLinea *out);
+void cli_catalog_read(const CliCatalogRootCfg *args);
+void cli_catalog_about(const CliCatalogCfg *args);
 // the jobs of the programs a tree's builds make, of deploying them, and of the query, put after the catalog's
 // (executables_jobs.c, deploy.c, query_jobs.c)
-void cli_executables_jobs(const char *root, CliCatalog *catalog);
-void cli_deploy_jobs(const char *root, CliCatalog *catalog);
-void cli_query_jobs(const char *root, CliCatalog *catalog);
+void cli_executables_jobs(const CliCatalogRootCfg *args);
+void cli_deploy_jobs(const CliCatalogRootCfg *args);
+void cli_query_jobs(const CliCatalogRootCfg *args);
+
+struct CliCatalogJobsMostCfg
+{
+    CliCatalog *catalog;
+    unsigned int jobs_most;
+    CliJob *jobs;
+    CliParam *params;
+    unsigned int params_most;
+    CliStep *steps;
+    unsigned int steps_most;
+    CliArg *request;
+    unsigned int args_most;
+    unsigned int *lists;
+    unsigned int lists_most;
+    char *text_out;
+    unsigned int text_most;
+};
+
+struct CliCatalogKindCfg
+{
+    CliCatalog *catalog;
+    unsigned int kind_u32;
+    const char *a;
+    const char *b;
+    const char *c;
+    const char *d;
+    int separated;
+};
+
+struct CliCatalogIdGroupCfg
+{
+    CliCatalog *catalog;
+    const char *id;
+    const char *group;
+    const char *title;
+    const char *file;
+    const char *about;
+    const char *opens;
+};
+
+struct CliCatalogTextProgramCfg
+{
+    CliCatalog *catalog;
+    const char *text;
+    unsigned int program;
+    const char *tool_program;
+    int system;
+};
+
+struct CliCatalogKeyKindCfg
+{
+    CliCatalog *catalog;
+    const char *key;
+    const char *kind;
+    int required;
+};
+
+struct CliCatalogFromCfg
+{
+    const CliCatalog *from;
+    unsigned int index;
+    CliCatalog *to;
+};
+
+struct CliCatalogFromIndexCfg
+{
+    const CliCatalog *from;
+    unsigned int index;
+    CliCatalogExtent *extent;
+};
+
+struct CliCatalogIndexCfg
+{
+    const CliCatalog *catalog_read;
+    unsigned int index;
+    VerbaLinea *out;
+};
+
+struct CliCatalogCellsCfg
+{
+    CliCatalog *catalog;
+    CellOwner *cells;
+    unsigned int jobs_most;
+};
+
+struct CliCatalogKeyCfg
+{
+    const char *key;
+    const CliValues *values;
+    unsigned int *count;
+};
+
+struct CliCatalogKeyValuesCfg
+{
+    const char *key;
+    CliValues *values_out;
+    const char *value;
+};
+
+struct CliCatalogCfg
+{
+    VerbaLinea *out;
+    const char *path;
+};
+
+struct CliCatalogTextCfg
+{
+    const CliCatalog *catalog_read;
+    unsigned int text_u32;
+};
+
+struct CliCatalogChoiceCfg
+{
+    CliCatalog *catalog;
+    const char *choice;
+};
+
+struct CliCatalogIdCfg
+{
+    const CliCatalog *catalog_read;
+    const char *id;
+};
+
+struct CliCatalogRootCfg
+{
+    CliCatalog *catalog;
+    const char *root;
+};
+
+struct CliCatalogWordCfg
+{
+    CliCatalog *catalog;
+    const char *word;
+};
+
+struct CliCatalogTextValuesCfg
+{
+    unsigned int text_u32;
+    const CliValues *values;
+};
+
+typedef struct
+{
+    void (*take)(const CliCatalogCellsCfg *args);
+} CliCatalogCellsNs;
+EMBED_TABLE_LAYOUT(CliCatalogCellsNs, take);
+EMBED_TABLE_STORAGE CliCatalogCellsNs cli_catalog_cells EMBED_UNUSED = {
+    .take = cli_catalog_take,
+};
+
+typedef struct
+{
+    void (*free)(const CliCatalogChoiceCfg *args);
+    void (*choice)(const CliCatalogChoiceCfg *args);
+    void (*words)(const CliCatalogChoiceCfg *args);
+    void (*trace)(const CliCatalogChoiceCfg *args);
+} CliCatalogChoiceNs;
+EMBED_TABLE_LAYOUT(CliCatalogChoiceNs, free, choice, words, trace);
+EMBED_TABLE_STORAGE CliCatalogChoiceNs cli_catalog_choice_table EMBED_UNUSED = {
+    .free = cli_catalog_free,
+    .choice = cli_catalog_choice,
+    .words = cli_catalog_words,
+    .trace = cli_catalog_trace,
+};
+
+typedef struct
+{
+    void (*begin)(const CliCatalogJobsMostCfg *args);
+} CliCatalogJobsMostNs;
+EMBED_TABLE_LAYOUT(CliCatalogJobsMostNs, begin);
+EMBED_TABLE_STORAGE CliCatalogJobsMostNs cli_catalog_jobs_most EMBED_UNUSED = {
+    .begin = cli_catalog_begin,
+};
+
+typedef struct
+{
+    unsigned int (*text)(const CliCatalogTextProgramCfg *args);
+    void (*step)(const CliCatalogTextProgramCfg *args);
+} CliCatalogTextProgramNs;
+EMBED_TABLE_LAYOUT(CliCatalogTextProgramNs, text, step);
+EMBED_TABLE_STORAGE CliCatalogTextProgramNs cli_catalog_text_program EMBED_UNUSED = {
+    .text = cli_catalog_text,
+    .step = cli_catalog_step,
+};
+
+typedef struct
+{
+    const char *(*at)(const CliCatalogTextCfg *args);
+} CliCatalogTextNsTable;
+EMBED_TABLE_LAYOUT(CliCatalogTextNsTable, at);
+EMBED_TABLE_STORAGE CliCatalogTextNsTable cli_catalog_text_table EMBED_UNUSED = {
+    .at = cli_catalog_at,
+};
+
+typedef struct
+{
+    unsigned int (*job)(const CliCatalogIdGroupCfg *args);
+} CliCatalogIdGroupNs;
+EMBED_TABLE_LAYOUT(CliCatalogIdGroupNs, job);
+EMBED_TABLE_STORAGE CliCatalogIdGroupNs cli_catalog_id_group EMBED_UNUSED = {
+    .job = cli_catalog_job,
+};
+
+typedef struct
+{
+    void (*param)(const CliCatalogKeyKindCfg *args);
+} CliCatalogKeyKindNs;
+EMBED_TABLE_LAYOUT(CliCatalogKeyKindNs, param);
+EMBED_TABLE_STORAGE CliCatalogKeyKindNs cli_catalog_key_kind EMBED_UNUSED = {
+    .param = cli_catalog_param,
+};
+
+typedef struct
+{
+    void (*arg)(const CliCatalogKindCfg *args);
+} CliCatalogKindNs;
+EMBED_TABLE_LAYOUT(CliCatalogKindNs, arg);
+EMBED_TABLE_STORAGE CliCatalogKindNs cli_catalog_kind EMBED_UNUSED = {
+    .arg = cli_catalog_arg,
+};
+
+typedef struct
+{
+    void (*word)(const CliCatalogWordCfg *args);
+} CliCatalogWordNs;
+EMBED_TABLE_LAYOUT(CliCatalogWordNs, word);
+EMBED_TABLE_STORAGE CliCatalogWordNs cli_catalog_word_table EMBED_UNUSED = {
+    .word = cli_catalog_word,
+};
+
+typedef struct
+{
+    unsigned int (*find)(const CliCatalogIdCfg *args);
+} CliCatalogIdNs;
+EMBED_TABLE_LAYOUT(CliCatalogIdNs, find);
+EMBED_TABLE_STORAGE CliCatalogIdNs cli_catalog_id EMBED_UNUSED = {
+    .find = cli_catalog_find,
+};
+
+typedef struct
+{
+    unsigned int (*copy)(const CliCatalogFromCfg *args);
+} CliCatalogFromNs;
+EMBED_TABLE_LAYOUT(CliCatalogFromNs, copy);
+EMBED_TABLE_STORAGE CliCatalogFromNs cli_catalog_from EMBED_UNUSED = {
+    .copy = cli_catalog_copy,
+};
+
+typedef struct
+{
+    void (*job_extent)(const CliCatalogFromIndexCfg *args);
+} CliCatalogFromIndexNs;
+EMBED_TABLE_LAYOUT(CliCatalogFromIndexNs, job_extent);
+EMBED_TABLE_STORAGE CliCatalogFromIndexNs cli_catalog_from_index EMBED_UNUSED = {
+    .job_extent = cli_catalog_job_extent,
+};
+
+typedef struct
+{
+    void (*job_write)(const CliCatalogIndexCfg *args);
+} CliCatalogIndexNs;
+EMBED_TABLE_LAYOUT(CliCatalogIndexNs, job_write);
+EMBED_TABLE_STORAGE CliCatalogIndexNs cli_catalog_index EMBED_UNUSED = {
+    .job_write = cli_catalog_job_write,
+};
+
+typedef struct
+{
+    void (*values_begin)(const CliCatalogKeyValuesCfg *args);
+    void (*values_put)(const CliCatalogKeyValuesCfg *args);
+} CliCatalogKeyValuesNs;
+EMBED_TABLE_LAYOUT(CliCatalogKeyValuesNs, values_begin, values_put);
+EMBED_TABLE_STORAGE CliCatalogKeyValuesNs cli_catalog_key_values EMBED_UNUSED = {
+    .values_begin = cli_values_begin,
+    .values_put = cli_values_put,
+};
+
+typedef struct
+{
+    const unsigned int *(*values_get)(const CliCatalogKeyCfg *args);
+    const char *(*values_first)(const CliCatalogKeyCfg *args);
+} CliCatalogKeyNs;
+EMBED_TABLE_LAYOUT(CliCatalogKeyNs, values_get, values_first);
+EMBED_TABLE_STORAGE CliCatalogKeyNs cli_catalog_key EMBED_UNUSED = {
+    .values_get = cli_values_get,
+    .values_first = cli_values_first,
+};
+
+typedef struct
+{
+    const char *(*values_at)(const CliCatalogTextValuesCfg *args);
+} CliCatalogTextValuesNs;
+EMBED_TABLE_LAYOUT(CliCatalogTextValuesNs, values_at);
+EMBED_TABLE_STORAGE CliCatalogTextValuesNs cli_catalog_text_values EMBED_UNUSED = {
+    .values_at = cli_values_at,
+};
+
+typedef struct
+{
+    void (*read)(const CliCatalogRootCfg *args);
+    void (*executables_jobs)(const CliCatalogRootCfg *args);
+    void (*deploy_jobs)(const CliCatalogRootCfg *args);
+    void (*query_jobs)(const CliCatalogRootCfg *args);
+} CliCatalogRootNs;
+EMBED_TABLE_LAYOUT(CliCatalogRootNs, read, executables_jobs, deploy_jobs, query_jobs);
+EMBED_TABLE_STORAGE CliCatalogRootNs cli_catalog_root EMBED_UNUSED = {
+    .read = cli_catalog_read,
+    .executables_jobs = cli_executables_jobs,
+    .deploy_jobs = cli_deploy_jobs,
+    .query_jobs = cli_query_jobs,
+};
+
+typedef struct
+{
+    void (*about)(const CliCatalogCfg *args);
+} CliCatalogNs;
+EMBED_TABLE_LAYOUT(CliCatalogNs, about);
+EMBED_TABLE_STORAGE CliCatalogNs cli_catalog_table EMBED_UNUSED = {
+    .about = cli_catalog_about,
+};
 
 #endif

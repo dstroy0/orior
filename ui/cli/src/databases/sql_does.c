@@ -21,17 +21,38 @@ static CliSqlWord s_words[CLI_SQL_WORDS];
 static CliSqlToken s_tokens[CLI_SQL_WORDS];
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// whether `length` bytes of `text` are `word` in either case
-static int cli_is(const char *text, unsigned long long length, const char *word)
+typedef struct
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}) != length)
+    const char *text;
+    unsigned long long length;
+    const char *word;
+    const char *const *words;
+    unsigned int count;
+    const char *statement;
+    unsigned int dialect;
+    unsigned int index;
+    unsigned int level;
+    unsigned long long from;
+    const char *const *stops;
+    VerbaLinea *out;
+    unsigned long long to;
+    unsigned int *at;
+    char *out_room;
+    unsigned long long room;
+    CliShaped *shaped;
+} SqlDoesCtx;
+// whether `length` bytes of `text` are `word` in either case
+EMBED_INLINE int cli_is(const SqlDoesCtx *args)
+{
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) != args->length)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
     {
-        const char letter = ((text[at] >= 'A') && (text[at] <= 'Z')) ? (char)(text[at] + 32) : text[at];
-        if (letter != word[at])
+        const char letter =
+            ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + 32) : args->text[at];
+        if (letter != args->word[at])
         {
             return 0;
         }
@@ -39,11 +60,11 @@ static int cli_is(const char *text, unsigned long long length, const char *word)
     return 1;
 }
 
-static int cli_in(const char *text, unsigned long long length, const char *const *words, unsigned int count)
+EMBED_INLINE int cli_in(const SqlDoesCtx *args)
 {
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cli_is(text, length, words[at]))
+        if (EMBED_CALL(cli_is, SqlDoesCtx, .text = args->text, .length = args->length, .word = args->words[at]))
         {
             return 1;
         }
@@ -53,18 +74,22 @@ static int cli_in(const char *text, unsigned long long length, const char *const
 
 // The words of a statement outside its strings, names and comments, each with the depth of brackets it stands at:
 // their count
-static unsigned int cli_words_of(const char *statement, unsigned long long length, unsigned int dialect)
+EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
 {
+    unsigned long long length = args->length;
+    unsigned int dialect = args->dialect;
     long long depth = 0ll;
     unsigned int count = 0u;
     unsigned long long at = 0ull;
     CliSqlToken token;
-    while (cli_sql_token(statement, length, dialect, &at, &token) && (count < CLI_SQL_WORDS))
+    while (EMBED_CALL(cli_sql_text_length_dialect.token, CliSqlTextLengthDialectCfg, .text = args->statement,
+                      .length = length, .dialect = dialect, .at = &at, .token = &token) &&
+           (count < CLI_SQL_WORDS))
     {
         const unsigned long long size = token.end - token.start;
         if ((token.kind == CLI_SQL_MARK) && (size == 1u))
         {
-            depth += (statement[token.start] == '(') ? 1ll : (statement[token.start] == ')') ? -1ll : 0ll;
+            depth += (args->statement[token.start] == '(') ? 1ll : (args->statement[token.start] == ')') ? -1ll : 0ll;
         }
         else if (token.kind == CLI_SQL_WORD)
         {
@@ -76,19 +101,21 @@ static unsigned int cli_words_of(const char *statement, unsigned long long lengt
     return count;
 }
 
-static int cli_word_is(const char *statement, unsigned int index, const char *word)
+EMBED_INLINE int cli_word_is(const SqlDoesCtx *args)
 {
-    return cli_is(statement + s_words[index].start, s_words[index].end - s_words[index].start, word);
+    return EMBED_CALL(cli_is, SqlDoesCtx, .text = args->statement + s_words[args->index].start,
+                      .length = s_words[args->index].end - s_words[args->index].start, .word = args->word);
 }
 
 static const char *const s_writers[6] = {"insert", "update", "delete", "merge", "replace", "upsert"};
 
 // whether any word of the statement writes rows
-static int cli_writes(const char *statement, unsigned int count)
+EMBED_INLINE int cli_writes(const SqlDoesCtx *args)
 {
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cli_in(statement + s_words[at].start, s_words[at].end - s_words[at].start, s_writers, 6u))
+        if (EMBED_CALL(cli_in, SqlDoesCtx, .text = args->statement + s_words[at].start,
+                       .length = s_words[at].end - s_words[at].start, .words = s_writers, .count = 6u))
         {
             return 1;
         }
@@ -96,7 +123,7 @@ static int cli_writes(const char *statement, unsigned int count)
     return 0;
 }
 
-static unsigned int cli_does_locked(const char *statement, unsigned long long length, unsigned int dialect)
+EMBED_INLINE unsigned int cli_does_lock(const SqlDoesCtx *args)
 {
     static const char *const s_reads[6] = {"show", "describe", "desc", "values", "table", "help"};
     static const char *const s_changes[12] = {"insert", "update", "delete", "merge", "replace", "upsert",
@@ -106,77 +133,88 @@ static unsigned int cli_does_locked(const char *statement, unsigned long long le
                                              "refresh", "attach", "detach", "vacuum",   "import"};
     static const char *const s_transactions[9] = {"begin",   "start", "commit", "rollback", "savepoint",
                                                   "release", "end",   "abort",  "xa"};
-    const unsigned int count = cli_words_of(statement, length, dialect);
-    const char *const first = (count != 0u) ? (statement + s_words[0].start) : "";
+    const unsigned int count = cli_words_get(args);
+    const char *const first = (count != 0u) ? (args->statement + s_words[0].start) : "";
     const unsigned long long size = (count != 0u) ? (s_words[0].end - s_words[0].start) : 0ull;
-    if (cli_is(first, size, "select"))
+    if (EMBED_CALL(cli_is, SqlDoesCtx, .text = first, .length = size, .word = "select"))
     {
         // SELECT ... INTO a new table makes it, in PostgreSQL; in MySQL it writes a file or a variable
         int into = 0;
         for (unsigned int at = 0u; at < count; at += 1u)
         {
-            into = into || (cli_word_is(statement, at, "into") && (s_words[at].depth == 0ll));
+            into = into ||
+                   (EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = at, .word = "into") &&
+                    (s_words[at].depth == 0ll));
         }
-        return (into && (dialect == CLI_SQL_POSTGRES)) ? CLI_DOES_SHAPES : CLI_DOES_READS;
+        return (into && (args->dialect == CLI_SQL_POSTGRES)) ? CLI_DOES_SHAPES : CLI_DOES_READS;
     }
-    if (cli_is(first, size, "with"))
+    if (EMBED_CALL(cli_is, SqlDoesCtx, .text = first, .length = size, .word = "with"))
     {
-        return cli_writes(statement, count) ? CLI_DOES_WRITES : CLI_DOES_READS;
+        return EMBED_CALL(cli_writes, SqlDoesCtx, .statement = args->statement, .count = count) ? CLI_DOES_WRITES
+                                                                                                : CLI_DOES_READS;
     }
-    if (cli_in(first, size, s_reads, 6u))
+    if (EMBED_CALL(cli_in, SqlDoesCtx, .text = first, .length = size, .words = s_reads, .count = 6u))
     {
         return CLI_DOES_READS;
     }
-    if (cli_is(first, size, "explain"))
+    if (EMBED_CALL(cli_is, SqlDoesCtx, .text = first, .length = size, .word = "explain"))
     {
         int analyze = 0;
         for (unsigned int at = 0u; (at < count) && (at < 4u); at += 1u)
         {
-            analyze = analyze || cli_word_is(statement, at, "analyze") || cli_word_is(statement, at, "analyse");
+            analyze =
+                analyze ||
+                EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = at, .word = "analyze") ||
+                EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = at, .word = "analyse");
         }
-        return (analyze && cli_writes(statement, count)) ? CLI_DOES_WRITES : CLI_DOES_READS;
+        return (analyze && EMBED_CALL(cli_writes, SqlDoesCtx, .statement = args->statement, .count = count))
+                   ? CLI_DOES_WRITES
+                   : CLI_DOES_READS;
     }
-    if (cli_is(first, size, "pragma"))
+    if (EMBED_CALL(cli_is, SqlDoesCtx, .text = first, .length = size, .word = "pragma"))
     {
-        for (unsigned long long at = 0ull; at < length; at += 1ull)
+        for (unsigned long long at = 0ull; at < args->length; at += 1ull)
         {
-            if (statement[at] == '=')
+            if (args->statement[at] == '=')
             {
                 return CLI_DOES_OTHER;
             }
         }
         return CLI_DOES_READS;
     }
-    if (cli_in(first, size, s_changes, 12u))
+    if (EMBED_CALL(cli_in, SqlDoesCtx, .text = first, .length = size, .words = s_changes, .count = 12u))
     {
         return CLI_DOES_WRITES;
     }
-    if (cli_in(first, size, s_shapes, 15u))
+    if (EMBED_CALL(cli_in, SqlDoesCtx, .text = first, .length = size, .words = s_shapes, .count = 15u))
     {
         return CLI_DOES_SHAPES;
     }
-    return cli_in(first, size, s_transactions, 9u) ? CLI_DOES_TRANSACTION : CLI_DOES_OTHER;
+    return EMBED_CALL(cli_in, SqlDoesCtx, .text = first, .length = size, .words = s_transactions, .count = 9u)
+               ? CLI_DOES_TRANSACTION
+               : CLI_DOES_OTHER;
 }
 
-unsigned int cli_sql_does(const char *statement, unsigned long long length, unsigned int dialect)
+unsigned int cli_sql_does(const CliSqlLengthCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const unsigned int does = cli_does_locked(statement, length, dialect);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const unsigned int does = EMBED_CALL(cli_does_lock, SqlDoesCtx, .statement = args->statement,
+                                         .length = args->length, .dialect = args->dialect);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return does;
 }
 
-int cli_sql_changes(const char *statement, unsigned long long length, unsigned int dialect)
+int cli_sql_changes(const CliSqlLengthCfg *args)
 {
-    const unsigned int does = cli_sql_does(statement, length, dialect);
+    const unsigned int does = cli_sql_length.does(args);
     return (does == CLI_DOES_WRITES) || (does == CLI_DOES_SHAPES);
 }
 
 // the words at the statement's own level, moved to the front: their count
-static unsigned int cli_level(unsigned int count)
+EMBED_INLINE unsigned int cli_level(const SqlDoesCtx *args)
 {
     unsigned int level = 0u;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         if (s_words[at].depth == 0ll)
         {
@@ -188,11 +226,11 @@ static unsigned int cli_level(unsigned int count)
 }
 
 // the first word at the level named `word`, CLI_SQL_WORDS where none is
-static unsigned int cli_find(const char *statement, unsigned int level, const char *word)
+EMBED_INLINE unsigned int cli_find(const SqlDoesCtx *args)
 {
-    for (unsigned int at = 0u; at < level; at += 1u)
+    for (unsigned int at = 0u; at < args->level; at += 1u)
     {
-        if (cli_word_is(statement, at, word))
+        if (EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = at, .word = args->word))
         {
             return at;
         }
@@ -201,14 +239,14 @@ static unsigned int cli_find(const char *statement, unsigned int level, const ch
 }
 
 // where the first word at the level past `from` that is one of `stops` starts, or the statement's end
-static unsigned long long cli_ends(const char *statement, unsigned long long length, unsigned int level,
-                                   unsigned long long from, const char *const *stops, unsigned int count)
+EMBED_INLINE unsigned long long cli_ends(const SqlDoesCtx *args)
 {
-    unsigned long long end = length;
-    for (unsigned int at = 0u; at < level; at += 1u)
+    unsigned long long end = args->length;
+    for (unsigned int at = 0u; at < args->level; at += 1u)
     {
-        if ((s_words[at].start > from) &&
-            cli_in(statement + s_words[at].start, s_words[at].end - s_words[at].start, stops, count))
+        if ((s_words[at].start > args->from) &&
+            EMBED_CALL(cli_in, SqlDoesCtx, .text = args->statement + s_words[at].start,
+                       .length = s_words[at].end - s_words[at].start, .words = args->stops, .count = args->count))
         {
             end = (s_words[at].start < end) ? s_words[at].start : end;
         }
@@ -217,60 +255,80 @@ static unsigned long long cli_ends(const char *statement, unsigned long long len
 }
 
 // the bytes from `from` to `to` of the statement put, trimmed
-static void cli_trimmed_put(VerbaLinea *out, const char *statement, unsigned long long from, unsigned long long to)
+EMBED_INLINE void cli_trimmed_put(const SqlDoesCtx *args)
 {
-    from = cli_text_past_any(statement, from, to, CLI_TEXT_WHITE);
-    to = (from + cli_text_back_past(statement + from, to - from, CLI_TEXT_WHITE));
-    mmgr_line_put_n(out, statement + from, (to > from) ? (to - from) : 0ull);
+    unsigned long long from = args->from;
+    unsigned long long to = args->to;
+    from = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->statement, .at = from,
+                      .size = to, .set = CLI_TEXT_WHITE);
+    to = (from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->statement + from,
+                            .at = to - from, .set = CLI_TEXT_WHITE));
+    mmgr_line_put_n(args->out, args->statement + from, (to > from) ? (to - from) : 0ull);
 }
 
 // The table an UPDATE or a DELETE with no WHERE at its own level reaches every row of, or each a TRUNCATE names, put
 // after `SELECT count(*) FROM`; or the sum of each table's count where a TRUNCATE names more than one
-static int cli_unbounded_locked(const char *statement, unsigned long long length, unsigned int dialect, VerbaLinea *out)
+EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
 {
     static const char *const s_delete_stops[4] = {"using", "returning", "order", "limit"};
     static const char *const s_using_stops[1] = {"returning"};
     static const char *const s_truncate_stops[4] = {"restart", "continue", "cascade", "restrict"};
     static char s_source[1u << 20u];
-    const unsigned int level = cli_level(cli_words_of(statement, length, dialect));
+    const unsigned int level = EMBED_CALL(cli_level, SqlDoesCtx, .count = cli_words_get(args));
     if (level == 0u)
     {
         return 0;
     }
-    const int bounded = cli_find(statement, level, "where") != CLI_SQL_WORDS;
+    const int bounded = EMBED_CALL(cli_find, SqlDoesCtx, .statement = args->statement, .level = level,
+                                   .word = "where") != CLI_SQL_WORDS;
     VerbaLinea source = {s_source, sizeof(s_source), 0ull};
-    if (cli_word_is(statement, 0u, "update") && !bounded)
+    if (EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = 0u, .word = "update") && !bounded)
     {
-        const unsigned int set = cli_find(statement, level, "set");
+        const unsigned int set =
+            EMBED_CALL(cli_find, SqlDoesCtx, .statement = args->statement, .level = level, .word = "set");
         if (set == CLI_SQL_WORDS)
         {
             return 0;
         }
-        cli_trimmed_put(&source, statement, s_words[0].end, s_words[set].start);
+        EMBED_CALL(cli_trimmed_put, SqlDoesCtx, .out = &source, .statement = args->statement, .from = s_words[0].end,
+                   .to = s_words[set].start);
     }
-    else if (cli_word_is(statement, 0u, "delete") && !bounded)
+    else if (EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = 0u, .word = "delete") &&
+             !bounded)
     {
-        const unsigned int from = cli_find(statement, level, "from");
+        const unsigned int from =
+            EMBED_CALL(cli_find, SqlDoesCtx, .statement = args->statement, .level = level, .word = "from");
         if (from == CLI_SQL_WORDS)
         {
             return 0;
         }
-        const unsigned long long end = cli_ends(statement, length, level, s_words[from].end, s_delete_stops, 4u);
-        cli_trimmed_put(&source, statement, s_words[from].end, end);
-        const unsigned int using = cli_find(statement, level, "using");
+        const unsigned long long end =
+            EMBED_CALL(cli_ends, SqlDoesCtx, .statement = args->statement, .length = args->length, .level = level,
+                       .from = s_words[from].end, .stops = s_delete_stops, .count = 4u);
+        EMBED_CALL(cli_trimmed_put, SqlDoesCtx, .out = &source, .statement = args->statement, .from = s_words[from].end,
+                   .to = end);
+        const unsigned int using =
+            EMBED_CALL(cli_find, SqlDoesCtx, .statement = args->statement, .level = level, .word = "using");
         if (using != CLI_SQL_WORDS)
         {
             mmgr_line_put(&source, ", ");
-            cli_trimmed_put(&source, statement, s_words[using].end,
-                            cli_ends(statement, length, level, s_words[using].end, s_using_stops, 1u));
+            EMBED_CALL(
+                cli_trimmed_put, SqlDoesCtx, .out = &source, .statement = args->statement, .from = s_words[using].end,
+                .to = EMBED_CALL(cli_ends, SqlDoesCtx, .statement = args->statement, .length = args->length,
+                                 .level = level, .from = s_words[using].end, .stops = s_using_stops, .count = 1u));
         }
     }
-    else if (cli_word_is(statement, 0u, "truncate"))
+    else if (EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = 0u, .word = "truncate"))
     {
         const unsigned long long start =
-            ((level > 1u) && cli_word_is(statement, 1u, "table")) ? s_words[1].end : s_words[0].end;
-        const unsigned long long end = cli_ends(statement, length, level, start, s_truncate_stops, 4u);
-        cli_trimmed_put(&source, statement, start, end);
+            ((level > 1u) &&
+             EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = 1u, .word = "table"))
+                ? s_words[1].end
+                : s_words[0].end;
+        const unsigned long long end =
+            EMBED_CALL(cli_ends, SqlDoesCtx, .statement = args->statement, .length = args->length, .level = level,
+                       .from = start, .stops = s_truncate_stops, .count = 4u);
+        EMBED_CALL(cli_trimmed_put, SqlDoesCtx, .out = &source, .statement = args->statement, .from = start, .to = end);
         const unsigned long long names = mmgr_line_ok(&source) ? source.at : 0ull;
         int listed = 0;
         for (unsigned long long at = 0ull; at < names; at += 1ull)
@@ -280,15 +338,16 @@ static int cli_unbounded_locked(const char *statement, unsigned long long length
         if (listed)
         {
             // Each table a TRUNCATE names is counted alone and the counts added
-            mmgr_line_put(out, "SELECT ");
+            mmgr_line_put(args->out, "SELECT ");
             unsigned long long piece = 0ull;
             for (unsigned long long at = 0ull; at <= names; at += 1ull)
             {
                 if ((at == names) || (s_source[at] == ','))
                 {
-                    mmgr_line_put(out, (piece != 0ull) ? " + (SELECT count(*) FROM " : "(SELECT count(*) FROM ");
-                    cli_trimmed_put(out, s_source, piece, at);
-                    mmgr_line_ch(out, ')');
+                    mmgr_line_put(args->out, (piece != 0ull) ? " + (SELECT count(*) FROM " : "(SELECT count(*) FROM ");
+                    EMBED_CALL(cli_trimmed_put, SqlDoesCtx, .out = args->out, .statement = s_source, .from = piece,
+                               .to = at);
+                    mmgr_line_ch(args->out, ')');
                     piece = at + 1ull;
                 }
             }
@@ -304,40 +363,43 @@ static int cli_unbounded_locked(const char *statement, unsigned long long length
     {
         return 0;
     }
-    mmgr_line_put(out, "SELECT count(*) FROM ");
-    mmgr_line_put_n(out, s_source, size);
+    mmgr_line_put(args->out, "SELECT count(*) FROM ");
+    mmgr_line_put_n(args->out, s_source, size);
     return 1;
 }
 
-int cli_sql_unbounded(const char *statement, unsigned long long length, unsigned int dialect, VerbaLinea *out)
+int cli_sql_unbounded(const CliSqlLengthDialectCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const int found = cli_unbounded_locked(statement, length, dialect, out);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int found = EMBED_CALL(cli_unbounded_lock, SqlDoesCtx, .statement = args->statement, .length = args->length,
+                                 .dialect = args->dialect, .out = args->out);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return found;
 }
 
 // whether the `index`th token past spaces and comments is `word` in either case, none past the last
-static int cli_lower_is(const char *statement, unsigned int count, unsigned int index, const char *word)
+EMBED_INLINE int cli_lower_is(const SqlDoesCtx *args)
 {
-    return (index < count)
-               ? cli_is(statement + s_tokens[index].start, s_tokens[index].end - s_tokens[index].start, word)
-               : (word[0] == '\0');
+    return (args->index < args->count)
+               ? EMBED_CALL(cli_is, SqlDoesCtx, .text = args->statement + s_tokens[args->index].start,
+                            .length = s_tokens[args->index].end - s_tokens[args->index].start, .word = args->word)
+               : (args->word[0] == '\0');
 }
 
 // a name of names and dots from token `*at` on, each name after a dot, put into `out`, sized for `room`; `*at` moved
 // past it
-static void cli_dotted(const char *statement, unsigned int count, unsigned int *at, char *out, unsigned long long room)
+EMBED_INLINE void cli_dot(const SqlDoesCtx *args)
 {
-    VerbaLinea line = {out, room, 0ull};
-    while (*at < count)
+    unsigned int *at = args->at;
+    VerbaLinea line = {args->out_room, args->room, 0ull};
+    while (*at < args->count)
     {
         const CliSqlToken *const token = &s_tokens[*at];
-        const char *const word = statement + token->start;
+        const char *const word = args->statement + token->start;
         const unsigned long long size = token->end - token->start;
         const int dot = (size == 1u) && (word[0] == '.');
         const int joined = (token->kind == CLI_SQL_WORD) || (token->kind == CLI_SQL_NAME) || dot;
-        const int after_dot = (line.at == 0ull) || (out[line.at - 1u] == '.');
+        const int after_dot = (line.at == 0ull) || (args->out_room[line.at - 1u] == '.');
         if (!joined || (!after_dot && !dot))
         {
             break;
@@ -350,20 +412,22 @@ static void cli_dotted(const char *statement, unsigned int count, unsigned int *
 
 // the `index`th token past spaces and comments in lower case into `out`, sized for CLI_NAME_MAX_LEN, empty past the
 // last
-static void cli_lower_into(const char *statement, unsigned int count, unsigned int index, char *out)
+EMBED_INLINE void cli_lower_into(const SqlDoesCtx *args)
 {
-    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
-    for (unsigned long long at = (index < count) ? s_tokens[index].start : 0ull;
-         (index < count) && (at < s_tokens[index].end); at += 1ull)
+    VerbaLinea line = {args->out_room, CLI_NAME_MAX_LEN, 0ull};
+    for (unsigned long long at = (args->index < args->count) ? s_tokens[args->index].start : 0ull;
+         (args->index < args->count) && (at < s_tokens[args->index].end); at += 1ull)
     {
-        const char letter = statement[at];
+        const char letter = args->statement[at];
         mmgr_line_ch(&line, ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + 32) : letter);
     }
     mmgr_line_finish(&line);
 }
 
-static int cli_shaped_locked(const char *statement, unsigned long long length, unsigned int dialect, CliShaped *shaped)
+EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
 {
+    unsigned long long length = args->length;
+    unsigned int dialect = args->dialect;
     static const char *const s_verbs[6] = {"create", "alter", "drop", "truncate", "rename", "comment"};
     static const char *const s_skips[14] = {"temp",    "temporary", "unique",  "materialized", "unlogged",
                                             "global",  "local",     "foreign", "virtual",      "recursive",
@@ -372,7 +436,9 @@ static int cli_shaped_locked(const char *statement, unsigned long long length, u
     unsigned int count = 0u;
     unsigned long long place = 0ull;
     CliSqlToken token;
-    while (cli_sql_token(statement, length, dialect, &place, &token) && (count < CLI_SQL_WORDS))
+    while (EMBED_CALL(cli_sql_text_length_dialect.token, CliSqlTextLengthDialectCfg, .text = args->statement,
+                      .length = length, .dialect = dialect, .at = &place, .token = &token) &&
+           (count < CLI_SQL_WORDS))
     {
         if ((token.kind != CLI_SQL_SPACE) && (token.kind != CLI_SQL_COMMENT))
         {
@@ -380,26 +446,33 @@ static int cli_shaped_locked(const char *statement, unsigned long long length, u
             count += 1u;
         }
     }
-    cli_lower_into(statement, count, 0u, shaped->verb);
-    if (!cli_in(shaped->verb, cellul.len(&(CatenaFinitaCfg){.src = shaped->verb, .cap = CLI_CELLS_POOL}), s_verbs, 6u))
+    EMBED_CALL(cli_lower_into, SqlDoesCtx, .statement = args->statement, .count = count, .index = 0u,
+               .out_room = args->shaped->verb);
+    if (!EMBED_CALL(cli_in, SqlDoesCtx, .text = args->shaped->verb,
+                    .length = cellul.len(&(CatenaFinitaCfg){.src = args->shaped->verb, .cap = CLI_CELLS_POOL}),
+                    .words = s_verbs, .count = 6u))
     {
         return 0;
     }
     unsigned int at = 1u;
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = shaped->verb, .other = "create", .cap = CLI_CELLS_POOL})) &&
-        cli_lower_is(statement, count, 1u, "or") && cli_lower_is(statement, count, 2u, "replace"))
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "create", .cap = CLI_CELLS_POOL})) &&
+        EMBED_CALL(cli_lower_is, SqlDoesCtx, .statement = args->statement, .count = count, .index = 1u, .word = "or") &&
+        EMBED_CALL(cli_lower_is, SqlDoesCtx, .statement = args->statement, .count = count, .index = 2u,
+                   .word = "replace"))
     {
         at = 3u;
     }
-    while ((at < count) && cli_in(statement + s_tokens[at].start, s_tokens[at].end - s_tokens[at].start, s_skips, 14u))
+    while ((at < count) && EMBED_CALL(cli_in, SqlDoesCtx, .text = args->statement + s_tokens[at].start,
+                                      .length = s_tokens[at].end - s_tokens[at].start, .words = s_skips, .count = 14u))
     {
         at += 1u;
     }
-    cli_lower_into(statement, count, at, shaped->kind);
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = shaped->verb, .other = "truncate", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = shaped->kind, .other = "table", .cap = CLI_CELLS_POOL})))
+    EMBED_CALL(cli_lower_into, SqlDoesCtx, .statement = args->statement, .count = count, .index = at,
+               .out_room = args->shaped->kind);
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "truncate", .cap = CLI_CELLS_POOL})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "table", .cap = CLI_CELLS_POOL})))
     {
-        memor.cpy(&(MemoriaCfg){.dst = shaped->kind,
+        memor.cpy(&(MemoriaCfg){.dst = args->shaped->kind,
                                 .src = "table",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "table", .cap = CLI_CELLS_POOL}) + 1u});
     }
@@ -407,44 +480,52 @@ static int cli_shaped_locked(const char *statement, unsigned long long length, u
     {
         at += 1u;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = shaped->verb, .other = "comment", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->verb, .other = "comment", .cap = CLI_CELLS_POOL}))
     {
         return 0;
     }
-    while ((at < count) && cli_in(statement + s_tokens[at].start, s_tokens[at].end - s_tokens[at].start, s_guards, 4u))
+    while ((at < count) && EMBED_CALL(cli_in, SqlDoesCtx, .text = args->statement + s_tokens[at].start,
+                                      .length = s_tokens[at].end - s_tokens[at].start, .words = s_guards, .count = 4u))
     {
         at += 1u;
     }
-    cli_dotted(statement, count, &at, shaped->name, sizeof(shaped->name));
-    if (shaped->name[0] == '\0')
+    EMBED_CALL(cli_dot, SqlDoesCtx, .statement = args->statement, .count = count, .at = &at,
+               .out_room = args->shaped->name, .room = sizeof(args->shaped->name));
+    if (args->shaped->name[0] == '\0')
     {
         return 0;
     }
-    shaped->has_on = 0;
-    shaped->on[0] = '\0';
-    if ((cellul.eq(&(CatenaFinitaCfg){.src = shaped->kind, .other = "index", .cap = CLI_CELLS_POOL})) ||
-        (cellul.eq(&(CatenaFinitaCfg){.src = shaped->kind, .other = "trigger", .cap = CLI_CELLS_POOL})))
+    args->shaped->has_on = 0;
+    args->shaped->on[0] = '\0';
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "index", .cap = CLI_CELLS_POOL})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->shaped->kind, .other = "trigger", .cap = CLI_CELLS_POOL})))
     {
         unsigned int found = 0u;
-        while ((found < count) && !cli_lower_is(statement, count, found, "on"))
+        while ((found < count) && !EMBED_CALL(cli_lower_is, SqlDoesCtx, .statement = args->statement, .count = count,
+                                              .index = found, .word = "on"))
         {
             found += 1u;
         }
         if (found < count)
         {
             unsigned int table = found + 1u;
-            table += cli_lower_is(statement, count, table, "only") ? 1u : 0u;
-            cli_dotted(statement, count, &table, shaped->on, sizeof(shaped->on));
-            shaped->has_on = shaped->on[0] != '\0';
+            table += EMBED_CALL(cli_lower_is, SqlDoesCtx, .statement = args->statement, .count = count, .index = table,
+                                .word = "only")
+                         ? 1u
+                         : 0u;
+            EMBED_CALL(cli_dot, SqlDoesCtx, .statement = args->statement, .count = count, .at = &table,
+                       .out_room = args->shaped->on, .room = sizeof(args->shaped->on));
+            args->shaped->has_on = args->shaped->on[0] != '\0';
         }
     }
     return 1;
 }
 
-int cli_sql_shaped(const char *statement, unsigned long long length, unsigned int dialect, CliShaped *shaped)
+int cli_sql_shape(const CliSqlLengthCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const int found = cli_shaped_locked(statement, length, dialect, shaped);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int found = EMBED_CALL(cli_shaped_lock, SqlDoesCtx, .statement = args->statement, .length = args->length,
+                                 .dialect = args->dialect, .shaped = args->shaped);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return found;
 }

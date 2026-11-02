@@ -5,6 +5,7 @@
 // its `Import` calls take and those it exports; and the SConscripts its `SConscript` calls read, as the first argument
 // gives them or as `dirs` and `name` do. One file is read at a time, under the reader's lock, and a file larger than
 // CLI_SCONS_TEXT is not read
+#include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 #include "scons_internal.h"
 
@@ -125,8 +126,11 @@ const char *const g_cli_scons_setters[16] = {"Environment",   "Append",       "A
                                              "Program",       "Library",      "StaticLibrary", "SharedLibrary",
                                              "Object",        "StaticObject", "SharedObject",  "LoadableModule"};
 
-int cli_scons_read(const char *text, unsigned long long size, unsigned char *class_of)
+int cli_scons_read(const CliSconsTextSizeClassOfCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    unsigned char *class_of = args->class_of;
     if (size > CLI_SCONS_TEXT)
     {
         return 0;
@@ -145,9 +149,13 @@ int cli_scons_read(const char *text, unsigned long long size, unsigned char *cla
         unsigned long long end = size;
         if (rest[0] == '#')
         {
-            end = cli_text_find(rest, left, "\n", 1u, &found) ? at + found : size;
+            end = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = rest, .length_value = left,
+                             .wanted = "\n", .size = 1u, .at_pointer = &found)
+                      ? at + found
+                      : size;
         }
-        else if (cli_text_quoted_end(text, size, at, &end))
+        else if (EMBED_CALL(cli_text_at_size.quoted_end, CliTextAtSizeCfg, .text = text, .size = size, .at = at,
+                            .end = &end))
         {
             kind = CLI_SCONS_STRING;
         }
@@ -162,23 +170,26 @@ int cli_scons_read(const char *text, unsigned long long size, unsigned char *cla
     return 1;
 }
 
-void cli_scons_calls(const char *name, CliSconsSpan each, void *context)
+void cli_scons_calls(const CliSconsNameCtx *args)
 {
     const char *const text = g_cli_scons.text;
     const unsigned long long size = g_cli_scons.size;
     const unsigned char *const class_of = g_cli_scons.class_of;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at + length <= size; at += 1u)
     {
         unsigned long long before = 0ull;
-        if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = name, .bytes = length}) != 0) ||
+        if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = args->name, .bytes = length}) != 0) ||
             (class_of[at] != CLI_SCONS_CODE) ||
-            ((at > 0u) && cli_build_word_letter(cli_text_letter_before(text, at, &before))))
+            ((at > 0u) && EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
+                                     .letter = EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg, .text = text,
+                                                          .end_value = at, .length = &before))))
         {
             continue;
         }
         unsigned long long open = at + length;
-        open = cli_text_past_any(text, open, size, " \t");
+        open = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = open,
+                          .size = size, .set = " \t");
         if ((open >= size) || (text[open] != '('))
         {
             at += length - 1u;
@@ -207,18 +218,19 @@ void cli_scons_calls(const char *name, CliSconsSpan each, void *context)
                 }
             }
         }
-        each(context, open + 1u, end);
+        EMBED_CALL(args->each, CliSconsSpanCfg, .context = args->context, .from = open + 1u, .to = end);
         at += length - 1u;
     }
 }
 
-void cli_scons_strings(unsigned long long from, unsigned long long to, CliSconsSpan each, void *context)
+void cli_scons_strings(const CliSconsEachCtx *args)
 {
+    unsigned long long to = args->to;
     const char *const text = g_cli_scons.text;
     const unsigned long long size = g_cli_scons.size;
     const unsigned char *const class_of = g_cli_scons.class_of;
     to = (to < size) ? to : size;
-    for (unsigned long long at = from; at < to;)
+    for (unsigned long long at = args->from; at < to;)
     {
         if ((class_of[at] != CLI_SCONS_STRING) || ((at > 0u) && (class_of[at - 1u] == CLI_SCONS_STRING)))
         {
@@ -230,21 +242,26 @@ void cli_scons_strings(unsigned long long from, unsigned long long to, CliSconsS
         {
             end += 1u;
         }
-        const unsigned long long quote =
-            (cli_text_starts(text + at, size - at, "\"\"\"") || cli_text_starts(text + at, size - at, "'''")) ? 3u : 1u;
+        const unsigned long long quote = (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg,
+                                                     .text = text + at, .size = size - at, .prefix = "\"\"\"") ||
+                                          EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg,
+                                                     .text = text + at, .size = size - at, .prefix = "'''"))
+                                             ? 3u
+                                             : 1u;
         const unsigned long long inner_end =
             ((end - at >= 2u * quote) && (text[end - 1u] == text[at])) ? end - quote : end;
-        each(context, at + quote, (inner_end > at + quote) ? inner_end : at + quote);
+        EMBED_CALL(args->each, CliSconsSpanCfg, .context = args->context, .from = at + quote,
+                   .to = (inner_end > at + quote) ? inner_end : at + quote);
         at = end;
     }
 }
 
-void cli_scons_arguments(unsigned long long from, unsigned long long to, CliSconsSpan each, void *context)
+void cli_scons_arguments(const CliSconsEachCtx *args)
 {
     const char *const text = g_cli_scons.text;
     long long depth = 0;
-    unsigned long long start = from;
-    for (unsigned long long at = from; at < to; at += 1u)
+    unsigned long long start = args->from;
+    for (unsigned long long at = args->from; at < args->to; at += 1u)
     {
         if (g_cli_scons.class_of[at] != CLI_SCONS_CODE)
         {
@@ -255,24 +272,27 @@ void cli_scons_arguments(unsigned long long from, unsigned long long to, CliScon
         depth -= ((byte == ')') || (byte == ']') || (byte == '}')) ? 1 : 0;
         if ((byte == ',') && (depth == 0))
         {
-            each(context, start, at);
+            EMBED_CALL(args->each, CliSconsSpanCfg, .context = args->context, .from = start, .to = at);
             start = at + 1u;
         }
     }
     unsigned long long trimmed_from = 0ull;
     unsigned long long trimmed_to = 0ull;
-    cli_text_trimmed(text + start, (to > start) ? to - start : 0u, &trimmed_from, &trimmed_to);
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + start,
+               .size = (args->to > start) ? args->to - start : 0u, .from_u64s = &trimmed_from, .to_u64s = &trimmed_to);
     if (trimmed_to > trimmed_from)
     {
-        each(context, start, to);
+        EMBED_CALL(args->each, CliSconsSpanCfg, .context = args->context, .from = start, .to = args->to);
     }
 }
 
-int cli_scons_keyword(unsigned long long from, unsigned long long to, unsigned long long *name,
-                      unsigned long long *name_size, unsigned long long *value)
+int cli_scons_keyword(const CliSconsFromCtx *args)
 {
-    const char *const part = g_cli_scons.text + from;
-    const char *const eq = memor.chr(&(MemoriaCfg){.src = part, .val = '=', .bytes = (size_t)(to - from)});
+    unsigned long long *name = args->name_u64s;
+    unsigned long long *name_size = args->name_size;
+    unsigned long long *value = args->value;
+    const char *const part = g_cli_scons.text + args->from;
+    const char *const eq = memor.chr(&(MemoriaCfg){.src = part, .val = '=', .bytes = (size_t)(args->to - args->from)});
     if (eq == NULL)
     {
         return 0;
@@ -280,22 +300,25 @@ int cli_scons_keyword(unsigned long long from, unsigned long long to, unsigned l
     const unsigned long long at = (unsigned long long)(eq - part);
     unsigned long long name_from = 0ull;
     unsigned long long name_to = 0ull;
-    cli_text_trimmed(part, at, &name_from, &name_to);
-    if ((name_to == name_from) || ((from + at + 1u < to) && (part[at + 1u] == '=')))
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = part, .size = at, .from_u64s = &name_from,
+               .to_u64s = &name_to);
+    if ((name_to == name_from) || ((args->from + at + 1u < args->to) && (part[at + 1u] == '=')))
     {
         return 0;
     }
     for (unsigned long long walk = name_from; walk < name_to;)
     {
         unsigned long long length = 0ull;
-        if (!cli_build_word_letter(cli_text_letter(part, name_to, walk, &length)))
+        if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
+                        .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = part, .size = name_to,
+                                             .at = walk, .length = &length)))
         {
             return 0;
         }
         walk += length;
     }
-    *name = from + name_from;
+    *name = args->from + name_from;
     *name_size = name_to - name_from;
-    *value = from + at + 1u;
+    *value = args->from + at + 1u;
     return 1;
 }

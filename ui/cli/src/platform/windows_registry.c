@@ -11,66 +11,78 @@
 // the most UTF-16 units of a value read or written
 #define CLI_REGISTRY_UNITS 32768u
 
+typedef struct
+{
+#if (defined(_WIN32))
+    HKEY root;
+    const wchar_t *key;
+    const char *name;
+    char *out;
+    unsigned long long room;
+#endif
+} WindowsRegistryCtx;
 // a value of `key` under `root` read into `out` in UTF-8: 1, or 0 where it is none or no text
-static int cli_read(HKEY root, const wchar_t *key, const char *name, char *out, unsigned long long room)
+EMBED_INLINE int cli_read(const WindowsRegistryCtx *args)
 {
     static wchar_t s_data[CLI_REGISTRY_UNITS];
     static CliLock s_lock = CLI_LOCK_INIT;
     wchar_t wide_name[CLI_NAME_MAX_LEN];
-    if (MultiByteToWideChar(CP_UTF8, 0, name, -1, wide_name, CLI_NAME_MAX_LEN) == 0)
+    if (MultiByteToWideChar(CP_UTF8, 0, args->name, -1, wide_name, CLI_NAME_MAX_LEN) == 0)
     {
         return 0;
     }
     HKEY opened = NULL;
-    if (RegOpenKeyExW(root, key, 0u, KEY_READ, &opened) != ERROR_SUCCESS)
+    if (RegOpenKeyExW(args->root, args->key, 0u, KEY_READ, &opened) != ERROR_SUCCESS)
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     DWORD kind = 0u;
     DWORD size = sizeof(s_data) - sizeof(wchar_t);
     const LONG status = RegQueryValueExW(opened, wide_name, NULL, &kind, (LPBYTE)s_data, &size);
     RegCloseKey(opened);
     if ((status != ERROR_SUCCESS) || ((kind != REG_SZ) && (kind != REG_EXPAND_SZ)))
     {
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     s_data[size / sizeof(wchar_t)] = L'\0';
     // the room is far below what an int counts
-    const int written = WideCharToMultiByte(CP_UTF8, 0u, s_data, -1, out, (int)room, NULL, NULL);
-    cli_lock_give(&s_lock);
+    const int written = WideCharToMultiByte(CP_UTF8, 0u, s_data, -1, args->out, (int)args->room, NULL, NULL);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return written > 0;
 }
 
-int cli_registry_machine_path(char *out, unsigned long long room)
+int cli_registry_machine_path(const CliOutCtx *args)
 {
-    return cli_read(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", "Path",
-                    out, room);
+    return EMBED_CALL(cli_read, WindowsRegistryCtx, .root = HKEY_LOCAL_MACHINE,
+                      .key = L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", .name = "Path",
+                      .out = args->out, .room = args->room);
 }
 
-int cli_registry_user_value(const char *name, char *out, unsigned long long room)
+int cli_registry_user_value(const CliOutRoomCtx *args)
 {
-    return cli_read(HKEY_CURRENT_USER, L"Environment", name, out, room);
+    return EMBED_CALL(cli_read, WindowsRegistryCtx, .root = HKEY_CURRENT_USER, .key = L"Environment",
+                      .name = args->name, .out = args->out, .room = args->room);
 }
 
-int cli_registry_set_user_value(const char *name, const char *value, VerbaLinea *err_msg)
+int cli_registry_set_user_value(const CliErrMsgNameCtx *args)
 {
     static wchar_t s_data[CLI_REGISTRY_UNITS];
     wchar_t wide_name[CLI_NAME_MAX_LEN];
-    const int units = MultiByteToWideChar(CP_UTF8, 0, value, -1, s_data, CLI_REGISTRY_UNITS);
-    if ((units == 0) || (MultiByteToWideChar(CP_UTF8, 0, name, -1, wide_name, CLI_NAME_MAX_LEN) == 0))
+    const int units = MultiByteToWideChar(CP_UTF8, 0, args->value, -1, s_data, CLI_REGISTRY_UNITS);
+    if ((units == 0) || (MultiByteToWideChar(CP_UTF8, 0, args->name, -1, wide_name, CLI_NAME_MAX_LEN) == 0))
     {
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " was not written: it is too long");
+        mmgr_line_put(args->err_msg, args->name);
+        mmgr_line_put(args->err_msg, " was not written: it is too long");
         return 0;
     }
     HKEY opened = NULL;
     LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Environment", 0u, KEY_READ | KEY_WRITE, &opened);
     if (result != ERROR_SUCCESS)
     {
-        mmgr_line_put(err_msg, "the reader's environment did not open: error ");
-        mmgr_line_decimal_signed(err_msg, result);
+        mmgr_line_put(args->err_msg, "the reader's environment did not open: error ");
+        mmgr_line_decimal_signed(args->err_msg, result);
         return 0;
     }
     // the units written count the closing zero, and each is two bytes
@@ -78,9 +90,9 @@ int cli_registry_set_user_value(const char *name, const char *value, VerbaLinea 
     RegCloseKey(opened);
     if (result != ERROR_SUCCESS)
     {
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " was not written: error ");
-        mmgr_line_decimal_signed(err_msg, result);
+        mmgr_line_put(args->err_msg, args->name);
+        mmgr_line_put(args->err_msg, " was not written: error ");
+        mmgr_line_decimal_signed(args->err_msg, result);
         return 0;
     }
     return 1;
@@ -92,23 +104,25 @@ void cli_registry_announce(void)
     SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0u, (LPARAM)L"Environment", SMTO_ABORTIFHUNG, 3000u, &result);
 }
 
-void cli_registry_expand(const char *text, char *out, unsigned long long room)
+void cli_registry_expand(const CliOutCtx *args)
 {
     static wchar_t s_source[CLI_REGISTRY_UNITS];
     static wchar_t s_expanded[CLI_REGISTRY_UNITS];
     static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    const int read = MultiByteToWideChar(CP_UTF8, 0, text, -1, s_source, CLI_REGISTRY_UNITS);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int read = MultiByteToWideChar(CP_UTF8, 0, args->text, -1, s_source, CLI_REGISTRY_UNITS);
     const DWORD written = (read != 0) ? ExpandEnvironmentStringsW(s_source, s_expanded, CLI_REGISTRY_UNITS) : 0u;
     // the room is far below what an int counts
     const int converted = ((written != 0u) && (written <= CLI_REGISTRY_UNITS))
-                              ? WideCharToMultiByte(CP_UTF8, 0u, s_expanded, -1, out, (int)room, NULL, NULL)
+                              ? WideCharToMultiByte(CP_UTF8, 0u, s_expanded, -1, args->out, (int)args->room, NULL, NULL)
                               : 0;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (converted == 0)
     {
-        memor.cpy(&(MemoriaCfg){
-            .dst = out, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = args->out,
+                          .src = args->text,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1u});
     }
 }
 #endif

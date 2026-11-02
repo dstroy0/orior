@@ -9,22 +9,23 @@
 
 static CliFinding s_sorting[CLI_VALIDATE_FINDINGS];
 
-void cli_validate_finding_put(const CliFinding *finding, const char *message, unsigned long long length,
-                              const char *lifted)
+void cli_validate_finding_put(const CliValidateLengthCtx *args)
 {
+    const char *message = args->message_text;
+    const char *lifted = args->lifted;
     const unsigned long long lifted_size =
         (lifted != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_CELLS_POOL}) + 1ull : 0ull;
     if ((g_cli_validate->finding_count == CLI_VALIDATE_FINDINGS) ||
-        (g_cli_validate->finding_used + length + 1ull + lifted_size > CLI_VALIDATE_FINDING_TEXT))
+        (g_cli_validate->finding_used + args->length + 1ull + lifted_size > CLI_VALIDATE_FINDING_TEXT))
     {
         return;
     }
     CliFinding *const put = &g_cli_validate->findings[g_cli_validate->finding_count];
-    *put = *finding;
+    *put = *args->finding;
     put->message = g_cli_validate->finding_used;
-    memor.cpy(&(MemoriaCfg){.dst = g_cli_validate->finding_text + put->message, .src = message, .bytes = length});
-    g_cli_validate->finding_text[put->message + length] = '\0';
-    g_cli_validate->finding_used += length + 1ull;
+    memor.cpy(&(MemoriaCfg){.dst = g_cli_validate->finding_text + put->message, .src = message, .bytes = args->length});
+    g_cli_validate->finding_text[put->message + args->length] = '\0';
+    g_cli_validate->finding_used += args->length + 1ull;
     put->lifted = CLI_VALIDATE_NONE;
     if (lifted != NULL)
     {
@@ -36,14 +37,30 @@ void cli_validate_finding_put(const CliFinding *finding, const char *message, un
     g_cli_validate->finding_count += 1u;
 }
 
-// a limit written as `<name> <value>`, nothing where it was not grown
-static void report_setting(VerbaLinea *out, unsigned int key)
+typedef struct
 {
-    if (g_cli_validate->has_grown[key])
+    VerbaLinea *out;
+    unsigned int key;
+    unsigned int from;
+    unsigned int to;
+    unsigned long long count;
+    const char *one;
+    const char *many;
+    const char *after;
+    int passed;
+    unsigned long long math;
+    unsigned long long blocked;
+    const VerbaLinea *untrusted;
+    const CliFinding *finding;
+} ValidateReportCtx;
+// a limit written as `<name> <value>`, nothing where it was not grown
+EMBED_INLINE void report_setting(const ValidateReportCtx *args)
+{
+    if (g_cli_validate->has_grown[args->key])
     {
-        mmgr_line_put(out, g_cli_validate->tool.barriers[key].name);
-        mmgr_line_ch(out, ' ');
-        mmgr_line_decimal(out, g_cli_validate->grown[key], 1u);
+        mmgr_line_put(args->out, g_cli_validate->tool.barriers[args->key].name);
+        mmgr_line_ch(args->out, ' ');
+        mmgr_line_decimal(args->out, g_cli_validate->grown[args->key], 1u);
     }
 }
 
@@ -56,18 +73,21 @@ static void report_barriers(void)
     for (unsigned int at = 0u; at < first->count; at += 1u)
     {
         const CliProverMessage *const message = &first->message[at];
-        const int barrier = cli_validate_barrier_of(first, message);
+        const int barrier = EMBED_CALL(cli_validate_messages_internal.barrier_get, CliValidateMessagesCtx,
+                                       .messages_read = first, .message = message);
         if ((message->severity != 1u) || (message->line >= g_cli_validate->lines) || (barrier < 0))
         {
             continue;
         }
         const CliBarrier *const stopping = &tool->barriers[barrier];
-        const unsigned int key = cli_validate_key_of((unsigned int)barrier);
+        const unsigned int key =
+            EMBED_CALL(cli_validate_at_internal.key_get, CliValidateAtCtx, .at = (unsigned int)barrier);
         int still = 0;
         for (unsigned int now = 0u; !still && (now < last->count); now += 1u)
         {
             const CliProverMessage *const again = &last->message[now];
-            const int again_barrier = cli_validate_barrier_of(last, again);
+            const int again_barrier = EMBED_CALL(cli_validate_messages_internal.barrier_get, CliValidateMessagesCtx,
+                                                 .messages_read = last, .message = again);
             still = (again->severity == 1u) && (again->line == message->line) && (again_barrier >= 0) &&
                     (cellul.eq(&(CatenaFinitaCfg){
                         .src = tool->barriers[again_barrier].name, .other = stopping->name, .cap = CLI_CELLS_POOL}));
@@ -87,11 +107,12 @@ static void report_barriers(void)
         {
             g_cli_validate->lifted[key] = 1;
             mmgr_line_put(&lifted_line, "goes through at ");
-            report_setting(&lifted_line, key);
+            EMBED_CALL(report_setting, ValidateReportCtx, .out = &lifted_line, .key = key);
         }
         mmgr_line_finish(&lifted_line);
         const char *const text = first->text + message->text;
-        const CliTextLine bounds = cli_text_line_at(text, 0ull, message->text_size);
+        const CliTextLine bounds =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = 0ull, .size = message->text_size);
         unsigned long long first_line = bounds.stop;
         first_line -= bounds.stop - bounds.cut;
         char msg_buf[8192];
@@ -104,7 +125,8 @@ static void report_barriers(void)
         const CliFinding finding = {
             message->line, message->col, message->end_line, message->end_col, still ? 1u : 3u, "barrier", barrier,
             0ull,          0ull};
-        cli_validate_finding_put(&finding, msg_buf, msg.at, lifted);
+        EMBED_CALL(cli_validate_length_internal.finding_put, CliValidateLengthCtx, .finding = &finding,
+                   .message_text = msg_buf, .length = msg.at, .lifted = lifted);
     }
 }
 
@@ -127,8 +149,9 @@ static void report_repeats(void)
         {
             const CliProverMessage *const message = &last->message[now];
             repeated = (message->line == finding->line) && (message->col == finding->col) &&
-                       cli_validate_in_array(json, g_cli_validate->tool.repeats, last->text + message->kind,
-                                             message->kind_size);
+                       EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
+                                  .array = g_cli_validate->tool.repeats, .text = last->text + message->kind,
+                                  .length = message->kind_size);
         }
         if (!repeated)
         {
@@ -140,70 +163,71 @@ static void report_repeats(void)
 }
 
 // the findings in the order of their places, as a stable sort orders them, from `from` to `to`
-static void report_sorted(unsigned int from, unsigned int to)
+static void report_sort(const ValidateReportCtx *args)
 {
-    if (to - from < 2u)
+    if (args->to - args->from < 2u)
     {
         return;
     }
-    const unsigned int middle = from + ((to - from) / 2u);
-    report_sorted(from, middle);
-    report_sorted(middle, to);
+    const unsigned int middle = args->from + ((args->to - args->from) / 2u);
+    EMBED_CALL(report_sort, ValidateReportCtx, .from = args->from, .to = middle);
+    EMBED_CALL(report_sort, ValidateReportCtx, .from = middle, .to = args->to);
     CliFinding *const found = g_cli_validate->findings;
-    unsigned int left = from;
+    unsigned int left = args->from;
     unsigned int right = middle;
-    for (unsigned int at = from; at < to; at += 1u)
+    for (unsigned int at = args->from; at < args->to; at += 1u)
     {
         const int take_right =
-            (right < to) && ((left == middle) || (found[right].line < found[left].line) ||
-                             ((found[right].line == found[left].line) && (found[right].col < found[left].col)));
+            (right < args->to) && ((left == middle) || (found[right].line < found[left].line) ||
+                                   ((found[right].line == found[left].line) && (found[right].col < found[left].col)));
         s_sorting[at] = take_right ? found[right] : found[left];
         right += take_right ? 1u : 0u;
         left += take_right ? 0u : 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = found + from, .src = s_sorting + from, .bytes = (to - from) * sizeof(found[0])});
+    memor.cpy(&(MemoriaCfg){
+        .dst = found + args->from, .src = s_sorting + args->from, .bytes = (args->to - args->from) * sizeof(found[0])});
 }
 
 // a count and its noun, `one` where it is 1 and `many` otherwise, a "; " before it where the verdict reports something
-static void report_counted(VerbaLinea *out, unsigned long long count, const char *one, const char *many,
-                           const char *after)
+EMBED_INLINE void report_on_count(const ValidateReportCtx *args)
 {
-    mmgr_line_put(out, (out->at > 0ull) ? "; " : "");
-    mmgr_line_decimal(out, count, 1u);
-    mmgr_line_ch(out, ' ');
-    mmgr_line_put(out, (count == 1ull) ? one : many);
-    mmgr_line_put(out, after);
+    mmgr_line_put(args->out, (args->out->at > 0ull) ? "; " : "");
+    mmgr_line_decimal(args->out, args->count, 1u);
+    mmgr_line_ch(args->out, ' ');
+    mmgr_line_put(args->out, (args->count == 1ull) ? args->one : args->many);
+    mmgr_line_put(args->out, args->after);
 }
 
 // the verdict: whether the check ran out of time or passes, the errors, the places a limit stops, the limits lifted,
 // the file's own settings changed and the theorems that rest on axioms past those trusted
-static void report_verdict(VerbaLinea *out, int passed, unsigned long long math, unsigned long long blocked,
-                           const VerbaLinea *untrusted)
+EMBED_INLINE void report_verdict(const ValidateReportCtx *args)
 {
     const CliTool *const tool = &g_cli_validate->tool;
     const CliJson *const json = &g_cli_validate->json;
     if (g_cli_validate->late)
     {
-        mmgr_line_put(out, "the check ran past ");
-        mmgr_line_decimal(out, tool->patience, 1u);
-        mmgr_line_put(out, " seconds and was stopped");
+        mmgr_line_put(args->out, "the check ran past ");
+        mmgr_line_decimal(args->out, tool->patience, 1u);
+        mmgr_line_put(args->out, " seconds and was stopped");
     }
-    else if (passed && (g_cli_validate->theorem_count == 0u))
+    else if (args->passed && (g_cli_validate->theorem_count == 0u))
     {
-        mmgr_line_put(out, "it checks");
+        mmgr_line_put(args->out, "it checks");
     }
-    else if (passed)
+    else if (args->passed)
     {
-        mmgr_line_decimal(out, g_cli_validate->theorem_count, 1u);
-        mmgr_line_put(out, " theorems check");
+        mmgr_line_decimal(args->out, g_cli_validate->theorem_count, 1u);
+        mmgr_line_put(args->out, " theorems check");
     }
-    if (math > 0ull)
+    if (args->math > 0ull)
     {
-        report_counted(out, math, "error", "errors", " in the mathematics");
+        EMBED_CALL(report_on_count, ValidateReportCtx, .out = args->out, .count = args->math, .one = "error",
+                   .many = "errors", .after = " in the mathematics");
     }
-    if (blocked > 0ull)
+    if (args->blocked > 0ull)
     {
-        report_counted(out, blocked, "place", "places", " a limit stops past its ceiling");
+        EMBED_CALL(report_on_count, ValidateReportCtx, .out = args->out, .count = args->blocked, .one = "place",
+                   .many = "places", .after = " a limit stops past its ceiling");
     }
     unsigned int keys[CLI_VALIDATE_BARRIERS];
     unsigned int lifted = 0u;
@@ -214,7 +238,9 @@ static void report_verdict(VerbaLinea *out, int passed, unsigned long long math,
             continue;
         }
         unsigned int place = lifted;
-        while ((place > 0u) && (cli_text_order(tool->barriers[keys[place - 1u]].name, tool->barriers[key].name) > 0))
+        while ((place > 0u) &&
+               (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = tool->barriers[keys[place - 1u]].name,
+                           .other_pointer = tool->barriers[key].name) > 0))
         {
             keys[place] = keys[place - 1u];
             place -= 1u;
@@ -224,78 +250,91 @@ static void report_verdict(VerbaLinea *out, int passed, unsigned long long math,
     }
     if (lifted > 0u)
     {
-        mmgr_line_put(out, (out->at > 0ull) ? "; once lifted to " : "once lifted to ");
+        mmgr_line_put(args->out, (args->out->at > 0ull) ? "; once lifted to " : "once lifted to ");
         int printed = 0;
         for (unsigned int at = 0u; at < lifted; at += 1u)
         {
             if (g_cli_validate->has_grown[keys[at]])
             {
-                mmgr_line_put(out, printed ? ", " : "");
-                report_setting(out, keys[at]);
+                mmgr_line_put(args->out, printed ? ", " : "");
+                EMBED_CALL(report_setting, ValidateReportCtx, .out = args->out, .key = keys[at]);
                 printed = 1;
             }
         }
     }
     if (g_cli_validate->own_size > 0ull)
     {
-        mmgr_line_put(out, (out->at > 0ull) ? "; the file's own " : "the file's own ");
-        mmgr_line_put_n(out, g_cli_validate->own, g_cli_validate->own_size);
+        mmgr_line_put(args->out, (args->out->at > 0ull) ? "; the file's own " : "the file's own ");
+        mmgr_line_put_n(args->out, g_cli_validate->own, g_cli_validate->own_size);
     }
-    if (untrusted->at > 0ull)
+    if (args->untrusted->at > 0ull)
     {
-        mmgr_line_put(out, (out->at > 0ull) ? "; " : "");
-        mmgr_line_put_n(out, untrusted->out, untrusted->at);
-        mmgr_line_put(out, " rest on axioms past ");
-        for (unsigned int index = 0u; cli_json_item(json, tool->trusted, index) != CLI_JSON_NONE; index += 1u)
+        mmgr_line_put(args->out, (args->out->at > 0ull) ? "; " : "");
+        mmgr_line_put_n(args->out, args->untrusted->out, args->untrusted->at);
+        mmgr_line_put(args->out, " rest on axioms past ");
+        for (unsigned int index = 0u;
+             EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
+                        .array = tool->trusted, .index = index) != CLI_JSON_NONE;
+             index += 1u)
         {
-            const char *const axiom = cli_json_string(json, cli_json_item(json, tool->trusted, index), NULL);
-            mmgr_line_put(out, (index > 0u) ? ", " : "");
-            mmgr_line_put(out, axiom);
+            const char *const axiom =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                           .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                              .json_read = json, .array = tool->trusted, .index = index),
+                           .length_pointer = NULL);
+            mmgr_line_put(args->out, (index > 0u) ? ", " : "");
+            mmgr_line_put(args->out, axiom);
         }
     }
 }
 
 // a finding written as `{"line", "col", "end_line", "end_col", "severity", "kind", "barrier", "message", "lifted"}`
-static void report_finding_written(const CliFinding *finding, VerbaLinea *out)
+EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
 {
+    VerbaLinea *out = args->out;
     static const char *const keys[4] = {"{\"line\":", ",\"col\":", ",\"end_line\":", ",\"end_col\":"};
-    const unsigned int places[4] = {finding->line, finding->col, finding->end_line, finding->end_col};
+    const unsigned int places[4] = {args->finding->line, args->finding->col, args->finding->end_line,
+                                    args->finding->end_col};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         mmgr_line_put(out, keys[at]);
         mmgr_line_decimal(out, places[at], 1u);
     }
     mmgr_line_put(out, ",\"severity\":");
-    mmgr_line_decimal(out, finding->severity, 1u);
+    mmgr_line_decimal(out, args->finding->severity, 1u);
     mmgr_line_put(out, ",\"kind\":");
-    cli_json_quoted(out, finding->kind, cellul.len(&(CatenaFinitaCfg){.src = finding->kind, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->finding->kind,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->finding->kind, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"barrier\":");
-    if (finding->barrier < 0)
+    if (args->finding->barrier < 0)
     {
         mmgr_line_put(out, "null");
     }
     else
     {
-        const char *const name = g_cli_validate->tool.barriers[finding->barrier].name;
-        cli_json_quoted(out, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+        const char *const name = g_cli_validate->tool.barriers[args->finding->barrier].name;
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = name,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     }
-    const char *const message = g_cli_validate->finding_text + finding->message;
+    const char *const message = g_cli_validate->finding_text + args->finding->message;
     mmgr_line_put(out, ",\"message\":");
-    cli_json_quoted(out, message, cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = message,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"lifted\":");
-    if (finding->lifted == CLI_VALIDATE_NONE)
+    if (args->finding->lifted == CLI_VALIDATE_NONE)
     {
         mmgr_line_put(out, "null");
     }
     else
     {
-        const char *const lifted = g_cli_validate->finding_text + finding->lifted;
-        cli_json_quoted(out, lifted, cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_CELLS_POOL}));
+        const char *const lifted = g_cli_validate->finding_text + args->finding->lifted;
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = lifted,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = lifted, .cap = CLI_CELLS_POOL}));
     }
     mmgr_line_ch(out, '}');
 }
 
-void cli_validate_reported(const char *path, const char *project, VerbaLinea *report)
+void cli_validate_report(const CliValidateProjectCtx *args)
 {
     static char s_untrusted[1u << 16u];
     VerbaLinea untrusted = {s_untrusted, sizeof(s_untrusted), 0ull};
@@ -305,9 +344,10 @@ void cli_validate_reported(const char *path, const char *project, VerbaLinea *re
     if (g_cli_validate->tool.audited)
     {
         report_repeats();
-        cli_validate_axioms_reported(answers, &untrusted);
+        EMBED_CALL(cli_validate_answers_internal.axioms_report, CliValidateAnswersCtx, .answers = answers,
+                   .untrusted = &untrusted);
     }
-    report_sorted(0u, g_cli_validate->finding_count);
+    EMBED_CALL(report_sort, ValidateReportCtx, .from = 0u, .to = g_cli_validate->finding_count);
     unsigned long long math = 0ull;
     unsigned long long blocked = 0ull;
     unsigned long long gaps = 0ull;
@@ -331,30 +371,37 @@ void cli_validate_reported(const char *path, const char *project, VerbaLinea *re
     const int passed = !g_cli_validate->late && (math == 0ull) && (blocked == 0ull) && (gaps == 0ull);
     static char s_verdict[1u << 18u];
     VerbaLinea verdict = {s_verdict, sizeof(s_verdict), 0ull};
-    report_verdict(&verdict, passed, math, blocked, &untrusted);
+    EMBED_CALL(report_verdict, ValidateReportCtx, .out = &verdict, .passed = passed, .math = math, .blocked = blocked,
+               .untrusted = &untrusted);
     const char *const name = g_cli_validate->tool.name;
-    mmgr_line_put(report, "{\"tool\":");
-    cli_json_quoted(report, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(report, ",\"file\":");
-    cli_json_quoted(report, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(report, ",\"project\":");
-    if (project == NULL)
+    mmgr_line_put(args->report, "{\"tool\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->report, .text = name,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->report, ",\"file\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->report, .text = args->path,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->report, ",\"project\":");
+    if (args->project == NULL)
     {
-        mmgr_line_put(report, "null");
+        mmgr_line_put(args->report, "null");
     }
     else
     {
-        cli_json_quoted(report, project, cellul.len(&(CatenaFinitaCfg){.src = project, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->report,
+                   .text = args->project,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->project, .cap = CLI_CELLS_POOL}));
     }
-    mmgr_line_put(report, passed ? ",\"passes\":true,\"verdict\":" : ",\"passes\":false,\"verdict\":");
-    cli_json_quoted(report, verdict.out, verdict.at);
-    mmgr_line_put(report, ",\"checks\":[");
-    mmgr_line_put_n(report, g_cli_validate->checks, g_cli_validate->checks_size);
-    mmgr_line_put(report, "],\"findings\":[");
+    mmgr_line_put(args->report, passed ? ",\"passes\":true,\"verdict\":" : ",\"passes\":false,\"verdict\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->report, .text = verdict.out,
+               .length = verdict.at);
+    mmgr_line_put(args->report, ",\"checks\":[");
+    mmgr_line_put_n(args->report, g_cli_validate->checks, g_cli_validate->checks_size);
+    mmgr_line_put(args->report, "],\"findings\":[");
     for (unsigned int at = 0u; at < g_cli_validate->finding_count; at += 1u)
     {
-        mmgr_line_put(report, (at > 0u) ? "," : "");
-        report_finding_written(&g_cli_validate->findings[at], report);
+        mmgr_line_put(args->report, (at > 0u) ? "," : "");
+        EMBED_CALL(report_finding_write, ValidateReportCtx, .finding = &g_cli_validate->findings[at],
+                   .out = args->report);
     }
-    mmgr_line_put(report, "]}");
+    mmgr_line_put(args->report, "]}");
 }

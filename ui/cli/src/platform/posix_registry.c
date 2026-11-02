@@ -5,26 +5,22 @@
 #include "../command_line/cli_internal.h"
 
 #if !defined(_WIN32)
-int cli_registry_machine_path(char *out, unsigned long long room)
+int cli_registry_machine_path(const CliOutCtx *args)
 {
-    (void)out;
-    (void)room;
+    (void)args;
     return 0;
 }
 
-int cli_registry_user_value(const char *name, char *out, unsigned long long room)
+int cli_registry_user_value(const CliOutRoomCtx *args)
 {
-    (void)name;
-    (void)out;
-    (void)room;
+    (void)args;
     return 0;
 }
 
-int cli_registry_set_user_value(const char *name, const char *value, VerbaLinea *err_msg)
+int cli_registry_set_user_value(const CliErrMsgNameCtx *args)
 {
-    (void)value;
-    mmgr_line_put(err_msg, name);
-    mmgr_line_put(err_msg, " is stored in the registry, which only Windows has");
+    mmgr_line_put(args->err_msg, args->name);
+    mmgr_line_put(args->err_msg, " is stored in the registry, which only Windows has");
     return 0;
 }
 
@@ -32,9 +28,10 @@ void cli_registry_announce(void)
 {
 }
 
-void cli_registry_expand(const char *text, char *out, unsigned long long room)
+void cli_registry_expand(const CliOutCtx *args)
 {
-    memor.cpy(&(MemoriaCfg){
-        .dst = out, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = args->out,
+                            .src = args->text,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1u});
 }
 #endif

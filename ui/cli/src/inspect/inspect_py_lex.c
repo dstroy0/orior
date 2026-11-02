@@ -11,9 +11,10 @@
 CliPyLine *g_cli_py_line;
 unsigned int g_cli_py_lines;
 
-void cli_inspect_py_lex_laid(CliInspectCarve *carve)
+void cli_inspect_py_lex_layout(const CliInspectCarveCtx *args)
 {
-    g_cli_py_line = cli_inspect_carved(carve, (unsigned long long)CLI_INSPECT_LINES * sizeof(CliPyLine));
+    g_cli_py_line = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                               .bytes = (unsigned long long)CLI_INSPECT_LINES * sizeof(CliPyLine));
 }
 
 const char *const g_cli_py_keywords[35] = {"False",  "None",   "True",    "and",      "as",       "assert", "async",
@@ -34,29 +35,46 @@ static const char *const s_prefixes[13] = {"r", "u", "b", "f", "t", "br", "rb", 
 // the names a string's fields read, recorded until the string's own token is put
 static CliInspectTok s_field_names[CLI_PY_FIELD_NAMES];
 
-static int lex_name_start(unsigned int letter)
+typedef struct
 {
-    return (letter == '_') || cli_inspect_alphabetic(letter);
+    unsigned int letter;
+    const char *src;
+    unsigned long long start;
+    unsigned long long end;
+    CliInspectScan *scan;
+    CliInspectPlace from;
+    unsigned long long prefix_size;
+    unsigned int indent;
+    unsigned int *first;
+    int *depth;
+    unsigned int *indent_pointer;
+} InspectPyLexCtx;
+EMBED_INLINE int lex_name_start(const InspectPyLexCtx *args)
+{
+    unsigned int letter = args->letter;
+    return (letter == '_') || EMBED_CALL(cli_inspect_internal.alphabetic, CliInspectCtx, .letter = letter);
 }
 
-static int lex_name(unsigned int letter)
+EMBED_INLINE int lex_name(const InspectPyLexCtx *args)
 {
-    return (letter == '_') || cli_inspect_alphanumeric(letter);
+    unsigned int letter = args->letter;
+    return (letter == '_') || EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = letter);
 }
 
 // whether the bytes from `start` to `end` of `src` are a prefix a string may have, case aside
-static int lex_prefix(const char *src, unsigned long long start, unsigned long long end)
+EMBED_INLINE int lex_prefix(const InspectPyLexCtx *args)
 {
+    const char *src = args->src;
     char lower[4];
-    if (end - start > 2u)
+    if (args->end - args->start > 2u)
     {
         return 0;
     }
-    for (unsigned long long at = start; at < end; at += 1u)
+    for (unsigned long long at = args->start; at < args->end; at += 1u)
     {
-        lower[at - start] = ((src[at] >= 'A') && (src[at] <= 'Z')) ? (char)(src[at] - 'A' + 'a') : src[at];
+        lower[at - args->start] = ((src[at] >= 'A') && (src[at] <= 'Z')) ? (char)(src[at] - 'A' + 'a') : src[at];
     }
-    lower[end - start] = '\0';
+    lower[args->end - args->start] = '\0';
     for (unsigned int at = 0u; at < 13u; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = s_prefixes[at], .cap = CLI_CELLS_POOL}))
@@ -69,38 +87,48 @@ static int lex_prefix(const char *src, unsigned long long start, unsigned long l
 
 // a string from its prefix at `start`, `prefix_size` bytes before the quote, to its closing quote, and the names its
 // fields read where it is an f-string or a t-string
-static void lex_string(CliInspectScan *scan, unsigned long long start, CliInspectPlace from,
-                       unsigned long long prefix_size)
+static void lex_string(const InspectPyLexCtx *args)
 {
-    const unsigned int peeked = cli_inspect_peek(scan);
+    CliInspectScan *scan = args->scan;
+    unsigned long long start = args->start;
+    CliInspectPlace from = args->from;
+    const unsigned int peeked = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
     const unsigned int quote = (peeked == CLI_INSPECT_END) ? '"' : peeked;
-    const int triple = (cli_inspect_peek_at(scan, 1u) == quote) && (cli_inspect_peek_at(scan, 2u) == quote);
+    const int triple = (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = scan,
+                                   .ahead = 1u) == quote) &&
+                       (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = scan,
+                                   .ahead = 2u) == quote);
     int fields = 0;
-    for (unsigned long long at = start; at < start + prefix_size; at += 1u)
+    for (unsigned long long at = start; at < start + args->prefix_size; at += 1u)
     {
         fields = fields || (scan->src[at] == 'f') || (scan->src[at] == 'F') || (scan->src[at] == 't') ||
                  (scan->src[at] == 'T');
     }
     for (unsigned int at = 0u; at < (triple ? 3u : 1u); at += 1u)
     {
-        (void)cli_inspect_bump(scan);
+        (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
     unsigned int names = 0u;
     unsigned int braces = 0u;
-    for (unsigned int letter = cli_inspect_peek(scan); letter != CLI_INSPECT_END; letter = cli_inspect_peek(scan))
+    for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         letter != CLI_INSPECT_END;
+         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
     {
         if (letter == '\\')
         {
-            (void)cli_inspect_bump(scan);
-            (void)cli_inspect_bump(scan);
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             continue;
         }
         if ((letter == quote) &&
-            (!triple || ((cli_inspect_peek_at(scan, 1u) == quote) && (cli_inspect_peek_at(scan, 2u) == quote))))
+            (!triple || ((EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = scan,
+                                     .ahead = 1u) == quote) &&
+                         (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = scan,
+                                     .ahead = 2u) == quote))))
         {
             for (unsigned int at = 0u; at < (triple ? 3u : 1u); at += 1u)
             {
-                (void)cli_inspect_bump(scan);
+                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             }
             break;
         }
@@ -110,10 +138,11 @@ static void lex_string(CliInspectScan *scan, unsigned long long start, CliInspec
         }
         if (fields && (letter == '{'))
         {
-            if ((braces == 0u) && (cli_inspect_peek_at(scan, 1u) == '{'))
+            if ((braces == 0u) && (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx,
+                                              .scan = scan, .ahead = 1u) == '{'))
             {
-                (void)cli_inspect_bump(scan);
-                (void)cli_inspect_bump(scan);
+                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
                 continue;
             }
             braces += 1u;
@@ -122,33 +151,38 @@ static void lex_string(CliInspectScan *scan, unsigned long long start, CliInspec
         {
             braces -= 1u;
         }
-        else if ((braces > 0u) && lex_name_start(letter))
+        else if ((braces > 0u) && EMBED_CALL(lex_name_start, InspectPyLexCtx, .letter = letter))
         {
             const int after_dot = (scan->pos > 0u) && (scan->src[scan->pos - 1u] == '.');
             const int after_digit =
                 (scan->pos > 0u) && (scan->src[scan->pos - 1u] >= '0') && (scan->src[scan->pos - 1u] <= '9');
             const unsigned long long name_start = scan->pos;
-            const CliInspectPlace name_from = cli_inspect_place(scan);
-            while (lex_name(cli_inspect_peek(scan)))
+            const CliInspectPlace name_from =
+                EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
+            while (EMBED_CALL(
+                lex_name, InspectPyLexCtx,
+                .letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
             {
-                (void)cli_inspect_bump(scan);
+                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             }
             if (!after_dot && !after_digit && (names < CLI_PY_FIELD_NAMES))
             {
                 // a text read is at most 4 GiB, which a token's bytes count
-                s_field_names[names] = (CliInspectTok){CLI_PY_NAME,
-                                                       1u,
-                                                       (unsigned int)name_start,
-                                                       (unsigned int)scan->pos,
-                                                       name_from,
-                                                       cli_inspect_place(scan)};
+                s_field_names[names] =
+                    (CliInspectTok){CLI_PY_NAME,
+                                    1u,
+                                    (unsigned int)name_start,
+                                    (unsigned int)scan->pos,
+                                    name_from,
+                                    EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan)};
                 names += 1u;
             }
             continue;
         }
-        (void)cli_inspect_bump(scan);
+        (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
-    cli_inspect_tok_put(scan, CLI_PY_STR, start, from, 0);
+    EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_STR, .start = start,
+               .from = from, .field = 0);
     for (unsigned int at = 0u; at < names; at += 1u)
     {
         if (g_cli_inspect_toks == CLI_INSPECT_TOKENS)
@@ -162,8 +196,9 @@ static void lex_string(CliInspectScan *scan, unsigned long long start, CliInspec
 }
 
 // the logical line of the tokens from `first` put on the lines where it contains any
-static void lex_line_put(unsigned int indent, unsigned int *first)
+EMBED_INLINE void lex_line_put(const InspectPyLexCtx *args)
 {
+    unsigned int *first = args->first;
     if (g_cli_inspect_toks > *first)
     {
         if (g_cli_py_lines == CLI_INSPECT_LINES)
@@ -172,7 +207,7 @@ static void lex_line_put(unsigned int indent, unsigned int *first)
         }
         else
         {
-            g_cli_py_line[g_cli_py_lines] = (CliPyLine){indent, *first, g_cli_inspect_toks - *first};
+            g_cli_py_line[g_cli_py_lines] = (CliPyLine){args->indent, *first, g_cli_inspect_toks - *first};
             g_cli_py_lines += 1u;
         }
     }
@@ -180,31 +215,39 @@ static void lex_line_put(unsigned int indent, unsigned int *first)
 }
 
 // a number from where the scan stands
-static void lex_number(CliInspectScan *scan)
+EMBED_INLINE void lex_number(const InspectPyLexCtx *args)
 {
+    CliInspectScan *scan = args->scan;
     const unsigned long long start = scan->pos;
-    const CliInspectPlace from = cli_inspect_place(scan);
-    for (unsigned int letter = cli_inspect_peek(scan);
-         (letter != CLI_INSPECT_END) && (cli_inspect_alphanumeric(letter) || (letter == '_') || (letter == '.'));
-         letter = cli_inspect_peek(scan))
+    const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
+    for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         (letter != CLI_INSPECT_END) &&
+         (EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = letter) || (letter == '_') ||
+          (letter == '.'));
+         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
     {
         const int hex = (scan->pos - start >= 2u) && (scan->src[start] == '0') &&
                         ((scan->src[start + 1u] == 'x') || (scan->src[start + 1u] == 'X'));
         const int exponent = ((letter == 'e') || (letter == 'E')) && !hex;
-        (void)cli_inspect_bump(scan);
-        if (exponent && ((cli_inspect_peek(scan) == '+') || (cli_inspect_peek(scan) == '-')))
+        (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+        if (exponent &&
+            ((EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan) == '+') ||
+             (EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan) == '-')))
         {
-            (void)cli_inspect_bump(scan);
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
     }
-    cli_inspect_tok_put(scan, CLI_PY_NUMBER, start, from, 0);
+    EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_NUMBER,
+               .start = start, .from = from, .field = 0);
 }
 
 // an operator, the longest that matches, else the one letter, from where the scan stands, the brackets' depth tracked
-static void lex_operator(CliInspectScan *scan, int *depth)
+EMBED_INLINE void lex_operator(const InspectPyLexCtx *args)
 {
+    CliInspectScan *scan = args->scan;
+    int *depth = args->depth;
     const unsigned long long start = scan->pos;
-    const CliInspectPlace from = cli_inspect_place(scan);
+    const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     const char *op = NULL;
     for (unsigned int at = 0u; (op == NULL) && (at < 47u); at += 1u)
     {
@@ -216,13 +259,13 @@ static void lex_operator(CliInspectScan *scan, int *depth)
     }
     if (op == NULL)
     {
-        (void)cli_inspect_bump(scan);
+        (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
     else
     {
         for (size_t at = 0u; at < cellul.len(&(CatenaFinitaCfg){.src = op, .cap = CLI_CELLS_POOL}); at += 1u)
         {
-            (void)cli_inspect_bump(scan);
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
         *depth += ((op[0] == '(') || (op[0] == '[') || (op[0] == '{')) ? 1 : 0;
         if (((op[0] == ')') || (op[0] == ']') || (op[0] == '}')) && (*depth > 0))
@@ -230,16 +273,21 @@ static void lex_operator(CliInspectScan *scan, int *depth)
             *depth -= 1;
         }
     }
-    cli_inspect_tok_put(scan, CLI_PY_OP, start, from, 0);
+    EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_OP, .start = start,
+               .from = from, .field = 0);
 }
 
 // the indent of a line read at its start, its blank and comment lines passed over: 1, or 0 at the text's end
-static int lex_line_start(CliInspectScan *scan, unsigned int *indent)
+EMBED_INLINE int lex_line_start(const InspectPyLexCtx *args)
 {
+    CliInspectScan *scan = args->scan;
+    unsigned int *indent = args->indent_pointer;
     for (;;)
     {
         unsigned int width = 0u;
-        for (unsigned int letter = cli_inspect_peek(scan);; letter = cli_inspect_peek(scan))
+        for (unsigned int letter =
+                 EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+             ; letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
         {
             if (letter == ' ')
             {
@@ -253,21 +301,22 @@ static int lex_line_start(CliInspectScan *scan, unsigned int *indent)
             {
                 break;
             }
-            (void)cli_inspect_bump(scan);
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
-        const unsigned int letter = cli_inspect_peek(scan);
+        const unsigned int letter =
+            EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
         if (letter == CLI_INSPECT_END)
         {
             return 0;
         }
         if (letter == '\n')
         {
-            (void)cli_inspect_bump(scan);
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             continue;
         }
         if (letter == '#')
         {
-            cli_inspect_skip_line(scan);
+            EMBED_CALL(cli_inspect_size_scan_internal.skip_line, CliInspectSizeScanCtx, .scan_out = scan);
             continue;
         }
         *indent = width;
@@ -275,10 +324,13 @@ static int lex_line_start(CliInspectScan *scan, unsigned int *indent)
     }
 }
 
-void cli_py_read(const char *src, unsigned long long size)
+void cli_py_read(const CliInspectPySrcSizeCfg *args)
 {
+    const char *src = args->src;
+    unsigned long long size = args->size;
     CliInspectScan scan;
-    cli_inspect_scan_begun(&scan, src, size);
+    EMBED_CALL(cli_inspect_size_scan_internal.scan_begin, CliInspectSizeScanCtx, .scan_out = &scan, .src = src,
+               .size = size);
     g_cli_inspect_toks = 0u;
     g_cli_inspect_comments = 0u;
     g_cli_inspect_over = 0;
@@ -291,98 +343,111 @@ void cli_py_read(const char *src, unsigned long long size)
     {
         if (at_start)
         {
-            if (!lex_line_start(&scan, &indent))
+            if (!EMBED_CALL(lex_line_start, InspectPyLexCtx, .scan = &scan, .indent_pointer = &indent))
             {
                 break;
             }
             at_start = 0;
         }
-        const unsigned int letter = cli_inspect_peek(&scan);
+        const unsigned int letter =
+            EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan);
         if (letter == CLI_INSPECT_END)
         {
             break;
         }
         const unsigned long long start = scan.pos;
-        const CliInspectPlace from = cli_inspect_place(&scan);
+        const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = &scan);
         if (letter == '\n')
         {
-            (void)cli_inspect_bump(&scan);
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             if (depth == 0)
             {
-                lex_line_put(indent, &first);
+                EMBED_CALL(lex_line_put, InspectPyLexCtx, .indent = indent, .first = &first);
                 at_start = 1;
             }
         }
         else if ((letter == ' ') || (letter == '\t') || (letter == '\r') || (letter == 0x0cu))
         {
-            (void)cli_inspect_bump(&scan);
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
         }
         else if (letter == '#')
         {
-            cli_inspect_skip_line(&scan);
+            EMBED_CALL(cli_inspect_size_scan_internal.skip_line, CliInspectSizeScanCtx, .scan_out = &scan);
         }
         else if (letter == '\\')
         {
-            (void)cli_inspect_bump(&scan);
-            if (cli_inspect_peek(&scan) == '\r')
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
+            if (EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan) == '\r')
             {
-                (void)cli_inspect_bump(&scan);
+                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             }
-            if (cli_inspect_peek(&scan) == '\n')
+            if (EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan) == '\n')
             {
-                (void)cli_inspect_bump(&scan);
+                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             }
         }
         else if ((letter == '\'') || (letter == '"'))
         {
-            lex_string(&scan, start, from, 0ull);
+            EMBED_CALL(lex_string, InspectPyLexCtx, .scan = &scan, .start = start, .from = from, .prefix_size = 0ull);
         }
-        else if (lex_name_start(letter))
+        else if (EMBED_CALL(lex_name_start, InspectPyLexCtx, .letter = letter))
         {
-            while (lex_name(cli_inspect_peek(&scan)))
+            while (EMBED_CALL(
+                lex_name, InspectPyLexCtx,
+                .letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan)))
             {
-                (void)cli_inspect_bump(&scan);
+                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             }
-            const unsigned int next = cli_inspect_peek(&scan);
-            if (((next == '\'') || (next == '"')) && lex_prefix(src, start, scan.pos))
+            const unsigned int next =
+                EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan);
+            if (((next == '\'') || (next == '"')) &&
+                EMBED_CALL(lex_prefix, InspectPyLexCtx, .src = src, .start = start, .end = scan.pos))
             {
-                lex_string(&scan, start, from, scan.pos - start);
+                EMBED_CALL(lex_string, InspectPyLexCtx, .scan = &scan, .start = start, .from = from,
+                           .prefix_size = scan.pos - start);
             }
             else
             {
-                cli_inspect_tok_put(&scan, CLI_PY_NAME, start, from, 0);
+                EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = &scan, .kind = CLI_PY_NAME,
+                           .start = start, .from = from, .field = 0);
             }
         }
-        else if (((letter >= '0') && (letter <= '9')) || ((letter == '.') && (cli_inspect_peek_at(&scan, 1u) >= '0') &&
-                                                          (cli_inspect_peek_at(&scan, 1u) <= '9')))
+        else if (((letter >= '0') && (letter <= '9')) ||
+                 ((letter == '.') &&
+                  (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = &scan,
+                              .ahead = 1u) >= '0') &&
+                  (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = &scan,
+                              .ahead = 1u) <= '9')))
         {
-            lex_number(&scan);
+            EMBED_CALL(lex_number, InspectPyLexCtx, .scan = &scan);
         }
         else
         {
-            lex_operator(&scan, &depth);
+            EMBED_CALL(lex_operator, InspectPyLexCtx, .scan = &scan, .depth = &depth);
         }
     }
-    lex_line_put(indent, &first);
+    EMBED_CALL(lex_line_put, InspectPyLexCtx, .indent = indent, .first = &first);
 }
 
-const CliInspectTok *cli_py_tok(const CliPyLine *line, unsigned int at)
+const CliInspectTok *cli_py_tok(const CliInspectPyCfg *args)
 {
-    return &g_cli_inspect_tok[line->first + at];
+    return &g_cli_inspect_tok[args->line->first + args->at];
 }
 
-int cli_py_is(const char *src, const CliInspectTok *tok, const char *word)
+int cli_py_is(const CliInspectPySrcTokCfg *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
-    return (tok->end - tok->start == length) &&
-           (memor.cmp(&(MemoriaCfg){.src = src + tok->start, .other = word, .bytes = length}) == 0);
+    const char *src = args->src;
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    return (args->tok->end - args->tok->start == length) &&
+           (memor.cmp(&(MemoriaCfg){.src = src + args->tok->start, .other = args->word, .bytes = length}) == 0);
 }
 
-int cli_py_keyword(const char *src, const CliInspectTok *tok)
+int cli_py_keyword(const CliInspectPySrcTokCfg *args)
 {
     for (unsigned int at = 0u; at < 35u; at += 1u)
     {
-        if (cli_py_is(src, tok, g_cli_py_keywords[at]))
+        if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = args->tok,
+                       .word = g_cli_py_keywords[at]))
         {
             return 1;
         }
@@ -390,16 +455,18 @@ int cli_py_keyword(const char *src, const CliInspectTok *tok)
     return 0;
 }
 
-int cli_py_opens(const char *src, const CliPyLine *line)
+int cli_py_opens(const CliInspectPySrcLineCfg *args)
 {
-    const CliInspectTok *const last = cli_py_tok(line, line->count - 1u);
-    return (last->kind == CLI_PY_OP) && cli_py_is(src, last, ":");
+    const CliInspectTok *const last =
+        EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->line, .at = args->line->count - 1u);
+    return (last->kind == CLI_PY_OP) &&
+           EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = last, .word = ":");
 }
 
-unsigned int cli_py_block_end(unsigned int at)
+unsigned int cli_py_block_end(const CliInspectPyCfg *args)
 {
-    const unsigned int indent = g_cli_py_line[at].indent;
-    unsigned int end = at + 1u;
+    const unsigned int indent = g_cli_py_line[args->at].indent;
+    unsigned int end = args->at + 1u;
     while ((end < g_cli_py_lines) && (g_cli_py_line[end].indent > indent))
     {
         end += 1u;
@@ -407,19 +474,25 @@ unsigned int cli_py_block_end(unsigned int at)
     return end;
 }
 
-int cli_py_head_is(const char *src, const CliPyLine *line, const char *word)
+int cli_py_head_is(const CliInspectPySrcLineCfg *args)
 {
-    const CliInspectTok *const first = cli_py_tok(line, 0u);
+    const CliInspectTok *const first = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->line, .at = 0u);
     const CliInspectTok *const head =
-        (cli_py_is(src, first, "async") && (line->count > 1u)) ? cli_py_tok(line, 1u) : first;
-    return cli_py_is(src, head, word);
+        (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = first,
+                    .word = "async") &&
+         (args->line->count > 1u))
+            ? EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->line, .at = 1u)
+            : first;
+    return EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = head,
+                      .word = args->word);
 }
 
-int cli_py_contains(const char *src, const CliInspectTok *toks, unsigned int count, const char *word)
+int cli_py_contains(const CliInspectPySrcWordCfg *args)
 {
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cli_py_is(src, &toks[at], word))
+        if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = &args->toks[at],
+                       .word = args->word))
         {
             return 1;
         }

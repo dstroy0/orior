@@ -22,20 +22,21 @@ unsigned int cli_system_error(void)
     return (unsigned int)errno;
 }
 
-void cli_system_reason(unsigned int error, VerbaLinea *err_msg)
+void cli_system_reason(const CliErrorCtx *args)
 {
-    mmgr_line_put(err_msg, ": ");
+    mmgr_line_put(args->err_msg, ": ");
     // an error number from errno is a small int
-    mmgr_line_put(err_msg, strerror((int)error));
-    mmgr_line_put(err_msg, " (os error ");
-    mmgr_line_decimal(err_msg, error, 1u);
-    mmgr_line_ch(err_msg, ')');
+    mmgr_line_put(args->err_msg, strerror((int)args->error));
+    mmgr_line_put(args->err_msg, " (os error ");
+    mmgr_line_decimal(args->err_msg, args->error, 1u);
+    mmgr_line_ch(args->err_msg, ')');
 }
 
-int cli_file_size(const char *path, unsigned long long *size)
+int cli_file_size(const CliPathSizeCtx *args)
 {
+    unsigned long long *size = args->size_pointer;
     struct stat found;
-    if (stat(path, &found) != 0)
+    if (stat(args->path, &found) != 0)
     {
         return 0;
     }
@@ -44,40 +45,54 @@ int cli_file_size(const char *path, unsigned long long *size)
     return 1;
 }
 
-// `count` bytes of the open `file` from `from` read into `bytes`, their count into `got`, fewer where the file ends
-static void file_read_from(int file, unsigned long long from, unsigned char *bytes, unsigned long long count,
-                           unsigned long long *got)
+typedef struct
 {
+#if (!defined(_WIN32))
+    int file;
+    unsigned long long from;
+    unsigned char *bytes;
+    unsigned long long count;
+    unsigned long long *got;
+#endif
+} PosixFilesCtx;
+// `count` bytes of the open `file` from `from` read into `bytes`, their count into `got`, fewer where the file ends
+EMBED_INLINE void file_read_from(const PosixFilesCtx *args)
+{
+    unsigned long long *got = args->got;
     *got = 0ull;
     int reading = 1;
-    while (reading && (*got < count))
+    while (reading && (*got < args->count))
     {
         // a read's count and its place are what the system's types represent
-        const ssize_t read_now = pread(file, bytes + *got, (size_t)(count - *got), (off_t)(from + *got));
+        const ssize_t read_now =
+            pread(args->file, args->bytes + *got, (size_t)(args->count - *got), (off_t)(args->from + *got));
         reading = read_now > 0;
         // a count read is not negative where reading goes on
         *got += reading ? (unsigned long long)read_now : 0ull;
     }
 }
 
-int cli_file_read_at(const char *path, unsigned long long from, unsigned char *bytes, unsigned long long count,
-                     unsigned long long *got)
+int cli_file_read_at(const CliPathFromCtx *args)
 {
-    const int file = open(path, O_RDONLY);
+    unsigned long long *got = args->got;
+    const int file = open(args->path, O_RDONLY);
     *got = 0ull;
     if (file < 0)
     {
         return 0;
     }
-    file_read_from(file, from, bytes, count, got);
+    EMBED_CALL(file_read_from, PosixFilesCtx, .file = file, .from = args->from, .bytes = args->bytes_bytes,
+               .count = args->count_u64, .got = got);
     close(file);
     return 1;
 }
 
-int cli_file_stamp(const char *path, unsigned long long *size, unsigned long long *changed)
+int cli_file_stamp(const CliPathSizeCtx *args)
 {
+    unsigned long long *size = args->size_pointer;
+    unsigned long long *changed = args->changed;
     struct stat found;
-    if (stat(path, &found) != 0)
+    if (stat(args->path, &found) != 0)
     {
         return 0;
     }
@@ -101,24 +116,24 @@ unsigned long long cli_wall_milliseconds(void)
     return ((unsigned long long)now.tv_sec * 1000ull) + ((unsigned long long)now.tv_nsec / 1000000ull);
 }
 
-int cli_moved(const char *from, const char *to)
+int cli_move(const CliErrMsgFromCtx *args)
 {
-    if (rename(from, to) == 0)
+    if (rename(args->from_text, args->to) == 0)
     {
         return CLI_MOVE_DONE;
     }
     return (errno == EXDEV) ? CLI_MOVE_ACROSS : CLI_MOVE_FAILED;
 }
 
-int cli_file_appended(const char *path, const void *bytes, unsigned long long size, int fresh)
+int cli_file_append(const CliPathBytesCtx *args)
 {
-    const int file = open(path, fresh ? (O_WRONLY | O_CREAT | O_TRUNC) : (O_WRONLY | O_APPEND), 0644);
+    const int file = open(args->path, args->fresh ? (O_WRONLY | O_CREAT | O_TRUNC) : (O_WRONLY | O_APPEND), 0644);
     if (file < 0)
     {
         return 0;
     }
-    const unsigned char *at = (const unsigned char *)bytes;
-    unsigned long long left = size;
+    const unsigned char *at = (const unsigned char *)args->bytes;
+    unsigned long long left = args->size;
     int written = 1;
     while (written && (left > 0ull))
     {
@@ -133,14 +148,10 @@ int cli_file_appended(const char *path, const void *bytes, unsigned long long si
     return (close(file) == 0) && written;
 }
 
-int cli_resource_added(const char *path, const char *name, const void *data, unsigned long long size,
-                       VerbaLinea *err_msg)
+int cli_resource_add(const CliPathErrMsgCtx *args)
 {
-    (void)name;
-    (void)data;
-    (void)size;
-    mmgr_line_put(err_msg, path);
-    mmgr_line_put(err_msg, " is a Windows program, which only Windows adds a resource to");
+    mmgr_line_put(args->err_msg, args->path);
+    mmgr_line_put(args->err_msg, " is a Windows program, which only Windows adds a resource to");
     return 0;
 }
 
@@ -149,12 +160,12 @@ int cli_resource_added(const char *path, const char *name, const void *data, uns
 
 // the file loses its name the moment it is made, so the system deletes it once the last descriptor is closed, however
 // the process ends
-int cli_temporary_file_made(CliTemporaryFile *file)
+int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
-    cli_temp_folder(path);
+    EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = path);
     unsigned char random[CLI_TEMPORARY_NAME_BYTES];
-    if (!cli_random_bytes(random, sizeof(random)))
+    if (!EMBED_CALL(cli_size_bytes_internal.random_bytes, CliSizeBytesCtx, .bytes_out = random, .size = sizeof(random)))
     {
         return 0;
     }
@@ -177,19 +188,19 @@ int cli_temporary_file_made(CliTemporaryFile *file)
     }
     (void)unlink(path);
     // a descriptor from open is not negative here
-    file->handle = (unsigned long long)made;
+    args->file_temporary_file_pointer->handle = (unsigned long long)made;
     return 1;
 }
 
-int cli_temporary_file_written(const CliTemporaryFile *file, unsigned long long at, const void *bytes,
-                               unsigned long long size)
+int cli_temporary_file_write(const CliBytesCtx *args)
 {
-    const unsigned char *const from = (const unsigned char *)bytes;
+    const unsigned char *const from = (const unsigned char *)args->bytes;
     unsigned long long done = 0ull;
-    while (done < size)
+    while (done < args->size)
     {
         // a descriptor stored is one open gave, and an offset in a file is below what an off_t counts
-        const ssize_t wrote = pwrite((int)file->handle, from + done, (size_t)(size - done), (off_t)(at + done));
+        const ssize_t wrote = pwrite((int)args->file_temporary_file_pointer_other->handle, from + done,
+                                     (size_t)(args->size - done), (off_t)(args->at + done));
         if (wrote <= 0)
         {
             return 0;
@@ -199,14 +210,15 @@ int cli_temporary_file_written(const CliTemporaryFile *file, unsigned long long 
     return 1;
 }
 
-int cli_temporary_file_read(const CliTemporaryFile *file, unsigned long long at, void *bytes, unsigned long long size)
+int cli_temporary_file_read(const CliSizeCtx *args)
 {
-    unsigned char *const into = (unsigned char *)bytes;
+    unsigned char *const into = (unsigned char *)args->bytes_out;
     unsigned long long done = 0ull;
-    while (done < size)
+    while (done < args->size)
     {
         // a descriptor stored is one open gave, and an offset in a file is below what an off_t counts
-        const ssize_t got = pread((int)file->handle, into + done, (size_t)(size - done), (off_t)(at + done));
+        const ssize_t got = pread((int)args->file_temporary_file_pointer_other->handle, into + done,
+                                  (size_t)(args->size - done), (off_t)(args->at + done));
         if (got <= 0)
         {
             return 0;
@@ -216,13 +228,13 @@ int cli_temporary_file_read(const CliTemporaryFile *file, unsigned long long at,
     return 1;
 }
 
-void cli_temporary_file_let_go(CliTemporaryFile *file)
+void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args)
 {
-    if (file->handle != 0ull)
+    if (args->file_temporary_file_pointer->handle != 0ull)
     {
         // a descriptor stored is one open gave
-        (void)close((int)file->handle);
+        (void)close((int)args->file_temporary_file_pointer->handle);
     }
-    file->handle = 0ull;
+    args->file_temporary_file_pointer->handle = 0ull;
 }
 #endif

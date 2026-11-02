@@ -71,30 +71,48 @@ static char s_symbols[CLI_DISASM_FUNCTIONS][CLI_NAME_MAX_LEN];
 static char s_err_buf[CLI_ERR_MSG_MAX_LEN];
 static char s_out_text[CLI_ERR_MSG_MAX_LEN];
 
+typedef struct
+{
+    const char *module;
+    const char *top;
+    char *name;
+    const char *relative;
+    VerbaLinea *line;
+    const char *name_read;
+    const CliDisasmReading *llvm;
+    const CliDisasmReading *ghidra;
+    int same;
+    unsigned int at;
+    unsigned int ghidra_at;
+    const char *id;
+    VerbaLinea *err_msg;
+} DisasmVerifyCtx;
 // the module's path within the tree: `module` past the tree's top and its separator where it begins with them, else
 // `module` as given, taken as within the tree already
-static const char *verify_relative(const char *module, const char *top)
+EMBED_INLINE const char *verify_relative(const DisasmVerifyCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_PATH_MAX_LEN});
-    const int within = cellul.starts(&(CatenaFinitaCfg){.src = module, .other = top, .cap = CLI_PATH_MAX_LEN}) &&
-                       ((module[length] == '/') || (module[length] == '\\'));
-    return within ? module + length + 1ull : module;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->top, .cap = CLI_PATH_MAX_LEN});
+    const int within =
+        cellul.starts(&(CatenaFinitaCfg){.src = args->module, .other = args->top, .cap = CLI_PATH_MAX_LEN}) &&
+        ((args->module[length] == '/') || (args->module[length] == '\\'));
+    return within ? args->module + length + 1ull : args->module;
 }
 
 // the command line's name as bin_names.tsv at the tree's top gives it, its row "cli", into `name`: 1, or 0 where the
 // sheet has no such row
-static int verify_cli_named(const char *top, char *name)
+EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
     VerbaLinea line = {path, sizeof(path), 0ull};
-    mmgr_line_put(&line, top);
+    mmgr_line_put(&line, args->top);
     mmgr_line_put(&line, "/bin_names.tsv");
     if (!mmgr_line_finish(&line))
     {
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const text = cli_file_taken(path, &size, &g_cli_programs_cells);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                 .size_pointer = &size, .owner = &g_cli_programs_cells);
     if (text == NULL)
     {
         return 0;
@@ -103,7 +121,8 @@ static int verify_cli_named(const char *top, char *name)
     for (unsigned long long at = 0ull; !found && (at < size);)
     {
         unsigned long long end = at;
-        end = cli_text_to_any((const char *)text, end, size, "\n");
+        end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)text,
+                         .at = end, .size = size, .set = "\n");
         const int row =
             ((end - at) > 4ull) &&
             cellul.starts(&(CatenaFinitaCfg){.src = (const char *)text + at, .other = "cli\t", .cap = end - at});
@@ -112,97 +131,99 @@ static int verify_cli_named(const char *top, char *name)
             // the row's second column alone: up to the next tab, or the line's end without its carriage return
             const unsigned long long value = at + 4ull;
             unsigned long long value_end = value;
-            value_end = cli_text_to_any((const char *)text, value_end, end, "\t\r");
+            value_end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)text,
+                                   .at = value_end, .size = end, .set = "\t\r");
             const unsigned long long length = value_end - value;
             found = length < CLI_NAME_MAX_LEN;
             if (found)
             {
-                memor.cpy(&(MemoriaCfg){.dst = name, .src = text + value, .bytes = length});
-                name[length] = '\0';
+                memor.cpy(&(MemoriaCfg){.dst = args->name, .src = text + value, .bytes = length});
+                args->name[length] = '\0';
             }
         }
         at = end + 1ull;
     }
-    cli_file_given(text, &g_cli_programs_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_cli_programs_cells);
     return found;
 }
 
-int cli_disasm_path(char *path, const char *const *parts)
+int cli_disasm_path(const CliDisasmVerifyCfg *args)
 {
-    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
-    for (unsigned int each = 0u; parts[each] != NULL; each += 1u)
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    for (unsigned int each = 0u; args->parts[each] != NULL; each += 1u)
     {
-        mmgr_line_put(&line, parts[each]);
+        mmgr_line_put(&line, args->parts[each]);
     }
     return mmgr_line_finish(&line) != 0;
 }
 
 // the module's object's name as build.sh names it, the path within the tree with each separator as two underscores
-static void verify_object_named(const char *relative, VerbaLinea *line)
+EMBED_INLINE void verify_object_by_name(const DisasmVerifyCtx *args)
 {
-    cli_text_put_replaced(line, relative, "/\\", "__");
+    EMBED_CALL(cli_text_set_table.put_replace, CliTextSetCfg, .out = args->line, .text = args->relative, .set = "/\\",
+               .with = "__");
 }
 
 // one function's row written to the output: its name, how many instructions each reader gave, and the verdict: same,
 // or where the readings differ, each reader's index, address and mnemonic there
-static void verify_row(const char *name, const CliDisasmReading *llvm, const CliDisasmReading *ghidra, int same,
-                       unsigned int at, unsigned int ghidra_at)
+EMBED_INLINE void verify_row(const DisasmVerifyCtx *args)
 {
     VerbaLinea line = {s_out_text, sizeof(s_out_text), 0ull};
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name_read);
     mmgr_line_ch(&line, '\t');
-    mmgr_line_decimal(&line, llvm->count, 1u);
+    mmgr_line_decimal(&line, args->llvm->count, 1u);
     mmgr_line_ch(&line, '\t');
-    mmgr_line_decimal(&line, ghidra->count, 1u);
+    mmgr_line_decimal(&line, args->ghidra->count, 1u);
     mmgr_line_ch(&line, '\t');
-    if (same)
+    if (args->same)
     {
         mmgr_line_put(&line, "same");
     }
-    else if (ghidra->count == 0u)
+    else if (args->ghidra->count == 0u)
     {
         mmgr_line_put(&line, "Ghidra found no function");
     }
     else
     {
         mmgr_line_put(&line, "differ at ");
-        mmgr_line_decimal(&line, at, 1u);
-        if (at < llvm->count)
+        mmgr_line_decimal(&line, args->at, 1u);
+        if (args->at < args->llvm->count)
         {
             mmgr_line_put(&line, ": 0x");
-            mmgr_line_hex(&line, llvm->instruction[at].address, 1u);
+            mmgr_line_hex(&line, args->llvm->instruction[args->at].address, 1u);
             mmgr_line_ch(&line, ' ');
-            mmgr_line_put(&line, llvm->instruction[at].mnemonic);
+            mmgr_line_put(&line, args->llvm->instruction[args->at].mnemonic);
         }
-        if (ghidra_at < ghidra->count)
+        if (args->ghidra_at < args->ghidra->count)
         {
             mmgr_line_put(&line, " against ");
-            mmgr_line_decimal(&line, ghidra_at, 1u);
+            mmgr_line_decimal(&line, args->ghidra_at, 1u);
             mmgr_line_put(&line, ": 0x");
-            mmgr_line_hex(&line, ghidra->instruction[ghidra_at].address, 1u);
+            mmgr_line_hex(&line, args->ghidra->instruction[args->ghidra_at].address, 1u);
             mmgr_line_ch(&line, ' ');
-            mmgr_line_put(&line, ghidra->instruction[ghidra_at].mnemonic);
+            mmgr_line_put(&line, args->ghidra->instruction[args->ghidra_at].mnemonic);
         }
     }
-    cli_out_line(s_out_text, mmgr_line_ok(&line) ? line.at : 0ull);
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_out_text,
+               .size = mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
 // the toolchain `id` names, LLVM's where it names none: its row, or NULL with which given
-static const CliDisasmToolchain *verify_toolchain(const char *id, VerbaLinea *err_msg)
+EMBED_INLINE const CliDisasmToolchain *verify_toolchain(const DisasmVerifyCtx *args)
 {
     for (unsigned int each = 0u; each < (sizeof(s_toolchains) / sizeof(s_toolchains[0])); each += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = id, .other = s_toolchains[each].id, .cap = CLI_NAME_MAX_LEN}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->id, .other = s_toolchains[each].id, .cap = CLI_NAME_MAX_LEN}))
         {
             return &s_toolchains[each];
         }
     }
-    mmgr_line_put(err_msg, "disasm-verify reads through llvm, gcc or apple, not ");
-    mmgr_line_put(err_msg, id);
+    mmgr_line_put(args->err_msg, "disasm-verify reads through llvm, gcc or apple, not ");
+    mmgr_line_put(args->err_msg, args->id);
     return NULL;
 }
 
-int cli_disasm_verify_words(const char *const *words, unsigned int count)
+int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
 {
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
     const char *module = NULL;
@@ -210,60 +231,71 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
     const char *target = "x86_64-unknown-linux-gnu";
     const char *wanted[CLI_DISASM_FUNCTIONS];
     unsigned int wanted_count = 0u;
-    for (unsigned int each = 0u; each < count; each += 1u)
+    for (unsigned int each = 0u; each < args->count; each += 1u)
     {
         const int function =
-            cellul.eq(&(CatenaFinitaCfg){.src = words[each], .other = "--function", .cap = CLI_NAME_MAX_LEN});
+            cellul.eq(&(CatenaFinitaCfg){.src = args->words[each], .other = "--function", .cap = CLI_NAME_MAX_LEN});
         const int toolchain =
-            cellul.eq(&(CatenaFinitaCfg){.src = words[each], .other = "--toolchain", .cap = CLI_NAME_MAX_LEN});
+            cellul.eq(&(CatenaFinitaCfg){.src = args->words[each], .other = "--toolchain", .cap = CLI_NAME_MAX_LEN});
         const int triple =
-            cellul.eq(&(CatenaFinitaCfg){.src = words[each], .other = "--target", .cap = CLI_NAME_MAX_LEN});
-        if ((function || toolchain || triple) && (each + 1u < count))
+            cellul.eq(&(CatenaFinitaCfg){.src = args->words[each], .other = "--target", .cap = CLI_NAME_MAX_LEN});
+        if ((function || toolchain || triple) && (each + 1u < args->count))
         {
             each += 1u;
             if (function && (wanted_count < CLI_DISASM_FUNCTIONS))
             {
-                wanted[wanted_count] = words[each];
+                wanted[wanted_count] = args->words[each];
                 wanted_count += 1u;
             }
-            toolchain_id = toolchain ? words[each] : toolchain_id;
-            target = triple ? words[each] : target;
+            toolchain_id = toolchain ? args->words[each] : toolchain_id;
+            target = triple ? args->words[each] : target;
         }
         else
         {
-            module = words[each];
+            module = args->words[each];
         }
     }
     if (module == NULL)
     {
-        cli_err("disasm-verify takes the module to verify, and --function, --toolchain and --target after it");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text =
+                       "disasm-verify takes the module to verify, and --function, --toolchain and --target after it");
         return CLI_NO_CODE;
     }
-    const CliDisasmToolchain *const toolchain = verify_toolchain(toolchain_id, &err_msg);
+    const CliDisasmToolchain *const toolchain =
+        EMBED_CALL(verify_toolchain, DisasmVerifyCtx, .id = toolchain_id, .err_msg = &err_msg);
     char top[CLI_PATH_MAX_LEN];
     char cli_name[CLI_NAME_MAX_LEN];
-    if ((toolchain == NULL) || !cli_tree_found(top) || !verify_cli_named(top, cli_name))
+    if ((toolchain == NULL) || !EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = top) ||
+        !EMBED_CALL(verify_cli_by_name, DisasmVerifyCtx, .top = top, .name = cli_name))
     {
         (void)mmgr_line_finish(&err_msg);
-        cli_err((err_msg.at > 0ull) ? s_err_buf
-                                    : "no orior tree contains the working folder, and ORIOR_ROOT names none");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text = (err_msg.at > 0ull)
+                               ? s_err_buf
+                               : "no orior tree contains the working folder, and ORIOR_ROOT names none");
         return CLI_NO_CODE;
     }
-    const char *const relative = verify_relative(module, top);
+    const char *const relative = EMBED_CALL(verify_relative, DisasmVerifyCtx, .module = module, .top = top);
     char compiler[CLI_PATH_MAX_LEN];
     char analyzer[CLI_PATH_MAX_LEN];
     char lifter[CLI_PATH_MAX_LEN];
     char lister[CLI_PATH_MAX_LEN];
     char disassembler[CLI_PATH_MAX_LEN];
-    cli_disasm_steps_begun();
-    if (!cli_executables_program(toolchain->toolchain, toolchain->compiler, compiler, &err_msg) ||
-        !cli_executables_program("ghidra", "analyzeHeadless", analyzer, &err_msg) ||
-        !cli_disasm_beside(compiler, toolchain->lifter, lifter, &err_msg) ||
-        !cli_disasm_beside(compiler, toolchain->lister, lister, &err_msg) ||
-        !cli_disasm_beside(compiler, toolchain->disassembler, disassembler, &err_msg))
+    cli_disasm_steps_begin();
+    if (!EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = toolchain->toolchain,
+                    .name = toolchain->compiler, .path = compiler, .err_msg = &err_msg) ||
+        !EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "ghidra", .name = "analyzeHeadless",
+                    .path = analyzer, .err_msg = &err_msg) ||
+        !EMBED_CALL(cli_disasm_verify_path.disasm_beside, CliDisasmVerifyPathCfg, .compiler = compiler,
+                    .names_letters = toolchain->lifter, .path = lifter, .err_msg = &err_msg) ||
+        !EMBED_CALL(cli_disasm_verify_path.disasm_beside, CliDisasmVerifyPathCfg, .compiler = compiler,
+                    .names_letters = toolchain->lister, .path = lister, .err_msg = &err_msg) ||
+        !EMBED_CALL(cli_disasm_verify_path.disasm_beside, CliDisasmVerifyPathCfg, .compiler = compiler,
+                    .names_letters = toolchain->disassembler, .path = disassembler, .err_msg = &err_msg))
     {
         (void)mmgr_line_finish(&err_msg);
-        cli_err(s_err_buf);
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = s_err_buf);
         return CLI_NO_CODE;
     }
     char folder[CLI_PATH_MAX_LEN];
@@ -277,27 +309,37 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
     mmgr_line_put(&object_line, "/build/cli/");
     mmgr_line_put(&object_line, target);
     mmgr_line_put(&object_line, "/objects/");
-    verify_object_named(relative, &object_line);
+    EMBED_CALL(verify_object_by_name, DisasmVerifyCtx, .relative = relative, .line = &object_line);
     mmgr_line_put(&object_line, ".o");
     VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
     mmgr_line_put(&folder_line, top);
     mmgr_line_put(&folder_line, "/build/harness/disasm_verify/");
-    verify_object_named(relative, &folder_line);
-    if (!mmgr_line_finish(&object_line) || !mmgr_line_finish(&folder_line) || !cli_private_folder_made(folder) ||
-        !cli_disasm_path(program, (const char *const[]){top, "/build/cli/", target, "/", cli_name, NULL}) ||
-        !cli_disasm_path(ir, (const char *const[]){folder, "/module.ll", NULL}) ||
-        !cli_disasm_path(llvm_text, (const char *const[]){folder, "/llvm.txt", NULL}) ||
-        !cli_disasm_path(ghidra_text, (const char *const[]){folder, "/ghidra.txt", NULL}))
+    EMBED_CALL(verify_object_by_name, DisasmVerifyCtx, .relative = relative, .line = &folder_line);
+    if (!mmgr_line_finish(&object_line) || !mmgr_line_finish(&folder_line) ||
+        !EMBED_CALL(cli_words_err_msg_internal.private_folder_init, CliWordsErrMsgCtx, .folder = folder) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = program,
+                    .parts = (const char *const[]){top, "/build/cli/", target, "/", cli_name, NULL}) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = ir,
+                    .parts = (const char *const[]){folder, "/module.ll", NULL}) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = llvm_text,
+                    .parts = (const char *const[]){folder, "/llvm.txt", NULL}) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = ghidra_text,
+                    .parts = (const char *const[]){folder, "/ghidra.txt", NULL}))
     {
-        cli_err("the loop's paths do not fit, or its folder could not be made under build/harness/disasm_verify");
+        EMBED_CALL(
+            cli_command_line_internal.err, CliCommandLineCtx,
+            .text = "the loop's paths do not fit, or its folder could not be made under build/harness/disasm_verify");
         return CLI_NO_CODE;
     }
     unsigned int functions = 0u;
-    if (!cli_disasm_built(top, target, compiler, &err_msg) ||
-        ((functions = cli_disasm_functions(toolchain->gnu, lifter, object, ir, s_names, &err_msg)) == 0u))
+    if (!EMBED_CALL(cli_disasm_verify_compiler.disasm_build, CliDisasmVerifyCompilerCfg, .top = top, .target = target,
+                    .compiler = compiler, .err_msg = &err_msg) ||
+        ((functions =
+              EMBED_CALL(cli_disasm_verify_ir.disasm_functions, CliDisasmVerifyIrCfg, .gnu = toolchain->gnu,
+                         .lifter = lifter, .object = object, .ir = ir, .names = s_names, .err_msg = &err_msg)) == 0u))
     {
         (void)mmgr_line_finish(&err_msg);
-        cli_err(s_err_buf);
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = s_err_buf);
         return CLI_NO_CODE;
     }
     // the functions named on the command line alone, where any were
@@ -317,21 +359,30 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
         }
     }
     functions = named_count;
-    if ((cli_disasm_symbols(lister, program, s_names, s_symbols, functions, &err_msg) == 0u) ||
-        !cli_disasm_executed(program, &err_msg))
+    if ((EMBED_CALL(cli_disasm_verify_count_err_msg_lister.disasm_symbols, CliDisasmVerifyCountErrMsgListerCfg,
+                    .lister = lister, .program = program, .names_callback = s_names, .symbols_callback = s_symbols,
+                    .count = functions, .err_msg = &err_msg) == 0u) ||
+        !EMBED_CALL(cli_disasm_verify_count_err_msg.disasm_execute, CliDisasmVerifyCountErrMsgCfg, .program = program,
+                    .err_msg = &err_msg))
     {
         (void)mmgr_line_finish(&err_msg);
-        cli_err(mmgr_line_ok(&err_msg) && (err_msg.at > 0ull) ? s_err_buf
-                                                              : "the program contains none of the module's functions");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text = mmgr_line_ok(&err_msg) && (err_msg.at > 0ull)
+                               ? s_err_buf
+                               : "the program contains none of the module's functions");
         return CLI_NO_CODE;
     }
-    CliRan *const disassembled =
-        cli_disasm_disassembled(disassembler, program, s_symbols, functions, llvm_text, &err_msg);
+    CliRan *const disassembled = EMBED_CALL(
+        cli_disasm_verify_count_err_msg.disasm_disassemble, CliDisasmVerifyCountErrMsgCfg, .disassembler = disassembler,
+        .program = program, .symbols = s_symbols, .count = functions, .into = llvm_text, .err_msg = &err_msg);
     unsigned long long ghidra_size = 0ull;
     const unsigned char *const ghidra =
-        (disassembled != NULL) ? cli_disasm_ghidra(analyzer, toolchain->loader, top, folder, program, s_symbols,
-                                                   functions, ghidra_text, &ghidra_size, &err_msg)
-                               : NULL;
+        (disassembled != NULL)
+            ? EMBED_CALL(cli_disasm_verify_count.disasm_ghidra, CliDisasmVerifyCountCfg, .analyzer = analyzer,
+                         .loader = toolchain->loader, .top = top, .folder = folder, .program = program,
+                         .symbols = s_symbols, .count = functions, .into = ghidra_text, .size_pointer = &ghidra_size,
+                         .err_msg = &err_msg)
+            : NULL;
     CliDisasmReading one = {g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction),
                                                               &g_cli_programs_cells),
                             0u, 0};
@@ -342,7 +393,8 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
     if ((ghidra == NULL) || (one.instruction == NULL) || (other.instruction == NULL))
     {
         (void)mmgr_line_finish(&err_msg);
-        cli_err((ghidra == NULL) ? s_err_buf : "the readings' cells could not be taken");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text = (ghidra == NULL) ? s_err_buf : "the readings' cells could not be taken");
         code = CLI_NO_CODE;
     }
     for (unsigned int each = 0u; (code != CLI_NO_CODE) && (each < functions); each += 1u)
@@ -351,20 +403,25 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
         {
             continue;
         }
-        (void)cli_disasm_objdump_read(disassembled->out, disassembled->out_size, s_symbols[each], &one);
-        (void)cli_disasm_ghidra_read((const char *)ghidra, ghidra_size, s_symbols[each], &other);
+        (void)EMBED_CALL(cli_disasm_verify_size.disasm_objdump_read, CliDisasmVerifySizeCfg, .text = disassembled->out,
+                         .size = disassembled->out_size, .symbol = s_symbols[each], .reading = &one);
+        (void)EMBED_CALL(cli_disasm_verify_size.disasm_ghidra_read, CliDisasmVerifySizeCfg,
+                         .text = (const char *)ghidra, .size = ghidra_size, .symbol = s_symbols[each],
+                         .reading = &other);
         unsigned int at = 0u;
         unsigned int other_at = 0u;
-        const int same = cli_disasm_same(&one, &other, &at, &other_at);
-        verify_row(s_symbols[each], &one, &other, same, at, other_at);
+        const int same = EMBED_CALL(cli_disasm_verify_one.disasm_same, CliDisasmVerifyOneCfg, .one = &one,
+                                    .other = &other, .at = &at, .other_at = &other_at);
+        EMBED_CALL(verify_row, DisasmVerifyCtx, .name_read = s_symbols[each], .llvm = &one, .ghidra = &other,
+                   .same = same, .at = at, .ghidra_at = other_at);
         code = same ? code : 1;
     }
     g_cli_cells->persistent_buf_release(one.instruction, &g_cli_programs_cells);
     g_cli_cells->persistent_buf_release(other.instruction, &g_cli_programs_cells);
-    cli_file_given(ghidra, &g_cli_programs_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = ghidra, .owner = &g_cli_programs_cells);
     if (disassembled != NULL)
     {
-        cli_ran_given(disassembled);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = disassembled);
     }
     return code;
 }

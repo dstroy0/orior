@@ -4,8 +4,11 @@
 // result's columns, how a statement began, and each row's values as the server wrote them (db_wire.c)
 #ifndef DB_WIRE_H
 #define DB_WIRE_H
+typedef struct CliDbWireCfg CliDbWireCfg;
+typedef struct CliDbWireOutCfg CliDbWireOutCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the bytes of each field of a failure; the most columns a result has, as PostgreSQL's 1664 targets; the bytes of a
 // column's type name; and of the tag a statement ended with
@@ -50,12 +53,49 @@ typedef struct
     int null;
 } CliDbValue;
 
+typedef struct
+{
+    void *context;
+    const CliDbValue *values;
+    unsigned int count;
+} CliDbRowCfg;
+
 // a row read, `count` values of it, handed on: 1 to read on, 0 to stop
-typedef int (*CliDbRowFn)(void *context, const CliDbValue *values, unsigned int count);
+typedef int (*CliDbRowFn)(const CliDbRowCfg *args);
 
 // a failure of nothing but `message`; and a failure written as the reader reads it: its message, its code after it,
 // then its detail and its hint each on a line of its own
-void cli_db_failure_set(CliDbFailure *failure, const char *message);
-void cli_db_failure_written(const CliDbFailure *failure, VerbaLinea *out);
+void cli_db_failure_set(const CliDbWireCfg *args);
+void cli_db_failure_write(const CliDbWireOutCfg *args);
+
+struct CliDbWireCfg
+{
+    CliDbFailure *failure;
+    const char *message;
+};
+
+struct CliDbWireOutCfg
+{
+    const CliDbFailure *failure_read;
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    void (*db_failure_set)(const CliDbWireCfg *args);
+} CliDbWireNs;
+EMBED_TABLE_LAYOUT(CliDbWireNs, db_failure_set);
+EMBED_TABLE_STORAGE CliDbWireNs cli_db_wire EMBED_UNUSED = {
+    .db_failure_set = cli_db_failure_set,
+};
+
+typedef struct
+{
+    void (*db_failure_write)(const CliDbWireOutCfg *args);
+} CliDbWireOutNs;
+EMBED_TABLE_LAYOUT(CliDbWireOutNs, db_failure_write);
+EMBED_TABLE_STORAGE CliDbWireOutNs cli_db_wire_out EMBED_UNUSED = {
+    .db_failure_write = cli_db_failure_write,
+};
 
 #endif

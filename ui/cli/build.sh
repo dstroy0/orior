@@ -45,15 +45,41 @@ if [ -n "$SANITIZE" ]; then
     BUILD_SUFFIX="-$SANITIZE"
     SANITIZE_WORDS=("-fsanitize=$SANITIZE" "-fsanitize-recover=$SANITIZE" -fno-omit-frame-pointer)
     LINK_WORDS+=("-fsanitize=$SANITIZE")
+    # the address sanitizer leaves MMgr's whole-word string scans alone: the list says why
+    if [ "$SANITIZE" = "address" ]; then
+        IGNORED="$HERE/sanitize_ignore.txt"
+        case "$(uname -s)" in
+            MINGW*|MSYS*|CYGWIN*) IGNORED="$(cygpath -m "$IGNORED")" ;;
+        esac
+        SANITIZE_WORDS+=("-fsanitize-ignorelist=$IGNORED")
+    fi
     # clang refuses -fPIC for the Windows target, whose code is position-independent without it; there every object and
-    # link names the C runtime's DLL, since the runtime's thunk for the static one collides with what MMgr's objects link
+    # link names the C runtime's DLL, since the runtime's thunk for the static one collides with what MMgr's objects link,
+    # and nothing is bitcode, since thin LTO on Windows reads the sanitizer's unused calls as undefined at the link
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*) SANITIZE_WORDS+=(-fms-runtime-lib=dll)
-                              LINK_WORDS+=(-fms-runtime-lib=dll -D_DLL) ;;
+                              LTO_WORDS=()
+                              LINK_WORDS=(-fuse-ld=lld "-fsanitize=$SANITIZE" -fms-runtime-lib=dll -D_DLL) ;;
         *) SANITIZE_WORDS+=(-fPIC) ;;
     esac
     export ASAN_OPTIONS="halt_on_error=0${ASAN_OPTIONS:+:$ASAN_OPTIONS}"
     export TSAN_OPTIONS="halt_on_error=0${TSAN_OPTIONS:+:$TSAN_OPTIONS}"
+fi
+# ORIOR_COVERAGE=1 builds the tree's own objects at -O0 with gcov's counters, updated atomically across threads, into
+# build/cli/<target>-coverage beside the plain build. Each object's .gcno is written beside it as it compiles and its
+# .gcda as a program that links it ends, which gcovr reads. Nothing is bitcode, since gcov reads the objects as they
+# were compiled. MMgr's objects carry no counters: MMgr's own suites and scan measure it
+OPTIMIZE_WORD=-O2
+COVERAGE_WORDS=()
+if [ -n "${ORIOR_COVERAGE:-}" ]; then
+    BUILD_SUFFIX="-coverage"
+    OPTIMIZE_WORD=-O0
+    COVERAGE_WORDS=(--coverage -fprofile-update=atomic)
+    LTO_WORDS=()
+    LINK_WORDS=(--coverage)
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) LINK_WORDS+=(-fuse-ld=lld) ;;
+    esac
 fi
 
 # MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with: a CLI source
@@ -123,12 +149,13 @@ words_of() {
         *) SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;
     esac
     vector_words_of "$target"
-    WORDS=("$CC" "--target=$target" -std=c11 -O2 -g -c "${MMGR_WORDS[@]}" "${VECTOR_WORDS[@]}" "${LTO_WORDS[@]}"
-           "${SANITIZE_WORDS[@]}")
+    WORDS=("$CC" "--target=$target" -std=c11 "$OPTIMIZE_WORD" -g -c "${MMGR_WORDS[@]}" "${VECTOR_WORDS[@]}" "${LTO_WORDS[@]}"
+           "${SANITIZE_WORDS[@]}" "${COVERAGE_WORDS[@]}")
 }
 
 # MMgr built for `target` by orior's CMake, src/cu, into build/orior_cmake/<target>, as orior builds it, with no CUDA
-# looked for; only its orior_mmgr target is built; the objects of its host environment's modules into MMGR_OBJECTS
+# looked for; only its orior_mmgr target is built; the objects of its host environment's modules into MMGR_OBJECTS.
+# CMake links no program here, so its compiler check archives instead of linking, which a sanitizer's runtime would need
 mmgr_built() {
     local target="$1"
     local into="$TOP/build/orior_cmake/$target$BUILD_SUFFIX"
@@ -142,7 +169,7 @@ mmgr_built() {
         rm -rf "$into"
     fi
     { cmake -S "$TOP/src/cu" -B "$into" -G Ninja -DCMAKE_C_COMPILER="$CC" -DCMAKE_C_COMPILER_TARGET="$target" \
-        -DCMAKE_BUILD_TYPE=Release -DORIOR_SKIP_CUDA=ON -DORIOR_MMGR_ONLY=ON \
+        -DCMAKE_BUILD_TYPE=Release -DORIOR_SKIP_CUDA=ON -DORIOR_MMGR_ONLY=ON -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
         -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER -DMMGR_ENABLE_HOST=1 ${VECTOR_WORDS[*]} ${LTO_WORDS[*]} ${SANITIZE_WORDS[*]}" \
         && cmake --build "$into" --target orior_mmgr; } > "$into.log" 2>&1 || {
         echo "  build failed: MMgr did not build for $target"

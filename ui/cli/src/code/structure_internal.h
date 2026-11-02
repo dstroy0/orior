@@ -4,7 +4,15 @@
 // which compares two texts by them, share
 #ifndef STRUCTURE_INTERNAL_H
 #define STRUCTURE_INTERNAL_H
+typedef struct CliStructureACtx CliStructureACtx;
+typedef struct CliStructureTextCtx CliStructureTextCtx;
+typedef struct CliStructureCompareRenamesCtx CliStructureCompareRenamesCtx;
+typedef struct CliStructureOneCtx CliStructureOneCtx;
+typedef struct CliStructureOldCtx CliStructureOldCtx;
+typedef struct CliStructureSideCtx CliStructureSideCtx;
+typedef struct CliStructureCtx CliStructureCtx;
 
+#include "embed_dispatch_layout.h"
 #include "structure.h"
 
 // the most tokens and lines a side contains, the most steps an edit takes, and the most texts the names number; a text
@@ -67,15 +75,14 @@ typedef struct
 } CliStep;
 
 // the tokens of `size` bytes of `text`, line by line, into the side: 1, or 0 where it contains more than a side stores
-int cli_structure_lex(const char *text, unsigned long long size, CliSide *side);
+int cli_structure_lex(const CliStructureTextCtx *args);
 // the shortest edit from `a` to `b`, the ends they share set aside first, into `steps`, sized for `room`: their
 // count, or CLI_STRUCTURE_NONE past CLI_MOST_EDITS or past the room
-unsigned int cli_structure_shortest(const unsigned int *a, unsigned int n, const unsigned int *b, unsigned int m,
-                                    CliStep *steps, unsigned int room);
+unsigned int cli_structure_shortest(const CliStructureACtx *args);
 // each token and each line of both sides numbered, the same text the same number: 1, or 0 past the names' room
-int cli_structure_named(CliSide *old, CliSide *now);
+int cli_structure_by_name(const CliStructureOldCtx *args);
 // whether a token's text starts a name
-int cli_structure_starts_name(const CliSide *side, unsigned int token);
+int cli_structure_starts_name(const CliStructureSideCtx *args);
 
 // One change: the lines taken out, `out_count` of them in the list of lines out from `out_first`, and those put in
 typedef struct
@@ -160,11 +167,127 @@ extern CliStructureState *g_cli_structure;
 // the steps of a compare past its edits (structure_marks.c): the names renamed found, in order, their count; the
 // tokens of each moved line marked moved; each token of a change that is not moved marked; each line of a change given
 // its kind; two marks in order; and the compare written as the window reads it
-unsigned int cli_structure_renames_found(const CliCompare *compare);
-void cli_structure_moved_marked(CliCompare *compare);
-void cli_structure_touched_marked(CliCompare *compare);
-void cli_structure_lines_kinded(CliCompare *compare);
-int cli_structure_mark_order(const void *one, const void *other);
-void cli_structure_written(const CliCompare *compare, unsigned int renames, VerbaLinea *out);
+unsigned int cli_structure_renames_find(const CliStructureCompareRenamesCtx *args);
+void cli_structure_moved_mark(const CliStructureCtx *args);
+void cli_structure_touched_mark(const CliStructureCtx *args);
+void cli_structure_lines_kind(const CliStructureCtx *args);
+int cli_structure_mark_order(const CliStructureOneCtx *args);
+void cli_structure_write(const CliStructureCompareRenamesCtx *args);
+
+struct CliStructureACtx
+{
+    const unsigned int *a;
+    unsigned int n;
+    const unsigned int *b;
+    unsigned int m;
+    CliStep *steps;
+    unsigned int room;
+};
+
+struct CliStructureTextCtx
+{
+    const char *text;
+    unsigned long long size;
+    CliSide *side;
+};
+
+struct CliStructureCompareRenamesCtx
+{
+    const CliCompare *compare_read;
+    unsigned int renames;
+    VerbaLinea *out;
+};
+
+struct CliStructureOneCtx
+{
+    const void *one;
+    const void *other;
+};
+
+struct CliStructureOldCtx
+{
+    CliSide *old;
+    CliSide *now;
+};
+
+struct CliStructureSideCtx
+{
+    const CliSide *side_read;
+    unsigned int token;
+};
+
+struct CliStructureCtx
+{
+    CliCompare *compare;
+};
+
+typedef struct
+{
+    int (*lex)(const CliStructureTextCtx *args);
+} CliStructureTextNs;
+EMBED_TABLE_LAYOUT(CliStructureTextNs, lex);
+EMBED_TABLE_STORAGE CliStructureTextNs cli_structure_text_internal EMBED_UNUSED = {
+    .lex = cli_structure_lex,
+};
+
+typedef struct
+{
+    unsigned int (*shortest)(const CliStructureACtx *args);
+} CliStructureANs;
+EMBED_TABLE_LAYOUT(CliStructureANs, shortest);
+EMBED_TABLE_STORAGE CliStructureANs cli_structure_a_internal EMBED_UNUSED = {
+    .shortest = cli_structure_shortest,
+};
+
+typedef struct
+{
+    int (*by_name)(const CliStructureOldCtx *args);
+} CliStructureOldNs;
+EMBED_TABLE_LAYOUT(CliStructureOldNs, by_name);
+EMBED_TABLE_STORAGE CliStructureOldNs cli_structure_old_internal EMBED_UNUSED = {
+    .by_name = cli_structure_by_name,
+};
+
+typedef struct
+{
+    int (*starts_name)(const CliStructureSideCtx *args);
+} CliStructureSideNs;
+EMBED_TABLE_LAYOUT(CliStructureSideNs, starts_name);
+EMBED_TABLE_STORAGE CliStructureSideNs cli_structure_side_internal EMBED_UNUSED = {
+    .starts_name = cli_structure_starts_name,
+};
+
+typedef struct
+{
+    unsigned int (*renames_find)(const CliStructureCompareRenamesCtx *args);
+    void (*write)(const CliStructureCompareRenamesCtx *args);
+} CliStructureCompareRenamesNs;
+EMBED_TABLE_LAYOUT(CliStructureCompareRenamesNs, renames_find, write);
+EMBED_TABLE_STORAGE CliStructureCompareRenamesNs cli_structure_compare_renames_internal EMBED_UNUSED = {
+    .renames_find = cli_structure_renames_find,
+    .write = cli_structure_write,
+};
+
+typedef struct
+{
+    void (*moved_mark)(const CliStructureCtx *args);
+    void (*touched_mark)(const CliStructureCtx *args);
+    void (*lines_kind)(const CliStructureCtx *args);
+} CliStructureNsTable;
+EMBED_TABLE_LAYOUT(CliStructureNsTable, moved_mark, touched_mark, lines_kind);
+EMBED_TABLE_STORAGE CliStructureNsTable cli_structure_internal EMBED_UNUSED = {
+    .moved_mark = cli_structure_moved_mark,
+    .touched_mark = cli_structure_touched_mark,
+    .lines_kind = cli_structure_lines_kind,
+};
+
+typedef struct
+{
+    int (*mark_order)(const CliStructureOneCtx *args);
+} CliStructureOneNs;
+EMBED_TABLE_LAYOUT(CliStructureOneNs, mark_order);
+EMBED_TABLE_STORAGE CliStructureOneNs cli_structure_one_internal EMBED_UNUSED = {
+    .mark_order = cli_structure_mark_order,
+};
 
 #endif

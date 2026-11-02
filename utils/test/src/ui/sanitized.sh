@@ -1,6 +1,6 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-# sanitized.sh: sourced by cli_test.sh and gui_test.sh. ORIOR_SANITIZE=address or thread compiles and links each check
+# sanitized.sh: sourced by gui_test.sh. ORIOR_SANITIZE=address or thread compiles and links each check
 # under that sanitizer against the library ui/cli/build.sh builds under it, in a run folder of that sanitizer's own.
 # A report does not halt its check: each is written to sanitizer.<pid> in the run folder, its summary lines said, and
 # a check with a report exits 1. MMgr's cells are carved from one region, and a sanitizer sees that region as one

@@ -8,39 +8,47 @@
 // the record the decoder hands its text in (KDECODE_SHOWN, kdecode_internal.h)
 #define QUERY_DECODE_SHOWN "orior_kdecode"
 
-int query_decode_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
+int query_decode_run(const QueryLoopCfg *args)
 {
-    if (count == 0u)
+    QueryContext *context = args->context;
+    const char *const *words = args->words;
+    VerbaLinea *err_msg = args->err_msg;
+    if (args->count == 0u)
     {
         mmgr_line_put(err_msg, "decode takes the decoder's words: [--raw] [--from <key>] [--to <key>] [--count <rows>] "
                                "--table <table> <run.qry>, or [--latest] --blob <name> <run.qry>");
         return -1;
     }
     static char s_decoder[QUERY_PATH_MAX_LEN];
-    if (!query_context_tool(context, "orior_kdecode", s_decoder, err_msg))
+    if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
+                    .name = "orior_kdecode", .binary = s_decoder, .err_msg = err_msg))
     {
         return -1;
     }
     static QueryRun s_run;
-    if (!query_context_started(context, &s_run, "build/engine/kdecode/qry", err_msg))
+    if (!EMBED_CALL(query_loops_context_run.context_start, QueryLoopsContextRunCfg, .context = context,
+                    .run_out = &s_run, .folder = "build/engine/kdecode/qry", .err_msg = err_msg))
     {
         return -1;
     }
     static const char *s_words[QUERY_WORDS_MOST + 2u];
     s_words[0] = s_decoder;
-    for (unsigned int at = 0u; (at < count) && (at < QUERY_WORDS_MOST); at += 1u)
+    for (unsigned int at = 0u; (at < args->count) && (at < QUERY_WORDS_MOST); at += 1u)
     {
         s_words[at + 1u] = words[at];
     }
-    s_words[((count < QUERY_WORDS_MOST) ? count : QUERY_WORDS_MOST) + 1u] = NULL;
+    s_words[((args->count < QUERY_WORDS_MOST) ? args->count : QUERY_WORDS_MOST) + 1u] = NULL;
     long long code = -1ll;
-    if (!query_context_ran(context, &s_run, s_words, &code, err_msg))
+    if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_run, QueryLoopsContextErrMsgNameRunCfg,
+                    .context = context, .run = &s_run, .words = s_words, .code = &code, .err_msg = err_msg))
     {
-        query_context_ended(context, &s_run, err_msg);
+        EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
+                   .err_msg = err_msg);
         return -1;
     }
     unsigned long long shown_size = 0ull;
-    char *const shown = query_writer_read_taken(&s_run.writer, QUERY_DECODE_SHOWN, &shown_size);
+    char *const shown = EMBED_CALL(query_count_name_internal.writer_read_take, QueryCountNameCtx,
+                                   .writer = &s_run.writer, .name = QUERY_DECODE_SHOWN, .size_pointer = &shown_size);
     if (shown != NULL)
     {
         // each line printed as it stands
@@ -57,13 +65,14 @@ int query_decode_run(QueryContext *context, const char *const *words, unsigned i
                                length - (((length != 0ull) && (line[length - 1u] == '\r')) ? 1u : 0u));
             if (mmgr_line_finish(&text_line) != 0ull)
             {
-                query_print(context, text);
+                EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
             }
             at += length + 1ull;
         }
     }
     g_cli_cells->persistent_buf_release(shown, &g_query_cells);
-    if (!query_context_ended(context, &s_run, err_msg))
+    if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
+                    .err_msg = err_msg))
     {
         return -1;
     }

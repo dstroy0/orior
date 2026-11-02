@@ -13,8 +13,19 @@
 // (cli_print_take, cli_print_give)
 #ifndef PRINT_H
 #define PRINT_H
+typedef struct CliPrintLayoutCfg CliPrintLayoutCfg;
+typedef struct CliPrintLayoutListingCfg CliPrintLayoutListingCfg;
+typedef struct CliPrintTextCfg CliPrintTextCfg;
+typedef struct CliPrintLayoutListingOutCfg CliPrintLayoutListingOutCfg;
+typedef struct CliPrintJsonCfg CliPrintJsonCfg;
+typedef struct CliPrintLayoutLowCfg CliPrintLayoutLowCfg;
+typedef struct CliPrintJsonNodeCfg CliPrintJsonNodeCfg;
+typedef struct CliPrintLayoutWidthCfg CliPrintLayoutWidthCfg;
+typedef struct CliPrintCfg CliPrintCfg;
+typedef struct CliPrintPageCfg CliPrintPageCfg;
 
 #include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
 
 // the text's size, the height of a row, the width of a column and the margin, in points
 #define CLI_PRINT_SIZE 9.5f
@@ -144,40 +155,224 @@ void cli_print_give(void);
 // the listing the window hands as JSON, `{title, lines: [{number, runs: [{text, color, bold, italic}]}], tab}`, read
 // into the one listing; and a layout's JSON, `{paper, landscape, gray, pages, copies}`, each left out its default:
 // 1, or 0 with why given
-int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListing **listing, VerbaLinea *err_msg);
-void cli_print_layout_read(const CliJson *json, unsigned int node, CliPrintLayout *layout);
+int cli_print_listing_read(const CliPrintJsonCfg *args);
+void cli_print_layout_read(const CliPrintJsonNodeCfg *args);
 // the paper's width and height in points, as it lies; the paper's name as IPP and PWG write it; whether the page
 // numbered `page`, counted from 1, is one to print; and the page ranges as IPP takes them into `low` and `high`,
 // each sized for `room`: their count
-void cli_print_size(const CliPrintLayout *layout, float *width, float *height);
-const char *cli_print_media(const CliPrintLayout *layout);
-int cli_print_prints(const CliPrintLayout *layout, unsigned long long page);
-unsigned int cli_print_ranges(const CliPrintLayout *layout, int *low, int *high, unsigned int room);
+void cli_print_size(const CliPrintLayoutWidthCfg *args);
+const char *cli_print_media(const CliPrintLayoutCfg *args);
+int cli_print_prints(const CliPrintCfg *args);
+unsigned int cli_print_ranges(const CliPrintLayoutLowCfg *args);
 // a color #rrggbb, `length` bytes, as its three bytes, made gray by its lightness where `gray` is set
-void cli_print_color(const char *text, unsigned long long length, int gray, unsigned char *rgb);
+void cli_print_color(const CliPrintTextCfg *args);
 // the listing laid out in pages as `layout` specifies, into the one layout
-const CliPrintLaid *cli_print_lay_out(const CliPrintListing *listing, const CliPrintLayout *layout);
+const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args);
 
 // the listing as a PDF, as the layout specifies, into `out`, the count of pages written into `pages` (pdf.c)
-void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout, VerbaLinea *out,
-                   unsigned long long *pages);
+void cli_print_pdf(const CliPrintLayoutListingOutCfg *args);
 
 // the system's monospace faces read: 1, or 0 with why given; and each page the layout prints drawn at `dpi`, handed to
 // `each` with its place among those printed and their count (raster.c)
-int cli_print_faces(VerbaLinea *err_msg);
-void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layout, float dpi,
-                      void (*each)(void *context, const CliPixels *page, unsigned int index, unsigned int count),
-                      void *context);
+int cli_print_faces(const CliPrintJsonCfg *args);
+typedef struct
+{
+    void *context;
+    const CliPixels *page;
+    unsigned int index;
+    unsigned int count;
+} CliEachPageIndexCountCfg;
+
+void cli_print_render(const CliPrintLayoutListingCfg *args);
 // a page turned a quarter to the left into `out`, whose data contains the page's bytes: a page on its side made upright
-void cli_print_turned(const CliPixels *page, CliPixels *out);
+void cli_print_turn(const CliPrintPageCfg *args);
 // the head of a PWG raster, and one page of it, `count` pages in all; the head of Apple's raster, and one page of it
 // (raster_write.c)
-void cli_print_pwg_begin(VerbaLinea *out);
-void cli_print_pwg_page(VerbaLinea *out, const CliPixels *page, const CliPrintLayout *layout, unsigned int dpi,
-                        unsigned int count);
-void cli_print_urf_begin(VerbaLinea *out, unsigned int count);
-void cli_print_urf_page(VerbaLinea *out, const CliPixels *page, unsigned int dpi);
+void cli_print_pwg_begin(const CliPrintLayoutListingOutCfg *args);
+void cli_print_pwg_page(const CliPrintLayoutCfg *args);
+void cli_print_urf_begin(const CliPrintLayoutCfg *args);
+void cli_print_urf_page(const CliPrintLayoutCfg *args);
 // the lines of a page in the compression PWG and Apple raster share
-void cli_print_compress(const CliPixels *page, VerbaLinea *out);
+void cli_print_compress(const CliPrintLayoutCfg *args);
+
+struct CliPrintLayoutCfg
+{
+    const CliPrintLayout *layout;
+    VerbaLinea *out;
+    const CliPixels *page;
+    unsigned int dpi;
+    unsigned int count;
+};
+
+struct CliPrintLayoutListingCfg
+{
+    const CliPrintLayout *layout;
+    const CliPrintListing *listing;
+    float dpi_f32;
+    void (*each)(const CliEachPageIndexCountCfg *args);
+    void *context;
+};
+
+struct CliPrintTextCfg
+{
+    const char *text;
+    unsigned long long length;
+    int gray;
+    unsigned char *rgb;
+};
+
+struct CliPrintLayoutListingOutCfg
+{
+    const CliPrintLayout *layout;
+    const CliPrintListing *listing;
+    VerbaLinea *out;
+    unsigned long long *pages;
+};
+
+struct CliPrintJsonCfg
+{
+    const CliJson *json;
+    unsigned int node;
+    CliPrintListing **listing_pointer;
+    VerbaLinea *err_msg;
+};
+
+struct CliPrintLayoutLowCfg
+{
+    const CliPrintLayout *layout;
+    int *low;
+    int *high;
+    unsigned int room;
+};
+
+struct CliPrintJsonNodeCfg
+{
+    const CliJson *json;
+    unsigned int node;
+    CliPrintLayout *layout_out;
+};
+
+struct CliPrintLayoutWidthCfg
+{
+    const CliPrintLayout *layout;
+    float *width;
+    float *height;
+};
+
+struct CliPrintCfg
+{
+    const CliPrintLayout *layout;
+    unsigned long long page_u64;
+};
+
+struct CliPrintPageCfg
+{
+    const CliPixels *page;
+    CliPixels *out_pixels_pointer;
+};
+
+typedef struct
+{
+    int (*listing_read)(const CliPrintJsonCfg *args);
+    int (*faces)(const CliPrintJsonCfg *args);
+} CliPrintJsonNs;
+EMBED_TABLE_LAYOUT(CliPrintJsonNs, listing_read, faces);
+EMBED_TABLE_STORAGE CliPrintJsonNs cli_print_json EMBED_UNUSED = {
+    .listing_read = cli_print_listing_read,
+    .faces = cli_print_faces,
+};
+
+typedef struct
+{
+    void (*layout_read)(const CliPrintJsonNodeCfg *args);
+} CliPrintJsonNodeNs;
+EMBED_TABLE_LAYOUT(CliPrintJsonNodeNs, layout_read);
+EMBED_TABLE_STORAGE CliPrintJsonNodeNs cli_print_json_node EMBED_UNUSED = {
+    .layout_read = cli_print_layout_read,
+};
+
+typedef struct
+{
+    void (*size)(const CliPrintLayoutWidthCfg *args);
+} CliPrintLayoutWidthNs;
+EMBED_TABLE_LAYOUT(CliPrintLayoutWidthNs, size);
+EMBED_TABLE_STORAGE CliPrintLayoutWidthNs cli_print_layout_width EMBED_UNUSED = {
+    .size = cli_print_size,
+};
+
+typedef struct
+{
+    const char *(*media)(const CliPrintLayoutCfg *args);
+    void (*pwg_page)(const CliPrintLayoutCfg *args);
+    void (*urf_begin)(const CliPrintLayoutCfg *args);
+    void (*urf_page)(const CliPrintLayoutCfg *args);
+    void (*compress)(const CliPrintLayoutCfg *args);
+} CliPrintLayoutNs;
+EMBED_TABLE_LAYOUT(CliPrintLayoutNs, media, pwg_page, urf_begin, urf_page, compress);
+EMBED_TABLE_STORAGE CliPrintLayoutNs cli_print_layout EMBED_UNUSED = {
+    .media = cli_print_media,
+    .pwg_page = cli_print_pwg_page,
+    .urf_begin = cli_print_urf_begin,
+    .urf_page = cli_print_urf_page,
+    .compress = cli_print_compress,
+};
+
+typedef struct
+{
+    int (*prints)(const CliPrintCfg *args);
+} CliPrintNs;
+EMBED_TABLE_LAYOUT(CliPrintNs, prints);
+EMBED_TABLE_STORAGE CliPrintNs cli_print_table EMBED_UNUSED = {
+    .prints = cli_print_prints,
+};
+
+typedef struct
+{
+    unsigned int (*ranges)(const CliPrintLayoutLowCfg *args);
+} CliPrintLayoutLowNs;
+EMBED_TABLE_LAYOUT(CliPrintLayoutLowNs, ranges);
+EMBED_TABLE_STORAGE CliPrintLayoutLowNs cli_print_layout_low EMBED_UNUSED = {
+    .ranges = cli_print_ranges,
+};
+
+typedef struct
+{
+    void (*color)(const CliPrintTextCfg *args);
+} CliPrintTextNs;
+EMBED_TABLE_LAYOUT(CliPrintTextNs, color);
+EMBED_TABLE_STORAGE CliPrintTextNs cli_print_text EMBED_UNUSED = {
+    .color = cli_print_color,
+};
+
+typedef struct
+{
+    const CliPrintLaid *(*lay_out)(const CliPrintLayoutListingOutCfg *args);
+    void (*pdf)(const CliPrintLayoutListingOutCfg *args);
+    void (*pwg_begin)(const CliPrintLayoutListingOutCfg *args);
+} CliPrintLayoutListingOutNs;
+EMBED_TABLE_LAYOUT(CliPrintLayoutListingOutNs, lay_out, pdf, pwg_begin);
+EMBED_TABLE_STORAGE CliPrintLayoutListingOutNs cli_print_layout_listing_out EMBED_UNUSED = {
+    .lay_out = cli_print_lay_out,
+    .pdf = cli_print_pdf,
+    .pwg_begin = cli_print_pwg_begin,
+};
+
+typedef struct
+{
+    void (*render)(const CliPrintLayoutListingCfg *args);
+} CliPrintLayoutListingNs;
+EMBED_TABLE_LAYOUT(CliPrintLayoutListingNs, render);
+EMBED_TABLE_STORAGE CliPrintLayoutListingNs cli_print_layout_listing EMBED_UNUSED = {
+    .render = cli_print_render,
+};
+
+typedef struct
+{
+    void (*turn)(const CliPrintPageCfg *args);
+} CliPrintPageNs;
+EMBED_TABLE_LAYOUT(CliPrintPageNs, turn);
+EMBED_TABLE_STORAGE CliPrintPageNs cli_print_page EMBED_UNUSED = {
+    .turn = cli_print_turn,
+};
 
 #endif

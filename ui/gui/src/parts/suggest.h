@@ -8,7 +8,15 @@
 // and the wheel scrolls the rows (suggest.c)
 #ifndef GUI_PARTS_SUGGEST_H
 #define GUI_PARTS_SUGGEST_H
+typedef struct GuiSuggestJsonCfg GuiSuggestJsonCfg;
+typedef struct GuiSuggestRasterCfg GuiSuggestRasterCfg;
+typedef struct GuiSuggestXCfg GuiSuggestXCfg;
+typedef struct GuiSuggestXYCfg GuiSuggestXYCfg;
+typedef struct GuiSuggestLengthCfg GuiSuggestLengthCfg;
+typedef struct GuiSuggestCfg GuiSuggestCfg;
+typedef struct GuiSuggestRowsCfg GuiSuggestRowsCfg;
 #include "../../../cli/src/text/json_tree.h"
+#include "embed_dispatch_layout.h"
 #include "panel.h"
 
 // the sizes in the page's pixels: a row's height, the rows shown at once, the list's least and most width, 16rem and
@@ -79,34 +87,161 @@ typedef struct
 
 // a completion with no items, its cells allocated: 1, or 0 where they could not be; its cells freed; and the list
 // closed, its items dropped
-int gui_suggest_made(GuiSuggest *suggest);
-void gui_suggest_given(GuiSuggest *suggest);
-void gui_suggest_closed(GuiSuggest *suggest);
+int gui_suggest_init(const GuiSuggestRowsCfg *args);
+void gui_suggest_free(const GuiSuggestRowsCfg *args);
+void gui_suggest_close(const GuiSuggestJsonCfg *args);
 // the answer `root` of `json`, `{"from", "prefix", "items", "words"}`, taken: the items stored, the server's first and
 // then the file's words whose labels the server did not give, an item marked `snippet` stored as the text its
 // snippet inserts with each stop's placeholder in its place, filtered and ranked by the prefix: 1 with the list open
 // where any item answers it and, where `forced` is 0, the one item is not the prefix itself and the prefix is not
 // empty unless the list was open; else 0 with the list closed
-int gui_suggest_put(GuiSuggest *suggest, const CliJson *json, unsigned int root, int forced);
-// the list open filtered again by `length` bytes of the `prefix` the cursor now stands after, the items kept: 1 with
+int gui_suggest_put(const GuiSuggestJsonCfg *args);
+// the list open filtered again by `length` bytes of the `prefix` the cursor now stands after, the items saved: 1 with
 // the list open where any item answers it and the prefix is not empty unless the keys forced the list, else 0 with
 // the list closed
-int gui_suggest_prefixed(GuiSuggest *suggest, const char *prefix, unsigned long long length);
+int gui_suggest_prefix(const GuiSuggestJsonCfg *args);
 // how well `length` bytes of `label` answer the `typed` prefix: 5 for a start, 4 for a start by case, 3 for a part,
 // 2 for its letters in order, 0 for nothing; a label answers an empty prefix with 1
-unsigned int gui_suggest_score(const char *label, unsigned long long length, const char *typed);
+unsigned int gui_suggest_score(const GuiSuggestLengthCfg *args);
 // a key named as the page's editor names it taken while the list is open: what it did
-unsigned int gui_suggest_keyed(GuiSuggest *suggest, const char *name);
+unsigned int gui_suggest_key(const GuiSuggestJsonCfg *args);
 // the item chosen's text to insert and its length, NULL where none is chosen
-const char *gui_suggest_chosen(const GuiSuggest *suggest, unsigned long long *length);
+const char *gui_suggest_choose(const GuiSuggestCfg *args);
 // whether the pixel at x, y stands in the list or its detail pane; a press at x, y: the row's item chosen and
 // accepted, GUI_SUGGEST_ACCEPTED, or GUI_SUGGEST_NONE where the press is not on a row; and the wheel turned `rows`
 // over the list: 1 where the rows shown moved
-int gui_suggest_holds(const GuiSuggest *suggest, int x, int y);
-unsigned int gui_suggest_pressed(GuiSuggest *suggest, int x, int y);
-int gui_suggest_wheeled(GuiSuggest *suggest, int rows);
+int gui_suggest_holds(const GuiSuggestXCfg *args);
+unsigned int gui_suggest_press(const GuiSuggestXYCfg *args);
+int gui_suggest_wheel(const GuiSuggestRowsCfg *args);
 // the list drawn for the prefix whose first cell is `anchor`, under its row inside `bounds` at `scale`, the detail
 // pane beside it where the chosen item has a detail; the rectangles recorded
-void gui_suggest_drawn(GuiSuggest *suggest, GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette,
-                       GuiRect anchor, GuiRect bounds, float scale);
+void gui_suggest_draw(const GuiSuggestRasterCfg *args);
+struct GuiSuggestJsonCfg
+{
+    GuiSuggest *suggest;
+    const CliJson *json;
+    unsigned int root;
+    int forced;
+    const char *prefix;
+    unsigned long long length;
+    const char *name;
+};
+
+struct GuiSuggestRasterCfg
+{
+    GuiSuggest *suggest;
+    GuiRaster *raster;
+    GuiGlyphs *glyphs;
+    const GuiPalette *palette;
+    GuiRect anchor;
+    GuiRect bounds;
+    int scale;
+};
+
+struct GuiSuggestXCfg
+{
+    const GuiSuggest *suggest_read;
+    int x;
+    int y;
+};
+
+struct GuiSuggestXYCfg
+{
+    GuiSuggest *suggest;
+    int x;
+    int y;
+};
+
+struct GuiSuggestLengthCfg
+{
+    unsigned long long length;
+    const char *label;
+    const char *typed;
+};
+
+struct GuiSuggestCfg
+{
+    const GuiSuggest *suggest_read;
+    unsigned long long *length_pointer;
+};
+
+struct GuiSuggestRowsCfg
+{
+    GuiSuggest *suggest;
+    int rows;
+};
+
+typedef struct
+{
+    int (*init)(const GuiSuggestRowsCfg *args);
+    void (*free)(const GuiSuggestRowsCfg *args);
+    int (*wheel)(const GuiSuggestRowsCfg *args);
+} GuiSuggestRowsNs;
+EMBED_TABLE_LAYOUT(GuiSuggestRowsNs, init, free, wheel);
+EMBED_TABLE_STORAGE GuiSuggestRowsNs gui_suggest_rows EMBED_UNUSED = {
+    .init = gui_suggest_init,
+    .free = gui_suggest_free,
+    .wheel = gui_suggest_wheel,
+};
+
+typedef struct
+{
+    void (*close)(const GuiSuggestJsonCfg *args);
+    int (*put)(const GuiSuggestJsonCfg *args);
+    int (*prefix)(const GuiSuggestJsonCfg *args);
+    unsigned int (*key)(const GuiSuggestJsonCfg *args);
+} GuiSuggestJsonNs;
+EMBED_TABLE_LAYOUT(GuiSuggestJsonNs, close, put, prefix, key);
+EMBED_TABLE_STORAGE GuiSuggestJsonNs gui_suggest_json EMBED_UNUSED = {
+    .close = gui_suggest_close,
+    .put = gui_suggest_put,
+    .prefix = gui_suggest_prefix,
+    .key = gui_suggest_key,
+};
+
+typedef struct
+{
+    unsigned int (*score)(const GuiSuggestLengthCfg *args);
+} GuiSuggestLengthNs;
+EMBED_TABLE_LAYOUT(GuiSuggestLengthNs, score);
+EMBED_TABLE_STORAGE GuiSuggestLengthNs gui_suggest_length EMBED_UNUSED = {
+    .score = gui_suggest_score,
+};
+
+typedef struct
+{
+    const char *(*choose)(const GuiSuggestCfg *args);
+} CliSuggestNs;
+EMBED_TABLE_LAYOUT(CliSuggestNs, choose);
+EMBED_TABLE_STORAGE CliSuggestNs cli_suggest EMBED_UNUSED = {
+    .choose = gui_suggest_choose,
+};
+
+typedef struct
+{
+    int (*holds)(const GuiSuggestXCfg *args);
+} GuiSuggestXNs;
+EMBED_TABLE_LAYOUT(GuiSuggestXNs, holds);
+EMBED_TABLE_STORAGE GuiSuggestXNs gui_suggest_x EMBED_UNUSED = {
+    .holds = gui_suggest_holds,
+};
+
+typedef struct
+{
+    unsigned int (*press)(const GuiSuggestXYCfg *args);
+} GuiSuggestXYNs;
+EMBED_TABLE_LAYOUT(GuiSuggestXYNs, press);
+EMBED_TABLE_STORAGE GuiSuggestXYNs gui_suggest_xy EMBED_UNUSED = {
+    .press = gui_suggest_press,
+};
+
+typedef struct
+{
+    void (*draw)(const GuiSuggestRasterCfg *args);
+} GuiSuggestRasterNs;
+EMBED_TABLE_LAYOUT(GuiSuggestRasterNs, draw);
+EMBED_TABLE_STORAGE GuiSuggestRasterNs gui_suggest_raster EMBED_UNUSED = {
+    .draw = gui_suggest_draw,
+};
+
 #endif

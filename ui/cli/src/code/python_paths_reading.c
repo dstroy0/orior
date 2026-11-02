@@ -12,20 +12,24 @@
 
 CliPy g_cli_py;
 
-// the reading's cell, taken by cli_py_reading_taken
+// the reading's cell, taken by cli_py_reading_take
 static unsigned char *s_reading;
 
-// the first place at or past `at` bytes that is a multiple of eight, where a list of any element starts aligned
-static unsigned long long cli_py_aligned(unsigned long long at)
+typedef struct
 {
-    return (at + 7ull) & ~7ull;
+    unsigned long long at;
+} PythonPathsReadingCtx;
+// the first place at or past `at` bytes that is a multiple of eight, where a list of any element starts aligned
+EMBED_INLINE unsigned long long cli_py_align(const PythonPathsReadingCtx *args)
+{
+    return (args->at + 7ull) & ~7ull;
 }
 
-int cli_py_reading_taken(unsigned long long size)
+int cli_py_reading_take(const CliPythonPathsSizeCtx *args)
 {
-    cli_py_reading_given();
+    cli_py_reading_free();
     // a script is no more than CLI_PY_LETTERS bytes of letters, and a reading of one no more than the most of each
-    const unsigned long long bytes = (size < CLI_PY_LETTERS) ? size : CLI_PY_LETTERS;
+    const unsigned long long bytes = (args->size < CLI_PY_LETTERS) ? args->size : CLI_PY_LETTERS;
     const unsigned int exprs =
         (unsigned int)(((bytes + CLI_PY_SLACK) < CLI_PY_EXPRS) ? (bytes + CLI_PY_SLACK) : CLI_PY_EXPRS);
     const unsigned int items =
@@ -39,23 +43,26 @@ int cli_py_reading_taken(unsigned long long size)
     // the lists laid one after another in the cell, each at a place its elements align to
     unsigned long long at = 0ull;
     const unsigned long long expr_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)exprs * sizeof(CliExpr)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)exprs * sizeof(CliExpr)));
     const unsigned long long item_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)items * sizeof(unsigned int)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)items * sizeof(unsigned int)));
     const unsigned long long stack_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)items * sizeof(unsigned int)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)items * sizeof(unsigned int)));
     const unsigned long long range_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)items * sizeof(CliValues)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)items * sizeof(CliValues)));
     const unsigned long long letter_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)letters * sizeof(unsigned int)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx,
+                    .at = at + ((unsigned long long)letters * sizeof(unsigned int)));
     const unsigned long long value_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)CLI_PY_VALUES * sizeof(unsigned int)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx,
+                    .at = at + ((unsigned long long)CLI_PY_VALUES * sizeof(unsigned int)));
     const unsigned long long found_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)CLI_PY_VALUES * sizeof(unsigned int)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx,
+                    .at = at + ((unsigned long long)CLI_PY_VALUES * sizeof(unsigned int)));
     const unsigned long long start_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)lines * sizeof(unsigned int)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)lines * sizeof(unsigned int)));
     const unsigned long long length_at = at;
-    at = cli_py_aligned(at + ((unsigned long long)lines * sizeof(unsigned int)));
+    at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)lines * sizeof(unsigned int)));
     const unsigned long long text_at = at;
     at += text_most;
     const unsigned long long line_text_at = at;
@@ -77,15 +84,18 @@ int cli_py_reading_taken(unsigned long long size)
     g_cli_py.found = (unsigned int *)(void *)(s_reading + found_at);
     g_cli_py.text = (char *)(s_reading + text_at);
     g_cli_py.text_most = text_most;
-    cli_py_lines_placed((char *)(s_reading + line_text_at), line_text, (unsigned int *)(void *)(s_reading + start_at),
-                        (unsigned int *)(void *)(s_reading + length_at), lines);
+    EMBED_CALL(cli_python_paths_text_text_most_internal.py_lines_place, CliPythonPathsTextTextMostCtx,
+               .text_out = (char *)(s_reading + line_text_at), .text_most = line_text,
+               .start = (unsigned int *)(void *)(s_reading + start_at),
+               .length_u32s = (unsigned int *)(void *)(s_reading + length_at), .lines_most = lines);
     return 1;
 }
 
-void cli_py_reading_given(void)
+void cli_py_reading_free(void)
 {
     g_cli_cells->persistent_buf_release(s_reading, &g_cli_python_cells);
     s_reading = NULL;
     memor.set(&(MemoriaCfg){.dst = &g_cli_py, .val = 0, .bytes = sizeof(g_cli_py)});
-    cli_py_lines_placed(NULL, 0u, NULL, NULL, 0u);
+    EMBED_CALL(cli_python_paths_text_text_most_internal.py_lines_place, CliPythonPathsTextTextMostCtx, .text_out = NULL,
+               .text_most = 0u, .start = NULL, .length_u32s = NULL, .lines_most = 0u);
 }

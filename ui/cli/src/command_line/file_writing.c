@@ -11,14 +11,14 @@
 // its own, and `.writing`
 #define CLI_WRITING_MAX_LEN 64u
 
-int cli_file_begun(CliFileWriting *file, const char *path)
+int cli_file_begin(const CliPathFileCtx *args)
 {
     static unsigned long long s_count;
     static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_count += 1ull;
     const unsigned long long count = s_count;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     char beside[CLI_WRITING_MAX_LEN];
     VerbaLinea named = {beside, sizeof(beside), 0u, NULL, NULL, 0u};
     mmgr_line_ch(&named, '.');
@@ -26,7 +26,7 @@ int cli_file_begun(CliFileWriting *file, const char *path)
     mmgr_line_ch(&named, '.');
     mmgr_line_decimal(&named, count, 1u);
     mmgr_line_put(&named, ".writing");
-    return (mmgr_line_finish(&named) != 0u) && ksg_writing_begun(file, path, beside);
+    return (mmgr_line_finish(&named) != 0u) && ksg_writing_begun(args->file, args->path, beside);
 }
 
 int cli_file_put(void *context, const char *bytes, size_t size)
@@ -34,51 +34,52 @@ int cli_file_put(void *context, const char *bytes, size_t size)
     return ksg_writing_put(context, bytes, size);
 }
 
-int cli_file_ended(CliFileWriting *file, int whole)
+int cli_file_end(const CliFileCtx *args)
 {
-    return ksg_writing_ended(file, whole);
+    return ksg_writing_end(args->file, args->whole);
 }
 
-VerbaLinea cli_file_line(CliFileWriting *file, char *stage)
+VerbaLinea cli_file_line(const CliFileStageCtx *args)
 {
-    const VerbaLinea line = {stage, CLI_STAGE_BYTES + 1u, 0u, cli_file_put, file, 0u};
+    const VerbaLinea line = {args->stage, CLI_STAGE_BYTES + 1u, 0u, cli_file_put, args->file, 0u};
     return line;
 }
 
-int cli_file_line_ended(CliFileWriting *file, VerbaLinea *line)
+int cli_file_line_end(const CliLineCtx *args)
 {
-    const int whole = (line->at == 0u) || mmgr_line_flush(line);
-    return cli_file_ended(file, whole && mmgr_line_ok(line));
+    const int whole = (args->line->at == 0u) || mmgr_line_flush(args->line);
+    return EMBED_CALL(cli_file_internal.file_end, CliFileCtx, .file = args->file,
+                      .whole = whole && mmgr_line_ok(args->line));
 }
 
-int cli_file_pieces_written(const char *path, const CliFilePiece *pieces, unsigned int count)
+int cli_file_pieces_write(const CliPathCountCtx *args)
 {
     static const char s_zeros[4096] = {0};
     static char s_stage[CLI_STAGE_BYTES + 1u];
     static CliFileWriting s_file;
     static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
-    if (!cli_file_begun(&s_file, path))
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    if (!EMBED_CALL(cli_path_file_internal.file_begin, CliPathFileCtx, .file = &s_file, .path = args->path))
     {
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
-    VerbaLinea line = cli_file_line(&s_file, s_stage);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    VerbaLinea line = EMBED_CALL(cli_file_stage_internal.file_line, CliFileStageCtx, .file = &s_file, .stage = s_stage);
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (pieces[at].bytes != NULL)
+        if (args->pieces[at].bytes != NULL)
         {
-            mmgr_line_put_n(&line, (const char *)pieces[at].bytes, pieces[at].size);
+            mmgr_line_put_n(&line, (const char *)args->pieces[at].bytes, args->pieces[at].size);
             continue;
         }
-        for (unsigned long long left = pieces[at].size; left > 0ull;)
+        for (unsigned long long left = args->pieces[at].size; left > 0ull;)
         {
             const unsigned long long piece = (left < sizeof(s_zeros)) ? left : sizeof(s_zeros);
             mmgr_line_put_n(&line, s_zeros, piece);
             left -= piece;
         }
     }
-    const int written = cli_file_line_ended(&s_file, &line);
-    cli_lock_give(&s_lock);
+    const int written = EMBED_CALL(cli_line_internal.file_line_end, CliLineCtx, .file = &s_file, .line = &line);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return written;
 }

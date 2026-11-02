@@ -11,110 +11,184 @@
 // the close mark's text
 static const char s_close[] = "\xc3\x97";
 
-const char *gui_tab_name(const GuiTab *tab, unsigned long long *length)
+const char *gui_tab_name(const GuiTabsCfg *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = tab->path, .cap = CLI_CELLS_POOL});
+    unsigned long long *length = args->length;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->tab->path, .cap = CLI_CELLS_POOL});
     // the last mark that has a letter after it: one at the path's very end names nothing
-    const unsigned long long start = (size > 0ull) ? cli_text_back_any(tab->path, size - 1ull, "/\\") : 0ull;
+    const unsigned long long start = (size > 0ull)
+                                         ? EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                      .text = args->tab->path, .at = size - 1ull, .set = "/\\")
+                                         : 0ull;
     *length = size - start;
-    return tab->path + start;
+    return args->tab->path + start;
 }
 
+typedef struct
+{
+    GuiGlyphs *glyphs;
+    const GuiTab *tab;
+    unsigned int size;
+    int scale;
+} TabsCtx;
 // a tab's width: its padding each side, its name, the gap and the close mark with its padding
-static int tabs_wide(GuiGlyphs *glyphs, const GuiTab *tab, unsigned int size, float scale)
+EMBED_INLINE int tabs_wide(const TabsCtx *args)
 {
+    GuiGlyphs *glyphs = args->glyphs;
+    const GuiTab *tab = args->tab;
+    unsigned int size = args->size;
+    int scale = args->scale;
     unsigned long long length = 0ull;
-    const char *const name = gui_tab_name(tab, &length);
-    const float text = gui_text_width(glyphs, GUI_FACE_CODE, size, name, length);
-    const float close = gui_text_width(glyphs, GUI_FACE_CODE, size, s_close, sizeof(s_close) - 1u);
-    return gui_scaled(GUI_TAB_PAD_LEFT, scale) + (int)roundf(text) + gui_scaled(GUI_TAB_GAP, scale) +
-           gui_scaled(GUI_TAB_CLOSE_PAD, scale) + (int)roundf(close) + gui_scaled(GUI_TAB_CLOSE_PAD, scale) +
-           gui_scaled(GUI_TAB_PAD_RIGHT, scale);
+    const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .tab = tab, .length = &length);
+    const float text = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                  .face = GUI_FACE_CODE, .size = size, .text = name, .length = length);
+    const float close =
+        EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
+                   .size = size, .text = s_close, .length = sizeof(s_close) - 1u);
+    return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_PAD_LEFT, .scale = scale) +
+           (int)roundf(text) +
+           EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_GAP, .scale = scale) +
+           EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLOSE_PAD, .scale = scale) +
+           (int)roundf(close) +
+           EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLOSE_PAD, .scale = scale) +
+           EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_PAD_RIGHT, .scale = scale);
 }
 
-GuiRect gui_tab_rect(GuiGlyphs *glyphs, const GuiFrame *frame, const GuiTab *tab, unsigned int count, unsigned int at)
+GuiRect gui_tab_rect(const GuiTabsGlyphsCfg *args)
 {
-    const unsigned int size = (unsigned int)gui_scaled((int)GUI_TAB_SIZE, frame->scale);
-    int x = frame->tabs.x;
-    for (unsigned int each = 0u; (each < at) && (each < count); each += 1u)
+    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                       .pixels = (int)GUI_TAB_SIZE, .scale = args->frame->scale);
+    int x = args->frame->tabs.x;
+    for (unsigned int each = 0u; (each < args->at) && (each < args->count); each += 1u)
     {
-        x += tabs_wide(glyphs, &tab[each], size, frame->scale);
+        x += EMBED_CALL(tabs_wide, TabsCtx, .glyphs = args->glyphs, .tab = &args->tab[each], .size = size,
+                        .scale = args->frame->scale);
     }
-    const int wide = (at < count) ? tabs_wide(glyphs, &tab[at], size, frame->scale) : 0;
-    return (GuiRect){x, frame->tabs.y, wide, frame->tabs.height - gui_scaled(1, frame->scale)};
+    const int wide = (args->at < args->count)
+                         ? EMBED_CALL(tabs_wide, TabsCtx, .glyphs = args->glyphs, .tab = &args->tab[args->at],
+                                      .size = size, .scale = args->frame->scale)
+                         : 0;
+    return (GuiRect){x, args->frame->tabs.y, wide,
+                     args->frame->tabs.height - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
+                                                           .scale = args->frame->scale)};
 }
 
-GuiRect gui_tab_close_rect(GuiGlyphs *glyphs, const GuiFrame *frame, const GuiTab *tab, unsigned int count,
-                           unsigned int at)
+GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args)
 {
-    const GuiRect rect = gui_tab_rect(glyphs, frame, tab, count, at);
-    const unsigned int size = (unsigned int)gui_scaled((int)GUI_TAB_SIZE, frame->scale);
-    const float close = gui_text_width(glyphs, GUI_FACE_CODE, size, s_close, sizeof(s_close) - 1u);
-    const int wide = (2 * gui_scaled(GUI_TAB_CLOSE_PAD, frame->scale)) + (int)roundf(close);
-    return (GuiRect){rect.x + rect.width - gui_scaled(GUI_TAB_PAD_RIGHT, frame->scale) - wide, rect.y, wide,
-                     rect.height};
+    GuiGlyphs *glyphs = args->glyphs;
+    const GuiRect rect = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = glyphs, .frame = args->frame,
+                                    .tab = args->tab, .count = args->count, .at = args->at);
+    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                       .pixels = (int)GUI_TAB_SIZE, .scale = args->frame->scale);
+    const float close =
+        EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
+                   .size = size, .text = s_close, .length = sizeof(s_close) - 1u);
+    const int wide = (2 * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLOSE_PAD,
+                                     .scale = args->frame->scale)) +
+                     (int)roundf(close);
+    return (GuiRect){rect.x + rect.width -
+                         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_PAD_RIGHT,
+                                    .scale = args->frame->scale) -
+                         wide,
+                     rect.y, wide, rect.height};
 }
 
-int gui_tabs_hit(GuiGlyphs *glyphs, const GuiFrame *frame, const GuiTab *tab, unsigned int count, int x, int y,
-                 unsigned int *at, int *closing)
+int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args)
 {
-    if (!gui_rect_holds(frame->tabs, x, y))
+    unsigned int *at = args->at_pointer;
+    int *closing = args->closing;
+    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->frame->tabs, .x = args->x,
+                    .y = args->y))
     {
         return 0;
     }
-    for (unsigned int each = 0u; each < count; each += 1u)
+    for (unsigned int each = 0u; each < args->count; each += 1u)
     {
-        if (gui_rect_holds(gui_tab_rect(glyphs, frame, tab, count, each), x, y))
+        if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                       .rect = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = args->glyphs,
+                                          .frame = args->frame, .tab = args->tab, .count = args->count, .at = each),
+                       .x = args->x, .y = args->y))
         {
             *at = each;
-            *closing = gui_rect_holds(gui_tab_close_rect(glyphs, frame, tab, count, each), x, y);
+            *closing =
+                EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                           .rect = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = args->glyphs,
+                                              .frame = args->frame, .tab = args->tab, .count = args->count, .at = each),
+                           .x = args->x, .y = args->y);
             return 1;
         }
     }
     return 0;
 }
 
-void gui_tabs_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const GuiFrame *frame,
-                    const GuiTab *tab, unsigned int count, int active)
+void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
 {
-    const float scale = frame->scale;
-    const int one = gui_scaled(1, scale);
-    gui_raster_filled(raster,
-                      (GuiRect){frame->tabs.x, frame->tabs.y + frame->tabs.height - one, frame->tabs.width, one},
-                      palette->line);
-    const unsigned int size = (unsigned int)gui_scaled((int)GUI_TAB_SIZE, scale);
-    const float ascent = gui_glyphs_ascent(glyphs, GUI_FACE_CODE, size);
-    const float descent = gui_glyphs_descent(glyphs, GUI_FACE_CODE, size);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    const int scale = args->frame->scale;
+    const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = (GuiRect){args->frame->tabs.x, args->frame->tabs.y + args->frame->tabs.height - one,
+                                 args->frame->tabs.width, one},
+               .color = args->palette->line);
+    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                       .pixels = (int)GUI_TAB_SIZE, .scale = scale);
+    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_CODE, .size = size);
+    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                     .face = GUI_FACE_CODE, .size = size);
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const GuiRect rect = gui_tab_rect(glyphs, frame, tab, count, at);
-        const GuiRect met = gui_rect_met(rect, frame->tabs);
-        if (gui_rect_empty(met))
+        const GuiRect rect = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = glyphs,
+                                        .frame = args->frame, .tab = args->tab, .count = args->count, .at = at);
+        const GuiRect met =
+            EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = args->frame->tabs);
+        if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = met))
         {
             break;
         }
         // the tabs are fewer than an int counts
-        const int shown = (int)at == active;
+        const int shown = (int)at == args->active;
         if (shown)
         {
-            gui_raster_rounded(raster, met, (unsigned int)gui_scaled(GUI_TAB_RADIUS, scale), palette->tab_ground);
-            const int line = gui_scaled(GUI_TAB_LINE, scale);
-            gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y, rect.width, line}, frame->tabs),
-                              palette->tab_line);
-            gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x, rect.y, line, rect.height}, frame->tabs),
-                              palette->tab_line);
+            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = met,
+                       .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                          .pixels = GUI_TAB_RADIUS, .scale = scale),
+                       .color = args->palette->tab_ground);
+            const int line =
+                EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_LINE, .scale = scale);
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                       .rect =
+                           EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){rect.x, rect.y, rect.width, line}, .other = args->frame->tabs),
+                       .color = args->palette->tab_line);
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                       .rect =
+                           EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){rect.x, rect.y, line, rect.height}, .other = args->frame->tabs),
+                       .color = args->palette->tab_line);
         }
-        gui_raster_filled(raster,
-                          gui_rect_met((GuiRect){rect.x + rect.width - one, rect.y, one, rect.height}, frame->tabs),
-                          palette->line);
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){rect.x + rect.width - one, rect.y, one, rect.height},
+                                      .other = args->frame->tabs),
+                   .color = args->palette->line);
         const int baseline = rect.y + (int)((((float)rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
         unsigned long long length = 0ull;
-        const char *const name = gui_tab_name(&tab[at], &length);
-        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size, (float)(rect.x + gui_scaled(GUI_TAB_PAD_LEFT, scale)),
-                             baseline, name, length, shown ? palette->text : palette->text_2, met);
-        const GuiRect close = gui_tab_close_rect(glyphs, frame, tab, count, at);
-        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size,
-                             (float)(close.x + gui_scaled(GUI_TAB_CLOSE_PAD, scale)), baseline, s_close,
-                             sizeof(s_close) - 1u, palette->text_3, met);
+        const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .tab = &args->tab[at], .length = &length);
+        (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                         .face = GUI_FACE_CODE, .size = size,
+                         .x_f32 = (float)(rect.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                              .pixels = GUI_TAB_PAD_LEFT, .scale = scale)),
+                         .y = baseline, .text = name, .length = length,
+                         .color = shown ? args->palette->text : args->palette->text_2, .clip = met);
+        const GuiRect close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = glyphs,
+                                         .frame = args->frame, .tab = args->tab, .count = args->count, .at = at);
+        (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                         .face = GUI_FACE_CODE, .size = size,
+                         .x_f32 = (float)(close.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                               .pixels = GUI_TAB_CLOSE_PAD, .scale = scale)),
+                         .y = baseline, .text = s_close, .length = sizeof(s_close) - 1u, .color = args->palette->text_3,
+                         .clip = met);
     }
 }

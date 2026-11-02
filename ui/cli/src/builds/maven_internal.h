@@ -7,9 +7,28 @@
 // maven_settings.c, maven_set.c)
 #ifndef MAVEN_INTERNAL_H
 #define MAVEN_INTERNAL_H
+typedef struct CliMavenTextCtx CliMavenTextCtx;
+typedef struct CliMavenTextSizeCtx CliMavenTextSizeCtx;
+typedef struct CliMavenTextSizeModelCtx CliMavenTextSizeModelCtx;
+typedef struct CliMavenSizeCtx CliMavenSizeCtx;
+typedef struct CliMavenSizeOutCtx CliMavenSizeOutCtx;
+typedef struct CliMavenSizeCheckCtx CliMavenSizeCheckCtx;
+typedef struct CliMavenXmlCtx CliMavenXmlCtx;
+typedef struct CliMavenXmlOutCtx CliMavenXmlOutCtx;
+typedef struct CliMavenSizeModelCtx CliMavenSizeModelCtx;
+typedef struct CliMavenOutCtx CliMavenOutCtx;
+typedef struct CliMavenSizeNameCtx CliMavenSizeNameCtx;
+typedef struct CliMavenXmlErrorCtx CliMavenXmlErrorCtx;
+typedef struct CliMavenXmlNameCtx CliMavenXmlNameCtx;
+typedef struct CliMavenXmlTextCtx CliMavenXmlTextCtx;
+typedef struct CliMavenXmlProjectCtx CliMavenXmlProjectCtx;
+typedef struct CliMavenCheckCtx CliMavenCheckCtx;
+typedef struct CliMavenXmlAtCtx CliMavenXmlAtCtx;
+typedef struct CliMavenCtx CliMavenCtx;
 
 #include "../text/text.h"
 #include "builds_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most elements of an XML file, comments, and things that prevented it from reading, and no element
 #define CLI_XML_ELEMENTS 16384u
@@ -58,7 +77,7 @@ typedef struct
 
 // An XML file as read: its text, its elements, its comments' spans, what prevented it from reading, and the elements
 // its text leaves open, the outermost first; each list's room in one cell sized to the tags the text can contain, no
-// more than its most, given back with cli_xml_given
+// more than its most, given back with cli_xml_free
 typedef struct
 {
     const char *text;
@@ -77,12 +96,12 @@ typedef struct
     unsigned int opens;
 } CliXml;
 
-// the cells the XML files read are allocated in, counted, each given back with cli_xml_given (maven_xml.c)
+// the cells the XML files read are allocated in, counted, each given back with cli_xml_free (maven_xml.c)
 extern CellOwner g_cli_xml_cells;
 
 // the cell of an XML file read given back, the file left read as empty; each read is given back before `xml` is read
 // again or let go
-void cli_xml_given(CliXml *xml);
+void cli_xml_free(const CliMavenXmlTextCtx *args);
 // `size` bytes of an XML file's text read into `xml`, as far as it goes, in a cell of its own, whatever `xml` contained
 // before not looked at; the message of what prevented it from reading
 // written; the root element, CLI_XML_NONE where there is none; the first child of `of` named `name`, CLI_XML_NONE
@@ -92,19 +111,19 @@ void cli_xml_given(CliXml *xml);
 // element stands inside a `configuration` or `properties`, whose children its plugin or its reader makes of it
 // (maven_xml.c); and the children the schema lets an element of `size` bytes of `name` contain, into `count`: NULL
 // where it gives none (maven_schema.c)
-void cli_xml_parse(const char *text, unsigned long long size, CliXml *xml);
-void cli_xml_error_written(const CliXml *xml, const CliXmlError *error, VerbaLinea *out);
-unsigned int cli_xml_root(const CliXml *xml);
-unsigned int cli_xml_child(const CliXml *xml, unsigned int of, const char *name);
-int cli_xml_named(const CliXml *xml, unsigned int element, const char *name);
-int cli_xml_text(const CliXml *xml, unsigned int of, VerbaLinea *out);
-int cli_xml_text_of(const CliXml *xml, unsigned int of, const char *name, VerbaLinea *out);
-unsigned int cli_xml_at_path(const CliXml *xml, unsigned int of, const char *const *path, unsigned int count);
-int cli_xml_inside_free(const CliXml *xml, unsigned int at);
-const char *const *cli_maven_schema(const char *name, unsigned long long size, unsigned int *count);
+void cli_xml_parse(const CliMavenXmlTextCtx *args);
+void cli_xml_error_write(const CliMavenXmlErrorCtx *args);
+unsigned int cli_xml_root(const CliMavenXmlProjectCtx *args);
+unsigned int cli_xml_child(const CliMavenXmlOutCtx *args);
+int cli_xml_by_name(const CliMavenXmlNameCtx *args);
+int cli_xml_text(const CliMavenXmlOutCtx *args);
+int cli_xml_text_get(const CliMavenXmlOutCtx *args);
+unsigned int cli_xml_at_path(const CliMavenXmlCtx *args);
+int cli_xml_inside_free(const CliMavenXmlAtCtx *args);
+const char *const *cli_maven_schema(const CliMavenSizeNameCtx *args);
 
 // whether a letter goes in an element's name
-int cli_xml_name_letter(unsigned int letter);
+int cli_xml_name_letter(const CliMavenCtx *args);
 
 // the scopes a dependency takes, the phases of Maven's lifecycles, the packagings and types, the booleans, the
 // properties a POM's `<properties>` most often sets, the first words of the properties Maven, Java and the system give
@@ -127,7 +146,7 @@ extern const char *const g_cli_maven_project_properties[11];
 // What a POM gives its children: its properties, each a name and a value, the dependencies its management gives a
 // version, by `group:artifact`, and whether it and each parent above it were read and one of its managed dependencies
 // imports a POM, each a text of the model's. Its lists and its texts stand in one cell taken at their most as it is
-// read, given back with cli_maven_model_given
+// read, given back with cli_maven_model_free
 typedef struct
 {
     unsigned int *name_at;
@@ -152,9 +171,9 @@ typedef struct
 // of `bytes` stored in the model's text: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit
 // (maven_model_text.c)
 extern CellOwner g_cli_maven_model_cells;
-void cli_maven_model_given(CliMavenModel *model);
-void cli_maven_model_taken(CliMavenModel *model);
-unsigned int cli_maven_model_text_stored(CliMavenModel *model, const char *bytes, unsigned long long size);
+void cli_maven_model_free(const CliMavenTextSizeModelCtx *args);
+void cli_maven_model_take(const CliMavenTextSizeModelCtx *args);
+unsigned int cli_maven_model_text_store(const CliMavenSizeModelCtx *args);
 
 // what the POM at `path`, `size` bytes of its text, gives its children, its parents read up to eight above it, into
 // `model`; the value of the property `name` the model sets, NULL where it sets none; `value` with each property it
@@ -163,14 +182,13 @@ unsigned int cli_maven_model_text_stored(CliMavenModel *model, const char *bytes
 // into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where no home folder is known; the user's `settings.xml`, the same;
 // and the program that runs the Maven build at `folder` of the tree at `root`, its wrapper, the nearest above it in the
 // tree, where one is, into `out`, sized for CLI_PATH_MAX_LEN (maven_model.c)
-void cli_maven_model_of(const char *path, const char *text, unsigned long long size, CliMavenModel *model);
-const char *cli_maven_property(const CliMavenModel *model, const char *name, unsigned long long size,
-                               unsigned long long *value_size);
-void cli_maven_resolve(const char *value, unsigned long long size, const CliMavenModel *model, VerbaLinea *out);
-int cli_maven_given(const char *name, unsigned long long size);
-int cli_maven_local_repository(char *out);
-int cli_maven_user_settings(char *out);
-void cli_maven_program(const char *root, const char *folder, char *out);
+void cli_maven_model_get(const CliMavenTextSizeModelCtx *args);
+const char *cli_maven_property(const CliMavenSizeCtx *args);
+void cli_maven_resolve(const CliMavenSizeOutCtx *args);
+int cli_maven_free(const CliMavenSizeNameCtx *args);
+int cli_maven_local_repository(const CliMavenOutCtx *args);
+int cli_maven_user_settings(const CliMavenOutCtx *args);
+void cli_maven_program(const CliMavenOutCtx *args);
 
 // What a POM's check works with: its XML, its model, the lines, the findings, its folder in the tree and the program
 // that runs its build
@@ -187,11 +205,9 @@ typedef struct
 // the findings of the POM at `path` of the tree at `root`, `size` bytes of its text; the fix that fetches the newest
 // build of the snapshot `coordinates` (maven_check.c); and the findings of the dependencies of the `<dependencies>` at
 // `list` (maven_dependencies.c)
-void cli_maven_check(const char *root, const char *path, const char *text, unsigned long long size,
-                     const CliBuildLines *lines, CliBuildFindings *found);
-void cli_maven_update(const CliMavenCheck *check, unsigned int finding, const char *coordinates,
-                      unsigned long long size);
-void cli_maven_dependencies(const CliMavenCheck *check, unsigned int list);
+void cli_maven_check(const CliMavenTextCtx *args);
+void cli_maven_update(const CliMavenSizeCheckCtx *args);
+void cli_maven_dependencies(const CliMavenCheckCtx *args);
 
 // the properties that set each of the compiler's settings, each its key, its label, its property and the element of the
 // compiler plugin's configuration that sets it there; the `maven-compiler-plugin` of a POM's build or its plugin
@@ -199,13 +215,326 @@ void cli_maven_dependencies(const CliMavenCheck *check, unsigned int list);
 // one above the `bin` that contains `mvn`, into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where none is known
 // (maven_settings.c)
 extern const char *const g_cli_maven_compiler[4][4];
-unsigned int cli_maven_compiler_plugin(const CliXml *xml, unsigned int project);
-int cli_maven_home(char *out);
+unsigned int cli_maven_compiler_plugin(const CliMavenXmlProjectCtx *args);
+int cli_maven_home(const CliMavenOutCtx *args);
 
 // what completes the word before byte `at` of the POM at `path`: an element's name after `<`, the name of the element
 // left open after `</`, a property's after `${`, and in an element's text the values it takes, the local repository's
 // groups, artifacts and versions among them (maven_complete.c)
-void cli_maven_complete(const char *path, const char *text, unsigned long long size, unsigned long long at,
-                        CliCompletions *items);
+void cli_maven_complete(const CliMavenTextSizeCtx *args);
+
+struct CliMavenTextCtx
+{
+    const char *text;
+    unsigned long long size;
+    const char *path;
+    const char *root;
+    const CliBuildLines *lines;
+    CliBuildFindings *found;
+};
+
+struct CliMavenTextSizeCtx
+{
+    const char *text;
+    unsigned long long size;
+    const char *path;
+    unsigned long long at_u64;
+    CliCompletions *items;
+};
+
+struct CliMavenTextSizeModelCtx
+{
+    const char *text;
+    unsigned long long size;
+    CliMavenModel *model;
+    const char *path;
+};
+
+struct CliMavenSizeCtx
+{
+    unsigned long long size;
+    const char *name;
+    const CliMavenModel *model_read;
+    unsigned long long *value_size;
+};
+
+struct CliMavenSizeOutCtx
+{
+    unsigned long long size;
+    VerbaLinea *out;
+    const CliMavenModel *model_read;
+    const char *value;
+};
+
+struct CliMavenSizeCheckCtx
+{
+    unsigned long long size;
+    const CliMavenCheck *check;
+    unsigned int finding;
+    const char *coordinates;
+};
+
+struct CliMavenXmlCtx
+{
+    const CliXml *xml;
+    unsigned int of;
+    const char *const *path_pointer;
+    unsigned int count;
+};
+
+struct CliMavenXmlOutCtx
+{
+    const CliXml *xml;
+    VerbaLinea *out;
+    unsigned int of;
+    const char *name;
+};
+
+struct CliMavenSizeModelCtx
+{
+    unsigned long long size;
+    CliMavenModel *model;
+    const char *bytes;
+};
+
+struct CliMavenOutCtx
+{
+    char *out_room;
+    const char *root;
+    const char *folder;
+};
+
+struct CliMavenSizeNameCtx
+{
+    unsigned long long size;
+    const char *name;
+    unsigned int *count_pointer;
+};
+
+struct CliMavenXmlErrorCtx
+{
+    const CliXml *xml;
+    const CliXmlError *error;
+    VerbaLinea *out;
+};
+
+struct CliMavenXmlNameCtx
+{
+    const CliXml *xml;
+    const char *name;
+    unsigned int element;
+};
+
+struct CliMavenXmlTextCtx
+{
+    CliXml *xml_out;
+    const char *text;
+    unsigned long long size;
+};
+
+struct CliMavenXmlProjectCtx
+{
+    const CliXml *xml;
+    unsigned int project;
+};
+
+struct CliMavenCheckCtx
+{
+    const CliMavenCheck *check;
+    unsigned int list;
+};
+
+struct CliMavenXmlAtCtx
+{
+    const CliXml *xml;
+    unsigned int at;
+};
+
+struct CliMavenCtx
+{
+    unsigned int letter;
+};
+
+typedef struct
+{
+    void (*xml_free)(const CliMavenXmlTextCtx *args);
+    void (*xml_parse)(const CliMavenXmlTextCtx *args);
+} CliMavenXmlTextNs;
+EMBED_TABLE_LAYOUT(CliMavenXmlTextNs, xml_free, xml_parse);
+EMBED_TABLE_STORAGE CliMavenXmlTextNs cli_maven_xml_text_internal EMBED_UNUSED = {
+    .xml_free = cli_xml_free,
+    .xml_parse = cli_xml_parse,
+};
+
+typedef struct
+{
+    void (*xml_error_write)(const CliMavenXmlErrorCtx *args);
+} CliMavenXmlErrorNs;
+EMBED_TABLE_LAYOUT(CliMavenXmlErrorNs, xml_error_write);
+EMBED_TABLE_STORAGE CliMavenXmlErrorNs cli_maven_xml_error_internal EMBED_UNUSED = {
+    .xml_error_write = cli_xml_error_write,
+};
+
+typedef struct
+{
+    unsigned int (*xml_root)(const CliMavenXmlProjectCtx *args);
+    unsigned int (*compiler_plugin)(const CliMavenXmlProjectCtx *args);
+} CliMavenXmlProjectNs;
+EMBED_TABLE_LAYOUT(CliMavenXmlProjectNs, xml_root, compiler_plugin);
+EMBED_TABLE_STORAGE CliMavenXmlProjectNs cli_maven_xml_project_internal EMBED_UNUSED = {
+    .xml_root = cli_xml_root,
+    .compiler_plugin = cli_maven_compiler_plugin,
+};
+
+typedef struct
+{
+    unsigned int (*xml_child)(const CliMavenXmlOutCtx *args);
+    int (*xml_text)(const CliMavenXmlOutCtx *args);
+    int (*xml_text_get)(const CliMavenXmlOutCtx *args);
+} CliMavenXmlOutNs;
+EMBED_TABLE_LAYOUT(CliMavenXmlOutNs, xml_child, xml_text, xml_text_get);
+EMBED_TABLE_STORAGE CliMavenXmlOutNs cli_maven_xml_out_internal EMBED_UNUSED = {
+    .xml_child = cli_xml_child,
+    .xml_text = cli_xml_text,
+    .xml_text_get = cli_xml_text_get,
+};
+
+typedef struct
+{
+    int (*xml_by_name)(const CliMavenXmlNameCtx *args);
+} CliMavenXmlNameNs;
+EMBED_TABLE_LAYOUT(CliMavenXmlNameNs, xml_by_name);
+EMBED_TABLE_STORAGE CliMavenXmlNameNs cli_maven_xml_name_internal EMBED_UNUSED = {
+    .xml_by_name = cli_xml_by_name,
+};
+
+typedef struct
+{
+    unsigned int (*xml_at_path)(const CliMavenXmlCtx *args);
+} CliMavenXmlNs;
+EMBED_TABLE_LAYOUT(CliMavenXmlNs, xml_at_path);
+EMBED_TABLE_STORAGE CliMavenXmlNs cli_maven_xml_internal EMBED_UNUSED = {
+    .xml_at_path = cli_xml_at_path,
+};
+
+typedef struct
+{
+    int (*xml_inside_free)(const CliMavenXmlAtCtx *args);
+} CliMavenXmlAtNs;
+EMBED_TABLE_LAYOUT(CliMavenXmlAtNs, xml_inside_free);
+EMBED_TABLE_STORAGE CliMavenXmlAtNs cli_maven_xml_at_internal EMBED_UNUSED = {
+    .xml_inside_free = cli_xml_inside_free,
+};
+
+typedef struct
+{
+    const char *const *(*schema)(const CliMavenSizeNameCtx *args);
+    int (*free)(const CliMavenSizeNameCtx *args);
+} CliMavenSizeNameNs;
+EMBED_TABLE_LAYOUT(CliMavenSizeNameNs, schema, free);
+EMBED_TABLE_STORAGE CliMavenSizeNameNs cli_maven_size_name_internal EMBED_UNUSED = {
+    .schema = cli_maven_schema,
+    .free = cli_maven_free,
+};
+
+typedef struct
+{
+    int (*xml_name_letter)(const CliMavenCtx *args);
+} CliMavenNsTable;
+EMBED_TABLE_LAYOUT(CliMavenNsTable, xml_name_letter);
+EMBED_TABLE_STORAGE CliMavenNsTable cli_maven_internal EMBED_UNUSED = {
+    .xml_name_letter = cli_xml_name_letter,
+};
+
+typedef struct
+{
+    void (*model_free)(const CliMavenTextSizeModelCtx *args);
+    void (*model_take)(const CliMavenTextSizeModelCtx *args);
+    void (*model_get)(const CliMavenTextSizeModelCtx *args);
+} CliMavenTextSizeModelNs;
+EMBED_TABLE_LAYOUT(CliMavenTextSizeModelNs, model_free, model_take, model_get);
+EMBED_TABLE_STORAGE CliMavenTextSizeModelNs cli_maven_text_size_model_internal EMBED_UNUSED = {
+    .model_free = cli_maven_model_free,
+    .model_take = cli_maven_model_take,
+    .model_get = cli_maven_model_get,
+};
+
+typedef struct
+{
+    unsigned int (*model_text_store)(const CliMavenSizeModelCtx *args);
+} CliMavenSizeModelNs;
+EMBED_TABLE_LAYOUT(CliMavenSizeModelNs, model_text_store);
+EMBED_TABLE_STORAGE CliMavenSizeModelNs cli_maven_size_model_internal EMBED_UNUSED = {
+    .model_text_store = cli_maven_model_text_store,
+};
+
+typedef struct
+{
+    const char *(*property)(const CliMavenSizeCtx *args);
+} CliMavenSizeNs;
+EMBED_TABLE_LAYOUT(CliMavenSizeNs, property);
+EMBED_TABLE_STORAGE CliMavenSizeNs cli_maven_size_internal EMBED_UNUSED = {
+    .property = cli_maven_property,
+};
+
+typedef struct
+{
+    void (*resolve)(const CliMavenSizeOutCtx *args);
+} CliMavenSizeOutNs;
+EMBED_TABLE_LAYOUT(CliMavenSizeOutNs, resolve);
+EMBED_TABLE_STORAGE CliMavenSizeOutNs cli_maven_size_out_internal EMBED_UNUSED = {
+    .resolve = cli_maven_resolve,
+};
+
+typedef struct
+{
+    int (*local_repository)(const CliMavenOutCtx *args);
+    int (*user_settings)(const CliMavenOutCtx *args);
+    void (*program)(const CliMavenOutCtx *args);
+    int (*home)(const CliMavenOutCtx *args);
+} CliMavenOutNs;
+EMBED_TABLE_LAYOUT(CliMavenOutNs, local_repository, user_settings, program, home);
+EMBED_TABLE_STORAGE CliMavenOutNs cli_maven_out_internal EMBED_UNUSED = {
+    .local_repository = cli_maven_local_repository,
+    .user_settings = cli_maven_user_settings,
+    .program = cli_maven_program,
+    .home = cli_maven_home,
+};
+
+typedef struct
+{
+    void (*check)(const CliMavenTextCtx *args);
+} CliMavenTextNs;
+EMBED_TABLE_LAYOUT(CliMavenTextNs, check);
+EMBED_TABLE_STORAGE CliMavenTextNs cli_maven_text_internal EMBED_UNUSED = {
+    .check = cli_maven_check,
+};
+
+typedef struct
+{
+    void (*update)(const CliMavenSizeCheckCtx *args);
+} CliMavenSizeCheckNs;
+EMBED_TABLE_LAYOUT(CliMavenSizeCheckNs, update);
+EMBED_TABLE_STORAGE CliMavenSizeCheckNs cli_maven_size_check_internal EMBED_UNUSED = {
+    .update = cli_maven_update,
+};
+
+typedef struct
+{
+    void (*dependencies)(const CliMavenCheckCtx *args);
+} CliMavenCheckNs;
+EMBED_TABLE_LAYOUT(CliMavenCheckNs, dependencies);
+EMBED_TABLE_STORAGE CliMavenCheckNs cli_maven_check_internal EMBED_UNUSED = {
+    .dependencies = cli_maven_dependencies,
+};
+
+typedef struct
+{
+    void (*complete)(const CliMavenTextSizeCtx *args);
+} CliMavenTextSizeNs;
+EMBED_TABLE_LAYOUT(CliMavenTextSizeNs, complete);
+EMBED_TABLE_STORAGE CliMavenTextSizeNs cli_maven_text_size_internal EMBED_UNUSED = {
+    .complete = cli_maven_complete,
+};
 
 #endif

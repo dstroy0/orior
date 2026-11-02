@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_export.c: the rows buffered, and then the rest the run gives, written to a file as CSV, TSV or JSON lines, the run
 // read on to its end and not run again, and how many are written reported after each 4096 it reads on
+#include "../command_line/callback_cfg.h"
 #include "../servers/lsp.h"
 #include "db_internal.h"
 
 #include "../text/text.h"
-
-// the bytes written to the file at a time, the most of the values of one buffered row read back, and the bytes a value
-// of a JSON line is written in
-#define CLI_DB_EXPORT_ROOM (1u << 20u)
-#define CLI_DB_EXPORT_ROW (1u << 20u)
-#define CLI_DB_EXPORT_VALUE_MORE 64ull
 
 // The writing of an export: its connection, its file and format, the bytes not yet written to it, whether a write
 // failed, how many rows it has written, the columns in the order a JSON line names them, each once, and a row's values;
@@ -30,118 +25,150 @@ typedef struct
     CliDbValue *values;
     unsigned int columns;
 } CliDbExport;
+// the bytes written to the file at a time, the most of the values of one buffered row read back, and the bytes a value
+// of a JSON line is written in
+#define CLI_DB_EXPORT_ROOM (1u << 20u)
+#define CLI_DB_EXPORT_ROW (1u << 20u)
+#define CLI_DB_EXPORT_VALUE_MORE 64ull
 
-// the bytes waiting written to the file
-static void export_flushed(CliDbExport *export)
+typedef struct
 {
-    if ((export->pending_size > 0u) && !export->broke)
+    CliDbExport *export;
+    const char *text;
+    unsigned long long size;
+    const CliDbValue *value;
+    const CliDbValue *values;
+    unsigned int count;
+} DbExportCtx;
+// the bytes waiting written to the file
+EMBED_INLINE void export_flush(const DbExportCtx *args)
+{
+    if ((args->export->pending_size > 0u) && !args->export->broke)
     {
-        export->broke = !cli_file_appended(export->path, export->pending, export->pending_size, 0);
+        args->export->broke =
+            !EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->export->path,
+                        .bytes = args->export->pending, .size = args->export->pending_size, .fresh = 0);
     }
-    export->pending_size = 0ull;
+    args->export->pending_size = 0ull;
 }
 
 // a text written after the bytes waiting, written out first where it does not fit after them
-static void export_put(CliDbExport *export, const char *text, unsigned long long size)
+EMBED_INLINE void export_put(const DbExportCtx *args)
 {
-    if (export->pending_size + size > CLI_DB_EXPORT_ROOM)
+    unsigned long long size = args->size;
+    if (args->export->pending_size + size > CLI_DB_EXPORT_ROOM)
     {
-        export_flushed(export);
+        export_flush(args);
     }
     if (size > CLI_DB_EXPORT_ROOM)
     {
-        export->broke = export->broke || !cli_file_appended(export->path, text, size, 0);
+        args->export->broke = args->export->broke ||
+                              !EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx,
+                                          .path = args->export->path, .bytes = args->text, .size = size, .fresh = 0);
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = export->pending + export->pending_size, .src = text, .bytes = (size_t)size});
-    export->pending_size += size;
+    memor.cpy(&(MemoriaCfg){
+        .dst = args->export->pending + args->export->pending_size, .src = args->text, .bytes = (size_t)size});
+    args->export->pending_size += size;
 }
 
 // a value written into a line of CSV: as it is, or quoted with its quotes doubled where it contains a comma, a quote or
 // a line's end
-static void export_csv_value(CliDbExport *export, const CliDbValue *value)
+EMBED_INLINE void export_csv_value(const DbExportCtx *args)
 {
-    if (value->null)
+    if (args->value->null)
     {
         return;
     }
     int quoted = 0;
-    for (unsigned long long at = 0ull; (at < value->size) && !quoted; at += 1ull)
+    for (unsigned long long at = 0ull; (at < args->value->size) && !quoted; at += 1ull)
     {
-        quoted = (cellul.chr(&(CatenaFinitaCfg){.src = ",\"\n\r", .cap = CLI_CELLS_POOL, .byte = value->text[at]}) !=
-                  NULL) &&
-                 (value->text[at] != '\0');
+        quoted =
+            (cellul.chr(&(CatenaFinitaCfg){.src = ",\"\n\r", .cap = CLI_CELLS_POOL, .byte = args->value->text[at]}) !=
+             NULL) &&
+            (args->value->text[at] != '\0');
     }
     if (!quoted)
     {
-        export_put(export, value->text, value->size);
+        EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = args->value->text,
+                   .size = args->value->size);
         return;
     }
-    export_put(export, "\"", 1ull);
-    for (unsigned long long at = 0ull; at < value->size; at += 1ull)
+    EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = "\"", .size = 1ull);
+    for (unsigned long long at = 0ull; at < args->value->size; at += 1ull)
     {
-        export_put(export, (value->text[at] == '"') ? "\"\"" : value->text + at,
-                   (value->text[at] == '"') ? 2ull : 1ull);
+        EMBED_CALL(export_put, DbExportCtx, .export = args->export,
+                   .text = (args->value->text[at] == '"') ? "\"\"" : args->value->text + at,
+                   .size = (args->value->text[at] == '"') ? 2ull : 1ull);
     }
-    export_put(export, "\"", 1ull);
+    EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = "\"", .size = 1ull);
 }
 
 // a row written as a line of the export's format
-static void export_line(CliDbExport *export, const CliDbValue *values, unsigned int count)
+static void export_line(const DbExportCtx *args)
 {
     char piece[CLI_DB_FIELD];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = export->format, .other = "json", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->export->format, .other = "json", .cap = CLI_CELLS_POOL}))
     {
         // an object of each column's name and value, the names in order and a name named twice retaining its last value
-        export_put(export, "{", 1ull);
-        for (unsigned int at = 0u; at < export->ordered; at += 1u)
+        EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = "{", .size = 1ull);
+        for (unsigned int at = 0u; at < args->export->ordered; at += 1u)
         {
-            const unsigned int column = export->order[at];
-            const char *const name = export->open->results.columns[column].name;
+            const unsigned int column = args->export->order[at];
+            const char *const name = args->export->open->results.columns[column].name;
             VerbaLinea line = {piece, sizeof(piece), 0ull};
             mmgr_line_put(&line, (at > 0u) ? "," : "");
-            cli_json_quoted_lossy(&line, (const unsigned char *)name,
-                                  cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &line,
+                       .text_bytes = (const unsigned char *)name,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
             mmgr_line_ch(&line, ':');
-            export_put(export, line.out, line.at);
-            if ((column >= count) || values[column].null)
+            EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = line.out, .size = line.at);
+            if ((column >= args->count) || args->values[column].null)
             {
-                export_put(export, "null", 4ull);
+                EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = "null", .size = 4ull);
                 continue;
             }
-            const unsigned long long value_room = (values[column].size * 6ull) + CLI_DB_EXPORT_VALUE_MORE;
+            const unsigned long long value_room = (args->values[column].size * 6ull) + CLI_DB_EXPORT_VALUE_MORE;
             char *const value_cell = g_cli_cells->temporary_buf_alloc(value_room, &g_cli_db_cells);
             VerbaLinea value = mmgr_line_over(value_cell, value_room);
-            cli_json_quoted_lossy(&value, (const unsigned char *)values[column].text, values[column].size);
-            export->broke = export->broke || !mmgr_line_ok(&value);
-            export_put(export, value.out, mmgr_line_ok(&value) ? value.at : 0ull);
+            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &value,
+                       .text_bytes = (const unsigned char *)args->values[column].text,
+                       .length = args->values[column].size);
+            args->export->broke = args->export->broke || !mmgr_line_ok(&value);
+            EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = value.out,
+                       .size = mmgr_line_ok(&value) ? value.at : 0ull);
             g_cli_cells->persistent_buf_release(value.out, &g_cli_db_cells);
         }
-        export_put(export, "}\n", 2ull);
+        EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = "}\n", .size = 2ull);
         return;
     }
-    const int tabs = (cellul.eq(&(CatenaFinitaCfg){.src = export->format, .other = "tsv", .cap = CLI_CELLS_POOL}));
-    for (unsigned int at = 0u; at < count; at += 1u)
+    const int tabs =
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->export->format, .other = "tsv", .cap = CLI_CELLS_POOL}));
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        export_put(export, (at > 0u) ? (tabs ? "\t" : ",") : "", (at > 0u) ? 1ull : 0ull);
+        EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = (at > 0u) ? (tabs ? "\t" : ",") : "",
+                   .size = (at > 0u) ? 1ull : 0ull);
         if (!tabs)
         {
-            export_csv_value(export, &values[at]);
+            EMBED_CALL(export_csv_value, DbExportCtx, .export = args->export, .value = &args->values[at]);
             continue;
         }
-        for (unsigned long long one = 0ull; !values[at].null && (one < values[at].size); one += 1ull)
+        for (unsigned long long one = 0ull; !args->values[at].null && (one < args->values[at].size); one += 1ull)
         {
-            const char letter = values[at].text[one];
-            export_put(export, ((letter == '\t') || (letter == '\n')) ? " " : values[at].text + one, 1ull);
+            const char letter = args->values[at].text[one];
+            EMBED_CALL(export_put, DbExportCtx, .export = args->export,
+                       .text = ((letter == '\t') || (letter == '\n')) ? " " : args->values[at].text + one,
+                       .size = 1ull);
         }
     }
-    export_put(export, "\n", 1ull);
+    EMBED_CALL(export_put, DbExportCtx, .export = args->export, .text = "\n", .size = 1ull);
 }
 
 // a buffered row's line, a JSON array of strings and nulls, read back into values and written
-static void export_results_line(void *context, const char *line, unsigned long long size)
+static void export_results_line(const CliEachLineSizeCfg *args)
 {
-    CliDbExport *const export = (CliDbExport *)context;
+    unsigned long long size = args->size;
+    CliDbExport *const export = (CliDbExport *)args->context;
     // the values read back take no more bytes than the line writes them in, each string's quotes room for its
     // terminator
     const unsigned long long room = (size < CLI_DB_EXPORT_ROW) ? (size + 1ull) : CLI_DB_EXPORT_ROW;
@@ -156,15 +183,15 @@ static void export_results_line(void *context, const char *line, unsigned long l
     for (unsigned long long at = 1ull; (at < size) && (count < export->columns);)
     {
         while ((at < size) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " ,", .cap = CLI_CELLS_POOL, .byte = line[at]}) != NULL))
+               (cellul.chr(&(CatenaFinitaCfg){.src = " ,", .cap = CLI_CELLS_POOL, .byte = args->line[at]}) != NULL))
         {
             at += 1ull;
         }
-        if ((at >= size) || (line[at] == ']'))
+        if ((at >= size) || (args->line[at] == ']'))
         {
             break;
         }
-        if (line[at] == 'n')
+        if (args->line[at] == 'n')
         {
             export->values[count] = (CliDbValue){NULL, 0ull, 1};
             count += 1u;
@@ -172,13 +199,16 @@ static void export_results_line(void *context, const char *line, unsigned long l
             continue;
         }
         unsigned long long end = at + 1ull;
-        end = cli_text_to_any(line, end, size, "\"\\");
-        while ((end < size) && (line[end] == '\\'))
+        end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line, .at = end,
+                         .size = size, .set = "\"\\");
+        while ((end < size) && (args->line[end] == '\\'))
         {
-            end = cli_text_to_any(line, end + 2ull, size, "\"\\");
+            end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line,
+                             .at = end + 2ull, .size = size, .set = "\"\\");
         }
         char *const text = texts + used;
-        if (!cli_lsp_string(line + at, end + 1u - at, text, room - used))
+        if (!EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = args->line + at, .length = end + 1u - at,
+                        .out_room = text, .room = room - used))
         {
             text[0] = '\0';
         }
@@ -188,16 +218,18 @@ static void export_results_line(void *context, const char *line, unsigned long l
         count += 1u;
         at = end + 1ull;
     }
-    export_line(export, export->values, count);
+    EMBED_CALL(export_line, DbExportCtx, .export = export, .values = export->values, .count = count);
     export->written += 1ull;
     g_cli_cells->persistent_buf_release(texts, &g_cli_db_cells);
 }
 
 // a row read on from the run written, and counted past those buffered
-static int export_row(void *context, const CliDbValue *values, unsigned int count)
+static int export_row(const CliDbRowCfg *args)
 {
-    CliDbExport *const export = (CliDbExport *)context;
-    export_line(export, values, count);
+    const CliDbValue *values = args->values;
+    unsigned int count = args->count;
+    CliDbExport *const export = (CliDbExport *)args->context;
+    EMBED_CALL(export_line, DbExportCtx, .export = export, .values = values, .count = count);
     export->written += 1ull;
     return !export->broke;
 }
@@ -210,51 +242,59 @@ typedef struct
     char tag[CLI_DB_TAG];
 } CliDbExportReading;
 
-static int export_read_on(void *context, CliDbLink *link, CliDbFailure *failure)
+static int export_read_on(const CliEachLinkFailureCfg *args)
 {
+    void *context = args->context;
+    CliDbLink *link = args->link;
+    CliDbFailure *failure = args->failure;
     CliDbExportReading *const reading = (CliDbExportReading *)context;
-    return cli_db_link_rows(link, 4096ull, export_row, reading->export, &reading->done, reading->tag, failure);
+    return EMBED_CALL(cli_db_link_failure_internal.link_rows, CliDbLinkFailureCtx, .link = link, .count = 4096ull,
+                      .each_row = export_row, .context = reading->export, .done = &reading->done, .tag = reading->tag,
+                      .failure = failure);
 }
 
 // the columns put in the order a JSON line names them, by their names' bytes, a name named twice once at its last
-static void export_ordered(CliDbExport *export)
+EMBED_INLINE void export_order(const DbExportCtx *args)
 {
-    const CliDbResults *const results = &export->open->results;
+    const CliDbResults *const results = &args->export->open->results;
     unsigned int count = 0u;
     for (unsigned int column = 0u; column < results->column_count; column += 1u)
     {
         unsigned int at = count;
-        while ((at > 0u) &&
-               (cli_text_order(results->columns[export->order[at - 1u]].name, results->columns[column].name) > 0))
+        while ((at > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                        .one = results->columns[args->export->order[at - 1u]].name,
+                                        .other_pointer = results->columns[column].name) > 0))
         {
             at -= 1u;
         }
-        if ((at > 0u) && (cellul.eq(&(CatenaFinitaCfg){.src = results->columns[export->order[at - 1u]].name,
+        if ((at > 0u) && (cellul.eq(&(CatenaFinitaCfg){.src = results->columns[args->export->order[at - 1u]].name,
                                                        .other = results->columns[column].name,
                                                        .cap = CLI_CELLS_POOL})))
         {
-            export->order[at - 1u] = column;
+            args->export->order[at - 1u] = column;
             continue;
         }
-        memor.move_up(&(MemoriaCfg){.dst = &export->order[at + 1u],
-                                    .src = &export->order[at],
-                                    .bytes = (size_t)(count - at) * sizeof(export->order[0])});
-        export->order[at] = column;
+        memor.move_up(&(MemoriaCfg){.dst = &args->export->order[at + 1u],
+                                    .src = &args->export->order[at],
+                                    .bytes = (size_t)(count - at) * sizeof(args->export->order[0])});
+        args->export->order[at] = column;
         count += 1u;
     }
-    export->ordered = count;
+    args->export->ordered = count;
 }
 
-int cli_db_export(CliDbOpen *open, const char *path, const char *format,
-                  void (*progress)(void *context, unsigned long long written), void *context, VerbaLinea *out,
-                  CliDbFailure *failure)
+int cli_db_export(const CliDbOutCfg *args)
 {
-    CliDbResults *const results = &open->results;
-    cli_lock_take(&open->results_lock);
+    const char *path = args->path;
+    VerbaLinea *out = args->out;
+    CliDbFailure *failure = args->failure;
+    CliDbResults *const results = &args->open->results;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->open->results_lock);
     if (!results->has_columns)
     {
-        cli_lock_give(&open->results_lock);
-        cli_db_failure_set(failure, "no statement has given rows to export");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                   .message = "no statement has given rows to export");
         return 0;
     }
     // a row's values, the columns' order, then the bytes not yet written, each list on its type's boundary
@@ -265,19 +305,26 @@ int cli_db_export(CliDbOpen *open, const char *path, const char *format,
         g_cli_cells->temporary_buf_alloc(values_bytes + order_bytes + CLI_DB_EXPORT_ROOM, &g_cli_db_cells);
     if (cell == NULL)
     {
-        cli_lock_give(&open->results_lock);
-        cli_db_failure_set(failure, "the cells cannot meet an export");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                   .message = "the cells cannot meet an export");
         return 0;
     }
-    CliDbExport results_export = {open,   path,
-                                  format, cell + values_bytes + order_bytes,
-                                  0ull,   !cli_file_appended(path, "", 0ull, 1),
-                                  0ull,   (unsigned int *)(void *)(cell + values_bytes),
-                                  0u,     (CliDbValue *)(void *)cell,
+    CliDbExport results_export = {args->open,
+                                  path,
+                                  args->format,
+                                  cell + values_bytes + order_bytes,
+                                  0ull,
+                                  !EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path,
+                                              .bytes = "", .size = 0ull, .fresh = 1),
+                                  0ull,
+                                  (unsigned int *)(void *)(cell + values_bytes),
+                                  0u,
+                                  (CliDbValue *)(void *)cell,
                                   columns};
     CliDbExport *const export = &results_export;
-    export_ordered(export);
-    if (!export->broke && (!cellul.eq(&(CatenaFinitaCfg){.src = format, .other = "json", .cap = CLI_CELLS_POOL})))
+    EMBED_CALL(export_order, DbExportCtx, .export = export);
+    if (!export->broke && (!cellul.eq(&(CatenaFinitaCfg){.src = args->format, .other = "json", .cap = CLI_CELLS_POOL})))
     {
         for (unsigned int at = 0u; at < results->column_count; at += 1u)
         {
@@ -285,32 +332,35 @@ int cli_db_export(CliDbOpen *open, const char *path, const char *format,
                 results->columns[at].name,
                 cellul.len(&(CatenaFinitaCfg){.src = results->columns[at].name, .cap = CLI_CELLS_POOL}), 0};
         }
-        export_line(export, export->values, results->column_count);
+        EMBED_CALL(export_line, DbExportCtx, .export = export, .values = export->values,
+                   .count = results->column_count);
     }
     if (!export->broke)
     {
-        cli_db_results_lines(results, 0ull, results->rows, export_results_line, export);
+        EMBED_CALL(cli_db_context_internal.results_lines, CliDbContextCtx, .results = results, .start = 0ull,
+                   .end = results->rows, .each_callback = export_results_line, .context = export);
     }
     int read = 1;
     while (read && !export->broke && !results->has_done)
     {
         CliDbExportReading reading = {export, 0, ""};
         const unsigned long long before = export->written;
-        read = cli_db_with_query(open, export_read_on, &reading, failure);
+        read = EMBED_CALL(cli_db_failure_context_internal.with_query, CliDbFailureContextCtx, .open = args->open,
+                          .work = export_read_on, .context = &reading, .failure = failure);
         results->beyond += export->written - before;
         results->has_done = read && reading.done;
         memor.cpy(&(MemoriaCfg){
             .dst = results->done, .bytes = sizeof(results->done), .src = results->has_done ? reading.tag : ""});
-        if (read && (progress != NULL))
+        if (read && (args->progress != NULL))
         {
-            progress(context, export->written);
+            EMBED_CALL(args->progress, CliEachWrittenCfg, .context = args->context, .written = export->written);
         }
     }
-    export_flushed(export);
+    EMBED_CALL(export_flush, DbExportCtx, .export = export);
     const int broke = export->broke;
     const unsigned long long written = export->written;
     g_cli_cells->persistent_buf_release(cell, &g_cli_db_cells);
-    cli_lock_give(&open->results_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
     if (!read)
     {
         return 0;
@@ -322,14 +372,15 @@ int cli_db_export(CliDbOpen *open, const char *path, const char *format,
         mmgr_line_put(&line, path);
         mmgr_line_put(&line, ": the file could not be written");
         mmgr_line_finish(&line);
-        cli_db_failure_set(failure, msg_buf);
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = msg_buf);
         return 0;
     }
     mmgr_line_put(out, "{\"written\":");
     mmgr_line_decimal(out, written, 1u);
     mmgr_line_put(out, ",\"path\":");
-    cli_json_quoted_lossy(out, (const unsigned char *)path,
-                          cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)path,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
     mmgr_line_ch(out, '}');
     return 1;
 }

@@ -4,11 +4,28 @@
 // the folder its build stands in, and the program that runs a Maven build
 #ifndef BUILDS_INTERNAL_H
 #define BUILDS_INTERNAL_H
+typedef struct CliBuildsCtx CliBuildsCtx;
 
 #include "builds.h"
+#include "embed_dispatch_layout.h"
 
 // the program that runs the Gradle build in `folder`, its wrapper where one stands there and `gradle` where none does,
 // into `out`, sized for CLI_PATH_MAX_LEN (gradle.c)
-void cli_gradle_program(const char *folder, char *out);
+void cli_gradle_program(const CliBuildsCtx *args);
+
+struct CliBuildsCtx
+{
+    const char *folder;
+    char *out;
+};
+
+typedef struct
+{
+    void (*gradle_program)(const CliBuildsCtx *args);
+} CliBuildsNs;
+EMBED_TABLE_LAYOUT(CliBuildsNs, gradle_program);
+EMBED_TABLE_STORAGE CliBuildsNs cli_builds_internal EMBED_UNUSED = {
+    .gradle_program = cli_gradle_program,
+};
 
 #endif

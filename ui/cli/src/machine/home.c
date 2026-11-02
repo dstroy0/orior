@@ -24,23 +24,27 @@
     "   :root[data-scheme] { --fuse-fire: #ff7a1a; --code: \"Fira Code\", monospace; }\n\n"                            \
     "   Any other rule of CSS works here as well. */\n"
 
-int cli_home_folder(char *folder)
+int cli_home_folder(const CliFolderCtx *args)
 {
-    if (query_environment_read("ORIOR_HOME", folder, CLI_PATH_MAX_LEN))
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_HOME",
+                   .value_out = args->folder_out, .room = CLI_PATH_MAX_LEN))
     {
         return 1;
     }
     char base[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
-    if (!query_environment_read("APPDATA", base, sizeof(base)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "APPDATA", .value_out = base,
+                    .room = sizeof(base)))
     {
         return 0;
     }
 #else
-    if (!query_environment_read("XDG_CONFIG_HOME", base, sizeof(base)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XDG_CONFIG_HOME",
+                    .value_out = base, .room = sizeof(base)))
     {
         char home[CLI_PATH_MAX_LEN];
-        if (!query_environment_read("HOME", home, sizeof(home)))
+        if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME",
+                        .value_out = home, .room = sizeof(home)))
         {
             return 0;
         }
@@ -53,53 +57,63 @@ int cli_home_folder(char *folder)
         }
     }
 #endif
-    VerbaLinea line = {folder, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, base);
     mmgr_line_put(&line, "/orior");
     return mmgr_line_finish(&line) != 0ull;
 }
 
+typedef struct
+{
+    const char *name;
+    char *path;
+    const char *path_read;
+    const char *text;
+    VerbaLinea *err_msg;
+} HomeCtx;
 // `name` in orior's own folder into `path`: 1, or 0 where orior_cli has no folder of its own
-static int cli_home_named(const char *name, char *path)
+EMBED_INLINE int cli_home_by_name(const HomeCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    if (!cli_home_folder(folder))
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
     {
         return 0;
     }
-    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, folder);
     mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
     return mmgr_line_finish(&line) != 0ull;
 }
 
-int cli_home_plugins(char *folder)
+int cli_home_plugins(const CliFolderCtx *args)
 {
-    return cli_home_named("plugins", folder);
+    return EMBED_CALL(cli_home_by_name, HomeCtx, .name = "plugins", .path = args->folder_out);
 }
 
-int cli_home_user_css(char *path)
+int cli_home_user_css(const CliPathErrMsgKindCtx *args)
 {
-    return cli_home_named("user.css", path);
+    return EMBED_CALL(cli_home_by_name, HomeCtx, .name = "user.css", .path = args->path_out);
 }
 
-int cli_home_menus(char *path)
+int cli_home_menus(const CliPathErrMsgKindCtx *args)
 {
-    return cli_home_named("menus.json", path);
+    return EMBED_CALL(cli_home_by_name, HomeCtx, .name = "menus.json", .path = args->path_out);
 }
 
 // the folder of the reader's language files, `<tag>.json` each, which give the window's texts in the reader's language
 // (the window's language.js)
-int cli_home_languages(char *folder)
+int cli_home_languages(const CliFolderCtx *args)
 {
-    return cli_home_named("languages", folder);
+    return EMBED_CALL(cli_home_by_name, HomeCtx, .name = "languages", .path = args->folder_out);
 }
 
 // the file at `path` made with `text` where it is not there yet, its folder with it
-static int cli_home_ensured(const char *path, const char *text, VerbaLinea *err_msg)
+EMBED_INLINE int cli_home_ensure(const HomeCtx *args)
 {
-    if (query_is_file(path))
+    const char *path = args->path_read;
+    const char *text = args->text;
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
     {
         return 1;
     }
@@ -107,61 +121,65 @@ static int cli_home_ensured(const char *path, const char *text, VerbaLinea *err_
     memor.cpy(&(MemoriaCfg){
         .dst = folder, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     char *const slash =
-        cli_text_last(folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), '/');
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = folder,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .byte = '/');
     if (slash != NULL)
     {
         *slash = '\0';
-        if (!query_folder_made(folder))
+        if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder))
         {
-            mmgr_line_put(err_msg, folder);
-            mmgr_line_put(err_msg, ": it could not be made");
+            mmgr_line_put(args->err_msg, folder);
+            mmgr_line_put(args->err_msg, ": it could not be made");
             return 0;
         }
     }
-    if (!query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})))
+    if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = text,
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})))
     {
-        mmgr_line_put(err_msg, path);
-        mmgr_line_put(err_msg, ": it could not be written");
+        mmgr_line_put(args->err_msg, path);
+        mmgr_line_put(args->err_msg, ": it could not be written");
         return 0;
     }
     return 1;
 }
 
-int cli_home_ensure_menus(char *path, VerbaLinea *err_msg)
+int cli_home_ensure_menus(const CliPathErrMsgKindCtx *args)
 {
-    if (!cli_home_menus(path))
+    if (!cli_path_err_msg_kind_internal.home_menus(args))
     {
-        mmgr_line_put(err_msg, "orior_cli has no folder of its own to store menus in");
+        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store menus in");
         return 0;
     }
-    return cli_home_ensured(path, CLI_MENUS, err_msg);
+    return EMBED_CALL(cli_home_ensure, HomeCtx, .path_read = args->path_out, .text = CLI_MENUS,
+                      .err_msg = args->err_msg);
 }
 
-int cli_home_ensure_user_css(char *path, VerbaLinea *err_msg)
+int cli_home_ensure_user_css(const CliPathErrMsgKindCtx *args)
 {
-    if (!cli_home_user_css(path))
+    if (!cli_path_err_msg_kind_internal.home_user_css(args))
     {
-        mmgr_line_put(err_msg, "orior_cli has no folder of its own to store a stylesheet in");
+        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store a stylesheet in");
         return 0;
     }
-    return cli_home_ensured(path, CLI_USER_CSS, err_msg);
+    return EMBED_CALL(cli_home_ensure, HomeCtx, .path_read = args->path_out, .text = CLI_USER_CSS,
+                      .err_msg = args->err_msg);
 }
 
-int cli_home_reveal(const char *path, VerbaLinea *err_msg)
+int cli_home_reveal(const CliPathErrMsgNameCtx *args)
 {
 #if defined(_WIN32)
-    const char *const words[3] = {"explorer", path, NULL};
+    const char *const words[3] = {"explorer", args->path, NULL};
 #elif defined(__APPLE__)
-    const char *const words[3] = {"open", path, NULL};
+    const char *const words[3] = {"open", args->path, NULL};
 #else
-    const char *const words[3] = {"xdg-open", path, NULL};
+    const char *const words[3] = {"xdg-open", args->path, NULL};
 #endif
     // the file manager or the program it opens in is the reader's, and stays as orior_cli ends
     unsigned int id = 0u;
-    if (!cli_started_outside(words, &id))
+    if (!EMBED_CALL(cli_words_id_internal.started_outside, CliWordsIdCtx, .words = words, .id = &id))
     {
-        mmgr_line_put(err_msg, path);
-        mmgr_line_put(err_msg, ": it could not be opened");
+        mmgr_line_put(args->err_msg, args->path);
+        mmgr_line_put(args->err_msg, ": it could not be opened");
         return 0;
     }
     return 1;

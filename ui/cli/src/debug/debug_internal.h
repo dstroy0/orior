@@ -4,10 +4,28 @@
 // what it is, and the marks its stops are read by
 #ifndef DEBUG_INTERNAL_H
 #define DEBUG_INTERNAL_H
+typedef struct CliDebugErrMsgCtx CliDebugErrMsgCtx;
+typedef struct CliDebugErrMsgLanguageCtx CliDebugErrMsgLanguageCtx;
+typedef struct CliDebugJsonCtx CliDebugJsonCtx;
+typedef struct CliDebugSessionCtx CliDebugSessionCtx;
+typedef struct CliDebugOutCtx CliDebugOutCtx;
+typedef struct CliDebugSessionCommandCtx CliDebugSessionCommandCtx;
+typedef struct CliDebugJsonLanguageCtx CliDebugJsonLanguageCtx;
+typedef struct CliDebugTextCtx CliDebugTextCtx;
+typedef struct CliDebugSessionErrMsgCtx CliDebugSessionErrMsgCtx;
+typedef struct CliDebugErrMsgProgramCtx CliDebugErrMsgProgramCtx;
+typedef struct CliDebugJsonNodeCtx CliDebugJsonNodeCtx;
+typedef struct CliDebugJsonNodeFallbackCtx CliDebugJsonNodeFallbackCtx;
+typedef struct CliDebugJsonNodeValueU64sCtx CliDebugJsonNodeValueU64sCtx;
+typedef struct CliDebugInfoCtx CliDebugInfoCtx;
+typedef struct CliDebugErrMsgIdCtx CliDebugErrMsgIdCtx;
+typedef struct CliDebugFileCtx CliDebugFileCtx;
+typedef struct CliDebugCtx CliDebugCtx;
 
 #include "../builds/compile_db.h"
 #include "../command_line/cells.h"
 #include "debug.h"
+#include "embed_dispatch_layout.h"
 
 // the most requests sent to adapters at once, and the most bytes of a request's arguments
 #define CLI_DEBUG_ANSWERS 4u
@@ -114,7 +132,7 @@ typedef struct
 } CliDebugSession;
 
 // a place freed, its lists and its tree given back, under the sessions' lock (debug_place.c)
-void cli_debug_place_freed(CliDebugSession *place);
+void cli_debug_place_free(const CliDebugCtx *args);
 
 // The sessions, the number the next takes, their lock and the wake of a session's adapter reporting it is initialized
 typedef struct
@@ -140,26 +158,24 @@ typedef struct
 // a request's room taken, waiting while every one is in use, its arguments empty to write into `answer`; `command`
 // sent to the session taken with those arguments, an empty object where none are written, its answer waited for up
 // to `wait` milliseconds and read: 1, or 0 with why given; and the room given back (debug_session.c)
-CliDebugAnswer *cli_debug_answer_taken(void);
-int cli_debug_request(CliDebugSession *session, const char *command, CliDebugAnswer *answer, unsigned long long wait,
-                      VerbaLinea *err_msg);
-void cli_debug_answer_given(CliDebugAnswer *answer);
+CliDebugAnswer *cli_debug_answer_take(void);
+int cli_debug_request(const CliDebugSessionCommandCtx *args);
+void cli_debug_answer_free(const CliDebugSessionCommandCtx *args);
 
 // session `id` listed, taken for a request, its adapter referenced: NULL with "that session has ended" given where it
 // is not listed; a session taken let go, its adapter given back, its place freed where it was the last use of a session
 // no longer listed whose adapter ended; a free place taken for a session, NULL where every one is taken; and what a
 // session is written as the window reads it (debug_session.c)
-CliDebugSession *cli_debug_taken(unsigned long long id, VerbaLinea *err_msg);
-void cli_debug_let_go(CliDebugSession *session);
+CliDebugSession *cli_debug_take(const CliDebugErrMsgIdCtx *args);
+void cli_debug_let_go(const CliDebugSessionErrMsgCtx *args);
 CliDebugSession *cli_debug_place(void);
-void cli_debug_info_written(const CliDebugInfo *info, VerbaLinea *out);
+void cli_debug_info_write(const CliDebugInfoCtx *args);
 // the native session debugging the same process as Python session `id`, taken, NULL where there is none
-CliDebugSession *cli_debug_native_of(unsigned long long id);
+CliDebugSession *cli_debug_native_get(const CliDebugErrMsgIdCtx *args);
 
 // the breakpoints of `file` of the array `breakpoints` of `json` set through a session taken, each placed one's number
 // retained, each line and whether it is bound written into `out` as pairs: 1, or 0 with why given (debug_session.c)
-int cli_debug_set(CliDebugSession *session, const char *file, const CliJson *json, unsigned int breakpoints,
-                  VerbaLinea *out, VerbaLinea *err_msg);
+int cli_debug_set(const CliDebugSessionCtx *args);
 
 // whether node `node` of `json` is a whole number, it into `value`, and the same of one at least 0; whether it is
 // true; the text of a string node, `fallback` where it is none; whether a session in `language` debugs the file at
@@ -168,22 +184,18 @@ int cli_debug_set(CliDebugSession *session, const char *file, const CliJson *jso
 // of digits alone made a number where `numbered`; the arguments that set stepping for a session in `language` put in
 // the object `arguments` of `to`, as the object `stepping` of `json` specifies; and the breakpoints of the array
 // `breakpoints` of `json` written as the protocol writes them (debug_arguments.c)
-int cli_debug_signed(const CliJson *json, unsigned int node, long long *value);
-int cli_debug_unsigned(const CliJson *json, unsigned int node, unsigned long long *value);
-int cli_debug_true(const CliJson *json, unsigned int node);
-const char *cli_debug_text(const CliJson *json, unsigned int node, const char *fallback);
-int cli_debug_takes(const char *language, const char *file);
-unsigned long long cli_debug_base64(const char *text, unsigned long long size, unsigned char *out,
-                                    unsigned long long room);
-unsigned int cli_debug_filled(CliJson *to, const CliJson *json, unsigned int from, const char *const *names,
-                              const char *const *withs, unsigned int count, int numbered);
-void cli_debug_step_arguments(const char *language, const CliJson *json, unsigned int stepping, CliJson *to,
-                              unsigned int arguments);
-void cli_debug_breakpoints_written(const CliJson *json, unsigned int breakpoints, VerbaLinea *out);
+int cli_debug_sign(const CliDebugJsonNodeCtx *args);
+int cli_debug_unsigned(const CliDebugJsonNodeValueU64sCtx *args);
+int cli_debug_true(const CliDebugJsonNodeCtx *args);
+const char *cli_debug_text(const CliDebugJsonNodeFallbackCtx *args);
+int cli_debug_takes(const CliDebugFileCtx *args);
+unsigned long long cli_debug_base64(const CliDebugTextCtx *args);
+unsigned int cli_debug_fill(const CliDebugJsonCtx *args);
+void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args);
+void cli_debug_breakpoints_write(const CliDebugSessionCtx *args);
 // the stack frame at node `frame` of an adapter's answer written as the window reads it, `{"id", "name", "path",
 // "line", "col", "ip"}`, its line and column counted from 0 and its path written by `named` (debug_requests.c)
-void cli_debug_frame_written(const CliJson *json, unsigned int frame, CliDebugPathWritten named, void *context,
-                             VerbaLinea *out);
+void cli_debug_frame_write(const CliDebugOutCtx *args);
 
 // the adapter for `language` that is found, the toolchain `ahead` names tried first, its spec made in `json` from the
 // manifest, its node, the toolchain's name and id, and the program's path, each into what is sized for its longest: 1,
@@ -191,11 +203,9 @@ void cli_debug_frame_written(const CliJson *json, unsigned int frame, CliDebugPa
 // `program`; and the file at `path` built for debugging where its language is built, by the toolchain `ahead` names
 // where it builds it and the first found where not, the program into `program`: 1 with `built` set, 1 with it clear for
 // a language that runs from its source, or 0 with why given (debug_find.c)
-int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, unsigned int *spec, char *tool,
-                      char *tool_id, char *program, VerbaLinea *err_msg);
-int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *err_msg);
-int cli_debug_build(const char *root, const char *path, const char *language, const char *ahead, char *program,
-                    int *built, VerbaLinea *err_msg);
+int cli_debug_adapter(const CliDebugErrMsgCtx *args);
+int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args);
+int cli_debug_build(const CliDebugErrMsgLanguageCtx *args);
 
 // an adapter's event received for the session in place `context`; a stop at a breakpoint the reader did not place, in a
 // session whose data breakpoints are lldb's own watchpoints, reported as the stop of a data breakpoint, which it is
@@ -204,10 +214,313 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
 // `text` run as a command of lldb's own in the session taken, what it prints into `out`: 1, or 0 with why given, a
 // command that failed reported in the answer's text; and orior's script loaded into lldb in the session taken, once
 // (debug_step.c)
-int cli_debug_lldb_command(CliDebugSession *session, const char *text, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_debug_lldb_script(CliDebugSession *session, VerbaLinea *err_msg);
+int cli_debug_lldb_command(const CliDebugSessionErrMsgCtx *args);
+int cli_debug_lldb_script(const CliDebugSessionErrMsgCtx *args);
 
 // orior's script in lldb (debug_lldb.c)
 extern const char g_cli_debug_lldb_script[];
+
+struct CliDebugErrMsgCtx
+{
+    VerbaLinea *err_msg;
+    const char *language;
+    const char *ahead;
+    CliJson *json_out;
+    unsigned int *spec;
+    char *tool;
+    char *tool_id;
+    char *program;
+};
+
+struct CliDebugErrMsgLanguageCtx
+{
+    VerbaLinea *err_msg;
+    const char *language;
+    const char *ahead;
+    char *program;
+    const char *root;
+    const char *path;
+    int *built;
+};
+
+struct CliDebugJsonCtx
+{
+    const CliJson *json;
+    CliJson *to;
+    unsigned int from;
+    const char *const *names;
+    const char *const *withs;
+    unsigned int count;
+    int numbered;
+};
+
+struct CliDebugSessionCtx
+{
+    CliDebugSession *session;
+    VerbaLinea *err_msg;
+    VerbaLinea *out;
+    const char *file;
+    const CliJson *json;
+    unsigned int breakpoints;
+};
+
+struct CliDebugOutCtx
+{
+    VerbaLinea *out;
+    const CliJson *json;
+    unsigned int frame;
+    CliDebugPathWritten named;
+    void *context;
+};
+
+struct CliDebugSessionCommandCtx
+{
+    CliDebugSession *session;
+    const char *command;
+    CliDebugAnswer *answer;
+    unsigned long long wait;
+    VerbaLinea *err_msg;
+};
+
+struct CliDebugJsonLanguageCtx
+{
+    const CliJson *json;
+    const char *language;
+    CliJson *to;
+    unsigned int stepping;
+    unsigned int arguments;
+};
+
+struct CliDebugTextCtx
+{
+    const char *text;
+    unsigned long long size;
+    unsigned char *out_bytes;
+    unsigned long long room;
+};
+
+struct CliDebugSessionErrMsgCtx
+{
+    CliDebugSession *session;
+    VerbaLinea *err_msg;
+    VerbaLinea *out;
+    const char *text;
+};
+
+struct CliDebugErrMsgProgramCtx
+{
+    VerbaLinea *err_msg;
+    char *program;
+    const CliProgram *made;
+};
+
+struct CliDebugJsonNodeCtx
+{
+    const CliJson *json;
+    unsigned int node;
+    long long *value;
+};
+
+struct CliDebugJsonNodeFallbackCtx
+{
+    const CliJson *json;
+    unsigned int node;
+    const char *fallback;
+};
+
+struct CliDebugJsonNodeValueU64sCtx
+{
+    const CliJson *json;
+    unsigned int node;
+    unsigned long long *value_u64s;
+};
+
+struct CliDebugInfoCtx
+{
+    const CliDebugInfo *info;
+    VerbaLinea *out;
+};
+
+struct CliDebugErrMsgIdCtx
+{
+    VerbaLinea *err_msg;
+    unsigned long long id;
+};
+
+struct CliDebugFileCtx
+{
+    const char *file;
+    const char *language;
+};
+
+struct CliDebugCtx
+{
+    CliDebugSession *place;
+};
+
+typedef struct
+{
+    void (*place_free)(const CliDebugCtx *args);
+} CliDebugNsTable;
+EMBED_TABLE_LAYOUT(CliDebugNsTable, place_free);
+EMBED_TABLE_STORAGE CliDebugNsTable cli_debug_internal EMBED_UNUSED = {
+    .place_free = cli_debug_place_free,
+};
+
+typedef struct
+{
+    int (*request)(const CliDebugSessionCommandCtx *args);
+    void (*answer_free)(const CliDebugSessionCommandCtx *args);
+} CliDebugSessionCommandNs;
+EMBED_TABLE_LAYOUT(CliDebugSessionCommandNs, request, answer_free);
+EMBED_TABLE_STORAGE CliDebugSessionCommandNs cli_debug_session_command_internal EMBED_UNUSED = {
+    .request = cli_debug_request,
+    .answer_free = cli_debug_answer_free,
+};
+
+typedef struct
+{
+    CliDebugSession *(*take)(const CliDebugErrMsgIdCtx *args);
+    CliDebugSession *(*native_get)(const CliDebugErrMsgIdCtx *args);
+} CliDebugErrMsgIdNs;
+EMBED_TABLE_LAYOUT(CliDebugErrMsgIdNs, take, native_get);
+EMBED_TABLE_STORAGE CliDebugErrMsgIdNs cli_debug_err_msg_id_internal EMBED_UNUSED = {
+    .take = cli_debug_take,
+    .native_get = cli_debug_native_get,
+};
+
+typedef struct
+{
+    void (*let_go)(const CliDebugSessionErrMsgCtx *args);
+    int (*lldb_command)(const CliDebugSessionErrMsgCtx *args);
+    int (*lldb_script)(const CliDebugSessionErrMsgCtx *args);
+} CliDebugSessionErrMsgNs;
+EMBED_TABLE_LAYOUT(CliDebugSessionErrMsgNs, let_go, lldb_command, lldb_script);
+EMBED_TABLE_STORAGE CliDebugSessionErrMsgNs cli_debug_session_err_msg_internal EMBED_UNUSED = {
+    .let_go = cli_debug_let_go,
+    .lldb_command = cli_debug_lldb_command,
+    .lldb_script = cli_debug_lldb_script,
+};
+
+typedef struct
+{
+    void (*info_write)(const CliDebugInfoCtx *args);
+} CliDebugInfoNs;
+EMBED_TABLE_LAYOUT(CliDebugInfoNs, info_write);
+EMBED_TABLE_STORAGE CliDebugInfoNs cli_debug_info_internal EMBED_UNUSED = {
+    .info_write = cli_debug_info_write,
+};
+
+typedef struct
+{
+    int (*set)(const CliDebugSessionCtx *args);
+    void (*breakpoints_write)(const CliDebugSessionCtx *args);
+} CliDebugSessionNs;
+EMBED_TABLE_LAYOUT(CliDebugSessionNs, set, breakpoints_write);
+EMBED_TABLE_STORAGE CliDebugSessionNs cli_debug_session_internal EMBED_UNUSED = {
+    .set = cli_debug_set,
+    .breakpoints_write = cli_debug_breakpoints_write,
+};
+
+typedef struct
+{
+    int (*debug_sign)(const CliDebugJsonNodeCtx *args);
+    int (*debug_true)(const CliDebugJsonNodeCtx *args);
+} CliDebugJsonNodeNs;
+EMBED_TABLE_LAYOUT(CliDebugJsonNodeNs, debug_sign, debug_true);
+EMBED_TABLE_STORAGE CliDebugJsonNodeNs cli_debug_json_node_internal EMBED_UNUSED = {
+    .debug_sign = cli_debug_sign,
+    .debug_true = cli_debug_true,
+};
+
+typedef struct
+{
+    int (*debug_unsigned)(const CliDebugJsonNodeValueU64sCtx *args);
+} CliDebugJsonNodeValueU64sNs;
+EMBED_TABLE_LAYOUT(CliDebugJsonNodeValueU64sNs, debug_unsigned);
+EMBED_TABLE_STORAGE CliDebugJsonNodeValueU64sNs cli_debug_json_node_value_u_64s_internal EMBED_UNUSED = {
+    .debug_unsigned = cli_debug_unsigned,
+};
+
+typedef struct
+{
+    const char *(*text)(const CliDebugJsonNodeFallbackCtx *args);
+} CliDebugJsonNodeFallbackNs;
+EMBED_TABLE_LAYOUT(CliDebugJsonNodeFallbackNs, text);
+EMBED_TABLE_STORAGE CliDebugJsonNodeFallbackNs cli_debug_json_node_fallback_internal EMBED_UNUSED = {
+    .text = cli_debug_text,
+};
+
+typedef struct
+{
+    int (*takes)(const CliDebugFileCtx *args);
+} CliDebugFileNs;
+EMBED_TABLE_LAYOUT(CliDebugFileNs, takes);
+EMBED_TABLE_STORAGE CliDebugFileNs cli_debug_file_internal EMBED_UNUSED = {
+    .takes = cli_debug_takes,
+};
+
+typedef struct
+{
+    unsigned long long (*base64)(const CliDebugTextCtx *args);
+} CliDebugTextNs;
+EMBED_TABLE_LAYOUT(CliDebugTextNs, base64);
+EMBED_TABLE_STORAGE CliDebugTextNs cli_debug_text_internal EMBED_UNUSED = {
+    .base64 = cli_debug_base64,
+};
+
+typedef struct
+{
+    unsigned int (*fill)(const CliDebugJsonCtx *args);
+} CliDebugJsonNsTable;
+EMBED_TABLE_LAYOUT(CliDebugJsonNsTable, fill);
+EMBED_TABLE_STORAGE CliDebugJsonNsTable cli_debug_json_internal EMBED_UNUSED = {
+    .fill = cli_debug_fill,
+};
+
+typedef struct
+{
+    void (*step_arguments)(const CliDebugJsonLanguageCtx *args);
+} CliDebugJsonLanguageNs;
+EMBED_TABLE_LAYOUT(CliDebugJsonLanguageNs, step_arguments);
+EMBED_TABLE_STORAGE CliDebugJsonLanguageNs cli_debug_json_language_internal EMBED_UNUSED = {
+    .step_arguments = cli_debug_step_arguments,
+};
+
+typedef struct
+{
+    void (*frame_write)(const CliDebugOutCtx *args);
+} CliDebugOutNsTable;
+EMBED_TABLE_LAYOUT(CliDebugOutNsTable, frame_write);
+EMBED_TABLE_STORAGE CliDebugOutNsTable cli_debug_out_internal EMBED_UNUSED = {
+    .frame_write = cli_debug_frame_write,
+};
+
+typedef struct
+{
+    int (*adapter)(const CliDebugErrMsgCtx *args);
+} CliDebugErrMsgNs;
+EMBED_TABLE_LAYOUT(CliDebugErrMsgNs, adapter);
+EMBED_TABLE_STORAGE CliDebugErrMsgNs cli_debug_err_msg_internal EMBED_UNUSED = {
+    .adapter = cli_debug_adapter,
+};
+
+typedef struct
+{
+    int (*build_program)(const CliDebugErrMsgProgramCtx *args);
+} CliDebugErrMsgProgramNs;
+EMBED_TABLE_LAYOUT(CliDebugErrMsgProgramNs, build_program);
+EMBED_TABLE_STORAGE CliDebugErrMsgProgramNs cli_debug_err_msg_program_internal EMBED_UNUSED = {
+    .build_program = cli_debug_build_program,
+};
+
+typedef struct
+{
+    int (*build)(const CliDebugErrMsgLanguageCtx *args);
+} CliDebugErrMsgLanguageNs;
+EMBED_TABLE_LAYOUT(CliDebugErrMsgLanguageNs, build);
+EMBED_TABLE_STORAGE CliDebugErrMsgLanguageNs cli_debug_err_msg_language_internal EMBED_UNUSED = {
+    .build = cli_debug_build,
+};
 
 #endif

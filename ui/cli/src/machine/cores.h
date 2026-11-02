@@ -7,8 +7,10 @@
 // the reader's settings the first time it is read
 #ifndef CORES_H
 #define CORES_H
+typedef struct CliCoresCfg CliCoresCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the setting's key, as settings.json stores it, and the fewest cores reserved for the reader
 #define CLI_CORES_KEY "cores-reserved"
@@ -19,8 +21,22 @@
 // reserved, as given or as the reader's settings set them; and the cores orior's work may take, the machine's less
 // those reserved, one at the fewest
 unsigned int cli_cores_machine(void);
-void cli_cores_reserve(unsigned int reserved);
-unsigned int cli_cores_reserved(void);
+void cli_cores_reserve(const CliCoresCfg *args);
+unsigned int cli_cores_on_reserve(void);
 unsigned int cli_cores_for_work(void);
+
+struct CliCoresCfg
+{
+    unsigned int reserved;
+};
+
+typedef struct
+{
+    void (*reserve)(const CliCoresCfg *args);
+} CliCoresNs;
+EMBED_TABLE_LAYOUT(CliCoresNs, reserve);
+EMBED_TABLE_STORAGE CliCoresNs cli_cores EMBED_UNUSED = {
+    .reserve = cli_cores_reserve,
+};
 
 #endif

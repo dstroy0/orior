@@ -8,46 +8,60 @@
 #include "../text/json_tree.h"
 #include "link_internal.h"
 
-// the machine, as the window names it, into `out`
-static void link_machine_written(VerbaLinea *out)
+typedef struct
 {
-    cli_link_machine(&g_cli_link.address, out);
+    VerbaLinea *out;
+    const char *why;
+    unsigned long long size;
+    VerbaLinea *why_verba_linea_pointer;
+    unsigned long long until;
+    unsigned long long pipe;
+    unsigned long long id;
+    const char *name;
+    const char *request;
+} LinkSupervisorCtx;
+
+// the machine, as the window names it, into `out`
+EMBED_INLINE void link_machine_write(const LinkSupervisorCtx *args)
+{
+    VerbaLinea *out = args->out;
+    EMBED_CALL(cli_link_out.machine, CliLinkOutCfg, .address = &g_cli_link.address, .out = out);
 }
 
-// the server's process ended and let go, on the keeper's thread: ended under both locks, so that no call writes to
+// the server's process ended and let go, on the store's thread: ended under both locks, so that no call writes to
 // it and nothing ends it again, then waited on with its errors' reader, and let go under both locks
-static void link_server_stopped(void)
+static void link_server_stop(void)
 {
-    cli_lock_take(&g_cli_link_writing);
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_writing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.joined = 0;
     g_cli_link.stopping = 1;
-    cli_spawn_input_closed(&g_cli_link.spawned);
-    cli_spawn_killed(&g_cli_link.spawned);
-    cli_lock_give(&g_cli_link_lock);
-    cli_lock_give(&g_cli_link_writing);
-    (void)cli_spawn_wait(&g_cli_link.spawned);
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &g_cli_link.spawned);
+    EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &g_cli_link.spawned);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_writing);
+    (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &g_cli_link.spawned);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     while (g_cli_link.reading_errors)
     {
-        cli_wake_wait(&g_cli_link_changed, &g_cli_link_lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &g_cli_link_changed, .lock = &g_cli_link_lock);
     }
-    cli_lock_give(&g_cli_link_lock);
-    cli_lock_take(&g_cli_link_writing);
-    cli_lock_take(&g_cli_link_lock);
-    cli_spawn_closed(&g_cli_link.spawned);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_writing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
+    EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &g_cli_link.spawned);
     g_cli_link.running = 0;
     g_cli_link.stopping = 0;
-    cli_wake_all(&g_cli_link_changed);
-    cli_lock_give(&g_cli_link_lock);
-    cli_lock_give(&g_cli_link_writing);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_link_changed);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_writing);
 }
 
 // the link dropped: its server let go of, and every call waiting answered with the drop and why, `size` bytes of it
-static void link_dropped(const char *why, unsigned long long size)
+EMBED_INLINE void link_on_drop(const LinkSupervisorCtx *args)
 {
-    link_server_stopped();
-    cli_lock_take(&g_cli_link_lock);
+    link_server_stop();
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     for (unsigned int at = 0u; at < CLI_LINK_CALLS; at += 1u)
     {
         CliLinkCall *const call = &g_cli_link.calls[at];
@@ -55,168 +69,191 @@ static void link_dropped(const char *why, unsigned long long size)
         {
             call->done = 2;
             mmgr_line_put(call->err_msg, "the link to ");
-            link_machine_written(call->err_msg);
+            EMBED_CALL(link_machine_write, LinkSupervisorCtx, .out = call->err_msg);
             mmgr_line_put(call->err_msg, " dropped");
-            if (size > 0u)
+            if (args->size > 0u)
             {
                 mmgr_line_put(call->err_msg, ": ");
-                mmgr_line_put_n(call->err_msg, why, size);
+                mmgr_line_put_n(call->err_msg, args->why, args->size);
             }
         }
     }
-    cli_wake_all(&g_cli_link_changed);
-    cli_lock_give(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_link_changed);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
 }
 
 // whether the line the server wrote first reports it serves
-static int link_serving(unsigned long long size)
+EMBED_INLINE int link_serving(const LinkSupervisorCtx *args)
 {
+    unsigned long long size = args->size;
     unsigned long long start = 0ull;
     unsigned long long length = 0ull;
     char event[16];
     VerbaLinea none = {NULL, 0ull, 0ull};
-    return cli_json_compacted(g_cli_link_line, size, &none) &&
-           cli_lsp_member(g_cli_link_line, size, "event", &start, &length) &&
-           cli_lsp_string(g_cli_link_line + start, length, event, sizeof(event)) &&
+    return EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = g_cli_link_line, .size = size,
+                      .out = &none) &&
+           EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = g_cli_link_line, .size_value = size, .name = "event",
+                      .start = &start, .length_pointer = &length) &&
+           EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = g_cli_link_line + start, .length = length,
+                      .out_room = event, .room = sizeof(event)) &&
            (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "serving", .cap = CLI_CELLS_POOL}));
 }
 
 // the server started on the machine and waited on to report it serves: 1, or 0 with why given
-static int link_join(VerbaLinea *why)
+EMBED_INLINE int link_join(const LinkSupervisorCtx *args)
 {
     if (!g_cli_link.has_start)
     {
         VerbaLinea start = {g_cli_link.start, sizeof(g_cli_link.start), 0ull};
-        if (!cli_link_prepare(&g_cli_link.address, cli_link_stated, NULL, &start, why))
+        if (!EMBED_CALL(cli_link_err_msg.prepare, CliLinkErrMsgCfg, .address = &g_cli_link.address,
+                        .stated = cli_link_state, .context = NULL, .start = &start,
+                        .err_msg = args->why_verba_linea_pointer))
         {
             return 0;
         }
         if (mmgr_line_finish(&start) == 0ull)
         {
-            mmgr_line_put(why, "the line that starts orior's server is longer than orior_cli runs");
+            mmgr_line_put(args->why_verba_linea_pointer,
+                          "the line that starts orior's server is longer than orior_cli runs");
             return 0;
         }
         g_cli_link.has_start = 1;
     }
     static CliWords s_words;
-    cli_link_runs(&g_cli_link.address, g_cli_link.start, 0, &s_words);
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_link_address_table.runs, CliLinkAddressCfg, .address = &g_cli_link.address, .line = g_cli_link.start,
+               .terminal = 0, .words = &s_words);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.stderr_tail_size = 0ull;
-    cli_lock_give(&g_cli_link_lock);
-    if (s_words.full || !cli_spawn_fed(&g_cli_link.spawned, s_words.word, NULL, NULL, 0u, 1, why))
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    if (s_words.full ||
+        !EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &g_cli_link.spawned,
+                    .words = s_words.word, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1,
+                    .err_msg = args->why_verba_linea_pointer))
     {
-        mmgr_line_put(why, s_words.full ? "the line that starts orior's server is longer than orior_cli runs" : "");
+        mmgr_line_put(args->why_verba_linea_pointer,
+                      s_words.full ? "the line that starts orior's server is longer than orior_cli runs" : "");
         return 0;
     }
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.running = 1;
     g_cli_link.reading_errors = 1;
-    cli_lock_give(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.errors = (CliThread){cli_link_errors_read, NULL};
-    if (!cli_thread_started(&g_cli_link.errors))
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &g_cli_link.errors))
     {
-        cli_lock_take(&g_cli_link_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
         g_cli_link.reading_errors = 0;
-        cli_lock_give(&g_cli_link_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
     }
     g_cli_link.piece_at = 0ull;
     g_cli_link.piece_end = 0ull;
     unsigned long long size = 0ull;
     int whole = 0;
-    if (!cli_link_line(&size, &whole) || !whole || !link_serving(size))
+    if (!EMBED_CALL(cli_link_size_whole_internal.line, CliLinkSizeWholeCtx, .size_pointer = &size, .whole = &whole) ||
+        !whole || !EMBED_CALL(link_serving, LinkSupervisorCtx, .size = size))
     {
-        link_server_stopped();
+        link_server_stop();
         // a server that will not start is sent again on the next try
         g_cli_link.has_start = 0;
-        const unsigned long long from = why->at;
-        cli_link_stderr_written(why);
-        if (why->at == from)
+        const unsigned long long from = args->why_verba_linea_pointer->at;
+        EMBED_CALL(cli_link_internal.stderr_write, CliLinkCtx, .out = args->why_verba_linea_pointer);
+        if (args->why_verba_linea_pointer->at == from)
         {
-            mmgr_line_put(why, "orior's server on ");
-            link_machine_written(why);
-            mmgr_line_put(why, " did not start");
+            mmgr_line_put(args->why_verba_linea_pointer, "orior's server on ");
+            EMBED_CALL(link_machine_write, LinkSupervisorCtx, .out = args->why_verba_linea_pointer);
+            mmgr_line_put(args->why_verba_linea_pointer, " did not start");
         }
         return 0;
     }
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.joined = 1;
-    cli_wake_all(&g_cli_link_changed);
-    cli_lock_give(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_link_changed);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
     return 1;
 }
 
 // the link made, and made again each time it drops, until it is ended
-static void link_joined(void *context)
+static void link_on_join(void *context)
 {
     (void)context;
     static char s_why[CLI_ERR_MSG_MAX_LEN + CLI_LINK_STDERR_TAIL_LEN];
     unsigned long long wait = 1000ull;
     int once = 0;
-    // the server's line a cell for as long as the keeper runs; with no room for it the link fails at once
+    // the server's line a cell for as long as the store runs; with no room for it the link fails at once
     g_cli_link_line = g_cli_cells->persistent_buf_alloc(CLI_LINK_LINE, &g_cli_comms_cells);
     if (g_cli_link_line == NULL)
     {
         static const char s_untaken[] = "the line the link's server writes could not be taken";
-        cli_link_state_set("failed", s_untaken, sizeof(s_untaken) - 1u);
+        EMBED_CALL(cli_link_state_internal.state_set, CliLinkStateCtx, .state = "failed", .detail = s_untaken,
+                   .size = sizeof(s_untaken) - 1u);
     }
     while (g_cli_link_line != NULL)
     {
-        cli_lock_take(&g_cli_link_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
         const int ended = g_cli_link.ended;
-        cli_lock_give(&g_cli_link_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
         if (ended)
         {
             break;
         }
-        cli_link_state_set(once ? "joining-again" : "joining", "", 0ull);
+        EMBED_CALL(cli_link_state_internal.state_set, CliLinkStateCtx, .state = once ? "joining-again" : "joining",
+                   .detail = "", .size = 0ull);
         VerbaLinea why = {s_why, sizeof(s_why), 0ull};
-        if (link_join(&why))
+        if (EMBED_CALL(link_join, LinkSupervisorCtx, .why_verba_linea_pointer = &why))
         {
             once = 1;
             wait = 1000ull;
-            cli_link_state_set("joined", "", 0ull);
+            EMBED_CALL(cli_link_state_internal.state_set, CliLinkStateCtx, .state = "joined", .detail = "",
+                       .size = 0ull);
             unsigned long long size = 0ull;
             int whole = 0;
-            while (cli_link_line(&size, &whole))
+            while (EMBED_CALL(cli_link_size_whole_internal.line, CliLinkSizeWholeCtx, .size_pointer = &size,
+                              .whole = &whole))
             {
-                cli_link_recv(size, whole);
+                EMBED_CALL(cli_link_size_internal.recv, CliLinkSizeCtx, .size = size, .whole_value = whole);
             }
-            cli_link_stderr_written(&why);
-            link_dropped(s_why, why.at);
-            cli_lock_take(&g_cli_link_lock);
+            EMBED_CALL(cli_link_internal.stderr_write, CliLinkCtx, .out = &why);
+            EMBED_CALL(link_on_drop, LinkSupervisorCtx, .why = s_why, .size = why.at);
+            EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
             const int over = g_cli_link.ended;
-            cli_lock_give(&g_cli_link_lock);
+            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
             if (over)
             {
                 break;
             }
-            cli_link_state_set("dropped", s_why, why.at);
+            EMBED_CALL(cli_link_state_internal.state_set, CliLinkStateCtx, .state = "dropped", .detail = s_why,
+                       .size = why.at);
             continue;
         }
-        cli_link_state_set("failed", s_why, why.at);
-        cli_lock_take(&g_cli_link_lock);
+        EMBED_CALL(cli_link_state_internal.state_set, CliLinkStateCtx, .state = "failed", .detail = s_why,
+                   .size = why.at);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
         if (!g_cli_link.ended)
         {
-            (void)cli_wake_wait_for(&g_cli_link_changed, &g_cli_link_lock, wait);
+            (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &g_cli_link_changed,
+                             .lock = &g_cli_link_lock, .milliseconds_u64 = wait);
         }
-        cli_lock_give(&g_cli_link_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
         wait = (wait * 2u < CLI_LINK_JOIN_MOST) ? (wait * 2u) : CLI_LINK_JOIN_MOST;
     }
     g_cli_cells->persistent_buf_release(g_cli_link_line, &g_cli_comms_cells);
     g_cli_link_line = NULL;
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.open = 0;
-    cli_wake_all(&g_cli_link_changed);
-    cli_lock_give(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_link_changed);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
 }
 
-int cli_link_open(const CliLinkAddress *address, CliLinkEventFn emit, void *context, VerbaLinea *err_msg)
+int cli_link_open(const CliLinkErrMsgAddressCfg *args)
 {
-    cli_lock_take(&g_cli_link_lock);
+    const CliLinkAddress *address = args->address;
+    CliLinkEventFn emit = args->emit;
+    void *context = args->context;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     if (g_cli_link.open)
     {
-        cli_lock_give(&g_cli_link_lock);
-        mmgr_line_put(err_msg, "a link is open already");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+        mmgr_line_put(args->err_msg, "a link is open already");
         return 0;
     }
     g_cli_link.address = *address;
@@ -229,62 +266,65 @@ int cli_link_open(const CliLinkAddress *address, CliLinkEventFn emit, void *cont
     g_cli_link.standing_size = 0ull;
     g_cli_link.next = 1ull;
     memor.set(&(MemoriaCfg){.dst = g_cli_link.calls, .val = 0, .bytes = sizeof(g_cli_link.calls)});
-    cli_lock_give(&g_cli_link_lock);
-    g_cli_link.keeper = (CliThread){link_joined, NULL};
-    if (!cli_thread_started(&g_cli_link.keeper))
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    g_cli_link.store = (CliThread){link_on_join, NULL};
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &g_cli_link.store))
     {
-        cli_lock_take(&g_cli_link_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
         g_cli_link.open = 0;
-        cli_lock_give(&g_cli_link_lock);
-        mmgr_line_put(err_msg, "the link's thread could not start");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+        mmgr_line_put(args->err_msg, "the link's thread could not start");
         return 0;
     }
     return 1;
 }
 
-int cli_link_address(CliLinkAddress *address)
+int cli_link_address(const CliLinkTextCfg *args)
 {
-    cli_lock_take(&g_cli_link_lock);
+    CliLinkAddress *address = args->address_out;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     const int open = g_cli_link.open;
     if (open)
     {
         *address = g_cli_link.address;
     }
-    cli_lock_give(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
     return open;
 }
 
-void cli_link_standing(VerbaLinea *out)
+void cli_link_standing(const CliLinkOutPathCfg *args)
 {
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     if (g_cli_link.standing_size > 0u)
     {
-        mmgr_line_put_n(out, g_cli_link.standing, g_cli_link.standing_size);
+        mmgr_line_put_n(args->out, g_cli_link.standing, g_cli_link.standing_size);
     }
     else
     {
         char text[CLI_PATH_MAX_LEN * 3u];
         VerbaLinea line = {text, sizeof(text), 0ull};
-        mmgr_line_put(out, "{\"state\":\"joining\",\"machine\":");
-        link_machine_written(&line);
-        cli_json_quoted(out, text, line.at);
-        mmgr_line_put(out, ",\"address\":");
+        mmgr_line_put(args->out, "{\"state\":\"joining\",\"machine\":");
+        EMBED_CALL(link_machine_write, LinkSupervisorCtx, .out = &line);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = text,
+                   .length = line.at);
+        mmgr_line_put(args->out, ",\"address\":");
         line.at = 0ull;
-        cli_link_address_text(&g_cli_link.address, &line);
-        cli_json_quoted(out, text, line.at);
-        mmgr_line_put(out, ",\"message\":\"\"}");
+        EMBED_CALL(cli_link_out.address_text, CliLinkOutCfg, .address = &g_cli_link.address, .out = &line);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = text,
+                   .length = line.at);
+        mmgr_line_put(args->out, ",\"message\":\"\"}");
     }
-    cli_lock_give(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
 }
 
 // a place among the calls taken for a call, waiting while all are taken, the lock acquired: the place, or NULL where
 // the link ended or was not made within `until`
-static CliLinkCall *link_call_taken(unsigned long long until)
+EMBED_INLINE CliLinkCall *link_call_take(const LinkSupervisorCtx *args)
 {
     for (;;)
     {
         const unsigned long long now = cli_clock_milliseconds();
-        if (g_cli_link.ended || (now >= until))
+        if (g_cli_link.ended || (now >= args->until))
         {
             return NULL;
         }
@@ -295,95 +335,102 @@ static CliLinkCall *link_call_taken(unsigned long long until)
                 return &g_cli_link.calls[at];
             }
         }
-        (void)cli_wake_wait_for(&g_cli_link_changed, &g_cli_link_lock, until - now);
+        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &g_cli_link_changed,
+                         .lock = &g_cli_link_lock, .milliseconds_u64 = args->until - now);
     }
 }
 
 // a call's line written to the server: 1, or 0 where the server stopped reading
-static int link_call_written(unsigned long long pipe, unsigned long long id, const char *name, const char *args,
-                             unsigned long long size)
+EMBED_INLINE int link_call_write(const LinkSupervisorCtx *args)
 {
+    unsigned long long size = args->size;
     char head[CLI_NAME_MAX_LEN * 8u];
     VerbaLinea line = {head, sizeof(head), 0ull};
     mmgr_line_put(&line, "{\"id\":");
-    mmgr_line_decimal(&line, id, 1u);
+    mmgr_line_decimal(&line, args->id, 1u);
     mmgr_line_put(&line, ",\"name\":");
-    cli_json_quoted(&line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = args->name,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&line, ",\"args\":");
-    return mmgr_line_ok(&line) && cli_spawn_written(pipe, head, line.at) &&
-           cli_spawn_written(pipe, (size > 0u) ? args : "null", (size > 0u) ? size : 4u) &&
-           cli_spawn_written(pipe, "}\n", 2u);
+    return mmgr_line_ok(&line) &&
+           EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = args->pipe, .bytes = head,
+                      .size = line.at) &&
+           EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = args->pipe,
+                      .bytes = (size > 0u) ? args->request : "null", .size = (size > 0u) ? size : 4u) &&
+           EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = args->pipe, .bytes = "}\n",
+                      .size = 2u);
 }
 
-int cli_link_call(const char *name, const char *args, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_link_call(const CliLinkSizeOutCfg *args)
 {
     const unsigned long long until = cli_clock_milliseconds() + CLI_LINK_JOINING;
-    cli_lock_take(&g_cli_link_lock);
-    CliLinkCall *const call = link_call_taken(until);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
+    CliLinkCall *const call = EMBED_CALL(link_call_take, LinkSupervisorCtx, .until = until);
     if (call == NULL)
     {
-        link_machine_written(err_msg);
-        mmgr_line_put(err_msg, " is not reached");
-        cli_lock_give(&g_cli_link_lock);
+        EMBED_CALL(link_machine_write, LinkSupervisorCtx, .out = args->err_msg);
+        mmgr_line_put(args->err_msg, " is not reached");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
         return 0;
     }
-    *call = (CliLinkCall){1, 0, g_cli_link.next, out, err_msg};
+    *call = (CliLinkCall){1, 0, g_cli_link.next, args->out, args->err_msg};
     g_cli_link.next += 1ull;
-    cli_lock_give(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
     // the server's input is written under its own lock, taken before the link's, and only while the link is joined
-    cli_lock_take(&g_cli_link_writing);
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_writing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     const int joined = g_cli_link.joined && !call->done;
     const unsigned long long pipe = g_cli_link.spawned.in;
-    cli_lock_give(&g_cli_link_lock);
-    const int written = joined && link_call_written(pipe, call->id, name, args, size);
-    cli_lock_give(&g_cli_link_writing);
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    const int written = joined && EMBED_CALL(link_call_write, LinkSupervisorCtx, .pipe = pipe, .id = call->id,
+                                             .name = args->name, .request = args->request, .size = args->size);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_writing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     if (!written && !call->done)
     {
         call->done = 2;
-        mmgr_line_put(err_msg, "the link to ");
-        link_machine_written(err_msg);
-        mmgr_line_put(err_msg, " dropped");
+        mmgr_line_put(args->err_msg, "the link to ");
+        EMBED_CALL(link_machine_write, LinkSupervisorCtx, .out = args->err_msg);
+        mmgr_line_put(args->err_msg, " dropped");
     }
     while (!call->done)
     {
-        cli_wake_wait(&g_cli_link_changed, &g_cli_link_lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &g_cli_link_changed, .lock = &g_cli_link_lock);
     }
     const int answered = (call->done == 1);
     call->used = 0;
-    cli_wake_all(&g_cli_link_changed);
-    cli_lock_give(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_link_changed);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
     return answered;
 }
 
 // the server ended where it runs and is not being stopped already, both locks acquired
-static void link_server_ended(void)
+static void link_server_end(void)
 {
     if (g_cli_link.running && !g_cli_link.stopping)
     {
         g_cli_link.joined = 0;
-        cli_spawn_input_closed(&g_cli_link.spawned);
-        cli_spawn_killed(&g_cli_link.spawned);
+        EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &g_cli_link.spawned);
+        EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &g_cli_link.spawned);
     }
-    cli_wake_all(&g_cli_link_changed);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_link_changed);
 }
 
 void cli_link_end(void)
 {
-    cli_lock_take(&g_cli_link_writing);
-    cli_lock_take(&g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_writing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.ended = 1;
-    link_server_ended();
-    cli_lock_give(&g_cli_link_lock);
-    cli_lock_give(&g_cli_link_writing);
+    link_server_end();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_writing);
 }
 
 void cli_link_drop_now(void)
 {
-    cli_lock_take(&g_cli_link_writing);
-    cli_lock_take(&g_cli_link_lock);
-    link_server_ended();
-    cli_lock_give(&g_cli_link_lock);
-    cli_lock_give(&g_cli_link_writing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_writing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
+    link_server_end();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_writing);
 }

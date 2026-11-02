@@ -7,7 +7,25 @@
 // reported to be out of reach
 #ifndef PRINT_IPP_H
 #define PRINT_IPP_H
+typedef struct CliIppSizeCfg CliIppSizeCfg;
+typedef struct CliIppNameCfg CliIppNameCfg;
+typedef struct CliIppSizeErrMsgCfg CliIppSizeErrMsgCfg;
+typedef struct CliIppErrMsgCfg CliIppErrMsgCfg;
+typedef struct CliIppErrMsgHostCfg CliIppErrMsgHostCfg;
+typedef struct CliIppErrMsgUriCfg CliIppErrMsgUriCfg;
+typedef struct CliIppMessageCfg CliIppMessageCfg;
+typedef struct CliIppMessageValueCfg CliIppMessageValueCfg;
+typedef struct CliIppMessageCodeCfg CliIppMessageCodeCfg;
+typedef struct CliIppTagCfg CliIppTagCfg;
+typedef struct CliIppMessageKindCfg CliIppMessageKindCfg;
+typedef struct CliIppErrMsgUriPrinterCfg CliIppErrMsgUriPrinterCfg;
+typedef struct CliIppMessageLowCfg CliIppMessageLowCfg;
+typedef struct CliIppMessageTagCfg CliIppMessageTagCfg;
+typedef struct CliIppCfg CliIppCfg;
+typedef struct CliIppMessageOutVerbaLineaCfg CliIppMessageOutVerbaLineaCfg;
+typedef struct CliIppCodeCfg CliIppCodeCfg;
 
+#include "embed_dispatch_layout.h"
 #include "print.h"
 
 // the groups' tags, the end of the groups, and the tags of the texts orior_cli writes
@@ -97,37 +115,35 @@ typedef struct
 // the cells the messages' groups, attributes, values and bytes are stored in, counted; and a message's cells given
 // back, the message left empty, a message given back once it is done with (ipp.c)
 extern CellOwner g_cli_ipp_cells;
-void cli_ipp_given(CliIppMessage *message);
+void cli_ipp_free(const CliIppMessageCodeCfg *args);
 // a message begun with no groups, the cells it occupied retained for its puts; a group begun; an attribute of `name`
 // written in the last group; and a value put after the last attribute's: a number or an enum, a truth, a range, a text
 // by its tag
-void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int request_id);
-void cli_ipp_group(CliIppMessage *message, unsigned int tag);
-void cli_ipp_attribute(CliIppMessage *message, const char *name);
-void cli_ipp_number(CliIppMessage *message, unsigned int kind, int value);
-void cli_ipp_truth(CliIppMessage *message, int value);
-void cli_ipp_range(CliIppMessage *message, int low, int high);
-void cli_ipp_text(CliIppMessage *message, unsigned int tag, const char *text);
+void cli_ipp_begin(const CliIppMessageCodeCfg *args);
+void cli_ipp_group(const CliIppMessageTagCfg *args);
+void cli_ipp_attribute(const CliIppCfg *args);
+void cli_ipp_number(const CliIppMessageKindCfg *args);
+void cli_ipp_truth(const CliIppMessageKindCfg *args);
+void cli_ipp_range(const CliIppMessageLowCfg *args);
+void cli_ipp_text(const CliIppMessageTagCfg *args);
 // `message` in IPP's encoding, version 2.0, its document left out; and the message `size` bytes contain read into
 // `message`: 1, or 0 with why given
-void cli_ipp_encode(const CliIppMessage *message, VerbaLinea *out);
-int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMessage *message, VerbaLinea *err_msg);
+void cli_ipp_encode(const CliIppMessageOutVerbaLineaCfg *args);
+int cli_ipp_decode(const CliIppMessageCfg *args);
 // the first group of `tag`, NULL where none; the attribute `name` of a group, NULL where none; whether a value is a
 // text, written into `out`, sized for `room`; and the first text and the first number of an attribute: 1, or 0 where
 // it has none
-const CliIppGroup *cli_ipp_group_of(const CliIppMessage *message, unsigned int tag, unsigned int after);
-const CliIppAttribute *cli_ipp_get(const CliIppMessage *message, const CliIppGroup *group, const char *name);
-int cli_ipp_value_text(const CliIppMessage *message, const CliIppValue *value, char *out, unsigned long long room);
-int cli_ipp_first_text(const CliIppMessage *message, const CliIppGroup *group, const char *name, char *out,
-                       unsigned long long room);
-int cli_ipp_first_number(const CliIppMessage *message, const CliIppGroup *group, const char *name, int *number);
+const CliIppGroup *cli_ipp_group_get(const CliIppTagCfg *args);
+const CliIppAttribute *cli_ipp_get(const CliIppNameCfg *args);
+int cli_ipp_value_text(const CliIppMessageValueCfg *args);
+int cli_ipp_first_text(const CliIppNameCfg *args);
+int cli_ipp_first_number(const CliIppNameCfg *args);
 // where an ipp:// address reaches: its host, its port and its path, each host and path sized for CLI_PATH_MAX_LEN: 1,
 // or 0 with why given
-int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path, VerbaLinea *err_msg);
+int cli_ipp_address(const CliIppErrMsgCfg *args);
 // `request` sent to the printer at `uri`, `document` of `size` bytes after it, and its answer read into `answer`,
 // each read waited on 30 seconds at most: 1, or 0 with why given
-int cli_ipp_exchange(const char *uri, const CliIppMessage *request, const unsigned char *document,
-                     unsigned long long size, CliIppMessage *answer, VerbaLinea *err_msg);
+int cli_ipp_exchange(const CliIppSizeCfg *args);
 
 // What a printer reports of itself: its name, make, the formats it takes, whether it prints color, its state and why,
 // and whether it takes jobs
@@ -166,17 +182,313 @@ typedef struct
 } CliIppShared;
 
 // what an IPP status means, in words into `err_msg`, and whether it is success (ipp_jobs.c)
-int cli_ipp_status(unsigned int code, VerbaLinea *err_msg);
+int cli_ipp_status(const CliIppCodeCfg *args);
 // the attributes of the printer at `uri` that printing needs; `document`, `size` bytes, printed on it, the job's id
 // into `id`; a job's state, its RFC 8011 `job-state` number, 3 to 9, and why, as the
 // printer words it, joined by `, `; and a job canceled. Each 1, or 0 with why given
-int cli_ipp_printer(const char *uri, CliIppPrinter *printer, VerbaLinea *err_msg);
-int cli_ipp_print(const char *uri, const CliIppJob *job, const unsigned char *document, unsigned long long size,
-                  int *id, VerbaLinea *err_msg);
-int cli_ipp_job_state(const char *uri, int id, int *state, VerbaLinea *reasons, VerbaLinea *err_msg);
-int cli_ipp_cancel(const char *uri, int id, VerbaLinea *err_msg);
+int cli_ipp_printer(const CliIppErrMsgUriPrinterCfg *args);
+int cli_ipp_print(const CliIppSizeErrMsgCfg *args);
+int cli_ipp_job_state(const CliIppErrMsgUriCfg *args);
+int cli_ipp_cancel(const CliIppErrMsgUriCfg *args);
 // the printers the CUPS server at host:port shares, into `shared`, sized for `room`: their count, or -1 with why given
-int cli_ipp_cups_printers(const char *host, unsigned int port, CliIppShared *shared, unsigned int room,
-                          VerbaLinea *err_msg);
+int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args);
+
+struct CliIppSizeCfg
+{
+    unsigned long long size;
+    VerbaLinea *err_msg;
+    const char *uri;
+    const CliIppMessage *request;
+    const unsigned char *document;
+    CliIppMessage *answer;
+};
+
+struct CliIppNameCfg
+{
+    const char *name;
+    const CliIppMessage *message_read;
+    const CliIppGroup *group;
+    char *out;
+    unsigned long long room;
+    int *number;
+};
+
+struct CliIppSizeErrMsgCfg
+{
+    unsigned long long size;
+    VerbaLinea *err_msg;
+    const char *uri;
+    const unsigned char *document;
+    const CliIppJob *job;
+    int *id_pointer;
+};
+
+struct CliIppErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    const char *uri;
+    char *host;
+    unsigned int *port;
+    char *path;
+};
+
+struct CliIppErrMsgHostCfg
+{
+    VerbaLinea *err_msg;
+    const char *host_read;
+    unsigned int port_value;
+    CliIppShared *shared;
+    unsigned int room_u32;
+};
+
+struct CliIppErrMsgUriCfg
+{
+    VerbaLinea *err_msg;
+    const char *uri;
+    int id;
+    int *state;
+    VerbaLinea *reasons;
+};
+
+struct CliIppMessageCfg
+{
+    CliIppMessage *message;
+    const unsigned char *bytes;
+    unsigned long long size;
+    VerbaLinea *err_msg;
+};
+
+struct CliIppMessageValueCfg
+{
+    const CliIppMessage *message_read;
+    const CliIppValue *value_ipp_value_pointer;
+    char *out;
+    unsigned long long room;
+};
+
+struct CliIppMessageCodeCfg
+{
+    CliIppMessage *message;
+    unsigned int code;
+    unsigned int request_id;
+};
+
+struct CliIppTagCfg
+{
+    unsigned int tag;
+    const CliIppMessage *message_read;
+    unsigned int after;
+};
+
+struct CliIppMessageKindCfg
+{
+    CliIppMessage *message;
+    unsigned int kind;
+    int value;
+};
+
+struct CliIppErrMsgUriPrinterCfg
+{
+    VerbaLinea *err_msg;
+    const char *uri;
+    CliIppPrinter *printer;
+};
+
+struct CliIppMessageLowCfg
+{
+    CliIppMessage *message;
+    int low;
+    int high;
+};
+
+struct CliIppMessageTagCfg
+{
+    CliIppMessage *message;
+    unsigned int tag;
+    const char *text;
+};
+
+struct CliIppCfg
+{
+    CliIppMessage *message;
+    const char *name;
+};
+
+struct CliIppMessageOutVerbaLineaCfg
+{
+    const CliIppMessage *message_read;
+    VerbaLinea *out_verba_linea_pointer;
+};
+
+struct CliIppCodeCfg
+{
+    unsigned int code;
+    VerbaLinea *err_msg;
+};
+
+typedef struct
+{
+    void (*free)(const CliIppMessageCodeCfg *args);
+    void (*begin)(const CliIppMessageCodeCfg *args);
+} CliIppMessageCodeNs;
+EMBED_TABLE_LAYOUT(CliIppMessageCodeNs, free, begin);
+EMBED_TABLE_STORAGE CliIppMessageCodeNs cli_ipp_message_code EMBED_UNUSED = {
+    .free = cli_ipp_free,
+    .begin = cli_ipp_begin,
+};
+
+typedef struct
+{
+    void (*group)(const CliIppMessageTagCfg *args);
+    void (*text)(const CliIppMessageTagCfg *args);
+} CliIppMessageTagNs;
+EMBED_TABLE_LAYOUT(CliIppMessageTagNs, group, text);
+EMBED_TABLE_STORAGE CliIppMessageTagNs cli_ipp_message_tag EMBED_UNUSED = {
+    .group = cli_ipp_group,
+    .text = cli_ipp_text,
+};
+
+typedef struct
+{
+    void (*attribute)(const CliIppCfg *args);
+} CliIppNs;
+EMBED_TABLE_LAYOUT(CliIppNs, attribute);
+EMBED_TABLE_STORAGE CliIppNs cli_ipp_table EMBED_UNUSED = {
+    .attribute = cli_ipp_attribute,
+};
+
+typedef struct
+{
+    void (*number)(const CliIppMessageKindCfg *args);
+    void (*truth)(const CliIppMessageKindCfg *args);
+} CliIppMessageKindNs;
+EMBED_TABLE_LAYOUT(CliIppMessageKindNs, number, truth);
+EMBED_TABLE_STORAGE CliIppMessageKindNs cli_ipp_message_kind EMBED_UNUSED = {
+    .number = cli_ipp_number,
+    .truth = cli_ipp_truth,
+};
+
+typedef struct
+{
+    void (*range)(const CliIppMessageLowCfg *args);
+} CliIppMessageLowNs;
+EMBED_TABLE_LAYOUT(CliIppMessageLowNs, range);
+EMBED_TABLE_STORAGE CliIppMessageLowNs cli_ipp_message_low EMBED_UNUSED = {
+    .range = cli_ipp_range,
+};
+
+typedef struct
+{
+    void (*encode)(const CliIppMessageOutVerbaLineaCfg *args);
+} CliIppMessageOutVerbaLineaNs;
+EMBED_TABLE_LAYOUT(CliIppMessageOutVerbaLineaNs, encode);
+EMBED_TABLE_STORAGE CliIppMessageOutVerbaLineaNs cli_ipp_message_out_verba_linea EMBED_UNUSED = {
+    .encode = cli_ipp_encode,
+};
+
+typedef struct
+{
+    int (*decode)(const CliIppMessageCfg *args);
+} CliIppMessageNs;
+EMBED_TABLE_LAYOUT(CliIppMessageNs, decode);
+EMBED_TABLE_STORAGE CliIppMessageNs cli_ipp_message EMBED_UNUSED = {
+    .decode = cli_ipp_decode,
+};
+
+typedef struct
+{
+    const CliIppGroup *(*group_get)(const CliIppTagCfg *args);
+} CliIppTagNs;
+EMBED_TABLE_LAYOUT(CliIppTagNs, group_get);
+EMBED_TABLE_STORAGE CliIppTagNs cli_ipp_tag EMBED_UNUSED = {
+    .group_get = cli_ipp_group_get,
+};
+
+typedef struct
+{
+    const CliIppAttribute *(*get)(const CliIppNameCfg *args);
+    int (*first_text)(const CliIppNameCfg *args);
+    int (*first_number)(const CliIppNameCfg *args);
+} CliIppNameNs;
+EMBED_TABLE_LAYOUT(CliIppNameNs, get, first_text, first_number);
+EMBED_TABLE_STORAGE CliIppNameNs cli_ipp_name EMBED_UNUSED = {
+    .get = cli_ipp_get,
+    .first_text = cli_ipp_first_text,
+    .first_number = cli_ipp_first_number,
+};
+
+typedef struct
+{
+    int (*value_text)(const CliIppMessageValueCfg *args);
+} CliIppMessageValueNs;
+EMBED_TABLE_LAYOUT(CliIppMessageValueNs, value_text);
+EMBED_TABLE_STORAGE CliIppMessageValueNs cli_ipp_message_value EMBED_UNUSED = {
+    .value_text = cli_ipp_value_text,
+};
+
+typedef struct
+{
+    int (*address)(const CliIppErrMsgCfg *args);
+} CliIppErrMsgNs;
+EMBED_TABLE_LAYOUT(CliIppErrMsgNs, address);
+EMBED_TABLE_STORAGE CliIppErrMsgNs cli_ipp_err_msg EMBED_UNUSED = {
+    .address = cli_ipp_address,
+};
+
+typedef struct
+{
+    int (*exchange)(const CliIppSizeCfg *args);
+} CliIppSizeNs;
+EMBED_TABLE_LAYOUT(CliIppSizeNs, exchange);
+EMBED_TABLE_STORAGE CliIppSizeNs cli_ipp_size EMBED_UNUSED = {
+    .exchange = cli_ipp_exchange,
+};
+
+typedef struct
+{
+    int (*status)(const CliIppCodeCfg *args);
+} CliIppCodeNs;
+EMBED_TABLE_LAYOUT(CliIppCodeNs, status);
+EMBED_TABLE_STORAGE CliIppCodeNs cli_ipp_code EMBED_UNUSED = {
+    .status = cli_ipp_status,
+};
+
+typedef struct
+{
+    int (*printer)(const CliIppErrMsgUriPrinterCfg *args);
+} CliIppErrMsgUriPrinterNs;
+EMBED_TABLE_LAYOUT(CliIppErrMsgUriPrinterNs, printer);
+EMBED_TABLE_STORAGE CliIppErrMsgUriPrinterNs cli_ipp_err_msg_uri_printer EMBED_UNUSED = {
+    .printer = cli_ipp_printer,
+};
+
+typedef struct
+{
+    int (*print)(const CliIppSizeErrMsgCfg *args);
+} CliIppSizeErrMsgNs;
+EMBED_TABLE_LAYOUT(CliIppSizeErrMsgNs, print);
+EMBED_TABLE_STORAGE CliIppSizeErrMsgNs cli_ipp_size_err_msg EMBED_UNUSED = {
+    .print = cli_ipp_print,
+};
+
+typedef struct
+{
+    int (*job_state)(const CliIppErrMsgUriCfg *args);
+    int (*cancel)(const CliIppErrMsgUriCfg *args);
+} CliIppErrMsgUriNs;
+EMBED_TABLE_LAYOUT(CliIppErrMsgUriNs, job_state, cancel);
+EMBED_TABLE_STORAGE CliIppErrMsgUriNs cli_ipp_err_msg_uri EMBED_UNUSED = {
+    .job_state = cli_ipp_job_state,
+    .cancel = cli_ipp_cancel,
+};
+
+typedef struct
+{
+    int (*cups_printers)(const CliIppErrMsgHostCfg *args);
+} CliIppErrMsgHostNs;
+EMBED_TABLE_LAYOUT(CliIppErrMsgHostNs, cups_printers);
+EMBED_TABLE_STORAGE CliIppErrMsgHostNs cli_ipp_err_msg_host EMBED_UNUSED = {
+    .cups_printers = cli_ipp_cups_printers,
+};
 
 #endif

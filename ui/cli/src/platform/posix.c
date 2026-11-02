@@ -10,6 +10,7 @@
 #define _DARWIN_C_SOURCE
 #endif
 #include "../../../../src/cu/includes/parsers/line_read.h"
+#include "../command_line/callback_cfg.h"
 #include "../comms/container.h"
 
 #if !defined(_WIN32)
@@ -46,16 +47,17 @@ typedef struct
 } CliProcWalk;
 
 #if defined(__linux__)
-static void cli_proc_walked(void *context, const char *name, int is_folder);
+static void cli_proc_walk(const CliEachNameIsFolderCfg *args);
 #endif
 
-int cli_container_made(void)
+int cli_container_init(void)
 {
     return 1;
 }
 
-int cli_started_outside(const char *const *words, unsigned int *id)
+int cli_started_outside(const CliWordsIdCtx *args)
 {
+    unsigned int *id = args->id;
     const pid_t child = fork();
     if (child < 0)
     {
@@ -76,7 +78,7 @@ int cli_started_outside(const char *const *words, unsigned int *id)
             (void)close(none);
         }
         // exec takes its words as it was declared; it writes to none of them
-        execvp(words[0], (char *const *)words);
+        execvp(args->words[0], (char *const *)args->words);
         _exit(127);
     }
     // a process number from fork is positive, and an unsigned int stores it
@@ -89,49 +91,48 @@ int cli_started_outside(const char *const *words, unsigned int *id)
     return 1;
 }
 
-unsigned int cli_processes_listed(CliProcess *processes, unsigned int room)
+unsigned int cli_processes_list(const CliRoomProcessesCtx *args)
 {
     unsigned int count = 0u;
 #if defined(__linux__)
     // each numbered folder of /proc, its stat's fourth field the parent, after the program's name in parentheses
     // which may contain spaces of its own
-    CliProcWalk walk = {processes, 0u, room};
-    query_folder_each("/proc", cli_proc_walked, &walk);
+    CliProcWalk walk = {args->processes, 0u, args->room_u32};
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = "/proc", .each = cli_proc_walk,
+               .context_bytess = &walk);
     count = walk.count;
 #elif defined(__APPLE__)
     static int s_ids[8192];
     const int listed = proc_listpids(PROC_ALL_PIDS, 0u, s_ids, (int)sizeof(s_ids));
-    for (int at = 0; (listed > 0) && (at < (listed / (int)sizeof(int))) && (count < room); at += 1)
+    for (int at = 0; (listed > 0) && (at < (listed / (int)sizeof(int))) && (count < args->room_u32); at += 1)
     {
         struct proc_bsdinfo info;
         if (proc_pidinfo(s_ids[at], PROC_PIDTBSDINFO, 0u, &info, (int)sizeof(info)) == (int)sizeof(info))
         {
             // an id the system lists is positive
-            processes[count].id = (unsigned int)s_ids[at];
-            processes[count].parent = info.pbi_ppid;
+            args->processes[count].id = (unsigned int)s_ids[at];
+            args->processes[count].parent = info.pbi_ppid;
             count += 1u;
         }
     }
 #else
-    (void)processes;
-    (void)room;
 #endif
     return count;
 }
 
 #if defined(__linux__)
 // one entry of /proc read: where it is a process's folder, its id and its parent recorded
-static void cli_proc_walked(void *context, const char *name, int is_folder)
+static void cli_proc_walk(const CliEachNameIsFolderCfg *args)
 {
-    CliProcWalk *const walk = (CliProcWalk *)context;
-    if (!is_folder || (name[0] < '0') || (name[0] > '9') || (walk->count >= walk->room))
+    CliProcWalk *const walk = (CliProcWalk *)args->context;
+    if (!args->is_folder || (args->name[0] < '0') || (args->name[0] > '9') || (walk->count >= walk->room))
     {
         return;
     }
     char path[64];
     VerbaLinea line = {path, sizeof(path), 0ull};
     mmgr_line_put(&line, "/proc/");
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
     mmgr_line_put(&line, "/stat");
     char stat[1024];
     // the file's bytes are read as bytes into text that is read as letters
@@ -144,19 +145,20 @@ static void cli_proc_walked(void *context, const char *name, int is_folder)
     }
     stat[size] = '\0';
     const char *const close =
-        cli_text_last(stat, cellul.len(&(CatenaFinitaCfg){.src = stat, .cap = CLI_CELLS_POOL}), ')');
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stat,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stat, .cap = CLI_CELLS_POOL}), .byte = ')');
     if (close == NULL)
     {
         return;
     }
     // past the parenthesis: the state, then the parent
     const char *at = close + 1;
-    at += cli_text_over(at, " ");
-    at += cli_text_upto(at, " ");
-    at += cli_text_over(at, " ");
+    at += EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = at, .set = " ");
+    at += EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = at, .set = " ");
+    at += EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = at, .set = " ");
     unsigned long long parent = 0ull;
     unsigned long long id = 0ull;
-    const char *id_at = name;
+    const char *id_at = args->name;
     if (!line_number(&at, 0, &parent) || !line_number(&id_at, 0, &id))
     {
         return;
@@ -168,39 +170,45 @@ static void cli_proc_walked(void *context, const char *name, int is_folder)
 }
 #endif
 
-unsigned int cli_container_members(unsigned int *ids, unsigned int room)
+unsigned int cli_container_members(const CliIdsCtx *args)
 {
+    unsigned int room = args->room_u32;
     static CliProcess s_all[CLI_PROCESSES_MOST];
     static unsigned int s_found[CLI_PROCESSES_MOST];
-    const unsigned int all = cli_processes_listed(s_all, CLI_PROCESSES_MOST);
-    const unsigned int found = cli_descendants(cli_process_own(), s_all, all, s_found, CLI_PROCESSES_MOST);
+    const unsigned int all = EMBED_CALL(cli_room_processes_internal.processes_list, CliRoomProcessesCtx,
+                                        .processes = s_all, .room_u32 = CLI_PROCESSES_MOST);
+    const unsigned int found =
+        EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = cli_process_own(), .parents = s_all,
+                   .count = all, .found = s_found, .room = CLI_PROCESSES_MOST);
     unsigned int count = 0u;
     for (unsigned int at = 0u; (at < found) && (count < room); at += 1u)
     {
         int outside = 0;
         for (unsigned int each = 0u; !outside && (each < s_outsides); each += 1u)
         {
-            outside = cli_under(s_outside[each], s_found[at], s_all, all);
+            outside = EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = s_outside[each],
+                                 .id = s_found[at], .parents = s_all, .count = all);
         }
         if (!outside)
         {
-            ids[count] = s_found[at];
+            args->ids[count] = s_found[at];
             count += 1u;
         }
     }
     return count;
 }
 
-void cli_container_members_ended(void)
+void cli_container_members_end(void)
 {
     static unsigned int s_ids[CLI_PROCESSES_MOST];
-    const unsigned int count = cli_container_members(s_ids, CLI_PROCESSES_MOST);
+    const unsigned int count =
+        EMBED_CALL(cli_ids_internal.container_members, CliIdsCtx, .ids = s_ids, .room_u32 = CLI_PROCESSES_MOST);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         // kill takes any process id and signal number, and reports by its answer whether the process was there
         kill((pid_t)s_ids[at], SIGTERM);
     }
-    query_paused(300u);
+    EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 300u);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         kill((pid_t)s_ids[at], SIGKILL);
@@ -213,24 +221,22 @@ unsigned int cli_process_own(void)
     return (unsigned int)getpid();
 }
 
-int cli_program_own(char *path, size_t room)
+int cli_program_own(const CliPathRoomCtx *args)
 {
 #if defined(__linux__)
-    const ssize_t length = readlink("/proc/self/exe", path, room - 1u);
+    const ssize_t length = readlink("/proc/self/exe", args->path_out, args->room_size - 1u);
     if (length <= 0)
     {
         return 0;
     }
     // a link's length read is positive and under the room
-    path[length] = '\0';
+    args->path_out[length] = '\0';
     return 1;
 #elif defined(__APPLE__)
     // a room is far below what a uint32_t counts
-    uint32_t size = (uint32_t)room;
-    return _NSGetExecutablePath(path, &size) == 0;
+    uint32_t size = (uint32_t)args->room_size;
+    return _NSGetExecutablePath(args->path_out, &size) == 0;
 #else
-    (void)path;
-    (void)room;
     return 0;
 #endif
 }
@@ -248,9 +254,16 @@ int cli_output_terminal(void)
 // the most bytes of the words this program was started with, read where none are given
 #define CLI_ARGUMENTS_TEXT (1u << 16u)
 
+typedef struct
+{
+#if (!defined(_WIN32))
+    const char **words;
+    unsigned int room;
+#endif
+} PosixCtx;
 // the words this program was started with, read of the system where its main hands none: on Linux /proc/self/cmdline,
-// each word ended by a 0, and on macOS the words the system kept for the program
-static unsigned int cli_arguments_own(const char **words, unsigned int room)
+// each word ended by a 0, and on macOS the words the system saved for the program
+EMBED_INLINE unsigned int cli_arguments_own(const PosixCtx *args)
 {
     unsigned int taken = 0u;
 #if defined(__linux__)
@@ -273,37 +286,35 @@ static unsigned int cli_arguments_own(const char **words, unsigned int room)
     s_text[used] = '\0';
     // the program's own name first, passed over
     unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = s_text, .cap = sizeof(s_text)}) + 1ull;
-    while ((at < used) && (taken < room))
+    while ((at < used) && (taken < args->room))
     {
-        words[taken] = s_text + at;
+        args->words[taken] = s_text + at;
         taken += 1u;
         at += cellul.len(&(CatenaFinitaCfg){.src = s_text + at, .cap = sizeof(s_text)}) + 1ull;
     }
 #elif defined(__APPLE__)
     const int count = *_NSGetArgc();
     char **const given = *_NSGetArgv();
-    for (int at = 1; (at < count) && (taken < room); at += 1)
+    for (int at = 1; (at < count) && (taken < args->room); at += 1)
     {
-        words[taken] = given[at];
+        args->words[taken] = given[at];
         taken += 1u;
     }
 #else
-    (void)words;
-    (void)room;
 #endif
     return taken;
 }
 
-unsigned int cli_arguments(int count, char **given, const char **words, unsigned int room)
+unsigned int cli_arguments(const CliRoomCountCtx *args)
 {
-    if (given == NULL)
+    if (args->given == NULL)
     {
-        return cli_arguments_own(words, room);
+        return EMBED_CALL(cli_arguments_own, PosixCtx, .words = args->words_read, .room = args->room_u32);
     }
     unsigned int taken = 0u;
-    for (int at = 1; (at < count) && (taken < room); at += 1)
+    for (int at = 1; (at < args->count_i32) && (taken < args->room_u32); at += 1)
     {
-        words[taken] = given[at];
+        args->words_read[taken] = args->given[at];
         taken += 1u;
     }
     return taken;
@@ -313,20 +324,20 @@ void cli_console_let_go(void)
 {
 }
 
-int cli_folder_current(char *path, size_t room)
+int cli_folder_current(const CliPathRoomCtx *args)
 {
-    return getcwd(path, room) != NULL;
+    return getcwd(args->path_out, args->room_size) != NULL;
 }
 
-int cli_file_runnable(const char *path)
+int cli_file_runnable(const CliPathFileCtx *args)
 {
-    return chmod(path, 0755) == 0;
+    return chmod(args->path, 0755) == 0;
 }
 
-int cli_is_link(const char *path)
+int cli_is_link(const CliPathFileCtx *args)
 {
     struct stat st;
-    return (lstat(path, &st) == 0) && S_ISLNK(st.st_mode);
+    return (lstat(args->path, &st) == 0) && S_ISLNK(st.st_mode);
 }
 
 unsigned long long cli_clock_milliseconds(void)
@@ -337,7 +348,7 @@ unsigned long long cli_clock_milliseconds(void)
     return ((unsigned long long)now.tv_sec * 1000ull) + ((unsigned long long)now.tv_nsec / 1000000ull);
 }
 
-int cli_raised_platform(const char *from, const char *to, VerbaLinea *err_msg)
+int cli_raised_platform(const CliErrMsgFromCtx *args)
 {
 #if defined(__APPLE__)
     // the script `do shell script "/bin/cp '<from>' '<to>'" with administrator privileges`, each path quoted for the
@@ -345,14 +356,15 @@ int cli_raised_platform(const char *from, const char *to, VerbaLinea *err_msg)
     static char s_script[(4u * CLI_PATH_MAX_LEN) + 128u];
     VerbaLinea script = {s_script, sizeof(s_script), 0ull};
     mmgr_line_put(&script, "do shell script \"/bin/cp ");
-    const char *const paths[2] = {from, to};
+    const char *const paths[2] = {args->from_text, args->to};
     for (unsigned int path = 0u; path < 2u; path += 1u)
     {
         mmgr_line_put(&script, (path == 0u) ? "'" : " '");
         const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = paths[path], .cap = CLI_CELLS_POOL});
         for (unsigned long long at = 0ull; at < whole;)
         {
-            const unsigned long long stop = cli_text_to_any(paths[path], at, whole, "'\"");
+            const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                       .text = paths[path], .at = at, .size = whole, .set = "'\"");
             mmgr_line_put_n(&script, paths[path] + at, (size_t)(stop - at));
             if (stop < whole)
             {
@@ -369,55 +381,58 @@ int cli_raised_platform(const char *from, const char *to, VerbaLinea *err_msg)
     }
     const char *const words[4] = {"/usr/bin/osascript", "-e", s_script, NULL};
     QueryProcess child;
-    if (!query_process_start(&child, words, NULL, QUERY_OUTPUT_NONE) || (query_process_wait(&child) != 0ll))
+    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &child, .words = words,
+                    .folder = NULL, .output = QUERY_OUTPUT_NONE) ||
+        (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &child) != 0ll))
     {
-        mmgr_line_put(err_msg, "the system's authorization did not write ");
-        mmgr_line_put(err_msg, to);
+        mmgr_line_put(args->err_msg, "the system's authorization did not write ");
+        mmgr_line_put(args->err_msg, args->to);
         return 0;
     }
     return 1;
 #else
-    const char *const words[6] = {"pkexec", "/bin/cp", "--", from, to, NULL};
+    const char *const words[6] = {"pkexec", "/bin/cp", "--", args->from_text, args->to, NULL};
     QueryProcess child;
-    if (!query_process_start(&child, words, NULL, QUERY_OUTPUT_OWN))
+    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &child, .words = words,
+                    .folder = NULL, .output = QUERY_OUTPUT_OWN))
     {
-        mmgr_line_put(err_msg, "pkexec: it could not be started");
+        mmgr_line_put(args->err_msg, "pkexec: it could not be started");
         return 0;
     }
-    const long long code = query_process_wait(&child);
+    const long long code = EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &child);
     if ((code == 126ll) || (code == 127ll))
     {
-        mmgr_line_put(err_msg, "the reader did not give the rights");
+        mmgr_line_put(args->err_msg, "the reader did not give the rights");
         return 0;
     }
     if (code != 0ll)
     {
-        mmgr_line_put(err_msg, "pkexec did not write ");
-        mmgr_line_put(err_msg, to);
+        mmgr_line_put(args->err_msg, "pkexec did not write ");
+        mmgr_line_put(args->err_msg, args->to);
         return 0;
     }
     return 1;
 #endif
 }
 
-int cli_socket_connected(CliSocket *sock, const char *host, unsigned int port, VerbaLinea *err_msg)
+int cli_socket_connect(const CliErrMsgCtx *args)
 {
-    sock->handle = 0ull;
+    args->sock_out->handle = 0ull;
     char service[16];
     VerbaLinea service_line = {service, sizeof(service), 0ull};
-    mmgr_line_decimal(&service_line, port, 0u);
+    mmgr_line_decimal(&service_line, args->port, 0u);
     mmgr_line_finish(&service_line);
     struct addrinfo hints;
     memor.set(&(MemoriaCfg){.dst = &hints, .val = 0, .bytes = sizeof(hints)});
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     struct addrinfo *found = NULL;
-    if (getaddrinfo(host, service, &hints, &found) != 0)
+    if (getaddrinfo(args->host, service, &hints, &found) != 0)
     {
-        mmgr_line_put(err_msg, host);
-        mmgr_line_ch(err_msg, ':');
-        mmgr_line_put(err_msg, service);
-        mmgr_line_put(err_msg, ": the name was not found");
+        mmgr_line_put(args->err_msg, args->host);
+        mmgr_line_ch(args->err_msg, ':');
+        mmgr_line_put(args->err_msg, service);
+        mmgr_line_put(args->err_msg, ": the name was not found");
         return 0;
     }
     int made = -1;
@@ -433,26 +448,26 @@ int cli_socket_connected(CliSocket *sock, const char *host, unsigned int port, V
     freeaddrinfo(found);
     if (made < 0)
     {
-        mmgr_line_put(err_msg, host);
-        mmgr_line_ch(err_msg, ':');
-        mmgr_line_put(err_msg, service);
-        mmgr_line_put(err_msg, ": the connection was refused");
+        mmgr_line_put(args->err_msg, args->host);
+        mmgr_line_ch(args->err_msg, ':');
+        mmgr_line_put(args->err_msg, service);
+        mmgr_line_put(args->err_msg, ": the connection was refused");
         return 0;
     }
     const int no_delay = 1;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof(no_delay));
     // a descriptor is not negative; one past it so that 0 stands for none
-    sock->handle = (unsigned long long)made + 1ull;
+    args->sock_out->handle = (unsigned long long)made + 1ull;
     return 1;
 }
 
-int cli_socket_written(const CliSocket *sock, const void *bytes, unsigned long long size)
+int cli_socket_write(const CliBytesSizeCtx *args)
 {
-    const int fd = (int)(sock->handle - 1ull);
+    const int fd = (int)(args->sock->handle - 1ull);
     unsigned long long put = 0ull;
-    while (put < size)
+    while (put < args->size)
     {
-        const ssize_t sent = send(fd, (const char *)bytes + put, (size_t)(size - put), 0);
+        const ssize_t sent = send(fd, (const char *)args->bytes + put, (size_t)(args->size - put), 0);
         if (sent <= 0)
         {
             return 0;
@@ -462,13 +477,13 @@ int cli_socket_written(const CliSocket *sock, const void *bytes, unsigned long l
     return 1;
 }
 
-int cli_socket_read(const CliSocket *sock, void *bytes, unsigned long long size)
+int cli_socket_read(const CliSizeBytesCtx *args)
 {
-    const int fd = (int)(sock->handle - 1ull);
+    const int fd = (int)(args->sock->handle - 1ull);
     unsigned long long got = 0ull;
-    while (got < size)
+    while (got < args->size)
     {
-        const ssize_t read = recv(fd, (char *)bytes + got, (size_t)(size - got), 0);
+        const ssize_t read = recv(fd, (char *)args->bytes_out + got, (size_t)(args->size - got), 0);
         if (read <= 0)
         {
             return 0;
@@ -478,9 +493,9 @@ int cli_socket_read(const CliSocket *sock, void *bytes, unsigned long long size)
     return 1;
 }
 
-long long cli_socket_some(const CliSocket *sock, void *bytes, unsigned long long room)
+long long cli_socket_some(const CliRoomCtx *args)
 {
-    const ssize_t read = recv((int)(sock->handle - 1ull), (char *)bytes, (size_t)room, 0);
+    const ssize_t read = recv((int)(args->sock->handle - 1ull), (char *)args->bytes_out, (size_t)args->room, 0);
     if (read > 0)
     {
         return (long long)read;
@@ -492,37 +507,38 @@ long long cli_socket_some(const CliSocket *sock, void *bytes, unsigned long long
     return ((errno == EAGAIN) || (errno == EWOULDBLOCK)) ? CLI_SOCKET_WAITED : CLI_SOCKET_FAILED;
 }
 
-void cli_socket_waited(const CliSocket *sock, unsigned int milliseconds)
+void cli_socket_wait(const CliSockCtx *args)
 {
-    struct timeval wait = {(time_t)(milliseconds / 1000u), (suseconds_t)((milliseconds % 1000u) * 1000u)};
-    setsockopt((int)(sock->handle - 1ull), SOL_SOCKET, SO_RCVTIMEO, &wait, sizeof(wait));
+    struct timeval wait = {(time_t)(args->milliseconds / 1000u), (suseconds_t)((args->milliseconds % 1000u) * 1000u)};
+    setsockopt((int)(args->sock->handle - 1ull), SOL_SOCKET, SO_RCVTIMEO, &wait, sizeof(wait));
 }
 
-void cli_socket_write_waited(const CliSocket *sock, unsigned int milliseconds)
+void cli_socket_write_wait(const CliSockCtx *args)
 {
-    struct timeval wait = {(time_t)(milliseconds / 1000u), (suseconds_t)((milliseconds % 1000u) * 1000u)};
-    setsockopt((int)(sock->handle - 1ull), SOL_SOCKET, SO_SNDTIMEO, &wait, sizeof(wait));
+    struct timeval wait = {(time_t)(args->milliseconds / 1000u), (suseconds_t)((args->milliseconds % 1000u) * 1000u)};
+    setsockopt((int)(args->sock->handle - 1ull), SOL_SOCKET, SO_SNDTIMEO, &wait, sizeof(wait));
 }
 
-void cli_socket_ended(const CliSocket *sock)
+void cli_socket_end(const CliSockCtx *args)
 {
-    if (sock->handle != 0ull)
+    if (args->sock->handle != 0ull)
     {
-        shutdown((int)(sock->handle - 1ull), SHUT_RDWR);
+        shutdown((int)(args->sock->handle - 1ull), SHUT_RDWR);
     }
 }
 
-void cli_socket_closed(CliSocket *sock)
+void cli_socket_close(const CliErrMsgCtx *args)
 {
-    if (sock->handle != 0ull)
+    if (args->sock_out->handle != 0ull)
     {
-        close((int)(sock->handle - 1ull));
+        close((int)(args->sock_out->handle - 1ull));
     }
-    sock->handle = 0ull;
+    args->sock_out->handle = 0ull;
 }
 
-int cli_port_free(unsigned int *port, VerbaLinea *err_msg)
+int cli_port_free(const CliErrMsgPortCtx *args)
 {
+    unsigned int *port = args->port_pointer;
     const int made = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in address;
     memor.set(&(MemoriaCfg){.dst = &address, .val = 0, .bytes = sizeof(address)});
@@ -537,7 +553,7 @@ int cli_port_free(unsigned int *port, VerbaLinea *err_msg)
     }
     if (!bound)
     {
-        mmgr_line_put(err_msg, "127.0.0.1: no port could be bound");
+        mmgr_line_put(args->err_msg, "127.0.0.1: no port could be bound");
         return 0;
     }
     *port = ntohs(address.sin_port);

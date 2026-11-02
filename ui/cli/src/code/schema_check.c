@@ -15,62 +15,83 @@
 static char s_bases[CLI_SCHEMA_BASES];
 static unsigned int s_bases_used;
 
-// the span a finding about a value stands on: its key's where it has one, its own where it has none
-static void check_span(const CliSchemaCheck *check, unsigned int node, CliSchemaKey key, unsigned long long *from,
-                       unsigned long long *to)
+typedef struct
 {
-    *from = key.has_key ? key.from : check->read->node[node].from;
-    *to = key.has_key ? key.to : check->read->node[node].to;
+    const CliSchemaCheck *check_read;
+    unsigned int node;
+    CliSchemaKey key;
+    unsigned long long *from;
+    unsigned long long *to;
+    CliBuildFindings *found;
+    unsigned int count;
+    unsigned int fixes;
+    CliSchemaCheck *check;
+    unsigned int choices;
+    const char *base;
+    unsigned int depth;
+    int exactly;
+    unsigned int map;
+    const CliJson *json;
+} SchemaCheckCtx;
+// the span a finding about a value stands on: its key's where it has one, its own where it has none
+EMBED_INLINE void check_span(const SchemaCheckCtx *args)
+{
+    unsigned long long *from = args->from;
+    unsigned long long *to = args->to;
+    *from = args->key.has_key ? args->key.from : args->check_read->read->node[args->node].from;
+    *to = args->key.has_key ? args->key.to : args->check_read->read->node[args->node].to;
 }
 
 // the findings from `count` and the fixes from `fixes` that are notes taken out, the rest retained in their order
-static void check_notes_dropped(CliBuildFindings *found, unsigned int count, unsigned int fixes)
+EMBED_INLINE void check_notes_drop(const SchemaCheckCtx *args)
 {
+    unsigned int count = args->count;
+    unsigned int fixes = args->fixes;
     unsigned int remaining = count;
     static unsigned int s_moved[CLI_BUILD_FINDINGS];
-    for (unsigned int at = count; at < found->count; at += 1u)
+    for (unsigned int at = count; at < args->found->count; at += 1u)
     {
         s_moved[at] = CLI_BUILD_NONE;
-        if (found->finding[at].severity != CLI_BUILD_NOTE)
+        if (args->found->finding[at].severity != CLI_BUILD_NOTE)
         {
-            found->finding[remaining] = found->finding[at];
+            args->found->finding[remaining] = args->found->finding[at];
             s_moved[at] = remaining;
             remaining += 1u;
         }
     }
     unsigned int fix_count = fixes;
-    for (unsigned int at = fixes; at < found->fixes; at += 1u)
+    for (unsigned int at = fixes; at < args->found->fixes; at += 1u)
     {
-        const unsigned int finding = found->fix[at].finding;
+        const unsigned int finding = args->found->fix[at].finding;
         const unsigned int moved = (finding >= count) ? s_moved[finding] : finding;
         if (moved != CLI_BUILD_NONE)
         {
-            found->fix[fix_count] = found->fix[at];
-            found->fix[fix_count].finding = moved;
+            args->found->fix[fix_count] = args->found->fix[at];
+            args->found->fix[fix_count].finding = moved;
             fix_count += 1u;
         }
     }
-    found->count = remaining;
-    found->fixes = fix_count;
+    args->found->count = remaining;
+    args->found->fixes = fix_count;
 }
 
-unsigned int cli_schema_trial(CliSchemaCheck *check, unsigned int node, unsigned int schema, const char *base,
-                              unsigned int depth, int record)
+unsigned int cli_schema_trial(const CliSchemaBaseNodeCtx *args)
 {
-    CliBuildFindings *const found = check->found;
+    CliBuildFindings *const found = args->check->found;
     const unsigned int count = found->count;
     const unsigned int fixes = found->fixes;
     const unsigned int used = found->used;
     const CliSchemaKey none = {0, 0ull, 0ull};
-    cli_schema_node(check, node, schema, base, none, depth + 1u);
+    EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = args->node,
+               .schema = args->schema, .base = args->base, .key_schema_key = none, .depth = args->depth + 1u);
     unsigned int tried = 0u;
     for (unsigned int at = count; at < found->count; at += 1u)
     {
         tried += (found->finding[at].severity != CLI_BUILD_NOTE) ? 1u : 0u;
     }
-    if (record)
+    if (args->record)
     {
-        check_notes_dropped(found, count, fixes);
+        EMBED_CALL(check_notes_drop, SchemaCheckCtx, .found = found, .count = count, .fixes = fixes);
         return tried;
     }
     found->count = count;
@@ -79,23 +100,31 @@ unsigned int cli_schema_trial(CliSchemaCheck *check, unsigned int node, unsigned
     return tried;
 }
 
-int cli_schema_fits(CliSchemaCheck *check, unsigned int node, unsigned int schema, const char *base, unsigned int depth)
+int cli_schema_fits(const CliSchemaBaseCtx *args)
 {
-    return cli_schema_trial(check, node, schema, base, depth, 0) == 0u;
+    return EMBED_CALL(cli_schema_base_node_internal.trial, CliSchemaBaseNodeCtx, .check = args->check,
+                      .node = args->node, .schema = args->schema, .base = args->base, .depth = args->depth,
+                      .record = 0) == 0u;
 }
 
 // `anyOf` and `oneOf`: the value fits one of the choices, or exactly one; where it fits none, the findings of the
 // choice it comes nearest are given
-static void check_choose(CliSchemaCheck *check, unsigned int node, unsigned int choices, const char *base,
-                         CliSchemaKey key, unsigned int depth, int exactly)
+EMBED_INLINE void check_choose(const SchemaCheckCtx *args)
 {
+    CliSchemaCheck *check = args->check;
+    unsigned int node = args->node;
+    const char *base = args->base;
+    unsigned int depth = args->depth;
     const CliJson *const json = &check->store->json;
     unsigned int fitting = 0u;
     unsigned int nearest = CLI_JSON_NONE;
     unsigned int least = 0u;
-    for (unsigned int choice = json->node[choices].first; choice != CLI_JSON_NONE; choice = json->node[choice].next)
+    for (unsigned int choice = json->node[args->choices].first; choice != CLI_JSON_NONE;
+         choice = json->node[choice].next)
     {
-        const unsigned int tried = cli_schema_trial(check, node, choice, base, depth, 0);
+        const unsigned int tried =
+            EMBED_CALL(cli_schema_base_node_internal.trial, CliSchemaBaseNodeCtx, .check = check, .node = node,
+                       .schema = choice, .base = base, .depth = depth, .record = 0);
         fitting += (tried == 0u) ? 1u : 0u;
         if ((nearest == CLI_JSON_NONE) || (tried < least))
         {
@@ -105,40 +134,55 @@ static void check_choose(CliSchemaCheck *check, unsigned int node, unsigned int 
     }
     if ((fitting == 0u) && (nearest != CLI_JSON_NONE))
     {
-        (void)cli_schema_trial(check, node, nearest, base, depth, 1);
+        (void)EMBED_CALL(cli_schema_base_node_internal.trial, CliSchemaBaseNodeCtx, .check = check, .node = node,
+                         .schema = nearest, .base = base, .depth = depth, .record = 1);
     }
-    else if (exactly && (fitting > 1u))
+    else if (args->exactly && (fitting > 1u))
     {
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
-        check_span(check, node, key, &from, &to);
-        VerbaLinea msg = cli_build_msg_line(check->found);
+        EMBED_CALL(check_span, SchemaCheckCtx, .check_read = check, .node = node, .key = args->key, .from = &from,
+                   .to = &to);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_put(&msg, "This value fits ");
         mmgr_line_decimal(&msg, fitting, 1u);
         mmgr_line_put(&msg, " of the shapes the schema allows, where it requires exactly one");
-        (void)cli_build_finding(check->found, &msg, check->lines, from, to, CLI_BUILD_WARNING, "schema-one-of");
+        (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+                         .lines = check->lines, .from = from, .to = to, .severity = CLI_BUILD_WARNING,
+                         .code = "schema-one-of");
     }
 }
 
 // the value checked against the schema's `type`: 1 where it fits, 0 where a finding was made
-static int check_type(CliSchemaCheck *check, unsigned int node, unsigned int map)
+EMBED_INLINE int check_type(const SchemaCheckCtx *args)
 {
-    const CliJson *const json = &check->store->json;
-    const unsigned int types = cli_schema_get(json, map, "type");
+    unsigned int node = args->node;
+    unsigned int map = args->map;
+    const CliJson *const json = &args->check->store->json;
+    const unsigned int types =
+        EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = "type");
     if (types == CLI_JSON_NONE)
     {
         return 1;
     }
-    const char *const kind = cli_schema_kind(&check->read->node[node]);
-    const unsigned int single = cli_json_is(json, types, CFG_JSON_STRING) ? types : CLI_JSON_NONE;
-    const unsigned int first = cli_json_is(json, types, CFG_JSON_ARRAY) ? json->node[types].first : single;
+    const char *const kind =
+        EMBED_CALL(cli_schema_internal.kind, CliSchemaCtx, .node_schema_node_pointer = &args->check->read->node[node]);
+    const unsigned int single = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                           .node = types, .kind = CFG_JSON_STRING)
+                                    ? types
+                                    : CLI_JSON_NONE;
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                          .node = types, .kind = CFG_JSON_ARRAY)
+                                   ? json->node[types].first
+                                   : single;
     int any = 0;
     int fits = 0;
     for (unsigned int one = first; one != CLI_JSON_NONE;
          one = (single != CLI_JSON_NONE) ? CLI_JSON_NONE : json->node[one].next)
     {
         unsigned long long size = 0ull;
-        const char *const allowed = cli_json_string(json, one, &size);
+        const char *const allowed = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                               .json_read = json, .node = one, .length_pointer = &size);
         if (allowed == NULL)
         {
             continue;
@@ -153,110 +197,142 @@ static int check_type(CliSchemaCheck *check, unsigned int node, unsigned int map
     {
         return 1;
     }
-    const CliSchemaNode *const value = &check->read->node[node];
-    VerbaLinea msg = cli_build_msg_line(check->found);
+    const CliSchemaNode *const value = &args->check->read->node[node];
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
     mmgr_line_put(&msg, "A value of type ");
-    cli_schema_kind_written(kind, cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}), &msg);
+    EMBED_CALL(cli_schema_size_out_internal.kind_write, CliSchemaSizeOutCtx, .kind = kind,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}), .out = &msg);
     mmgr_line_put(&msg, " stands here, where the schema requires ");
     int first_listed = 1;
     for (unsigned int one = first; one != CLI_JSON_NONE;
          one = (single != CLI_JSON_NONE) ? CLI_JSON_NONE : json->node[one].next)
     {
         unsigned long long size = 0ull;
-        const char *const allowed = cli_json_string(json, one, &size);
+        const char *const allowed = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                               .json_read = json, .node = one, .length_pointer = &size);
         if (allowed != NULL)
         {
             mmgr_line_put(&msg, first_listed ? "" : " or ");
-            cli_schema_kind_written(allowed, size, &msg);
+            EMBED_CALL(cli_schema_size_out_internal.kind_write, CliSchemaSizeOutCtx, .kind = allowed, .size = size,
+                       .out = &msg);
             first_listed = 0;
         }
     }
-    (void)cli_build_finding(check->found, &msg, check->lines, value->from, value->to, CLI_BUILD_WARNING, "schema-type");
+    (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found, .message = &msg,
+                     .lines = args->check->lines, .from = value->from, .to = value->to, .severity = CLI_BUILD_WARNING,
+                     .code = "schema-type");
     return 0;
 }
 
 // the value checked against the schema's `enum` and `const`
-static void check_values(CliSchemaCheck *check, unsigned int node, unsigned int map)
+EMBED_INLINE void check_values(const SchemaCheckCtx *args)
 {
-    const CliJson *const json = &check->store->json;
-    const CliSchemaNode *const value = &check->read->node[node];
-    const unsigned int choices = cli_schema_get(json, map, "enum");
-    if ((choices != CLI_JSON_NONE) && cli_json_is(json, choices, CFG_JSON_ARRAY))
+    unsigned int node = args->node;
+    unsigned int map = args->map;
+    const CliJson *const json = &args->check->store->json;
+    const CliSchemaNode *const value = &args->check->read->node[node];
+    const unsigned int choices =
+        EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = "enum");
+    if ((choices != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                 .json_read = json, .node = choices, .kind = CFG_JSON_ARRAY))
     {
         int any = 0;
         for (unsigned int one = json->node[choices].first; !any && (one != CLI_JSON_NONE); one = json->node[one].next)
         {
-            any = cli_schema_same(check->read, node, json, one);
+            any = EMBED_CALL(cli_schema_read_json_internal.same, CliSchemaReadJsonCtx, .read = args->check->read,
+                             .node = node, .json = json, .value = one);
         }
         if (!any)
         {
-            VerbaLinea msg = cli_build_msg_line(check->found);
-            cli_schema_shown_value(check->read, node, &msg);
+            VerbaLinea msg =
+                EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
+            EMBED_CALL(cli_schema_read_node_internal.shown_value, CliSchemaReadNodeCtx, .read = args->check->read,
+                       .node = node, .out = &msg);
             mmgr_line_put(&msg, " is none of the values the schema allows: ");
             unsigned int shown = 0u;
             for (unsigned int one = json->node[choices].first; (one != CLI_JSON_NONE) && (shown < 12u);
                  one = json->node[one].next)
             {
                 mmgr_line_put(&msg, (shown > 0u) ? ", " : "");
-                cli_schema_shown(json, one, &msg);
+                EMBED_CALL(cli_schema_json_value_internal.show, CliSchemaJsonValueCtx, .json = json, .value = one,
+                           .out = &msg);
                 shown += 1u;
             }
-            const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, value->from, value->to,
-                                                           CLI_BUILD_WARNING, "schema-enum");
+            const unsigned int finding =
+                EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
+                           .message = &msg, .lines = args->check->lines, .from = value->from, .to = value->to,
+                           .severity = CLI_BUILD_WARNING, .code = "schema-enum");
             if (value->kind == CLI_SCHEMA_TEXT)
             {
                 CliBuildNear near;
-                cli_build_near_begun(&near, cli_schema_text(check->read, value->text_at), value->text_size);
+                EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near,
+                           .name = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                              .read = args->check->read, .at = value->text_at),
+                           .size = value->text_size);
                 for (unsigned int one = json->node[choices].first; one != CLI_JSON_NONE; one = json->node[one].next)
                 {
                     unsigned long long size = 0ull;
-                    const char *const text = cli_json_string(json, one, &size);
+                    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                        .json_read = json, .node = one, .length_pointer = &size);
                     if (text != NULL)
                     {
-                        cli_build_near_offered(&near, text, size);
+                        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near,
+                                   .one = text, .size = size);
                     }
                 }
                 for (unsigned int at = 0u; at < near.count; at += 1u)
                 {
-                    VerbaLinea title = cli_build_msg_line(check->found);
+                    VerbaLinea title =
+                        EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
                     mmgr_line_put(&title, "Change to \"");
                     mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
                     mmgr_line_ch(&title, '"');
                     static char s_quoted[1u << 13u];
                     VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ull};
-                    cli_json_quoted(&quoted, near.near[at], near.near_size[at]);
-                    cli_build_edit_fix(check->found, finding, &title, check->lines, value->from, value->to, s_quoted,
-                                       quoted.at);
+                    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted,
+                               .text = near.near[at], .length = near.near_size[at]);
+                    EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found,
+                               .finding = finding, .title = &title, .lines = args->check->lines, .from = value->from,
+                               .to = value->to, .text = s_quoted, .size = quoted.at);
                 }
             }
         }
     }
-    const unsigned int wanted = cli_schema_get(json, map, "const");
-    if ((wanted != CLI_JSON_NONE) && !cli_schema_same(check->read, node, json, wanted))
+    const unsigned int wanted =
+        EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = "const");
+    if ((wanted != CLI_JSON_NONE) &&
+        !EMBED_CALL(cli_schema_read_json_internal.same, CliSchemaReadJsonCtx, .read = args->check->read, .node = node,
+                    .json = json, .value = wanted))
     {
-        VerbaLinea msg = cli_build_msg_line(check->found);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
         mmgr_line_put(&msg, "The schema requires ");
-        cli_schema_shown(json, wanted, &msg);
+        EMBED_CALL(cli_schema_json_value_internal.show, CliSchemaJsonValueCtx, .json = json, .value = wanted,
+                   .out = &msg);
         mmgr_line_put(&msg, " here");
-        (void)cli_build_finding(check->found, &msg, check->lines, value->from, value->to, CLI_BUILD_WARNING,
-                                "schema-const");
+        (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
+                         .message = &msg, .lines = args->check->lines, .from = value->from, .to = value->to,
+                         .severity = CLI_BUILD_WARNING, .code = "schema-const");
     }
 }
 
 // the base a schema's `$id` sets, stored on the stack of bases: it, or `base` where it sets none
-static const char *check_base(const CliJson *json, unsigned int map, const char *base)
+EMBED_INLINE const char *check_base(const SchemaCheckCtx *args)
 {
+    const CliJson *json = args->json;
+    unsigned int map = args->map;
     unsigned long long size = 0ull;
-    const char *const id = cli_schema_string(json, map, "$id", &size);
+    const char *const id = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json, .map = map,
+                                      .name = "$id", .size_pointer = &size);
     unsigned long long found = 0ull;
-    if ((id == NULL) || !cli_text_find(id, size, "://", 3u, &found))
+    if ((id == NULL) || !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = id, .length_value = size,
+                                    .wanted = "://", .size = 3u, .at_pointer = &found))
     {
-        return base;
+        return args->base;
     }
-    size = cli_text_back_past(id, size, "#");
+    size = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = id, .at = size, .set = "#");
     if (size + 1u > CLI_SCHEMA_BASES - s_bases_used)
     {
-        return base;
+        return args->base;
     }
     char *const base_at = s_bases + s_bases_used;
     memor.cpy(&(MemoriaCfg){.dst = base_at, .src = id, .bytes = (size_t)size});
@@ -265,111 +341,153 @@ static const char *check_base(const CliJson *json, unsigned int map, const char 
     return base_at;
 }
 
-void cli_schema_node(CliSchemaCheck *check, unsigned int node, unsigned int schema, const char *base, CliSchemaKey key,
-                     unsigned int depth)
+void cli_schema_node(const CliSchemaBaseCtx *args)
 {
-    const CliJson *const json = &check->store->json;
-    if ((depth > CLI_SCHEMA_DEEPEST) || (schema == CLI_SCHEMA_NONE) || cli_schema_true(json, schema))
+    const CliJson *const json = &args->check->store->json;
+    if ((args->depth > CLI_SCHEMA_DEEPEST) || (args->schema == CLI_SCHEMA_NONE) ||
+        EMBED_CALL(cli_schema_json_node_internal.schema_true, CliSchemaJsonNodeCtx, .json = json, .node = args->schema))
     {
         return;
     }
-    if (cli_schema_false(json, schema))
+    if (EMBED_CALL(cli_schema_json_node_internal.schema_false, CliSchemaJsonNodeCtx, .json = json,
+                   .node = args->schema))
     {
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
-        check_span(check, node, key, &from, &to);
-        VerbaLinea msg = cli_build_msg_line(check->found);
+        EMBED_CALL(check_span, SchemaCheckCtx, .check_read = args->check, .node = args->node,
+                   .key = args->key_schema_key, .from = &from, .to = &to);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
         mmgr_line_put(&msg, "The schema allows no value here");
-        (void)cli_build_finding(check->found, &msg, check->lines, from, to, CLI_BUILD_WARNING, "schema");
+        (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
+                         .message = &msg, .lines = args->check->lines, .from = from, .to = to,
+                         .severity = CLI_BUILD_WARNING, .code = "schema");
         return;
     }
-    if (!cli_json_is(json, schema, CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->schema,
+                    .kind = CFG_JSON_OBJECT))
     {
         return;
     }
     const unsigned int used = s_bases_used;
-    const char *const here = check_base(json, schema, base);
+    const char *const here =
+        EMBED_CALL(check_base, SchemaCheckCtx, .json = json, .map = args->schema, .base = args->base);
     unsigned long long size = 0ull;
-    const char *const reference = cli_schema_string(json, schema, "$ref", &size);
+    const char *const reference = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
+                                             .map = args->schema, .name = "$ref", .size_pointer = &size);
     if ((reference != NULL) && (CLI_PATH_MAX_LEN <= CLI_SCHEMA_BASES - s_bases_used))
     {
         char *const doc = s_bases + s_bases_used;
-        const unsigned int found = cli_schema_resolve(check->store, here, reference, size, doc);
+        const unsigned int found =
+            EMBED_CALL(cli_schema_size_internal.resolve, CliSchemaSizeCtx, .store = args->check->store, .base = here,
+                       .reference = reference, .size = size, .key = doc);
         if (found != CLI_SCHEMA_NONE)
         {
             const unsigned int before = s_bases_used;
             s_bases_used += (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = doc, .cap = CLI_CELLS_POOL}) + 1u;
-            cli_schema_node(check, node, found, doc, key, depth + 1u);
+            EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = args->node,
+                       .schema = found, .base = doc, .key_schema_key = args->key_schema_key, .depth = args->depth + 1u);
             s_bases_used = before;
         }
     }
-    if (cli_schema_true(json, cli_schema_get(json, schema, "deprecated")) && key.has_key)
+    if (EMBED_CALL(cli_schema_json_node_internal.schema_true, CliSchemaJsonNodeCtx, .json = json,
+                   .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema,
+                                      .name = "deprecated")) &&
+        args->key_schema_key.has_key)
     {
         unsigned long long message_size = 0ull;
-        const char *const message = cli_schema_string(json, schema, "deprecationMessage", &message_size);
-        VerbaLinea msg = cli_build_msg_line(check->found);
-        mmgr_line_put_n(&msg, check->text + key.from, key.to - key.from);
+        const char *const message =
+            EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json, .map = args->schema,
+                       .name = "deprecationMessage", .size_pointer = &message_size);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
+        mmgr_line_put_n(&msg, args->check->text + args->key_schema_key.from,
+                        args->key_schema_key.to - args->key_schema_key.from);
         mmgr_line_put(&msg, " is deprecated");
         if (message != NULL)
         {
             mmgr_line_put(&msg, ": ");
             mmgr_line_put_n(&msg, message, message_size);
         }
-        (void)cli_build_finding(check->found, &msg, check->lines, key.from, key.to, CLI_BUILD_NOTE,
-                                "schema-deprecated");
+        (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
+                         .message = &msg, .lines = args->check->lines, .from = args->key_schema_key.from,
+                         .to = args->key_schema_key.to, .severity = CLI_BUILD_NOTE, .code = "schema-deprecated");
     }
-    if (check_type(check, node, schema))
+    if (EMBED_CALL(check_type, SchemaCheckCtx, .check = args->check, .node = args->node, .map = args->schema))
     {
-        check_values(check, node, schema);
-        const unsigned char kind = check->read->node[node].kind;
+        EMBED_CALL(check_values, SchemaCheckCtx, .check = args->check, .node = args->node, .map = args->schema);
+        const unsigned char kind = args->check->read->node[args->node].kind;
         if (kind == CLI_SCHEMA_NUMBER)
         {
-            cli_schema_number_checked(check, node, schema);
+            EMBED_CALL(cli_schema_base_map_internal.number_check, CliSchemaBaseMapCtx, .check = args->check,
+                       .node = args->node, .map = args->schema);
         }
         else if (kind == CLI_SCHEMA_TEXT)
         {
-            cli_schema_text_checked(check, node, schema);
+            EMBED_CALL(cli_schema_base_map_internal.text_check, CliSchemaBaseMapCtx, .check = args->check,
+                       .node = args->node, .map = args->schema);
         }
         else if (kind == CLI_SCHEMA_ARRAY)
         {
-            cli_schema_array_checked(check, node, schema, here, depth);
+            EMBED_CALL(cli_schema_base_map_internal.array_check, CliSchemaBaseMapCtx, .check = args->check,
+                       .node = args->node, .map = args->schema, .base = here, .depth = args->depth);
         }
         else if (kind == CLI_SCHEMA_OBJECT)
         {
-            cli_schema_object_checked(check, node, schema, here, key, depth);
+            EMBED_CALL(cli_schema_base_map_internal.object_check, CliSchemaBaseMapCtx, .check = args->check,
+                       .node = args->node, .map = args->schema, .base = here, .key_schema_key = args->key_schema_key,
+                       .depth = args->depth);
         }
-        const unsigned int all = cli_schema_get(json, schema, "allOf");
-        for (unsigned int one = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].first : CLI_JSON_NONE;
+        const unsigned int all = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                            .map = args->schema, .name = "allOf");
+        for (unsigned int one = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                           .node = all, .kind = CFG_JSON_ARRAY)
+                                    ? json->node[all].first
+                                    : CLI_JSON_NONE;
              one != CLI_JSON_NONE; one = json->node[one].next)
         {
-            cli_schema_node(check, node, one, here, key, depth + 1u);
+            EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = args->node,
+                       .schema = one, .base = here, .key_schema_key = args->key_schema_key, .depth = args->depth + 1u);
         }
         static const char *const s_words[2] = {"anyOf", "oneOf"};
         for (unsigned int word = 0u; word < 2u; word += 1u)
         {
-            const unsigned int choices = cli_schema_get(json, schema, s_words[word]);
-            if (cli_json_is(json, choices, CFG_JSON_ARRAY))
+            const unsigned int choices = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                                    .map = args->schema, .name = s_words[word]);
+            if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = choices,
+                           .kind = CFG_JSON_ARRAY))
             {
-                check_choose(check, node, choices, here, key, depth, word == 1u);
+                EMBED_CALL(check_choose, SchemaCheckCtx, .check = args->check, .node = args->node, .choices = choices,
+                           .base = here, .key = args->key_schema_key, .depth = args->depth, .exactly = word == 1u);
             }
         }
-        const unsigned int not_one = cli_schema_get(json, schema, "not");
-        if ((not_one != CLI_JSON_NONE) && cli_schema_fits(check, node, not_one, here, depth))
+        const unsigned int not_one = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                                .map = args->schema, .name = "not");
+        if ((not_one != CLI_JSON_NONE) &&
+            EMBED_CALL(cli_schema_base_internal.fits, CliSchemaBaseCtx, .check = args->check, .node = args->node,
+                       .schema = not_one, .base = here, .depth = args->depth))
         {
-            const CliSchemaNode *const value = &check->read->node[node];
-            VerbaLinea msg = cli_build_msg_line(check->found);
+            const CliSchemaNode *const value = &args->check->read->node[args->node];
+            VerbaLinea msg =
+                EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
             mmgr_line_put(&msg, "The schema rules this value out");
-            (void)cli_build_finding(check->found, &msg, check->lines, value->from, value->to, CLI_BUILD_WARNING,
-                                    "schema-not");
+            (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
+                             .message = &msg, .lines = args->check->lines, .from = value->from, .to = value->to,
+                             .severity = CLI_BUILD_WARNING, .code = "schema-not");
         }
-        const unsigned int condition = cli_schema_get(json, schema, "if");
+        const unsigned int condition =
+            EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema, .name = "if");
         if (condition != CLI_JSON_NONE)
         {
-            const unsigned int branch =
-                cli_schema_get(json, schema, cli_schema_fits(check, node, condition, here, depth) ? "then" : "else");
+            const unsigned int branch = EMBED_CALL(
+                cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema,
+                .name = EMBED_CALL(cli_schema_base_internal.fits, CliSchemaBaseCtx, .check = args->check,
+                                   .node = args->node, .schema = condition, .base = here, .depth = args->depth)
+                            ? "then"
+                            : "else");
             if (branch != CLI_JSON_NONE)
             {
-                cli_schema_node(check, node, branch, here, key, depth + 1u);
+                EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = args->node,
+                           .schema = branch, .base = here, .key_schema_key = args->key_schema_key,
+                           .depth = args->depth + 1u);
             }
         }
     }

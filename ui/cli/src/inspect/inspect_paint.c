@@ -23,23 +23,27 @@ typedef struct
 
 static PaintFold *s_folds;
 
-void cli_inspect_paint_laid(CliInspectCarve *carve)
+void cli_inspect_paint_layout(const CliInspectCarveCtx *args)
 {
     const unsigned long long lines = CLI_INSPECT_LINES;
-    s_column = cli_inspect_carved(carve, CLI_INSPECT_COLUMNS);
-    s_line_start = cli_inspect_carved(carve, lines * sizeof(unsigned long long));
-    s_line_width = cli_inspect_carved(carve, lines * sizeof(unsigned long long));
-    s_folds = cli_inspect_carved(carve, 4ull * lines * sizeof(PaintFold));
+    s_column = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                          .bytes = CLI_INSPECT_COLUMNS);
+    s_line_start = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                              .bytes = lines * sizeof(unsigned long long));
+    s_line_width = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                              .bytes = lines * sizeof(unsigned long long));
+    s_folds = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                         .bytes = 4ull * lines * sizeof(PaintFold));
 }
 
-void cli_inspect_paint_begun(const char *src, unsigned long long size)
+void cli_inspect_paint_begin(const CliInspectSizeSrcParsedCtx *args)
 {
     s_lines = 0u;
     unsigned long long columns = 0ull;
     unsigned long long width = 0ull;
-    for (unsigned long long at = 0ull; at <= size;)
+    for (unsigned long long at = 0ull; at <= args->size;)
     {
-        if ((at == size) || (src[at] == '\n'))
+        if ((at == args->size) || (args->src[at] == '\n'))
         {
             if (s_lines < CLI_INSPECT_LINES)
             {
@@ -53,44 +57,47 @@ void cli_inspect_paint_begun(const char *src, unsigned long long size)
             continue;
         }
         unsigned int letter = 0u;
-        at += cli_lossy_letter((const unsigned char *)src, size, at, &letter);
+        at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                         .text_bytes = (const unsigned char *)args->src, .length = args->size, .at = at,
+                         .letter = &letter);
         width += (letter >= 0x10000u) ? 2u : 1u;
     }
     memor.set(&(MemoriaCfg){
         .dst = s_column, .val = 0, .bytes = (size_t)((columns < CLI_INSPECT_COLUMNS) ? columns : CLI_INSPECT_COLUMNS)});
 }
 
-void cli_inspect_paint(CliInspectPlace from, CliInspectPlace to, unsigned char class_of)
+void cli_inspect_paint(const CliInspectFromToCtx *args)
 {
-    const unsigned int last = ((s_lines > 0u) && (to.line > s_lines - 1u)) ? (s_lines - 1u) : to.line;
-    for (unsigned int line = from.line; (s_lines > 0u) && (line <= last); line += 1u)
+    const unsigned int last = ((s_lines > 0u) && (args->to.line > s_lines - 1u)) ? (s_lines - 1u) : args->to.line;
+    for (unsigned int line = args->from.line; (s_lines > 0u) && (line <= last); line += 1u)
     {
         const unsigned long long width = s_line_width[line];
-        const unsigned long long start = (line == from.line) ? from.col : 0ull;
-        const unsigned long long end = (line == to.line) ? ((to.col < width) ? to.col : width) : width;
+        const unsigned long long start = (line == args->from.line) ? args->from.col : 0ull;
+        const unsigned long long end =
+            (line == args->to.line) ? ((args->to.col < width) ? args->to.col : width) : width;
         const unsigned long long begin = (start < end) ? start : end;
         memor.set(&(MemoriaCfg){
-            .dst = s_column + s_line_start[line] + begin, .val = class_of, .bytes = (size_t)(end - begin)});
+            .dst = s_column + s_line_start[line] + begin, .val = args->class_of, .bytes = (size_t)(end - begin)});
     }
 }
 
-void cli_inspect_paint_runs(CliParsed *parsed)
+void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args)
 {
-    parsed->runs = 0u;
-    parsed->lines = 0u;
+    args->parsed->runs = 0u;
+    args->parsed->lines = 0u;
     // a parse handed no storage for its lines counts the runs and lines it would contain
-    const int has_lines = (parsed->line_first != NULL);
+    const int has_lines = (args->parsed->line_first != NULL);
     for (unsigned int line = 0u; line < s_lines; line += 1u)
     {
-        if (parsed->lines == parsed->lines_most)
+        if (args->parsed->lines == args->parsed->lines_most)
         {
-            parsed->full = 1;
+            args->parsed->full = 1;
             return;
         }
         if (has_lines)
         {
-            parsed->line_first[parsed->lines] = parsed->runs;
-            parsed->line_runs[parsed->lines] = 0u;
+            args->parsed->line_first[args->parsed->lines] = args->parsed->runs;
+            args->parsed->line_runs[args->parsed->lines] = 0u;
         }
         const unsigned char *const columns = s_column + s_line_start[line];
         int has_run = 0;
@@ -102,55 +109,56 @@ void cli_inspect_paint_runs(CliParsed *parsed)
                 if (has_lines)
                 {
                     // a column of a line stored is at most 16M, which a run's ends count
-                    parsed->run[parsed->runs - 1u].to = (unsigned int)col + 1u;
+                    args->parsed->run[args->parsed->runs - 1u].to = (unsigned int)col + 1u;
                 }
                 continue;
             }
-            if (parsed->runs == parsed->runs_most)
+            if (args->parsed->runs == args->parsed->runs_most)
             {
-                parsed->full = 1;
+                args->parsed->full = 1;
                 return;
             }
             if (has_lines)
             {
-                parsed->run[parsed->runs] = (CliInspectRun){(unsigned int)col, (unsigned int)col + 1u, columns[col]};
-                parsed->line_runs[parsed->lines] += 1u;
+                args->parsed->run[args->parsed->runs] =
+                    (CliInspectRun){(unsigned int)col, (unsigned int)col + 1u, columns[col]};
+                args->parsed->line_runs[args->parsed->lines] += 1u;
             }
-            parsed->runs += 1u;
+            args->parsed->runs += 1u;
             has_run = 1;
             class_of = columns[col];
         }
-        parsed->lines += 1u;
+        args->parsed->lines += 1u;
     }
 }
 
-void cli_inspect_fold_put(CliParsed *parsed, unsigned int first, unsigned int last)
+void cli_inspect_fold_put(const CliInspectParsedCtx *args)
 {
-    if (parsed->folds == parsed->folds_most)
+    if (args->parsed->folds == args->parsed->folds_most)
     {
-        parsed->full = 1;
+        args->parsed->full = 1;
         return;
     }
-    if (parsed->fold_first != NULL)
+    if (args->parsed->fold_first != NULL)
     {
-        parsed->fold_first[parsed->folds] = first;
-        parsed->fold_last[parsed->folds] = last;
+        args->parsed->fold_first[args->parsed->folds] = args->first;
+        args->parsed->fold_last[args->parsed->folds] = args->last;
     }
-    parsed->folds += 1u;
+    args->parsed->folds += 1u;
 }
 
-void cli_inspect_range_put(CliParsed *parsed, CliInspectPlace from, CliInspectPlace to)
+void cli_inspect_range_put(const CliInspectFromToParsedCtx *args)
 {
-    if (parsed->ranges == parsed->ranges_most)
+    if (args->parsed->ranges == args->parsed->ranges_most)
     {
-        parsed->full = 1;
+        args->parsed->full = 1;
         return;
     }
-    if (parsed->range != NULL)
+    if (args->parsed->range != NULL)
     {
-        parsed->range[parsed->ranges] = (CliInspectSpan){from, to};
+        args->parsed->range[args->parsed->ranges] = (CliInspectSpan){args->from, args->to};
     }
-    parsed->ranges += 1u;
+    args->parsed->ranges += 1u;
 }
 
 // two folds in the order of their first lines, then of their last
@@ -165,14 +173,14 @@ static int paint_fold_order(const void *one, const void *other)
     return (left->last < right->last) ? -1 : (left->last > right->last) ? 1 : 0;
 }
 
-unsigned int cli_inspect_folds_of(unsigned int *first, unsigned int *last, unsigned int count)
+unsigned int cli_inspect_folds_get(const CliInspectCountCfg *args)
 {
     unsigned int fold_count = 0u;
-    for (unsigned int at = 0u; (at < count) && (fold_count < (4u * CLI_INSPECT_LINES)); at += 1u)
+    for (unsigned int at = 0u; (at < args->count) && (fold_count < (4u * CLI_INSPECT_LINES)); at += 1u)
     {
-        if (last[at] > first[at])
+        if (args->last[at] > args->first[at])
         {
-            s_folds[fold_count] = (PaintFold){first[at], last[at]};
+            s_folds[fold_count] = (PaintFold){args->first[at], args->last[at]};
             fold_count += 1u;
         }
     }
@@ -180,31 +188,39 @@ unsigned int cli_inspect_folds_of(unsigned int *first, unsigned int *last, unsig
     unsigned int out = 0u;
     for (unsigned int at = 0u; at < fold_count; at += 1u)
     {
-        if ((out > 0u) && (first[out - 1u] == s_folds[at].first))
+        if ((out > 0u) && (args->first[out - 1u] == s_folds[at].first))
         {
-            last[out - 1u] = s_folds[at].last;
+            args->last[out - 1u] = s_folds[at].last;
             continue;
         }
-        first[out] = s_folds[at].first;
-        last[out] = s_folds[at].last;
+        args->first[out] = s_folds[at].first;
+        args->last[out] = s_folds[at].last;
         out += 1u;
     }
     return out;
 }
 
-void cli_inspect_folds_done(CliParsed *parsed)
+void cli_inspect_folds_finish(const CliInspectSizeSrcParsedCtx *args)
 {
     // a parse that counts records the folds put as the most it contains
-    if (parsed->fold_first != NULL)
+    if (args->parsed->fold_first != NULL)
     {
-        parsed->folds = cli_inspect_folds_of(parsed->fold_first, parsed->fold_last, parsed->folds);
+        args->parsed->folds =
+            EMBED_CALL(cli_inspect_count.folds_get, CliInspectCountCfg, .first = args->parsed->fold_first,
+                       .last = args->parsed->fold_last, .count = args->parsed->folds);
     }
 }
 
-// whether `one` stands at or before `other`
-static int paint_before(CliInspectPlace one, CliInspectPlace other)
+typedef struct
 {
-    return (one.line < other.line) || ((one.line == other.line) && (one.col <= other.col));
+    CliInspectPlace one;
+    CliInspectPlace other;
+} InspectPaintCtx;
+// whether `one` stands at or before `other`
+EMBED_INLINE int paint_before(const InspectPaintCtx *args)
+{
+    return (args->one.line < args->other.line) ||
+           ((args->one.line == args->other.line) && (args->one.col <= args->other.col));
 }
 
 // two spans in the order Expand Selection steps through them: the later start first, then the earlier end
@@ -214,37 +230,38 @@ static int paint_range_order(const void *one, const void *other)
     const CliInspectSpan *const right = (const CliInspectSpan *)other;
     if ((left->from.line != right->from.line) || (left->from.col != right->from.col))
     {
-        return paint_before(left->from, right->from) ? 1 : -1;
+        return EMBED_CALL(paint_before, InspectPaintCtx, .one = left->from, .other = right->from) ? 1 : -1;
     }
     if ((left->to.line != right->to.line) || (left->to.col != right->to.col))
     {
-        return paint_before(left->to, right->to) ? -1 : 1;
+        return EMBED_CALL(paint_before, InspectPaintCtx, .one = left->to, .other = right->to) ? -1 : 1;
     }
     return 0;
 }
 
-unsigned int cli_inspect_ranges_at(const CliInspectSpan *ranges, unsigned int count, CliInspectPlace from,
-                                   CliInspectPlace to, CliInspectSpan *out, unsigned int most)
+unsigned int cli_inspect_ranges_at(const CliInspectRangesCfg *args)
 {
     unsigned int range_count = 0u;
-    for (unsigned int at = 0u; (at < count) && (range_count < most); at += 1u)
+    for (unsigned int at = 0u; (at < args->count) && (range_count < args->most); at += 1u)
     {
-        const CliInspectSpan span = ranges[at];
-        const int same = (span.from.line == from.line) && (span.from.col == from.col) && (span.to.line == to.line) &&
-                         (span.to.col == to.col);
-        if (paint_before(span.from, from) && paint_before(to, span.to) && !same)
+        const CliInspectSpan span = args->ranges_read[at];
+        const int same = (span.from.line == args->from.line) && (span.from.col == args->from.col) &&
+                         (span.to.line == args->to.line) && (span.to.col == args->to.col);
+        if (EMBED_CALL(paint_before, InspectPaintCtx, .one = span.from, .other = args->from) &&
+            EMBED_CALL(paint_before, InspectPaintCtx, .one = args->to, .other = span.to) && !same)
         {
-            out[range_count] = span;
+            args->out_inspect_span_pointer[range_count] = span;
             range_count += 1u;
         }
     }
-    qsort(out, range_count, sizeof(out[0]), paint_range_order);
+    qsort(args->out_inspect_span_pointer, range_count, sizeof(args->out_inspect_span_pointer[0]), paint_range_order);
     unsigned int unique = 0u;
     for (unsigned int at = 0u; at < range_count; at += 1u)
     {
-        if ((unique == 0u) || (paint_range_order(&out[unique - 1u], &out[at]) != 0))
+        if ((unique == 0u) ||
+            (paint_range_order(&args->out_inspect_span_pointer[unique - 1u], &args->out_inspect_span_pointer[at]) != 0))
         {
-            out[unique] = out[at];
+            args->out_inspect_span_pointer[unique] = args->out_inspect_span_pointer[at];
             unique += 1u;
         }
     }

@@ -17,18 +17,20 @@ static CliLock s_fill_lock = CLI_LOCK_INIT;
 // the marks a comment line starts with, the longest first
 static const char *const s_marks[6] = {"///", "//!", "//", "##", "#", "--"};
 
-int cli_fill_line_at(const char *text, unsigned long long size, unsigned int index, CliFillLine *line)
+int cli_fill_line_at(const CliFillTextSizeCtx *args)
 {
-    line->start = 0ull;
-    line->index = 0u;
+    unsigned int index = args->index;
+    args->line->start = 0ull;
+    args->line->index = 0u;
     for (;;)
     {
-        const char *const newline =
-            (line->start < size) ? memor.chr(&(MemoriaCfg){
-                                       .src = text + line->start, .val = '\n', .bytes = (size_t)(size - line->start)})
-                                 : NULL;
-        line->end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
-        if (line->index == index)
+        const char *const newline = (args->line->start < args->size)
+                                        ? memor.chr(&(MemoriaCfg){.src = args->text + args->line->start,
+                                                                  .val = '\n',
+                                                                  .bytes = (size_t)(args->size - args->line->start)})
+                                        : NULL;
+        args->line->end = (newline != NULL) ? (unsigned long long)(newline - args->text) : args->size;
+        if (args->line->index == index)
         {
             return 1;
         }
@@ -36,140 +38,172 @@ int cli_fill_line_at(const char *text, unsigned long long size, unsigned int ind
         {
             return 0;
         }
-        line->start = line->end + 1u;
-        line->index += 1u;
+        args->line->start = args->line->end + 1u;
+        args->line->index += 1u;
     }
 }
 
-int cli_fill_before(const char *text, CliFillLine *line)
+int cli_fill_before(const CliFillTextSizeCtx *args)
 {
-    if (line->index == 0u)
+    if (args->line->index == 0u)
     {
         return 0;
     }
-    line->end = line->start - 1u;
-    line->start = line->end;
-    line->start = cli_text_back_any(text, line->start, "\n");
-    line->index -= 1u;
+    args->line->end = args->line->start - 1u;
+    args->line->start = args->line->end;
+    args->line->start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->text,
+                                   .at = args->line->start, .set = "\n");
+    args->line->index -= 1u;
     return 1;
 }
 
-int cli_fill_after(const char *text, unsigned long long size, CliFillLine *line)
+int cli_fill_after(const CliFillTextSizeCtx *args)
 {
-    if (line->end >= size)
+    if (args->line->end >= args->size)
     {
         return 0;
     }
-    line->start = line->end + 1u;
-    const char *const newline =
-        (line->start < size)
-            ? memor.chr(&(MemoriaCfg){.src = text + line->start, .val = '\n', .bytes = (size_t)(size - line->start)})
-            : NULL;
-    line->end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
-    line->index += 1u;
+    args->line->start = args->line->end + 1u;
+    const char *const newline = (args->line->start < args->size)
+                                    ? memor.chr(&(MemoriaCfg){.src = args->text + args->line->start,
+                                                              .val = '\n',
+                                                              .bytes = (size_t)(args->size - args->line->start)})
+                                    : NULL;
+    args->line->end = (newline != NULL) ? (unsigned long long)(newline - args->text) : args->size;
+    args->line->index += 1u;
     return 1;
 }
 
-void cli_filled_begun(CliFilled *filled)
+void cli_filled_begin(const CliFillSizeCtx *args)
 {
-    if (filled->lines > 0u)
+    if (args->filled->lines > 0u)
     {
-        mmgr_line_ch(filled->out, '\n');
+        mmgr_line_ch(args->filled->out, '\n');
     }
-    filled->line_start = filled->out->at;
-    filled->lines += 1u;
+    args->filled->line_start = args->filled->out->at;
+    args->filled->lines += 1u;
 }
 
-const char *cli_filled_last(const CliFilled *filled, unsigned long long *size)
+const char *cli_filled_last(const CliFillFilledSizeCtx *args)
 {
-    *size = (filled->lines > 0u) ? filled->out->at - filled->line_start : 0ull;
-    return filled->out->out + filled->line_start;
+    unsigned long long *size = args->size_pointer;
+    *size = (args->filled_read->lines > 0u) ? args->filled_read->out->at - args->filled_read->line_start : 0ull;
+    return args->filled_read->out->out + args->filled_read->line_start;
 }
 
-void cli_filled_line(CliFilled *filled, const char *bytes, unsigned long long size)
+void cli_filled_line(const CliFillSizeCtx *args)
 {
-    cli_filled_begun(filled);
-    mmgr_line_put_n(filled->out, bytes, size);
+    cli_fill_size_internal.filled_begin(args);
+    mmgr_line_put_n(args->filled->out, args->bytes, args->size);
 }
 
-void cli_filled_dropped(CliFilled *filled)
+void cli_filled_drop(const CliFillTextCtx *args)
 {
-    if (filled->lines == 0u)
+    if (args->filled->lines == 0u)
     {
         return;
     }
-    filled->lines -= 1u;
-    filled->out->at = (filled->lines > 0u) ? filled->line_start - 1u : 0ull;
-    unsigned long long start = filled->out->at;
-    if (filled->lines > 0u)
+    args->filled->lines -= 1u;
+    args->filled->out->at = (args->filled->lines > 0u) ? args->filled->line_start - 1u : 0ull;
+    unsigned long long start = args->filled->out->at;
+    if (args->filled->lines > 0u)
     {
-        start = cli_text_back_any(filled->out->out, start, "\n");
+        start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->filled->out->out,
+                           .at = start, .set = "\n");
     }
-    filled->line_start = start;
+    args->filled->line_start = start;
 }
 
+typedef struct
+{
+    CliFilled *filled;
+    const char *trimmed;
+    unsigned long long size;
+    const char *text;
+    const CliFillLine *line;
+    const char *prefix;
+    unsigned long long prefix_size;
+    const char **body;
+    unsigned long long *body_size;
+    unsigned int mark;
+    const CliFillLine *here;
+    unsigned int width;
+    CliTextEdit *edit;
+    VerbaLinea *err_msg;
+} FillCtx;
 // the last line written with its whitespace at its end taken off
-static void fill_ended(CliFilled *filled)
+EMBED_INLINE void fill_end(const FillCtx *args)
 {
-    const unsigned long long size = filled->out->at - filled->line_start;
-    filled->out->at = filled->line_start + cli_text_trimmed_end(filled->out->out + filled->line_start, size);
+    const unsigned long long size = args->filled->out->at - args->filled->line_start;
+    args->filled->out->at =
+        args->filled->line_start + EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg,
+                                              .text = args->filled->out->out + args->filled->line_start, .size = size);
 }
 
-void cli_fill_words(CliFilled *filled, unsigned int slice, unsigned int count, const char *first,
-                    unsigned long long first_size, const char *rest, unsigned long long rest_size, unsigned int width)
+void cli_fill_words(const CliFillFilledCtx *args)
 {
-    cli_filled_line(filled, first, first_size);
-    unsigned long long letters = cli_text_letters(first, first_size);
+    EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = args->filled, .bytes = args->first,
+               .size = args->first_size);
+    unsigned long long letters =
+        EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->first, .size = args->first_size);
     int empty = 1;
-    for (unsigned int at = slice; at < slice + count; at += 1u)
+    for (unsigned int at = args->slice; at < args->slice + args->count; at += 1u)
     {
         const char *const text = g_cli_fill_slice[at];
         const unsigned long long size = g_cli_fill_slice_size[at];
         unsigned long long walk = 0ull;
         unsigned long long word = 0ull;
         unsigned long long length = 0ull;
-        while (cli_text_word(text, size, &walk, &word, &length))
+        while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text, .size = size,
+                          .at_pointer = &walk, .word = &word, .length = &length))
         {
-            const unsigned long long word_letters = cli_text_letters(text + word, length);
+            const unsigned long long word_letters =
+                EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text + word, .size = length);
             const unsigned long long lead = empty ? letters : letters + 1u;
-            if (!empty && (lead + word_letters > width))
+            if (!empty && (lead + word_letters > args->width))
             {
-                fill_ended(filled);
-                cli_filled_line(filled, rest, rest_size);
-                letters = cli_text_letters(rest, rest_size);
+                EMBED_CALL(fill_end, FillCtx, .filled = args->filled);
+                EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = args->filled,
+                           .bytes = args->rest, .size = args->rest_size);
+                letters = EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->rest,
+                                     .size = args->rest_size);
                 empty = 1;
             }
             if (!empty)
             {
-                mmgr_line_ch(filled->out, ' ');
+                mmgr_line_ch(args->filled->out, ' ');
                 letters += 1u;
             }
-            mmgr_line_put_n(filled->out, text + word, length);
+            mmgr_line_put_n(args->filled->out, text + word, length);
             letters += word_letters;
             empty = 0;
         }
     }
-    fill_ended(filled);
+    EMBED_CALL(fill_end, FillCtx, .filled = args->filled);
 }
 
-void cli_fill_edit_of(const char *text, const CliFillLine *first, const CliFillLine *last, const CliFilled *filled,
-                      CliTextEdit *edit)
+void cli_fill_edit_get(const CliFillTextFilledCtx *args)
 {
-    edit->from.line = first->index;
-    edit->from.col = 0u;
-    edit->to.line = last->index;
-    edit->to.col = (unsigned int)cli_text_units(text + last->start, last->end - last->start);
-    edit->text = filled->out->out;
-    edit->size = filled->out->at;
+    const char *text = args->text;
+    args->edit->from.line = args->first_fill_line_pointer->index;
+    args->edit->from.col = 0u;
+    args->edit->to.line = args->last->index;
+    args->edit->to.col =
+        (unsigned int)EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = text + args->last->start,
+                                 .size = args->last->end - args->last->start);
+    args->edit->text = args->filled_read->out->out;
+    args->edit->size = args->filled_read->out->at;
 }
 
 // the mark of the comment a line of `size` bytes, whitespace taken off its start, starts with: its place among the
 // marks, 6 where it starts with none
-static unsigned int fill_mark_of(const char *trimmed, unsigned long long size)
+EMBED_INLINE unsigned int fill_mark_get(const FillCtx *args)
 {
+    unsigned long long size = args->size;
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        if (cli_text_starts(trimmed, size, s_marks[at]))
+        if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = args->trimmed, .size = size,
+                       .prefix = s_marks[at]))
         {
             return at;
         }
@@ -179,41 +213,51 @@ static unsigned int fill_mark_of(const char *trimmed, unsigned long long size)
 
 // the text after `prefix` of a line that starts with it, trimmed, into `body`: 1, or 0 where the line does not start
 // with it
-static int fill_body_of(const char *text, const CliFillLine *line, const char *prefix, unsigned long long prefix_size,
-                        const char **body, unsigned long long *body_size)
+EMBED_INLINE int fill_body_get(const FillCtx *args)
 {
-    const unsigned long long size = line->end - line->start;
-    if ((size < prefix_size) ||
-        (memor.cmp(&(MemoriaCfg){.src = text + line->start, .other = prefix, .bytes = (size_t)prefix_size}) != 0))
+    const char *text = args->text;
+    const char **body = args->body;
+    unsigned long long *body_size = args->body_size;
+    const unsigned long long size = args->line->end - args->line->start;
+    if ((size < args->prefix_size) ||
+        (memor.cmp(&(MemoriaCfg){
+             .src = text + args->line->start, .other = args->prefix, .bytes = (size_t)args->prefix_size}) != 0))
     {
         return 0;
     }
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    cli_text_trimmed(text + line->start + prefix_size, size - prefix_size, &from, &to);
-    *body = text + line->start + prefix_size + from;
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg,
+               .text = text + args->line->start + args->prefix_size, .size = size - args->prefix_size,
+               .from_u64s = &from, .to_u64s = &to);
+    *body = text + args->line->start + args->prefix_size + from;
     *body_size = to - from;
     return 1;
 }
 
 // whether a line is of the paragraph of the comment of mark `mark` and `prefix`: it starts with the prefix and contains
 // text after it, and starts with no longer mark
-static int fill_in_comment(const char *text, const CliFillLine *line, unsigned int mark, const char *prefix,
-                           unsigned long long prefix_size)
+EMBED_INLINE int fill_in_comment(const FillCtx *args)
 {
+    const char *text = args->text;
+    const char *prefix = args->prefix;
     const char *body = NULL;
     unsigned long long body_size = 0ull;
-    if (!fill_body_of(text, line, prefix, prefix_size, &body, &body_size) || (body_size == 0u))
+    if (!EMBED_CALL(fill_body_get, FillCtx, .text = text, .line = args->line, .prefix = prefix,
+                    .prefix_size = args->prefix_size, .body = &body, .body_size = &body_size) ||
+        (body_size == 0u))
     {
         return 0;
     }
-    const unsigned long long size = line->end - line->start;
-    const unsigned long long lead = cli_text_lead(text + line->start, size);
+    const unsigned long long size = args->line->end - args->line->start;
+    const unsigned long long lead = EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg,
+                                               .text = text + args->line->start, .size = size);
     for (unsigned int other = 0u; other < 6u; other += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_marks[other], .cap = CLI_CELLS_POOL}) >
-             cellul.len(&(CatenaFinitaCfg){.src = s_marks[mark], .cap = CLI_CELLS_POOL})) &&
-            cli_text_starts(text + line->start + lead, size - lead, s_marks[other]))
+             cellul.len(&(CatenaFinitaCfg){.src = s_marks[args->mark], .cap = CLI_CELLS_POOL})) &&
+            EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + args->line->start + lead,
+                       .size = size - lead, .prefix = s_marks[other]))
         {
             return 0;
         }
@@ -222,38 +266,53 @@ static int fill_in_comment(const char *text, const CliFillLine *line, unsigned i
 }
 
 // the paragraph of a comment a line around `here`, whose mark is that at `mark`
-static int fill_comment_lines(const char *text, unsigned long long size, const CliFillLine *here, unsigned int mark,
-                              unsigned int width, CliFilled *filled, CliTextEdit *edit, VerbaLinea *err_msg)
+EMBED_INLINE int fill_comment_lines(const FillCtx *args)
 {
-    const char *const prefix = text + here->start;
-    const unsigned long long prefix_size = cli_text_lead(prefix, here->end - here->start) +
-                                           cellul.len(&(CatenaFinitaCfg){.src = s_marks[mark], .cap = CLI_CELLS_POOL});
-    if (!fill_in_comment(text, here, mark, prefix, prefix_size))
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    unsigned int width = args->width;
+    CliFilled *filled = args->filled;
+    CliTextEdit *edit = args->edit;
+    const char *const prefix = text + args->here->start;
+    const unsigned long long prefix_size =
+        EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = prefix,
+                   .size = args->here->end - args->here->start) +
+        cellul.len(&(CatenaFinitaCfg){.src = s_marks[args->mark], .cap = CLI_CELLS_POOL});
+    if (!EMBED_CALL(fill_in_comment, FillCtx, .text = text, .line = args->here, .mark = args->mark, .prefix = prefix,
+                    .prefix_size = prefix_size))
     {
-        mmgr_line_put(err_msg, "Fill Paragraph fills the paragraph the cursor is in.");
+        mmgr_line_put(args->err_msg, "Fill Paragraph fills the paragraph the cursor is in.");
         return 0;
     }
-    CliFillLine first = *here;
+    CliFillLine first = *args->here;
     CliFillLine before = first;
-    while (cli_fill_before(text, &before) && fill_in_comment(text, &before, mark, prefix, prefix_size))
+    while (EMBED_CALL(cli_fill_text_size_internal.before, CliFillTextSizeCtx, .text = text, .line = &before) &&
+           EMBED_CALL(fill_in_comment, FillCtx, .text = text, .line = &before, .mark = args->mark, .prefix = prefix,
+                      .prefix_size = prefix_size))
     {
         first = before;
     }
-    CliFillLine last = *here;
+    CliFillLine last = *args->here;
     CliFillLine after = last;
-    while (cli_fill_after(text, size, &after) && fill_in_comment(text, &after, mark, prefix, prefix_size))
+    while (
+        EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx, .text = text, .size = size, .line = &after) &&
+        EMBED_CALL(fill_in_comment, FillCtx, .text = text, .line = &after, .mark = args->mark, .prefix = prefix,
+                   .prefix_size = prefix_size))
     {
         last = after;
     }
     unsigned int count = 0u;
     for (CliFillLine line = first; count < g_cli_fill_slices;)
     {
-        if (!fill_body_of(text, &line, prefix, prefix_size, &g_cli_fill_slice[count], &g_cli_fill_slice_size[count]))
+        if (!EMBED_CALL(fill_body_get, FillCtx, .text = text, .line = &line, .prefix = prefix,
+                        .prefix_size = prefix_size, .body = &g_cli_fill_slice[count],
+                        .body_size = &g_cli_fill_slice_size[count]))
         {
             g_cli_fill_slice_size[count] = 0ull;
         }
         count += 1u;
-        if ((line.index == last.index) || !cli_fill_after(text, size, &line))
+        if ((line.index == last.index) || !EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx,
+                                                      .text = text, .size = size, .line = &line))
         {
             break;
         }
@@ -262,35 +321,46 @@ static int fill_comment_lines(const char *text, unsigned long long size, const C
     VerbaLinea lead = {s_lead, sizeof(s_lead), 0ull};
     mmgr_line_put_n(&lead, prefix, prefix_size);
     mmgr_line_ch(&lead, ' ');
-    cli_fill_words(filled, 0u, count, s_lead, lead.at, s_lead, lead.at, width);
-    cli_fill_edit_of(text, &first, &last, filled, edit);
+    EMBED_CALL(cli_fill_filled_internal.words, CliFillFilledCtx, .filled = filled, .slice = 0u, .count = count,
+               .first = s_lead, .first_size = lead.at, .rest = s_lead, .rest_size = lead.at, .width = width);
+    EMBED_CALL(cli_fill_text_filled_internal.edit_get, CliFillTextFilledCtx, .text = text,
+               .first_fill_line_pointer = &first, .last = &last, .filled_read = filled, .edit = edit);
     return 1;
 }
 
 // whether a line is blank
-static int fill_blank(const char *text, const CliFillLine *line)
+EMBED_INLINE int fill_blank(const FillCtx *args)
 {
-    return cli_text_lead(text + line->start, line->end - line->start) == line->end - line->start;
+    const char *text = args->text;
+    return EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = text + args->line->start,
+                      .size = args->line->end - args->line->start) == args->line->end - args->line->start;
 }
 
 // the paragraph of plain text around `here`
-static int fill_plain(const char *text, unsigned long long size, const CliFillLine *here, unsigned int width,
-                      CliFilled *filled, CliTextEdit *edit, VerbaLinea *err_msg)
+EMBED_INLINE int fill_plain(const FillCtx *args)
 {
-    if (fill_blank(text, here))
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    unsigned int width = args->width;
+    CliFilled *filled = args->filled;
+    CliTextEdit *edit = args->edit;
+    if (EMBED_CALL(fill_blank, FillCtx, .text = text, .line = args->here))
     {
-        mmgr_line_put(err_msg, "Fill Paragraph fills the paragraph the cursor is in.");
+        mmgr_line_put(args->err_msg, "Fill Paragraph fills the paragraph the cursor is in.");
         return 0;
     }
-    CliFillLine first = *here;
+    CliFillLine first = *args->here;
     CliFillLine before = first;
-    while (cli_fill_before(text, &before) && !fill_blank(text, &before))
+    while (EMBED_CALL(cli_fill_text_size_internal.before, CliFillTextSizeCtx, .text = text, .line = &before) &&
+           !EMBED_CALL(fill_blank, FillCtx, .text = text, .line = &before))
     {
         first = before;
     }
-    CliFillLine last = *here;
+    CliFillLine last = *args->here;
     CliFillLine after = last;
-    while (cli_fill_after(text, size, &after) && !fill_blank(text, &after))
+    while (
+        EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx, .text = text, .size = size, .line = &after) &&
+        !EMBED_CALL(fill_blank, FillCtx, .text = text, .line = &after))
     {
         last = after;
     }
@@ -300,32 +370,35 @@ static int fill_plain(const char *text, unsigned long long size, const CliFillLi
         g_cli_fill_slice[count] = text + line.start;
         g_cli_fill_slice_size[count] = line.end - line.start;
         count += 1u;
-        if ((line.index == last.index) || !cli_fill_after(text, size, &line))
+        if ((line.index == last.index) || !EMBED_CALL(cli_fill_text_size_internal.after, CliFillTextSizeCtx,
+                                                      .text = text, .size = size, .line = &line))
         {
             break;
         }
     }
     const char *const lead = text + first.start;
-    const unsigned long long lead_size = cli_text_lead(lead, first.end - first.start);
-    cli_fill_words(filled, 0u, count, lead, lead_size, lead, lead_size, width);
-    cli_fill_edit_of(text, &first, &last, filled, edit);
+    const unsigned long long lead_size = EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = lead,
+                                                    .size = first.end - first.start);
+    EMBED_CALL(cli_fill_filled_internal.words, CliFillFilledCtx, .filled = filled, .slice = 0u, .count = count,
+               .first = lead, .first_size = lead_size, .rest = lead, .rest_size = lead_size, .width = width);
+    EMBED_CALL(cli_fill_text_filled_internal.edit_get, CliFillTextFilledCtx, .text = text,
+               .first_fill_line_pointer = &first, .last = &last, .filled_read = filled, .edit = edit);
     return 1;
 }
 
-int cli_fill(const char *text, unsigned long long size, unsigned int line, unsigned int width, VerbaLinea *written,
-             CliTextEdit *edit, VerbaLinea *err_msg)
+int cli_fill(const CliFillCfg *args)
 {
-    cli_lock_take(&s_fill_lock);
-    if (!cli_fill_comment_locked(err_msg))
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_fill_lock);
+    if (!EMBED_CALL(cli_fill_internal.comment_lock, CliFillCtx, .err_msg = args->err_msg))
     {
-        cli_lock_give(&s_fill_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_fill_lock);
         return 0;
     }
     // a slice is a line of the text, and one place is left after the lines: its newlines and two fit them
     unsigned long long slices = 2ull;
-    for (unsigned long long at = 0ull; (at < size) && (slices < CLI_FILL_SLICES); at += 1ull)
+    for (unsigned long long at = 0ull; (at < args->size) && (slices < CLI_FILL_SLICES); at += 1ull)
     {
-        slices += (text[at] == '\n') ? 1ull : 0ull;
+        slices += (args->text[at] == '\n') ? 1ull : 0ull;
     }
     // the slices are under CLI_FILL_SLICES, which an unsigned int stores
     g_cli_fill_slices = (unsigned int)slices;
@@ -333,47 +406,55 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
                                                          &g_cli_editor_cells);
     if (g_cli_fill_slice == NULL)
     {
-        cli_fill_comment_released();
-        cli_lock_give(&s_fill_lock);
-        mmgr_line_put(err_msg, "the texts a fill fills could not be taken");
+        cli_fill_comment_release();
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_fill_lock);
+        mmgr_line_put(args->err_msg, "the texts a fill fills could not be taken");
         return 0;
     }
     g_cli_fill_slice_size = (unsigned long long *)(void *)(g_cli_fill_slice + slices);
-    CliFilled filled = {written, 0ull, 0u};
-    written->at = 0ull;
+    CliFilled filled = {args->written, 0ull, 0u};
+    args->written->at = 0ull;
     CliFillLine here = {0ull, 0ull, 0u};
     int done = 0;
-    if (!cli_fill_line_at(text, size, line, &here))
+    if (!EMBED_CALL(cli_fill_text_size_internal.line_at, CliFillTextSizeCtx, .text = args->text, .size = args->size,
+                    .index = args->line, .line = &here))
     {
-        mmgr_line_put(err_msg, "No line is there.");
+        mmgr_line_put(args->err_msg, "No line is there.");
     }
-    else if (cli_fill_comment(text, size, &here, width, &filled, edit))
+    else if (EMBED_CALL(cli_fill_text_internal.comment, CliFillTextCtx, .text = args->text, .size = args->size,
+                        .at = &here, .width = args->width, .filled = &filled, .edit = args->edit))
     {
         done = 1;
     }
     else
     {
-        const unsigned long long lead = cli_text_lead(text + here.start, here.end - here.start);
-        const unsigned int mark = fill_mark_of(text + here.start + lead, here.end - here.start - lead);
+        const unsigned long long lead = EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg,
+                                                   .text = args->text + here.start, .size = here.end - here.start);
+        const unsigned int mark = EMBED_CALL(fill_mark_get, FillCtx, .trimmed = args->text + here.start + lead,
+                                             .size = here.end - here.start - lead);
         if (mark < 6u)
         {
-            done = fill_comment_lines(text, size, &here, mark, width, &filled, edit, err_msg);
+            done = EMBED_CALL(fill_comment_lines, FillCtx, .text = args->text, .size = args->size, .here = &here,
+                              .mark = mark, .width = args->width, .filled = &filled, .edit = args->edit,
+                              .err_msg = args->err_msg);
         }
-        else if (cli_fill_docstring(text, size, &here, width, &filled, edit))
+        else if (EMBED_CALL(cli_fill_text_internal.docstring, CliFillTextCtx, .text = args->text, .size = args->size,
+                            .at = &here, .width = args->width, .filled = &filled, .edit = args->edit))
         {
             done = 1;
         }
         else
         {
-            done = fill_plain(text, size, &here, width, &filled, edit, err_msg);
+            done = EMBED_CALL(fill_plain, FillCtx, .text = args->text, .size = args->size, .here = &here,
+                              .width = args->width, .filled = &filled, .edit = args->edit, .err_msg = args->err_msg);
         }
     }
-    done = done && mmgr_line_ok(written);
+    done = done && mmgr_line_ok(args->written);
     g_cli_cells->persistent_buf_release(g_cli_fill_slice, &g_cli_editor_cells);
     g_cli_fill_slice = NULL;
     g_cli_fill_slice_size = NULL;
     g_cli_fill_slices = 0u;
-    cli_fill_comment_released();
-    cli_lock_give(&s_fill_lock);
+    cli_fill_comment_release();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_fill_lock);
     return done;
 }

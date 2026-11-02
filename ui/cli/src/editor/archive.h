@@ -17,8 +17,17 @@
 // what the run did and is never written back
 #ifndef ARCHIVE_H
 #define ARCHIVE_H
+typedef struct CliArchiveSizeCfg CliArchiveSizeCfg;
+typedef struct CliArchiveBytesCfg CliArchiveBytesCfg;
+typedef struct CliArchiveErrMsgCfg CliArchiveErrMsgCfg;
+typedef struct CliArchiveSizeDataCfg CliArchiveSizeDataCfg;
+typedef struct CliArchiveErrMsgRootCfg CliArchiveErrMsgRootCfg;
+typedef struct CliArchiveRootCfg CliArchiveRootCfg;
+typedef struct CliArchiveBytesSizeCfg CliArchiveBytesSizeCfg;
+typedef struct CliArchiveCfg CliArchiveCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the kinds of archive, and none
 enum
@@ -83,24 +92,20 @@ typedef struct
 } CliChildren;
 
 // the kind of archive a file is by its name, CLI_ARCHIVE_NONE for none
-unsigned int cli_archive_kind_of(const char *name);
+unsigned int cli_archive_kind_get(const CliArchiveCfg *args);
 // the CRC-32 of `size` bytes; the bytes deflated `data` contains into `out`, sized for `room`, their count into
 // `out_size` and the bytes of `data` it took into `used`: 1, or 0 with why given; `size` bytes of `data` deflated, in
 // one block of the fixed codes, each run seen in the 32 KiB before it sent as a length and a distance back, into `out`,
 // sized for `room`: their count, or 0 where they do not fit (archive_deflate.c)
-unsigned int cli_crc32(const unsigned char *bytes, unsigned long long size);
-int cli_inflate(const unsigned char *data, unsigned long long size, unsigned char *out, unsigned long long room,
-                unsigned long long *out_size, unsigned long long *used, VerbaLinea *err_msg);
-unsigned long long cli_deflate(const unsigned char *data, unsigned long long size, unsigned char *out,
-                               unsigned long long room);
+unsigned int cli_crc32(const CliArchiveBytesSizeCfg *args);
+int cli_inflate(const CliArchiveSizeCfg *args);
+unsigned long long cli_deflate(const CliArchiveSizeCfg *args);
 // what a gzip contains, unzipped, into `out`, sized for `room`, its count into `out_size`: 1, or 0 with why given; and
 // `size` bytes of `data` gzipped into `out`: their count, or 0 where they do not fit (archive_tar.c)
-int cli_gunzip(const unsigned char *bytes, unsigned long long size, unsigned char *out, unsigned long long room,
-               unsigned long long *out_size, VerbaLinea *err_msg);
-unsigned long long cli_gzip(const unsigned char *data, unsigned long long size, unsigned char *out,
-                            unsigned long long room);
+int cli_gunzip(const CliArchiveBytesCfg *args);
+unsigned long long cli_gzip(const CliArchiveSizeCfg *args);
 // `size` bytes read in the old DOS page, 437, written as UTF-8 after `out` (archive_zip.c)
-void cli_dos(const unsigned char *bytes, unsigned long long size, VerbaLinea *out);
+void cli_dos(const CliArchiveBytesSizeCfg *args);
 // where a path of the tree runs into an archive: the archive's file into `file`, sized for CLI_PATH_MAX_LEN, and the
 // path's parts past it, joined by `/`, into `inner`, sized for CLI_PATH_MAX_LEN: 1, or 0 where the path runs into no
 // archive; the children of the folder of the tree `path` that is an archive or runs into one: 1, or 0 with why given;
@@ -108,11 +113,154 @@ void cli_dos(const unsigned char *bytes, unsigned long long size, VerbaLinea *ou
 // their size into `size`: the cell, given back by the caller, or NULL with why given; and `size` bytes of `data` saved
 // as that file, the archive written anew beside the old one and then put in its place: 1, or 0 with why given
 // (archive_path.c)
-int cli_archive_split(const char *root, const char *path, char *file, char *inner);
-int cli_archive_list(const char *root, const char *path, CliChildren *found, VerbaLinea *err_msg);
-char *cli_archive_taken(const char *root, const char *path, unsigned long long *size, CellOwner *owner,
-                        VerbaLinea *err_msg);
-int cli_archive_write(const char *root, const char *path, const unsigned char *data, unsigned long long size,
-                      VerbaLinea *err_msg);
+int cli_archive_split(const CliArchiveRootCfg *args);
+int cli_archive_list(const CliArchiveErrMsgRootCfg *args);
+char *cli_archive_take(const CliArchiveErrMsgCfg *args);
+int cli_archive_write(const CliArchiveSizeDataCfg *args);
+
+struct CliArchiveSizeCfg
+{
+    unsigned long long size;
+    const unsigned char *data;
+    unsigned char *out;
+    unsigned long long room;
+    unsigned long long *out_size;
+    unsigned long long *used;
+    VerbaLinea *err_msg;
+};
+
+struct CliArchiveBytesCfg
+{
+    const unsigned char *bytes;
+    unsigned long long size;
+    unsigned char *out;
+    unsigned long long room;
+    unsigned long long *out_size;
+    VerbaLinea *err_msg;
+};
+
+struct CliArchiveErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    const char *root;
+    const char *path;
+    unsigned long long *size_pointer;
+    CellOwner *owner;
+};
+
+struct CliArchiveSizeDataCfg
+{
+    unsigned long long size;
+    const unsigned char *data;
+    VerbaLinea *err_msg;
+    const char *root;
+    const char *path;
+};
+
+struct CliArchiveErrMsgRootCfg
+{
+    VerbaLinea *err_msg;
+    const char *root;
+    const char *path;
+    CliChildren *found;
+};
+
+struct CliArchiveRootCfg
+{
+    const char *root;
+    const char *path;
+    char *file;
+    char *inner;
+};
+
+struct CliArchiveBytesSizeCfg
+{
+    const unsigned char *bytes;
+    unsigned long long size;
+    VerbaLinea *out_verba_linea_pointer;
+};
+
+struct CliArchiveCfg
+{
+    const char *name;
+};
+
+typedef struct
+{
+    unsigned int (*kind_get)(const CliArchiveCfg *args);
+} CliArchiveNs;
+EMBED_TABLE_LAYOUT(CliArchiveNs, kind_get);
+EMBED_TABLE_STORAGE CliArchiveNs cli_archive EMBED_UNUSED = {
+    .kind_get = cli_archive_kind_get,
+};
+
+typedef struct
+{
+    unsigned int (*crc32)(const CliArchiveBytesSizeCfg *args);
+    void (*dos)(const CliArchiveBytesSizeCfg *args);
+} CliArchiveBytesSizeNs;
+EMBED_TABLE_LAYOUT(CliArchiveBytesSizeNs, crc32, dos);
+EMBED_TABLE_STORAGE CliArchiveBytesSizeNs cli_archive_bytes_size EMBED_UNUSED = {
+    .crc32 = cli_crc32,
+    .dos = cli_dos,
+};
+
+typedef struct
+{
+    int (*inflate)(const CliArchiveSizeCfg *args);
+    unsigned long long (*deflate)(const CliArchiveSizeCfg *args);
+    unsigned long long (*gzip)(const CliArchiveSizeCfg *args);
+} CliArchiveSizeNs;
+EMBED_TABLE_LAYOUT(CliArchiveSizeNs, inflate, deflate, gzip);
+EMBED_TABLE_STORAGE CliArchiveSizeNs cli_archive_size EMBED_UNUSED = {
+    .inflate = cli_inflate,
+    .deflate = cli_deflate,
+    .gzip = cli_gzip,
+};
+
+typedef struct
+{
+    int (*gunzip)(const CliArchiveBytesCfg *args);
+} CliArchiveBytesNs;
+EMBED_TABLE_LAYOUT(CliArchiveBytesNs, gunzip);
+EMBED_TABLE_STORAGE CliArchiveBytesNs cli_archive_bytes EMBED_UNUSED = {
+    .gunzip = cli_gunzip,
+};
+
+typedef struct
+{
+    int (*split)(const CliArchiveRootCfg *args);
+} CliArchiveRootNs;
+EMBED_TABLE_LAYOUT(CliArchiveRootNs, split);
+EMBED_TABLE_STORAGE CliArchiveRootNs cli_archive_root EMBED_UNUSED = {
+    .split = cli_archive_split,
+};
+
+typedef struct
+{
+    int (*list)(const CliArchiveErrMsgRootCfg *args);
+} CliArchiveErrMsgRootNs;
+EMBED_TABLE_LAYOUT(CliArchiveErrMsgRootNs, list);
+EMBED_TABLE_STORAGE CliArchiveErrMsgRootNs cli_archive_err_msg_root EMBED_UNUSED = {
+    .list = cli_archive_list,
+};
+
+typedef struct
+{
+    char *(*take)(const CliArchiveErrMsgCfg *args);
+} CliArchiveErrMsgNs;
+EMBED_TABLE_LAYOUT(CliArchiveErrMsgNs, take);
+EMBED_TABLE_STORAGE CliArchiveErrMsgNs cli_archive_err_msg EMBED_UNUSED = {
+    .take = cli_archive_take,
+};
+
+typedef struct
+{
+    int (*write)(const CliArchiveSizeDataCfg *args);
+} CliArchiveSizeDataNs;
+EMBED_TABLE_LAYOUT(CliArchiveSizeDataNs, write);
+EMBED_TABLE_STORAGE CliArchiveSizeDataNs cli_archive_size_data EMBED_UNUSED = {
+    .write = cli_archive_write,
+};
 
 #endif

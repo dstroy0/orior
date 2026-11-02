@@ -5,37 +5,49 @@
 #include "../command_line/cells.h"
 #include "test_runs_internal.h"
 
-// the output read and not yet written added to the process's output file, which is made anew with the first
-static void read_batch_written(CliTestWorker *worker, int fresh)
+typedef struct
 {
-    (void)cli_file_appended(worker->seen, worker->batch, worker->batch_size, fresh);
-    worker->batch_size = 0ull;
+    CliTestWorker *worker;
+    int fresh;
+    void (*line)(const CliWorkerTextSizeCfg *args);
+    int *fresh_pointer;
+} TestReadCtx;
+
+// the output read and not yet written added to the process's output file, which is made anew with the first
+EMBED_INLINE void read_batch_write(const TestReadCtx *args)
+{
+    int fresh = args->fresh;
+    (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->worker->seen,
+                     .bytes = args->worker->batch, .size = args->worker->batch_size, .fresh = fresh);
+    args->worker->batch_size = 0ull;
 }
 
 // a line ended: handed on, and stored, with "\n" after it, in the output; a "\r" before its end taken off
-static void read_line_ended(CliTestWorker *worker,
-                            void (*line)(CliTestWorker *worker, const char *text, unsigned long long size), int *fresh)
+EMBED_INLINE void read_line_on_end(const TestReadCtx *args)
 {
-    unsigned long long size = worker->line_size;
-    size -= ((size > 0ull) && (worker->line[size - 1ull] == '\r')) ? 1ull : 0ull;
-    line(worker, worker->line, size);
-    if (worker->batch_size + size + 1ull > sizeof(worker->batch))
+    int *fresh = args->fresh_pointer;
+    unsigned long long size = args->worker->line_size;
+    size -= ((size > 0ull) && (args->worker->line[size - 1ull] == '\r')) ? 1ull : 0ull;
+    EMBED_CALL(args->line, CliWorkerTextSizeCfg, .worker = args->worker, .text = args->worker->line, .size = size);
+    if (args->worker->batch_size + size + 1ull > sizeof(args->worker->batch))
     {
-        read_batch_written(worker, *fresh);
+        EMBED_CALL(read_batch_write, TestReadCtx, .worker = args->worker, .fresh = *fresh);
         *fresh = 0;
     }
-    if (size + 1ull <= sizeof(worker->batch))
+    if (size + 1ull <= sizeof(args->worker->batch))
     {
-        memor.cpy(&(MemoriaCfg){.dst = worker->batch + worker->batch_size, .src = worker->line, .bytes = size});
-        worker->batch[worker->batch_size + size] = '\n';
-        worker->batch_size += size + 1ull;
+        memor.cpy(&(MemoriaCfg){
+            .dst = args->worker->batch + args->worker->batch_size, .src = args->worker->line, .bytes = size});
+        args->worker->batch[args->worker->batch_size + size] = '\n';
+        args->worker->batch_size += size + 1ull;
     }
-    worker->line_size = 0ull;
+    args->worker->line_size = 0ull;
 }
 
-void cli_test_lines_read(CliTestWorker *worker,
-                         void (*line)(CliTestWorker *worker, const char *text, unsigned long long size))
+void cli_test_lines_read(const CliTestRunsWorkerLineCtx *args)
 {
+    CliTestWorker *worker = args->worker;
+    void (*line)(const CliWorkerTextSizeCfg *args) = args->line_callback;
     char piece[4096];
     int fresh = 1;
     int stopped = 0;
@@ -43,7 +55,9 @@ void cli_test_lines_read(CliTestWorker *worker,
     worker->batch_size = 0ull;
     while (!stopped)
     {
-        const unsigned long long count = cli_spawn_read(worker->spawned.out, piece, sizeof(piece));
+        const unsigned long long count =
+            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
+                       .pipe_handle = worker->spawned.out, .piece = piece, .room = sizeof(piece));
         if (count == 0ull)
         {
             break;
@@ -53,10 +67,10 @@ void cli_test_lines_read(CliTestWorker *worker,
             // a line longer than the room is handed on in pieces of the room's length
             if ((piece[at] == '\n') || (worker->line_size == sizeof(worker->line)))
             {
-                stopped = cli_test_stopped();
+                stopped = cli_test_stop();
                 if (!stopped)
                 {
-                    read_line_ended(worker, line, &fresh);
+                    EMBED_CALL(read_line_on_end, TestReadCtx, .worker = worker, .line = line, .fresh_pointer = &fresh);
                 }
             }
             if ((piece[at] != '\n') && !stopped)
@@ -66,11 +80,11 @@ void cli_test_lines_read(CliTestWorker *worker,
             }
         }
     }
-    if ((worker->line_size > 0ull) && !stopped && !cli_test_stopped())
+    if ((worker->line_size > 0ull) && !stopped && !cli_test_stop())
     {
-        read_line_ended(worker, line, &fresh);
+        EMBED_CALL(read_line_on_end, TestReadCtx, .worker = worker, .line = line, .fresh_pointer = &fresh);
     }
-    read_batch_written(worker, fresh);
+    EMBED_CALL(read_batch_write, TestReadCtx, .worker = worker, .fresh = fresh);
 }
 
 // a process's errors read whole into its errors file, then reported read
@@ -81,65 +95,73 @@ static void read_errors(void *context)
     int fresh = 1;
     for (;;)
     {
-        const unsigned long long count = cli_spawn_read(worker->spawned.err, piece, sizeof(piece));
+        const unsigned long long count =
+            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
+                       .pipe_handle = worker->spawned.err, .piece = piece, .room = sizeof(piece));
         if (count == 0ull)
         {
             break;
         }
-        (void)cli_file_appended(worker->errors, piece, count, fresh);
+        (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = worker->errors, .bytes = piece,
+                         .size = count, .fresh = fresh);
         fresh = 0;
     }
     if (fresh)
     {
-        (void)cli_file_appended(worker->errors, "", 0ull, 1);
+        (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = worker->errors, .bytes = "",
+                         .size = 0ull, .fresh = 1);
     }
     CliTestRun *const run = worker->run;
-    cli_lock_take(&run->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     worker->errors_read = 1;
     run->going -= 1u;
-    cli_wake_all(&run->wake);
-    cli_lock_give(&run->lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &run->wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
 }
 
-void cli_test_errors_started(CliTestWorker *worker)
+void cli_test_errors_start(const CliTestRunsWorkerLineCtx *args)
 {
-    CliTestRun *const run = worker->run;
-    worker->errors_read = 0;
-    cli_lock_take(&run->lock);
+    CliTestRun *const run = args->worker->run;
+    args->worker->errors_read = 0;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     run->going += 1u;
-    cli_lock_give(&run->lock);
-    worker->error_thread = (CliThread){read_errors, worker};
-    if (!cli_thread_started(&worker->error_thread))
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
+    args->worker->error_thread = (CliThread){read_errors, args->worker};
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &args->worker->error_thread))
     {
-        read_errors(worker);
+        read_errors(args->worker);
     }
 }
 
-void cli_test_errors_waited(CliTestWorker *worker)
+void cli_test_errors_wait(const CliTestRunsWorkerLineCtx *args)
 {
-    CliTestRun *const run = worker->run;
-    cli_lock_take(&run->lock);
-    while (!worker->errors_read)
+    CliTestRun *const run = args->worker->run;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
+    while (!args->worker->errors_read)
     {
-        cli_wake_wait(&run->wake, &run->lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &run->wake, .lock = &run->lock);
     }
-    cli_lock_give(&run->lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
 }
 
-const char *cli_test_file_read(const char *path, unsigned long long *size)
+const char *cli_test_file_read(const CliTestRunsPathCtx *args)
 {
+    unsigned long long *size = args->size_pointer;
     *size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(path, size, &g_cli_tests_cells);
-    if ((bytes != NULL) && !cli_utf8_whole((const char *)bytes, *size))
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+                                                  .size_pointer = size, .owner = &g_cli_tests_cells);
+    if ((bytes != NULL) &&
+        !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = *size))
     {
-        cli_file_given(bytes, &g_cli_tests_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_tests_cells);
         *size = 0ull;
         return NULL;
     }
     return (const char *)bytes;
 }
 
-void cli_test_file_let_go(const char *text, unsigned long long size)
+void cli_test_file_let_go(const CliTestRunsTextWorkerCtx *args)
 {
-    cli_file_given((const unsigned char *)text, &g_cli_tests_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = (const unsigned char *)args->text,
+               .owner = &g_cli_tests_cells);
 }

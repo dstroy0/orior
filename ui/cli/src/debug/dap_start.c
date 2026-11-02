@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dap_start.c: a debug adapter begun: a program started for the session, or one listening at an address connected to;
 // one that runs in orior_cli is begun by dap_within.c
+#include "../command_line/callback_cfg.h"
 #include "../machine/net.h"
 #include "dap_internal.h"
 
@@ -9,44 +10,65 @@
 #define CLI_DAP_CONNECTING 5000u
 
 // `size` bytes written whole to the adapter program's input, or to the adapter's connection
-static int start_piped(void *sink, const void *bytes, unsigned long long size)
+static int start_pipe(const CliSinkBytesSizeCfg *args)
 {
-    return cli_spawn_written(((CliDap *)sink)->spawned.in, bytes, size);
+    const void *bytes = args->bytes;
+    unsigned long long size = args->size;
+    return EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx,
+                      .pipe_handle = ((CliDap *)args->sink)->spawned.in, .bytes = bytes, .size = size);
 }
 
-static int start_sent(void *sink, const void *bytes, unsigned long long size)
+static int start_send(const CliSinkBytesSizeCfg *args)
 {
-    return cli_socket_written(&((CliDap *)sink)->socket, bytes, size);
+    const void *bytes = args->bytes;
+    unsigned long long size = args->size;
+    return EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &((CliDap *)args->sink)->socket,
+                      .bytes = bytes, .size = size);
 }
 
 // a piece of what the adapter program writes, or of what comes over the adapter's connection, read
-static unsigned long long start_piped_read(void *source, char *piece, unsigned long long room)
+static unsigned long long start_piped_read(const CliSourcePieceRoomCfg *args)
 {
-    return cli_spawn_read(((CliDap *)source)->spawned.out, piece, room);
+    char *piece = args->piece;
+    unsigned long long room = args->room;
+    return EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
+                      .pipe_handle = ((CliDap *)args->source)->spawned.out, .piece = piece, .room = room);
 }
 
-static unsigned long long start_received(void *source, char *piece, unsigned long long room)
+static unsigned long long start_receive(const CliSourcePieceRoomCfg *args)
 {
-    const long long count = cli_socket_some(&((CliDap *)source)->socket, piece, room);
+    unsigned long long room = args->room;
+    const long long count =
+        EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &((CliDap *)args->source)->socket,
+                   .bytes_out = args->piece, .room = room);
     return (count > 0ll) ? (unsigned long long)count : 0ull;
 }
 
-// an adapter's reader made to read from `read`
-static void start_reader(CliDap *dap, unsigned long long (*read)(void *source, char *piece, unsigned long long room))
+typedef struct
 {
-    dap->reader.read = read;
-    dap->reader.source = dap;
-    dap->reader.start = 0ull;
-    dap->reader.end = 0ull;
+    CliDap *dap;
+    unsigned long long (*read)(const CliSourcePieceRoomCfg *args);
+} DapStartCtx;
+// an adapter's reader made to read from `read`
+EMBED_INLINE void start_reader(const DapStartCtx *args)
+{
+    unsigned long long (*read)(const CliSourcePieceRoomCfg *args) = args->read;
+    args->dap->reader.read = read;
+    args->dap->reader.source = args->dap;
+    args->dap->reader.start = 0ull;
+    args->dap->reader.end = 0ull;
 }
 
-CliDap *cli_dap_started(const char *program, const char *const *args, unsigned int count, const char *folder,
-                        const char *path, int ends_program, CliDapEventFn emit, void *context, VerbaLinea *err_msg)
+CliDap *cli_dap_start(const CliDapProgramCfg *args)
 {
-    CliDap *const dap = cli_dap_place_taken();
+    unsigned int count = args->count;
+    int ends_program = args->ends_program;
+    CliDapEventFn emit = args->emit;
+    void *context = args->context;
+    CliDap *const dap = cli_dap_place_take();
     if (dap == NULL)
     {
-        mmgr_line_put(err_msg, "no more debug adapters are open at once");
+        mmgr_line_put(args->err_msg, "no more debug adapters are open at once");
         return NULL;
     }
     dap->kind = CLI_DAP_PROGRAM;
@@ -56,60 +78,69 @@ CliDap *cli_dap_started(const char *program, const char *const *args, unsigned i
     dap->words.count = 0u;
     dap->words.used = 0u;
     dap->words.full = 0;
-    cli_words_put(&dap->words, program);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &dap->words,
+               .word = args->program);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_words_put(&dap->words, args[at]);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &dap->words,
+                   .word = args->request[at]);
     }
     memor.cpy(&(MemoriaCfg){.dst = dap->path,
-                            .src = path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->path,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
     const CliSetting settings[1] = {{"PATH", dap->path}};
-    if (!cli_spawn_fed(&dap->spawned, dap->words.word, folder, settings, 1u, 1, err_msg))
+    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &dap->spawned,
+                    .words = dap->words.word, .folder = args->folder, .settings = settings, .count = 1u, .detached = 1,
+                    .err_msg = args->err_msg))
     {
-        cli_lock_take(&g_cli_daps_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
         dap->taken = 0;
-        cli_lock_give(&g_cli_daps_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
         return NULL;
     }
-    dap->input = (CliLspWriter){start_piped, dap};
-    start_reader(dap, start_piped_read);
-    cli_dap_readers_started(dap, 1);
+    dap->input = (CliLspWriter){start_pipe, dap};
+    EMBED_CALL(start_reader, DapStartCtx, .dap = dap, .read = start_piped_read);
+    EMBED_CALL(cli_dap_internal.readers_start, CliDapCtx, .dap = dap, .complaints = 1);
     return dap;
 }
 
-CliDap *cli_dap_connected(const char *host, unsigned int port, int ends_program, CliDapEventFn emit, void *context,
-                          VerbaLinea *err_msg)
+CliDap *cli_dap_connect(const CliDapEndsProgramCfg *args)
 {
+    int ends_program = args->ends_program;
+    CliDapEventFn emit = args->emit;
+    void *context = args->context;
     char address[CLI_PATH_MAX_LEN];
     VerbaLinea address_line = {address, sizeof(address), 0ull};
-    mmgr_line_put(&address_line, host);
+    mmgr_line_put(&address_line, args->host);
     mmgr_line_ch(&address_line, ':');
-    mmgr_line_decimal(&address_line, port, 1u);
+    mmgr_line_decimal(&address_line, args->port, 1u);
     mmgr_line_finish(&address_line);
-    if (!cli_net_reach(address, "a debug adapter", err_msg))
+    if (!EMBED_CALL(cli_net_address.reach, CliNetAddressCfg, .address = address, .purpose = "a debug adapter",
+                    .err_msg = args->err_msg))
     {
         return NULL;
     }
-    CliDap *const dap = cli_dap_place_taken();
+    CliDap *const dap = cli_dap_place_take();
     if (dap == NULL)
     {
-        mmgr_line_put(err_msg, "no more debug adapters are open at once");
+        mmgr_line_put(args->err_msg, "no more debug adapters are open at once");
         return NULL;
     }
-    if (!cli_socket_connected_within(&dap->socket, host, port, CLI_DAP_CONNECTING, err_msg))
+    if (!EMBED_CALL(cli_err_msg_internal.socket_connected_within, CliErrMsgCtx, .sock_out = &dap->socket,
+                    .host = args->host, .port = args->port, .milliseconds = CLI_DAP_CONNECTING,
+                    .err_msg = args->err_msg))
     {
-        cli_lock_take(&g_cli_daps_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
         dap->taken = 0;
-        cli_lock_give(&g_cli_daps_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
         return NULL;
     }
     dap->kind = CLI_DAP_SOCKET;
     dap->ends_program = ends_program;
     dap->emit = emit;
     dap->context = context;
-    dap->input = (CliLspWriter){start_sent, dap};
-    start_reader(dap, start_received);
-    cli_dap_readers_started(dap, 0);
+    dap->input = (CliLspWriter){start_send, dap};
+    EMBED_CALL(start_reader, DapStartCtx, .dap = dap, .read = start_receive);
+    EMBED_CALL(cli_dap_internal.readers_start, CliDapCtx, .dap = dap, .complaints = 0);
     return dap;
 }

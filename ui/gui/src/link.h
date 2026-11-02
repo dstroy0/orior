@@ -8,7 +8,12 @@
 // CLI's runs on the window's thread (link.c)
 #ifndef GUI_LINK_H
 #define GUI_LINK_H
+typedef struct GuiLinkOwnCfg GuiLinkOwnCfg;
+typedef struct GuiLinkCfg GuiLinkCfg;
+typedef struct GuiLinkContextCfg GuiLinkContextCfg;
+#include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/window/window.h"
+#include "embed_dispatch_layout.h"
 
 // the calls waiting in a ring at the most, the answers and events waiting for the window's thread at the most, the
 // pool's workers, as many as the CLI answers at once, and the workers with the own lane's
@@ -21,8 +26,7 @@
 // an event, its name, 1 where its text is an answer and not why it failed, and `size` bytes of the text, each valid
 // while the call runs
 typedef void (*GuiLinkWoken)(void *context);
-typedef void (*GuiLinkEach)(void *context, unsigned long long ticket, const char *name, int ok, const char *text,
-                            unsigned long long size);
+typedef void (*GuiLinkEach)(const GuiLinkEachCfg *args);
 
 // A call waiting for a worker: its ticket, whether it is the window's own, and its name and `size` bytes of its
 // arguments in one cell
@@ -80,15 +84,66 @@ typedef struct
 
 // the link begun, its workers started, the window's thread woken through `woken` with `context`: 1, or 0 where a cell
 // or a worker could not be had; and the link ended, each worker let end and every cell given back
-int gui_link_begun(GuiLink *link, GuiLinkWoken woken, void *context);
-void gui_link_ended(GuiLink *link);
+int gui_link_begin(const GuiLinkCfg *args);
+void gui_link_end(const GuiLinkCfg *args);
 // the call `name` of `size` bytes of JSON `args` queued, the window's own where `own` is 1, run after every own call
 // queued before it, else the tree's, run on the pool: its ticket, or 0 where its ring is full or the cell could not be
 // taken
-unsigned long long gui_link_called(GuiLink *link, int own, const char *name, const char *args,
-                                   unsigned long long size);
+unsigned long long gui_link_call(const GuiLinkOwnCfg *args);
 // an event emitted by the CLI, `context` the link, queued under no ticket: what cli_window_begun is given to emit to
-void gui_link_emitted(void *context, const char *event, const char *body, unsigned long long size);
+void gui_link_emit(void *context, const char *event, const char *body, unsigned long long size);
 // every item waiting handed to `each` in order, on the window's thread: how many
-unsigned int gui_link_drained(GuiLink *link, GuiLinkEach each, void *context);
+unsigned int gui_link_drain(const GuiLinkContextCfg *args);
+struct GuiLinkOwnCfg
+{
+    GuiLink *link;
+    int own;
+    const char *name;
+    const char *request;
+    unsigned long long size;
+};
+
+struct GuiLinkCfg
+{
+    GuiLink *link;
+    GuiLinkWoken woken;
+    void *context;
+};
+
+struct GuiLinkContextCfg
+{
+    GuiLink *link;
+    void *context;
+    GuiLinkEach each;
+};
+
+typedef struct
+{
+    int (*begin)(const GuiLinkCfg *args);
+    void (*end)(const GuiLinkCfg *args);
+} CliLinkNs;
+EMBED_TABLE_LAYOUT(CliLinkNs, begin, end);
+EMBED_TABLE_STORAGE CliLinkNs cli_link EMBED_UNUSED = {
+    .begin = gui_link_begin,
+    .end = gui_link_end,
+};
+
+typedef struct
+{
+    unsigned long long (*call)(const GuiLinkOwnCfg *args);
+} GuiLinkOwnNs;
+EMBED_TABLE_LAYOUT(GuiLinkOwnNs, call);
+EMBED_TABLE_STORAGE GuiLinkOwnNs gui_link_own EMBED_UNUSED = {
+    .call = gui_link_call,
+};
+
+typedef struct
+{
+    unsigned int (*drain)(const GuiLinkContextCfg *args);
+} GuiLinkContextNs;
+EMBED_TABLE_LAYOUT(GuiLinkContextNs, drain);
+EMBED_TABLE_STORAGE GuiLinkContextNs gui_link_context EMBED_UNUSED = {
+    .drain = gui_link_drain,
+};
+
 #endif

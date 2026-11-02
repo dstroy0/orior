@@ -4,10 +4,15 @@
 // and the room the search stores what files contain in
 #ifndef CARGO_TESTS_INTERNAL_H
 #define CARGO_TESTS_INTERNAL_H
+typedef struct CliCargoTestsACtx CliCargoTestsACtx;
+typedef struct CliCargoTestsTextCtx CliCargoTestsTextCtx;
+typedef struct CliCargoTestsTextSizeCtx CliCargoTestsTextSizeCtx;
+typedef struct CliCargoTestsCtx CliCargoTestsCtx;
 
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "cargo_tests.h"
+#include "embed_dispatch_layout.h"
 
 // the cells the search for Rust's tests occupies; and a cell of `most` of `width` bytes, or of twice `*room` where that
 // is more, containing the `*room` of `cell`, `cell` given back and `*room` raised: the cell, or NULL where it is
@@ -72,21 +77,93 @@ typedef struct
 // and `b` joined by `between`, either of them left out where it is empty, into `out`, sized for `room`; and the
 // targets of the package a Cargo.toml in `folder` describes, `package` its name, each with its first file: the
 // library, the binaries and the tests, as Cargo finds them, their count into `count` (cargo_targets.c)
-int cli_cargo_line(const char *text, unsigned long long size, unsigned long long *at, const char **line,
-                   unsigned long long *length);
-int cli_cargo_package_name(const char *text, unsigned long long size, char *name);
-void cli_cargo_joined(const char *a, const char *b, const char *between, char *out, unsigned long long room);
-const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, unsigned long long size,
-                                       const char *package, unsigned int *count);
+int cli_cargo_line(const CliCargoTestsTextCtx *args);
+int cli_cargo_package_name(const CliCargoTestsCtx *args);
+void cli_cargo_join(const CliCargoTestsACtx *args);
+const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args);
 // the targets cli_cargo_targets found given back, which their next finding does as well (cargo_targets.c)
-void cli_cargo_firsts_given(void);
+void cli_cargo_firsts_free(void);
 
 // the tokens of `size` bytes of Rust, each with the line it stands on: comments, strings and characters passed over,
 // and a lifetime no token, counted and then put into a cell of their count, the cell of the file before given back;
 // what they contain put after what the search contains: the count put; and every cell of the search given back, the
 // search left empty (cargo_scan.c)
-void cli_cargo_tokens(const char *text, unsigned long long size);
-unsigned int cli_cargo_scan(const char *text);
-void cli_cargo_scan_given(void);
+void cli_cargo_tokens(const CliCargoTestsCtx *args);
+unsigned int cli_cargo_scan(const CliCargoTestsCtx *args);
+void cli_cargo_scan_free(void);
+
+struct CliCargoTestsACtx
+{
+    const char *a;
+    const char *b;
+    const char *between;
+    char *out;
+    unsigned long long room;
+};
+
+struct CliCargoTestsTextCtx
+{
+    const char *text;
+    unsigned long long size;
+    unsigned long long *at;
+    const char **line;
+    unsigned long long *length;
+};
+
+struct CliCargoTestsTextSizeCtx
+{
+    const char *text;
+    unsigned long long size;
+    const char *folder;
+    const char *package;
+    unsigned int *count;
+};
+
+struct CliCargoTestsCtx
+{
+    const char *text;
+    unsigned long long size;
+    char *name;
+};
+
+typedef struct
+{
+    int (*cargo_line)(const CliCargoTestsTextCtx *args);
+} CliCargoTestsTextNs;
+EMBED_TABLE_LAYOUT(CliCargoTestsTextNs, cargo_line);
+EMBED_TABLE_STORAGE CliCargoTestsTextNs cli_cargo_tests_text_internal EMBED_UNUSED = {
+    .cargo_line = cli_cargo_line,
+};
+
+typedef struct
+{
+    int (*cargo_package_name)(const CliCargoTestsCtx *args);
+    void (*cargo_tokens)(const CliCargoTestsCtx *args);
+    unsigned int (*cargo_scan)(const CliCargoTestsCtx *args);
+} CliCargoTestsNsTable;
+EMBED_TABLE_LAYOUT(CliCargoTestsNsTable, cargo_package_name, cargo_tokens, cargo_scan);
+EMBED_TABLE_STORAGE CliCargoTestsNsTable cli_cargo_tests_internal EMBED_UNUSED = {
+    .cargo_package_name = cli_cargo_package_name,
+    .cargo_tokens = cli_cargo_tokens,
+    .cargo_scan = cli_cargo_scan,
+};
+
+typedef struct
+{
+    void (*cargo_join)(const CliCargoTestsACtx *args);
+} CliCargoTestsANs;
+EMBED_TABLE_LAYOUT(CliCargoTestsANs, cargo_join);
+EMBED_TABLE_STORAGE CliCargoTestsANs cli_cargo_tests_a_internal EMBED_UNUSED = {
+    .cargo_join = cli_cargo_join,
+};
+
+typedef struct
+{
+    const CliCargoFirst *(*cargo_targets)(const CliCargoTestsTextSizeCtx *args);
+} CliCargoTestsTextSizeNs;
+EMBED_TABLE_LAYOUT(CliCargoTestsTextSizeNs, cargo_targets);
+EMBED_TABLE_STORAGE CliCargoTestsTextSizeNs cli_cargo_tests_text_size_internal EMBED_UNUSED = {
+    .cargo_targets = cli_cargo_targets,
+};
 
 #endif

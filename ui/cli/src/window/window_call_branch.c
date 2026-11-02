@@ -9,6 +9,7 @@
 // the branch's own lines; the colors of a branch's lines as a print of them asks; and a notebook's cells, each a branch
 // stored and colored, and a cell the reader adds
 #include "../code/symbols.h"
+#include "../command_line/callback_cfg.h"
 #include "../editor/document.h"
 #include "../editor/pages.h"
 #include "../plugins/plugins.h"
@@ -24,66 +25,103 @@
 #define CLI_BRANCH_FIRST_LINES 120ull
 
 // a branch's colors handed to the page as they are worked out
-static void branch_colors_sent(const char *body, unsigned long long size)
+static void branch_colors_send(const CliDocColoredCfg *args)
 {
-    cli_serve_emitted("branch-colors", body, size);
+    const char *body = args->body;
+    unsigned long long size = args->size;
+    EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "branch-colors", .body = body, .size = size);
 }
 
+typedef struct
+{
+    const char *id;
+    char *grammar;
+    const char *key;
+    VerbaLinea *out;
+    const char *path;
+    char *id_out;
+    const char *text;
+    unsigned long long size;
+    unsigned long long first;
+    unsigned long long last;
+    unsigned long long line;
+    unsigned long long above;
+    unsigned long long below;
+    unsigned long long *first_pointer;
+    unsigned long long *last_pointer;
+} WindowCallBranchCtx;
 // the key the grammar of the language `id` is stored under for the colorer into `grammar`, sized for CLI_NAME_MAX_LEN,
 // empty where the language has none
-static void branch_grammar_named(const char *id, char *grammar)
+EMBED_INLINE void branch_grammar_by_name(const WindowCallBranchCtx *args)
 {
+    const char *id = args->id;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if ((id[0] == '\0') || !cli_plugins_grammar_stored(id, grammar, &err_msg))
+    if ((id[0] == '\0') || !EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id,
+                                       .key = args->grammar, .err_msg = &err_msg))
     {
-        grammar[0] = '\0';
+        args->grammar[0] = '\0';
     }
 }
 
 // the branch under `key` colored in the language `id`, empty for none: the names its tokens take written into `out`
-// as cli_document_names_written writes them, where `out` is not NULL, else handed on with its first colors
-static void branch_colored_in(const char *key, const char *id, VerbaLinea *out)
+// as cli_document_names_write writes them, where `out` is not NULL, else handed on with its first colors
+EMBED_INLINE void branch_colored_in(const WindowCallBranchCtx *args)
 {
+    const char *key = args->key;
+    VerbaLinea *out = args->out;
     char grammar[CLI_NAME_MAX_LEN];
-    branch_grammar_named(id, grammar);
-    (void)cli_document_colored_by(key, grammar, out != NULL);
+    EMBED_CALL(branch_grammar_by_name, WindowCallBranchCtx, .id = args->id, .grammar = grammar);
+    (void)EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = key, .grammar = grammar,
+                     .named = out != NULL);
     if (out != NULL)
     {
-        cli_document_names_written(grammar, out);
+        EMBED_CALL(cli_document_out_grammar.names_write, CliDocumentOutGrammarCfg, .grammar = grammar, .out = out);
     }
 }
 
 // the language the extension of `path` points to, by its id, into `id`, sized for CLI_NAME_MAX_LEN, empty for none
-static void branch_language_of(const char *path, char *id)
+EMBED_INLINE void branch_language_get(const WindowCallBranchCtx *args)
 {
+    const char *path = args->path;
+    char *id = args->id_out;
     CliLanguages languages;
-    cli_plugins_languages_for_call(&languages);
-    if (!cli_plugins_language_for(&languages, path, id))
+    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
+    if (!EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .languages_read = &languages,
+                    .path = path, .id_out = id))
     {
         id[0] = '\0';
     }
-    cli_plugins_languages_given(&languages);
+    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &languages);
 }
 
 // `size` bytes of `text` the branch under `key`, the page mirroring its lines from `first` to `last`: 1, or 0 where it
 // could not be stored
-static int branch_stored(const char *key, const char *text, unsigned long long size, unsigned long long first,
-                         unsigned long long last)
+EMBED_INLINE int branch_store(const WindowCallBranchCtx *args)
 {
+    const char *key = args->key;
+    const char *text = args->text;
+    unsigned long long size = args->size;
     CliShape shape;
-    return cli_document_store(key, text, size, &shape) && cli_document_cached(key, first, last + 1ull);
+    return EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = key, .text = text, .size = size,
+                      .shape = &shape) &&
+           EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = key, .from = args->first,
+                      .to = args->last + 1ull);
 }
 
 // the branch under `key` colored in the language `id` and its lines from `first` to `last` colored, written into `out`
 // as `,"names":` the names its grammar's tokens take `,"colors":` those lines' colors
-static void branch_colors_answered(const char *key, const char *id, unsigned long long first, unsigned long long last,
-                                   VerbaLinea *out)
+EMBED_INLINE void branch_colors_answer(const WindowCallBranchCtx *args)
 {
+    const char *key = args->key;
+    unsigned long long first = args->first;
+    unsigned long long last = args->last;
+    VerbaLinea *out = args->out;
     mmgr_line_put(out, ",\"names\":");
-    branch_colored_in(key, id, out);
+    EMBED_CALL(branch_colored_in, WindowCallBranchCtx, .key = key, .id = args->id, .out = out);
     mmgr_line_put(out, ",\"colors\":");
-    (void)cli_document_viewed(key, first, last, out);
+    (void)EMBED_CALL(cli_document_out_key_first.view, CliDocumentOutKeyFirstCfg, .key = key, .first = first,
+                     .last = last, .out = out);
 }
 
 // the file at `path` read as file_read reads it, a text read whole stored under `key` and one file_read windows opened
@@ -93,33 +131,52 @@ static void branch_colors_answered(const char *key, const char *id, unsigned lon
 // the paged
 // text's shape, `shape`, null where the pages could not open it, the names its grammar's tokens take, `names`, and
 // those lines' colors, `colors`, where it is stored
-static int branch_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_open(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const path = (key != NULL) ? cli_serve_string(args, "path", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    const char *const path = (key != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                        .request = arguments, .key = "path", .err_msg = err_msg)
+                                           : NULL;
     unsigned long long first = 0ull;
     unsigned long long last = 0ull;
-    if ((path == NULL) || !cli_serve_whole(args, "first", &first, err_msg) ||
-        !cli_serve_whole(args, "last", &last, err_msg))
+    if ((path == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "first",
+                    .value = &first, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "last",
+                    .value = &last, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_document_colors_to(branch_colors_sent, 1);
+    EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = branch_colors_send, .threaded = 1);
     CliJson json;
-    const unsigned int opened = cli_window_tree_called(&json, "file_read", path, "", err_msg);
+    const unsigned int opened = EMBED_CALL(cli_window_err_msg_internal.tree_call, CliWindowErrMsgCtx, .json = &json,
+                                           .name = "file_read", .path = path, .more = "", .err_msg = err_msg);
     if (opened == CLI_JSON_NONE)
     {
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         return 0;
     }
     unsigned long long length = 0ull;
-    const char *const text = cli_json_string(&json, cli_json_member(&json, opened, "text"), &length);
-    const int windowed = cli_json_is(&json, cli_json_member(&json, opened, "windowed"), CFG_JSON_TRUE);
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = opened, .name = "text"),
+                   .length_pointer = &length);
+    const int windowed = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+                                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                       .json_read = &json, .object = opened, .name = "windowed"),
+                                    .kind = CFG_JSON_TRUE);
     // a text read whole a branch whose lines in view are the page's mirror, until it names more
-    const int whole = (text != NULL) && branch_stored(key, text, length, first, last);
+    const int whole = (text != NULL) && EMBED_CALL(branch_store, WindowCallBranchCtx, .key = key, .text = text,
+                                                   .size = length, .first = first, .last = last);
     const unsigned long long start = out->at;
-    cli_json_write(&json, opened, out, 0u, 0);
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = opened, .out = out,
+               .indent = 0u, .sorted = 0);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     // the answer's closing brace, put back after the branch's names and colors
     out->at -= (out->at > start) ? 1ull : 0ull;
     // a text too large to read whole opened in the pages under the key, its shape answered, and a branch whose lines in
@@ -131,8 +188,12 @@ static int branch_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
         mmgr_line_put(out, ",\"shape\":");
     }
     const unsigned long long shaped = out->at;
-    const int paged = windowed && cli_serve_at(args, root, full, err_msg) && cli_pages_open(key, full, out, err_msg) &&
-                      cli_document_paged(key, first, last + 1ull);
+    const int paged =
+        windowed &&
+        EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx, .request = arguments,
+                   .root = root, .full = full, .err_msg = err_msg) &&
+        EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = key, .path = full, .out = out, .err_msg = err_msg) &&
+        EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = key, .from = first, .to = last + 1ull);
     if (windowed && !paged)
     {
         out->at = shaped;
@@ -141,16 +202,19 @@ static int branch_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     if (whole || paged)
     {
         // each line's runs handed as far as the view draws, where it names how far, and the answer says how far
-        const unsigned long long columns = cli_serve_whole_or(args, "columns", 0ull);
+        const unsigned long long columns = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx,
+                                                      .request = arguments, .key = "columns", .otherwise_u64 = 0ull);
         if (columns != 0ull)
         {
-            (void)cli_document_columns(key, columns);
+            (void)EMBED_CALL(cli_document_key_columns.columns, CliDocumentKeyColumnsCfg, .key = key,
+                             .columns = columns);
         }
         mmgr_line_put(out, ",\"columns\":");
         mmgr_line_decimal(out, columns, 1u);
         char id[CLI_NAME_MAX_LEN];
-        branch_language_of(path, id);
-        branch_colors_answered(key, id, first, last, out);
+        EMBED_CALL(branch_language_get, WindowCallBranchCtx, .path = path, .id_out = id);
+        EMBED_CALL(branch_colors_answer, WindowCallBranchCtx, .key = key, .id = id, .first = first, .last = last,
+                   .out = out);
     }
     mmgr_line_ch(out, '}');
     return 1;
@@ -159,46 +223,62 @@ static int branch_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
 // the file at `path` as the commit `at` left it, read through `file_at`, the branch under `key`, read only, its lines
 // from `first` to `last` the page's mirror and the text colored in the language its extension points to: `{"text",
 // "names", "colors"}`, the names and colors where it is stored
-static int branch_at(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_at(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const path = (key != NULL) ? cli_serve_string(args, "path", err_msg) : NULL;
-    const char *const at = (path != NULL) ? cli_serve_string(args, "at", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    const char *const path = (key != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                        .request = arguments, .key = "path", .err_msg = err_msg)
+                                           : NULL;
+    const char *const at = (path != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                       .request = arguments, .key = "at", .err_msg = err_msg)
+                                          : NULL;
     unsigned long long first = 0ull;
     unsigned long long last = 0ull;
-    if ((at == NULL) || !cli_serve_whole(args, "first", &first, err_msg) ||
-        !cli_serve_whole(args, "last", &last, err_msg))
+    if ((at == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "first",
+                    .value = &first, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "last",
+                    .value = &last, .err_msg = err_msg))
     {
         return 0;
     }
     char more[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea commit = {more, sizeof(more), 0ull};
     mmgr_line_put(&commit, ",\"id\":");
-    cli_window_quoted(&commit, at);
+    EMBED_CALL(cli_window_out_text_internal.quote, CliWindowOutTextCtx, .out = &commit, .text = at);
     if (mmgr_line_finish(&commit) == 0ull)
     {
         mmgr_line_put(err_msg, "the commit's id is longer than an id");
         return 0;
     }
-    cli_document_colors_to(branch_colors_sent, 1);
+    EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = branch_colors_send, .threaded = 1);
     CliJson json;
-    const unsigned int read = cli_window_tree_called(&json, "file_at", path, more, err_msg);
+    const unsigned int read = EMBED_CALL(cli_window_err_msg_internal.tree_call, CliWindowErrMsgCtx, .json = &json,
+                                         .name = "file_at", .path = path, .more = more, .err_msg = err_msg);
     if (read == CLI_JSON_NONE)
     {
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         return 0;
     }
     unsigned long long length = 0ull;
-    const char *const text = cli_json_string(&json, read, &length);
-    const int stored = (text != NULL) && branch_stored(key, text, length, first, last);
+    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                        .json_read = &json, .node = read, .length_pointer = &length);
+    const int stored = (text != NULL) && EMBED_CALL(branch_store, WindowCallBranchCtx, .key = key, .text = text,
+                                                    .size = length, .first = first, .last = last);
     mmgr_line_put(out, "{\"text\":");
-    cli_json_write(&json, read, out, 0u, 0);
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = read, .out = out,
+               .indent = 0u, .sorted = 0);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     if (stored)
     {
         char id[CLI_NAME_MAX_LEN];
-        branch_language_of(path, id);
-        branch_colors_answered(key, id, first, last, out);
+        EMBED_CALL(branch_language_get, WindowCallBranchCtx, .path = path, .id_out = id);
+        EMBED_CALL(branch_colors_answer, WindowCallBranchCtx, .key = key, .id = id, .first = first, .last = last,
+                   .out = out);
     }
     mmgr_line_ch(out, '}');
     return 1;
@@ -207,44 +287,61 @@ static int branch_at(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
 // the view of the branch under `key` moved to the lines from `first` to `last`, those not colored yet colored and
 // handed to the page, the lines the page mirrors about the view, from `from` to before `to`, and the letters of each
 // line the view draws, `columns`, 0 for every one, where it names them
-static int branch_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_view(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
     unsigned long long first = 0ull;
     unsigned long long last = 0ull;
-    if ((key == NULL) || !cli_serve_whole(args, "first", &first, err_msg) ||
-        !cli_serve_whole(args, "last", &last, err_msg))
+    if ((key == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "first",
+                    .value = &first, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "last",
+                    .value = &last, .err_msg = err_msg))
     {
         return 0;
     }
     const unsigned long long none = ~0ull;
-    const unsigned long long columns = cli_serve_whole_or(args, "columns", none);
+    const unsigned long long columns = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx,
+                                                  .request = arguments, .key = "columns", .otherwise_u64 = none);
     if (columns != none)
     {
-        (void)cli_document_columns(key, columns);
+        (void)EMBED_CALL(cli_document_key_columns.columns, CliDocumentKeyColumnsCfg, .key = key, .columns = columns);
     }
-    const unsigned long long from = cli_serve_whole_or(args, "from", none);
-    const unsigned long long to = cli_serve_whole_or(args, "to", none);
+    const unsigned long long from = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx,
+                                               .request = arguments, .key = "from", .otherwise_u64 = none);
+    const unsigned long long to = EMBED_CALL(cli_serve_err_msg_internal.whole_or, CliServeErrMsgCtx,
+                                             .request = arguments, .key = "to", .otherwise_u64 = none);
     if ((from != none) && (to != none))
     {
-        (void)cli_document_cached(key, from, to);
+        (void)EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = key, .from = from, .to = to);
     }
-    (void)cli_document_viewed(key, first, last, NULL);
+    (void)EMBED_CALL(cli_document_out_key_first.view, CliDocumentOutKeyFirstCfg, .key = key, .first = first,
+                     .last = last, .out = NULL);
     mmgr_line_put(out, "null");
     return 1;
 }
 
 // the branch under `key` colored in the language `id` from here on, empty for none, its lines colored again from the
 // view out and handed to the page, the names its grammar's tokens take with the first
-static int branch_language(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_language(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const id = (key != NULL) ? cli_serve_string_or(args, "id", "") : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    const char *const id = (key != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                                      .request = arguments, .key = "id", .otherwise = "")
+                                         : NULL;
     if (id == NULL)
     {
         return 0;
     }
-    branch_colored_in(key, id, NULL);
+    EMBED_CALL(branch_colored_in, WindowCallBranchCtx, .key = key, .id = id, .out = NULL);
     mmgr_line_put(out, "null");
     return 1;
 }
@@ -252,71 +349,90 @@ static int branch_language(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
 // the lines of the branch under `key` read about its line `line`, as many as `above` above it and `below` below it at
 // the most and none outside those read for the branch, a paged text's those the page holds: the first into `*first`
 // and the last into `*last`, each the line itself where it stands past them
-static void branch_lines_about(const char *key, unsigned long long line, unsigned long long above,
-                               unsigned long long below, unsigned long long *first, unsigned long long *last)
+EMBED_INLINE void branch_lines_about(const WindowCallBranchCtx *args)
 {
+    const char *key = args->key;
+    unsigned long long *first = args->first_pointer;
+    unsigned long long *last = args->last_pointer;
     unsigned long long low = 0ull;
     unsigned long long high = 0ull;
-    (void)cli_document_bounds(key, &low, &high);
-    const unsigned long long reach = (line > above) ? (line - above) : 0ull;
+    (void)EMBED_CALL(cli_document_key_low.bounds, CliDocumentKeyLowCfg, .key = key, .low = &low, .high = &high);
+    const unsigned long long reach = (args->line > args->above) ? (args->line - args->above) : 0ull;
     const unsigned long long start = (reach > low) ? reach : low;
-    const unsigned long long end = ((high != 0ull) && ((line + below) >= high)) ? (high - 1ull) : (line + below);
-    *first = (start < line) ? start : line;
-    *last = (end > line) ? end : line;
+    const unsigned long long end =
+        ((high != 0ull) && ((args->line + args->below) >= high)) ? (high - 1ull) : (args->line + args->below);
+    *first = (start < args->line) ? start : args->line;
+    *last = (end > args->line) ? end : args->line;
 }
 
 // the tree's signature for the call at the line `line`, column `col`, of the branch under `key`, the file at
 // `path`: the text's lines from as far above as CLI_BRANCH_SIGNATURE_LINES reach to the line, a paged text's those the
 // page holds, read as the tree reads a text from the state the first was entered in, the tree's answer as
 // `symbols_signature` gives it
-static int branch_signature(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_signature(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const path = (key != NULL) ? cli_serve_string(args, "path", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    const char *const path = (key != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                        .request = arguments, .key = "path", .err_msg = err_msg)
+                                           : NULL;
     unsigned long long line = 0ull;
     unsigned long long col = 0ull;
-    if ((path == NULL) || !cli_serve_whole(args, "line", &line, err_msg) ||
-        !cli_serve_whole(args, "col", &col, err_msg))
+    if ((path == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "line",
+                    .value = &line, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "col",
+                    .value = &col, .err_msg = err_msg))
     {
         return 0;
     }
-    return cli_window_branch_signature(key, path, line, col, out, err_msg);
+    return EMBED_CALL(cli_window_out_internal.branch_signature, CliWindowOutCtx, .key = key, .path = path, .line = line,
+                      .col = col, .out = out, .err_msg = err_msg);
 }
 
-int cli_window_branch_signature(const char *key, const char *path, unsigned long long line, unsigned long long col,
-                                VerbaLinea *out, VerbaLinea *err_msg)
+int cli_window_branch_signature(const CliWindowOutCtx *args)
 {
+    const char *key = args->key;
+    VerbaLinea *out = args->out;
     unsigned long long top = 0ull;
     unsigned long long bottom = 0ull;
-    branch_lines_about(key, line, CLI_BRANCH_SIGNATURE_LINES - 1ull, 0ull, &top, &bottom);
+    EMBED_CALL(branch_lines_about, WindowCallBranchCtx, .key = key, .line = args->line,
+               .above = CLI_BRANCH_SIGNATURE_LINES - 1ull, .below = 0ull, .first_pointer = &top,
+               .last_pointer = &bottom);
     char *const call_cell = g_cli_cells->temporary_buf_alloc(CLI_BRANCH_CALL_ROOM, &g_cli_window_cells);
     VerbaLinea call = mmgr_line_over(call_cell, CLI_BRANCH_CALL_ROOM);
     if (call.out == NULL)
     {
-        mmgr_line_put(err_msg, "the signature's call could not be given a cell");
+        mmgr_line_put(args->err_msg, "the signature's call could not be given a cell");
         return 0;
     }
     char state[CLI_BRANCH_STATE];
     mmgr_line_put(&call, "{\"path\":");
-    cli_window_quoted(&call, path);
+    EMBED_CALL(cli_window_out_text_internal.quote, CliWindowOutTextCtx, .out = &call, .text = args->path);
     mmgr_line_put(&call, ",\"text\":");
-    const int stored = cli_document_text_written(key, top, line, &call, state, sizeof(state));
+    const int stored = EMBED_CALL(cli_document_out_key.text_write, CliDocumentOutKeyCfg, .key = key, .first = top,
+                                  .last = args->line, .out = &call, .state = state, .room = sizeof(state));
     mmgr_line_put(&call, ",\"state\":");
-    cli_window_quoted(&call, (state[0] != '\0') ? state : "root");
+    EMBED_CALL(cli_window_out_text_internal.quote, CliWindowOutTextCtx, .out = &call,
+               .text = (state[0] != '\0') ? state : "root");
     mmgr_line_put(&call, ",\"line\":");
-    mmgr_line_decimal(&call, line - top, 1u);
+    mmgr_line_decimal(&call, args->line - top, 1u);
     mmgr_line_put(&call, ",\"col\":");
-    mmgr_line_decimal(&call, col, 1u);
+    mmgr_line_decimal(&call, args->col, 1u);
     mmgr_line_ch(&call, '}');
     int answered = 0;
     if (!stored)
     {
-        mmgr_line_put(err_msg, "no branch is stored under ");
-        mmgr_line_put(err_msg, key);
+        mmgr_line_put(args->err_msg, "no branch is stored under ");
+        mmgr_line_put(args->err_msg, key);
     }
     else if (mmgr_line_ok(&call))
     {
-        answered = cli_window_tree_call("symbols_signature", call.out, call.at, out, err_msg);
+        answered = EMBED_CALL(cli_window_out_size_internal.tree_call, CliWindowOutSizeCtx, .name = "symbols_signature",
+                              .args_text = call.out, .size = call.at, .out = out, .err_msg = args->err_msg);
     }
     g_cli_cells->persistent_buf_release(call.out, &g_cli_window_cells);
     return answered;
@@ -327,23 +443,34 @@ int cli_window_branch_signature(const char *key, const char *path, unsigned long
 // reads a text from the state the first was entered in, the bracket that ends at the place, else the one that starts at
 // it, and the one it pairs with, written as `[{"line", "col"}, {"line", "col"}]`, or null where no bracket of a pair
 // stands there
-static int branch_pair(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_pair(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const path = (key != NULL) ? cli_serve_string(args, "path", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    const char *const path = (key != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                        .request = arguments, .key = "path", .err_msg = err_msg)
+                                           : NULL;
     unsigned long long line = 0ull;
     unsigned long long col = 0ull;
-    if ((path == NULL) || !cli_serve_whole(args, "line", &line, err_msg) ||
-        !cli_serve_whole(args, "col", &col, err_msg))
+    if ((path == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "line",
+                    .value = &line, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "col",
+                    .value = &col, .err_msg = err_msg))
     {
         return 0;
     }
     unsigned long long top = 0ull;
     unsigned long long bottom = 0ull;
-    branch_lines_about(key, line, CLI_BRANCH_PAIR_LINES, CLI_BRANCH_PAIR_LINES, &top, &bottom);
+    EMBED_CALL(branch_lines_about, WindowCallBranchCtx, .key = key, .line = line, .above = CLI_BRANCH_PAIR_LINES,
+               .below = CLI_BRANCH_PAIR_LINES, .first_pointer = &top, .last_pointer = &bottom);
     char state[CLI_BRANCH_STATE];
     unsigned long long size = 0ull;
-    char *const text = cli_document_lines_taken(key, top, bottom, &size, state, sizeof(state), &g_cli_window_cells);
+    char *const text =
+        EMBED_CALL(cli_document_key.lines_take, CliDocumentKeyCfg, .key = key, .first = top, .last = bottom,
+                   .size_pointer = &size, .state = state, .room = sizeof(state), .owner = &g_cli_window_cells);
     if (text == NULL)
     {
         mmgr_line_put(err_msg, "no branch is stored under ");
@@ -352,76 +479,102 @@ static int branch_pair(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     }
     CliSymbolPlace pair[2] = {{0u, 0u}, {0u, 0u}};
     // a place in a text the page holds stands below 2^32 lines and columns
-    const int paired = cli_symbols_pair(path, (state[0] != '\0') ? state : "root", text, size,
-                                        (CliSymbolPlace){(unsigned int)(line - top), (unsigned int)col}, pair);
+    const int paired =
+        EMBED_CALL(cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = path,
+                   .state = (state[0] != '\0') ? state : "root", .text = text, .size = size,
+                   .at_symbol_place = (CliSymbolPlace){(unsigned int)(line - top), (unsigned int)col}, .pair = pair);
     g_cli_cells->persistent_buf_release(text, &g_cli_window_cells);
     if (!paired)
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
         return 1;
     }
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
-        mmgr_line_put(out, (at > 0u) ? ",{\"line\":" : "{\"line\":");
-        mmgr_line_decimal(out, top + pair[at].line, 1u);
-        mmgr_line_put(out, ",\"col\":");
-        mmgr_line_decimal(out, pair[at].col, 1u);
-        mmgr_line_ch(out, '}');
+        mmgr_line_put(args->out, (at > 0u) ? ",{\"line\":" : "{\"line\":");
+        mmgr_line_decimal(args->out, top + pair[at].line, 1u);
+        mmgr_line_put(args->out, ",\"col\":");
+        mmgr_line_decimal(args->out, pair[at].col, 1u);
+        mmgr_line_ch(args->out, '}');
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
     return 1;
 }
 
 // `size` bytes of `text` the branch under `key`, its first lines the page's mirror and colored in the language `id`,
 // written into `out` as `{"key", "names", "colors"}`, or null where it could not be stored
-static void branch_text_answered(const char *key, const char *text, unsigned long long size, const char *id,
-                                 VerbaLinea *out)
+EMBED_INLINE void branch_text_answer(const WindowCallBranchCtx *args)
 {
-    if (!branch_stored(key, text, size, 0ull, CLI_BRANCH_FIRST_LINES - 1ull))
+    const char *text = args->text;
+    VerbaLinea *out = args->out;
+    if (!EMBED_CALL(branch_store, WindowCallBranchCtx, .key = args->key, .text = text, .size = args->size,
+                    .first = 0ull, .last = CLI_BRANCH_FIRST_LINES - 1ull))
     {
         mmgr_line_put(out, "null");
         return;
     }
     mmgr_line_put(out, "{\"key\":");
-    cli_window_quoted(out, key);
-    branch_colors_answered(key, id, 0ull, CLI_BRANCH_FIRST_LINES - 1ull, out);
+    EMBED_CALL(cli_window_out_text_internal.quote, CliWindowOutTextCtx, .out = out, .text = args->key);
+    EMBED_CALL(branch_colors_answer, WindowCallBranchCtx, .key = args->key, .id = args->id, .first = 0ull,
+               .last = CLI_BRANCH_FIRST_LINES - 1ull, .out = out);
     mmgr_line_ch(out, '}');
 }
 
 // the cells of the notebook at `path`, read as notebook_read reads them, each cell's text a branch under `key`, `#` and
 // its place among the cells, a code cell colored in the language `code` and a Markdown cell in `markdown`:
 // `[{"key", "names", "colors"}]` in the cells' order, null for a cell of another kind
-static int branch_cells(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_cells(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
-    const char *const path = (key != NULL) ? cli_serve_string(args, "path", err_msg) : NULL;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
+    const char *const path = (key != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                        .request = arguments, .key = "path", .err_msg = err_msg)
+                                           : NULL;
     if (path == NULL)
     {
         return 0;
     }
-    const char *const code = cli_serve_string_or(args, "code", "");
-    const char *const markdown = cli_serve_string_or(args, "markdown", "");
-    cli_document_colors_to(branch_colors_sent, 1);
+    const char *const code = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "code", .otherwise = "");
+    const char *const markdown = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                            .request = arguments, .key = "markdown", .otherwise = "");
+    EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = branch_colors_send, .threaded = 1);
     CliJson json;
-    const unsigned int book = cli_window_tree_called(&json, "notebook_read", path, "", err_msg);
+    const unsigned int book = EMBED_CALL(cli_window_err_msg_internal.tree_call, CliWindowErrMsgCtx, .json = &json,
+                                         .name = "notebook_read", .path = path, .more = "", .err_msg = err_msg);
     if (book == CLI_JSON_NONE)
     {
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         return 0;
     }
-    const unsigned int cells = cli_json_member(&json, book, "cells");
+    const unsigned int cells = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = book, .name = "cells");
     mmgr_line_ch(out, '[');
-    for (unsigned int at = 0u; cli_json_item(&json, cells, at) != CLI_JSON_NONE; at += 1u)
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = &json, .array = cells, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
-        const unsigned int cell = cli_json_item(&json, cells, at);
-        const char *const kind = cli_json_string(&json, cli_json_member(&json, cell, "cell_type"), NULL);
+        const unsigned int cell = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = &json, .array = cells, .index = at);
+        const char *const kind =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = cell, .name = "cell_type"),
+                       .length_pointer = NULL);
         const int markdown_cell =
             (kind != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "markdown", .cap = CLI_CELLS_POOL});
         const int code_cell =
             (kind == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "code", .cap = CLI_CELLS_POOL});
         unsigned long long length = 0ull;
-        const char *const source = cli_json_string(&json, cli_json_member(&json, cell, "source"), &length);
+        const char *const source =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = cell, .name = "source"),
+                       .length_pointer = &length);
         char cell_key[CLI_NAME_MAX_LEN];
         VerbaLinea named = {cell_key, sizeof(cell_key), 0ull};
         mmgr_line_put(&named, key);
@@ -431,8 +584,8 @@ static int branch_cells(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         mmgr_line_put(out, (at != 0u) ? "," : "");
         if (keyed && (markdown_cell || code_cell))
         {
-            branch_text_answered(cell_key, (source != NULL) ? source : "", length, markdown_cell ? markdown : code,
-                                 out);
+            EMBED_CALL(branch_text_answer, WindowCallBranchCtx, .key = cell_key, .text = (source != NULL) ? source : "",
+                       .size = length, .id = markdown_cell ? markdown : code, .out = out);
         }
         else
         {
@@ -440,36 +593,51 @@ static int branch_cells(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         }
     }
     mmgr_line_ch(out, ']');
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     return 1;
 }
 
 // a branch of no text under `key`, a cell the reader adds, colored in the language `id`: `{"key", "names", "colors"}`
-static int branch_new(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_new(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
     if (key == NULL)
     {
         return 0;
     }
-    cli_document_colors_to(branch_colors_sent, 1);
-    branch_text_answered(key, "", 0ull, cli_serve_string_or(args, "id", ""), out);
+    EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = branch_colors_send, .threaded = 1);
+    EMBED_CALL(branch_text_answer, WindowCallBranchCtx, .key = key, .text = "", .size = 0ull,
+               .id = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                .key = "id", .otherwise = ""),
+               .out = out);
     return 1;
 }
 
 // the colors of the lines from `first` to `last` of the branch under `key`, as a print of them asks, whatever lines
 // the page mirrors, written as `[{"from", "runs"}]`
-static int branch_runs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int branch_runs(const CliServeAnswerCfg *args)
 {
-    const char *const key = cli_serve_string(args, "key", err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                       .key = "key", .err_msg = err_msg);
     unsigned long long first = 0ull;
     unsigned long long last = 0ull;
-    if ((key == NULL) || !cli_serve_whole(args, "first", &first, err_msg) ||
-        !cli_serve_whole(args, "last", &last, err_msg))
+    if ((key == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "first",
+                    .value = &first, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "last",
+                    .value = &last, .err_msg = err_msg))
     {
         return 0;
     }
-    if (!cli_document_runs_written(key, first, last, 0, out))
+    if (!EMBED_CALL(cli_document_out_key_first.runs_write, CliDocumentOutKeyFirstCfg, .key = key, .first = first,
+                    .last = last, .mirrored = 0, .out = out))
     {
         mmgr_line_put(err_msg, "no branch is stored under ");
         mmgr_line_put(err_msg, key);

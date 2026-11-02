@@ -7,13 +7,6 @@
 // deletes both files as they are let go or the window ends, and a crash leaves nothing behind
 #include "window_internal.h"
 
-// the most scrollbacks open at once, one a terminal screen; the most lines one keep hands over; the bytes lines are
-// written and read in, a piece at a time; and the starts of lines read or written at once
-#define CLI_SCROLLBACKS 64u
-#define CLI_SCROLLBACK_LINES 65536u
-#define CLI_SCROLLBACK_PIECE 65536u
-#define CLI_SCROLLBACK_STARTS 4096u
-
 // One screen's scrollback: its number, 0 where the place is free; its lines and where each starts; the bytes of its
 // lines; and how many it holds
 typedef struct
@@ -24,68 +17,7 @@ typedef struct
     unsigned long long end;
     unsigned long long count;
 } CliScrollback;
-
-static CliScrollback s_scrollback[CLI_SCROLLBACKS];
-static unsigned long long s_next_id;
-static CliLock s_lock = CLI_LOCK_INIT;
-static char s_piece[CLI_SCROLLBACK_PIECE];
-static unsigned long long s_starts[CLI_SCROLLBACK_STARTS];
-
-// the scrollback numbered `id`, or NULL with why given where none is open
-static CliScrollback *scrollback_of(unsigned long long id, VerbaLinea *err_msg)
-{
-    for (unsigned int at = 0u; (id != 0ull) && (at < CLI_SCROLLBACKS); at += 1u)
-    {
-        if (s_scrollback[at].id == id)
-        {
-            return &s_scrollback[at];
-        }
-    }
-    mmgr_line_put(err_msg, "no scrollback ");
-    mmgr_line_decimal(err_msg, id, 1u);
-    return NULL;
-}
-
-// a scrollback let go, its files deleted
-static void scrollback_let_go(CliScrollback *scrollback)
-{
-    cli_temporary_file_let_go(&scrollback->lines);
-    cli_temporary_file_let_go(&scrollback->starts);
-    scrollback->id = 0ull;
-}
-
-// a scrollback made for a terminal screen: its number
-static int scrollback_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
-{
-    (void)args;
-    cli_lock_take(&s_lock);
-    CliScrollback *free_place = NULL;
-    for (unsigned int at = 0u; (free_place == NULL) && (at < CLI_SCROLLBACKS); at += 1u)
-    {
-        free_place = (s_scrollback[at].id == 0ull) ? &s_scrollback[at] : NULL;
-    }
-    const int made = (free_place != NULL) && cli_temporary_file_made(&free_place->lines);
-    const int whole = made && cli_temporary_file_made(&free_place->starts);
-    if (whole)
-    {
-        s_next_id += 1ull;
-        *free_place = (CliScrollback){s_next_id, free_place->lines, free_place->starts, 0ull, 0ull};
-        mmgr_line_decimal(out, s_next_id, 1u);
-    }
-    else
-    {
-        if (made)
-        {
-            cli_temporary_file_let_go(&free_place->lines);
-        }
-        mmgr_line_put(err_msg,
-                      (free_place == NULL) ? "every scrollback is taken" : "a scrollback's file could not be made");
-    }
-    cli_lock_give(&s_lock);
-    return whole;
-}
-
-// The lines a keep writes, a piece at a time: the scrollback, the bytes of the piece and of the starts gathered, and
+// The lines a save writes, a piece at a time: the scrollback, the bytes of the piece and of the starts gathered, and
 // whether every write so far landed
 typedef struct
 {
@@ -93,40 +25,127 @@ typedef struct
     unsigned long long piece;
     unsigned int starts;
     int written;
-} CliScrollbackKeep;
+} CliScrollbackSave;
+// the most scrollbacks open at once, one a terminal screen; the most lines one save hands over; the bytes lines are
+// written and read in, a piece at a time; and the starts of lines read or written at once
+#define CLI_SCROLLBACKS 64u
+#define CLI_SCROLLBACK_LINES 65536u
+#define CLI_SCROLLBACK_PIECE 65536u
+#define CLI_SCROLLBACK_STARTS 4096u
 
-// the piece and the starts gathered written at the ends of their files
-static void scrollback_flushed(CliScrollbackKeep *keep)
+static CliScrollback s_scrollback[CLI_SCROLLBACKS];
+static unsigned long long s_next_id;
+static CliLock s_lock = CLI_LOCK_INIT;
+static char s_piece[CLI_SCROLLBACK_PIECE];
+static unsigned long long s_starts[CLI_SCROLLBACK_STARTS];
+
+typedef struct
 {
-    CliScrollback *const scrollback = keep->scrollback;
-    keep->written =
-        keep->written && cli_temporary_file_written(&scrollback->lines, scrollback->end, s_piece, keep->piece);
-    scrollback->end += keep->piece;
-    keep->piece = 0ull;
-    const unsigned long long first = scrollback->count - keep->starts;
-    keep->written = keep->written && cli_temporary_file_written(&scrollback->starts, first * sizeof(s_starts[0]),
-                                                                s_starts, keep->starts * sizeof(s_starts[0]));
-    keep->starts = 0u;
+    unsigned long long id;
+    VerbaLinea *err_msg;
+    CliScrollback *scrollback;
+    CliScrollbackSave *save;
+    const char *line;
+    const CliScrollback *scrollback_read;
+    unsigned long long begin;
+    unsigned long long finish;
+    VerbaLinea *out;
+} WindowCallScrollbackCtx;
+// the scrollback numbered `id`, or NULL with why given where none is open
+EMBED_INLINE CliScrollback *scrollback_get(const WindowCallScrollbackCtx *args)
+{
+    for (unsigned int at = 0u; (args->id != 0ull) && (at < CLI_SCROLLBACKS); at += 1u)
+    {
+        if (s_scrollback[at].id == args->id)
+        {
+            return &s_scrollback[at];
+        }
+    }
+    mmgr_line_put(args->err_msg, "no scrollback ");
+    mmgr_line_decimal(args->err_msg, args->id, 1u);
+    return NULL;
 }
 
-// `line` added after the lines kept, each newline in it a space and a newline after it
-static void scrollback_line_kept(CliScrollbackKeep *keep, const char *line)
+// a scrollback let go, its files deleted
+EMBED_INLINE void scrollback_let_go(const WindowCallScrollbackCtx *args)
 {
-    if (keep->starts == CLI_SCROLLBACK_STARTS)
+    EMBED_CALL(cli_file_temporary_file_internal.temporary_file_let_go, CliFileTemporaryFileCtx,
+               .file_temporary_file_pointer = &args->scrollback->lines);
+    EMBED_CALL(cli_file_temporary_file_internal.temporary_file_let_go, CliFileTemporaryFileCtx,
+               .file_temporary_file_pointer = &args->scrollback->starts);
+    args->scrollback->id = 0ull;
+}
+
+// a scrollback made for a terminal screen: its number
+static int scrollback_open(const CliServeAnswerCfg *args)
+{
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    CliScrollback *free_place = NULL;
+    for (unsigned int at = 0u; (free_place == NULL) && (at < CLI_SCROLLBACKS); at += 1u)
     {
-        scrollback_flushed(keep);
+        free_place = (s_scrollback[at].id == 0ull) ? &s_scrollback[at] : NULL;
     }
-    s_starts[keep->starts] = keep->scrollback->end + keep->piece;
-    keep->starts += 1u;
-    keep->scrollback->count += 1u;
-    for (const char *at = line;; at += 1)
+    const int made =
+        (free_place != NULL) && EMBED_CALL(cli_file_temporary_file_internal.temporary_file_init,
+                                           CliFileTemporaryFileCtx, .file_temporary_file_pointer = &free_place->lines);
+    const int whole = made && EMBED_CALL(cli_file_temporary_file_internal.temporary_file_init, CliFileTemporaryFileCtx,
+                                         .file_temporary_file_pointer = &free_place->starts);
+    if (whole)
     {
-        if (keep->piece == CLI_SCROLLBACK_PIECE)
+        s_next_id += 1ull;
+        *free_place = (CliScrollback){s_next_id, free_place->lines, free_place->starts, 0ull, 0ull};
+        mmgr_line_decimal(args->out, s_next_id, 1u);
+    }
+    else
+    {
+        if (made)
         {
-            scrollback_flushed(keep);
+            EMBED_CALL(cli_file_temporary_file_internal.temporary_file_let_go, CliFileTemporaryFileCtx,
+                       .file_temporary_file_pointer = &free_place->lines);
         }
-        s_piece[keep->piece] = ((*at == '\n') || (*at == '\0')) ? ((*at == '\0') ? '\n' : ' ') : *at;
-        keep->piece += 1ull;
+        mmgr_line_put(args->err_msg,
+                      (free_place == NULL) ? "every scrollback is taken" : "a scrollback's file could not be made");
+    }
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    return whole;
+}
+
+// the piece and the starts gathered written at the ends of their files
+EMBED_INLINE void scrollback_flush(const WindowCallScrollbackCtx *args)
+{
+    CliScrollback *const scrollback = args->save->scrollback;
+    args->save->written =
+        args->save->written && EMBED_CALL(cli_bytes_internal.temporary_file_write, CliBytesCtx,
+                                          .file_temporary_file_pointer_other = &scrollback->lines,
+                                          .at = scrollback->end, .bytes = s_piece, .size = args->save->piece);
+    scrollback->end += args->save->piece;
+    args->save->piece = 0ull;
+    const unsigned long long first = scrollback->count - args->save->starts;
+    args->save->written = args->save->written && EMBED_CALL(cli_bytes_internal.temporary_file_write, CliBytesCtx,
+                                                            .file_temporary_file_pointer_other = &scrollback->starts,
+                                                            .at = first * sizeof(s_starts[0]), .bytes = s_starts,
+                                                            .size = args->save->starts * sizeof(s_starts[0]));
+    args->save->starts = 0u;
+}
+
+// `line` added after the lines saved, each newline in it a space and a newline after it
+EMBED_INLINE void scrollback_line_save(const WindowCallScrollbackCtx *args)
+{
+    if (args->save->starts == CLI_SCROLLBACK_STARTS)
+    {
+        scrollback_flush(args);
+    }
+    s_starts[args->save->starts] = args->save->scrollback->end + args->save->piece;
+    args->save->starts += 1u;
+    args->save->scrollback->count += 1u;
+    for (const char *at = args->line;; at += 1)
+    {
+        if (args->save->piece == CLI_SCROLLBACK_PIECE)
+        {
+            scrollback_flush(args);
+        }
+        s_piece[args->save->piece] = ((*at == '\n') || (*at == '\0')) ? ((*at == '\0') ? '\n' : ' ') : *at;
+        args->save->piece += 1ull;
         if (*at == '\0')
         {
             return;
@@ -135,51 +154,58 @@ static void scrollback_line_kept(CliScrollbackKeep *keep, const char *line)
 }
 
 // the lines `lines` added at the end of the scrollback `id`: how many lines it holds
-static int scrollback_keep(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int scrollback_save(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long id = 0ull;
     unsigned int count = 0u;
     const char **lines = NULL;
-    if (!cli_serve_whole(args, "id", &id, err_msg) ||
-        !cli_serve_strings_taken(args, "lines", CLI_SCROLLBACK_LINES, &lines, &count, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "id",
+                    .value = &id, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.strings_take, CliServeErrMsgCtx, .request = arguments, .key = "lines",
+                    .most = CLI_SCROLLBACK_LINES, .items_pointer = &lines, .count = &count, .err_msg = err_msg))
     {
-        cli_serve_strings_given(lines);
+        EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = lines);
         return 0;
     }
-    cli_lock_take(&s_lock);
-    CliScrollback *const scrollback = scrollback_of(id, err_msg);
-    CliScrollbackKeep keep = {scrollback, 0ull, 0u, 1};
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    CliScrollback *const scrollback = EMBED_CALL(scrollback_get, WindowCallScrollbackCtx, .id = id, .err_msg = err_msg);
+    CliScrollbackSave save = {scrollback, 0ull, 0u, 1};
     for (unsigned int at = 0u; (scrollback != NULL) && (at < count); at += 1u)
     {
-        scrollback_line_kept(&keep, lines[at]);
+        EMBED_CALL(scrollback_line_save, WindowCallScrollbackCtx, .save = &save, .line = lines[at]);
     }
     if (scrollback != NULL)
     {
-        scrollback_flushed(&keep);
-        if (keep.written)
+        EMBED_CALL(scrollback_flush, WindowCallScrollbackCtx, .save = &save);
+        if (save.written)
         {
-            mmgr_line_decimal(out, scrollback->count, 1u);
+            mmgr_line_decimal(args->out, scrollback->count, 1u);
         }
         else
         {
             mmgr_line_put(err_msg, "the scrollback's file could not be written");
         }
     }
-    cli_lock_give(&s_lock);
-    cli_serve_strings_given(lines);
-    return (scrollback != NULL) && keep.written;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = lines);
+    return (scrollback != NULL) && save.written;
 }
 
 // the bytes of the scrollback's lines from `begin` to `finish` written as a JSON string, read a piece at a time, each
 // piece cut where a letter starts: 1, or 0 where they could not be read
-static int scrollback_line_written(const CliScrollback *scrollback, unsigned long long begin, unsigned long long finish,
-                                   VerbaLinea *out)
+EMBED_INLINE int scrollback_line_write(const WindowCallScrollbackCtx *args)
 {
+    VerbaLinea *out = args->out;
     mmgr_line_ch(out, '"');
-    for (unsigned long long at = begin; at < finish;)
+    for (unsigned long long at = args->begin; at < args->finish;)
     {
-        unsigned long long size = ((finish - at) < CLI_SCROLLBACK_PIECE) ? (finish - at) : CLI_SCROLLBACK_PIECE;
-        if (!cli_temporary_file_read(&scrollback->lines, at, s_piece, size))
+        unsigned long long size =
+            ((args->finish - at) < CLI_SCROLLBACK_PIECE) ? (args->finish - at) : CLI_SCROLLBACK_PIECE;
+        if (!EMBED_CALL(cli_size_internal.temporary_file_read, CliSizeCtx,
+                        .file_temporary_file_pointer_other = &args->scrollback_read->lines, .at = at,
+                        .bytes_out = s_piece, .size = size))
         {
             return 0;
         }
@@ -192,9 +218,10 @@ static int scrollback_line_written(const CliScrollback *scrollback, unsigned lon
         const unsigned char first_byte = (unsigned char)s_piece[lead];
         const unsigned long long letter =
             (first_byte >= 0xf0u) ? 4ull : ((first_byte >= 0xe0u) ? 3ull : ((first_byte >= 0xc0u) ? 2ull : 1ull));
-        const int cut = (at + size < finish) && (lead > 0ull) && (lead + letter > size);
+        const int cut = (at + size < args->finish) && (lead > 0ull) && (lead + letter > size);
         size = cut ? lead : size;
-        cli_json_escaped_lossy(out, (const unsigned char *)s_piece, size);
+        EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)s_piece, .length = size);
         at += size;
     }
     mmgr_line_ch(out, '"');
@@ -202,18 +229,26 @@ static int scrollback_line_written(const CliScrollback *scrollback, unsigned lon
 }
 
 // the lines of the scrollback `id` from line `from`, as many as `count` and as many as it holds
-static int scrollback_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int scrollback_read(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long id = 0ull;
     unsigned long long from = 0ull;
     unsigned long long count = 0ull;
-    if (!cli_serve_whole(args, "id", &id, err_msg) || !cli_serve_whole(args, "from", &from, err_msg) ||
-        !cli_serve_whole(args, "count", &count, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "id",
+                    .value = &id, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "from",
+                    .value = &from, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "count",
+                    .value = &count, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    const CliScrollback *const scrollback = scrollback_of(id, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const CliScrollback *const scrollback =
+        EMBED_CALL(scrollback_get, WindowCallScrollbackCtx, .id = id, .err_msg = err_msg);
     int read = scrollback != NULL;
     const unsigned long long stored = read ? scrollback->count : 0ull;
     const unsigned long long first = (from < stored) ? from : stored;
@@ -225,13 +260,15 @@ static int scrollback_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
         const unsigned long long lines =
             ((last - batch) < (CLI_SCROLLBACK_STARTS - 1u)) ? (last - batch) : (CLI_SCROLLBACK_STARTS - 1u);
         const unsigned long long known = (batch + lines < stored) ? lines + 1ull : lines;
-        read = cli_temporary_file_read(&scrollback->starts, batch * sizeof(s_starts[0]), s_starts,
-                                       known * sizeof(s_starts[0]));
+        read = EMBED_CALL(cli_size_internal.temporary_file_read, CliSizeCtx,
+                          .file_temporary_file_pointer_other = &scrollback->starts, .at = batch * sizeof(s_starts[0]),
+                          .bytes_out = s_starts, .size = known * sizeof(s_starts[0]));
         s_starts[lines] = (known > lines) ? s_starts[lines] : scrollback->end;
         for (unsigned long long line = 0ull; read && (line < lines); line += 1ull)
         {
             mmgr_line_put(out, ((batch + line) > first) ? "," : "");
-            read = scrollback_line_written(scrollback, s_starts[line], s_starts[line + 1ull] - 1ull, out);
+            read = EMBED_CALL(scrollback_line_write, WindowCallScrollbackCtx, .scrollback_read = scrollback,
+                              .begin = s_starts[line], .finish = s_starts[line + 1ull] - 1ull, .out = out);
         }
         batch += lines;
     }
@@ -240,51 +277,52 @@ static int scrollback_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     {
         mmgr_line_put(err_msg, "the scrollback's file could not be read");
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return read;
 }
 
 // the scrollback `id` let go, which deletes its files
-static int scrollback_close(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int scrollback_close(const CliServeAnswerCfg *args)
 {
-    (void)out;
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char why[128];
     VerbaLinea unknown = {why, sizeof(why), 0ull};
     unsigned long long id = 0ull;
-    if (!cli_serve_whole(args, "id", &id, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "id",
+                    .value = &id, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
-    CliScrollback *const scrollback = scrollback_of(id, &unknown);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    CliScrollback *const scrollback =
+        EMBED_CALL(scrollback_get, WindowCallScrollbackCtx, .id = id, .err_msg = &unknown);
     if (scrollback != NULL)
     {
-        scrollback_let_go(scrollback);
+        EMBED_CALL(scrollback_let_go, WindowCallScrollbackCtx, .scrollback = scrollback);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
 // every scrollback let go, as a page loaded again asks: the screens they were for are gone
-static int scrollback_reset(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int scrollback_reset(const CliServeAnswerCfg *args)
 {
     (void)args;
-    (void)out;
-    (void)err_msg;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < CLI_SCROLLBACKS; at += 1u)
     {
         if (s_scrollback[at].id != 0ull)
         {
-            scrollback_let_go(&s_scrollback[at]);
+            EMBED_CALL(scrollback_let_go, WindowCallScrollbackCtx, .scrollback = &s_scrollback[at]);
         }
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
 const CliServeCall g_cli_window_scrollback_calls[] = {
-    {"scrollback_open", scrollback_open},   {"scrollback_keep", scrollback_keep},
+    {"scrollback_open", scrollback_open},   {"scrollback_keep", scrollback_save},
     {"scrollback_read", scrollback_read},   {"scrollback_close", scrollback_close},
     {"scrollback_reset", scrollback_reset},
 };

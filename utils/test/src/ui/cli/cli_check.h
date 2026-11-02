@@ -9,7 +9,7 @@
 #include "../../../../../ui/cli/src/command_line/cli_internal.h"
 #include "../../../../../ui/cli/src/text/json_tree.h"
 
-// the checks begun: this process put on a lane as the one command it runs, the lane's cells rewound by cli_checked
+// the checks begun: this process put on a lane as the one command it runs, the lane's cells rewound by cli_on_check
 void cli_check_begun(void);
 // a check made: whether it passed, and what it checks
 void cli_check(int passed, const char *what);
@@ -34,6 +34,6 @@ const CliCompletions *cli_check_build_completed(const char *root, const char *pa
 // its port into `at`, from ORIOR_<name>_ADDRESS, `host:port`, else 127.0.0.1 and `port`
 void cli_check_server(const char *name, unsigned int port, char *host, unsigned int *at);
 // the checks' count and their failures printed: the code to exit with, 1 where one failed
-int cli_checked(void);
+int cli_on_check(void);
 
 #endif

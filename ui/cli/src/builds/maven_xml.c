@@ -11,36 +11,57 @@
 static const char *const s_skip_open[4] = {"<!--", "<![CDATA[", "<?", "<!"};
 static const char *const s_skip_close[4] = {"-->", "]]>", "?>", ">"};
 
-int cli_xml_name_letter(unsigned int letter)
+int cli_xml_name_letter(const CliMavenCtx *args)
 {
-    return cli_text_alphanumeric(letter) || (letter == '_') || (letter == ':') || (letter == '.') || (letter == '-');
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .letter = args->letter) || (args->letter == '_') ||
+           (args->letter == ':') || (args->letter == '.') || (args->letter == '-');
 }
 
-void cli_xml_given(CliXml *xml)
+void cli_xml_free(const CliMavenXmlTextCtx *args)
 {
+    CliXml *xml = args->xml_out;
     g_cli_cells->persistent_buf_release(xml->element, &g_cli_xml_cells);
     *xml = (CliXml){xml->text, 0ull, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
 }
 
+typedef struct
+{
+    unsigned long long tags;
+    unsigned int most;
+    CliXml *xml;
+    const char *text;
+    unsigned long long size;
+    unsigned long long from;
+    unsigned long long to;
+    unsigned int kind;
+    unsigned int element;
+    unsigned long long name_from;
+    unsigned long long name_to;
+    const CliXml *xml_read;
+    unsigned long long *end;
+    unsigned long long lt;
+    unsigned long long gt;
+} MavenXmlCtx;
 // the room of a list a text containing `tags` `<`s can fill, no more than `most`
-static unsigned int xml_room(unsigned long long tags, unsigned int most)
+EMBED_INLINE unsigned int xml_room(const MavenXmlCtx *args)
 {
     // a count no more than `most`, which an unsigned int stores
-    return (tags < most) ? (unsigned int)tags : most;
+    return (args->tags < args->most) ? (unsigned int)args->tags : args->most;
 }
 
 // `xml` made to read `size` bytes of `text`, its lists' rooms in one cell sized to the `<`s the text contains, each no
 // more than its most: 1, or 0 with nothing to be stored where the cell is refused
-static int xml_reserved(CliXml *xml, const char *text, unsigned long long size)
+EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
 {
+    CliXml *xml = args->xml;
     unsigned long long tags = 0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
     {
-        tags += (text[at] == '<') ? 1ull : 0ull;
+        tags += (args->text[at] == '<') ? 1ull : 0ull;
     }
-    const unsigned int elements = xml_room(tags, CLI_XML_ELEMENTS);
-    const unsigned int comments = xml_room(tags, CLI_XML_COMMENTS);
-    const unsigned int errors = xml_room(tags + 1ull, CLI_XML_ERRORS);
+    const unsigned int elements = EMBED_CALL(xml_room, MavenXmlCtx, .tags = tags, .most = CLI_XML_ELEMENTS);
+    const unsigned int comments = EMBED_CALL(xml_room, MavenXmlCtx, .tags = tags, .most = CLI_XML_COMMENTS);
+    const unsigned int errors = EMBED_CALL(xml_room, MavenXmlCtx, .tags = tags + 1ull, .most = CLI_XML_ERRORS);
     // the lists laid one after another, the widest first, so that each starts where its kind may stand
     const unsigned long long element_bytes = (unsigned long long)elements * sizeof(CliXmlElement);
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
@@ -48,7 +69,7 @@ static int xml_reserved(CliXml *xml, const char *text, unsigned long long size)
     const unsigned long long open_bytes = (unsigned long long)elements * sizeof(unsigned int);
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
         element_bytes + (2ull * comment_bytes) + error_bytes + open_bytes + 1ull, &g_cli_xml_cells);
-    *xml = (CliXml){text, size, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
+    *xml = (CliXml){args->text, args->size, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     if (cell == NULL)
     {
         return 0;
@@ -66,23 +87,24 @@ static int xml_reserved(CliXml *xml, const char *text, unsigned long long size)
 }
 
 // what prevented the file from reading, recorded
-static void xml_error(CliXml *xml, unsigned long long from, unsigned long long to, unsigned int kind,
-                      unsigned int element, unsigned long long name_from, unsigned long long name_to)
+EMBED_INLINE void xml_error(const MavenXmlCtx *args)
 {
-    if (xml->errors < xml->error_room)
+    if (args->xml->errors < args->xml->error_room)
     {
-        xml->error[xml->errors] = (CliXmlError){from, to, kind, element, name_from, name_to};
-        xml->errors += 1u;
+        args->xml->error[args->xml->errors] =
+            (CliXmlError){args->from, args->to, args->kind, args->element, args->name_from, args->name_to};
+        args->xml->errors += 1u;
     }
 }
 
 // the `>` that ends a tag whose name ends at `from`, past the quotes of its attributes: 1 with it, or 0 where none does
-static int xml_tag_end(const CliXml *xml, unsigned long long from, unsigned long long *end)
+EMBED_INLINE int xml_tag_end(const MavenXmlCtx *args)
 {
+    unsigned long long *end = args->end;
     char quote = '\0';
-    for (unsigned long long at = from; at < xml->size; at += 1u)
+    for (unsigned long long at = args->from; at < args->xml_read->size; at += 1u)
     {
-        const char one = xml->text[at];
+        const char one = args->xml_read->text[at];
         if (quote != '\0')
         {
             quote = (one == quote) ? '\0' : quote;
@@ -105,98 +127,115 @@ static int xml_tag_end(const CliXml *xml, unsigned long long from, unsigned long
 }
 
 // whether the element at `element` is named as the bytes `from` to `to` of the text
-static int xml_same_name(const CliXml *xml, unsigned int element, unsigned long long from, unsigned long long to)
+EMBED_INLINE int xml_same_name(const MavenXmlCtx *args)
 {
-    const CliXmlElement *const one = &xml->element[element];
-    return (one->to - one->from == to - from) &&
-           (memor.cmp(&(MemoriaCfg){
-                .src = xml->text + one->from, .other = xml->text + from, .bytes = (size_t)(to - from)}) == 0);
+    const CliXmlElement *const one = &args->xml_read->element[args->element];
+    return (one->to - one->from == args->to - args->from) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->xml_read->text + one->from,
+                                    .other = args->xml_read->text + args->from,
+                                    .bytes = (size_t)(args->to - args->from)}) == 0);
 }
 
 // a closing tag named `from` to `to`, its `<` at `lt`, closing the nearest element of its name left open
-static void xml_closing(CliXml *xml, unsigned long long lt, unsigned long long from, unsigned long long to)
+EMBED_INLINE void xml_closing(const MavenXmlCtx *args)
 {
-    unsigned int depth = xml->opens;
-    for (unsigned int at = xml->opens; at > 0u; at -= 1u)
+    unsigned int depth = args->xml->opens;
+    for (unsigned int at = args->xml->opens; at > 0u; at -= 1u)
     {
-        if (xml_same_name(xml, xml->open[at - 1u], from, to))
+        if (EMBED_CALL(xml_same_name, MavenXmlCtx, .xml_read = args->xml, .element = args->xml->open[at - 1u],
+                       .from = args->from, .to = args->to))
         {
             depth = at - 1u;
             break;
         }
     }
-    if (depth == xml->opens)
+    if (depth == args->xml->opens)
     {
-        xml_error(xml, from, to, CLI_XML_CLOSES_NONE, CLI_XML_NONE, from, to);
+        EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml, .from = args->from, .to = args->to,
+                   .kind = CLI_XML_CLOSES_NONE, .element = CLI_XML_NONE, .name_from = args->from, .name_to = args->to);
         return;
     }
-    for (unsigned int left = depth + 1u; left < xml->opens; left += 1u)
+    for (unsigned int left = depth + 1u; left < args->xml->opens; left += 1u)
     {
-        const CliXmlElement *const element = &xml->element[xml->open[left]];
-        xml_error(xml, element->from, element->to, CLI_XML_NOT_CLOSED, xml->open[left], 0ull, 0ull);
+        const CliXmlElement *const element = &args->xml->element[args->xml->open[left]];
+        EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml, .from = element->from, .to = element->to,
+                   .kind = CLI_XML_NOT_CLOSED, .element = args->xml->open[left], .name_from = 0ull, .name_to = 0ull);
     }
-    CliXmlElement *const element = &xml->element[xml->open[depth]];
-    xml->opens = depth;
-    element->inner_to = lt;
-    element->close_from = from;
-    element->close_to = to;
+    CliXmlElement *const element = &args->xml->element[args->xml->open[depth]];
+    args->xml->opens = depth;
+    element->inner_to = args->lt;
+    element->close_from = args->from;
+    element->close_to = args->to;
     element->closed = 1;
 }
 
 // an opening tag named `from` to `to`, ending at `gt`, an element under the one left open
-static void xml_opening(CliXml *xml, unsigned long long from, unsigned long long to, unsigned long long gt)
+EMBED_INLINE void xml_opening(const MavenXmlCtx *args)
 {
-    if (xml->elements == xml->element_room)
+    if (args->xml->elements == args->xml->element_room)
     {
         return;
     }
-    const unsigned int index = xml->elements;
-    const unsigned int parent = (xml->opens > 0u) ? xml->open[xml->opens - 1u] : CLI_XML_NONE;
-    const int lone = (gt > 0u) && (xml->text[gt - 1u] == '/');
-    xml->element[index] =
-        (CliXmlElement){from, to,     gt + 1u,      gt + 1u,      lone ? from : 0ull, lone ? to : 0ull,
-                        lone, parent, CLI_XML_NONE, CLI_XML_NONE, CLI_XML_NONE,       0u};
-    xml->elements += 1u;
+    const unsigned int index = args->xml->elements;
+    const unsigned int parent = (args->xml->opens > 0u) ? args->xml->open[args->xml->opens - 1u] : CLI_XML_NONE;
+    const int lone = (args->gt > 0u) && (args->xml->text[args->gt - 1u] == '/');
+    args->xml->element[index] = (CliXmlElement){args->from,
+                                                args->to,
+                                                args->gt + 1u,
+                                                args->gt + 1u,
+                                                lone ? args->from : 0ull,
+                                                lone ? args->to : 0ull,
+                                                lone,
+                                                parent,
+                                                CLI_XML_NONE,
+                                                CLI_XML_NONE,
+                                                CLI_XML_NONE,
+                                                0u};
+    args->xml->elements += 1u;
     if (parent != CLI_XML_NONE)
     {
-        CliXmlElement *const above = &xml->element[parent];
+        CliXmlElement *const above = &args->xml->element[parent];
         if (above->first == CLI_XML_NONE)
         {
             above->first = index;
         }
         else
         {
-            xml->element[above->last].next = index;
+            args->xml->element[above->last].next = index;
         }
         above->last = index;
         above->children += 1u;
     }
     if (!lone)
     {
-        xml->open[xml->opens] = index;
-        xml->opens += 1u;
+        args->xml->open[args->xml->opens] = index;
+        args->xml->opens += 1u;
     }
 }
 
-void cli_xml_parse(const char *text, unsigned long long size, CliXml *xml)
+void cli_xml_parse(const CliMavenXmlTextCtx *args)
 {
-    if (!xml_reserved(xml, text, size))
+    if (!EMBED_CALL(xml_reserve, MavenXmlCtx, .xml = args->xml_out, .text = args->text, .size = args->size))
     {
         return;
     }
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ull; at < args->size;)
     {
-        const char *const found = memor.chr(&(MemoriaCfg){.src = text + at, .val = '<', .bytes = (size_t)(size - at)});
+        const char *const found =
+            memor.chr(&(MemoriaCfg){.src = args->text + at, .val = '<', .bytes = (size_t)(args->size - at)});
         if (found == NULL)
         {
             return;
         }
-        const unsigned long long lt = (unsigned long long)(found - text);
-        const unsigned long long left = size - lt;
+        const unsigned long long lt = (unsigned long long)(found - args->text);
+        const unsigned long long left = args->size - lt;
         unsigned int skip = 4u;
         for (unsigned int one = 0u; (skip == 4u) && (one < 4u); one += 1u)
         {
-            skip = cli_text_starts(found, left, s_skip_open[one]) ? one : skip;
+            skip = EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = found, .size = left,
+                              .prefix = s_skip_open[one])
+                       ? one
+                       : skip;
         }
         if (skip < 4u)
         {
@@ -205,91 +244,100 @@ void cli_xml_parse(const char *text, unsigned long long size, CliXml *xml)
             const unsigned long long close =
                 cellul.len(&(CatenaFinitaCfg){.src = s_skip_close[skip], .cap = CLI_CELLS_POOL});
             unsigned long long end = 0ull;
-            if (!cli_text_find(found + open, left - open, s_skip_close[skip], close, &end))
+            if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = found + open, .length_value = left - open,
+                            .wanted = s_skip_close[skip], .size = close, .at_pointer = &end))
             {
-                xml_error(xml, lt, lt + open, skip, CLI_XML_NONE, 0ull, 0ull);
+                EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt, .to = lt + open, .kind = skip,
+                           .element = CLI_XML_NONE, .name_from = 0ull, .name_to = 0ull);
                 return;
             }
             at = lt + open + end + close;
-            if ((skip == 0u) && (xml->comments < xml->comment_room))
+            if ((skip == 0u) && (args->xml_out->comments < args->xml_out->comment_room))
             {
-                xml->comment_from[xml->comments] = lt;
-                xml->comment_to[xml->comments] = at;
-                xml->comments += 1u;
+                args->xml_out->comment_from[args->xml_out->comments] = lt;
+                args->xml_out->comment_to[args->xml_out->comments] = at;
+                args->xml_out->comments += 1u;
             }
             continue;
         }
-        const int closing = cli_text_starts(found, left, "</");
+        const int closing =
+            EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = found, .size = left, .prefix = "</");
         const unsigned long long name_from = lt + (closing ? 2u : 1u);
         unsigned long long name_to = name_from;
-        while (name_to < size)
+        while (name_to < args->size)
         {
             unsigned long long length = 0ull;
-            if (!cli_xml_name_letter(cli_text_letter(text, size, name_to, &length)))
+            if (!EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx,
+                            .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text,
+                                                 .size = args->size, .at = name_to, .length = &length)))
             {
                 break;
             }
             name_to += length;
         }
         unsigned long long gt = 0ull;
-        if (!xml_tag_end(xml, name_to, &gt))
+        if (!EMBED_CALL(xml_tag_end, MavenXmlCtx, .xml_read = args->xml_out, .from = name_to, .end = &gt))
         {
-            xml_error(xml, lt, (name_to > lt + 1u) ? name_to : lt + 1u, CLI_XML_TAG_OPEN, CLI_XML_NONE, 0ull, 0ull);
+            EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt,
+                       .to = (name_to > lt + 1u) ? name_to : lt + 1u, .kind = CLI_XML_TAG_OPEN, .element = CLI_XML_NONE,
+                       .name_from = 0ull, .name_to = 0ull);
             return;
         }
         at = gt + 1u;
         if (name_to == name_from)
         {
-            xml_error(xml, lt, lt + 1u, CLI_XML_NO_ELEMENT, CLI_XML_NONE, 0ull, 0ull);
+            EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt, .to = lt + 1u,
+                       .kind = CLI_XML_NO_ELEMENT, .element = CLI_XML_NONE, .name_from = 0ull, .name_to = 0ull);
             continue;
         }
         if (closing)
         {
-            xml_closing(xml, lt, name_from, name_to);
+            EMBED_CALL(xml_closing, MavenXmlCtx, .xml = args->xml_out, .lt = lt, .from = name_from, .to = name_to);
             continue;
         }
-        xml_opening(xml, name_from, name_to, gt);
+        EMBED_CALL(xml_opening, MavenXmlCtx, .xml = args->xml_out, .from = name_from, .to = name_to, .gt = gt);
     }
 }
 
-void cli_xml_error_written(const CliXml *xml, const CliXmlError *error, VerbaLinea *out)
+void cli_xml_error_write(const CliMavenXmlErrorCtx *args)
 {
-    if (error->kind < 4u)
+    if (args->error->kind < 4u)
     {
-        mmgr_line_put(out, "This `");
-        mmgr_line_put(out, s_skip_open[error->kind]);
-        mmgr_line_put(out, "` is not closed with `");
-        mmgr_line_put(out, s_skip_close[error->kind]);
-        mmgr_line_ch(out, '`');
+        mmgr_line_put(args->out, "This `");
+        mmgr_line_put(args->out, s_skip_open[args->error->kind]);
+        mmgr_line_put(args->out, "` is not closed with `");
+        mmgr_line_put(args->out, s_skip_close[args->error->kind]);
+        mmgr_line_ch(args->out, '`');
     }
-    else if (error->kind == CLI_XML_TAG_OPEN)
+    else if (args->error->kind == CLI_XML_TAG_OPEN)
     {
-        mmgr_line_put(out, "This tag is not closed with `>`");
+        mmgr_line_put(args->out, "This tag is not closed with `>`");
     }
-    else if (error->kind == CLI_XML_NO_ELEMENT)
+    else if (args->error->kind == CLI_XML_NO_ELEMENT)
     {
-        mmgr_line_put(out, "This `<` starts no element");
+        mmgr_line_put(args->out, "This `<` starts no element");
     }
-    else if (error->kind == CLI_XML_NOT_CLOSED)
+    else if (args->error->kind == CLI_XML_NOT_CLOSED)
     {
-        const CliXmlElement *const element = &xml->element[error->element];
-        mmgr_line_put(out, "`<");
-        mmgr_line_put_n(out, xml->text + element->from, element->to - element->from);
-        mmgr_line_put(out, ">` is not closed");
+        const CliXmlElement *const element = &args->xml->element[args->error->element];
+        mmgr_line_put(args->out, "`<");
+        mmgr_line_put_n(args->out, args->xml->text + element->from, element->to - element->from);
+        mmgr_line_put(args->out, ">` is not closed");
     }
     else
     {
-        mmgr_line_put(out, "`</");
-        mmgr_line_put_n(out, xml->text + error->name_from, error->name_to - error->name_from);
-        mmgr_line_put(out, ">` closes no element");
+        mmgr_line_put(args->out, "`</");
+        mmgr_line_put_n(args->out, args->xml->text + args->error->name_from,
+                        args->error->name_to - args->error->name_from);
+        mmgr_line_put(args->out, ">` closes no element");
     }
 }
 
-unsigned int cli_xml_root(const CliXml *xml)
+unsigned int cli_xml_root(const CliMavenXmlProjectCtx *args)
 {
-    for (unsigned int at = 0u; at < xml->elements; at += 1u)
+    for (unsigned int at = 0u; at < args->xml->elements; at += 1u)
     {
-        if (xml->element[at].parent == CLI_XML_NONE)
+        if (args->xml->element[at].parent == CLI_XML_NONE)
         {
             return at;
         }
@@ -297,19 +345,20 @@ unsigned int cli_xml_root(const CliXml *xml)
     return CLI_XML_NONE;
 }
 
-int cli_xml_named(const CliXml *xml, unsigned int element, const char *name)
+int cli_xml_by_name(const CliMavenXmlNameCtx *args)
 {
-    const CliXmlElement *const one = &xml->element[element];
-    return (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) == one->to - one->from) &&
+    const CliXmlElement *const one = &args->xml->element[args->element];
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) == one->to - one->from) &&
            (memor.cmp(&(MemoriaCfg){
-                .src = xml->text + one->from, .other = name, .bytes = (size_t)(one->to - one->from)}) == 0);
+                .src = args->xml->text + one->from, .other = args->name, .bytes = (size_t)(one->to - one->from)}) == 0);
 }
 
-unsigned int cli_xml_child(const CliXml *xml, unsigned int of, const char *name)
+unsigned int cli_xml_child(const CliMavenXmlOutCtx *args)
 {
-    for (unsigned int at = xml->element[of].first; at != CLI_XML_NONE; at = xml->element[at].next)
+    for (unsigned int at = args->xml->element[args->of].first; at != CLI_XML_NONE; at = args->xml->element[at].next)
     {
-        if (cli_xml_named(xml, at, name))
+        if (EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = args->xml, .element = at,
+                       .name = args->name))
         {
             return at;
         }
@@ -317,19 +366,23 @@ unsigned int cli_xml_child(const CliXml *xml, unsigned int of, const char *name)
     return CLI_XML_NONE;
 }
 
-int cli_xml_text(const CliXml *xml, unsigned int of, VerbaLinea *out)
+int cli_xml_text(const CliMavenXmlOutCtx *args)
 {
-    const CliXmlElement *const element = &xml->element[of];
+    const CliXmlElement *const element = &args->xml->element[args->of];
     if ((element->children > 0u) || !element->closed || (element->inner_to < element->inner_from))
     {
         return 0;
     }
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    cli_text_trimmed(xml->text + element->inner_from, element->inner_to - element->inner_from, &from, &to);
-    const char *raw = xml->text + element->inner_from + from;
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = args->xml->text + element->inner_from,
+               .size = element->inner_to - element->inner_from, .from_u64s = &from, .to_u64s = &to);
+    const char *raw = args->xml->text + element->inner_from + from;
     unsigned long long size = to - from;
-    if (cli_text_starts(raw, size, "<![CDATA[") && cli_text_ends(raw + 9u, size - 9u, "]]>"))
+    if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = raw, .size = size,
+                   .prefix = "<![CDATA[") &&
+        EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = raw + 9u, .size = size - 9u,
+                   .suffix = "]]>"))
     {
         raw += 9u;
         size -= 12u;
@@ -341,41 +394,50 @@ int cli_xml_text(const CliXml *xml, unsigned int of, VerbaLinea *out)
         unsigned int entity = 5u;
         for (unsigned int one = 0u; (entity == 5u) && (one < 5u); one += 1u)
         {
-            entity = cli_text_starts(raw + at, size - at, s_entities[one]) ? one : entity;
+            entity = EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = raw + at, .size = size - at,
+                                .prefix = s_entities[one])
+                         ? one
+                         : entity;
         }
         if (entity < 5u)
         {
-            mmgr_line_ch(out, s_letters[entity]);
+            mmgr_line_ch(args->out, s_letters[entity]);
             at += cellul.len(&(CatenaFinitaCfg){.src = s_entities[entity], .cap = CLI_CELLS_POOL});
             continue;
         }
-        mmgr_line_ch(out, raw[at]);
+        mmgr_line_ch(args->out, raw[at]);
         at += 1u;
     }
     return 1;
 }
 
-int cli_xml_text_of(const CliXml *xml, unsigned int of, const char *name, VerbaLinea *out)
+int cli_xml_text_get(const CliMavenXmlOutCtx *args)
 {
-    const unsigned int child = (of != CLI_XML_NONE) ? cli_xml_child(xml, of, name) : CLI_XML_NONE;
-    return (child != CLI_XML_NONE) && cli_xml_text(xml, child, out);
+    const unsigned int child = (args->of != CLI_XML_NONE) ? cli_maven_xml_out_internal.xml_child(args) : CLI_XML_NONE;
+    return (child != CLI_XML_NONE) && EMBED_CALL(cli_maven_xml_out_internal.xml_text, CliMavenXmlOutCtx,
+                                                 .xml = args->xml, .of = child, .out = args->out);
 }
 
-unsigned int cli_xml_at_path(const CliXml *xml, unsigned int of, const char *const *path, unsigned int count)
+unsigned int cli_xml_at_path(const CliMavenXmlCtx *args)
 {
-    unsigned int at = of;
-    for (unsigned int step = 0u; (at != CLI_XML_NONE) && (step < count); step += 1u)
+    unsigned int at = args->of;
+    for (unsigned int step = 0u; (at != CLI_XML_NONE) && (step < args->count); step += 1u)
     {
-        at = cli_xml_child(xml, at, path[step]);
+        at = EMBED_CALL(cli_maven_xml_out_internal.xml_child, CliMavenXmlOutCtx, .xml = args->xml, .of = at,
+                        .name = args->path_pointer[step]);
     }
     return at;
 }
 
-int cli_xml_inside_free(const CliXml *xml, unsigned int at)
+int cli_xml_inside_free(const CliMavenXmlAtCtx *args)
 {
-    for (unsigned int parent = xml->element[at].parent; parent != CLI_XML_NONE; parent = xml->element[parent].parent)
+    for (unsigned int parent = args->xml->element[args->at].parent; parent != CLI_XML_NONE;
+         parent = args->xml->element[parent].parent)
     {
-        if (cli_xml_named(xml, parent, "configuration") || cli_xml_named(xml, parent, "properties"))
+        if (EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = args->xml, .element = parent,
+                       .name = "configuration") ||
+            EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = args->xml, .element = parent,
+                       .name = "properties"))
         {
             return 1;
         }

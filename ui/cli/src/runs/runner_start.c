@@ -4,21 +4,29 @@
 #include "../command_line/cells.h"
 #include "runner_internal.h"
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
-static void *run_part(unsigned char **at, unsigned long long bytes)
+typedef struct
 {
+    unsigned char **at;
+    unsigned long long bytes;
+} RunnerStartCtx;
+
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
+EMBED_INLINE void *run_part(const RunnerStartCtx *args)
+{
+    unsigned char **at = args->at;
     void *const part = *at;
-    *at += (bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ull) & ~7ull;
     return part;
 }
 
-int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job, VerbaLinea *err_msg)
+int cli_run_cells_take(const CliRunnerRunCtx *args)
 {
     CliCatalogExtent extent;
-    cli_catalog_job_extent(catalog, job, &extent);
+    EMBED_CALL(cli_catalog_from_index.job_extent, CliCatalogFromIndexCfg, .from = args->catalog, .index = args->job,
+               .extent = &extent);
     if ((extent.steps > CLI_RUN_STEPS) || (extent.text >= 0xffffffffull))
     {
-        mmgr_line_put(err_msg, "the job contains more than a run stores");
+        mmgr_line_put(args->err_msg, "the job contains more than a run stores");
         return 0;
     }
     const unsigned long long bytes =
@@ -31,60 +39,72 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
     if (lines == NULL)
     {
         g_cli_cells->persistent_buf_release(cell, &g_cli_runs_cells);
-        mmgr_line_put(err_msg, "a run's cells could not be taken");
+        mmgr_line_put(args->err_msg, "a run's cells could not be taken");
         return 0;
     }
     unsigned char *at = cell;
-    run->values = run_part(&at, sizeof(CliValues));
-    CliJob *const jobs = run_part(&at, sizeof(CliJob));
-    CliParam *const params = run_part(&at, (unsigned long long)extent.params * sizeof(CliParam));
-    CliStep *const steps = run_part(&at, (unsigned long long)extent.steps * sizeof(CliStep));
-    CliArg *const args = run_part(&at, (unsigned long long)extent.args * sizeof(CliArg));
-    unsigned int *const lists = run_part(&at, (unsigned long long)extent.lists * sizeof(unsigned int));
-    char *const text = run_part(&at, extent.text);
+    args->run->values = EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = sizeof(CliValues));
+    CliJob *const jobs = EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = sizeof(CliJob));
+    CliParam *const params =
+        EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = (unsigned long long)extent.params * sizeof(CliParam));
+    CliStep *const steps =
+        EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = (unsigned long long)extent.steps * sizeof(CliStep));
+    CliArg *const arguments =
+        EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = (unsigned long long)extent.args * sizeof(CliArg));
+    unsigned int *const lists = EMBED_CALL(run_part, RunnerStartCtx, .at = &at,
+                                           .bytes = (unsigned long long)extent.lists * sizeof(unsigned int));
+    char *const text = EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = extent.text);
     // the job's text is below an unsigned int's reach, as checked above
-    cli_catalog_begun(&run->catalog, jobs, 1u, params, extent.params, steps, extent.steps, args, extent.args, lists,
-                      extent.lists, text, (unsigned int)extent.text);
-    if (cli_catalog_copy(catalog, job, &run->catalog) == CLI_CATALOG_NONE)
+    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &args->run->catalog, .jobs = jobs,
+               .jobs_most = 1u, .params = params, .params_most = extent.params, .steps = steps,
+               .steps_most = extent.steps, .request = arguments, .args_most = extent.args, .lists = lists,
+               .lists_most = extent.lists, .text_out = text, .text_most = (unsigned int)extent.text);
+    if (EMBED_CALL(cli_catalog_from.copy, CliCatalogFromCfg, .from = args->catalog, .index = args->job,
+                   .to = &args->run->catalog) == CLI_CATALOG_NONE)
     {
         g_cli_cells->persistent_buf_release(lines, &g_cli_runs_cells);
         g_cli_cells->persistent_buf_release(cell, &g_cli_runs_cells);
-        mmgr_line_put(err_msg, "the job contains more than a run stores");
+        mmgr_line_put(args->err_msg, "the job contains more than a run stores");
         return 0;
     }
-    run->job_cell = cell;
-    run->lines = lines;
+    args->run->job_cell = cell;
+    args->run->lines = lines;
     return 1;
 }
 
-void cli_run_cells_given(CliRun *run)
+void cli_run_cells_free(const CliRunnerRunSpawnedCtx *args)
 {
-    g_cli_cells->persistent_buf_release(run->job_cell, &g_cli_runs_cells);
-    g_cli_cells->persistent_buf_release(run->lines, &g_cli_runs_cells);
-    run->job_cell = NULL;
-    run->lines = NULL;
+    g_cli_cells->persistent_buf_release(args->run->job_cell, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(args->run->lines, &g_cli_runs_cells);
+    args->run->job_cell = NULL;
+    args->run->lines = NULL;
 }
 
-int cli_runs_start(CliRunSink sink, const char *root, const CliCatalog *catalog, unsigned int job,
-                   const CliValues *values, unsigned long long *run_number, VerbaLinea *err_msg)
+int cli_runs_start(const CliRunnerErrMsgCfg *args)
 {
+    CliRunSink sink = args->sink;
+    unsigned long long *run_number = args->run_number_pointer;
     static CliCommand s_checked;
     static char s_shown[CLI_COMMAND_TEXT];
-    if (!cli_runner_check(catalog, job, values, err_msg))
+    if (!cli_runner_err_msg.check(args))
     {
         return 0;
     }
-    cli_lock_take(&g_cli_runs_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     // every step that runs made once now: a step that cannot be made refuses the run before it starts
-    const CliJob *const job_at = &catalog->job[job];
+    const CliJob *const job_at = &args->catalog->job[args->job];
     for (unsigned int at = 0u; at < job_at->steps; at += 1u)
     {
-        const CliStep *const step = &catalog->step[job_at->step_first + at];
+        const CliStep *const step = &args->catalog->step[job_at->step_first + at];
         VerbaLinea shown = {s_shown, sizeof(s_shown), 0ull};
-        if ((step->program != CLI_PROGRAM_MADE) && cli_runner_runs(catalog, step, values) &&
-            !cli_runner_command(root, catalog, step, values, &s_checked, &shown, err_msg))
+        if ((step->program != CLI_PROGRAM_MADE) &&
+            EMBED_CALL(cli_runner_command_table.runs, CliRunnerCommandCfg, .catalog = args->catalog, .step = step,
+                       .values = args->values) &&
+            !EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = args->root,
+                        .catalog = args->catalog, .step = step, .values = args->values, .command = &s_checked,
+                        .shown = &shown, .err_msg = args->err_msg))
         {
-            cli_lock_give(&g_cli_runs_lock);
+            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
             return 0;
         }
     }
@@ -95,19 +115,20 @@ int cli_runs_start(CliRunSink sink, const char *root, const CliCatalog *catalog,
     }
     if (run == NULL)
     {
-        cli_lock_give(&g_cli_runs_lock);
-        mmgr_line_put(err_msg, "more runs go at once than orior_cli supports");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
+        mmgr_line_put(args->err_msg, "more runs go at once than orior_cli supports");
         return 0;
     }
-    if (!cli_run_cells_taken(run, catalog, job, err_msg))
+    if (!EMBED_CALL(cli_runner_run_internal.run_cells_take, CliRunnerRunCtx, .run = run, .catalog = args->catalog,
+                    .job = args->job, .err_msg = args->err_msg))
     {
-        cli_lock_give(&g_cli_runs_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = run->values, .src = values, .bytes = sizeof(*values)});
+    memor.cpy(&(MemoriaCfg){.dst = run->values, .src = args->values, .bytes = sizeof(*args->values)});
     memor.cpy(&(MemoriaCfg){.dst = run->root,
-                            .src = root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->root,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     run->sink = sink;
     g_cli_next_run += 1ull;
     run->run = g_cli_next_run;
@@ -120,11 +141,12 @@ int cli_runs_start(CliRunSink sink, const char *root, const CliCatalog *catalog,
     run->lines->used = 0u;
     run->has_first = 0;
     run->began = cli_clock_milliseconds();
-    cli_lock_give(&g_cli_runs_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
     // the run's start reported before any line of it, so that a reader knows the run and its job first
     const CliRunEvent start = {CLI_RUN_EVENT_START,
                                run->run,
-                               cli_catalog_at(&run->catalog, run->catalog.job[0].id),
+                               EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &run->catalog,
+                                          .text_u32 = run->catalog.job[0].id),
                                NULL,
                                NULL,
                                0,
@@ -134,56 +156,55 @@ int cli_runs_start(CliRunSink sink, const char *root, const CliCatalog *catalog,
                                0u,
                                NULL,
                                0.0};
-    sink.emit(sink.context, &start);
+    EMBED_CALL(sink.emit, CliEachEventCfg, .context = sink.context, .event = &start);
     *run_number = run->run;
     run->thread.run = cli_run_steps;
     run->thread.context = run;
-    if (!cli_thread_started(&run->thread))
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &run->thread))
     {
         cli_run_steps(run);
     }
     return 1;
 }
 
-void cli_runs_wait(unsigned long long run_number)
+void cli_runs_wait(const CliRunnerErrMsgRunNumberCfg *args)
 {
-    cli_lock_take(&g_cli_runs_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     for (;;)
     {
         int going = 0;
         for (unsigned int at = 0u; at < CLI_RUNS_MOST; at += 1u)
         {
-            going = going || (g_cli_runs[at].used && (g_cli_runs[at].run == run_number) && !g_cli_runs[at].ended);
+            going = going || (g_cli_runs[at].used && (g_cli_runs[at].run == args->run_number) && !g_cli_runs[at].ended);
         }
         if (!going)
         {
             break;
         }
-        cli_wake_wait(&g_cli_runs_wake, &g_cli_runs_lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &g_cli_runs_wake, .lock = &g_cli_runs_lock);
     }
-    cli_lock_give(&g_cli_runs_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
 }
 
-int cli_runs_stop(unsigned long long run_number, VerbaLinea *err_msg)
+int cli_runs_stop(const CliRunnerErrMsgRunNumberCfg *args)
 {
-    (void)err_msg;
-    cli_lock_take(&g_cli_runs_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     unsigned long long process = 0ull;
     unsigned long long group = 0ull;
     for (unsigned int at = 0u; at < CLI_RUNS_MOST; at += 1u)
     {
-        if (g_cli_runs[at].used && (g_cli_runs[at].run == run_number))
+        if (g_cli_runs[at].used && (g_cli_runs[at].run == args->run_number))
         {
             g_cli_runs[at].stopped = 1;
             process = g_cli_runs[at].process;
             group = g_cli_runs[at].group;
         }
     }
-    cli_spawn_group_end(group);
-    cli_lock_give(&g_cli_runs_lock);
+    EMBED_CALL(cli_group_internal.spawn_group_end, CliGroupCtx, .group = group);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
     if (process != 0ull)
     {
-        cli_spawn_tree_end(process);
+        EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = process);
     }
     return 1;
 }

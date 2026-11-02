@@ -5,94 +5,109 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-// `size` bytes of `text` written inside the JSON string
-static void line_put(VerbaLinea *out, const char *text, unsigned long long size)
+typedef struct
 {
-    cli_json_escaped_lossy(out, (const unsigned char *)text, size);
+    VerbaLinea *out;
+    const char *text;
+    unsigned long long size;
+} RequestsCurlLineCtx;
+
+// `size` bytes of `text` written inside the JSON string
+EMBED_INLINE void line_put(const RequestsCurlLineCtx *args)
+{
+    VerbaLinea *out = args->out;
+    const char *text = args->text;
+    EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)text, .length = args->size);
 }
 
 // `size` bytes of `text` written in single quotes, each quote in it closed, escaped and opened again
-static void line_quoted(VerbaLinea *out, const char *text, unsigned long long size)
+EMBED_INLINE void line_quote(const RequestsCurlLineCtx *args)
 {
-    line_put(out, "'", 1u);
+    EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "'", .size = 1u);
     unsigned long long from = 0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
     {
-        if (text[at] == '\'')
+        if (args->text[at] == '\'')
         {
-            line_put(out, text + from, at - from);
-            line_put(out, "'\\''", 4u);
+            EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = args->text + from, .size = at - from);
+            EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "'\\''", .size = 4u);
             from = at + 1u;
         }
     }
-    line_put(out, text + from, size - from);
-    line_put(out, "'", 1u);
+    EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = args->text + from, .size = args->size - from);
+    EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "'", .size = 1u);
 }
 
 // the parts between curl's and the next, each on a line of its own
-static void line_joined(VerbaLinea *out)
+EMBED_INLINE void line_join(const RequestsCurlLineCtx *args)
 {
-    line_put(out, " \\\n  ", 5u);
+    EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = " \\\n  ", .size = 5u);
 }
 
 // the curl line that sends `sent`, written inside a JSON string
-void cli_requests_curl_written(const CliRequestsSent *sent, VerbaLinea *out)
+void cli_requests_curl_write(const CliRequestsOutCtx *args)
 {
-    mmgr_line_ch(out, '"');
-    line_put(out, "curl", 4u);
-    const char *const fallback = (sent->body_size == 0u) ? "GET" : "POST";
-    if (cellul.eq(&(CatenaFinitaCfg){.src = sent->method, .other = "HEAD", .cap = CLI_CELLS_POOL}))
+    mmgr_line_ch(args->out, '"');
+    EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "curl", .size = 4u);
+    const char *const fallback = (args->sent->body_size == 0u) ? "GET" : "POST";
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->sent->method, .other = "HEAD", .cap = CLI_CELLS_POOL}))
     {
-        line_joined(out);
-        line_put(out, "--head", 6u);
+        EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
+        EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "--head", .size = 6u);
     }
-    else if (!cellul.eq(&(CatenaFinitaCfg){.src = sent->method, .other = fallback, .cap = CLI_CELLS_POOL}))
+    else if (!cellul.eq(&(CatenaFinitaCfg){.src = args->sent->method, .other = fallback, .cap = CLI_CELLS_POOL}))
     {
-        line_joined(out);
-        line_put(out, "-X ", 3u);
-        line_put(out, sent->method, cellul.len(&(CatenaFinitaCfg){.src = sent->method, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
+        EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "-X ", .size = 3u);
+        EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = args->sent->method,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->sent->method, .cap = CLI_CELLS_POOL}));
     }
-    line_joined(out);
-    line_quoted(out, sent->url, cellul.len(&(CatenaFinitaCfg){.src = sent->url, .cap = CLI_CELLS_POOL}));
-    for (unsigned int at = 0u; at < sent->headers; at += 1u)
+    EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
+    EMBED_CALL(line_quote, RequestsCurlLineCtx, .out = args->out, .text = args->sent->url,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_CELLS_POOL}));
+    for (unsigned int at = 0u; at < args->sent->headers; at += 1u)
     {
         char header[CLI_REQUESTS_NAME + CLI_REQUESTS_VALUE + 2u];
         VerbaLinea header_line = {header, sizeof(header), 0ull};
-        mmgr_line_put(&header_line, sent->header_name[at]);
+        mmgr_line_put(&header_line, args->sent->header_name[at]);
         mmgr_line_put(&header_line, ": ");
-        mmgr_line_put(&header_line, sent->header_value[at]);
-        line_joined(out);
-        line_put(out, "-H ", 3u);
-        line_quoted(out, header, header_line.at);
+        mmgr_line_put(&header_line, args->sent->header_value[at]);
+        EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
+        EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "-H ", .size = 3u);
+        EMBED_CALL(line_quote, RequestsCurlLineCtx, .out = args->out, .text = header, .size = header_line.at);
     }
-    if (sent->body_size > 0u)
+    if (args->sent->body_size > 0u)
     {
-        line_joined(out);
-        line_put(out, "--data-raw ", 11u);
-        line_quoted(out, sent->body, sent->body_size);
+        EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
+        EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "--data-raw ", .size = 11u);
+        EMBED_CALL(line_quote, RequestsCurlLineCtx, .out = args->out, .text = args->sent->body,
+                   .size = args->sent->body_size);
     }
-    if (sent->redirect)
+    if (args->sent->redirect)
     {
-        line_joined(out);
-        line_put(out, "-L", 2u);
+        EMBED_CALL(line_join, RequestsCurlLineCtx, .out = args->out);
+        EMBED_CALL(line_put, RequestsCurlLineCtx, .out = args->out, .text = "-L", .size = 2u);
     }
-    mmgr_line_ch(out, '"');
+    mmgr_line_ch(args->out, '"');
 }
 
-int cli_requests_curl(const char *root, const char *path, const char *text, unsigned long long size,
-                      unsigned long long line, const char *env, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_requests_curl(const CliRequestsTextCfg *args)
 {
-    CliRequestsRoom *const room = cli_requests_room_taken();
+    CliRequestsRoom *const room = cli_requests_room_take();
     if (room == NULL)
     {
-        mmgr_line_put(err_msg, "the request's room could not be taken");
+        mmgr_line_put(args->err_msg, "the request's room could not be taken");
         return 0;
     }
-    const int ready = cli_requests_ready(root, path, text, size, line, env, &room->sent, &room->body, NULL, err_msg);
+    const int ready =
+        EMBED_CALL(cli_requests_text_internal.ready, CliRequestsTextCtx, .root = args->root, .path = args->path,
+                   .text = args->text, .size = args->size, .line_u64 = args->line, .env = args->env,
+                   .sent_out = &room->sent, .body = &room->body, .key = NULL, .err_msg = args->err_msg);
     if (ready)
     {
-        cli_requests_curl_written(&room->sent, out);
+        EMBED_CALL(cli_requests_out_internal.curl_write, CliRequestsOutCtx, .sent = &room->sent, .out = args->out);
     }
-    cli_requests_room_given(room);
+    EMBED_CALL(cli_requests_size_err_msg_internal.room_free, CliRequestsSizeErrMsgCtx, .room = room);
     return ready;
 }

@@ -22,29 +22,38 @@
 // the most descriptors one read brings
 #define CLI_DESCRIPTORS_READ 16u
 
-// a descriptor that came queued, or closed where the queued are full
-static void descriptors_put(CliDescriptors *pending, int fd)
+typedef struct
 {
-    (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
-    cli_lock_take(&pending->lock);
-    if (pending->count < CLI_DESCRIPTORS_PENDING_MAX)
+#if (!defined(_WIN32))
+    CliDescriptors *pending;
+    int fd;
+#endif
+} PosixDescriptorsCtx;
+// a descriptor that came queued, or closed where the queued are full
+EMBED_INLINE void descriptors_put(const PosixDescriptorsCtx *args)
+{
+    (void)fcntl(args->fd, F_SETFD, FD_CLOEXEC);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->pending->lock);
+    if (args->pending->count < CLI_DESCRIPTORS_PENDING_MAX)
     {
-        pending->fd[(pending->start + pending->count) % CLI_DESCRIPTORS_PENDING_MAX] = fd;
-        pending->count += 1u;
-        cli_lock_give(&pending->lock);
+        args->pending->fd[(args->pending->start + args->pending->count) % CLI_DESCRIPTORS_PENDING_MAX] = args->fd;
+        args->pending->count += 1u;
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->pending->lock);
         return;
     }
-    cli_lock_give(&pending->lock);
-    close(fd);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->pending->lock);
+    close(args->fd);
 }
 
-long long cli_socket_received(int socket, void *buffer, unsigned long long room, CliDescriptors *pending)
+long long cli_socket_receive(const CliTransferSocketCfg *args)
 {
+    unsigned long long room = args->room;
+    CliDescriptors *pending = args->pending;
     union {
         struct cmsghdr header;
         unsigned char room[CMSG_SPACE(sizeof(int) * CLI_DESCRIPTORS_READ)];
     } control;
-    struct iovec piece = {buffer, (size_t)room};
+    struct iovec piece = {args->buffer, (size_t)room};
     struct msghdr message;
     ssize_t got = -1;
     for (;;)
@@ -55,9 +64,9 @@ long long cli_socket_received(int socket, void *buffer, unsigned long long room,
         message.msg_control = control.room;
         message.msg_controllen = sizeof(control.room);
 #if defined(MSG_CMSG_CLOEXEC)
-        got = recvmsg(socket, &message, MSG_CMSG_CLOEXEC);
+        got = recvmsg(args->socket, &message, MSG_CMSG_CLOEXEC);
 #else
-        got = recvmsg(socket, &message, 0);
+        got = recvmsg(args->socket, &message, 0);
 #endif
         if ((got >= 0) || (errno != EINTR))
         {
@@ -79,29 +88,29 @@ long long cli_socket_received(int socket, void *buffer, unsigned long long room,
         {
             int fd = -1;
             memor.cpy(&(MemoriaCfg){.dst = &fd, .src = CMSG_DATA(header) + (one * sizeof(int)), .bytes = sizeof(int)});
-            descriptors_put(pending, fd);
+            EMBED_CALL(descriptors_put, PosixDescriptorsCtx, .pending = pending, .fd = fd);
         }
     }
     return (long long)got;
 }
 
-int cli_descriptor_taken(CliDescriptors *pending)
+int cli_descriptor_take(const CliTransferSocketCfg *args)
 {
-    cli_lock_take(&pending->lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->pending->lock);
     int fd = -1;
-    if (pending->count > 0u)
+    if (args->pending->count > 0u)
     {
-        fd = pending->fd[pending->start];
-        pending->start = (pending->start + 1u) % CLI_DESCRIPTORS_PENDING_MAX;
-        pending->count -= 1u;
+        fd = args->pending->fd[args->pending->start];
+        args->pending->start = (args->pending->start + 1u) % CLI_DESCRIPTORS_PENDING_MAX;
+        args->pending->count -= 1u;
     }
-    cli_lock_give(&pending->lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->pending->lock);
     return fd;
 }
 
-void cli_descriptors_closed(CliDescriptors *pending)
+void cli_descriptors_close(const CliTransferSocketCfg *args)
 {
-    for (int fd = cli_descriptor_taken(pending); fd >= 0; fd = cli_descriptor_taken(pending))
+    for (int fd = cli_descriptor_take(args); fd >= 0; fd = cli_descriptor_take(args))
     {
         close(fd);
     }

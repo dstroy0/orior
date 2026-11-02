@@ -23,155 +23,254 @@ typedef struct
 static CliCatalogJobsRoom *s_jobs;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the arguments every run of the driver ends with
-static void cli_set(CliCatalog *catalog)
+typedef struct
 {
-    cli_catalog_arg(catalog, CLI_ARG_VALUE, "set", NULL, NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_WORDS, "samples", NULL, NULL, NULL, 0);
+    CliCatalog *catalog;
+    const char *key;
+    char (*list)[CLI_PATH_MAX_LEN];
+    unsigned int count;
+    int required;
+    const char *root;
+    const char *path;
+    unsigned int *seen;
+    const char *name;
+    const char *under;
+    unsigned int depth;
+} CatalogJobsCtx;
+// the arguments every run of the driver ends with
+EMBED_INLINE void cli_set(const CatalogJobsCtx *args)
+{
+    CliCatalog *catalog = args->catalog;
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE, .a = "set",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "samples",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
 // a choice param of the runs listed
-static void cli_choice(CliCatalog *catalog, const char *key, char (*list)[CLI_PATH_MAX_LEN], unsigned int count,
-                       int required)
+EMBED_INLINE void cli_choice(const CatalogJobsCtx *args)
 {
-    cli_catalog_param(catalog, key, "choice", required);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    CliCatalog *catalog = args->catalog;
+    const char *key = args->key;
+    int required = args->required;
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = key, .kind = "choice",
+               .required = required);
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        cli_catalog_choice(catalog, list[at]);
+        EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog, .choice = args->list[at]);
     }
 }
 
 // The cell tracker's driver as ingest, as a run of its parts, and as a render of what it found
-static void cli_driver(const char *root, CliCatalog *catalog)
+EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
 {
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
     char source[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
     char tracker[CLI_PATH_MAX_LEN];
     char base[CLI_PATH_MAX_LEN];
     char cfg[CLI_PATH_MAX_LEN];
-    cli_catalog_join(root, "examples/cell_tracking/src/track_driver/track_driver.cu", source);
-    char *const text = cli_catalog_script_taken(source);
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
+               .name = "examples/cell_tracking/src/track_driver/track_driver.cu", .path_out = source);
+    char *const text = EMBED_CALL(cli_catalog_path_out_internal.script_take, CliCatalogPathOutCtx, .path = source);
     if (text == NULL)
     {
         return;
     }
-    (void)cli_catalog_names_room(&s_jobs->parts, cli_catalog_driver_parts(text, NULL, 0u));
-    const unsigned int parts =
-        (s_jobs->parts.name != NULL) ? cli_catalog_driver_parts(text, s_jobs->parts.name, s_jobs->parts.room) : 0u;
-    cli_catalog_text_given(text);
-    cli_relative(root, source, file);
-    char *const taken = cli_catalog_about_taken(source);
+    (void)EMBED_CALL(cli_catalog_names_internal.names_room, CliCatalogNamesCtx, .names = &s_jobs->parts,
+                     .most = EMBED_CALL(cli_catalog_room_internal.driver_parts, CliCatalogRoomCtx, .source = text,
+                                        .parts = NULL, .room = 0u));
+    const unsigned int parts = (s_jobs->parts.name != NULL)
+                                   ? EMBED_CALL(cli_catalog_room_internal.driver_parts, CliCatalogRoomCtx,
+                                                .source = text, .parts = s_jobs->parts.name, .room = s_jobs->parts.room)
+                                   : 0u;
+    EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = text);
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = source, .relative_out = file);
+    char *const taken = EMBED_CALL(cli_catalog_path_internal.about_take, CliCatalogPathCtx, .path = source);
     const char *const about = (taken != NULL) ? taken : "";
-    cli_catalog_join(root, "examples/cell_tracking", tracker);
-    cli_catalog_join(tracker, "base.cfg", base);
-    cli_catalog_join(tracker, "cfg", cfg);
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
+               .name = "examples/cell_tracking", .path_out = tracker);
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = tracker, .name = "base.cfg",
+               .path_out = base);
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = tracker, .name = "cfg",
+               .path_out = cfg);
     unsigned int runs = 0u;
-    if (cli_catalog_paths_room(&s_jobs->runs, 1u))
+    if (EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->runs, .most = 1u))
     {
-        cli_relative(root, base, s_jobs->runs.path[0]);
-        runs = cli_catalog_paths(root, cfg, cli_catalog_is_cfg, &s_jobs->runs, 1u);
+        EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = base,
+                   .relative_out = s_jobs->runs.path[0]);
+        runs = EMBED_CALL(cli_catalog_filter_internal.paths, CliCatalogFilterCtx, .root = root, .dir = cfg,
+                          .filter = cli_catalog_is_cfg, .list = &s_jobs->runs, .at = 1u);
     }
 
-    cli_catalog_job(catalog, "ingest/track_driver", "ingest", "track_driver --ingest", file, about, "");
-    cli_catalog_param(catalog, "source", "dir", 1);
-    cli_catalog_param(catalog, "axes", "word", 0);
-    cli_catalog_param(catalog, "channel", "word", 0);
-    cli_catalog_param(catalog, "set", "save-dir", 1);
-    cli_catalog_param(catalog, "samples", "words", 0);
-    cli_catalog_step(catalog, CLI_PROGRAM_BUILT, "track_driver", NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_LIT, "--ingest", NULL, NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--source", "source", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--axes", "axes", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--channel", "channel", NULL, NULL, 0);
-    cli_set(catalog);
+    EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = "ingest/track_driver",
+               .group = "ingest", .title = "track_driver --ingest", .file = file, .about = about, .opens = "");
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "source", .kind = "dir",
+               .required = 1);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "axes", .kind = "word",
+               .required = 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "channel", .kind = "word",
+               .required = 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "set", .kind = "save-dir",
+               .required = 1);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "samples", .kind = "words",
+               .required = 0);
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+               .program = CLI_PROGRAM_BUILT, .text = "track_driver", .tool_program = NULL, .system = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_LIT, .a = "--ingest",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--source",
+               .b = "source", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--axes",
+               .b = "axes", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--channel",
+               .b = "channel", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_set, CatalogJobsCtx, .catalog = catalog);
 
-    cli_catalog_job(catalog, "run/track_driver", "run", "track_driver --run", file, about, "");
-    cli_choice(catalog, "cfg", s_jobs->runs.path, runs, 0);
-    cli_catalog_param(catalog, "cfg-out", "save", 0);
-    cli_catalog_param(catalog, "run", "many", 0);
+    EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = "run/track_driver",
+               .group = "run", .title = "track_driver --run", .file = file, .about = about, .opens = "");
+    EMBED_CALL(cli_choice, CatalogJobsCtx, .catalog = catalog, .key = "cfg", .list = s_jobs->runs.path, .count = runs,
+               .required = 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "cfg-out", .kind = "save",
+               .required = 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "run", .kind = "many",
+               .required = 0);
     for (unsigned int at = 0u; at < parts; at += 1u)
     {
-        cli_catalog_choice(catalog, s_jobs->parts.name[at]);
+        EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog,
+                   .choice = s_jobs->parts.name[at]);
     }
-    cli_catalog_words(catalog);
-    cli_catalog_param(catalog, "set", "dir", 0);
-    cli_catalog_param(catalog, "samples", "words", 0);
-    cli_catalog_step(catalog, CLI_PROGRAM_BUILT, "track_driver", NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--cfg", "cfg", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--cfg-out", "cfg-out", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_EACH, "--run", "run", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
-    cli_set(catalog);
+    EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "set", .kind = "dir",
+               .required = 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "samples", .kind = "words",
+               .required = 0);
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+               .program = CLI_PROGRAM_BUILT, .text = "track_driver", .tool_program = NULL, .system = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--cfg",
+               .b = "cfg", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--cfg-out",
+               .b = "cfg-out", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_EACH, .a = "--run",
+               .b = "run", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_set, CatalogJobsCtx, .catalog = catalog);
 
-    cli_catalog_job(catalog, "render/track_driver", "render", "track_driver --vis", file, about, "");
-    cli_choice(catalog, "cfg", s_jobs->runs.path, runs, 0);
-    cli_catalog_param(catalog, "vis", "save", 0);
-    cli_catalog_param(catalog, "export", "save", 0);
-    cli_catalog_words(catalog);
-    cli_catalog_param(catalog, "set", "dir", 0);
-    cli_catalog_param(catalog, "samples", "words", 0);
-    cli_catalog_step(catalog, CLI_PROGRAM_BUILT, "track_driver", NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--cfg", "cfg", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--vis", "vis", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--export", "export", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
-    cli_set(catalog);
-    cli_catalog_text_given(taken);
+    EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = "render/track_driver",
+               .group = "render", .title = "track_driver --vis", .file = file, .about = about, .opens = "");
+    EMBED_CALL(cli_choice, CatalogJobsCtx, .catalog = catalog, .key = "cfg", .list = s_jobs->runs.path, .count = runs,
+               .required = 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "vis", .kind = "save",
+               .required = 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "export", .kind = "save",
+               .required = 0);
+    EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "set", .kind = "dir",
+               .required = 0);
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "samples", .kind = "words",
+               .required = 0);
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+               .program = CLI_PROGRAM_BUILT, .text = "track_driver", .tool_program = NULL, .system = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--cfg",
+               .b = "cfg", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--vis",
+               .b = "vis", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--export",
+               .b = "export", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_set, CatalogJobsCtx, .catalog = catalog);
+    EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = taken);
 }
 
 // The other runners: the Navier-Stokes programs on their cfgs and the qasm circuits
-static void cli_runners(const char *root, CliCatalog *catalog)
+EMBED_INLINE void cli_runners(const CatalogJobsCtx *args)
 {
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
     char navier[CLI_PATH_MAX_LEN];
     char script[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    cli_catalog_join(root, "examples/navier_stokes/run.sh", navier);
-    char *const text = cli_catalog_script_taken(navier);
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
+               .name = "examples/navier_stokes/run.sh", .path_out = navier);
+    char *const text = EMBED_CALL(cli_catalog_path_out_internal.script_take, CliCatalogPathOutCtx, .path = navier);
     if (text != NULL)
     {
-        (void)cli_catalog_names_room(&s_jobs->parts, cli_catalog_case_names(text, "PROGRAM", NULL, 0u));
+        (void)EMBED_CALL(cli_catalog_names_internal.names_room, CliCatalogNamesCtx, .names = &s_jobs->parts,
+                         .most =
+                             EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
+                                        .text_read = text, .variable = "PROGRAM", .names_callback = NULL, .room = 0u));
         const unsigned int programs =
             (s_jobs->parts.name != NULL)
-                ? cli_catalog_case_names(text, "PROGRAM", s_jobs->parts.name, s_jobs->parts.room)
+                ? EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
+                             .text_read = text, .variable = "PROGRAM", .names_callback = s_jobs->parts.name,
+                             .room = s_jobs->parts.room)
                 : 0u;
-        cli_catalog_text_given(text);
-        cli_catalog_join(root, "examples/navier_stokes/cfg", folder);
-        const unsigned int configs = cli_catalog_paths(root, folder, cli_catalog_is_cfg, &s_jobs->runs, 0u);
-        cli_relative(root, navier, script);
-        cli_catalog_script_job(catalog, root, "run", navier, NULL, "");
-        cli_catalog_param(catalog, "program", "choice", 1);
+        EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = text);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
+                   .name = "examples/navier_stokes/cfg", .path_out = folder);
+        const unsigned int configs =
+            EMBED_CALL(cli_catalog_filter_internal.paths, CliCatalogFilterCtx, .root = root, .dir = folder,
+                       .filter = cli_catalog_is_cfg, .list = &s_jobs->runs, .at = 0u);
+        EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = navier,
+                   .relative_out = script);
+        EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
+                   .group = "run", .path = navier, .title = NULL, .opens = "");
+        EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "program",
+                   .kind = "choice", .required = 1);
         for (unsigned int at = 0u; at < programs; at += 1u)
         {
-            cli_catalog_choice(catalog, s_jobs->parts.name[at]);
+            EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog,
+                       .choice = s_jobs->parts.name[at]);
         }
-        cli_choice(catalog, "cfg", s_jobs->runs.path, configs, 1);
-        cli_catalog_step(catalog, CLI_PROGRAM_BASH, script, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_VALUE, "program", NULL, NULL, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_VALUE, "cfg", NULL, NULL, NULL, 0);
+        EMBED_CALL(cli_choice, CatalogJobsCtx, .catalog = catalog, .key = "cfg", .list = s_jobs->runs.path,
+                   .count = configs, .required = 1);
+        EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+                   .program = CLI_PROGRAM_BASH, .text = script, .tool_program = NULL, .system = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE,
+                   .a = "program", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE, .a = "cfg",
+                   .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
     char qasm[CLI_PATH_MAX_LEN];
-    cli_catalog_join(root, "examples/qasm/run.sh", qasm);
-    if (query_is_file(qasm))
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
+               .name = "examples/qasm/run.sh", .path_out = qasm);
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = qasm))
     {
-        cli_catalog_join(root, "examples/qasm/test", folder);
-        const unsigned int circuits = cli_catalog_paths(root, folder, cli_catalog_is_qasm, &s_jobs->runs, 0u);
-        cli_relative(root, qasm, script);
-        cli_catalog_script_job(catalog, root, "run", qasm, NULL, "");
-        cli_catalog_param(catalog, "circuit", "choice-or-file", 1);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
+                   .name = "examples/qasm/test", .path_out = folder);
+        const unsigned int circuits =
+            EMBED_CALL(cli_catalog_filter_internal.paths, CliCatalogFilterCtx, .root = root, .dir = folder,
+                       .filter = cli_catalog_is_qasm, .list = &s_jobs->runs, .at = 0u);
+        EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = qasm, .relative_out = script);
+        EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
+                   .group = "run", .path = qasm, .title = NULL, .opens = "");
+        EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "circuit",
+                   .kind = "choice-or-file", .required = 1);
         for (unsigned int at = 0u; at < circuits; at += 1u)
         {
-            cli_catalog_choice(catalog, s_jobs->runs.path[at]);
+            EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog,
+                       .choice = s_jobs->runs.path[at]);
         }
-        cli_catalog_words(catalog);
-        cli_catalog_step(catalog, CLI_PROGRAM_BASH, script, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_VALUE, "circuit", NULL, NULL, NULL, 0);
+        EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
+        EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+                   .program = CLI_PROGRAM_BASH, .text = script, .tool_program = NULL, .system = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
+                   .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE,
+                   .a = "circuit", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
 }
 
 // one page builder's job, where its path is not one seen before
-static void cli_view(const char *root, CliCatalog *catalog, const char *path, unsigned int *seen)
+EMBED_INLINE void cli_view(const CatalogJobsCtx *args)
 {
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
+    const char *path = args->path;
+    unsigned int *seen = args->seen;
     for (unsigned int at = 0u; at < *seen; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_jobs->paths.path[at], .other = path, .cap = CLI_CELLS_POOL}))
@@ -188,41 +287,52 @@ static void cli_view(const char *root, CliCatalog *catalog, const char *path, un
     }
     char file[CLI_PATH_MAX_LEN];
     char stem[CLI_NAME_MAX_LEN];
-    cli_relative(root, path, file);
-    cli_catalog_stem(path, stem);
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = path, .relative_out = file);
+    EMBED_CALL(cli_catalog_path_out_internal.stem, CliCatalogPathOutCtx, .path = path, .out = stem);
     const char *title = stem;
     while (cellul.starts(&(CatenaFinitaCfg){.src = title, .other = "build_", .cap = CLI_CELLS_POOL}))
     {
         title += 6;
     }
-    cli_catalog_script_job(catalog, root, "view", path, title, "views");
-    cli_catalog_param(catalog, "input", "file", 0);
-    cli_catalog_words(catalog);
-    cli_catalog_step(catalog, CLI_PROGRAM_PYTHON, file, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_VALUE, "input", NULL, NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
+    EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
+               .group = "view", .path = path, .title = title, .opens = "views");
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "input", .kind = "file",
+               .required = 0);
+    EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+               .program = CLI_PROGRAM_PYTHON, .text = file, .tool_program = NULL, .system = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE, .a = "input",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
 // Every page builder: the viewers, and the builders beside the examples that write a page. A builder that takes a file
 // as its first word gets one, and every one takes free words after it
-static void cli_views(const char *root, CliCatalog *catalog)
+EMBED_INLINE void cli_views(const CatalogJobsCtx *args)
 {
     char examples[CLI_PATH_MAX_LEN];
     unsigned int places = 0u;
     unsigned int seen = 0u;
-    cli_catalog_join(root, "examples", examples);
-    cli_catalog_entries(examples, 1, NULL, &s_jobs->subjects);
-    (void)cli_catalog_paths_room(&s_jobs->runs, 1u + (2u * s_jobs->subjects.count));
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->root, .name = "examples",
+               .path_out = examples);
+    EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = examples, .folders = 1,
+               .filter = NULL, .entries = &s_jobs->subjects);
+    (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->runs,
+                     .most = 1u + (2u * s_jobs->subjects.count));
     if (s_jobs->runs.room != 0u)
     {
-        cli_catalog_join(root, "examples/00_blob_viz_tools", s_jobs->runs.path[places]);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->root,
+                   .name = "examples/00_blob_viz_tools", .path_out = s_jobs->runs.path[places]);
         places += 1u;
     }
     for (unsigned int at = 0u; (at < s_jobs->subjects.count) && ((places + 2u) <= s_jobs->runs.room); at += 1u)
     {
         char subject[CLI_PATH_MAX_LEN];
-        cli_catalog_join(examples, s_jobs->subjects.name[at], subject);
-        cli_catalog_join(subject, "maint", s_jobs->runs.path[places]);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = examples,
+                   .name = s_jobs->subjects.name[at], .path_out = subject);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = subject, .name = "maint",
+                   .path_out = s_jobs->runs.path[places]);
         memor.cpy(&(MemoriaCfg){.dst = s_jobs->runs.path[places + 1u],
                                 .src = subject,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}) + 1u});
@@ -231,61 +341,81 @@ static void cli_views(const char *root, CliCatalog *catalog)
     for (unsigned int at = 0u; at < places; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        cli_catalog_entries(s_jobs->runs.path[at], 0, cli_catalog_is_builder, &s_jobs->files);
-        (void)cli_catalog_paths_room(&s_jobs->paths, seen + s_jobs->files.count);
+        EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = s_jobs->runs.path[at],
+                   .folders = 0, .filter = cli_catalog_is_builder, .entries = &s_jobs->files);
+        (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->paths,
+                         .most = seen + s_jobs->files.count);
         for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
         {
-            cli_catalog_join(s_jobs->runs.path[at], s_jobs->files.name[each], path);
-            cli_view(root, catalog, path, &seen);
+            EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = s_jobs->runs.path[at],
+                       .name = s_jobs->files.name[each], .path_out = path);
+            EMBED_CALL(cli_view, CatalogJobsCtx, .root = args->root, .catalog = args->catalog, .path = path,
+                       .seen = &seen);
         }
-        cli_catalog_entries(s_jobs->runs.path[at], 0, cli_catalog_is_figure, &s_jobs->files);
-        (void)cli_catalog_paths_room(&s_jobs->paths, seen + s_jobs->files.count);
+        EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = s_jobs->runs.path[at],
+                   .folders = 0, .filter = cli_catalog_is_figure, .entries = &s_jobs->files);
+        (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->paths,
+                         .most = seen + s_jobs->files.count);
         for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
         {
-            cli_catalog_join(s_jobs->runs.path[at], s_jobs->files.name[each], path);
-            cli_view(root, catalog, path, &seen);
+            EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = s_jobs->runs.path[at],
+                       .name = s_jobs->files.name[each], .path_out = path);
+            EMBED_CALL(cli_view, CatalogJobsCtx, .root = args->root, .catalog = args->catalog, .path = path,
+                       .seen = &seen);
         }
     }
 }
 
 // whether a folder is a stage's: its name two or more letters, a digit and then `_`
-static int cli_is_stage(const char *name)
+EMBED_INLINE int cli_is_stage(const CatalogJobsCtx *args)
 {
-    return (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) > 2u) && (name[0] >= '0') &&
-           (name[0] <= '9') && (name[1] == '_');
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) > 2u) && (args->name[0] >= '0') &&
+           (args->name[0] <= '9') && (args->name[1] == '_');
 }
 
 // Each subject's stage scripts, one job a script, and one pipeline a subject that runs its stages in order and stops
 // at the first that fails
-static void cli_stages(const char *root, CliCatalog *catalog)
+EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
 {
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
     char examples[CLI_PATH_MAX_LEN];
-    cli_catalog_join(root, "examples", examples);
-    cli_catalog_entries(examples, 1, NULL, &s_jobs->subjects);
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root, .name = "examples",
+               .path_out = examples);
+    EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = examples, .folders = 1,
+               .filter = NULL, .entries = &s_jobs->subjects);
     for (unsigned int at = 0u; at < s_jobs->subjects.count; at += 1u)
     {
         char subject[CLI_PATH_MAX_LEN];
-        cli_catalog_join(examples, s_jobs->subjects.name[at], subject);
-        cli_catalog_entries(subject, 1, NULL, &s_jobs->inner);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = examples,
+                   .name = s_jobs->subjects.name[at], .path_out = subject);
+        EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = subject, .folders = 1,
+                   .filter = NULL, .entries = &s_jobs->inner);
         unsigned int every = 0u;
         for (unsigned int stage = 0u; stage < s_jobs->inner.count; stage += 1u)
         {
-            if (!cli_is_stage(s_jobs->inner.name[stage]))
+            if (!EMBED_CALL(cli_is_stage, CatalogJobsCtx, .name = s_jobs->inner.name[stage]))
             {
                 continue;
             }
             char folder[CLI_PATH_MAX_LEN];
-            cli_catalog_join(subject, s_jobs->inner.name[stage], folder);
-            cli_catalog_entries(folder, 0, cli_catalog_is_py, &s_jobs->files);
-            (void)cli_catalog_paths_room(&s_jobs->paths, every + s_jobs->files.count);
+            EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = subject,
+                       .name = s_jobs->inner.name[stage], .path_out = folder);
+            EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = folder, .folders = 0,
+                       .filter = cli_catalog_is_py, .entries = &s_jobs->files);
+            (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->paths,
+                             .most = every + s_jobs->files.count);
             for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
             {
                 char script[CLI_PATH_MAX_LEN];
                 char file[CLI_PATH_MAX_LEN];
                 char title[CLI_PATH_MAX_LEN];
-                cli_catalog_join(folder, s_jobs->files.name[each], script);
-                cli_relative(root, script, file);
-                cli_relative(subject, script, title);
+                EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = folder,
+                           .name = s_jobs->files.name[each], .path_out = script);
+                EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = script,
+                           .relative_out = file);
+                EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = subject, .path = script,
+                           .relative_out = title);
                 if (every < s_jobs->paths.room)
                 {
                     memor.cpy(&(MemoriaCfg){
@@ -294,10 +424,13 @@ static void cli_stages(const char *root, CliCatalog *catalog)
                         .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
                     every += 1u;
                 }
-                cli_catalog_script_job(catalog, root, "stage", script, title, "");
-                cli_catalog_words(catalog);
-                cli_catalog_step(catalog, CLI_PROGRAM_PYTHON, file, NULL, 0);
-                cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
+                EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
+                           .group = "stage", .path = script, .title = title, .opens = "");
+                EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
+                EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+                           .program = CLI_PROGRAM_PYTHON, .text = file, .tool_program = NULL, .system = 0);
+                EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
+                           .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
             }
         }
         if (every == 0u)
@@ -308,113 +441,139 @@ static void cli_stages(const char *root, CliCatalog *catalog)
         char id[CLI_PATH_MAX_LEN];
         char file[CLI_PATH_MAX_LEN];
         char readme[CLI_PATH_MAX_LEN];
-        cli_catalog_stem(subject, name);
+        EMBED_CALL(cli_catalog_path_out_internal.stem, CliCatalogPathOutCtx, .path = subject, .out = name);
         VerbaLinea line = {id, sizeof(id), 0ull};
         mmgr_line_put(&line, "pipeline/");
         mmgr_line_put(&line, name);
         mmgr_line_finish(&line);
-        cli_relative(root, subject, file);
-        cli_catalog_join(subject, "README.md", readme);
-        char *const about = query_is_file(readme) ? cli_catalog_markdown_taken(readme) : NULL;
-        cli_catalog_job(catalog, id, "pipeline", name, file, (about != NULL) ? about : "", "");
-        cli_catalog_text_given(about);
+        EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = subject,
+                   .relative_out = file);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = subject,
+                   .name = "README.md", .path_out = readme);
+        char *const about =
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = readme)
+                ? EMBED_CALL(cli_catalog_path_out_internal.markdown_take, CliCatalogPathOutCtx, .path = readme)
+                : NULL;
+        EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = id, .group = "pipeline",
+                   .title = name, .file = file, .about = (about != NULL) ? about : "", .opens = "");
+        EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = about);
         for (unsigned int each = 0u; each < every; each += 1u)
         {
-            cli_catalog_step(catalog, CLI_PROGRAM_PYTHON, s_jobs->paths.path[each], NULL, 0);
-            cli_catalog_arg(catalog, CLI_ARG_WORDS, "arguments", NULL, NULL, NULL, 0);
+            EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+                       .program = CLI_PROGRAM_PYTHON, .text = s_jobs->paths.path[each], .tool_program = NULL,
+                       .system = 0);
+            EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
+                       .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
         }
     }
 }
 
 // every file named `name` under `under`, here and in its folders depth first, put into the list from `count`: the
 // count after
-static unsigned int cli_collect(const char *under, const char *name, unsigned int count, unsigned int depth)
+static unsigned int cli_collect(const CatalogJobsCtx *args)
 {
+    const char *name = args->name;
+    unsigned int count = args->count;
     char here[CLI_PATH_MAX_LEN];
-    cli_catalog_join(under, name, here);
-    if (query_is_file(here) && cli_catalog_paths_room(&s_jobs->paths, count + 1u))
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->under, .name = name,
+               .path_out = here);
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = here) &&
+        EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->paths,
+                   .most = count + 1u))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths.path[count],
                                 .src = here,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = here, .cap = CLI_CELLS_POOL}) + 1u});
         count += 1u;
     }
-    if (depth >= 16u)
+    if (args->depth >= 16u)
     {
         return count;
     }
     // the folders read before going down, so a deeper read takes another room
-    cli_catalog_entries(under, 1, NULL, &s_jobs->dirs[depth]);
-    for (unsigned int at = 0u; at < s_jobs->dirs[depth].count; at += 1u)
+    EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = args->under, .folders = 1,
+               .filter = NULL, .entries = &s_jobs->dirs[args->depth]);
+    for (unsigned int at = 0u; at < s_jobs->dirs[args->depth].count; at += 1u)
     {
         char dir[CLI_PATH_MAX_LEN];
-        cli_catalog_join(under, s_jobs->dirs[depth].name[at], dir);
-        count = cli_collect(dir, name, count, depth + 1u);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->under,
+                   .name = s_jobs->dirs[args->depth].name[at], .path_out = dir);
+        count = EMBED_CALL(cli_collect, CatalogJobsCtx, .under = dir, .name = name, .count = count,
+                           .depth = args->depth + 1u);
     }
-    cli_catalog_entries_given(&s_jobs->dirs[depth]);
+    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->dirs[args->depth]);
     return count;
 }
 
 // The test suites: every run.sh under utils/test and under an example's test folder
-static void cli_tests(const char *root, CliCatalog *catalog)
+EMBED_INLINE void cli_tests(const CatalogJobsCtx *args)
 {
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
     char under[CLI_PATH_MAX_LEN];
     char examples[CLI_PATH_MAX_LEN];
-    cli_catalog_join(root, "utils/test", under);
-    unsigned int count = cli_collect(under, "run.sh", 0u, 0u);
-    cli_catalog_join(root, "examples", examples);
-    cli_catalog_entries(examples, 1, NULL, &s_jobs->subjects);
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root, .name = "utils/test",
+               .path_out = under);
+    unsigned int count =
+        EMBED_CALL(cli_collect, CatalogJobsCtx, .under = under, .name = "run.sh", .count = 0u, .depth = 0u);
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root, .name = "examples",
+               .path_out = examples);
+    EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = examples, .folders = 1,
+               .filter = NULL, .entries = &s_jobs->subjects);
     for (unsigned int at = 0u; at < s_jobs->subjects.count; at += 1u)
     {
         char subject[CLI_PATH_MAX_LEN];
-        cli_catalog_join(examples, s_jobs->subjects.name[at], subject);
-        cli_catalog_join(subject, "test", under);
-        count = cli_collect(under, "run.sh", count, 0u);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = examples,
+                   .name = s_jobs->subjects.name[at], .path_out = subject);
+        EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = subject, .name = "test",
+                   .path_out = under);
+        count = EMBED_CALL(cli_collect, CatalogJobsCtx, .under = under, .name = "run.sh", .count = count, .depth = 0u);
     }
-    cli_paths_sorted(s_jobs->paths.path, count);
+    EMBED_CALL(cli_text_paths.paths_sort, CliTextPathsCfg, .paths = s_jobs->paths.path, .count = count);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_catalog_bash_alone(catalog, root, "test", s_jobs->paths.path[at]);
+        EMBED_CALL(cli_catalog_path_internal.bash_alone, CliCatalogPathCtx, .catalog = catalog, .root = root,
+                   .group = "test", .path = s_jobs->paths.path[at]);
     }
 }
 
 // every list of the reading given back
-static void cli_jobs_given(void)
+static void cli_jobs_free(void)
 {
-    cli_catalog_paths_given(&s_jobs->runs);
-    cli_catalog_entries_given(&s_jobs->parts);
-    cli_catalog_paths_given(&s_jobs->paths);
-    cli_catalog_entries_given(&s_jobs->subjects);
-    cli_catalog_entries_given(&s_jobs->inner);
-    cli_catalog_entries_given(&s_jobs->files);
+    EMBED_CALL(cli_catalog_most_internal.paths_free, CliCatalogMostCtx, .paths = &s_jobs->runs);
+    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->parts);
+    EMBED_CALL(cli_catalog_most_internal.paths_free, CliCatalogMostCtx, .paths = &s_jobs->paths);
+    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->subjects);
+    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->inner);
+    EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->files);
     for (unsigned int depth = 0u; depth < 17u; depth += 1u)
     {
-        cli_catalog_entries_given(&s_jobs->dirs[depth]);
+        EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->dirs[depth]);
     }
 }
 
-void cli_catalog_read(const char *root, CliCatalog *catalog)
+void cli_catalog_read(const CliCatalogRootCfg *args)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_jobs = g_cli_cells->persistent_buf_alloc(sizeof(*s_jobs), &g_cli_catalog_cells);
     if (s_jobs == NULL)
     {
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     memor.set(&(MemoriaCfg){.dst = s_jobs, .val = 0, .bytes = sizeof(*s_jobs)});
-    cli_catalog_builds(root, catalog);
-    cli_executables_jobs(root, catalog);
-    cli_deploy_jobs(root, catalog);
-    cli_query_jobs(root, catalog);
-    cli_driver(root, catalog);
-    cli_runners(root, catalog);
-    cli_catalog_sims(root, catalog);
-    cli_views(root, catalog);
-    cli_stages(root, catalog);
-    cli_tests(root, catalog);
-    cli_jobs_given();
+    EMBED_CALL(cli_catalog_path_internal.builds, CliCatalogPathCtx, .root = args->root, .catalog = args->catalog);
+    cli_catalog_root.executables_jobs(args);
+    cli_catalog_root.deploy_jobs(args);
+    cli_catalog_root.query_jobs(args);
+    EMBED_CALL(cli_driver, CatalogJobsCtx, .root = args->root, .catalog = args->catalog);
+    EMBED_CALL(cli_runners, CatalogJobsCtx, .root = args->root, .catalog = args->catalog);
+    EMBED_CALL(cli_catalog_path_internal.sims, CliCatalogPathCtx, .root = args->root, .catalog = args->catalog);
+    EMBED_CALL(cli_views, CatalogJobsCtx, .root = args->root, .catalog = args->catalog);
+    EMBED_CALL(cli_stages, CatalogJobsCtx, .root = args->root, .catalog = args->catalog);
+    EMBED_CALL(cli_tests, CatalogJobsCtx, .root = args->root, .catalog = args->catalog);
+    cli_jobs_free();
     g_cli_cells->persistent_buf_release(s_jobs, &g_cli_catalog_cells);
     s_jobs = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

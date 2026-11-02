@@ -10,13 +10,7 @@
 // the most include folders a tool names, MMgr's among them, and the most words one compile is given: the compiler,
 // its flags, MMgr's settings, the includes and the source and object
 #define QUERY_INCLUDES_MOST 32u
-
 #define QUERY_COMPILE_WORDS (8u + 4u + QUERY_INCLUDES_MOST + 8u)
-
-// the most of what a compiler or the linker printed retained to explain why a build failed, and the bytes it is taken
-// to be stored in
-#define QUERY_BUILD_OUTPUT_MAX_LEN 65536u
-
 // One compile: the compiler, its words, the program first and NULL after the last, and the source they compile
 typedef struct
 {
@@ -24,18 +18,49 @@ typedef struct
     const char *source;
 } QueryCompile;
 
+// the most of what a compiler or the linker printed retained to explain why a build failed, and the bytes it is taken
+// to be stored in
+#define QUERY_BUILD_OUTPUT_MAX_LEN 65536u
+
 static char s_includes[QUERY_INCLUDES_MOST][QUERY_PATH_MAX_LEN + 2u];
 
+typedef struct
+{
+    QueryProcess *process;
+    VerbaLinea *output;
+    const char *name;
+    const char *what;
+    VerbaLinea *err_msg;
+    const QueryCompile *compiles;
+    unsigned int count;
+    QueryCompile *compile;
+    const char *compiler;
+    const char *const *flags;
+    unsigned int includes;
+    int as_cxx;
+    const char *source;
+    const char *object;
+    const char *root;
+    const QueryPrograms *programs;
+    const QueryTool *tool;
+    const char *out;
+    const char *binary;
+    const char *c_compiler;
+    char *cxx_compiler;
+} ToolsBuildCtx;
 // the output of `process` read to its end, QUERY_BUILD_OUTPUT_MAX_LEN bytes of it at the most, into `output`, a line,
 // its trailing blank lines left off and closed, and the process waited on: its exit code
-static long long query_build_read(QueryProcess *process, VerbaLinea *output)
+EMBED_INLINE long long query_build_read(const ToolsBuildCtx *args)
 {
+    QueryProcess *process = args->process;
+    VerbaLinea *output = args->output;
     char *const cell = g_cli_cells->temporary_buf_alloc(QUERY_BUILD_OUTPUT_MAX_LEN + 1ull, &g_query_cells);
     *output = mmgr_line_over(cell, QUERY_BUILD_OUTPUT_MAX_LEN + 1ull);
     for (;;)
     {
         char piece[4096];
-        const unsigned long long got = query_process_read(process, piece, sizeof(piece));
+        const unsigned long long got = EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx,
+                                                  .process = process, .piece = piece, .room_u64 = sizeof(piece));
         if (got == 0ull)
         {
             break;
@@ -47,44 +72,48 @@ static long long query_build_read(QueryProcess *process, VerbaLinea *output)
     // what the compiler printed, its trailing blank lines left off
     if (mmgr_line_ok(output))
     {
-        output->at = cli_text_back_past(output->out, output->at, "\n\r");
+        output->at = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = output->out,
+                                .at = output->at, .set = "\n\r");
     }
     (void)mmgr_line_finish(output);
-    return query_process_wait(process);
+    return EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = process);
 }
 
 // `failed`'s build failed: `build failed: <name> did not <what>` and what its compiler printed, `output`, into
 // `err_msg`, and `output`'s cell given back
-static void query_build_failed(const char *name, const char *what, VerbaLinea *output, VerbaLinea *err_msg)
+EMBED_INLINE void query_build_fail(const ToolsBuildCtx *args)
 {
-    mmgr_line_put(err_msg, "build failed: ");
-    mmgr_line_put(err_msg, name);
-    mmgr_line_put(err_msg, " did not ");
-    mmgr_line_put(err_msg, what);
-    mmgr_line_ch(err_msg, '\n');
-    mmgr_line_put_n(err_msg, output->out, mmgr_line_ok(output) ? output->at : 0ull);
-    g_cli_cells->persistent_buf_release(output->out, &g_query_cells);
+    mmgr_line_put(args->err_msg, "build failed: ");
+    mmgr_line_put(args->err_msg, args->name);
+    mmgr_line_put(args->err_msg, " did not ");
+    mmgr_line_put(args->err_msg, args->what);
+    mmgr_line_ch(args->err_msg, '\n');
+    mmgr_line_put_n(args->err_msg, args->output->out, mmgr_line_ok(args->output) ? args->output->at : 0ull);
+    g_cli_cells->persistent_buf_release(args->output->out, &g_query_cells);
 }
 
 // Every compile of `compiles`, `count` of them, run QUERY_LAUNCHES_AT_ONCE at a time and the launch spacing between
 // starts: 1, or 0 with the first that fails reported
-static int query_compiled_at_once(const QueryCompile *compiles, unsigned int count, VerbaLinea *err_msg)
+EMBED_INLINE int query_compiled_at_once(const ToolsBuildCtx *args)
 {
     unsigned int started = 0u;
-    for (unsigned int first = 0u; first < count; first += QUERY_LAUNCHES_AT_ONCE)
+    for (unsigned int first = 0u; first < args->count; first += QUERY_LAUNCHES_AT_ONCE)
     {
-        const unsigned int past = ((count - first) < QUERY_LAUNCHES_AT_ONCE) ? count : (first + QUERY_LAUNCHES_AT_ONCE);
+        const unsigned int past =
+            ((args->count - first) < QUERY_LAUNCHES_AT_ONCE) ? args->count : (first + QUERY_LAUNCHES_AT_ONCE);
         QueryProcess running[QUERY_LAUNCHES_AT_ONCE];
         for (unsigned int at = first; at < past; at += 1u)
         {
             if (started != 0u)
             {
-                query_paused(QUERY_LAUNCH_SPACING_MILLISECONDS);
+                EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx,
+                           .milliseconds = QUERY_LAUNCH_SPACING_MILLISECONDS);
             }
-            if (!query_process_start(&running[at - first], compiles[at].words, NULL, QUERY_OUTPUT_PIPED))
+            if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &running[at - first],
+                            .words = args->compiles[at].words, .folder = NULL, .output = QUERY_OUTPUT_PIPED))
             {
-                mmgr_line_put(err_msg, compiles[at].words[0]);
-                mmgr_line_put(err_msg, ": it could not be started");
+                mmgr_line_put(args->err_msg, args->compiles[at].words[0]);
+                mmgr_line_put(args->err_msg, ": it could not be started");
                 return 0;
             }
             started += 1u;
@@ -93,13 +122,18 @@ static int query_compiled_at_once(const QueryCompile *compiles, unsigned int cou
         for (unsigned int at = first; at < past; at += 1u)
         {
             VerbaLinea output;
-            const long long code = query_build_read(&running[at - first], &output);
+            const long long code =
+                EMBED_CALL(query_build_read, ToolsBuildCtx, .process = &running[at - first], .output = &output);
             if (whole && (code != 0ll))
             {
-                const char *const slash = cli_text_last(
-                    compiles[at].source,
-                    cellul.len(&(CatenaFinitaCfg){.src = compiles[at].source, .cap = CLI_CELLS_POOL}), '/');
-                query_build_failed((slash != NULL) ? (slash + 1) : compiles[at].source, "compile", &output, err_msg);
+                const char *const slash =
+                    EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->compiles[at].source,
+                               .length_value = cellul.len(
+                                   &(CatenaFinitaCfg){.src = args->compiles[at].source, .cap = CLI_CELLS_POOL}),
+                               .byte = '/');
+                EMBED_CALL(query_build_fail, ToolsBuildCtx,
+                           .name = (slash != NULL) ? (slash + 1) : args->compiles[at].source, .what = "compile",
+                           .output = &output, .err_msg = args->err_msg);
                 whole = 0;
                 continue;
             }
@@ -115,96 +149,104 @@ static int query_compiled_at_once(const QueryCompile *compiles, unsigned int cou
 
 // the compile of `source` into `object` with `compiler`, `flags`, the includes and, where `as_cxx`, `-x c++`, added
 // to the compiles: its place
-static void query_compile_added(QueryCompile *compile, const char *compiler, const char *const *flags,
-                                unsigned int includes, int as_cxx, const char *source, const char *object)
+EMBED_INLINE void query_compile_add(const ToolsBuildCtx *args)
 {
+    const char *source = args->source;
     unsigned int word = 0u;
-    compile->words[word++] = compiler;
-    for (unsigned int flag = 0u; (flags[flag] != NULL) && (word < 8u); flag += 1u)
+    args->compile->words[word++] = args->compiler;
+    for (unsigned int flag = 0u; (args->flags[flag] != NULL) && (word < 8u); flag += 1u)
     {
-        compile->words[word++] = flags[flag];
+        args->compile->words[word++] = args->flags[flag];
     }
     for (unsigned int setting = 0u; g_query_mmgr_settings[setting] != NULL; setting += 1u)
     {
-        compile->words[word++] = g_query_mmgr_settings[setting];
+        args->compile->words[word++] = g_query_mmgr_settings[setting];
     }
-    for (unsigned int include = 0u; include < includes; include += 1u)
+    for (unsigned int include = 0u; include < args->includes; include += 1u)
     {
-        compile->words[word++] = s_includes[include];
+        args->compile->words[word++] = s_includes[include];
     }
-    if (as_cxx)
+    if (args->as_cxx)
     {
-        compile->words[word++] = "-x";
-        compile->words[word++] = "c++";
+        args->compile->words[word++] = "-x";
+        args->compile->words[word++] = "c++";
     }
-    compile->words[word++] = "-c";
-    compile->words[word++] = source;
-    compile->words[word++] = "-o";
-    compile->words[word++] = object;
-    compile->words[word] = NULL;
-    compile->source = source;
+    args->compile->words[word++] = "-c";
+    args->compile->words[word++] = source;
+    args->compile->words[word++] = "-o";
+    args->compile->words[word++] = args->object;
+    args->compile->words[word] = NULL;
+    args->compile->source = source;
 }
 
 // the stale tool `tool` compiled and linked into `binary` as query_tool_built_into builds it, its C compiler
 // `c_compiler`, and its C++ compiler found into `cxx_compiler`, sized for QUERY_PATH_MAX_LEN, where a source needs
 // one: 1, or 0 with why given
-static int query_tool_compiled(const char *root, const QueryPrograms *programs, const char *name, const QueryTool *tool,
-                               const char *out, const char *binary, const char *c_compiler, char *cxx_compiler,
-                               VerbaLinea *err_msg);
+EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args);
 
-int query_tool_built_into(const char *root, const QueryPrograms *programs, const char *name, const char *out,
-                          char *binary, size_t room, VerbaLinea *err_msg)
+int query_tool_built_into(const QueryNameRoomCtx *args)
 {
-    const QueryTool *const tool = query_tool_named(name);
+    const QueryTool *const tool = EMBED_CALL(query_tools_internal.tool_by_name, QueryToolsCtx, .name = args->name);
     if (tool == NULL)
     {
-        mmgr_line_put(err_msg, "no tool ");
-        mmgr_line_put(err_msg, name);
+        mmgr_line_put(args->err_msg, "no tool ");
+        mmgr_line_put(args->err_msg, args->name);
         return 0;
     }
     char base[QUERY_PATH_MAX_LEN];
-    query_binary_name(name, base, sizeof(base));
-    VerbaLinea binary_line = {binary, room, 0ull};
-    mmgr_line_put(&binary_line, out);
+    EMBED_CALL(query_name_room_internal.binary_name, QueryNameRoomCtx, .name = args->name, .binary = base,
+               .room = sizeof(base));
+    VerbaLinea binary_line = {args->binary, args->room, 0ull};
+    mmgr_line_put(&binary_line, args->out_text);
     mmgr_line_ch(&binary_line, '/');
     mmgr_line_put(&binary_line, base);
-    if ((mmgr_line_finish(&binary_line) == 0ull) || !query_stale(root, tool, binary))
+    if ((mmgr_line_finish(&binary_line) == 0ull) ||
+        !EMBED_CALL(query_tools_root_tool_internal.stale, QueryToolsRootToolCtx, .root = args->root, .tool = tool,
+                    .binary = args->binary))
     {
-        return binary[0] != '\0';
+        return args->binary[0] != '\0';
     }
     static char s_c[QUERY_PATH_MAX_LEN];
     static char s_cxx[QUERY_PATH_MAX_LEN];
-    if (!programs->program(programs->context, QUERY_ROLE_C, s_c, sizeof(s_c), err_msg))
+    if (!EMBED_CALL(args->programs->program, QueryEachRolePathRoomErrMsgCfg, .context = args->programs->context,
+                    .role = QUERY_ROLE_C, .path = s_c, .room = sizeof(s_c), .err_msg = args->err_msg))
     {
         return 0;
     }
-    const int built = query_tool_compiled(root, programs, name, tool, out, binary, s_c, s_cxx, err_msg);
-    query_every_source_given();
+    const int built = EMBED_CALL(query_tool_compile, ToolsBuildCtx, .root = args->root, .programs = args->programs,
+                                 .name = args->name, .tool = tool, .out = args->out_text, .binary = args->binary,
+                                 .c_compiler = s_c, .cxx_compiler = s_cxx, .err_msg = args->err_msg);
+    query_every_source_free();
     return built;
 }
 
-static int query_tool_compiled(const char *root, const QueryPrograms *programs, const char *name, const QueryTool *tool,
-                               const char *out, const char *binary, const char *c_compiler, char *cxx_compiler,
-                               VerbaLinea *err_msg)
+EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
 {
+    const char *root = args->root;
+    const char *name = args->name;
+    const QueryTool *tool = args->tool;
     unsigned int c = 0u;
     unsigned int cxx = 0u;
     unsigned int tools = 0u;
-    query_every_source(root, tool, &c, &cxx, &tools);
+    EMBED_CALL(query_tools_root_tool_c_internal.every_source, QueryToolsRootToolCCtx, .root = root, .tool = tool,
+               .c = &c, .cxx = &cxx, .tools = &tools);
     const int with_cxx = (cxx != 0u) || (tools != 0u);
-    if (with_cxx && !programs->program(programs->context, QUERY_ROLE_CXX, cxx_compiler, QUERY_PATH_MAX_LEN, err_msg))
+    if (with_cxx && !EMBED_CALL(args->programs->program, QueryEachRolePathRoomErrMsgCfg,
+                                .context = args->programs->context, .role = QUERY_ROLE_CXX, .path = args->cxx_compiler,
+                                .room = QUERY_PATH_MAX_LEN, .err_msg = args->err_msg))
     {
         return 0;
     }
     char objects[QUERY_PATH_MAX_LEN];
     VerbaLinea objects_line = {objects, sizeof(objects), 0ull};
-    mmgr_line_put(&objects_line, out);
+    mmgr_line_put(&objects_line, args->out);
     mmgr_line_put(&objects_line, "/objects/");
     mmgr_line_put(&objects_line, name);
-    if ((mmgr_line_finish(&objects_line) == 0ull) || !query_folder_made(objects))
+    if ((mmgr_line_finish(&objects_line) == 0ull) ||
+        !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = objects))
     {
-        mmgr_line_put(err_msg, objects);
-        mmgr_line_put(err_msg, " could not be made");
+        mmgr_line_put(args->err_msg, objects);
+        mmgr_line_put(args->err_msg, " could not be made");
         return 0;
     }
     // MMgr's include folders first, then the tool's own
@@ -228,15 +270,18 @@ static int query_tool_compiled(const char *root, const QueryPrograms *programs, 
     unsigned long long newest = 0ull;
     for (unsigned int list = 0u; list < 3u; list += 1u)
     {
-        const unsigned long long seconds = query_newest_header_of(root, tool, lists[list], counts[list]);
+        const unsigned long long seconds =
+            EMBED_CALL(query_tools_root_tool_sources_internal.newest_header_get, QueryToolsRootToolSourcesCtx,
+                       .root = root, .tool = tool, .sources = lists[list], .count = counts[list]);
         newest = (seconds > newest) ? seconds : newest;
     }
     // the objects' room taken for every source before one is named, as each compile reserves its object's place
-    if (!query_paths_taken(&g_query_objects, c + cxx + tools))
+    if (!EMBED_CALL(query_paths_internal.paths_take, QueryPathsCtx, .paths = &g_query_objects,
+                    .count = c + cxx + tools))
     {
-        mmgr_line_put(err_msg, "the objects of ");
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " could not be given a cell");
+        mmgr_line_put(args->err_msg, "the objects of ");
+        mmgr_line_put(args->err_msg, name);
+        mmgr_line_put(args->err_msg, " could not be given a cell");
         return 0;
     }
     // a compile for each source and the link's words, the compiler, its output, each object, the tool's own words and
@@ -251,9 +296,9 @@ static int query_tool_compiled(const char *root, const QueryPrograms *programs, 
         compile_bytes + ((c + cxx + tools + link_words + 4ull) * sizeof(const char *)), &g_query_cells);
     if (cell == NULL)
     {
-        mmgr_line_put(err_msg, "the compiles of ");
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " could not be given a cell");
+        mmgr_line_put(args->err_msg, "the compiles of ");
+        mmgr_line_put(args->err_msg, name);
+        mmgr_line_put(args->err_msg, " could not be given a cell");
         return 0;
     }
     // the compiles on the cell's boundary, the link's words after them
@@ -267,32 +312,40 @@ static int query_tool_compiled(const char *root, const QueryPrograms *programs, 
         {
             const char *const source = lists[list][at];
             char *const object = g_query_objects.path[objected];
-            query_object_of(root, objects, source, object);
+            EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = root,
+                       .objects = objects, .source_text = source, .object_room = object);
             g_query_objects.count += 1u;
             unsigned long long source_time = 0ull;
             unsigned long long object_time = 0ull;
-            const int source_known = query_modified(source, &source_time);
-            const int object_known = query_modified(object, &object_time);
-            if (!query_fresh(source_known, source_time, object_known, object_time, newest))
+            const int source_known = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = source,
+                                                .seconds = &source_time);
+            const int object_known = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = object,
+                                                .seconds = &object_time);
+            if (!EMBED_CALL(query_tools_source_known_internal.fresh, QueryToolsSourceKnownCtx,
+                            .source_known = source_known, .source = source_time, .object_known = object_known,
+                            .object = object_time, .newest_header = newest))
             {
-                query_compile_added(&compile_list[compiles], (list == 0u) ? c_compiler : cxx_compiler,
-                                    (list == 0u) ? tool->c_flags : tool->cxx_flags, includes, list == 1u, source,
-                                    object);
+                EMBED_CALL(query_compile_add, ToolsBuildCtx, .compile = &compile_list[compiles],
+                           .compiler = (list == 0u) ? args->c_compiler : args->cxx_compiler,
+                           .flags = (list == 0u) ? tool->c_flags : tool->cxx_flags, .includes = includes,
+                           .as_cxx = list == 1u, .source = source, .object = object);
                 compiles += 1u;
             }
             objected += 1u;
         }
     }
-    query_environment_set("PATH", programs->run_path(programs->context));
-    if (!query_compiled_at_once(compile_list, compiles, err_msg))
+    EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "PATH",
+               .value = args->programs->run_path(args->programs->context));
+    if (!EMBED_CALL(query_compiled_at_once, ToolsBuildCtx, .compiles = compile_list, .count = compiles,
+                    .err_msg = args->err_msg))
     {
         g_cli_cells->persistent_buf_release(cell, &g_query_cells);
         return 0;
     }
     unsigned int word = 0u;
-    link[word++] = with_cxx ? cxx_compiler : c_compiler;
+    link[word++] = with_cxx ? args->cxx_compiler : args->c_compiler;
     link[word++] = "-o";
-    link[word++] = binary;
+    link[word++] = args->binary;
     for (unsigned int at = 0u; at < objected; at += 1u)
     {
         link[word++] = g_query_objects.path[at];
@@ -303,16 +356,18 @@ static int query_tool_compiled(const char *root, const QueryPrograms *programs, 
     }
     link[word] = NULL;
     QueryProcess linked;
-    int built = query_process_start(&linked, link, NULL, QUERY_OUTPUT_PIPED);
+    int built = EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &linked, .words = link,
+                           .folder = NULL, .output = QUERY_OUTPUT_PIPED);
     if (!built)
     {
-        mmgr_line_put(err_msg, link[0]);
-        mmgr_line_put(err_msg, ": it could not be started");
+        mmgr_line_put(args->err_msg, link[0]);
+        mmgr_line_put(args->err_msg, ": it could not be started");
     }
     VerbaLinea output;
-    if (built && (query_build_read(&linked, &output) != 0ll))
+    if (built && (EMBED_CALL(query_build_read, ToolsBuildCtx, .process = &linked, .output = &output) != 0ll))
     {
-        query_build_failed(name, "link", &output, err_msg);
+        EMBED_CALL(query_build_fail, ToolsBuildCtx, .name = name, .what = "link", .output = &output,
+                   .err_msg = args->err_msg);
         built = 0;
     }
     else if (built)

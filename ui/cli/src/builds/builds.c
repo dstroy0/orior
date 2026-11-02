@@ -12,12 +12,13 @@
 static CliLock s_builds_lock = CLI_LOCK_INIT;
 static CliBuildFindings s_found;
 
-unsigned int cli_build_kind_of(const char *path)
+unsigned int cli_build_kind_get(const CliBuildsPathCfg *args)
 {
-    const char *name = path;
+    const char *name = args->path;
     const unsigned long long name_past =
-        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
-    name = (name_past != 0ull) ? (path + name_past) : name;
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+    name = (name_past != 0ull) ? (args->path + name_past) : name;
     char lower[CLI_NAME_MAX_LEN];
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (length >= sizeof(lower))
@@ -28,11 +29,15 @@ unsigned int cli_build_kind_of(const char *path)
     {
         lower[at] = ((name[at] >= 'A') && (name[at] <= 'Z')) ? (char)(name[at] - 'A' + 'a') : name[at];
     }
-    if (cli_text_ends(lower, length, ".gradle") || cli_text_ends(lower, length, ".gradle.kts"))
+    if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lower, .size = length,
+                   .suffix = ".gradle") ||
+        EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lower, .size = length,
+                   .suffix = ".gradle.kts"))
     {
         return CLI_BUILD_GRADLE;
     }
-    if (cli_text_ends(lower, length, ".versions.toml"))
+    if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lower, .size = length,
+                   .suffix = ".versions.toml"))
     {
         return CLI_BUILD_CATALOG;
     }
@@ -48,123 +53,145 @@ unsigned int cli_build_kind_of(const char *path)
     return 0u;
 }
 
-void cli_build_check(const char *root, const char *path, const char *text, unsigned long long size, VerbaLinea *out)
+void cli_build_check(const CliBuildsPathCfg *args)
 {
-    cli_lock_take(&s_builds_lock);
-    cli_build_findings_begun(&s_found);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_builds_lock);
+    EMBED_CALL(cli_builds_lines.build_findings_begin, CliBuildsLinesCfg, .found = &s_found);
     CliBuildLines lines;
-    unsigned int *const starts = cli_build_lines_taken(text, size, &lines);
-    const unsigned int kind = cli_build_kind_of(path);
+    unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_take, CliBuildsTextSizeCfg,
+                                            .text = args->text, .size = args->size, .lines_out = &lines);
+    const unsigned int kind = cli_builds_path.build_kind_get(args);
     if (kind == CLI_BUILD_GRADLE)
     {
-        cli_gradle_check(root, path, text, size, &lines, &s_found);
+        EMBED_CALL(cli_gradle_text_size_internal.check, CliGradleTextSizeCtx, .root = args->root, .path = args->path,
+                   .text = args->text, .size = args->size, .lines = &lines, .found = &s_found);
     }
     else if (kind == CLI_BUILD_CATALOG)
     {
-        cli_versions_check(root, path, text, size, &lines, &s_found);
+        EMBED_CALL(cli_version_catalog_text_internal.versions_check, CliVersionCatalogTextCtx, .root = args->root,
+                   .path = args->path, .text = args->text, .size = args->size, .lines = &lines, .found = &s_found);
     }
     else if (kind == CLI_BUILD_MAVEN)
     {
-        cli_maven_check(root, path, text, size, &lines, &s_found);
+        EMBED_CALL(cli_maven_text_internal.check, CliMavenTextCtx, .root = args->root, .path = args->path,
+                   .text = args->text, .size = args->size, .lines = &lines, .found = &s_found);
     }
     else if (kind == CLI_BUILD_SCONS)
     {
-        cli_scons_check(root, path, text, size, &lines, &s_found);
+        EMBED_CALL(cli_scons_text_internal.check, CliSconsTextCtx, .root = args->root, .path = args->path,
+                   .text = args->text, .size = args->size, .lines = &lines, .found = &s_found);
     }
-    cli_build_findings_written(&s_found, out);
-    cli_build_findings_given(&s_found);
+    EMBED_CALL(cli_builds_table.build_findings_write, CliBuildsCfg, .found_read = &s_found, .out = args->out);
+    EMBED_CALL(cli_builds_lines.build_findings_free, CliBuildsLinesCfg, .found = &s_found);
     g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
-    cli_lock_give(&s_builds_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_builds_lock);
 }
 
-void cli_build_complete(const char *root, const char *path, const char *text, unsigned long long size,
-                        unsigned int line, unsigned int col, CliCompletions *items)
+void cli_build_complete(const CliBuildsPathCfg *args)
 {
-    const unsigned long long at = cli_build_byte_at(text, size, line, col);
-    const unsigned int kind = cli_build_kind_of(path);
+    const unsigned long long at = cli_builds_path.build_byte_at(args);
+    const unsigned int kind = cli_builds_path.build_kind_get(args);
     if (kind == CLI_BUILD_GRADLE)
     {
-        cli_gradle_complete(root, path, text, size, at, items);
+        EMBED_CALL(cli_gradle_text_internal.complete, CliGradleTextCtx, .root = args->root, .path = args->path,
+                   .text = args->text, .size = args->size, .at = at, .items = args->items);
     }
     else if (kind == CLI_BUILD_CATALOG)
     {
-        cli_versions_complete(text, size, at, items);
+        EMBED_CALL(cli_version_catalog_text_size_at_internal.versions_complete, CliVersionCatalogTextSizeAtCtx,
+                   .text = args->text, .size = args->size, .at_u64 = at, .items = args->items);
     }
     else if (kind == CLI_BUILD_MAVEN)
     {
-        cli_maven_complete(path, text, size, at, items);
+        EMBED_CALL(cli_maven_text_size_internal.complete, CliMavenTextSizeCtx, .path = args->path, .text = args->text,
+                   .size = args->size, .at_u64 = at, .items = args->items);
     }
     else if (kind == CLI_BUILD_SCONS)
     {
-        cli_scons_complete(text, size, at, items);
+        EMBED_CALL(cli_scons_text_size_internal.complete, CliSconsTextSizeCtx, .text = args->text, .size = args->size,
+                   .at = at, .items = args->items);
     }
-    cli_completions_unique(items);
+    EMBED_CALL(cli_edits_items.completions_unique, CliEditsItemsCfg, .items = args->items);
 }
 
-void cli_build_given_names(const char *path, const char *text, unsigned long long size,
-                           void (*each)(void *context, const char *name, unsigned long long size), void *context)
+void cli_build_input_names(const CliBuildsPathTextCfg *args)
 {
-    if (cli_build_kind_of(path) == CLI_BUILD_SCONS)
+    const char *path = args->path;
+    if (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) == CLI_BUILD_SCONS)
     {
-        cli_scons_given(text, size, each, context);
+        EMBED_CALL(cli_scons_text_size_context_internal.free, CliSconsTextSizeContextCtx, .text = args->text,
+                   .size = args->size, .each_callback = args->each, .context = args->context);
     }
 }
 
-// `from` copied into `out`, sized for CLI_PATH_MAX_LEN
-static void builds_copied(const char *from, char *out)
+typedef struct
 {
-    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, from);
+    const char *from;
+    char *out;
+} BuildsCtx;
+// `from` copied into `out`, sized for CLI_PATH_MAX_LEN
+EMBED_INLINE void builds_copy(const BuildsCtx *args)
+{
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->from);
     (void)mmgr_line_finish(&line);
 }
 
-int cli_build_snapshots_line(const char *root, const char *path, char *folder, char *line, VerbaLinea *err_msg)
+int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
 {
     static const char *const s_beside[3] = {"pom.xml", "build.gradle", "build.gradle.kts"};
     static const char *const s_top[5] = {"pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle",
                                          "settings.gradle.kts"};
     char places[9][CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
-    if (path != NULL)
+    if (args->path != NULL)
     {
-        builds_copied(path, places[count]);
+        EMBED_CALL(builds_copy, BuildsCtx, .from = args->path, .out = places[count]);
         count += 1u;
         char above[CLI_PATH_MAX_LEN];
-        for (unsigned int at = 0u; cli_path_parent(path, above) && (at < 3u); at += 1u)
+        for (unsigned int at = 0u;
+             EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = above) &&
+             (at < 3u);
+             at += 1u)
         {
-            cli_full(above, s_beside[at], places[count]);
+            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = above, .relative = s_beside[at],
+                       .joined = places[count]);
             count += 1u;
         }
     }
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        cli_full(root, s_top[at], places[count]);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = s_top[at],
+                   .joined = places[count]);
         count += 1u;
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const unsigned int kind = cli_build_kind_of(places[at]);
-        if (!query_is_file(places[at]))
+        const unsigned int kind = EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = places[at]);
+        if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = places[at]))
         {
             continue;
         }
         char build[CLI_PATH_MAX_LEN];
         char program[CLI_PATH_MAX_LEN];
-        VerbaLinea command = {line, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea command = {args->line_room, CLI_PATH_MAX_LEN, 0ull};
         if (kind == CLI_BUILD_MAVEN)
         {
-            if (!cli_path_parent(places[at], build))
+            if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = places[at],
+                            .out = build))
             {
-                builds_copied(root, build);
+                EMBED_CALL(builds_copy, BuildsCtx, .from = args->root, .out = build);
             }
-            cli_maven_program(root, build, program);
+            EMBED_CALL(cli_maven_out_internal.program, CliMavenOutCtx, .root = args->root, .folder = build,
+                       .out_room = program);
             mmgr_line_put(&command, program);
             mmgr_line_put(&command, " -U dependency:resolve");
         }
         else if ((kind == CLI_BUILD_GRADLE) || (kind == CLI_BUILD_CATALOG))
         {
-            cli_gradle_build_root(root, places[at], build);
-            cli_gradle_program(build, program);
+            EMBED_CALL(cli_gradle_root_internal.build_root, CliGradleRootCtx, .root = args->root, .path = places[at],
+                       .out = build);
+            EMBED_CALL(cli_builds_internal.gradle_program, CliBuildsCtx, .folder = build, .out = program);
             mmgr_line_put(&command, program);
             mmgr_line_put(&command, " --refresh-dependencies dependencies");
         }
@@ -173,9 +200,10 @@ int cli_build_snapshots_line(const char *root, const char *path, char *folder, c
             continue;
         }
         (void)mmgr_line_finish(&command);
-        cli_build_inside(root, build, folder);
+        EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = args->root, .folder = build,
+                   .out_room = args->folder_out);
         return 1;
     }
-    mmgr_line_put(err_msg, "No Maven or Gradle build here: a pom.xml, a build.gradle or a build.gradle.kts");
+    mmgr_line_put(args->err_msg, "No Maven or Gradle build here: a pom.xml, a build.gradle or a build.gradle.kts");
     return 0;
 }

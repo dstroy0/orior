@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows_watch.c: the tree's changes as Windows reports them, through ReadDirectoryChangesW over the whole tree, on a
 // thread of the watch's own that waits on the system's answer and on its stop together
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
 
@@ -36,12 +37,18 @@ typedef struct
 
 static CliWatch s_watch = {.lock = CLI_LOCK_INIT, .wake = CLI_WAKE_INIT};
 
+typedef struct
+{
+#if (defined(_WIN32))
+    DWORD written;
+#endif
+} WindowsWatchCtx;
 // the records the system wrote, `written` bytes, each reported by its path from the tree's top and what happened to it
-static void cli_records_emitted(DWORD written)
+EMBED_INLINE void cli_records_emit(const WindowsWatchCtx *args)
 {
     unsigned long long at = 0ull;
     const unsigned char *const bytes = (const unsigned char *)s_watch.buffer;
-    const unsigned long long size = (written < sizeof(s_watch.buffer)) ? written : sizeof(s_watch.buffer);
+    const unsigned long long size = (args->written < sizeof(s_watch.buffer)) ? args->written : sizeof(s_watch.buffer);
     while ((at + CLI_WATCH_NAME_AT) <= size)
     {
         DWORD next = 0u;
@@ -60,12 +67,13 @@ static void cli_records_emitted(DWORD written)
             WideCharToMultiByte(CP_UTF8, 0u, (const wchar_t *)(const void *)(bytes + at + CLI_WATCH_NAME_AT),
                                 (int)(length / 2u), path, (int)sizeof(path) - 1, NULL, NULL);
         path[(made > 0) ? made : 0] = '\0';
-        cli_text_swapped(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '\\', '/');
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = path,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .from = '\\', .to = '/');
         const unsigned int kind =
             ((action == FILE_ACTION_ADDED) || (action == FILE_ACTION_RENAMED_NEW_NAME))     ? CLI_CHANGE_ADDED
             : ((action == FILE_ACTION_REMOVED) || (action == FILE_ACTION_RENAMED_OLD_NAME)) ? CLI_CHANGE_REMOVED
                                                                                             : CLI_CHANGE_MODIFIED;
-        s_watch.emit(s_watch.context, path, kind);
+        EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = path, .kind = kind);
         if (next == 0u)
         {
             break;
@@ -104,26 +112,29 @@ static void cli_watch_read(void *context)
         }
         if (written == 0u)
         {
-            s_watch.emit(s_watch.context, "", CLI_CHANGE_LOST);
+            EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = "",
+                       .kind = CLI_CHANGE_LOST);
         }
         else
         {
-            cli_records_emitted(written);
+            EMBED_CALL(cli_records_emit, WindowsWatchCtx, .written = written);
         }
     }
     CloseHandle(s_watch.folder);
     CloseHandle(s_watch.answered);
-    cli_lock_take(&s_watch.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_watch.lock);
     s_watch.ended = 1;
-    cli_wake_all(&s_watch.wake);
-    cli_lock_give(&s_watch.lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_watch.wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_watch.lock);
 }
 
-int cli_watch_system_start(const char *root, CliChangeFn emit, void *context)
+int cli_watch_system_start(const CliRootContextCtx *args)
 {
+    CliChangeFn emit = args->emit;
+    void *context = args->context;
     cli_watch_system_stop();
     wchar_t wide[CLI_PATH_MAX_LEN];
-    if (MultiByteToWideChar(CP_UTF8, 0, root, -1, wide, CLI_PATH_MAX_LEN) == 0)
+    if (MultiByteToWideChar(CP_UTF8, 0, args->root, -1, wide, CLI_PATH_MAX_LEN) == 0)
     {
         return 0;
     }
@@ -155,7 +166,7 @@ int cli_watch_system_start(const char *root, CliChangeFn emit, void *context)
     s_watch.context = context;
     s_watch.ended = 0;
     s_watch.thread = (CliThread){cli_watch_read, NULL};
-    if (!cli_thread_started(&s_watch.thread))
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_watch.thread))
     {
         CloseHandle(folder);
         CloseHandle(answered);
@@ -173,12 +184,12 @@ void cli_watch_system_stop(void)
         return;
     }
     SetEvent(s_watch.stopped);
-    cli_lock_take(&s_watch.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_watch.lock);
     while (!s_watch.ended)
     {
-        cli_wake_wait(&s_watch.wake, &s_watch.lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_watch.wake, .lock = &s_watch.lock);
     }
-    cli_lock_give(&s_watch.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_watch.lock);
     CloseHandle(s_watch.stopped);
     s_watch.running = 0;
 }

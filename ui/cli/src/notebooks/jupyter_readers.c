@@ -2,47 +2,60 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // jupyter_readers.c: a kernel's readers, each on a thread of its own: its sockets' messages, each a reply handed to
 // the request waiting on it or received by whoever started the kernel, and the lines its process writes of itself
+#include "../command_line/callback_cfg.h"
 #include "jupyter_internal.h"
 
-// a reader's end notified, the kernel's waiters woken
-static void jupyter_reader_ended(CliKernel *kernel)
+typedef struct
 {
-    cli_lock_take(&kernel->lock);
-    kernel->reading -= 1u;
-    cli_wake_all(&kernel->wake);
-    cli_lock_give(&kernel->lock);
+    CliKernel *kernel;
+    const CliKernelReader *reader;
+    const char *message;
+    unsigned long long size;
+    const char *parent;
+    const unsigned char *line;
+} JupyterReadersCtx;
+
+// a reader's end notified, the kernel's waiters woken
+EMBED_INLINE void jupyter_reader_end(const JupyterReadersCtx *args)
+{
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->lock);
+    args->kernel->reading -= 1u;
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->kernel->wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->lock);
 }
 
 // a message received: a reply on the shell ending the request in flight there, a reply handed to the request waiting on
 // it where one waits, and any other to whoever started the kernel
-static void jupyter_recv(const CliKernelReader *reader, const char *message, unsigned long long size,
-                         const char *parent)
+EMBED_INLINE void jupyter_recv(const JupyterReadersCtx *args)
 {
-    CliKernel *const kernel = reader->kernel;
-    if ((reader->socket == &kernel->shell) && (parent[0] != '\0'))
+    const char *parent = args->parent;
+    CliKernel *const kernel = args->reader->kernel;
+    if ((args->reader->socket == &kernel->shell) && (parent[0] != '\0'))
     {
-        cli_kernel_shell_answered(kernel, parent);
+        EMBED_CALL(cli_jupyter_kernel_parent_internal.kernel_shell_answer, CliJupyterKernelParentCtx, .kernel = kernel,
+                   .parent = parent);
     }
-    if (reader->replies && (parent[0] != '\0'))
+    if (args->reader->replies && (parent[0] != '\0'))
     {
-        cli_lock_take(&kernel->lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &kernel->lock);
         for (unsigned int at = 0u; at < CLI_KERNEL_WAITERS; at += 1u)
         {
             CliKernelWaiter *const waiter = &kernel->waiters[at];
             if (waiter->waiting &&
                 (cellul.eq(&(CatenaFinitaCfg){.src = waiter->id, .other = parent, .cap = CLI_CELLS_POOL})))
             {
-                mmgr_line_put_n(waiter->reply, message, size);
+                mmgr_line_put_n(waiter->reply, args->message, args->size);
                 waiter->answered = 1;
                 waiter->waiting = 0;
-                cli_wake_all(&kernel->wake);
-                cli_lock_give(&kernel->lock);
+                EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &kernel->wake);
+                EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &kernel->lock);
                 return;
             }
         }
-        cli_lock_give(&kernel->lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &kernel->lock);
     }
-    kernel->recv(kernel->context, message, size);
+    EMBED_CALL(kernel->recv, CliKernelRecvCfg, .context = kernel->context, .message = args->message,
+               .size = args->size);
 }
 
 // a socket's messages read until it closes, each received; half the reader's room stores the frames read and half the
@@ -54,7 +67,9 @@ static void jupyter_socket_read(void *context)
     CliZmtpFrame frames[CLI_KERNEL_FRAMES];
     for (;;)
     {
-        const unsigned int count = cli_zmtp_received(reader->socket, reader->room, half, frames, CLI_KERNEL_FRAMES);
+        const unsigned int count =
+            EMBED_CALL(cli_zmtp_socket.receive, CliZmtpSocketCfg, .socket = reader->socket, .room = reader->room,
+                       .room_size = half, .frames_out = frames, .most = CLI_KERNEL_FRAMES);
         if (count == 0u)
         {
             break;
@@ -62,24 +77,28 @@ static void jupyter_socket_read(void *context)
         VerbaLinea out = {(char *)reader->room + half, half, 0ull};
         char parent[CLI_KERNEL_ID];
         parent[0] = '\0';
-        if (cli_kernel_message_written(reader, frames, count, &out, parent))
+        if (EMBED_CALL(cli_jupyter_out_internal.kernel_message_write, CliJupyterOutCtx, .reader = reader,
+                       .frames = frames, .count = count, .out = &out, .parent_out = parent))
         {
-            jupyter_recv(reader, out.out, out.at, parent);
+            EMBED_CALL(jupyter_recv, JupyterReadersCtx, .reader = reader, .message = out.out, .size = out.at,
+                       .parent = parent);
         }
     }
-    jupyter_reader_ended(reader->kernel);
+    EMBED_CALL(jupyter_reader_end, JupyterReadersCtx, .kernel = reader->kernel);
 }
 
 // a line the kernel's process wrote of itself received as a message of the log channel, read as cli_lossy reads it
-static void jupyter_line_recv(const CliKernelReader *reader, const unsigned char *line, unsigned long long size)
+EMBED_INLINE void jupyter_line_recv(const JupyterReadersCtx *args)
 {
-    VerbaLinea out = {(char *)reader->room + CLI_KERNEL_LINE, reader->room_size - CLI_KERNEL_LINE, 0ull};
+    VerbaLinea out = {(char *)args->reader->room + CLI_KERNEL_LINE, args->reader->room_size - CLI_KERNEL_LINE, 0ull};
     mmgr_line_put(&out, "{\"channel\":\"log\",\"msg_type\":\"log\",\"msg_id\":\"\",\"parent\":\"\",\"content\":");
-    cli_json_quoted_lossy(&out, line, size);
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
+               .text_bytes = args->line, .length = args->size);
     mmgr_line_ch(&out, '}');
     if (mmgr_line_ok(&out))
     {
-        reader->kernel->recv(reader->kernel->context, out.out, out.at);
+        EMBED_CALL(args->reader->kernel->recv, CliKernelRecvCfg, .context = args->reader->kernel->context,
+                   .message = out.out, .size = out.at);
     }
 }
 
@@ -93,7 +112,8 @@ static void jupyter_log_read(void *context)
     char piece[4096];
     for (;;)
     {
-        const unsigned long long count = cli_spawn_read(reader->pipe, piece, sizeof(piece));
+        const unsigned long long count = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
+                                                    .pipe_handle = reader->pipe, .piece = piece, .room = sizeof(piece));
         if (count == 0ull)
         {
             break;
@@ -104,13 +124,13 @@ static void jupyter_log_read(void *context)
             {
                 const unsigned long long size =
                     ((line_start > 0ull) && (line[line_start - 1ull] == '\r')) ? line_start - 1ull : line_start;
-                jupyter_line_recv(reader, line, size);
+                EMBED_CALL(jupyter_line_recv, JupyterReadersCtx, .reader = reader, .line = line, .size = size);
                 line_start = 0ull;
                 continue;
             }
             if (line_start == CLI_KERNEL_LINE)
             {
-                jupyter_line_recv(reader, line, line_start);
+                EMBED_CALL(jupyter_line_recv, JupyterReadersCtx, .reader = reader, .line = line, .size = line_start);
                 line_start = 0ull;
             }
             line[line_start] = (unsigned char)piece[at];
@@ -119,21 +139,22 @@ static void jupyter_log_read(void *context)
     }
     if (line_start > 0ull)
     {
-        jupyter_line_recv(reader, line, line_start);
+        EMBED_CALL(jupyter_line_recv, JupyterReadersCtx, .reader = reader, .line = line, .size = line_start);
     }
-    jupyter_reader_ended(reader->kernel);
+    EMBED_CALL(jupyter_reader_end, JupyterReadersCtx, .kernel = reader->kernel);
 }
 
-void cli_kernel_reader_started(CliKernel *kernel, unsigned int at)
+void cli_kernel_reader_start(const CliJupyterAtCtx *args)
 {
-    CliKernelReader *const reader = &kernel->readers[at];
+    CliKernel *kernel = args->kernel;
+    CliKernelReader *const reader = &kernel->readers[args->at];
     reader->kernel = kernel;
-    reader->thread = (CliThread){(at < 3u) ? jupyter_socket_read : jupyter_log_read, reader};
-    cli_lock_take(&kernel->lock);
+    reader->thread = (CliThread){(args->at < 3u) ? jupyter_socket_read : jupyter_log_read, reader};
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &kernel->lock);
     kernel->reading += 1u;
-    cli_lock_give(&kernel->lock);
-    if (!cli_thread_started(&reader->thread))
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &kernel->lock);
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &reader->thread))
     {
-        jupyter_reader_ended(kernel);
+        EMBED_CALL(jupyter_reader_end, JupyterReadersCtx, .kernel = kernel);
     }
 }

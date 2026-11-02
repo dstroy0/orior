@@ -8,24 +8,106 @@
 // them. This machine's own addresses are no part of the network and are neither blocked nor logged
 #ifndef NET_H
 #define NET_H
+typedef struct CliNetAddressCfg CliNetAddressCfg;
+typedef struct CliNetAddressHostCfg CliNetAddressHostCfg;
+typedef struct CliNetMostCfg CliNetMostCfg;
+typedef struct CliNetCfg CliNetCfg;
+typedef struct CliNetHostCfg CliNetHostCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // orior_cli blocked from the network, or let on, as the window's setting specifies; and whether it is blocked: as the
 // window set it, or as settings.json specifies where it has not
-void cli_net_disable(int off);
-int cli_net_is_disabled(void);
+void cli_net_disable(const CliNetCfg *args);
+int cli_net_is_disable(void);
 // the host of `address` into `host`, sized for CLI_PATH_MAX_LEN: a URL's, an ssh address's after its user, or the
 // address itself, without a port
-void cli_net_host_of(const char *address, char *host);
+void cli_net_host_get(const CliNetAddressHostCfg *args);
 // whether `host` is this machine's own
-int cli_net_local(const char *host);
+int cli_net_local(const CliNetHostCfg *args);
 // whether `address` is a folder or a file of this machine's, as a repository's remote may be
-int cli_net_path(const char *address);
+int cli_net_path(const CliNetAddressCfg *args);
 // `address` requested to be reached for `purpose`: 1 where it may be, logged where orior_cli is let on; 0 with why
 // given where orior_cli is blocked. This machine's own addresses and paths are let on and not logged
-int cli_net_reach(const char *address, const char *purpose, VerbaLinea *err_msg);
+int cli_net_reach(const CliNetAddressCfg *args);
 // the addresses reached, the last first, `most` of them at most, written as `[{"at", "address", "for"}...]`
-void cli_net_reached(unsigned int most, VerbaLinea *out);
+void cli_net_on_reach(const CliNetMostCfg *args);
+
+struct CliNetAddressCfg
+{
+    const char *address;
+    const char *purpose;
+    VerbaLinea *err_msg;
+};
+
+struct CliNetAddressHostCfg
+{
+    const char *address;
+    char *host;
+};
+
+struct CliNetMostCfg
+{
+    unsigned int most;
+    VerbaLinea *out;
+};
+
+struct CliNetCfg
+{
+    int off;
+};
+
+struct CliNetHostCfg
+{
+    const char *host_read;
+};
+
+typedef struct
+{
+    void (*disable)(const CliNetCfg *args);
+} CliNetNs;
+EMBED_TABLE_LAYOUT(CliNetNs, disable);
+EMBED_TABLE_STORAGE CliNetNs cli_net EMBED_UNUSED = {
+    .disable = cli_net_disable,
+};
+
+typedef struct
+{
+    void (*host_get)(const CliNetAddressHostCfg *args);
+} CliNetAddressHostNs;
+EMBED_TABLE_LAYOUT(CliNetAddressHostNs, host_get);
+EMBED_TABLE_STORAGE CliNetAddressHostNs cli_net_address_host EMBED_UNUSED = {
+    .host_get = cli_net_host_get,
+};
+
+typedef struct
+{
+    int (*local)(const CliNetHostCfg *args);
+} CliNetHostNs;
+EMBED_TABLE_LAYOUT(CliNetHostNs, local);
+EMBED_TABLE_STORAGE CliNetHostNs cli_net_host EMBED_UNUSED = {
+    .local = cli_net_local,
+};
+
+typedef struct
+{
+    int (*path)(const CliNetAddressCfg *args);
+    int (*reach)(const CliNetAddressCfg *args);
+} CliNetAddressNs;
+EMBED_TABLE_LAYOUT(CliNetAddressNs, path, reach);
+EMBED_TABLE_STORAGE CliNetAddressNs cli_net_address EMBED_UNUSED = {
+    .path = cli_net_path,
+    .reach = cli_net_reach,
+};
+
+typedef struct
+{
+    void (*reach)(const CliNetMostCfg *args);
+} CliNetMostNs;
+EMBED_TABLE_LAYOUT(CliNetMostNs, reach);
+EMBED_TABLE_STORAGE CliNetMostNs cli_net_most EMBED_UNUSED = {
+    .reach = cli_net_on_reach,
+};
 
 #endif

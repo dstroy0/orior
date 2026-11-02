@@ -7,17 +7,70 @@
 // a commit and take out in one step (prints.c)
 #ifndef PRINTS_H
 #define PRINTS_H
+typedef struct CliPrintsOutCfg CliPrintsOutCfg;
+typedef struct CliPrintsCfg CliPrintsCfg;
+typedef struct CliPrintsPathCfg CliPrintsPathCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // whether `length` bytes of `text`, a line of the file at `path`, print as a print for a task does; and the prints the
 // change of the tree `root` against its last commit added, by path and then line, each once, written as
 // `[{"path", "line", "text"}]`, the line counted from 0
-int cli_prints_line(const char *path, const char *text, unsigned long long length);
-int cli_prints_added(const char *root, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_prints_line(const CliPrintsPathCfg *args);
+int cli_prints_add(const CliPrintsCfg *args);
 // the prints the lines `size` bytes of a unified diff with no lines of context put in, each by its path, its line in
-// the file as it stands and its text, written as cli_prints_added writes them; each 1, or 0 with why given where no
+// the file as it stands and its text, written as cli_prints_add writes them; each 1, or 0 with why given where no
 // room for the prints is left
-int cli_prints_put_in(const char *diff, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_prints_put_in(const CliPrintsOutCfg *args);
+
+struct CliPrintsOutCfg
+{
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+    const char *diff;
+    unsigned long long size;
+};
+
+struct CliPrintsCfg
+{
+    const char *root;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+};
+
+struct CliPrintsPathCfg
+{
+    const char *path;
+    const char *text;
+    unsigned long long length;
+};
+
+typedef struct
+{
+    int (*line)(const CliPrintsPathCfg *args);
+} CliPrintsPathNs;
+EMBED_TABLE_LAYOUT(CliPrintsPathNs, line);
+EMBED_TABLE_STORAGE CliPrintsPathNs cli_prints_path EMBED_UNUSED = {
+    .line = cli_prints_line,
+};
+
+typedef struct
+{
+    int (*add)(const CliPrintsCfg *args);
+} CliPrintsNs;
+EMBED_TABLE_LAYOUT(CliPrintsNs, add);
+EMBED_TABLE_STORAGE CliPrintsNs cli_prints EMBED_UNUSED = {
+    .add = cli_prints_add,
+};
+
+typedef struct
+{
+    int (*put_in)(const CliPrintsOutCfg *args);
+} CliPrintsOutNs;
+EMBED_TABLE_LAYOUT(CliPrintsOutNs, put_in);
+EMBED_TABLE_STORAGE CliPrintsOutNs cli_prints_out EMBED_UNUSED = {
+    .put_in = cli_prints_put_in,
+};
 
 #endif

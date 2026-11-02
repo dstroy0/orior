@@ -36,8 +36,9 @@ unsigned int cli_validate_mathematics(void)
         {
             CliAxioms *const axioms = &s_axioms[answers];
             if ((answers < CLI_VALIDATE_THEOREMS) &&
-                cli_validate_axioms_of(last->text + message->text, message->text_size, &axioms->name,
-                                       &axioms->name_size, &axioms->list, &axioms->list_size))
+                EMBED_CALL(cli_validate_text_internal.axioms_get, CliValidateTextCtx,
+                           .text = last->text + message->text, .size = message->text_size, .name = &axioms->name,
+                           .name_size = &axioms->name_size, .list = &axioms->list, .list_size = &axioms->list_size))
             {
                 axioms->name += message->text;
                 axioms->list += message->text;
@@ -45,51 +46,69 @@ unsigned int cli_validate_mathematics(void)
             }
             continue;
         }
-        if ((message->severity == 1u) && (cli_validate_barrier_of(last, message) >= 0))
+        if ((message->severity == 1u) && (EMBED_CALL(cli_validate_messages_internal.barrier_get, CliValidateMessagesCtx,
+                                                     .messages_read = last, .message = message) >= 0))
         {
             continue;
         }
         const CliFinding finding = {
             message->line, message->col, message->end_line, message->end_col, message->severity, "math", -1,
             0ull,          0ull};
-        cli_validate_finding_put(&finding, last->text + message->text, message->text_size, NULL);
+        EMBED_CALL(cli_validate_length_internal.finding_put, CliValidateLengthCtx, .finding = &finding,
+                   .message_text = last->text + message->text, .length = message->text_size, .lifted = NULL);
     }
     return answers;
 }
 
-// whether `size` bytes of `text` and `length` bytes of `other` are the same
-static int report_same(const char *text, unsigned long long size, const char *other, unsigned long long length)
+typedef struct
 {
-    return (size == length) && (memor.cmp(&(MemoriaCfg){.src = text, .other = other, .bytes = size}) == 0);
+    const char *text;
+    unsigned long long size;
+    const char *other;
+    unsigned long long length;
+    const char *name;
+    unsigned int answers;
+} ValidateAxiomsCtx;
+// whether `size` bytes of `text` and `length` bytes of `other` are the same
+EMBED_INLINE int report_same(const ValidateAxiomsCtx *args)
+{
+    const char *other = args->other;
+    return (args->size == args->length) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->text, .other = other, .bytes = args->size}) == 0);
 }
 
 // the last part of a dotted name, after its last dot, as its start
-static unsigned long long report_short(const char *name, unsigned long long size)
+EMBED_INLINE unsigned long long report_short(const ValidateAxiomsCtx *args)
 {
-    unsigned long long start = size;
-    start = cli_text_back_any(name, start, ".");
+    unsigned long long start = args->size;
+    start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->name, .at = start,
+                       .set = ".");
     return start;
 }
 
 // each theorem's declaration found in the code, and the lines it runs to, up to the next theorem's: their count
-static unsigned int report_declared(unsigned int answers)
+EMBED_INLINE unsigned int report_declare(const ValidateAxiomsCtx *args)
 {
     const CliJson *const json = &g_cli_validate->json;
     const char *const text = g_cli_validate->last.text;
     const char *const code = g_cli_validate->code;
     unsigned int count = 0u;
-    for (unsigned int answer = 0u; answer < answers; answer += 1u)
+    for (unsigned int answer = 0u; answer < args->answers; answer += 1u)
     {
         const char *const name = text + s_axioms[answer].name;
         const unsigned long long size = s_axioms[answer].name_size;
-        const unsigned long long cut = report_short(name, size);
+        const unsigned long long cut = EMBED_CALL(report_short, ValidateAxiomsCtx, .name = name, .size = size);
         for (unsigned int at = 0u; at + 1u < g_cli_validate->word_count; at += 1u)
         {
             const CliCodeWord *const word = &g_cli_validate->words[at];
             const CliCodeWord *const next = &g_cli_validate->words[at + 1u];
-            if (!cli_validate_in_array(json, g_cli_validate->tool.declarations, code + word->start, word->size) ||
-                !(report_same(code + next->start, next->size, name + cut, size - cut) ||
-                  report_same(code + next->start, next->size, name, size)))
+            if (!EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
+                            .array = g_cli_validate->tool.declarations, .text = code + word->start,
+                            .length = word->size) ||
+                !(EMBED_CALL(report_same, ValidateAxiomsCtx, .text = code + next->start, .size = next->size,
+                             .other = name + cut, .length = size - cut) ||
+                  EMBED_CALL(report_same, ValidateAxiomsCtx, .text = code + next->start, .size = next->size,
+                             .other = name, .length = size)))
             {
                 continue;
             }
@@ -108,19 +127,20 @@ static unsigned int report_declared(unsigned int answers)
     return count;
 }
 
-void cli_validate_axioms_reported(unsigned int answers, VerbaLinea *untrusted)
+void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
 {
     const CliJson *const json = &g_cli_validate->json;
     const CliTool *const tool = &g_cli_validate->tool;
     const char *const text = g_cli_validate->last.text;
-    const unsigned int declared = report_declared(answers);
-    for (unsigned int answer = 0u; answer < answers; answer += 1u)
+    const unsigned int declared = EMBED_CALL(report_declare, ValidateAxiomsCtx, .answers = args->answers);
+    for (unsigned int answer = 0u; answer < args->answers; answer += 1u)
     {
         const char *const name = text + s_axioms[answer].name;
         const unsigned long long size = s_axioms[answer].name_size;
         unsigned int at = 0u;
-        while ((at < declared) && !report_same(text + s_axioms[s_declared[at].axioms].name,
-                                               s_axioms[s_declared[at].axioms].name_size, name, size))
+        while ((at < declared) &&
+               !EMBED_CALL(report_same, ValidateAxiomsCtx, .text = text + s_axioms[s_declared[at].axioms].name,
+                           .size = s_axioms[s_declared[at].axioms].name_size, .other = name, .length = size))
         {
             at += 1u;
         }
@@ -151,11 +171,13 @@ void cli_validate_axioms_reported(unsigned int answers, VerbaLinea *untrusted)
                 length -= 1ull;
             }
             from = end + 1ull;
-            if ((length == 0ull) || cli_validate_in_array(json, tool->trusted, list + start, length))
+            if ((length == 0ull) || EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
+                                               .array = tool->trusted, .text = list + start, .length = length))
             {
                 continue;
             }
-            const int gap = cli_validate_in_array(json, tool->gaps, list + start, length);
+            const int gap = EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
+                                       .array = tool->gaps, .text = list + start, .length = length);
             all_gaps = all_gaps && gap;
             any_gap = any_gap || gap;
             mmgr_line_put(&msg, others ? "; " : "");
@@ -164,10 +186,12 @@ void cli_validate_axioms_reported(unsigned int answers, VerbaLinea *untrusted)
                                                                          : CLI_JSON_NONE;
                  member != CLI_JSON_NONE; member = json->node[member].next)
             {
-                if (cli_validate_contains(list + start, length, json->text + json->node[member].key))
+                if (EMBED_CALL(cli_validate_text_length_internal.contains, CliValidateTextLengthCtx,
+                               .text = list + start, .length = length, .part = json->text + json->node[member].key))
                 {
                     mmgr_line_put(&msg, ", ");
-                    mmgr_line_put(&msg, cli_json_string(json, member, NULL));
+                    mmgr_line_put(&msg, EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                   .json_read = json, .node = member, .length_pointer = NULL));
                     break;
                 }
             }
@@ -194,9 +218,9 @@ void cli_validate_axioms_reported(unsigned int answers, VerbaLinea *untrusted)
         {
             continue;
         }
-        mmgr_line_put(untrusted, (untrusted->at > 0ull) ? ", " : "");
-        mmgr_line_put_n(untrusted, name, size);
-        const unsigned long long cut = report_short(name, size);
+        mmgr_line_put(args->untrusted, (args->untrusted->at > 0ull) ? ", " : "");
+        mmgr_line_put_n(args->untrusted, name, size);
+        const unsigned long long cut = EMBED_CALL(report_short, ValidateAxiomsCtx, .name = name, .size = size);
         unsigned int letters = 0u;
         for (unsigned long long byte = cut; byte < size; byte += 1ull)
         {
@@ -208,6 +232,7 @@ void cli_validate_axioms_reported(unsigned int answers, VerbaLinea *untrusted)
         mmgr_line_put(&message_line, " rests on ");
         mmgr_line_put_n(&message_line, msg_buf, msg.at);
         const CliFinding finding = {line, col, line, col + letters, any_gap ? 1u : 2u, "axiom", -1, 0ull, 0ull};
-        cli_validate_finding_put(&finding, message, message_line.at, NULL);
+        EMBED_CALL(cli_validate_length_internal.finding_put, CliValidateLengthCtx, .finding = &finding,
+                   .message_text = message, .length = message_line.at, .lifted = NULL);
     }
 }

@@ -6,66 +6,88 @@
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
 
-void cli_command_begun(CliCommand *command, const char *program)
+void cli_command_begin(const CliRunnerCfg *args)
 {
-    command->words.count = 0u;
-    command->words.used = 0u;
-    command->words.full = 0;
-    command->words.word[0] = NULL;
-    command->has_folder = 0;
-    command->folder[0] = '\0';
-    command->settings = 0u;
-    command->used = 0u;
-    cli_words_put(&command->words, program);
+    args->command->words.count = 0u;
+    args->command->words.used = 0u;
+    args->command->words.full = 0;
+    args->command->words.word[0] = NULL;
+    args->command->has_folder = 0;
+    args->command->folder[0] = '\0';
+    args->command->settings = 0u;
+    args->command->used = 0u;
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &args->command->words,
+               .word = args->program);
 }
 
-void cli_command_word(CliCommand *command, const char *word)
+void cli_command_word(const CliRunnerCommandWordCfg *args)
 {
-    cli_words_put(&command->words, word);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &args->command->words,
+               .word = args->word);
 }
 
+typedef struct
+{
+    CliCommand *command;
+    const char *text;
+    const char *under;
+    const char *name;
+    char *path;
+    char letter;
+    const char *variable;
+    char *text_out;
+    size_t room;
+    CliWords *words;
+    const CliValues *values;
+    const char *key;
+} RunnerCtx;
 // a text stored among the command's: where it starts, NULL where it does not fit
-static const char *cli_text_stored(CliCommand *command, const char *text)
+EMBED_INLINE const char *cli_text_store(const RunnerCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    if ((command->used + size) > CLI_COMMAND_TEXT)
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
+    if ((args->command->used + size) > CLI_COMMAND_TEXT)
     {
-        command->words.full = 1;
+        args->command->words.full = 1;
         return NULL;
     }
-    char *const at = command->text + command->used;
-    memor.cpy(&(MemoriaCfg){.dst = at, .src = text, .bytes = size});
+    char *const at = args->command->text + args->command->used;
+    memor.cpy(&(MemoriaCfg){.dst = at, .src = args->text, .bytes = size});
     // the texts are below CLI_COMMAND_TEXT
-    command->used += (unsigned int)size;
+    args->command->used += (unsigned int)size;
     return at;
 }
 
-void cli_command_set(CliCommand *command, const char *name, const char *value)
+void cli_command_set(const CliRunnerCommandNameCfg *args)
 {
-    for (unsigned int at = 0u; at < command->settings; at += 1u)
+    const char *value = args->value;
+    for (unsigned int at = 0u; at < args->command->settings; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = command->setting[at].name, .other = name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(
+                &(CatenaFinitaCfg){.src = args->command->setting[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
         {
-            command->setting[at].value = (value != NULL) ? cli_text_stored(command, value) : NULL;
+            args->command->setting[at].value =
+                (value != NULL) ? EMBED_CALL(cli_text_store, RunnerCtx, .command = args->command, .text = value) : NULL;
             return;
         }
     }
-    if (command->settings >= CLI_COMMAND_SETTINGS)
+    if (args->command->settings >= CLI_COMMAND_SETTINGS)
     {
-        command->words.full = 1;
+        args->command->words.full = 1;
         return;
     }
-    const CliSetting setting = {cli_text_stored(command, name),
-                                (value != NULL) ? cli_text_stored(command, value) : NULL};
-    command->setting[command->settings] = setting;
-    command->settings += (setting.name != NULL) ? 1u : 0u;
+    const CliSetting setting = {
+        EMBED_CALL(cli_text_store, RunnerCtx, .command = args->command, .text = args->name),
+        (value != NULL) ? EMBED_CALL(cli_text_store, RunnerCtx, .command = args->command, .text = value) : NULL};
+    args->command->setting[args->command->settings] = setting;
+    args->command->settings += (setting.name != NULL) ? 1u : 0u;
 }
 
-int cli_command_sets(const CliCommand *command, const char *name)
+int cli_command_sets(const CliRunnerNameCommandCfg *args)
 {
-    for (unsigned int at = 0u; at < command->settings; at += 1u)
+    for (unsigned int at = 0u; at < args->command_read->settings; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = command->setting[at].name, .other = name, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){
+                .src = args->command_read->setting[at].name, .other = args->name, .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -73,99 +95,108 @@ int cli_command_sets(const CliCommand *command, const char *name)
     return 0;
 }
 
-void cli_command_folder(CliCommand *command, const char *folder)
+void cli_command_folder(const CliRunnerCommandFolderCfg *args)
 {
-    memor.cpy(&(MemoriaCfg){.dst = command->folder,
-                            .src = folder,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
-    command->has_folder = 1;
+    memor.cpy(&(MemoriaCfg){.dst = args->command->folder,
+                            .src = args->folder,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}) + 1u});
+    args->command->has_folder = 1;
 }
 
-void cli_lines_put(CliLines *lines, const char *text, unsigned long long length)
+void cli_lines_put(const CliRunnerLinesCfg *args)
 {
-    if ((length + 1ull) > CLI_LINES_TEXT)
+    if ((args->length + 1ull) > CLI_LINES_TEXT)
     {
         return;
     }
-    if ((lines->count >= CLI_LINES_MOST) || ((lines->used + length + 1ull) > CLI_LINES_TEXT))
+    if ((args->lines->count >= CLI_LINES_MOST) || ((args->lines->used + args->length + 1ull) > CLI_LINES_TEXT))
     {
         // the oldest half let go, the newer moved down
-        const unsigned int half = lines->count / 2u;
-        const unsigned int from = lines->start[lines->count - half];
+        const unsigned int half = args->lines->count / 2u;
+        const unsigned int from = args->lines->start[args->lines->count - half];
         for (unsigned int at = 0u; at < half; at += 1u)
         {
-            lines->start[at] = lines->start[lines->count - half + at] - from;
+            args->lines->start[at] = args->lines->start[args->lines->count - half + at] - from;
         }
-        for (unsigned int byte = from; byte < lines->used; byte += 1u)
+        for (unsigned int byte = from; byte < args->lines->used; byte += 1u)
         {
-            lines->text[byte - from] = lines->text[byte];
+            args->lines->text[byte - from] = args->lines->text[byte];
         }
-        lines->used -= from;
-        lines->count = half;
-        if ((lines->used + length + 1ull) > CLI_LINES_TEXT)
+        args->lines->used -= from;
+        args->lines->count = half;
+        if ((args->lines->used + args->length + 1ull) > CLI_LINES_TEXT)
         {
-            lines->count = 0u;
-            lines->used = 0u;
+            args->lines->count = 0u;
+            args->lines->used = 0u;
         }
     }
-    lines->start[lines->count] = lines->used;
-    memor.cpy(&(MemoriaCfg){.dst = lines->text + lines->used, .src = text, .bytes = length});
-    lines->text[lines->used + length] = '\0';
+    args->lines->start[args->lines->count] = args->lines->used;
+    memor.cpy(&(MemoriaCfg){.dst = args->lines->text + args->lines->used, .src = args->text, .bytes = args->length});
+    args->lines->text[args->lines->used + args->length] = '\0';
     // a line is below CLI_LINES_TEXT, checked above
-    lines->used += (unsigned int)length + 1u;
-    lines->count += 1u;
+    args->lines->used += (unsigned int)args->length + 1u;
+    args->lines->count += 1u;
 }
 
-const char *cli_lines_at(const CliLines *lines, unsigned int index)
+const char *cli_lines_at(const CliRunnerLinesIndexCfg *args)
 {
-    return lines->text + lines->start[index];
+    return args->lines_read->text + args->lines_read->start[args->index];
 }
 
 // a file in a folder joined, `under` and `name`, where it is a file: 1, its path into `path`
-static int cli_found_in(const char *under, const char *name, char *path)
+EMBED_INLINE int cli_found_in(const RunnerCtx *args)
 {
+    char *path = args->path;
     VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, under);
-    mmgr_line_put(&line, name);
-    return (mmgr_line_finish(&line) != 0ull) && query_is_file(path);
+    mmgr_line_put(&line, args->under);
+    mmgr_line_put(&line, args->name);
+    return (mmgr_line_finish(&line) != 0ull) &&
+           EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
 }
 
 // The bash that runs the tree's scripts. On Windows that is Git's, found beside git itself, because the bash System32
 // offers is WSL's and reads none of these paths
-int cli_runner_bash(char *path, VerbaLinea *err_msg)
+int cli_runner_bash(const CliRunnerNameCfg *args)
 {
-    if (query_environment_read("ORIOR_BASH", path, CLI_PATH_MAX_LEN) || cli_toolchains_chosen_program("bash", path))
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_BASH",
+                   .value_out = args->path, .room = CLI_PATH_MAX_LEN) ||
+        EMBED_CALL(cli_toolchains_id_path.chosen_program, CliToolchainsIdPathCfg, .id = "bash", .path = args->path))
     {
         return 1;
     }
 #if !defined(_WIN32)
-    memor.cpy(&(MemoriaCfg){.dst = path,
+    memor.cpy(&(MemoriaCfg){.dst = args->path,
                             .src = "bash",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "bash", .cap = CLI_CELLS_POOL}) + 1u});
     return 1;
 #else
     static char s_folders[256][CLI_PATH_MAX_LEN];
-    const unsigned int count = cli_path_folders(s_folders, 256u);
+    const unsigned int count =
+        EMBED_CALL(cli_room_folders_internal.path_folders, CliRoomFoldersCtx, .folders = s_folders, .room_u32 = 256u);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char git[CLI_PATH_MAX_LEN];
-        if (!cli_found_in(s_folders[at], "\\git.exe", git))
+        if (!EMBED_CALL(cli_found_in, RunnerCtx, .under = s_folders[at], .name = "\\git.exe", .path = git))
         {
             continue;
         }
         // the folder above the one git stands in
-        char *cut = cli_text_last(s_folders[at],
-                                  cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_CELLS_POOL}), '\\');
-        char *const forward = cli_text_last(
-            s_folders[at], cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_CELLS_POOL}), '/');
+        char *cut = EMBED_CALL(
+            cli_text_byte.last, CliTextByteCfg, .text = s_folders[at],
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_CELLS_POOL}), .byte = '\\');
+        char *const forward = EMBED_CALL(
+            cli_text_byte.last, CliTextByteCfg, .text = s_folders[at],
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_CELLS_POOL}), .byte = '/');
         cut = ((forward != NULL) && ((cut == NULL) || (forward > cut))) ? forward : cut;
         if (cut == NULL)
         {
             continue;
         }
         cut[0] = '\0';
-        if (cli_found_in(s_folders[at], "\\bin\\bash.exe", path) ||
-            cli_found_in(s_folders[at], "\\usr\\bin\\bash.exe", path))
+        if (EMBED_CALL(cli_found_in, RunnerCtx, .under = s_folders[at], .name = "\\bin\\bash.exe",
+                       .path = args->path) ||
+            EMBED_CALL(cli_found_in, RunnerCtx, .under = s_folders[at], .name = "\\usr\\bin\\bash.exe",
+                       .path = args->path))
         {
             return 1;
         }
@@ -174,71 +205,76 @@ int cli_runner_bash(char *path, VerbaLinea *err_msg)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         char base[CLI_PATH_MAX_LEN];
-        if (query_environment_read(s_bases[at], base, sizeof(base)) &&
-            (cli_found_in(base, "\\Git\\bin\\bash.exe", path) ||
-             cli_found_in(base, "\\Programs\\Git\\bin\\bash.exe", path)))
+        if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_bases[at],
+                       .value_out = base, .room = sizeof(base)) &&
+            (EMBED_CALL(cli_found_in, RunnerCtx, .under = base, .name = "\\Git\\bin\\bash.exe", .path = args->path) ||
+             EMBED_CALL(cli_found_in, RunnerCtx, .under = base, .name = "\\Programs\\Git\\bin\\bash.exe",
+                        .path = args->path)))
         {
             return 1;
         }
     }
-    mmgr_line_put(err_msg, "no Git bash found: install Git for Windows, or name a bash in ORIOR_BASH");
+    mmgr_line_put(args->err_msg, "no Git bash found: install Git for Windows, or name a bash in ORIOR_BASH");
     return 0;
 #endif
 }
 
-void cli_runner_python(char *path)
+void cli_runner_python(const CliRunnerNameCfg *args)
 {
-    if (query_environment_read("ORIOR_PYTHON", path, CLI_PATH_MAX_LEN) || cli_toolchains_chosen_program("python", path))
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_PYTHON",
+                   .value_out = args->path, .room = CLI_PATH_MAX_LEN) ||
+        EMBED_CALL(cli_toolchains_id_path.chosen_program, CliToolchainsIdPathCfg, .id = "python", .path = args->path))
     {
         return;
     }
 #if defined(_WIN32)
-    memor.cpy(&(MemoriaCfg){.dst = path,
+    memor.cpy(&(MemoriaCfg){.dst = args->path,
                             .src = "python",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_CELLS_POOL}) + 1u});
 #else
-    memor.cpy(&(MemoriaCfg){.dst = path,
+    memor.cpy(&(MemoriaCfg){.dst = args->path,
                             .src = "python3",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python3", .cap = CLI_CELLS_POOL}) + 1u});
 #endif
 }
 
-int cli_runner_built(const char *root, const char *name, char *path, VerbaLinea *err_msg)
+int cli_runner_build(const CliRunnerNameCfg *args)
 {
-    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, root);
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/");
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
 #if defined(_WIN32)
     mmgr_line_put(&line, ".exe");
 #endif
-    if ((mmgr_line_finish(&line) != 0ull) && query_is_file(path))
+    if ((mmgr_line_finish(&line) != 0ull) &&
+        EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->path))
     {
         return 1;
     }
-    mmgr_line_put(err_msg, "no ");
-    mmgr_line_put(err_msg, name);
+    mmgr_line_put(args->err_msg, "no ");
+    mmgr_line_put(args->err_msg, args->name);
 #if defined(_WIN32)
-    mmgr_line_put(err_msg, ".exe");
+    mmgr_line_put(args->err_msg, ".exe");
 #endif
-    mmgr_line_put(err_msg, " under build/: run its build job first");
+    mmgr_line_put(args->err_msg, " under build/: run its build job first");
     return 0;
 }
 
-static int cli_space(char letter)
+EMBED_INLINE int cli_space(const RunnerCtx *args)
 {
-    return (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
+    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
 }
 
-int cli_runner_shell_words(const char *text, CliWords *words, VerbaLinea *err_msg)
+int cli_runner_shell_words(const CliRunnerTextCfg *args)
 {
     static char s_word[CLI_WORDS_TEXT];
     static CliLock s_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned long long length = 0ull;
     int started = 0;
     char quote = '\0';
-    for (const char *at = text; at[0] != '\0'; at += 1)
+    for (const char *at = args->text; at[0] != '\0'; at += 1)
     {
         const char letter = at[0];
         if ((quote != '\0') && (letter == quote))
@@ -261,12 +297,13 @@ int cli_runner_shell_words(const char *text, CliWords *words, VerbaLinea *err_ms
             quote = letter;
             started = 1;
         }
-        else if (cli_space(letter))
+        else if (EMBED_CALL(cli_space, RunnerCtx, .letter = letter))
         {
             if (started)
             {
                 s_word[length] = '\0';
-                cli_words_put(words, s_word);
+                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
+                           .word = s_word);
                 length = 0ull;
                 started = 0;
             }
@@ -280,79 +317,93 @@ int cli_runner_shell_words(const char *text, CliWords *words, VerbaLinea *err_ms
     }
     if (quote != '\0')
     {
-        cli_lock_give(&s_lock);
-        mmgr_line_put(err_msg, "a quote is left open in: ");
-        mmgr_line_put(err_msg, text);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        mmgr_line_put(args->err_msg, "a quote is left open in: ");
+        mmgr_line_put(args->err_msg, args->text);
         return 0;
     }
     if (started)
     {
         s_word[length] = '\0';
-        cli_words_put(words, s_word);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
+                   .word = s_word);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
-static int cli_runner_text_words(const char *variable, char *text, size_t room, CliWords *words);
+EMBED_INLINE int cli_runner_text_words(const RunnerCtx *args);
 
-int cli_runner_program_words(const char *variable, CliWords *words)
+int cli_runner_program_words(const CliRunnerVariableCfg *args)
 {
     static char s_text[QUERY_ENVIRONMENT_MAX_LEN];
     static CliLock s_text_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_text_lock);
-    const int words_read = cli_runner_text_words(variable, s_text, sizeof(s_text), words);
-    cli_lock_give(&s_text_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_text_lock);
+    const int words_read = EMBED_CALL(cli_runner_text_words, RunnerCtx, .variable = args->variable, .text_out = s_text,
+                                      .room = sizeof(s_text), .words = args->words);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_text_lock);
     return words_read;
 }
 
 // the program `variable` names, read into `text`, sized for `room`, as its words put into `words`: 1, or 0
 // where it is not set or names none
-static int cli_runner_text_words(const char *variable, char *text, size_t room, CliWords *words)
+EMBED_INLINE int cli_runner_text_words(const RunnerCtx *args)
 {
-    if (!query_environment_read(variable, text, room))
+    char *text = args->text_out;
+    size_t room = args->room;
+    CliWords *words = args->words;
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = args->variable,
+                    .value_out = text, .room = room))
     {
         return 0;
     }
     const char *from = text;
     char *to = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    while ((from < to) && cli_space(from[0]))
+    while ((from < to) && EMBED_CALL(cli_space, RunnerCtx, .letter = from[0]))
     {
         from += 1;
     }
-    while ((to > from) && cli_space(to[-1]))
+    while ((to > from) && EMBED_CALL(cli_space, RunnerCtx, .letter = to[-1]))
     {
         to -= 1;
     }
     to[0] = '\0';
-    if (query_is_file(from))
+    if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = from))
     {
-        cli_words_put(words, from);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = from);
         return 1;
     }
     char err_buf[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
-    return cli_runner_shell_words(from, words, &err_msg) && (words->count != 0u);
+    return EMBED_CALL(cli_runner_text.shell_words, CliRunnerTextCfg, .text = from, .words = words,
+                      .err_msg = &err_msg) &&
+           (words->count != 0u);
 }
 
 // the first value of `key` that is not empty, NULL where it has none
-static const char *cli_first(const CliValues *values, const char *key)
+EMBED_INLINE const char *cli_first(const RunnerCtx *args)
 {
-    const char *const first = cli_values_first(values, key);
+    const CliValues *values = args->values;
+    const char *key = args->key;
+    const char *const first = EMBED_CALL(cli_catalog_key.values_first, CliCatalogKeyCfg, .values = values, .key = key);
     return ((first != NULL) && (first[0] != '\0')) ? first : NULL;
 }
 
-int cli_runner_runs(const CliCatalog *catalog, const CliStep *step, const CliValues *values)
+int cli_runner_runs(const CliRunnerCommandCfg *args)
 {
-    for (unsigned int at = 0u; at < step->args; at += 1u)
+    for (unsigned int at = 0u; at < args->step->args; at += 1u)
     {
-        const CliArg *const arg = &catalog->arg[step->first + at];
-        const char *const key = cli_catalog_at(catalog, arg->text[0]);
-        const char *const given = cli_values_first(values, key);
+        const CliArg *const arg = &args->catalog->arg[args->step->first + at];
+        const char *const key = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog,
+                                           .text_u32 = arg->text[0]);
+        const char *const given =
+            EMBED_CALL(cli_catalog_key.values_first, CliCatalogKeyCfg, .values = args->values, .key = key);
         if ((arg->kind == CLI_ARG_ONLY) &&
-            ((given == NULL) ||
-             (!cellul.eq(&(CatenaFinitaCfg){
-                 .src = given, .other = cli_catalog_at(catalog, arg->text[1]), .cap = CLI_CELLS_POOL}))))
+            ((given == NULL) || (!cellul.eq(&(CatenaFinitaCfg){
+                                    .src = given,
+                                    .other = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
+                                                        .catalog_read = args->catalog, .text_u32 = arg->text[1]),
+                                    .cap = CLI_CELLS_POOL}))))
         {
             return 0;
         }
@@ -364,24 +415,27 @@ int cli_runner_runs(const CliCatalog *catalog, const CliStep *step, const CliVal
     return 1;
 }
 
-int cli_runner_check(const CliCatalog *catalog, unsigned int job, const CliValues *values, VerbaLinea *err_msg)
+int cli_runner_check(const CliRunnerErrMsgCfg *args)
 {
-    const CliJob *const job_at = &catalog->job[job];
+    const CliJob *const job_at = &args->catalog->job[args->job];
     for (unsigned int at = 0u; at < job_at->params; at += 1u)
     {
-        const CliParam *const param = &catalog->param[job_at->param_first + at];
-        const char *const key = cli_catalog_at(catalog, param->key);
+        const CliParam *const param = &args->catalog->param[job_at->param_first + at];
+        const char *const key = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog,
+                                           .text_u32 = param->key);
         unsigned int count = 0u;
-        const unsigned int *const items = cli_values_of(values, key, &count);
+        const unsigned int *const items = EMBED_CALL(cli_catalog_key.values_get, CliCatalogKeyCfg,
+                                                     .values = args->values, .key = key, .count = &count);
         int given = 0;
         for (unsigned int each = 0u; each < count; each += 1u)
         {
-            given = given || (cli_values_at(values, items[each])[0] != '\0');
+            given = given || (EMBED_CALL(cli_catalog_text_values.values_at, CliCatalogTextValuesCfg,
+                                         .values = args->values, .text_u32 = items[each])[0] != '\0');
         }
         if (param->required && !given)
         {
-            mmgr_line_put(err_msg, key);
-            mmgr_line_put(err_msg, " needs a value");
+            mmgr_line_put(args->err_msg, key);
+            mmgr_line_put(args->err_msg, " needs a value");
             return 0;
         }
         if ((!cellul.eq(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_CELLS_POOL})) &&
@@ -391,21 +445,23 @@ int cli_runner_check(const CliCatalog *catalog, unsigned int job, const CliValue
         }
         for (unsigned int each = 0u; each < count; each += 1u)
         {
-            const char *const value = cli_values_at(values, items[each]);
+            const char *const value = EMBED_CALL(cli_catalog_text_values.values_at, CliCatalogTextValuesCfg,
+                                                 .values = args->values, .text_u32 = items[each]);
             int among = value[0] == '\0';
             for (unsigned int choice = 0u; !among && (choice < param->choices); choice += 1u)
             {
-                among =
-                    cellul.eq(&(CatenaFinitaCfg){.src = cli_catalog_at(catalog, catalog->list[param->first + choice]),
-                                                 .other = value,
-                                                 .cap = CLI_CELLS_POOL});
+                among = cellul.eq(&(CatenaFinitaCfg){
+                    .src = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = args->catalog,
+                                      .text_u32 = args->catalog->list[param->first + choice]),
+                    .other = value,
+                    .cap = CLI_CELLS_POOL});
             }
             if (!among)
             {
-                mmgr_line_put(err_msg, value);
-                mmgr_line_put(err_msg, " is not one of ");
-                mmgr_line_put(err_msg, key);
-                mmgr_line_put(err_msg, "'s values");
+                mmgr_line_put(args->err_msg, value);
+                mmgr_line_put(args->err_msg, " is not one of ");
+                mmgr_line_put(args->err_msg, key);
+                mmgr_line_put(args->err_msg, "'s values");
                 return 0;
             }
         }

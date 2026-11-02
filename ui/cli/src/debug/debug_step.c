@@ -8,24 +8,30 @@
 // the spaces a text is trimmed of
 static const char s_spaces[] = " \t\n\r\f\v";
 
-int cli_debug_lldb_command(CliDebugSession *session, const char *text, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_debug_lldb_command(const CliDebugSessionErrMsgCtx *args)
 {
-    CliDebugAnswer *const answer = cli_debug_answer_taken();
+    CliDebugAnswer *const answer = cli_debug_answer_take();
     char expression[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea command = {expression, sizeof(expression), 0ull};
     mmgr_line_ch(&command, '`');
-    mmgr_line_put(&command, text);
+    mmgr_line_put(&command, args->text);
     mmgr_line_put(&answer->args, "{\"expression\":");
-    cli_json_quoted_lossy(&answer->args, (const unsigned char *)command.out, command.at);
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+               .text_bytes = (const unsigned char *)command.out, .length = command.at);
     mmgr_line_put(&answer->args, ",\"context\":\"repl\"}");
-    if (!cli_debug_request(session, "evaluate", answer, CLI_DEBUG_REQUEST_TIMEOUT_MS, err_msg))
+    if (!EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = args->session,
+                    .command = "evaluate", .answer = answer, .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS,
+                    .err_msg = args->err_msg))
     {
-        cli_debug_answer_given(answer);
+        EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
         return 0;
     }
     unsigned long long length = 0ull;
     const char *const result =
-        cli_json_string(&answer->json, cli_json_member(&answer->json, answer->root, "result"), &length);
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &answer->json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                      .json_read = &answer->json, .object = answer->root, .name = "result"),
+                   .length_pointer = &length);
     const char *const result_text = (result != NULL) ? result : "";
     const unsigned long long size = length;
     unsigned long long start = 0ull;
@@ -45,21 +51,23 @@ int cli_debug_lldb_command(CliDebugSession *session, const char *text, VerbaLine
     if (failed)
     {
         // lldb reports a command failed in the answer's text
-        cli_lossy(err_msg, (const unsigned char *)result_text + start, end - start);
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
+                   .text_bytes = (const unsigned char *)result_text + start, .length = end - start);
     }
     else
     {
-        cli_lossy(out, (const unsigned char *)result_text, size);
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+                   .text_bytes = (const unsigned char *)result_text, .length = size);
     }
-    cli_debug_answer_given(answer);
+    EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
     return !failed;
 }
 
-int cli_debug_lldb_script(CliDebugSession *session, VerbaLinea *err_msg)
+int cli_debug_lldb_script(const CliDebugSessionErrMsgCtx *args)
 {
-    cli_lock_take(&g_cli_debug.lock);
-    const int scripted = session->scripted;
-    cli_lock_give(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
+    const int scripted = args->session->scripted;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     if (scripted)
     {
         return 1;
@@ -67,132 +75,169 @@ int cli_debug_lldb_script(CliDebugSession *session, VerbaLinea *err_msg)
     char temporary[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char script[CLI_PATH_MAX_LEN];
-    cli_temp_folder(temporary);
-    cli_full(temporary, "orior-lldb", folder);
-    cli_full(folder, "orior_lldb.py", script);
-    if (!query_folder_made(folder) ||
-        !query_file_written(script, g_cli_debug_lldb_script,
-                            cellul.len(&(CatenaFinitaCfg){.src = g_cli_debug_lldb_script, .cap = CLI_CELLS_POOL})))
+    EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = "orior-lldb", .joined = folder);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "orior_lldb.py", .joined = script);
+    if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder) ||
+        !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = script,
+                    .bytes = g_cli_debug_lldb_script,
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_debug_lldb_script, .cap = CLI_CELLS_POOL})))
     {
-        mmgr_line_put(err_msg, "orior's script for lldb could not be written at ");
-        mmgr_line_put(err_msg, script);
+        mmgr_line_put(args->err_msg, "orior's script for lldb could not be written at ");
+        mmgr_line_put(args->err_msg, script);
         return 0;
     }
     char command[CLI_PATH_MAX_LEN + 64u];
     VerbaLinea line = {command, sizeof(command), 0ull};
     mmgr_line_put(&line, "command script import \"");
-    (void)cli_text_put_swapped(&line, script, '\\', '/');
+    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = script, .from = '\\', .to = '/');
     mmgr_line_ch(&line, '"');
     mmgr_line_finish(&line);
     char out_buf[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
-    if (!cli_debug_lldb_command(session, command, &out, err_msg))
+    if (!EMBED_CALL(cli_debug_session_err_msg_internal.lldb_command, CliDebugSessionErrMsgCtx, .session = args->session,
+                    .text = command, .out = &out, .err_msg = args->err_msg))
     {
         return 0;
     }
-    cli_lock_take(&g_cli_debug.lock);
-    session->scripted = 1;
-    cli_lock_give(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
+    args->session->scripted = 1;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return 1;
 }
 
+typedef struct
+{
+    CliDebugSession *session;
+    long long thread;
+    VerbaLinea *err_msg;
+    const char *how;
+    int wait;
+} DebugStepCtx;
 // whether the native session taken steps out into the Python that called it: its caller is a frame lldb names by its
 // module and symbol, which is no file
-static int step_out_to_python(CliDebugSession *session, long long thread, VerbaLinea *err_msg)
+EMBED_INLINE int step_out_to_python(const DebugStepCtx *args)
 {
-    CliDebugAnswer *const answer = cli_debug_answer_taken();
+    CliDebugSession *session = args->session;
+    VerbaLinea *err_msg = args->err_msg;
+    CliDebugAnswer *const answer = cli_debug_answer_take();
     mmgr_line_put(&answer->args, "{\"threadId\":");
-    mmgr_line_decimal_signed(&answer->args, thread);
+    mmgr_line_decimal_signed(&answer->args, args->thread);
     mmgr_line_put(&answer->args, ",\"startFrame\":0,\"levels\":200}");
-    if (!cli_debug_request(session, "stackTrace", answer, CLI_DEBUG_REQUEST_TIMEOUT_MS, err_msg))
+    if (!EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = session,
+                    .command = "stackTrace", .answer = answer, .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS,
+                    .err_msg = err_msg))
     {
-        cli_debug_answer_given(answer);
+        EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
         return -1;
     }
     const CliJson *const reply = &answer->json;
-    const unsigned int caller = cli_json_item(reply, cli_json_member(reply, answer->root, "stackFrames"), 1u);
+    const unsigned int caller =
+        EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = reply,
+                   .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
+                                       .object = answer->root, .name = "stackFrames"),
+                   .index = 1u);
     const char *const path =
-        cli_json_string(reply, cli_json_member(reply, cli_json_member(reply, caller, "source"), "path"), NULL);
-    const int out = (caller == CLI_JSON_NONE) || (path == NULL) || !query_is_file(path);
-    cli_debug_answer_given(answer);
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = reply,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
+                                      .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                           .json_read = reply, .object = caller, .name = "source"),
+                                      .name = "path"),
+                   .length_pointer = NULL);
+    const int out = (caller == CLI_JSON_NONE) || (path == NULL) ||
+                    !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
+    EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
     return out;
 }
 
 // `how` sent to the session taken for `thread`, waited on where `wait`: 1, or 0 with why given
-static int step_sent(CliDebugSession *session, const char *how, long long thread, int wait, VerbaLinea *err_msg)
+EMBED_INLINE int step_send(const DebugStepCtx *args)
 {
+    int wait = args->wait;
+    VerbaLinea *err_msg = args->err_msg;
     char arguments[64];
-    VerbaLinea args = {arguments, sizeof(arguments), 0ull};
-    mmgr_line_put(&args, "{\"threadId\":");
-    mmgr_line_decimal_signed(&args, thread);
-    mmgr_line_ch(&args, '}');
+    VerbaLinea args_local = {arguments, sizeof(arguments), 0ull};
+    mmgr_line_put(&args_local, "{\"threadId\":");
+    mmgr_line_decimal_signed(&args_local, args->thread);
+    mmgr_line_ch(&args_local, '}');
     if (wait)
     {
         CliLspAnswer answer;
-        const int answered =
-            cli_dap_requested(session->dap, how, args.out, args.at, CLI_DEBUG_REQUEST_TIMEOUT_MS, &answer, err_msg);
+        const int answered = EMBED_CALL(cli_dap_err_msg.request, CliDapErrMsgCfg, .dap = args->session->dap,
+                                        .command = args->how, .arguments = args_local.out, .length = args_local.at,
+                                        .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS, .answer = &answer, .err_msg = err_msg);
         g_cli_cells->persistent_buf_release(answer.message, &g_cli_debug_cells);
         return answered;
     }
     unsigned long long seq = 0ull;
-    if (!cli_dap_sent(session->dap, how, args.out, args.at, &seq, err_msg))
+    if (!EMBED_CALL(cli_dap_err_msg_command.send, CliDapErrMsgCommandCfg, .dap = args->session->dap,
+                    .command = args->how, .arguments = args_local.out, .length = args_local.at, .seq_pointer = &seq,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    cli_dap_forgotten(session->dap, seq);
+    EMBED_CALL(cli_dap_err_msg_command_seq.forgotten, CliDapErrMsgCommandSeqCfg, .dap = args->session->dap, .seq = seq);
     return 1;
 }
 
-int cli_debug_step(unsigned long long id, const char *how, long long thread, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_debug_step(const CliDebugOutErrMsgIdThreadHowCfg *args)
 {
     static const char *const s_hows[7] = {"continue", "next",     "stepIn",         "stepOut",
                                           "pause",    "stepBack", "reverseContinue"};
     int known = 0;
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        known = known || (cellul.eq(&(CatenaFinitaCfg){.src = how, .other = s_hows[at], .cap = CLI_CELLS_POOL}));
+        known = known || (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = s_hows[at], .cap = CLI_CELLS_POOL}));
     }
     if (!known)
     {
-        mmgr_line_put(err_msg, how);
-        mmgr_line_put(err_msg, " is not a step");
+        mmgr_line_put(args->err_msg, args->how);
+        mmgr_line_put(args->err_msg, " is not a step");
         return 0;
     }
-    CliDebugSession *const session = cli_debug_taken(id, err_msg);
+    CliDebugSession *const session =
+        EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx, .id = args->id, .err_msg = args->err_msg);
     if (session == NULL)
     {
         return 0;
     }
-    cli_lock_take(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     const int has_parent = session->info.has_parent;
     const unsigned long long parent = session->info.parent;
-    cli_lock_give(&g_cli_debug.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     // a step out of the tree's C into the Python that called it lets the native code run on and stops the Python at
     // the next line it runs
     CliDebugSession *const sibling =
-        (cellul.eq(&(CatenaFinitaCfg){.src = how, .other = "stepOut", .cap = CLI_CELLS_POOL})) && has_parent
-            ? cli_debug_native_of(parent)
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_CELLS_POOL})) && has_parent
+            ? EMBED_CALL(cli_debug_err_msg_id_internal.native_get, CliDebugErrMsgIdCtx, .id = parent)
             : NULL;
     const int across = (sibling != NULL) && (sibling == session);
     if (sibling != NULL)
     {
-        cli_debug_let_go(sibling);
+        EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = sibling);
     }
     if (across)
     {
-        const int leaves = step_out_to_python(session, thread, err_msg);
+        const int leaves = EMBED_CALL(step_out_to_python, DebugStepCtx, .session = session, .thread = args->thread,
+                                      .err_msg = args->err_msg);
         if (leaves != 0)
         {
-            CliDebugSession *const python = (leaves > 0) ? cli_debug_taken(parent, err_msg) : NULL;
+            CliDebugSession *const python = (leaves > 0)
+                                                ? EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx,
+                                                             .id = parent, .err_msg = args->err_msg)
+                                                : NULL;
             // debugpy pauses every thread, whichever is named
-            const int stepped = (python != NULL) && step_sent(session, "continue", thread, 1, err_msg) &&
-                                step_sent(python, "pause", thread, 0, err_msg);
+            const int stepped = (python != NULL) &&
+                                EMBED_CALL(step_send, DebugStepCtx, .session = session, .how = "continue",
+                                           .thread = args->thread, .wait = 1, .err_msg = args->err_msg) &&
+                                EMBED_CALL(step_send, DebugStepCtx, .session = python, .how = "pause",
+                                           .thread = args->thread, .wait = 0, .err_msg = args->err_msg);
             if (python != NULL)
             {
-                cli_debug_let_go(python);
+                EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = python);
             }
-            cli_debug_let_go(session);
-            mmgr_line_put(out, stepped ? "null" : "");
+            EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = session);
+            mmgr_line_put(args->out, stepped ? "null" : "");
             return stepped;
         }
     }
@@ -200,50 +245,59 @@ int cli_debug_step(unsigned long long id, const char *how, long long thread, Ver
     // answers from inside the process, reports the step began; in a session whose process a native session also debugs,
     // the step is sent and not waited on
     CliDebugSession *const native =
-        (!cellul.eq(&(CatenaFinitaCfg){.src = how, .other = "pause", .cap = CLI_CELLS_POOL})) ? cli_debug_native_of(id)
-                                                                                              : NULL;
-    const int stepped = step_sent(session, how, thread, native == NULL, err_msg);
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "pause", .cap = CLI_CELLS_POOL}))
+            ? EMBED_CALL(cli_debug_err_msg_id_internal.native_get, CliDebugErrMsgIdCtx, .id = args->id)
+            : NULL;
+    const int stepped = EMBED_CALL(step_send, DebugStepCtx, .session = session, .how = args->how,
+                                   .thread = args->thread, .wait = native == NULL, .err_msg = args->err_msg);
     if (native != NULL)
     {
-        cli_debug_let_go(native);
+        EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = native);
     }
-    cli_debug_let_go(session);
+    EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = session);
     if (stepped)
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
     }
     return stepped;
 }
 
-int cli_debug_step_across(const char *root, unsigned long long id, long long thread, VerbaLinea *out,
-                          VerbaLinea *err_msg)
+int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
 {
-    CliDebugSession *const python = cli_debug_taken(id, err_msg);
+    CliDebugSession *const python =
+        EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx, .id = args->id, .err_msg = args->err_msg);
     if (python == NULL)
     {
         return 0;
     }
-    CliDebugSession *const native = cli_debug_native_of(id);
+    CliDebugSession *const native =
+        EMBED_CALL(cli_debug_err_msg_id_internal.native_get, CliDebugErrMsgIdCtx, .id = args->id);
     if (native == NULL)
     {
-        cli_debug_let_go(python);
-        return cli_debug_step(id, "stepIn", thread, out, err_msg);
+        EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = python);
+        return EMBED_CALL(cli_debug_out_err_msg_id_thread_how.step, CliDebugOutErrMsgIdThreadHowCfg, .id = args->id,
+                          .how = "stepIn", .thread = args->thread, .out = args->out, .err_msg = args->err_msg);
     }
     char command[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {command, sizeof(command), 0ull};
     char slashed[CLI_PATH_MAX_LEN];
     VerbaLinea slashed_line = {slashed, sizeof(slashed), 0ull};
-    (void)cli_text_put_swapped(&slashed_line, root, '\\', '/');
+    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &slashed_line, .text = args->root, .from = '\\',
+                     .to = '/');
     mmgr_line_put(&line, "script print(orior_lldb.across(lldb.debugger.GetSelectedTarget(), ");
-    cli_json_quoted_lossy(&line, (const unsigned char *)slashed_line.out, slashed_line.at);
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &line,
+               .text_bytes = (const unsigned char *)slashed_line.out, .length = slashed_line.at);
     mmgr_line_put(&line, ", \"" CLI_DEBUG_ACROSS "\"))");
     mmgr_line_finish(&line);
     char count_buf[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea count = {count_buf, sizeof(count_buf), 0ull};
-    if (!cli_debug_lldb_script(native, err_msg) || !cli_debug_lldb_command(native, command, &count, err_msg))
+    if (!EMBED_CALL(cli_debug_session_err_msg_internal.lldb_script, CliDebugSessionErrMsgCtx, .session = native,
+                    .err_msg = args->err_msg) ||
+        !EMBED_CALL(cli_debug_session_err_msg_internal.lldb_command, CliDebugSessionErrMsgCtx, .session = native,
+                    .text = command, .out = &count, .err_msg = args->err_msg))
     {
-        cli_debug_let_go(native);
-        cli_debug_let_go(python);
+        EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = native);
+        EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = python);
         return 0;
     }
     // the count of places the script set a breakpoint at, the whole answer trimmed, 0 where it is no number
@@ -269,14 +323,15 @@ int cli_debug_step_across(const char *root, unsigned long long id, long long thr
     placed = number ? placed : 0ull;
     if (placed > 0ull)
     {
-        cli_lock_take(&g_cli_debug.lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         python->has_across = 1;
         python->across = native->info.id;
         native->has_across = 1;
         native->across = native->info.id;
-        cli_lock_give(&g_cli_debug.lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     }
-    cli_debug_let_go(native);
-    cli_debug_let_go(python);
-    return cli_debug_step(id, "stepIn", thread, out, err_msg);
+    EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = native);
+    EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = python);
+    return EMBED_CALL(cli_debug_out_err_msg_id_thread_how.step, CliDebugOutErrMsgIdThreadHowCfg, .id = args->id,
+                      .how = "stepIn", .thread = args->thread, .out = args->out, .err_msg = args->err_msg);
 }

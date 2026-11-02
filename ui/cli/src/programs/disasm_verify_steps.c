@@ -26,13 +26,14 @@
 static CliWords s_words;
 static char s_run_path[CLI_DISASM_PATH_TEXT];
 
-void cli_disasm_steps_begun(void)
+void cli_disasm_steps_begin(void)
 {
-    cli_toolchains_run_path(s_run_path, sizeof(s_run_path));
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_run_path,
+               .size = sizeof(s_run_path));
 }
 
 // the words begun anew
-static void verify_words_begun(void)
+static void verify_words_begin(void)
 {
     s_words.count = 0u;
     s_words.used = 0u;
@@ -40,15 +41,28 @@ static void verify_words_begun(void)
     s_words.word[0] = NULL;
 }
 
+typedef struct
+{
+    const char *folder;
+    const CliSetting *settings;
+    unsigned int count;
+    unsigned long long patience;
+    VerbaLinea *err_msg;
+} DisasmVerifyStepsCtx;
 // a program run in `folder` with the toolchains' PATH and `settings` besides, within `patience` ms: what it gave, or
 // NULL with why given; a program that ends with a code other than 0 is reported with its errors' first bytes
-static CliRan *verify_ran(const char *folder, const CliSetting *settings, unsigned int count,
-                          unsigned long long patience, VerbaLinea *err_msg)
+EMBED_INLINE CliRan *verify_run(const DisasmVerifyStepsCtx *args)
 {
-    CliRan *const ran = cli_ran_taken();
-    if (!cli_ran_within(s_words.word, folder, settings, count, NULL, 0ull, patience, ran, err_msg))
+    const char *folder = args->folder;
+    const CliSetting *settings = args->settings;
+    unsigned int count = args->count;
+    VerbaLinea *err_msg = args->err_msg;
+    CliRan *const ran = cli_ran_take();
+    if (!EMBED_CALL(cli_words_internal.ran_within, CliWordsCtx, .words = s_words.word, .folder = folder,
+                    .settings = settings, .count = count, .input = NULL, .length = 0ull,
+                    .milliseconds_u64 = args->patience, .ran = ran, .err_msg = err_msg))
     {
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return NULL;
     }
     if (ran->code != 0)
@@ -62,108 +76,128 @@ static CliRan *verify_ran(const char *folder, const CliSetting *settings, unsign
         }
         mmgr_line_put(err_msg, ": ");
         mmgr_line_put_n(err_msg, ran->err, (ran->err_size < 600ull) ? ran->err_size : 600ull);
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return NULL;
     }
     return ran;
 }
 
-int cli_disasm_beside(const char *compiler, const char *const *names, char *path, VerbaLinea *err_msg)
+int cli_disasm_beside(const CliDisasmVerifyPathCfg *args)
 {
+    const char *const *names = args->names_letters;
+    char *path = args->path;
     char folder[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     while (names[count] != NULL)
     {
         count += 1u;
     }
-    if (cli_path_parent(compiler, folder) && cli_toolchains_program_in(folder, names, count, path))
+    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->compiler, .out = folder) &&
+        EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names, .count = count,
+                   .path = path))
     {
         return 1;
     }
-    mmgr_line_put(err_msg, names[0]);
-    mmgr_line_put(err_msg, " is not beside ");
-    mmgr_line_put(err_msg, compiler);
+    mmgr_line_put(args->err_msg, names[0]);
+    mmgr_line_put(args->err_msg, " is not beside ");
+    mmgr_line_put(args->err_msg, args->compiler);
     return 0;
 }
 
-int cli_disasm_built(const char *top, const char *target, const char *compiler, VerbaLinea *err_msg)
+int cli_disasm_build(const CliDisasmVerifyCompilerCfg *args)
 {
+    VerbaLinea *err_msg = args->err_msg;
     char bash[CLI_PATH_MAX_LEN];
     char script[CLI_PATH_MAX_LEN];
-    if (!cli_runner_bash(bash, err_msg) ||
-        !cli_disasm_path(script, (const char *const[]){top, "/ui/cli/build.sh", NULL}))
+    if (!EMBED_CALL(cli_runner_name.bash, CliRunnerNameCfg, .path = bash, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = script,
+                    .parts = (const char *const[]){args->top, "/ui/cli/build.sh", NULL}))
     {
         return 0;
     }
-    verify_words_begun();
-    cli_words_put(&s_words, bash);
-    cli_words_put(&s_words, script);
-    cli_words_put(&s_words, target);
-    const CliSetting settings[2] = {{"PATH", s_run_path}, {"CC", compiler}};
-    CliRan *const ran = verify_ran(top, settings, 2u, CLI_DISASM_BUILD_PATIENCE, err_msg);
+    verify_words_begin();
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = bash);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = script);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->target);
+    const CliSetting settings[2] = {{"PATH", s_run_path}, {"CC", args->compiler}};
+    CliRan *const ran = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = args->top, .settings = settings,
+                                   .count = 2u, .patience = CLI_DISASM_BUILD_PATIENCE, .err_msg = err_msg);
     if (ran == NULL)
     {
         return 0;
     }
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     return 1;
 }
 
-unsigned int cli_disasm_functions(int gnu, const char *lifter, const char *object, const char *ir,
-                                  char (*names)[CLI_NAME_MAX_LEN], VerbaLinea *err_msg)
+unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args)
 {
-    verify_words_begun();
-    cli_words_put(&s_words, lifter);
-    if (gnu)
+    VerbaLinea *err_msg = args->err_msg;
+    verify_words_begin();
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->lifter);
+    if (args->gnu)
     {
-        cli_words_put(&s_words, "-list");
-        cli_words_put(&s_words, object);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                   .word = "-list");
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                   .word = args->object);
     }
     else
     {
-        cli_words_put(&s_words, object);
-        cli_words_put(&s_words, "-o");
-        cli_words_put(&s_words, ir);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                   .word = args->object);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-o");
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                   .word = args->ir);
     }
     const CliSetting settings[1] = {{"PATH", s_run_path}};
-    CliRan *const ran = verify_ran(NULL, settings, 1u, CLI_DISASM_READ_PATIENCE, err_msg);
+    CliRan *const ran = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings, .count = 1u,
+                                   .patience = CLI_DISASM_READ_PATIENCE, .err_msg = err_msg);
     if (ran == NULL)
     {
         return 0u;
     }
     unsigned int count = 0u;
-    if (gnu)
+    if (args->gnu)
     {
-        (void)cli_private_file_written(ir, ran->out, ran->out_size);
+        (void)EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = args->ir,
+                         .bytes = ran->out, .size = ran->out_size);
         for (unsigned long long at = 0ull; (at < ran->out_size) && (count < CLI_DISASM_FUNCTIONS);)
         {
             unsigned long long end = at;
-            end = cli_text_to_any(ran->out, end, ran->out_size, "\n");
+            end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = ran->out, .at = end,
+                             .size = ran->out_size, .set = "\n");
             unsigned long long word = end;
-            word = (at + cli_text_back_any(ran->out + at, word - at, " \t"));
+            word = (at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = ran->out + at,
+                                    .at = word - at, .set = " \t"));
             const int function = ((end - word) > 0ull) && ((end - word) < CLI_NAME_MAX_LEN) && (ran->out[at] == 'T');
             if (function)
             {
-                memor.cpy(&(MemoriaCfg){.dst = names[count], .src = ran->out + word, .bytes = end - word});
-                names[count][end - word] = '\0';
+                memor.cpy(&(MemoriaCfg){.dst = args->names[count], .src = ran->out + word, .bytes = end - word});
+                args->names[count][end - word] = '\0';
                 count += 1u;
             }
             at = end + 1ull;
         }
     }
-    cli_ran_given(ran);
-    if (!gnu)
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    if (!args->gnu)
     {
         unsigned long long size = 0ull;
-        const unsigned char *const text = cli_file_taken(ir, &size, &g_cli_programs_cells);
+        const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->ir,
+                                                     .size_pointer = &size, .owner = &g_cli_programs_cells);
         if (text == NULL)
         {
-            mmgr_line_put(err_msg, ir);
+            mmgr_line_put(err_msg, args->ir);
             mmgr_line_put(err_msg, " was not written by the lifter");
             return 0u;
         }
-        count = cli_disasm_functions_defined((const char *)text, size, names, CLI_DISASM_FUNCTIONS);
-        cli_file_given(text, &g_cli_programs_cells);
+        count = EMBED_CALL(cli_disasm_verify_ir_size.disasm_functions_define, CliDisasmVerifyIrSizeCfg,
+                           .ir = (const char *)text, .size = size, .names = args->names, .room = CLI_DISASM_FUNCTIONS);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text,
+                   .owner = &g_cli_programs_cells);
     }
     if (count == 0u)
     {
@@ -172,15 +206,20 @@ unsigned int cli_disasm_functions(int gnu, const char *lifter, const char *objec
     return count;
 }
 
-unsigned int cli_disasm_symbols(const char *lister, const char *program, const char (*names)[CLI_NAME_MAX_LEN],
-                                char (*symbols)[CLI_NAME_MAX_LEN], unsigned int count, VerbaLinea *err_msg)
+unsigned int cli_disasm_symbols(const CliDisasmVerifyCountErrMsgListerCfg *args)
 {
-    verify_words_begun();
-    cli_words_put(&s_words, lister);
-    cli_words_put(&s_words, "--defined-only");
-    cli_words_put(&s_words, program);
+    unsigned int count = args->count;
+    VerbaLinea *err_msg = args->err_msg;
+    verify_words_begin();
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->lister);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = "--defined-only");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->program);
     const CliSetting settings[1] = {{"PATH", s_run_path}};
-    CliRan *const ran = verify_ran(NULL, settings, 1u, CLI_DISASM_READ_PATIENCE, err_msg);
+    CliRan *const ran = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings, .count = 1u,
+                                   .patience = CLI_DISASM_READ_PATIENCE, .err_msg = err_msg);
     if (ran == NULL)
     {
         return 0u;
@@ -188,32 +227,35 @@ unsigned int cli_disasm_symbols(const char *lister, const char *program, const c
     unsigned int found_count = 0u;
     for (unsigned int each = 0u; each < count; each += 1u)
     {
-        if (cli_disasm_symbol_of(ran->out, ran->out_size, names[each], symbols[each]))
+        if (EMBED_CALL(cli_disasm_verify_size_text.disasm_symbol_get, CliDisasmVerifySizeTextCfg, .text = ran->out,
+                       .size = ran->out_size, .name = args->names_callback[each],
+                       .symbol_out = args->symbols_callback[each]))
         {
             found_count += 1u;
         }
         else
         {
-            symbols[each][0] = '\0';
+            args->symbols_callback[each][0] = '\0';
         }
     }
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     return found_count;
 }
 
-CliRan *cli_disasm_disassembled(const char *disassembler, const char *program, const char (*symbols)[CLI_NAME_MAX_LEN],
-                                unsigned int count, const char *into, VerbaLinea *err_msg)
+CliRan *cli_disasm_disassemble(const CliDisasmVerifyCountErrMsgCfg *args)
 {
+    unsigned int count = args->count;
+    VerbaLinea *err_msg = args->err_msg;
     static char s_symbol_list[CLI_DISASM_FUNCTIONS * CLI_NAME_MAX_LEN];
     VerbaLinea listed = {s_symbol_list, sizeof(s_symbol_list), 0ull};
     mmgr_line_put(&listed, "--disassemble-symbols=");
     int any = 0;
     for (unsigned int each = 0u; each < count; each += 1u)
     {
-        if (symbols[each][0] != '\0')
+        if (args->symbols[each][0] != '\0')
         {
             mmgr_line_put(&listed, any ? "," : "");
-            mmgr_line_put(&listed, symbols[each]);
+            mmgr_line_put(&listed, args->symbols[each]);
             any = 1;
         }
     }
@@ -222,119 +264,153 @@ CliRan *cli_disasm_disassembled(const char *disassembler, const char *program, c
         mmgr_line_put(err_msg, "the symbols do not fit one disassembler command");
         return NULL;
     }
-    verify_words_begun();
-    cli_words_put(&s_words, disassembler);
-    cli_words_put(&s_words, "-d");
-    cli_words_put(&s_words, "-M");
-    cli_words_put(&s_words, "intel");
-    cli_words_put(&s_words, s_symbol_list);
-    cli_words_put(&s_words, program);
+    verify_words_begin();
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->disassembler);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-d");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-M");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "intel");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = s_symbol_list);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->program);
     const CliSetting settings[1] = {{"PATH", s_run_path}};
-    CliRan *const ran = verify_ran(NULL, settings, 1u, CLI_DISASM_READ_PATIENCE, err_msg);
+    CliRan *const ran = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings, .count = 1u,
+                                   .patience = CLI_DISASM_READ_PATIENCE, .err_msg = err_msg);
     if (ran != NULL)
     {
-        (void)cli_private_file_written(into, ran->out, ran->out_size);
+        (void)EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = args->into,
+                         .bytes = ran->out, .size = ran->out_size);
     }
     return ran;
 }
 
-const unsigned char *cli_disasm_ghidra(const char *analyzer, const char *const *loader, const char *top,
-                                       const char *folder, const char *program, const char (*symbols)[CLI_NAME_MAX_LEN],
-                                       unsigned int count, const char *into, unsigned long long *size,
-                                       VerbaLinea *err_msg)
+const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
 {
+    const char *folder = args->folder;
+    unsigned int count = args->count;
+    unsigned long long *size = args->size_pointer;
+    VerbaLinea *err_msg = args->err_msg;
     char source[CLI_PATH_MAX_LEN];
     char scripts[CLI_PATH_MAX_LEN];
     char script[CLI_PATH_MAX_LEN];
     char names[CLI_PATH_MAX_LEN];
     char project[CLI_PATH_MAX_LEN];
-    if (!cli_disasm_path(source, (const char *const[]){top, "/ui/plugins/ghidra/FunctionsDisassembled.java", NULL}) ||
-        !cli_disasm_path(scripts, (const char *const[]){folder, "/ghidra_scripts", NULL}) ||
-        !cli_disasm_path(script, (const char *const[]){folder, "/ghidra_scripts/FunctionsDisassembled.java", NULL}) ||
-        !cli_disasm_path(names, (const char *const[]){folder, "/functions.txt", NULL}) ||
-        !cli_disasm_path(project, (const char *const[]){folder, "/ghidra_project", NULL}))
+    if (!EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = source,
+                    .parts = (const char *const[]){args->top, "/ui/plugins/ghidra/FunctionsDisassembled.java", NULL}) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = scripts,
+                    .parts = (const char *const[]){folder, "/ghidra_scripts", NULL}) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = script,
+                    .parts = (const char *const[]){folder, "/ghidra_scripts/FunctionsDisassembled.java", NULL}) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = names,
+                    .parts = (const char *const[]){folder, "/functions.txt", NULL}) ||
+        !EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = project,
+                    .parts = (const char *const[]){folder, "/ghidra_project", NULL}))
     {
         mmgr_line_put(err_msg, "the loop's paths do not fit");
         return NULL;
     }
     unsigned long long script_size = 0ull;
-    const unsigned char *const script_text = cli_file_taken(source, &script_size, &g_cli_programs_cells);
+    const unsigned char *const script_text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = source,
+                                                        .size_pointer = &script_size, .owner = &g_cli_programs_cells);
     if (script_text == NULL)
     {
         mmgr_line_put(err_msg, source);
         mmgr_line_put(err_msg, " could not be read");
         return NULL;
     }
-    const int made = cli_private_folder_made(scripts) && cli_private_folder_made(project) &&
-                     cli_private_file_written(script, script_text, script_size);
-    cli_file_given(script_text, &g_cli_programs_cells);
+    const int made = EMBED_CALL(cli_words_err_msg_internal.private_folder_init, CliWordsErrMsgCtx, .folder = scripts) &&
+                     EMBED_CALL(cli_words_err_msg_internal.private_folder_init, CliWordsErrMsgCtx, .folder = project) &&
+                     EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = script,
+                                .bytes = script_text, .size = script_size);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = script_text,
+               .owner = &g_cli_programs_cells);
     static char s_names_text[CLI_DISASM_FUNCTIONS * CLI_NAME_MAX_LEN];
     VerbaLinea listed = {s_names_text, sizeof(s_names_text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
     {
-        if (symbols[each][0] != '\0')
+        if (args->symbols[each][0] != '\0')
         {
-            mmgr_line_put(&listed, symbols[each]);
+            mmgr_line_put(&listed, args->symbols[each]);
             mmgr_line_ch(&listed, '\n');
         }
     }
-    if (!made || !mmgr_line_ok(&listed) || !cli_private_file_written(names, s_names_text, listed.at))
+    if (!made || !mmgr_line_ok(&listed) ||
+        !EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = names, .bytes = s_names_text,
+                    .size = listed.at))
     {
         mmgr_line_put(err_msg, "the script and the names could not be written under ");
         mmgr_line_put(err_msg, folder);
         return NULL;
     }
-    verify_words_begun();
-    cli_words_put(&s_words, analyzer);
-    cli_words_put(&s_words, project);
-    cli_words_put(&s_words, "verify");
-    cli_words_put(&s_words, "-import");
-    cli_words_put(&s_words, program);
-    for (unsigned int each = 0u; loader[each] != NULL; each += 1u)
+    verify_words_begin();
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->analyzer);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = project);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "verify");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = "-import");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->program);
+    for (unsigned int each = 0u; args->loader[each] != NULL; each += 1u)
     {
-        cli_words_put(&s_words, loader[each]);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                   .word = args->loader[each]);
     }
-    cli_words_put(&s_words, "-overwrite");
-    cli_words_put(&s_words, "-deleteProject");
-    cli_words_put(&s_words, "-noanalysis");
-    cli_words_put(&s_words, "-scriptPath");
-    cli_words_put(&s_words, scripts);
-    cli_words_put(&s_words, "-postScript");
-    cli_words_put(&s_words, "FunctionsDisassembled.java");
-    cli_words_put(&s_words, names);
-    cli_words_put(&s_words, into);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = "-overwrite");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = "-deleteProject");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = "-noanalysis");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = "-scriptPath");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = scripts);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = "-postScript");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = "FunctionsDisassembled.java");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = names);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->into);
     // the output emptied first, so that a script the analyzer could not run leaves nothing to read, not an older run's
-    (void)cli_private_file_written(into, "", 0ull);
+    (void)EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = args->into, .bytes = "",
+                     .size = 0ull);
     const CliSetting settings[1] = {{"PATH", s_run_path}};
-    CliRan *const ran = verify_ran(folder, settings, 1u, CLI_DISASM_GHIDRA_PATIENCE, err_msg);
+    CliRan *const ran = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = folder, .settings = settings,
+                                   .count = 1u, .patience = CLI_DISASM_GHIDRA_PATIENCE, .err_msg = err_msg);
     if (ran == NULL)
     {
         return NULL;
     }
-    cli_ran_given(ran);
-    const unsigned char *const text = cli_file_taken(into, size, &g_cli_programs_cells);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->into,
+                                                 .size_pointer = size, .owner = &g_cli_programs_cells);
     if ((text == NULL) || (*size == 0ull))
     {
-        cli_file_given(text, &g_cli_programs_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text,
+                   .owner = &g_cli_programs_cells);
         mmgr_line_put(err_msg, "Ghidra's script wrote nothing to ");
-        mmgr_line_put(err_msg, into);
+        mmgr_line_put(err_msg, args->into);
         mmgr_line_put(err_msg, ": the analyzer's log in the run's errors explains why");
         return NULL;
     }
     return text;
 }
 
-int cli_disasm_executed(const char *program, VerbaLinea *err_msg)
+int cli_disasm_execute(const CliDisasmVerifyCountErrMsgCfg *args)
 {
-    verify_words_begun();
-    cli_words_put(&s_words, program);
-    cli_words_put(&s_words, "help");
+    verify_words_begin();
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word = args->program);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "help");
     const CliSetting settings[1] = {{"PATH", s_run_path}};
-    CliRan *const ran = verify_ran(NULL, settings, 1u, CLI_DISASM_READ_PATIENCE, err_msg);
+    CliRan *const ran = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings, .count = 1u,
+                                   .patience = CLI_DISASM_READ_PATIENCE, .err_msg = args->err_msg);
     if (ran == NULL)
     {
         return 0;
     }
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     return 1;
 }

@@ -17,8 +17,19 @@
 // The container is named for the tree, and found again by that name: brought up once, it is started again as it is
 #ifndef DEVCONTAINER_H
 #define DEVCONTAINER_H
+typedef struct CliDevcontainerErrMsgCfg CliDevcontainerErrMsgCfg;
+typedef struct CliDevcontainerPlanCfg CliDevcontainerPlanCfg;
+typedef struct CliDevcontainerRootCfg CliDevcontainerRootCfg;
+typedef struct CliDevcontainerTextCfg CliDevcontainerTextCfg;
+typedef struct CliDevcontainerPlanContainerCfg CliDevcontainerPlanContainerCfg;
+typedef struct CliDevcontainerPlanWordsCfg CliDevcontainerPlanWordsCfg;
+typedef struct CliDevcontainerPlanWordsImageCfg CliDevcontainerPlanWordsImageCfg;
+typedef struct CliDevcontainerCfg CliDevcontainerCfg;
+typedef struct CliDevcontainerRootNameCfg CliDevcontainerRootNameCfg;
+typedef struct CliDevcontainerPlanAtCfg CliDevcontainerPlanAtCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most bytes a plan's texts take, the most entries of one of its lists, and the most commands it runs at a time
 #define CLI_PLAN_TEXT (1u << 16u)
@@ -89,32 +100,193 @@ typedef struct
 
 // JSON with comments and trailing commas, as VS Code's files write it, made plain JSON into `plain`: each comment
 // outside a string taken out, and each comma before a closing bracket
-void cli_plain_json(const char *text, unsigned long long size, VerbaLinea *plain);
+void cli_plain_json(const CliDevcontainerTextCfg *args);
 // the tree's description of its dev container into `file`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it has none
-int cli_devcontainer_find(const char *root, char *file);
+int cli_devcontainer_find(const CliDevcontainerCfg *args);
 // the container's name for the tree at `root` into `name`, sized for CLI_PATH_MAX_LEN: the tree's folder as docker
 // takes names, and a mark of its whole path
-void cli_devcontainer_name(const char *root, char *name);
+void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args);
 // the tree's dev container as its description specifies into `plan`: 1, or 0 with why given
-int cli_devcontainer_plan(const char *root, CliPlan *plan, VerbaLinea *err_msg);
+int cli_devcontainer_plan(const CliDevcontainerRootCfg *args);
 // the plan's text that starts at `at`
-const char *cli_plan_text(const CliPlan *plan, unsigned int at);
+const char *cli_plan_text(const CliDevcontainerPlanAtCfg *args);
 
 // the address a window opens the tree at in the container named `container`, into `address`, sized for
 // CLI_PATH_MAX_LEN
-void cli_plan_address(const CliPlan *plan, const char *container, char *address);
+void cli_plan_address(const CliDevcontainerPlanContainerCfg *args);
 // the words of `docker build` for an image the description builds, and the image's name into `image`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 where it builds none
-int cli_plan_build_words(const CliPlan *plan, CliWords *words, char *image);
+int cli_plan_build_words(const CliDevcontainerPlanWordsCfg *args);
 // the words of `docker run` that make the container from `image`
-void cli_plan_run_words(const CliPlan *plan, const char *image, CliWords *words);
+void cli_plan_run_words(const CliDevcontainerPlanWordsImageCfg *args);
 // the words of `docker compose` that name the description's files and its project: 1, or 0 where it has none
-int cli_plan_compose_words(const CliPlan *plan, CliWords *words);
+int cli_plan_compose_words(const CliDevcontainerPlanWordsCfg *args);
 // the words of `docker exec` that run one of the description's commands in `container`
-void cli_plan_exec_words(const CliPlan *plan, const char *container, const CliPlanCommand *command, CliWords *words);
+void cli_plan_exec_words(const CliDevcontainerPlanCfg *args);
 // the tree's dev container brought up: started where it is made and stopped, made where it is not, its commands run as
 // the description specifies, each docker line printed to `sink`; the address a window opens the tree at into `address`,
 // which is sized for CLI_PATH_MAX_LEN: 1, or 0 with why given
-int cli_devcontainer_up(const CliPlan *plan, QuerySink sink, char *address, VerbaLinea *err_msg);
+int cli_devcontainer_up(const CliDevcontainerErrMsgCfg *args);
+
+struct CliDevcontainerErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    const CliPlan *plan;
+    char *address;
+    QuerySink sink;
+};
+
+struct CliDevcontainerPlanCfg
+{
+    const CliPlan *plan;
+    const char *container;
+    CliWords *words;
+    const CliPlanCommand *command;
+};
+
+struct CliDevcontainerRootCfg
+{
+    const char *root;
+    CliPlan *plan_out;
+    VerbaLinea *err_msg;
+};
+
+struct CliDevcontainerTextCfg
+{
+    const char *text;
+    unsigned long long size;
+    VerbaLinea *plain;
+};
+
+struct CliDevcontainerPlanContainerCfg
+{
+    const CliPlan *plan;
+    const char *container;
+    char *address;
+};
+
+struct CliDevcontainerPlanWordsCfg
+{
+    const CliPlan *plan;
+    CliWords *words;
+    char *image;
+};
+
+struct CliDevcontainerPlanWordsImageCfg
+{
+    const CliPlan *plan;
+    CliWords *words;
+    const char *image_read;
+};
+
+struct CliDevcontainerCfg
+{
+    const char *root;
+    char *file;
+};
+
+struct CliDevcontainerRootNameCfg
+{
+    const char *root;
+    char *name;
+};
+
+struct CliDevcontainerPlanAtCfg
+{
+    const CliPlan *plan;
+    unsigned int at;
+};
+
+typedef struct
+{
+    void (*plain_json)(const CliDevcontainerTextCfg *args);
+} CliDevcontainerTextNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerTextNs, plain_json);
+EMBED_TABLE_STORAGE CliDevcontainerTextNs cli_devcontainer_text EMBED_UNUSED = {
+    .plain_json = cli_plain_json,
+};
+
+typedef struct
+{
+    int (*find)(const CliDevcontainerCfg *args);
+} CliDevcontainerNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerNs, find);
+EMBED_TABLE_STORAGE CliDevcontainerNs cli_devcontainer_table EMBED_UNUSED = {
+    .find = cli_devcontainer_find,
+};
+
+typedef struct
+{
+    void (*name)(const CliDevcontainerRootNameCfg *args);
+} CliDevcontainerRootNameNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerRootNameNs, name);
+EMBED_TABLE_STORAGE CliDevcontainerRootNameNs cli_devcontainer_root_name EMBED_UNUSED = {
+    .name = cli_devcontainer_name,
+};
+
+typedef struct
+{
+    int (*plan)(const CliDevcontainerRootCfg *args);
+} CliDevcontainerRootNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerRootNs, plan);
+EMBED_TABLE_STORAGE CliDevcontainerRootNs cli_devcontainer_root EMBED_UNUSED = {
+    .plan = cli_devcontainer_plan,
+};
+
+typedef struct
+{
+    const char *(*plan_text)(const CliDevcontainerPlanAtCfg *args);
+} CliDevcontainerPlanAtNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerPlanAtNs, plan_text);
+EMBED_TABLE_STORAGE CliDevcontainerPlanAtNs cli_devcontainer_plan_at EMBED_UNUSED = {
+    .plan_text = cli_plan_text,
+};
+
+typedef struct
+{
+    void (*plan_address)(const CliDevcontainerPlanContainerCfg *args);
+} CliDevcontainerPlanContainerNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerPlanContainerNs, plan_address);
+EMBED_TABLE_STORAGE CliDevcontainerPlanContainerNs cli_devcontainer_plan_container EMBED_UNUSED = {
+    .plan_address = cli_plan_address,
+};
+
+typedef struct
+{
+    int (*plan_build_words)(const CliDevcontainerPlanWordsCfg *args);
+    int (*plan_compose_words)(const CliDevcontainerPlanWordsCfg *args);
+} CliDevcontainerPlanWordsNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerPlanWordsNs, plan_build_words, plan_compose_words);
+EMBED_TABLE_STORAGE CliDevcontainerPlanWordsNs cli_devcontainer_plan_words EMBED_UNUSED = {
+    .plan_build_words = cli_plan_build_words,
+    .plan_compose_words = cli_plan_compose_words,
+};
+
+typedef struct
+{
+    void (*plan_run_words)(const CliDevcontainerPlanWordsImageCfg *args);
+} CliDevcontainerPlanWordsImageNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerPlanWordsImageNs, plan_run_words);
+EMBED_TABLE_STORAGE CliDevcontainerPlanWordsImageNs cli_devcontainer_plan_words_image EMBED_UNUSED = {
+    .plan_run_words = cli_plan_run_words,
+};
+
+typedef struct
+{
+    void (*plan_exec_words)(const CliDevcontainerPlanCfg *args);
+} CliDevcontainerPlanNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerPlanNs, plan_exec_words);
+EMBED_TABLE_STORAGE CliDevcontainerPlanNs cli_devcontainer_plan_table EMBED_UNUSED = {
+    .plan_exec_words = cli_plan_exec_words,
+};
+
+typedef struct
+{
+    int (*up)(const CliDevcontainerErrMsgCfg *args);
+} CliDevcontainerErrMsgNs;
+EMBED_TABLE_LAYOUT(CliDevcontainerErrMsgNs, up);
+EMBED_TABLE_STORAGE CliDevcontainerErrMsgNs cli_devcontainer_err_msg EMBED_UNUSED = {
+    .up = cli_devcontainer_up,
+};
 
 #endif

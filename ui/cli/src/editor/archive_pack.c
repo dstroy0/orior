@@ -15,61 +15,68 @@ typedef struct
     int full;
 } CliWriter;
 
-static void cli_put(CliWriter *writer, unsigned int value, unsigned int bits)
+typedef struct
 {
-    writer->bit_buf |= (unsigned long long)value << writer->count;
-    writer->count += bits;
-    while (writer->count >= 8u)
+    CliWriter *writer;
+    unsigned int value;
+    unsigned int bits;
+    unsigned int code;
+    unsigned int symbol;
+} ArchivePackCtx;
+EMBED_INLINE void cli_put(const ArchivePackCtx *args)
+{
+    args->writer->bit_buf |= (unsigned long long)args->value << args->writer->count;
+    args->writer->count += args->bits;
+    while (args->writer->count >= 8u)
     {
-        if (writer->size < writer->room)
+        if (args->writer->size < args->writer->room)
         {
             // the low eight bits retained, a byte
-            writer->out[writer->size] = (unsigned char)writer->bit_buf;
-            writer->size += 1ull;
+            args->writer->out[args->writer->size] = (unsigned char)args->writer->bit_buf;
+            args->writer->size += 1ull;
         }
         else
         {
-            writer->full = 1;
+            args->writer->full = 1;
         }
-        writer->bit_buf >>= 8u;
-        writer->count -= 8u;
+        args->writer->bit_buf >>= 8u;
+        args->writer->count -= 8u;
     }
 }
 
 // a Huffman code put, its first bit first
-static void cli_code(CliWriter *writer, unsigned int code, unsigned int bits)
+EMBED_INLINE void cli_code(const ArchivePackCtx *args)
 {
     unsigned int reversed = 0u;
-    for (unsigned int bit = 0u; bit < bits; bit += 1u)
+    for (unsigned int bit = 0u; bit < args->bits; bit += 1u)
     {
-        reversed |= ((code >> bit) & 1u) << (bits - 1u - bit);
+        reversed |= ((args->code >> bit) & 1u) << (args->bits - 1u - bit);
     }
-    cli_put(writer, reversed, bits);
+    EMBED_CALL(cli_put, ArchivePackCtx, .writer = args->writer, .value = reversed, .bits = args->bits);
 }
 
 // a literal or a length's symbol put in the fixed code
-static void cli_literal(CliWriter *writer, unsigned int symbol)
+EMBED_INLINE void cli_literal(const ArchivePackCtx *args)
 {
-    if (symbol <= 143u)
+    if (args->symbol <= 143u)
     {
-        cli_code(writer, 0x30u + symbol, 8u);
+        EMBED_CALL(cli_code, ArchivePackCtx, .writer = args->writer, .code = 0x30u + args->symbol, .bits = 8u);
     }
-    else if (symbol <= 255u)
+    else if (args->symbol <= 255u)
     {
-        cli_code(writer, 0x190u + symbol - 144u, 9u);
+        EMBED_CALL(cli_code, ArchivePackCtx, .writer = args->writer, .code = 0x190u + args->symbol - 144u, .bits = 9u);
     }
-    else if (symbol <= 279u)
+    else if (args->symbol <= 279u)
     {
-        cli_code(writer, symbol - 256u, 7u);
+        EMBED_CALL(cli_code, ArchivePackCtx, .writer = args->writer, .code = args->symbol - 256u, .bits = 7u);
     }
     else
     {
-        cli_code(writer, 0xC0u + symbol - 280u, 8u);
+        EMBED_CALL(cli_code, ArchivePackCtx, .writer = args->writer, .code = 0xC0u + args->symbol - 280u, .bits = 8u);
     }
 }
 
-unsigned long long cli_deflate(const unsigned char *data, unsigned long long size, unsigned char *out,
-                               unsigned long long room)
+unsigned long long cli_deflate(const CliArchiveSizeCfg *args)
 {
     enum
     {
@@ -80,7 +87,7 @@ unsigned long long cli_deflate(const unsigned char *data, unsigned long long siz
     static unsigned long long s_previous[CLI_WINDOW];
     static CliLock s_lock = CLI_LOCK_INIT;
     const unsigned long long none = ~0ull;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < (1u << 15u); at += 1u)
     {
         s_head[at] = none;
@@ -89,26 +96,26 @@ unsigned long long cli_deflate(const unsigned char *data, unsigned long long siz
     {
         s_previous[at] = none;
     }
-    CliWriter writer = {out, room, 0ull, 0ull, 0u, 0};
-    cli_put(&writer, 1u, 1u);
-    cli_put(&writer, 1u, 2u);
+    CliWriter writer = {args->out, args->room, 0ull, 0ull, 0u, 0};
+    EMBED_CALL(cli_put, ArchivePackCtx, .writer = &writer, .value = 1u, .bits = 1u);
+    EMBED_CALL(cli_put, ArchivePackCtx, .writer = &writer, .value = 1u, .bits = 2u);
     unsigned long long at = 0ull;
-    while (at < size)
+    while (at < args->size)
     {
         unsigned long long best = 0ull;
         unsigned long long back = 0ull;
-        if ((at + 3ull) <= size)
+        if ((at + 3ull) <= args->size)
         {
-            const unsigned long long key = (((unsigned long long)data[at] << 10u) ^
-                                            ((unsigned long long)data[at + 1ull] << 5u) ^ data[at + 2ull]) &
+            const unsigned long long key = (((unsigned long long)args->data[at] << 10u) ^
+                                            ((unsigned long long)args->data[at + 1ull] << 5u) ^ args->data[at + 2ull]) &
                                            ((1ull << 15u) - 1ull);
             unsigned long long candidate = s_head[key];
             unsigned int tries = 0u;
             while ((candidate != none) && ((at - candidate) <= CLI_WINDOW) && (tries < CLI_CHAIN))
             {
-                const unsigned long long most = ((size - at) < 258ull) ? (size - at) : 258ull;
+                const unsigned long long most = ((args->size - at) < 258ull) ? (args->size - at) : 258ull;
                 unsigned long long length = 0ull;
-                while ((length < most) && (data[candidate + length] == data[at + length]))
+                while ((length < most) && (args->data[candidate + length] == args->data[at + length]))
                 {
                     length += 1ull;
                 }
@@ -138,36 +145,40 @@ unsigned long long cli_deflate(const unsigned char *data, unsigned long long siz
             {
                 distance = (g_cli_distance_base[each] <= back) ? each : distance;
             }
-            cli_literal(&writer, 257u + code);
+            EMBED_CALL(cli_literal, ArchivePackCtx, .writer = &writer, .symbol = 257u + code);
             // a run's length past its code's base is below 32, which an unsigned int stores
-            cli_put(&writer, (unsigned int)(best - g_cli_length_base[code]), g_cli_length_extra[code]);
-            cli_code(&writer, distance, 5u);
+            EMBED_CALL(cli_put, ArchivePackCtx, .writer = &writer,
+                       .value = (unsigned int)(best - g_cli_length_base[code]), .bits = g_cli_length_extra[code]);
+            EMBED_CALL(cli_code, ArchivePackCtx, .writer = &writer, .code = distance, .bits = 5u);
             // a distance past its code's base is below 8192, which an unsigned int stores
-            cli_put(&writer, (unsigned int)(back - g_cli_distance_base[distance]), g_cli_distance_extra[distance]);
+            EMBED_CALL(cli_put, ArchivePackCtx, .writer = &writer,
+                       .value = (unsigned int)(back - g_cli_distance_base[distance]),
+                       .bits = g_cli_distance_extra[distance]);
             taken = best;
         }
         else
         {
-            cli_literal(&writer, data[at]);
+            EMBED_CALL(cli_literal, ArchivePackCtx, .writer = &writer, .symbol = args->data[at]);
         }
         for (unsigned long long step = at; step < (at + taken); step += 1ull)
         {
-            if ((step + 3ull) <= size)
+            if ((step + 3ull) <= args->size)
             {
-                const unsigned long long key = (((unsigned long long)data[step] << 10u) ^
-                                                ((unsigned long long)data[step + 1ull] << 5u) ^ data[step + 2ull]) &
-                                               ((1ull << 15u) - 1ull);
+                const unsigned long long key =
+                    (((unsigned long long)args->data[step] << 10u) ^
+                     ((unsigned long long)args->data[step + 1ull] << 5u) ^ args->data[step + 2ull]) &
+                    ((1ull << 15u) - 1ull);
                 s_previous[step % CLI_WINDOW] = s_head[key];
                 s_head[key] = step;
             }
         }
         at += taken;
     }
-    cli_literal(&writer, 256u);
+    EMBED_CALL(cli_literal, ArchivePackCtx, .writer = &writer, .symbol = 256u);
     if (writer.count > 0u)
     {
-        cli_put(&writer, 0u, 8u - writer.count);
+        EMBED_CALL(cli_put, ArchivePackCtx, .writer = &writer, .value = 0u, .bits = 8u - writer.count);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return writer.full ? 0ull : writer.size;
 }

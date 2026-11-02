@@ -13,21 +13,60 @@
 // equal
 #ifndef BRIDGE_H
 #define BRIDGE_H
+typedef struct CliBridgePathCfg CliBridgePathCfg;
+typedef struct CliBridgeCfg CliBridgeCfg;
 
 #include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
 
 #define CLI_BRIDGE_DIR "src/cu/transpiler/lstar/protocol/table"
 
 // the bridge of the tree at `root` read into `json`, in a cell of its own sized to the bridge's files, which
-// cli_json_given gives back, as the window and the command line read it: its node,
+// cli_json_free gives back, as the window and the command line read it: its node,
 // `{"dir", "klq": {"path", "keys": {name: {"line", "pairs": [{"first", "second", "line", "verdict": note or null,
 // "notes": [note...]}]}}, "identities": [note...]} or null, "maps": [{"path", "language", "names": {name: {"key",
 // "line", "kind": note or null, "breaks": [note...]}}}], "rulesets": [{"path", "entries": {name: [{"kind",
 // "line"}]}}]}`, a note `{"word", "rest", "line"}` and each map's names in order; CLI_JSON_NONE where the tree is full
-unsigned int cli_bridge_read(CliJson *json, const char *root);
+unsigned int cli_bridge_read(const CliBridgeCfg *args);
 // a Lstar.klq's, a .klm's and a ruleset's text, at `path` in the tree, read into `json`: its node
-unsigned int cli_bridge_klq(CliJson *json, const char *path, const char *text, unsigned long long size);
-unsigned int cli_bridge_klm(CliJson *json, const char *path, const char *text, unsigned long long size);
-unsigned int cli_bridge_ruleset(CliJson *json, const char *path, const char *text, unsigned long long size);
+unsigned int cli_bridge_klq(const CliBridgePathCfg *args);
+unsigned int cli_bridge_klm(const CliBridgePathCfg *args);
+unsigned int cli_bridge_ruleset(const CliBridgePathCfg *args);
+
+struct CliBridgePathCfg
+{
+    CliJson *json;
+    const char *path;
+    const char *text;
+    unsigned long long size;
+};
+
+struct CliBridgeCfg
+{
+    CliJson *json;
+    const char *root;
+};
+
+typedef struct
+{
+    unsigned int (*read)(const CliBridgeCfg *args);
+} CliBridgeNs;
+EMBED_TABLE_LAYOUT(CliBridgeNs, read);
+EMBED_TABLE_STORAGE CliBridgeNs cli_bridge EMBED_UNUSED = {
+    .read = cli_bridge_read,
+};
+
+typedef struct
+{
+    unsigned int (*klq)(const CliBridgePathCfg *args);
+    unsigned int (*klm)(const CliBridgePathCfg *args);
+    unsigned int (*ruleset)(const CliBridgePathCfg *args);
+} CliBridgePathNs;
+EMBED_TABLE_LAYOUT(CliBridgePathNs, klq, klm, ruleset);
+EMBED_TABLE_STORAGE CliBridgePathNs cli_bridge_path EMBED_UNUSED = {
+    .klq = cli_bridge_klq,
+    .klm = cli_bridge_klm,
+    .ruleset = cli_bridge_ruleset,
+};
 
 #endif

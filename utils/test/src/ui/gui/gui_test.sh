@@ -46,11 +46,9 @@ LIBRARY="$TOP/build/cli/$HOST$SANITIZE_SUFFIX/lib$CLI_NAME.a"
 RUN="$TOP/build/gui_test$SANITIZE_SUFFIX"
 mkdir -p "$RUN"
 sanitized_checks_begin
-# the checks keep what they keep in a folder of their own, made fresh each run: nothing of the reader's is read or
-# written
+# each check saves its state in a folder of its own, made fresh for it: nothing of the reader's is read or written, and no
+# check reads what another saved
 export ORIOR_HOME="$RUN/home"
-rm -rf "$ORIOR_HOME"
-mkdir -p "$ORIOR_HOME"
 # the checks run the tree's language server, which reads the database under build/, and a tree new to this machine has none
 if [ ! -f "$TOP/build/compile_commands.json" ]; then
     "$(command -v python3 || command -v python)" "$TOP/utils/maint/engine/clangd_database.py" > /dev/null || exit 1
@@ -92,6 +90,8 @@ for test in "${TESTS[@]}"; do
         echo "test exit 1"
         continue
     fi
+    rm -rf "$ORIOR_HOME"
+    mkdir -p "$ORIOR_HOME"
     (cd "$RUN" && "./$name$SUFFIX")
     sanitized_exit "$name" "$RUN" "$?"
     echo "test exit $?"

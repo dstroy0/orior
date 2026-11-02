@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // commands_list.c: the commands of the query, the one list the command line and the window read, each with its params
 // and the words that run it, and the dispatch of a command's name to its loop
+#include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/text/text.h"
 #include "query_loops.h"
 
@@ -20,20 +21,21 @@ typedef struct
     unsigned int count;
 } QueryWholeWalk;
 
-static void query_whole_walked(void *context, const char *name, int is_folder)
+static void query_whole_walk(const CliEachNameIsFolderCfg *args)
 {
-    QueryWholeWalk *const walk = (QueryWholeWalk *)context;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    QueryWholeWalk *const walk = (QueryWholeWalk *)args->context;
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     const size_t kind = cellul.len(&(CatenaFinitaCfg){.src = walk->kinds[0], .cap = CLI_CELLS_POOL});
-    if (is_folder || (walk->count >= QUERY_WHOLE_MOST) || (length <= (kind + 1u)) ||
-        (name[length - kind - 1u] != '.') ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - kind, .other = walk->kinds[0], .cap = CLI_CELLS_POOL})) ||
+    if (args->is_folder || (walk->count >= QUERY_WHOLE_MOST) || (length <= (kind + 1u)) ||
+        (args->name[length - kind - 1u] != '.') ||
+        (!cellul.eq(
+            &(CatenaFinitaCfg){.src = args->name + length - kind, .other = walk->kinds[0], .cap = CLI_CELLS_POOL})) ||
         ((length - kind - 1u) >= QUERY_WHOLE_MAX_LEN))
     {
         return;
     }
     char stem[QUERY_WHOLE_MAX_LEN];
-    memor.cpy(&(MemoriaCfg){.dst = stem, .src = name, .bytes = length - kind - 1u});
+    memor.cpy(&(MemoriaCfg){.dst = stem, .src = args->name, .bytes = length - kind - 1u});
     stem[length - kind - 1u] = '\0';
     // every kind of the stem a file of the folder
     for (unsigned int at = 0u; at < walk->kind_count; at += 1u)
@@ -45,13 +47,15 @@ static void query_whole_walked(void *context, const char *name, int is_folder)
         mmgr_line_put(&line, stem);
         mmgr_line_ch(&line, '.');
         mmgr_line_put(&line, walk->kinds[at]);
-        if ((mmgr_line_finish(&line) == 0ull) || !query_is_file(path))
+        if ((mmgr_line_finish(&line) == 0ull) ||
+            !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
         {
             return;
         }
     }
     unsigned int at = walk->count;
-    while ((at > 0u) && (cli_text_order(walk->names[at - 1u], stem) > 0))
+    while ((at > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = walk->names[at - 1u],
+                                    .other_pointer = stem) > 0))
     {
         memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = walk->names[at - 1u], .bytes = QUERY_WHOLE_MAX_LEN});
         at -= 1u;
@@ -61,22 +65,22 @@ static void query_whole_walked(void *context, const char *name, int is_folder)
 }
 
 // Every name the table contains a file of each of `kinds` of, sorted, into `names`, its list into `named`: their count
-unsigned int query_whole(const char *root, const char *const *kinds, unsigned int kind_count,
-                         char (*names)[QUERY_WHOLE_MAX_LEN], const char **named)
+unsigned int query_whole(const QueryLoopsRootKindsCfg *args)
 {
     char folder[QUERY_PATH_MAX_LEN];
     VerbaLinea line = {folder, sizeof(folder), 0ull};
-    mmgr_line_put(&line, root);
+    mmgr_line_put(&line, args->root);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, QUERY_TABLE);
-    QueryWholeWalk walk = {folder, kinds, kind_count, names, 0u};
+    QueryWholeWalk walk = {folder, args->kinds, args->kind_count, args->names, 0u};
     if (mmgr_line_finish(&line) != 0ull)
     {
-        query_folder_each(folder, query_whole_walked, &walk);
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
+                   .each = query_whole_walk, .context_bytess = &walk);
     }
     for (unsigned int at = 0u; at < walk.count; at += 1u)
     {
-        named[at] = names[at];
+        args->named[at] = args->names[at];
     }
     return walk.count;
 }
@@ -154,12 +158,16 @@ static const QueryWord s_sweep_words[] = {{QUERY_WORD_LITERAL, "sweep", NULL, NU
 
 static QueryCommand s_commands[11];
 
-unsigned int query_commands(const char *root, const QueryCommand **commands)
+unsigned int query_commands(const QueryCfg *args)
 {
+    const QueryCommand **commands = args->commands;
     static const char *const s_language_kinds[] = {"klm", "krs"};
     static const char *const s_part_kinds[] = {"khw", "kqr", "ksc"};
-    const unsigned int languages = query_whole(root, s_language_kinds, 2u, s_languages, s_language);
-    const unsigned int parts = query_whole(root, s_part_kinds, 3u, s_parts, s_part);
+    const unsigned int languages =
+        EMBED_CALL(query_loops_root_kinds.whole, QueryLoopsRootKindsCfg, .root = args->root, .kinds = s_language_kinds,
+                   .kind_count = 2u, .names = s_languages, .named = s_language);
+    const unsigned int parts = EMBED_CALL(query_loops_root_kinds.whole, QueryLoopsRootKindsCfg, .root = args->root,
+                                          .kinds = s_part_kinds, .kind_count = 3u, .names = s_parts, .named = s_part);
     s_course_params[0] = (QueryParam){"from", "choice", g_query_course_names, g_query_course_steps, 0};
     s_course_params[1] = (QueryParam){"leave", "choice", s_leave_choices, 2u, 0};
     s_query_params[0] = (QueryParam){"from", "choice", s_language, languages, 1};
@@ -268,13 +276,16 @@ unsigned int query_commands(const char *root, const QueryCommand **commands)
     return 11u;
 }
 
-int query_loop_run(QueryContext *context, const char *name, const char *const *words, unsigned int count,
-                   VerbaLinea *err_msg)
+int query_loop_run(const QueryLoopsContextErrMsgNameCfg *args)
 {
+    QueryContext *context = args->context;
+    const char *name = args->name;
+    const char *const *words = args->words;
+    unsigned int count = args->count;
     static const struct
     {
         const char *name;
-        int (*loop)(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg);
+        int (*loop)(const QueryLoopCfg *args);
     } s_loops[11] = {{"course", query_course_run},       {"tables", query_tables_run}, {"decode", query_decode_run},
                      {"learn", query_learn_run},         {"cross", query_cross_run},   {"write", query_write_run},
                      {"query", query_query_run},         {"pairs", query_pairs_run},   {"stick", query_stick_run},
@@ -283,9 +294,10 @@ int query_loop_run(QueryContext *context, const char *name, const char *const *w
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_loops[at].name, .other = name, .cap = CLI_CELLS_POOL}))
         {
-            return s_loops[at].loop(context, words, count, err_msg);
+            return EMBED_CALL(s_loops[at].loop, QueryLoopCfg, .context = context, .words = words, .count = count,
+                              .err_msg = args->err_msg);
         }
     }
-    mmgr_line_put(err_msg, QUERY_USAGE);
+    mmgr_line_put(args->err_msg, QUERY_USAGE);
     return -1;
 }

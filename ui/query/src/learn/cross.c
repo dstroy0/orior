@@ -7,32 +7,41 @@
 #include "../query_loops.h"
 
 // the base source the words name, where they do, into `base`: 1, or 0 with why given
-int query_base_of(const char *const *words, unsigned int count, const char **base, VerbaLinea *err_msg)
+int query_base_get(const QueryLoopsErrMsgWordsCfg *args)
 {
+    const char **base = args->base_pointer;
     *base = NULL;
-    if (count == 0u)
+    if (args->count == 0u)
     {
         return 1;
     }
-    if ((count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "--base", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "--base", .cap = CLI_CELLS_POOL})))
     {
-        *base = words[1];
+        *base = args->words[1];
         return 1;
     }
-    mmgr_line_put(err_msg, "cross takes [--base <cu>]");
+    mmgr_line_put(args->err_msg, "cross takes [--base <cu>]");
     return 0;
 }
 
-// the names the latest list names, a line each: questions.txt, and each question's code and cases, into `names`
-static void query_list_named(const unsigned char *list, unsigned long long size, VerbaLinea *names)
+typedef struct
 {
-    mmgr_line_put(names, "questions.txt\n");
+    const unsigned char *list;
+    unsigned long long size;
+    VerbaLinea *names;
+} CrossCtx;
+// the names the latest list names, a line each: questions.txt, and each question's code and cases, into `names`
+EMBED_INLINE void query_list_by_name(const CrossCtx *args)
+{
+    unsigned long long size = args->size;
+    mmgr_line_put(args->names, "questions.txt\n");
     unsigned long long at = 0ull;
     while (at < size)
     {
         const unsigned char *const end = (const unsigned char *)memor.chr(
-            &(MemoriaCfg){.src = list + at, .val = '\n', .bytes = (size_t)(size - at)});
-        const unsigned long long past = (end != NULL) ? (unsigned long long)(end - list) : size;
+            &(MemoriaCfg){.src = args->list + at, .val = '\n', .bytes = (size_t)(size - at)});
+        const unsigned long long past = (end != NULL) ? (unsigned long long)(end - args->list) : size;
         // the line's words: its code first and its cases third
         const char *word[3] = {NULL, NULL, NULL};
         unsigned long long length[3] = {0ull, 0ull, 0ull};
@@ -40,58 +49,73 @@ static void query_list_named(const unsigned char *list, unsigned long long size,
         unsigned long long walk = at;
         while ((walk < past) && (words < 3u))
         {
-            walk = cli_text_past_any((const char *)list, walk, past, " \t\r");
+            walk = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                              .text = (const char *)args->list, .at = walk, .size = past, .set = " \t\r");
             const unsigned long long first = walk;
-            walk = cli_text_to_any((const char *)list, walk, past, " \t\r");
+            walk = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                              .text = (const char *)args->list, .at = walk, .size = past, .set = " \t\r");
             if (walk > first)
             {
-                word[words] = (const char *)(list + first);
+                word[words] = (const char *)(args->list + first);
                 length[words] = walk - first;
                 words += 1u;
             }
         }
         if (words >= 3u)
         {
-            mmgr_line_put_n(names, word[0], length[0]);
-            mmgr_line_ch(names, '\n');
-            mmgr_line_put_n(names, word[2], length[2]);
-            mmgr_line_ch(names, '\n');
+            mmgr_line_put_n(args->names, word[0], length[0]);
+            mmgr_line_ch(args->names, '\n');
+            mmgr_line_put_n(args->names, word[2], length[2]);
+            mmgr_line_ch(args->names, '\n');
         }
         at = past + 1ull;
     }
 }
 
-int query_cross_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
+int query_cross_run(const QueryLoopCfg *args)
 {
+    QueryContext *context = args->context;
+    const char *const *words = args->words;
+    unsigned int count = args->count;
+    VerbaLinea *err_msg = args->err_msg;
     const char *base = NULL;
-    if (!query_base_of(words, count, &base, err_msg))
+    if (!EMBED_CALL(query_loops_err_msg_words.base_get, QueryLoopsErrMsgWordsCfg, .words = words, .count = count,
+                    .base_pointer = &base, .err_msg = err_msg))
     {
         return -1;
     }
     static QueryFiles s_files;
-    query_files_of(context->root, "sm_86", &s_files);
+    EMBED_CALL(query_loops_root.files_get, QueryLoopsRootCfg, .root = context->root, .part = "sm_86",
+               .files = &s_files);
     static char s_carrier[QUERY_PATH_MAX_LEN];
     static char s_cross[QUERY_PATH_MAX_LEN];
     static char s_nvdisasm[QUERY_PATH_MAX_LEN];
     static QueryRun s_here;
-    if (!query_context_tool(context, "orior_cubin_run", s_carrier, err_msg) ||
-        !query_context_tool(context, "orior_measuring_stick_query", s_cross, err_msg) ||
-        !query_nvdisasm(context, s_nvdisasm, err_msg) ||
-        !query_context_started(context, &s_here, QUERY_LEARN_FOLDER, err_msg))
+    if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
+                    .name = "orior_cubin_run", .binary = s_carrier, .err_msg = err_msg) ||
+        !EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
+                    .name = "orior_measuring_stick_query", .binary = s_cross, .err_msg = err_msg) ||
+        !EMBED_CALL(query_loops_err_msg.nvdisasm, QueryLoopsErrMsgCfg, .context_read = context, .path = s_nvdisasm,
+                    .err_msg = err_msg) ||
+        !EMBED_CALL(query_loops_context_run.context_start, QueryLoopsContextRunCfg, .context = context,
+                    .run_out = &s_here, .folder = QUERY_LEARN_FOLDER, .err_msg = err_msg))
     {
         return -1;
     }
     char folder[QUERY_PATH_MAX_LEN];
-    query_at(context, QUERY_LEARN_FOLDER, folder);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_LEARN_FOLDER, .path_out = folder);
     char crystal[QUERY_PATH_MAX_LEN];
-    const int has_crystal = query_crystal(context->root, crystal, sizeof(crystal));
+    const int has_crystal = EMBED_CALL(query_room_root_internal.crystal, QueryRoomRootCtx, .root = context->root,
+                                       .program = crystal, .room = sizeof(crystal));
     int whole = 1;
     if (!s_here.joined)
     {
         // the latest listed questions carried in, with every code and cases the list names
         char latest[QUERY_PATH_MAX_LEN];
-        if (!query_latest_run(folder, "questions.txt", s_here.writer.qry, &s_here.writer, has_crystal ? crystal : NULL,
-                              latest, sizeof(latest)))
+        if (!EMBED_CALL(query_loops_folder.latest_run, QueryLoopsFolderCfg, .folder = folder, .name = "questions.txt",
+                        .own = s_here.writer.qry, .writer = &s_here.writer, .crystal = has_crystal ? crystal : NULL,
+                        .found = latest, .room = sizeof(latest)))
         {
             mmgr_line_put(err_msg, "no run in ");
             mmgr_line_put(err_msg, folder);
@@ -109,7 +133,8 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
                 &(MemoriaCfg){.dst = s_other.qry,
                               .src = latest,
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = latest, .cap = CLI_CELLS_POOL}) + 1u});
-            whole = query_writer_latest(&s_other, "questions.txt", &list, &size);
+            whole = EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_other,
+                               .name = "questions.txt", .bytes_u8s = &list, .size_pointer = &size);
             if (!whole)
             {
                 mmgr_line_put(err_msg, latest);
@@ -125,15 +150,17 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
         if (whole)
         {
             VerbaLinea names = {names_text, size + sizeof(s_first), 0ull};
-            query_list_named(list, size, &names);
+            EMBED_CALL(query_list_by_name, CrossCtx, .list = list, .size = size, .names = &names);
             mmgr_line_finish(&names);
             char carried[QUERY_LINE_MAX_LEN];
             VerbaLinea carried_line = {carried, sizeof(carried), 0ull};
             mmgr_line_put(&carried_line, "  ");
-            whole = query_writer_carry_listed(&s_here.writer, latest, names_text, &carried_line);
+            whole =
+                EMBED_CALL(query_from_writer_internal.writer_carry_list, QueryFromWriterCtx, .writer = &s_here.writer,
+                           .from = latest, .listed = names_text, .err_msg = &carried_line);
             if (whole && (mmgr_line_finish(&carried_line) != 0ull))
             {
-                query_print(context, carried);
+                EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = carried);
             }
             else if (!whole)
             {
@@ -146,7 +173,8 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
             char work[QUERY_PATH_MAX_LEN];
             char forms_work[QUERY_PATH_MAX_LEN];
             char forms[QUERY_PATH_MAX_LEN];
-            query_at(context, QUERY_LEARN_WORK, work);
+            EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+                       .under = QUERY_LEARN_WORK, .path_out = work);
             VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ull};
             mmgr_line_put(&forms_work_line, work);
             mmgr_line_put(&forms_work_line, "/forms_work.txt");
@@ -156,24 +184,30 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
             mmgr_line_put(&forms_line, "/forms.txt");
             mmgr_line_finish(&forms_line);
             const char *const files[3] = {forms_work, forms, "gated.txt"};
-            whole = query_run_carried(&s_here, folder, files, 3u, has_crystal ? crystal : NULL, err_msg);
+            whole =
+                EMBED_CALL(query_count_folder_internal.run_carry, QueryCountFolderCtx, .run = &s_here, .folder = folder,
+                           .files = files, .count = 3u, .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
         }
     }
     const unsigned char *questions_blob = NULL;
     unsigned long long questions_size = 0ull;
-    if (whole && !query_writer_latest(&s_here.writer, "questions.txt", &questions_blob, &questions_size))
+    if (whole && !EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_here.writer,
+                             .name = "questions.txt", .bytes_u8s = &questions_blob, .size_pointer = &questions_size))
     {
         mmgr_line_put(err_msg, "the run contains no questions.txt");
         whole = 0;
     }
     const char *const read[3] = {s_files.machine, s_files.layout, base};
-    whole = whole && query_run_read(&s_here, read, (base != NULL) ? 3u : 2u, err_msg);
+    whole = whole && EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_here,
+                                .paths_letters = read, .count = (base != NULL) ? 3u : 2u, .err_msg = err_msg);
     long long code = -1ll;
     if (whole)
     {
         const char *const carried[9] = {s_carrier,       "--dry", "--full", s_files.machine, s_files.layout, "--list",
                                         "questions.txt", NULL,    NULL};
-        whole = query_context_handed(context, &s_here, "cubin_run.txt", carried, &code, err_msg);
+        whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
+                           .context = context, .run = &s_here, .name = "cubin_run.txt", .words = carried, .code = &code,
+                           .err_msg = err_msg);
         if (whole && (code != 0ll))
         {
             mmgr_line_put(err_msg, "the carrier did not read the list");
@@ -182,13 +216,16 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
     }
     if (whole && (base != NULL))
     {
-        whole = query_base_compiled(context, &s_here, base, err_msg);
+        whole = EMBED_CALL(query_loops_context_err_msg.base_compile, QueryLoopsContextErrMsgCfg, .context = context,
+                           .run = &s_here, .base = base, .err_msg = err_msg);
     }
     if (whole)
     {
         const char *const crossed[8] = {
             s_cross, "questions.txt", s_nvdisasm, "SM86", "measuring_stick_query.md", "gated.txt", NULL, NULL};
-        whole = query_context_teed(context, &s_here, "orior_measuring_stick_query", crossed, &code, err_msg);
+        whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
+                           .context = context, .run = &s_here, .name = "orior_measuring_stick_query", .words = crossed,
+                           .code = &code, .err_msg = err_msg);
     }
     if (whole)
     {
@@ -199,17 +236,21 @@ int query_cross_run(QueryContext *context, const char *const *words, unsigned in
         mmgr_line_put(&print_line, "; the vendor's feedback is its blob gated.txt");
         if (mmgr_line_finish(&print_line) != 0ull)
         {
-            query_print(context, line);
+            EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
         }
-        query_print(context, "  a live run runs those encodings with: orior_cubin_run --gated gated.txt ...");
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
+                   .text = "  a live run runs those encodings with: orior_cubin_run --gated gated.txt ...");
     }
-    if (!query_context_ended(context, &s_here, err_msg) || !whole)
+    if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context,
+                    .run_out = &s_here, .err_msg = err_msg) ||
+        !whole)
     {
         return -1;
     }
     if (code == 2ll)
     {
-        query_print(context, "  cross: the vendor's reader was not reached");
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
+                   .text = "  cross: the vendor's reader was not reached");
     }
     // an exit code is far below what an int represents
     return (int)code;

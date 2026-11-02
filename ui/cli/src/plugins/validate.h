@@ -24,20 +24,55 @@
 // validate_run.c, validate_code.c, validate_messages.c, validate_axioms.c, validate_report.c)
 #ifndef VALIDATE_H
 #define VALIDATE_H
+typedef struct CliValidatePathCfg CliValidatePathCfg;
+typedef struct CliValidateCfg CliValidateCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most checks one validation runs
 #define CLI_VALIDATE_CHECKS 16u
 
 // the id of the tool plugin that checks files of `language`, the first by id of those that come with orior and the
 // reader's, into `id`, sized for CLI_NAME_MAX_LEN: 1, or 0 where none does (validate_tool.c)
-int cli_validate_tool_for(const char *language, char *id);
+int cli_validate_tool_for(const CliValidateCfg *args);
 
 // the file at `path` validated with the tool plugin `id`: checked, each barrier that stops it lifted as far as its
 // ceiling, and what is left reported, the flags and the axioms, written as `{"tool", "file", "project", "passes",
 // "verdict", "checks": [{"settings", "seconds", "errors", "barriers"}], "findings": [{"line", "col", "end_line",
 // "end_col", "severity", "kind", "barrier", "message", "lifted"}]}`: 1, or 0 with why given (validate.c)
-int cli_validated(const char *id, const char *path, VerbaLinea *report, VerbaLinea *err_msg);
+int cli_on_validate(const CliValidatePathCfg *args);
+
+struct CliValidatePathCfg
+{
+    const char *id_read;
+    const char *path;
+    VerbaLinea *report;
+    VerbaLinea *err_msg;
+};
+
+struct CliValidateCfg
+{
+    const char *language;
+    char *id;
+};
+
+typedef struct
+{
+    int (*tool_for)(const CliValidateCfg *args);
+} CliValidateNs;
+EMBED_TABLE_LAYOUT(CliValidateNs, tool_for);
+EMBED_TABLE_STORAGE CliValidateNs cli_validate EMBED_UNUSED = {
+    .tool_for = cli_validate_tool_for,
+};
+
+typedef struct
+{
+    int (*validate)(const CliValidatePathCfg *args);
+} CliValidatePathNs;
+EMBED_TABLE_LAYOUT(CliValidatePathNs, validate);
+EMBED_TABLE_STORAGE CliValidatePathNs cli_validate_path EMBED_UNUSED = {
+    .validate = cli_on_validate,
+};
 
 #endif

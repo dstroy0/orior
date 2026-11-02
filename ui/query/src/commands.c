@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // commands.c: the dispatch: words in, lines out through a sink, the code back. Each loop runs under a context: the
 // tree, the programs, the sink and the leave, which starts its run, builds its tools and runs its programs
+#include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/text/text.h"
 #include "query_internal.h"
 #include "query_loops.h"
@@ -12,53 +13,75 @@
 // the name of the record this process's own lines go to, `<loop>.console`
 static char s_console[QRY_NAME_MAX_LEN + 1u];
 
-void query_print(QueryContext *context, const char *text)
+void query_print(const QueryTextCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    context->sink.print(context->sink.context, text, length);
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    EMBED_CALL(args->context->sink.print, CliEachLineSizeCfg, .context = args->context->sink.context,
+               .line = args->text, .size = length);
     // the line handed to the run this process is a member of, as it is given; nothing where it is a member of none
     if ((s_console[0] != '\0') && (qry_member_run() != NULL))
     {
         static char s_line[QUERY_LINE_MAX_LEN + 1u];
         const unsigned long long copied_len = (length < QUERY_LINE_MAX_LEN) ? length : QUERY_LINE_MAX_LEN;
-        memor.cpy(&(MemoriaCfg){.dst = s_line, .src = text, .bytes = (size_t)copied_len});
+        memor.cpy(&(MemoriaCfg){.dst = s_line, .src = args->text, .bytes = (size_t)copied_len});
         s_line[copied_len] = '\n';
         qry_member_append(s_console, s_line, copied_len + 1ull, QRY_ORDINARY);
     }
 }
 
-void query_at(const QueryContext *context, const char *under, char *path)
+void query_at(const QueryContextUnderCtx *args)
 {
-    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, context->root);
+    VerbaLinea line = {args->path_out, QUERY_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->context_read->root);
     mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, under);
+    mmgr_line_put(&line, args->under);
     mmgr_line_finish(&line);
 }
 
-int query_context_started(QueryContext *context, QueryRun *run, const char *folder, VerbaLinea *err_msg)
+int query_context_start(const QueryLoopsContextRunCfg *args)
 {
+    QueryContext *context = args->context;
+    QueryRun *run = args->run_out;
+    const char *folder = args->folder;
+    VerbaLinea *err_msg = args->err_msg;
     if (context->open[0] != '\0')
     {
-        return query_run_joining(run, context->root, context->open, context->programs, err_msg);
+        return EMBED_CALL(query_err_msg_root_internal.run_joining, QueryErrMsgRootCtx, .run = run,
+                          .root = context->root, .qry = context->open, .programs = context->programs,
+                          .err_msg = err_msg);
     }
     char path[QUERY_PATH_MAX_LEN];
-    query_at(context, folder, path);
-    return query_run_started(run, context->root, path, context->programs, context, err_msg);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = folder,
+               .path_out = path);
+    return EMBED_CALL(query_folder_context_internal.run_start, QueryFolderContextCtx, .run = run, .root = context->root,
+                      .folder = path, .programs = context->programs, .context = context, .err_msg = err_msg);
 }
 
-int query_context_tool(const QueryContext *context, const char *name, char *binary, VerbaLinea *err_msg)
+int query_context_tool(const QueryLoopsErrMsgContextCfg *args)
 {
-    return query_tool_built(context->root, context->programs, name, binary, QUERY_PATH_MAX_LEN, err_msg);
+    const char *name = args->name;
+    char *binary = args->binary;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(query_name_room_internal.tool_build, QueryNameRoomCtx, .root = args->context_read->root,
+                      .programs = args->context_read->programs, .name = name, .binary = binary,
+                      .room = QUERY_PATH_MAX_LEN, .err_msg = err_msg);
 }
 
+typedef struct
+{
+    const QueryContext *context;
+    const QueryRun *run;
+    VerbaLinea *err_msg;
+} QueryCommandsCtx;
 // every setting of the context appended to the run before a program starts
-static int query_settings_appended(const QueryContext *context, const QueryRun *run, VerbaLinea *err_msg)
+EMBED_INLINE int query_settings_append(const QueryCommandsCtx *args)
 {
-    for (unsigned int at = 0u; at < context->settings; at += 1u)
+    VerbaLinea *err_msg = args->err_msg;
+    for (unsigned int at = 0u; at < args->context->settings; at += 1u)
     {
-        if (!query_writer_append(&run->writer, context->setting[at].name, context->setting[at].blob,
-                                 context->setting[at].size, QRY_ORDINARY, err_msg))
+        if (!EMBED_CALL(query_name_bytes_internal.writer_append, QueryNameBytesCtx, .writer = &args->run->writer,
+                        .name = args->context->setting[at].name, .bytes = args->context->setting[at].blob,
+                        .size = args->context->setting[at].size, .priority = QRY_ORDINARY, .err_msg = err_msg))
         {
             return 0;
         }
@@ -66,46 +89,60 @@ static int query_settings_appended(const QueryContext *context, const QueryRun *
     return 1;
 }
 
-int query_context_teed(QueryContext *context, const QueryRun *run, const char *name, const char *const *words,
-                       long long *code, VerbaLinea *err_msg)
+int query_context_teed(const QueryLoopsContextErrMsgNameRunCfg *args)
 {
-    return query_settings_appended(context, run, err_msg) &&
-           query_writer_tee(&run->writer, context, name, words, code, err_msg);
+    QueryContext *context = args->context;
+    const char *name = args->name;
+    const char *const *words = args->words;
+    long long *code = args->code;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(query_settings_append, QueryCommandsCtx, .context = context, .run = args->run,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(query_words_name_internal.writer_tee, QueryWordsNameCtx, .writer = &args->run->writer,
+                      .context = context, .name = name, .words = words, .code = code, .err_msg = err_msg);
 }
 
-int query_context_ran(QueryContext *context, const QueryRun *run, const char *const *words, long long *code,
-                      VerbaLinea *err_msg)
+int query_context_run(const QueryLoopsContextErrMsgNameRunCfg *args)
 {
-    if (!query_settings_appended(context, run, err_msg))
+    const char *const *words = args->words;
+    long long *code = args->code;
+    if (!EMBED_CALL(query_settings_append, QueryCommandsCtx, .context = args->context, .run = args->run,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
-    query_environment_set("QRY", run->writer.qry);
-    query_environment_set("QRY_TOP", run->writer.top);
-    query_environment_set("PATH", run->writer.path);
+    EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY", .value = args->run->writer.qry);
+    EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY_TOP", .value = args->run->writer.top);
+    EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "PATH", .value = args->run->writer.path);
     QueryProcess process;
-    if (!query_process_start(&process, words, context->root, QUERY_OUTPUT_OWN))
+    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &process, .words = words,
+                    .folder = args->context->root, .output = QUERY_OUTPUT_OWN))
     {
-        mmgr_line_put(err_msg, words[0]);
-        mmgr_line_put(err_msg, ": it could not be started");
+        mmgr_line_put(args->err_msg, words[0]);
+        mmgr_line_put(args->err_msg, ": it could not be started");
         return 0;
     }
-    *code = query_process_wait(&process);
+    *code = EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process);
     return 1;
 }
 
-int query_context_handed(QueryContext *context, const QueryRun *run, const char *name, const char *const *words,
-                         long long *code, VerbaLinea *err_msg)
+int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
 {
-    if (!query_settings_appended(context, run, err_msg))
+    const char *name = args->name;
+    const char *const *words = args->words;
+    long long *code = args->code;
+    VerbaLinea *err_msg = args->err_msg;
+    if (!EMBED_CALL(query_settings_append, QueryCommandsCtx, .context = args->context, .run = args->run,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    query_environment_set("QRY", run->writer.qry);
-    query_environment_set("QRY_TOP", run->writer.top);
-    query_environment_set("PATH", run->writer.path);
+    EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY", .value = args->run->writer.qry);
+    EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY_TOP", .value = args->run->writer.top);
+    EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "PATH", .value = args->run->writer.path);
     QueryProcess process;
-    if (!query_process_start(&process, words, context->root, QUERY_OUTPUT_PIPED))
+    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &process, .words = words,
+                    .folder = args->context->root, .output = QUERY_OUTPUT_PIPED))
     {
         mmgr_line_put(err_msg, words[0]);
         mmgr_line_put(err_msg, ": it could not be started");
@@ -121,8 +158,11 @@ int query_context_handed(QueryContext *context, const QueryRun *run, const char 
     {
         char over[4096];
         const int fits = (used < room);
-        const unsigned long long got = fits ? query_process_read(&process, output + used, room - used)
-                                            : query_process_read(&process, over, sizeof(over));
+        const unsigned long long got =
+            fits ? EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &process,
+                              .piece = output + used, .room_u64 = room - used)
+                 : EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &process,
+                              .piece = over, .room_u64 = sizeof(over));
         if (got == 0ull)
         {
             break;
@@ -130,7 +170,7 @@ int query_context_handed(QueryContext *context, const QueryRun *run, const char 
         used += fits ? got : 0ull;
         whole = whole && fits;
     }
-    *code = query_process_wait(&process);
+    *code = EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process);
     if (!whole)
     {
         g_cli_cells->persistent_buf_release(output, &g_query_cells);
@@ -138,32 +178,41 @@ int query_context_handed(QueryContext *context, const QueryRun *run, const char 
         mmgr_line_put(err_msg, ": its output could not be stored");
         return 0;
     }
-    const int appended = query_writer_append(&run->writer, name, output, used, QRY_ORDINARY, err_msg);
+    const int appended =
+        EMBED_CALL(query_name_bytes_internal.writer_append, QueryNameBytesCtx, .writer = &args->run->writer,
+                   .name = name, .bytes = output, .size = used, .priority = QRY_ORDINARY, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(output, &g_query_cells);
     return appended;
 }
 
-int query_context_ended(QueryContext *context, QueryRun *run, VerbaLinea *err_msg)
+int query_context_end(const QueryLoopsContextRunCfg *args)
 {
-    return query_run_ended(run, context->leave, context->prompter, context, err_msg);
+    QueryContext *context = args->context;
+    QueryRun *run = args->run_out;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(query_context_err_msg_run_internal.run_end, QueryContextErrMsgRunCtx, .run = run,
+                      .leave = context->leave, .prompter = context->prompter, .context = context, .err_msg = err_msg);
 }
 
 // `--leave <word>` taken off `words`, `*count` of them, where it is there, into `leave`: 1, or 0 with why given
-int query_leave_taken(const char **words, unsigned int *count, int *given, QueryLeave *leave, VerbaLinea *err_msg)
+int query_leave_take(const QueryLoopsErrMsgWordsCountGivenCfg *args)
 {
+    unsigned int *count = args->count_pointer;
+    int *given = args->given;
+    QueryLeave *leave = args->leave;
     *given = 0;
     for (unsigned int at = 0u; at < *count; at += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--leave", .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = args->words_read[at], .other = "--leave", .cap = CLI_CELLS_POOL}))
         {
             continue;
         }
         if ((at + 1u) >= *count)
         {
-            mmgr_line_put(err_msg, "--leave takes all, none or prompt");
+            mmgr_line_put(args->err_msg, "--leave takes all, none or prompt");
             return 0;
         }
-        const char *const word = words[at + 1u];
+        const char *const word = args->words_read[at + 1u];
         if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "all", .cap = CLI_CELLS_POOL}))
         {
             *leave = QUERY_LEAVE_ALL;
@@ -178,12 +227,13 @@ int query_leave_taken(const char **words, unsigned int *count, int *given, Query
         }
         else
         {
-            mmgr_line_put(err_msg, "--leave takes all, none or prompt, not ");
-            mmgr_line_put(err_msg, word);
+            mmgr_line_put(args->err_msg, "--leave takes all, none or prompt, not ");
+            mmgr_line_put(args->err_msg, word);
             return 0;
         }
-        memor.move_down(&(MemoriaCfg){
-            .dst = &words[at], .src = &words[at + 2u], .bytes = (size_t)(*count - at - 2u) * sizeof(words[0])});
+        memor.move_down(&(MemoriaCfg){.dst = &args->words_read[at],
+                                      .src = &args->words_read[at + 2u],
+                                      .bytes = (size_t)(*count - at - 2u) * sizeof(args->words_read[0])});
         *count -= 2u;
         *given = 1;
         return 1;
@@ -191,9 +241,13 @@ int query_leave_taken(const char **words, unsigned int *count, int *given, Query
     return 1;
 }
 
-int query_run(const char *root, const QueryPrograms *programs, const char *const *words, unsigned int count,
-              QuerySink sink)
+int query_run(const QueryCfg *args)
 {
+    const char *root = args->root;
+    const QueryPrograms *programs = args->programs;
+    const char *const *words = args->words;
+    unsigned int count = args->count;
+    QuerySink sink = args->sink;
     static QueryContext s_context;
     static char s_root[QUERY_PATH_MAX_LEN];
     static const char *s_words[QUERY_WORDS_MOST];
@@ -202,7 +256,7 @@ int query_run(const char *root, const QueryPrograms *programs, const char *const
     memor.set(&(MemoriaCfg){.dst = &s_context, .val = 0, .bytes = sizeof(s_context)});
     // a path as the compilers and the tools are given it: forward slashes throughout
     VerbaLinea root_line = {s_root, sizeof(s_root), 0ull};
-    (void)cli_text_put_swapped(&root_line, root, '\\', '/');
+    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &root_line, .text = root, .from = '\\', .to = '/');
     mmgr_line_finish(&root_line);
     s_context.root = s_root;
     s_context.programs = programs;
@@ -213,7 +267,9 @@ int query_run(const char *root, const QueryPrograms *programs, const char *const
     int given = 0;
     QueryLeave leave = QUERY_LEAVE_ALL;
     int code = -1;
-    if (!query_leave_taken(s_words, &word_count, &given, &leave, &err_msg))
+    if (!EMBED_CALL(query_loops_err_msg_words_count_given.leave_take, QueryLoopsErrMsgWordsCountGivenCfg,
+                    .words_read = s_words, .count_pointer = &word_count, .given = &given, .leave = &leave,
+                    .err_msg = &err_msg))
     {
         // nothing to run
     }
@@ -229,11 +285,13 @@ int query_run(const char *root, const QueryPrograms *programs, const char *const
         mmgr_line_put(&console, s_words[0]);
         mmgr_line_put(&console, ".console");
         mmgr_line_finish(&console);
-        code = query_loop_run(&s_context, s_words[0], &s_words[1], word_count - 1u, &err_msg);
+        code =
+            EMBED_CALL(query_loops_context_err_msg_name.loop_run, QueryLoopsContextErrMsgNameCfg, .context = &s_context,
+                       .name = s_words[0], .words = &s_words[1], .count = word_count - 1u, .err_msg = &err_msg);
     }
     if ((code < 0) && (mmgr_line_finish(&err_msg) != 0ull))
     {
-        sink.print(sink.context, err_buf, err_msg.at);
+        EMBED_CALL(sink.print, CliEachLineSizeCfg, .context = sink.context, .line = err_buf, .size = err_msg.at);
     }
     return code;
 }

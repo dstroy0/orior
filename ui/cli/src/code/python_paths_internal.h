@@ -4,8 +4,18 @@
 // the values they may be, stored while the script is read under the module's lock
 #ifndef PYTHON_PATHS_INTERNAL_H
 #define PYTHON_PATHS_INTERNAL_H
+typedef struct CliPythonPathsTextTextMostCtx CliPythonPathsTextTextMostCtx;
+typedef struct CliPythonPathsSizeCtx CliPythonPathsSizeCtx;
+typedef struct CliPythonPathsExprCtx CliPythonPathsExprCtx;
+typedef struct CliPythonPathsOutCtx CliPythonPathsOutCtx;
+typedef struct CliPythonPathsTextCtx CliPythonPathsTextCtx;
+typedef struct CliPythonPathsCtx CliPythonPathsCtx;
+typedef struct CliPythonPathsAtCtx CliPythonPathsAtCtx;
+typedef struct CliPythonPathsTextKindCtx CliPythonPathsTextKindCtx;
+typedef struct CliPythonPathsFirstCtx CliPythonPathsFirstCtx;
 
 #include "../command_line/cells.h"
+#include "embed_dispatch_layout.h"
 #include "python_paths.h"
 
 // the most expressions, list items, letters of one expression, bytes of texts, values and names one script's reading
@@ -103,36 +113,178 @@ extern CellOwner g_cli_python_cells;
 // the reading of a script of `size` bytes begun empty in a cell sized to it, the reading before given back: 1, or 0
 // where the cell is refused and the reading contains nothing; and the reading's cell given back once what it found is
 // read (python_paths.c)
-int cli_py_reading_taken(unsigned long long size);
-void cli_py_reading_given(void);
+int cli_py_reading_take(const CliPythonPathsSizeCtx *args);
+void cli_py_reading_free(void);
 // the logical lines of a script read into the reading's cell: `text_most` bytes of their text at `text`, and the start
 // and length of `lines_most` lines at `start` and `length`, none read yet (python_paths.c)
-void cli_py_lines_placed(char *text, unsigned int text_most, unsigned int *start, unsigned int *length,
-                         unsigned int lines_most);
+void cli_py_lines_place(const CliPythonPathsTextTextMostCtx *args);
 
 // `length` bytes of `text` put in the texts, a 0 after them: their place, or CLI_PY_NONE where they do not fit; the
 // text at a place; and the expression `length` bytes of `text` denote, read whole: its place, or CLI_PY_NONE where it
 // is not one the reading takes (python_paths_parse.c)
-unsigned int cli_py_text_put(const char *text, unsigned long long length);
-const char *cli_py_text(unsigned int at);
-unsigned int cli_py_parse(const char *text, unsigned long long length);
+unsigned int cli_py_text_put(const CliPythonPathsTextCtx *args);
+const char *cli_py_text(const CliPythonPathsAtCtx *args);
+unsigned int cli_py_parse(const CliPythonPathsTextCtx *args);
 
 // a text put after the values; the values from `first` to the end as a list; the dotted name an expression of names
 // and attributes writes, as `os.path.join`, into `out`: 1, or 0 where it writes none; what an expression may be, by
 // the names set, in the script; the folders in a folder, each a value a loop over its entries takes; and the folders
 // above a path, itself first, up to the top of its drive (python_paths_eval.c)
-void cli_py_value_put(unsigned int text);
-CliValues cli_py_values_from(unsigned int first);
-int cli_py_dotted(unsigned int expr, VerbaLinea *out);
-CliValues cli_py_eval(unsigned int expr);
-CliValues cli_py_folders_in(const char *folder);
-CliValues cli_py_upward(const char *path);
+void cli_py_value_put(const CliPythonPathsTextKindCtx *args);
+CliValues cli_py_values_from(const CliPythonPathsFirstCtx *args);
+int cli_py_dot(const CliPythonPathsExprCtx *args);
+CliValues cli_py_eval(const CliPythonPathsExprCtx *args);
+CliValues cli_py_folders_in(const CliPythonPathsCtx *args);
+CliValues cli_py_upward(const CliPythonPathsOutCtx *args);
 // the folder that contains `path`, as `os.path.dirname` gives it, written into `out` (python_paths_eval.c)
-void cli_py_parent(const char *path, VerbaLinea *out);
+void cli_py_parent(const CliPythonPathsOutCtx *args);
 
 // what the script at `file`, `size` bytes of `text`, puts on `sys.path`, as it may write them, read into the found,
-// the reading taken for it and given back with cli_py_reading_given once the found are read; none found where its
+// the reading taken for it and given back with cli_py_reading_free once the found are read; none found where its
 // cell is refused (python_paths.c)
-void cli_py_paths_in(const char *file, const char *text, unsigned long long size);
+void cli_py_paths_in(const CliPythonPathsSizeCtx *args);
+
+struct CliPythonPathsTextTextMostCtx
+{
+    char *text_out;
+    unsigned int text_most;
+    unsigned int *start;
+    unsigned int *length_u32s;
+    unsigned int lines_most;
+};
+
+struct CliPythonPathsSizeCtx
+{
+    unsigned long long size;
+    const char *text;
+    const char *file;
+};
+
+struct CliPythonPathsExprCtx
+{
+    unsigned int expr;
+    VerbaLinea *out;
+};
+
+struct CliPythonPathsOutCtx
+{
+    VerbaLinea *out;
+    const char *path;
+};
+
+struct CliPythonPathsTextCtx
+{
+    const char *text;
+    unsigned long long length;
+};
+
+struct CliPythonPathsCtx
+{
+    const char *folder;
+};
+
+struct CliPythonPathsAtCtx
+{
+    unsigned int at;
+};
+
+struct CliPythonPathsTextKindCtx
+{
+    unsigned int text_u32;
+};
+
+struct CliPythonPathsFirstCtx
+{
+    unsigned int first;
+};
+
+typedef struct
+{
+    int (*py_reading_take)(const CliPythonPathsSizeCtx *args);
+    void (*py_paths_in)(const CliPythonPathsSizeCtx *args);
+} CliPythonPathsSizeNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsSizeNs, py_reading_take, py_paths_in);
+EMBED_TABLE_STORAGE CliPythonPathsSizeNs cli_python_paths_size_internal EMBED_UNUSED = {
+    .py_reading_take = cli_py_reading_take,
+    .py_paths_in = cli_py_paths_in,
+};
+
+typedef struct
+{
+    void (*py_lines_place)(const CliPythonPathsTextTextMostCtx *args);
+} CliPythonPathsTextTextMostNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsTextTextMostNs, py_lines_place);
+EMBED_TABLE_STORAGE CliPythonPathsTextTextMostNs cli_python_paths_text_text_most_internal EMBED_UNUSED = {
+    .py_lines_place = cli_py_lines_place,
+};
+
+typedef struct
+{
+    unsigned int (*py_text_put)(const CliPythonPathsTextCtx *args);
+    unsigned int (*py_parse)(const CliPythonPathsTextCtx *args);
+} CliPythonPathsTextNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsTextNs, py_text_put, py_parse);
+EMBED_TABLE_STORAGE CliPythonPathsTextNs cli_python_paths_text_internal EMBED_UNUSED = {
+    .py_text_put = cli_py_text_put,
+    .py_parse = cli_py_parse,
+};
+
+typedef struct
+{
+    const char *(*py_text)(const CliPythonPathsAtCtx *args);
+} CliPythonPathsAtNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsAtNs, py_text);
+EMBED_TABLE_STORAGE CliPythonPathsAtNs cli_python_paths_at_internal EMBED_UNUSED = {
+    .py_text = cli_py_text,
+};
+
+typedef struct
+{
+    void (*py_value_put)(const CliPythonPathsTextKindCtx *args);
+} CliPythonPathsTextKindNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsTextKindNs, py_value_put);
+EMBED_TABLE_STORAGE CliPythonPathsTextKindNs cli_python_paths_text_kind_internal EMBED_UNUSED = {
+    .py_value_put = cli_py_value_put,
+};
+
+typedef struct
+{
+    CliValues (*py_values_from)(const CliPythonPathsFirstCtx *args);
+} CliPythonPathsFirstNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsFirstNs, py_values_from);
+EMBED_TABLE_STORAGE CliPythonPathsFirstNs cli_python_paths_first_internal EMBED_UNUSED = {
+    .py_values_from = cli_py_values_from,
+};
+
+typedef struct
+{
+    int (*py_dot)(const CliPythonPathsExprCtx *args);
+    CliValues (*py_eval)(const CliPythonPathsExprCtx *args);
+} CliPythonPathsExprNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsExprNs, py_dot, py_eval);
+EMBED_TABLE_STORAGE CliPythonPathsExprNs cli_python_paths_expr_internal EMBED_UNUSED = {
+    .py_dot = cli_py_dot,
+    .py_eval = cli_py_eval,
+};
+
+typedef struct
+{
+    CliValues (*py_folders_in)(const CliPythonPathsCtx *args);
+} CliPythonPathsNsTable;
+EMBED_TABLE_LAYOUT(CliPythonPathsNsTable, py_folders_in);
+EMBED_TABLE_STORAGE CliPythonPathsNsTable cli_python_paths_internal EMBED_UNUSED = {
+    .py_folders_in = cli_py_folders_in,
+};
+
+typedef struct
+{
+    CliValues (*py_upward)(const CliPythonPathsOutCtx *args);
+    void (*py_parent)(const CliPythonPathsOutCtx *args);
+} CliPythonPathsOutNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsOutNs, py_upward, py_parent);
+EMBED_TABLE_STORAGE CliPythonPathsOutNs cli_python_paths_out_internal EMBED_UNUSED = {
+    .py_upward = cli_py_upward,
+    .py_parent = cli_py_parent,
+};
 
 #endif

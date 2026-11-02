@@ -26,39 +26,39 @@ static const char s_snippet[] =
 static int chosen_is(const GuiSuggest *suggest, const char *insert)
 {
     unsigned long long length = 0ull;
-    const char *const text = gui_suggest_chosen(suggest, &length);
+    const char *const text = EMBED_CALL(cli_suggest.choose, GuiSuggestCfg, .suggest_read = suggest, .length_pointer = &length);
     return (text != NULL) && (length == cellul.len(&(CatenaFinitaCfg){.src = insert, .cap = 64ull})) &&
            (memor.cmp(&(MemoriaCfg){.src = text, .other = insert, .bytes = length}) == 0);
 }
 
 int main(void)
 {
-    (void)cli_cells_made(CLI_CELLS_POOL);
+    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     char why_text[1024];
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     GuiGlyphs glyphs;
-    if (!gui_glyphs_made(&glyphs, &why))
+    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
     {
         mmgr_line_finish(&why);
         cli_check(0, why_text);
-        return cli_checked();
+        return cli_on_check();
     }
-    const GuiPalette *const palette = gui_palette(GUI_SCHEME_DARK);
-    cli_check(gui_suggest_score("alpha", 5ull, "al") == 5u, "a label starting with the prefix scores five");
-    cli_check(gui_suggest_score("ALias", 5ull, "al") == 4u, "a label starting with it by case scores four");
-    cli_check(gui_suggest_score("total", 5ull, "al") == 3u, "a label containing it scores three");
-    cli_check(gui_suggest_score("apple", 5ull, "al") == 2u, "a label with its letters in order scores two");
-    cli_check(gui_suggest_score("beta", 4ull, "al") == 0u, "a label without its letters scores nothing");
-    cli_check(gui_suggest_score("beta", 4ull, "") == 1u, "every label answers an empty prefix");
+    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    cli_check(EMBED_CALL(gui_suggest_length.score, GuiSuggestLengthCfg, .label = "alpha", .length = 5ull, .typed = "al") == 5u, "a label starting with the prefix scores five");
+    cli_check(EMBED_CALL(gui_suggest_length.score, GuiSuggestLengthCfg, .label = "ALias", .length = 5ull, .typed = "al") == 4u, "a label starting with it by case scores four");
+    cli_check(EMBED_CALL(gui_suggest_length.score, GuiSuggestLengthCfg, .label = "total", .length = 5ull, .typed = "al") == 3u, "a label containing it scores three");
+    cli_check(EMBED_CALL(gui_suggest_length.score, GuiSuggestLengthCfg, .label = "apple", .length = 5ull, .typed = "al") == 2u, "a label with its letters in order scores two");
+    cli_check(EMBED_CALL(gui_suggest_length.score, GuiSuggestLengthCfg, .label = "beta", .length = 4ull, .typed = "al") == 0u, "a label without its letters scores nothing");
+    cli_check(EMBED_CALL(gui_suggest_length.score, GuiSuggestLengthCfg, .label = "beta", .length = 4ull, .typed = "") == 1u, "every label answers an empty prefix");
 
     GuiSuggest suggest;
-    cli_check(gui_suggest_made(&suggest) && !suggest.open, "a completion made is closed");
+    cli_check(EMBED_CALL(gui_suggest_rows.init, GuiSuggestRowsCfg, .suggest = &suggest) && !suggest.open, "a completion made is closed");
     CliJson json;
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
-    unsigned int root = cli_json_taken(&json, s_answer, sizeof(s_answer) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
-    cli_check(gui_suggest_put(&suggest, &json, root, 0), "the answer opens the list");
-    cli_json_given(&json);
+    unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = s_answer, .size = sizeof(s_answer) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    cli_check(EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 0), "the answer opens the list");
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     cli_check(suggest.open && (suggest.items == 4u),
               "the server's items come first and a word the server gave is left out");
     cli_check((suggest.count == 3u) && (suggest.index == 0u), "three items answer the prefix");
@@ -66,67 +66,67 @@ int main(void)
     cli_check((suggest.line == 0ull) && (suggest.from == 4ull) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = suggest.prefix, .other = "al", .cap = 8ull}),
               "the prefix and its place are kept");
-    cli_check(gui_suggest_keyed(&suggest, "Down") == GUI_SUGGEST_MOVED && chosen_is(&suggest, "ALias"),
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "Down") == GUI_SUGGEST_MOVED && chosen_is(&suggest, "ALias"),
               "Down moves to the next item");
-    cli_check(gui_suggest_keyed(&suggest, "Down") == GUI_SUGGEST_MOVED && chosen_is(&suggest, "total"),
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "Down") == GUI_SUGGEST_MOVED && chosen_is(&suggest, "total"),
               "the items rank a part below a start");
-    cli_check(gui_suggest_keyed(&suggest, "Down") == GUI_SUGGEST_MOVED && chosen_is(&suggest, "alpha()"),
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "Down") == GUI_SUGGEST_MOVED && chosen_is(&suggest, "alpha()"),
               "Down past the last wraps to the first");
-    cli_check(gui_suggest_keyed(&suggest, "Up") == GUI_SUGGEST_MOVED && chosen_is(&suggest, "total"),
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "Up") == GUI_SUGGEST_MOVED && chosen_is(&suggest, "total"),
               "Up before the first wraps to the last");
-    cli_check(gui_suggest_keyed(&suggest, "PageUp") == GUI_SUGGEST_MOVED && (suggest.index == 0u),
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "PageUp") == GUI_SUGGEST_MOVED && (suggest.index == 0u),
               "PageUp goes to the first");
-    cli_check(gui_suggest_keyed(&suggest, "PageDown") == GUI_SUGGEST_MOVED && (suggest.index == 2u),
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "PageDown") == GUI_SUGGEST_MOVED && (suggest.index == 2u),
               "PageDown goes to the last");
-    cli_check(gui_suggest_keyed(&suggest, "Left") == GUI_SUGGEST_NONE, "a key not the list's is not taken");
-    cli_check(gui_suggest_keyed(&suggest, "Enter") == GUI_SUGGEST_ACCEPTED && suggest.open,
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "Left") == GUI_SUGGEST_NONE, "a key not the list's is not taken");
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "Enter") == GUI_SUGGEST_ACCEPTED && suggest.open,
               "Enter accepts the item chosen");
-    cli_check(gui_suggest_keyed(&suggest, "Escape") == GUI_SUGGEST_CLOSED && !suggest.open && (suggest.items == 0u),
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "Escape") == GUI_SUGGEST_CLOSED && !suggest.open && (suggest.items == 0u),
               "Escape closes the list");
-    cli_check(gui_suggest_keyed(&suggest, "Down") == GUI_SUGGEST_NONE, "a closed list takes no key");
+    cli_check(EMBED_CALL(gui_suggest_json.key, GuiSuggestJsonCfg, .suggest = &suggest, .name = "Down") == GUI_SUGGEST_NONE, "a closed list takes no key");
 
-    root = cli_json_taken(&json, s_alone, sizeof(s_alone) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
-    cli_check(!gui_suggest_put(&suggest, &json, root, 0) && !suggest.open,
+    root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = s_alone, .size = sizeof(s_alone) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    cli_check(!EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 0) && !suggest.open,
               "the one item that is the prefix closes the list");
-    cli_check(gui_suggest_put(&suggest, &json, root, 1) && suggest.open && (suggest.count == 1u),
+    cli_check(EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 1) && suggest.open && (suggest.count == 1u),
               "forced, it stands open on that item");
-    cli_json_given(&json);
-    root = cli_json_taken(&json, s_snippet, sizeof(s_snippet) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
-    cli_check(gui_suggest_put(&suggest, &json, root, 0) && chosen_is(&suggest, "fill(rect, red, )$"),
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = s_snippet, .size = sizeof(s_snippet) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    cli_check(EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 0) && chosen_is(&suggest, "fill(rect, red, )$"),
               "a snippet inserts its placeholders, first choices and escaped bytes, its stops left out");
-    cli_json_given(&json);
-    gui_suggest_closed(&suggest);
-    cli_check(!gui_suggest_prefixed(&suggest, "al", 2ull), "a closed list is not filtered");
-    root = cli_json_taken(&json, s_answer, sizeof(s_answer) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
-    cli_check(gui_suggest_put(&suggest, &json, root, 0) && (suggest.count == 3u),
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    EMBED_CALL(gui_suggest_json.close, GuiSuggestJsonCfg, .suggest = &suggest);
+    cli_check(!EMBED_CALL(gui_suggest_json.prefix, GuiSuggestJsonCfg, .suggest = &suggest, .prefix = "al", .length = 2ull), "a closed list is not filtered");
+    root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = s_answer, .size = sizeof(s_answer) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    cli_check(EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 0) && (suggest.count == 3u),
               "the answer opens the list on three items");
-    cli_json_given(&json);
-    cli_check(gui_suggest_prefixed(&suggest, "alp", 3ull) && (suggest.count == 1u) && chosen_is(&suggest, "alpha()"),
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    cli_check(EMBED_CALL(gui_suggest_json.prefix, GuiSuggestJsonCfg, .suggest = &suggest, .prefix = "alp", .length = 3ull) && (suggest.count == 1u) && chosen_is(&suggest, "alpha()"),
               "a letter typed filters the items the list stands on");
-    cli_check(gui_suggest_prefixed(&suggest, "al", 2ull) && (suggest.count == 3u),
+    cli_check(EMBED_CALL(gui_suggest_json.prefix, GuiSuggestJsonCfg, .suggest = &suggest, .prefix = "al", .length = 2ull) && (suggest.count == 3u),
               "a letter taken back widens them again");
-    cli_check(!gui_suggest_prefixed(&suggest, "", 0ull) && !suggest.open,
+    cli_check(!EMBED_CALL(gui_suggest_json.prefix, GuiSuggestJsonCfg, .suggest = &suggest, .prefix = "", .length = 0ull) && !suggest.open,
               "the prefix taken back whole closes the list");
-    root = cli_json_taken(&json, s_answer, sizeof(s_answer) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
-    cli_check(gui_suggest_put(&suggest, &json, root, 0), "the answer opens the list again");
-    cli_json_given(&json);
-    cli_check(!gui_suggest_prefixed(&suggest, "alq", 3ull) && !suggest.open,
+    root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = s_answer, .size = sizeof(s_answer) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    cli_check(EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 0), "the answer opens the list again");
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    cli_check(!EMBED_CALL(gui_suggest_json.prefix, GuiSuggestJsonCfg, .suggest = &suggest, .prefix = "alq", .length = 3ull) && !suggest.open,
               "a prefix no item answers closes the list");
-    root = cli_json_taken(&json, s_empty, sizeof(s_empty) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
-    cli_check(!gui_suggest_put(&suggest, &json, root, 0) && !suggest.open, "an empty prefix opens no list");
-    cli_check(gui_suggest_put(&suggest, &json, root, 1) && suggest.open && (suggest.count == 2u),
+    root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = s_empty, .size = sizeof(s_empty) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    cli_check(!EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 0) && !suggest.open, "an empty prefix opens no list");
+    cli_check(EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 1) && suggest.open && (suggest.count == 2u),
               "forced, an empty prefix lists every item");
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
 
     // drawn
-    root = cli_json_taken(&json, s_answer, sizeof(s_answer) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
-    cli_check(gui_suggest_put(&suggest, &json, root, 0), "the answer opens the list again");
-    cli_json_given(&json);
+    root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = s_answer, .size = sizeof(s_answer) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    cli_check(EMBED_CALL(gui_suggest_json.put, GuiSuggestJsonCfg, .suggest = &suggest, .json = &json, .root = root, .forced = 0), "the answer opens the list again");
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     GuiRaster raster;
-    cli_check(gui_raster_made(&raster, 800u, 500u), "a raster is made");
+    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 800u, .height = 500u), "a raster is made");
     const GuiRect bounds = {0, 0, 800, 500};
-    gui_raster_filled(&raster, bounds, palette->editor_ground);
-    gui_suggest_drawn(&suggest, &raster, &glyphs, palette, (GuiRect){200, 100, 8, 20}, bounds, 1.0f);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = bounds, .color = palette->editor_ground);
+    EMBED_CALL(gui_suggest_raster.draw, GuiSuggestRasterCfg, .suggest = &suggest, .raster = &raster, .glyphs = &glyphs, .palette = palette, .anchor = (GuiRect){200, 100, 8, 20}, .bounds = bounds, .scale = 100);
     cli_check((suggest.rect.y == 100 + 20 + GUI_PANEL_OFF) && (suggest.rect.x == 200 - GUI_SUGGEST_BACK),
               "the list stands under the prefix's cell");
     cli_check((suggest.list.height == 3 * GUI_SUGGEST_ROW) && (suggest.list.width >= GUI_SUGGEST_LEAST),
@@ -138,19 +138,19 @@ int main(void)
     cli_check(raster.pixels[((unsigned int)(suggest.list.y + GUI_SUGGEST_ROW + 11) * 800u) +
                             (unsigned int)(suggest.list.x + suggest.list.width - 2)] == palette->surface,
               "the row below stands on the widget's ground");
-    cli_check(gui_suggest_holds(&suggest, suggest.rect.x + 4, suggest.rect.y + 4) &&
-                  !gui_suggest_holds(&suggest, 10, 10),
+    cli_check(EMBED_CALL(gui_suggest_x.holds, GuiSuggestXCfg, .suggest_read = &suggest, .x = suggest.rect.x + 4, .y = suggest.rect.y + 4) &&
+                  !EMBED_CALL(gui_suggest_x.holds, GuiSuggestXCfg, .suggest_read = &suggest, .x = 10, .y = 10),
               "the list holds its pixels alone");
-    cli_check((gui_suggest_pressed(&suggest, suggest.list.x + 20, suggest.list.y + (2 * GUI_SUGGEST_ROW) + 5) ==
+    cli_check((EMBED_CALL(gui_suggest_xy.press, GuiSuggestXYCfg, .suggest = &suggest, .x = suggest.list.x + 20, .y = suggest.list.y + (2 * GUI_SUGGEST_ROW) + 5) ==
                GUI_SUGGEST_ACCEPTED) &&
                   chosen_is(&suggest, "total"),
               "a press on a row chooses and accepts its item");
-    cli_check(gui_suggest_pressed(&suggest, 10, 10) == GUI_SUGGEST_NONE, "a press outside the list is not its");
-    cli_check(!gui_suggest_wheeled(&suggest, 3), "the wheel moves nothing while every row is shown");
-    gui_suggest_closed(&suggest);
+    cli_check(EMBED_CALL(gui_suggest_xy.press, GuiSuggestXYCfg, .suggest = &suggest, .x = 10, .y = 10) == GUI_SUGGEST_NONE, "a press outside the list is not its");
+    cli_check(!EMBED_CALL(gui_suggest_rows.wheel, GuiSuggestRowsCfg, .suggest = &suggest, .rows = 3), "the wheel moves nothing while every row is shown");
+    EMBED_CALL(gui_suggest_json.close, GuiSuggestJsonCfg, .suggest = &suggest);
     cli_check(!suggest.open && (suggest.rect.width == 0), "the list closed has no rectangle");
-    gui_raster_given(&raster);
-    gui_suggest_given(&suggest);
-    gui_glyphs_given(&glyphs);
-    return cli_checked();
+    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
+    EMBED_CALL(gui_suggest_rows.free, GuiSuggestRowsCfg, .suggest = &suggest);
+    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    return cli_on_check();
 }

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // document_branch.c: a stored text colored as a branch of the tree is walked, its grammar applied a line at a time, the
-// runs of each line colored handed on and the states it is colored from and ends in kept with the line. The walk works
+// runs of each line colored handed on and the states it is colored from and ends in saved with the line. The walk works
 // out from a line, the view's first, the lines nearest it first, below it before above it at each distance. A run of
 // lines below is entered in the state the line above it ends in; a run above starts from root, as far above as it
 // reaches; and the lines after a run are colored again until one is entered in the state it was entered in before.
@@ -9,7 +9,7 @@
 // until each line is entered in the state the line above ends in, root for the first. Only the lines colored go on.
 // A paged text is walked the same way, its lines read through the pages as far as their index has read, once the page
 // mirrors some of them; every line is colored and only the runs of those the page mirrors go on.
-// As each line is colored the regions its grammar's roles open and close on it are kept with it, and once every line
+// As each line is colored the regions its grammar's roles open and close on it are saved with it, and once every line
 // of a text is colored and its regions moved since, its folds go on: each region from the line it opens on to the last
 // line the fold hides, a paged text's those that meet the lines the page mirrors.
 // The lock is taken only to claim lines and to put in what a coloring found: each batch of lines is claimed under it,
@@ -20,6 +20,7 @@
 // hands its colors on in the order they were put in
 #include "../code/symbols.h"
 #include "../code/symbols_internal.h"
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "document_internal.h"
@@ -27,29 +28,6 @@
 #include "pages.h"
 
 #include <stdatomic.h>
-
-// root's place among a colored text's states, the first written; the most lines a step of the walk colors in a run, and
-// again after it, and the most bytes of lines it colors, the last line it colors maybe past them, and its colors are
-// handed on in steps, and the bytes of a coloring that colors every line asked; the lines colored at once where a
-// coloring stops at the first entered as before, and where it does not, CLI_DOC_STEP where its bytes reach no further;
-// the room a step's colors are written in, a state's longest text, the room a text's states hold past them and the
-// places of its index they are found by, the bytes a coloring's room is written in, the share of what a text's room for
-// its states or its runs is taken for that it holds past it, and no line
-#define CLI_DOC_ROOT 0u
-#define CLI_DOC_STEP 256u
-#define CLI_DOC_STEP_BYTES 16384ull
-#define CLI_DOC_ALL_BYTES 0xffffffffffffffffull
-#define CLI_DOC_BATCH 64u
-#define CLI_DOC_RUN 4096u
-#define CLI_DOC_COLORS_ROOM (1ull << 20u)
-#define CLI_DOC_STATE 8192u
-#define CLI_DOC_STATES_ROOM (256u << 10u)
-#define CLI_DOC_INDEX_PLACES 16384u
-#define CLI_DOC_ROOM_SHARE 8ull
-#define CLI_DOC_NONE 0xffffffffu
-
-// the depths of pairs a name each, a deeper pair taking the name of its depth less as many
-#define CLI_DOC_DEPTHS 16u
 
 // A walker: a thread of its own walking one text at a time, what it runs, the line its steps' colors are written into,
 // taken once and emptied for each step, and whether it walks, under the lock
@@ -59,163 +37,6 @@ typedef struct
     VerbaLinea step;
     int walking;
 } CliBranchWalker;
-
-// the most walkers; where the colors go, whether walkers walk them out, and how many may walk at once, the machine's
-// processors but one, one at the fewest; the walkers, and past them the walk a caller takes on its own thread; and the
-// lock the colors are handed on under, taken before the texts' lock is given back, and they go in the order they were
-// put in
-#define CLI_DOC_WALKERS 8u
-static CliDocColored s_colored;
-static int s_threaded;
-static unsigned int s_walkers_most;
-static CliBranchWalker s_walkers[CLI_DOC_WALKERS + 1u];
-static CliLock s_handing = CLI_LOCK_INIT;
-
-// the hash of `length` bytes of `text`, FNV-1a over its bytes
-static unsigned int branch_state_hash(const char *text, unsigned long long length)
-{
-    unsigned int hash = 2166136261u;
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
-    {
-        hash = (hash ^ (unsigned char)text[at]) * 16777619u;
-    }
-    return hash;
-}
-
-// whether the state at the place `at` among the text's states is `length` bytes of `text`
-static int branch_state_is(const CliStoredText *one, unsigned int at, const char *text, unsigned long long length)
-{
-    return ((at + length) < one->state_used) && (one->state[at + length] == '\0') &&
-           (memor.cmp(&(MemoriaCfg){.src = one->state + at, .other = text, .bytes = length}) == 0);
-}
-
-// the state at the place `at` put at the first place of the index free from its hash's
-static void branch_index_put(CliStoredText *one, unsigned int at)
-{
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = one->state + at, .cap = CLI_CELLS_POOL});
-    unsigned int entry = branch_state_hash(one->state + at, length) & (one->state_indexed - 1u);
-    while (one->state_index[entry] != 0u)
-    {
-        entry = (entry + 1u) & (one->state_indexed - 1u);
-    }
-    one->state_index[entry] = at + 1u;
-}
-
-// the index taken at its most where it stands untaken: 1, or 0 where the cells cannot meet it or half of it holds
-// states
-static int branch_index_made(CliStoredText *one)
-{
-    if (one->state_indexed == 0u)
-    {
-        unsigned int *const cell =
-            g_cli_cells->persistent_buf_alloc(CLI_DOC_INDEX_PLACES * sizeof(*cell), &g_cli_editor_cells);
-        if (cell == NULL)
-        {
-            return 0;
-        }
-        memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = CLI_DOC_INDEX_PLACES * sizeof(*cell)});
-        one->state_index = cell;
-        one->state_indexed = CLI_DOC_INDEX_PLACES;
-    }
-    return (2u * (one->state_count + 1u)) <= one->state_indexed;
-}
-
-// the place of the state `text` among the text's states, found by its hash, the place found last tried first, and
-// written after them where it is not there: root's place where the cells cannot meet it, the text's colors refused
-static unsigned int branch_state(CliStoredText *one, const char *text)
-{
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    if ((one->state_count != 0u) && branch_state_is(one, one->state_last, text, length))
-    {
-        return one->state_last;
-    }
-    if (!branch_index_made(one))
-    {
-        one->refused = 1;
-        return CLI_DOC_ROOT;
-    }
-    for (unsigned int entry = branch_state_hash(text, length) & (one->state_indexed - 1u);
-         one->state_index[entry] != 0u; entry = (entry + 1u) & (one->state_indexed - 1u))
-    {
-        if (branch_state_is(one, one->state_index[entry] - 1u, text, length))
-        {
-            one->state_last = one->state_index[entry] - 1u;
-            return one->state_last;
-        }
-    }
-    const unsigned long long needed = (unsigned long long)one->state_used + length + 1ull;
-    if (one->state_room == 0u)
-    {
-        one->state = g_cli_cells->persistent_buf_alloc(CLI_DOC_STATES_ROOM, &g_cli_editor_cells);
-        one->state_room = (one->state != NULL) ? CLI_DOC_STATES_ROOM : 0u;
-    }
-    if (needed > one->state_room)
-    {
-        one->refused = 1;
-        return CLI_DOC_ROOT;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = one->state + one->state_used, .src = text, .bytes = length + 1ull});
-    const unsigned int at = one->state_used;
-    // the states take no more than their room
-    one->state_used = (unsigned int)needed;
-    branch_index_put(one, at);
-    one->state_count += 1u;
-    one->state_last = at;
-    return at;
-}
-
-// the line `line` of `lines` written as UTF-8 into `out`, a surrogate pair read as the one letter it makes
-static void branch_line_put(const CliLines *lines, unsigned int line, VerbaLinea *out)
-{
-    const unsigned short *const unit = lines->unit + lines->start[line];
-    const unsigned long long count = lines->length[line];
-    for (unsigned long long place = 0ull; place < count; place += 1ull)
-    {
-        unsigned int letter = unit[place];
-        const int paired = (letter >= 0xd800u) && (letter < 0xdc00u) && ((place + 1ull) < count) &&
-                           (unit[place + 1ull] >= 0xdc00u) && (unit[place + 1ull] < 0xe000u);
-        if (paired)
-        {
-            letter = 0x10000u + ((letter - 0xd800u) << 10u) + (unit[place + 1ull] - 0xdc00u);
-            place += 1ull;
-        }
-        cli_utf8_put(out, letter);
-    }
-}
-
-// the lines from `from` to `to` of `lines` written as UTF-8 into `text`, `room` bytes, each ended by a NUL and each
-// line's start put into `line`
-static void branch_lines_written(const CliLines *lines, unsigned int from, unsigned int to, char *text,
-                                 unsigned long long room, const char **line)
-{
-    VerbaLinea out = {text, room, 0ull};
-    for (unsigned int at = from; at < to; at += 1u)
-    {
-        line[at - from] = text + out.at;
-        branch_line_put(lines, at, &out);
-        mmgr_line_ch(&out, '\0');
-    }
-}
-
-// the lines from `first` to `end` of a text read whole, `lines`, measured: the line after the last that `bytes` of
-// their units reach, one at the least, into `read`, and the bytes they take as UTF-8, each unit written as three bytes
-// at the most and each line's NUL; under the lock
-static unsigned long long branch_lines_measured(const CliLines *lines, unsigned int first, unsigned int end,
-                                                unsigned long long bytes, unsigned int *read)
-{
-    unsigned long long room = 1ull;
-    unsigned long long spent = 0ull;
-    unsigned int to = first;
-    while ((to < end) && ((to == first) || (bytes == CLI_DOC_ALL_BYTES) || (spent < bytes)))
-    {
-        room += (3ull * lines->length[to]) + 1ull;
-        spent += lines->length[to] + 1ull;
-        to += 1u;
-    }
-    *read = to;
-    return room;
-}
-
 // The runs of runs of lines handed on as they are written: whether a `{"from", "runs"}` is begun, how many lines' runs
 // it holds, whether a run of lines handed on with it was written before it, where they are written, the columns of
 // each line whose runs are handed on, 0 for every one, how many names the grammar's tokens take, the place of the
@@ -240,13 +61,8 @@ typedef struct
     unsigned int hand_to;
     unsigned int high;
 } CliBranchRange;
-
-// the mark a line's state carries the place of the scope it stands in after, past the colorer's own state, the scope
-// written among the text's states once; the most names a scope holds and the bytes their texts take
-#define CLI_DOC_SCOPE_MARK '\x1e'
 #define CLI_DOC_SCOPE_NAMES 128u
 #define CLI_DOC_SCOPE_TEXT 4096u
-
 // The scope a line stands in as the walk reads it: the depth of the regions open, the depth of the pairs open that
 // count it, and the names declared in the regions that a use of the name is named as, each its text's place among the
 // texts and its bytes, the name its declaration's run takes, the depth of the region it belongs to, and whether it
@@ -267,7 +83,6 @@ typedef struct
     unsigned int place;
     int moved;
 } CliBranchScope;
-
 // A bundle of lines as it is colored with no lock taken: the work it is written into; the scope the line colored next
 // stands in, and whether the place among the text's states of the scope the line before it ended in is known; the names
 // the grammar's tokens take, and the roles of each, read as the lines were claimed, `roles_count` of them; the words of
@@ -291,6 +106,263 @@ typedef struct
     unsigned long long used;
     int refused;
 } CliBranchFinding;
+// root's place among a colored text's states, the first written; the most lines a step of the walk colors in a run, and
+// again after it, and the most bytes of lines it colors, the last line it colors maybe past them, and its colors are
+// handed on in steps, and the bytes of a coloring that colors every line asked; the lines colored at once where a
+// coloring stops at the first entered as before, and where it does not, CLI_DOC_STEP where its bytes reach no further;
+// the room a step's colors are written in, a state's longest text, the room a text's states hold past them and the
+// places of its index they are found by, the bytes a coloring's room is written in, the share of what a text's room for
+// its states or its runs is taken for that it holds past it, and no line
+#define CLI_DOC_ROOT 0u
+#define CLI_DOC_STEP 256u
+#define CLI_DOC_STEP_BYTES 16384ull
+#define CLI_DOC_ALL_BYTES 0xffffffffffffffffull
+#define CLI_DOC_BATCH 64u
+#define CLI_DOC_RUN 4096u
+#define CLI_DOC_COLORS_ROOM (1ull << 20u)
+#define CLI_DOC_STATE 8192u
+#define CLI_DOC_STATES_ROOM (256u << 10u)
+#define CLI_DOC_INDEX_PLACES 16384u
+#define CLI_DOC_ROOM_SHARE 8ull
+#define CLI_DOC_NONE 0xffffffffu
+
+// the depths of pairs a name each, a deeper pair taking the name of its depth less as many
+#define CLI_DOC_DEPTHS 16u
+
+// the most walkers; where the colors go, whether walkers walk them out, and how many may walk at once, the machine's
+// processors but one, one at the fewest; the walkers, and past them the walk a caller takes on its own thread; and the
+// lock the colors are handed on under, taken before the texts' lock is given back, and they go in the order they were
+// put in
+#define CLI_DOC_WALKERS 8u
+static CliDocColored s_colored;
+static int s_threaded;
+static unsigned int s_walkers_most;
+static CliBranchWalker s_walkers[CLI_DOC_WALKERS + 1u];
+static CliLock s_handing = CLI_LOCK_INIT;
+
+typedef struct
+{
+    const char *text;
+    unsigned long long length;
+    const CliStoredText *one_read;
+    unsigned int at;
+    CliStoredText *one;
+    const CliLines *lines;
+    unsigned int line;
+    VerbaLinea *out;
+    unsigned int from;
+    unsigned int to;
+    char *text_out;
+    unsigned long long room;
+    const char **line_letters;
+    unsigned int first;
+    unsigned int end;
+    unsigned long long bytes;
+    unsigned int *read;
+    CliBranchRange *range;
+    const CliLeaves *leaves;
+    unsigned long long more;
+    const CliBranchFinding *finding;
+    unsigned int name;
+    CliBranchScope *scope;
+    unsigned int depth;
+    int waiting;
+    unsigned int size;
+    unsigned int named;
+    unsigned int belongs;
+    int waits;
+    const CliBranchScope *scope_read;
+    unsigned long long size_u64;
+    const char **from_letters;
+    char after;
+    unsigned int place;
+    CliBranchFinding *finding_out;
+    int stopping;
+    unsigned int *entering;
+    int *stopped;
+    int yielding;
+    int down;
+    unsigned int low;
+    unsigned int high;
+    unsigned int *first_pointer;
+    unsigned int *end_pointer;
+    unsigned int *low_pointer;
+    unsigned int *high_pointer;
+    int *any_pointer;
+    unsigned long long columns;
+    int onward;
+    int any;
+    int *handed;
+    unsigned int opened;
+    unsigned int close;
+    unsigned int regions;
+    unsigned int filled;
+    CliFoldEach each;
+    void *context;
+    VerbaLinea *colors;
+    CliBranchWalker *walker;
+    int own;
+    unsigned int passed_from;
+    unsigned int passed_to;
+    int made;
+} DocumentBranchCtx;
+// the hash of `length` bytes of `text`, FNV-1a over its bytes
+EMBED_INLINE unsigned int branch_state_hash(const DocumentBranchCtx *args)
+{
+    unsigned int hash = 2166136261u;
+    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
+    {
+        hash = (hash ^ (unsigned char)args->text[at]) * 16777619u;
+    }
+    return hash;
+}
+
+// whether the state at the place `at` among the text's states is `length` bytes of `text`
+EMBED_INLINE int branch_state_is(const DocumentBranchCtx *args)
+{
+    return ((args->at + args->length) < args->one_read->state_used) &&
+           (args->one_read->state[args->at + args->length] == '\0') &&
+           (memor.cmp(&(MemoriaCfg){
+                .src = args->one_read->state + args->at, .other = args->text, .bytes = args->length}) == 0);
+}
+
+// the state at the place `at` put at the first place of the index free from its hash's
+EMBED_INLINE void branch_index_put(const DocumentBranchCtx *args)
+{
+    const unsigned long long length =
+        cellul.len(&(CatenaFinitaCfg){.src = args->one->state + args->at, .cap = CLI_CELLS_POOL});
+    unsigned int entry =
+        EMBED_CALL(branch_state_hash, DocumentBranchCtx, .text = args->one->state + args->at, .length = length) &
+        (args->one->state_indexed - 1u);
+    while (args->one->state_index[entry] != 0u)
+    {
+        entry = (entry + 1u) & (args->one->state_indexed - 1u);
+    }
+    args->one->state_index[entry] = args->at + 1u;
+}
+
+// the index taken at its most where it stands untaken: 1, or 0 where the cells cannot meet it or half of it holds
+// states
+EMBED_INLINE int branch_index_init(const DocumentBranchCtx *args)
+{
+    if (args->one->state_indexed == 0u)
+    {
+        unsigned int *const cell =
+            g_cli_cells->persistent_buf_alloc(CLI_DOC_INDEX_PLACES * sizeof(*cell), &g_cli_editor_cells);
+        if (cell == NULL)
+        {
+            return 0;
+        }
+        memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = CLI_DOC_INDEX_PLACES * sizeof(*cell)});
+        args->one->state_index = cell;
+        args->one->state_indexed = CLI_DOC_INDEX_PLACES;
+    }
+    return (2u * (args->one->state_count + 1u)) <= args->one->state_indexed;
+}
+
+// the place of the state `text` among the text's states, found by its hash, the place found last tried first, and
+// written after them where it is not there: root's place where the cells cannot meet it, the text's colors refused
+static unsigned int branch_state(const DocumentBranchCtx *args)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
+    if ((args->one->state_count != 0u) && EMBED_CALL(branch_state_is, DocumentBranchCtx, .one_read = args->one,
+                                                     .at = args->one->state_last, .text = args->text, .length = length))
+    {
+        return args->one->state_last;
+    }
+    if (!branch_index_init(args))
+    {
+        args->one->refused = 1;
+        return CLI_DOC_ROOT;
+    }
+    for (unsigned int entry = EMBED_CALL(branch_state_hash, DocumentBranchCtx, .text = args->text, .length = length) &
+                              (args->one->state_indexed - 1u);
+         args->one->state_index[entry] != 0u; entry = (entry + 1u) & (args->one->state_indexed - 1u))
+    {
+        if (EMBED_CALL(branch_state_is, DocumentBranchCtx, .one_read = args->one,
+                       .at = args->one->state_index[entry] - 1u, .text = args->text, .length = length))
+        {
+            args->one->state_last = args->one->state_index[entry] - 1u;
+            return args->one->state_last;
+        }
+    }
+    const unsigned long long needed = (unsigned long long)args->one->state_used + length + 1ull;
+    if (args->one->state_room == 0u)
+    {
+        args->one->state = g_cli_cells->persistent_buf_alloc(CLI_DOC_STATES_ROOM, &g_cli_editor_cells);
+        args->one->state_room = (args->one->state != NULL) ? CLI_DOC_STATES_ROOM : 0u;
+    }
+    if (needed > args->one->state_room)
+    {
+        args->one->refused = 1;
+        return CLI_DOC_ROOT;
+    }
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->one->state + args->one->state_used, .src = args->text, .bytes = length + 1ull});
+    const unsigned int at = args->one->state_used;
+    // the states take no more than their room
+    args->one->state_used = (unsigned int)needed;
+    EMBED_CALL(branch_index_put, DocumentBranchCtx, .one = args->one, .at = at);
+    args->one->state_count += 1u;
+    args->one->state_last = at;
+    return at;
+}
+
+// the line `line` of `lines` written as UTF-8 into `out`, a surrogate pair read as the one letter it makes
+EMBED_INLINE void branch_line_put(const DocumentBranchCtx *args)
+{
+    unsigned int line = args->line;
+    const unsigned short *const unit = args->lines->unit + args->lines->start[line];
+    const unsigned long long count = args->lines->length[line];
+    for (unsigned long long place = 0ull; place < count; place += 1ull)
+    {
+        unsigned int letter = unit[place];
+        const int paired = (letter >= 0xd800u) && (letter < 0xdc00u) && ((place + 1ull) < count) &&
+                           (unit[place + 1ull] >= 0xdc00u) && (unit[place + 1ull] < 0xe000u);
+        if (paired)
+        {
+            letter = 0x10000u + ((letter - 0xd800u) << 10u) + (unit[place + 1ull] - 0xdc00u);
+            place += 1ull;
+        }
+        EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = args->out, .letter = letter);
+    }
+}
+
+// the lines from `from` to `to` of `lines` written as UTF-8 into `text`, `room` bytes, each ended by a NUL and each
+// line's start put into `line`
+EMBED_INLINE void branch_lines_write(const DocumentBranchCtx *args)
+{
+    VerbaLinea out = {args->text_out, args->room, 0ull};
+    for (unsigned int at = args->from; at < args->to; at += 1u)
+    {
+        args->line_letters[at - args->from] = args->text_out + out.at;
+        EMBED_CALL(branch_line_put, DocumentBranchCtx, .lines = args->lines, .line = at, .out = &out);
+        mmgr_line_ch(&out, '\0');
+    }
+}
+
+// the lines from `first` to `end` of a text read whole, `lines`, measured: the line after the last that `bytes` of
+// their units reach, one at the least, into `read`, and the bytes they take as UTF-8, each unit written as three bytes
+// at the most and each line's NUL; under the lock
+EMBED_INLINE unsigned long long branch_lines_measure(const DocumentBranchCtx *args)
+{
+    unsigned int *read = args->read;
+    unsigned long long room = 1ull;
+    unsigned long long spent = 0ull;
+    unsigned int to = args->first;
+    while ((to < args->end) && ((to == args->first) || (args->bytes == CLI_DOC_ALL_BYTES) || (spent < args->bytes)))
+    {
+        room += (3ull * args->lines->length[to]) + 1ull;
+        spent += args->lines->length[to] + 1ull;
+        to += 1u;
+    }
+    *read = to;
+    return room;
+}
+
+// the mark a line's state carries the place of the scope it stands in after, past the colorer's own state, the scope
+// written among the text's states once; the most names a scope holds and the bytes their texts take
+#define CLI_DOC_SCOPE_MARK '\x1e'
 
 // a line's scope the one the line before it ended in, the words of a record before its runs, and the words a line's
 // state and scope are given room for, those of a line past them taken from the room of the lines after it
@@ -299,61 +371,62 @@ typedef struct
 #define CLI_DOC_FOUND_HEAD 4u
 
 // a run of lines handed on in `range` ended where one is begun
-static void branch_range_ended(CliBranchRange *range)
+EMBED_INLINE void branch_range_end(const DocumentBranchCtx *args)
 {
-    if (range->begun)
+    if (args->range->begun)
     {
-        mmgr_line_put(range->out, "]}");
-        range->begun = 0;
+        mmgr_line_put(args->range->out, "]}");
+        args->range->begun = 0;
     }
 }
 
 // the runs of the line `line` written into the run of lines handed on, `[column, name, column, name, ...]`, those that
-// start at or past the range's columns left out where it names them, the first kept; a run of lines begun at it as
+// start at or past the range's columns left out where it names them, the first saved; a run of lines begun at it as
 // `{"from", "runs"}` where it is the first or the line before it was not the last written, the one before ended
-static void branch_runs_put(CliBranchRange *range, unsigned int line, const CliLeaves *leaves)
+EMBED_INLINE void branch_runs_put(const DocumentBranchCtx *args)
 {
+    const CliLeaves *leaves = args->leaves;
     CliLeaves shown = *leaves;
-    while ((range->columns != 0ull) && (shown.runs > 1u) && (shown.col[shown.runs - 1u] >= range->columns))
+    while ((args->range->columns != 0ull) && (shown.runs > 1u) && (shown.col[shown.runs - 1u] >= args->range->columns))
     {
         shown.runs -= 1u;
     }
-    VerbaLinea *const out = range->out;
-    if (range->begun && (line != range->next))
+    VerbaLinea *const out = args->range->out;
+    if (args->range->begun && (args->line != args->range->next))
     {
         mmgr_line_put(out, "]}");
-        range->begun = 0;
+        args->range->begun = 0;
     }
-    if (!range->begun)
+    if (!args->range->begun)
     {
-        mmgr_line_put(out, *range->any ? ",{\"from\":" : "{\"from\":");
-        mmgr_line_decimal(out, line, 1u);
+        mmgr_line_put(out, *args->range->any ? ",{\"from\":" : "{\"from\":");
+        mmgr_line_decimal(out, args->line, 1u);
         mmgr_line_put(out, ",\"runs\":[");
-        range->begun = 1;
-        range->written = 0u;
-        *range->any = 1;
+        args->range->begun = 1;
+        args->range->written = 0u;
+        *args->range->any = 1;
     }
-    mmgr_line_put(out, (range->written != 0u) ? "," : "");
-    cli_highlight_runs_written(&shown, out);
-    range->written += 1u;
-    range->next = line + 1u;
+    mmgr_line_put(out, (args->range->written != 0u) ? "," : "");
+    EMBED_CALL(cli_highlight.runs_write, CliHighlightCfg, .leaves = &shown, .out = out);
+    args->range->written += 1u;
+    args->range->next = args->line + 1u;
 }
 
 // the words a runs' room holds past the runs it is taken for, as many again as their share CLI_DOC_ROOM_SHARE holds
 #define CLI_DOC_RUNS_SPARE 4096ull
 
-// the words of the runs the lines of `one` keep, and a room the cells give them taken afresh, those runs moved into
+// the words of the runs the lines of `one` save, and a room the cells give them taken afresh, those runs moved into
 // it in the order of their lines, and it holds them with `more` words after them and a share of them past those: 1, or
 // 0 where the cells cannot meet it, the room as it was
-static int branch_runs_roomed(CliStoredText *one, unsigned long long more)
+EMBED_INLINE int branch_runs_room(const DocumentBranchCtx *args)
 {
-    CliLines *const lines = &one->lines;
-    unsigned long long kept = 0ull;
+    CliLines *const lines = &args->one->lines;
+    unsigned long long saved = 0ull;
     for (unsigned int line = 0u; line < lines->lines; line += 1u)
     {
-        kept += (lines->runs[line] != CLI_DOC_NO_RUNS) ? (1ull + (2ull * one->run[lines->runs[line]])) : 0ull;
+        saved += (lines->runs[line] != CLI_DOC_NO_RUNS) ? (1ull + (2ull * args->one->run[lines->runs[line]])) : 0ull;
     }
-    const unsigned long long wanted = kept + more;
+    const unsigned long long wanted = saved + args->more;
     const unsigned long long room = wanted + (wanted / CLI_DOC_ROOM_SHARE) + CLI_DOC_RUNS_SPARE;
     unsigned int *const moved =
         (room <= 0xffffffffull) ? g_cli_cells->persistent_buf_alloc(room * sizeof(*moved), &g_cli_editor_cells) : NULL;
@@ -367,131 +440,146 @@ static int branch_runs_roomed(CliStoredText *one, unsigned long long more)
         const unsigned int at = lines->runs[line];
         if (at != CLI_DOC_NO_RUNS)
         {
-            // a line's runs lie within the words kept, which an unsigned int counts
-            const unsigned int words = 1u + (2u * one->run[at]);
-            memor.cpy(&(MemoriaCfg){.dst = moved + used, .src = one->run + at, .bytes = words * sizeof(*moved)});
+            // a line's runs lie within the words saved, which an unsigned int counts
+            const unsigned int words = 1u + (2u * args->one->run[at]);
+            memor.cpy(&(MemoriaCfg){.dst = moved + used, .src = args->one->run + at, .bytes = words * sizeof(*moved)});
             lines->runs[line] = used;
             used += words;
         }
     }
-    g_cli_cells->persistent_buf_release(one->run, &g_cli_editor_cells);
-    one->run = moved;
+    g_cli_cells->persistent_buf_release(args->one->run, &g_cli_editor_cells);
+    args->one->run = moved;
     // a room checked above to be no more than an unsigned int counts
-    one->run_room = (unsigned int)room;
-    one->run_used = used;
+    args->one->run_room = (unsigned int)room;
+    args->one->run_used = used;
     return 1;
 }
 
-// the runs of `leaves`, the line `line` of `one` as the walk named them, kept in place of those it kept, none where the
-// cells cannot meet them
-static void branch_runs_kept(CliStoredText *one, unsigned int line, const CliLeaves *leaves)
+// the runs of `leaves`, the line `line` of `one` as the walk named them, saved in place of those it saved, none where
+// the cells cannot meet them
+EMBED_INLINE void branch_runs_save(const DocumentBranchCtx *args)
 {
-    CliLines *const lines = &one->lines;
-    lines->runs[line] = CLI_DOC_NO_RUNS;
-    const unsigned long long words = 1ull + (2ull * leaves->runs);
-    if (((one->run_used + words) > one->run_room) && !branch_runs_roomed(one, words))
+    CliLines *const lines = &args->one->lines;
+    lines->runs[args->line] = CLI_DOC_NO_RUNS;
+    const unsigned long long words = 1ull + (2ull * args->leaves->runs);
+    if (((args->one->run_used + words) > args->one->run_room) &&
+        !EMBED_CALL(branch_runs_room, DocumentBranchCtx, .one = args->one, .more = words))
     {
         return;
     }
-    unsigned int *const record = one->run + one->run_used;
-    record[0] = leaves->runs;
-    memor.cpy(&(MemoriaCfg){.dst = record + 1, .src = leaves->col, .bytes = leaves->runs * sizeof(*record)});
+    unsigned int *const record = args->one->run + args->one->run_used;
+    record[0] = args->leaves->runs;
     memor.cpy(
-        &(MemoriaCfg){.dst = record + 1 + leaves->runs, .src = leaves->name, .bytes = leaves->runs * sizeof(*record)});
-    lines->runs[line] = one->run_used;
+        &(MemoriaCfg){.dst = record + 1, .src = args->leaves->col, .bytes = args->leaves->runs * sizeof(*record)});
+    memor.cpy(&(MemoriaCfg){.dst = record + 1 + args->leaves->runs,
+                            .src = args->leaves->name,
+                            .bytes = args->leaves->runs * sizeof(*record)});
+    lines->runs[args->line] = args->one->run_used;
     // the words written lie within the room, which an unsigned int counts
-    one->run_used += (unsigned int)words;
+    args->one->run_used += (unsigned int)words;
 }
 
-// whether the line `line` of `one` keeps runs it may hand on as they are: it is colored, keeps runs, and was entered
+// whether the line `line` of `one` saves runs it may hand on as they are: it is colored, saves runs, and was entered
 // in the state the line above it ends in, or from root where that line is not colored
-static int branch_runs_standing(const CliStoredText *one, unsigned int line)
+EMBED_INLINE int branch_runs_standing(const DocumentBranchCtx *args)
 {
-    const CliLines *const lines = &one->lines;
-    const unsigned int above = (line != 0u) ? lines->ended[line - 1u] : CLI_DOC_UNCOLORED;
-    return (lines->begun[line] != CLI_DOC_UNCOLORED) && (lines->runs[line] != CLI_DOC_NO_RUNS) &&
-           ((above == CLI_DOC_UNCOLORED) ? (lines->begun[line] == CLI_DOC_ROOT) : (lines->begun[line] == above));
+    const CliLines *const lines = &args->one_read->lines;
+    const unsigned int above = (args->line != 0u) ? lines->ended[args->line - 1u] : CLI_DOC_UNCOLORED;
+    return (lines->begun[args->line] != CLI_DOC_UNCOLORED) && (lines->runs[args->line] != CLI_DOC_NO_RUNS) &&
+           ((above == CLI_DOC_UNCOLORED) ? (lines->begun[args->line] == CLI_DOC_ROOT)
+                                         : (lines->begun[args->line] == above));
 }
 
-// the runs the line `line` of `one` keeps written through `range`
-static void branch_runs_handed(const CliStoredText *one, unsigned int line, CliBranchRange *range)
+// the runs the line `line` of `one` saves written through `range`
+EMBED_INLINE void branch_runs_dispatch(const DocumentBranchCtx *args)
 {
-    const unsigned int *const record = one->run + one->lines.runs[line];
-    const CliLeaves kept = {NULL, record[0], record + 1, record + 1 + record[0], NULL, NULL, NULL, 0u};
-    branch_runs_put(range, line, &kept);
+    const unsigned int *const record = args->one_read->run + args->one_read->lines.runs[args->line];
+    const CliLeaves saved = {NULL, record[0], record + 1, record + 1 + record[0], NULL, NULL, NULL, 0u};
+    EMBED_CALL(branch_runs_put, DocumentBranchCtx, .range = args->range, .line = args->line, .leaves = &saved);
 }
 
 // the roles that count the depth of a pair
 #define CLI_DOC_PAIR_ROLES (CLI_ROLE_DEPTH_OPENS | CLI_ROLE_DEPTH_CLOSES)
 
-// one name of the grammar of the text at `context` its roles read and kept among the text's roles at its place
-static void branch_role_read(void *context, unsigned int place, const char *name)
+// one name of the grammar of the text at `context` its roles read and saved among the text's roles at its place
+static void branch_role_read(const CliNameEachCfg *args)
 {
-    CliStoredText *const one = (CliStoredText *)context;
-    if (place < one->roles_room)
+    const char *name = args->name;
+    CliStoredText *const one = (CliStoredText *)args->context;
+    if (args->place < one->roles_room)
     {
-        one->roles[place] = CLI_DOC_ROLES_KNOWN | cli_symbols_name_roles(name);
+        one->roles[args->place] =
+            CLI_DOC_ROLES_KNOWN | EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = name);
     }
 }
 
-// every name of the grammar of `one` its roles read off its segments and kept among the text's roles by its place,
+// every name of the grammar of `one` its roles read off its segments and saved among the text's roles by its place,
 // and above them one more than how many names before it count the depth of a pair, once for the grammar, and a
 // coloring copies them as it claims its lines; under the lock
-static void branch_roles_read(CliStoredText *one)
+EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
 {
-    const unsigned int names = (one->names != 0u) ? one->names : 1u;
-    if (one->roles_whole || (names >= CLI_DOC_NONE))
+    const unsigned int names = (args->one->names != 0u) ? args->one->names : 1u;
+    if (args->one->roles_whole || (names >= CLI_DOC_NONE))
     {
         return;
     }
-    if (names > one->roles_room)
+    if (names > args->one->roles_room)
     {
         // the roles are read anew over a cell of the names counted
-        g_cli_cells->persistent_buf_release(one->roles, &g_cli_editor_cells);
-        one->roles =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)names * sizeof(*one->roles), &g_cli_editor_cells);
-        if (one->roles == NULL)
+        g_cli_cells->persistent_buf_release(args->one->roles, &g_cli_editor_cells);
+        args->one->roles = g_cli_cells->persistent_buf_alloc((unsigned long long)names * sizeof(*args->one->roles),
+                                                             &g_cli_editor_cells);
+        if (args->one->roles == NULL)
         {
-            one->roles_room = 0u;
+            args->one->roles_room = 0u;
             return;
         }
-        one->roles_room = names;
+        args->one->roles_room = names;
     }
-    memor.set(
-        &(MemoriaCfg){.dst = one->roles, .val = 0, .bytes = (unsigned long long)one->roles_room * sizeof(*one->roles)});
-    (void)cli_highlight_names_each(one->grammar, branch_role_read, one);
+    memor.set(&(MemoriaCfg){.dst = args->one->roles,
+                            .val = 0,
+                            .bytes = (unsigned long long)args->one->roles_room * sizeof(*args->one->roles)});
+    (void)EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = args->one->grammar,
+                     .each_name_each = branch_role_read, .context = args->one);
     unsigned int rank = 0u;
-    for (unsigned int place = 0u; place < one->roles_room; place += 1u)
+    for (unsigned int place = 0u; place < args->one->roles_room; place += 1u)
     {
-        // the rank kept plus 1, a name's place among no more than CLI_DOC_RANKS
-        one->roles[place] |= (rank < CLI_DOC_RANKS) ? ((rank + 1u) << CLI_DOC_RANK_AT) : 0u;
-        rank += ((one->roles[place] & CLI_DOC_PAIR_ROLES) != 0u) ? 1u : 0u;
+        // the rank saved plus 1, a name's place among no more than CLI_DOC_RANKS
+        args->one->roles[place] |= (rank < CLI_DOC_RANKS) ? ((rank + 1u) << CLI_DOC_RANK_AT) : 0u;
+        rank += ((args->one->roles[place] & CLI_DOC_PAIR_ROLES) != 0u) ? 1u : 0u;
     }
-    one->roles_whole = 1;
+    args->one->roles_whole = 1;
 }
 
-// the roles the name at `name` among the names of `leaves` gives a run: those the text kept as the bundle's lines were
+// the roles the name at `name` among the names of `leaves` gives a run: those the text saved as the bundle's lines were
 // claimed, else read off its segments
-static unsigned int branch_roles(const CliBranchFinding *finding, const CliLeaves *leaves, unsigned int name)
+EMBED_INLINE unsigned int branch_roles(const DocumentBranchCtx *args)
 {
-    return ((name < finding->roles_count) && ((finding->roles[name] & CLI_DOC_ROLES_KNOWN) != 0u))
-               ? (finding->roles[name] & (CLI_DOC_ROLES_KNOWN - 1u))
-               : cli_symbols_name_roles(leaves->text + leaves->name_at[name]);
+    unsigned int name = args->name;
+    return ((name < args->finding->roles_count) && ((args->finding->roles[name] & CLI_DOC_ROLES_KNOWN) != 0u))
+               ? (args->finding->roles[name] & (CLI_DOC_ROLES_KNOWN - 1u))
+               : EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg,
+                            .name = args->leaves->text + args->leaves->name_at[name]);
 }
 
-// how many of the names of `leaves` before the name at `name` count the depth of a pair: as the text kept it as the
+// how many of the names of `leaves` before the name at `name` count the depth of a pair: as the text saved it as the
 // bundle's lines were claimed, else counted
-static unsigned int branch_depth_rank(const CliBranchFinding *finding, const CliLeaves *leaves, unsigned int name)
+EMBED_INLINE unsigned int branch_depth_rank(const DocumentBranchCtx *args)
 {
-    const unsigned int kept = (name < finding->roles_count) ? (finding->roles[name] >> CLI_DOC_RANK_AT) : 0u;
-    if (kept != 0u)
+    const unsigned int saved =
+        (args->name < args->finding->roles_count) ? (args->finding->roles[args->name] >> CLI_DOC_RANK_AT) : 0u;
+    if (saved != 0u)
     {
-        return kept - 1u;
+        return saved - 1u;
     }
     unsigned int rank = 0u;
-    for (unsigned int before = 0u; before < name; before += 1u)
+    for (unsigned int before = 0u; before < args->name; before += 1u)
     {
-        rank += ((branch_roles(finding, leaves, before) & CLI_DOC_PAIR_ROLES) != 0u) ? 1u : 0u;
+        rank += ((EMBED_CALL(branch_roles, DocumentBranchCtx, .finding = args->finding, .leaves = args->leaves,
+                             .name = before) &
+                  CLI_DOC_PAIR_ROLES) != 0u)
+                    ? 1u
+                    : 0u;
     }
     return rank;
 }
@@ -499,18 +587,19 @@ static unsigned int branch_depth_rank(const CliBranchFinding *finding, const Cli
 // the regions of one line's leaves recorded as a line's regions are: each run in turn, a region it opens left open
 // until a run after it on the line closes it, and one it closes that no run before it on the line opened counted among
 // those opened above
-static unsigned int branch_regions_of(const CliBranchFinding *finding, const CliLeaves *leaves)
+EMBED_INLINE unsigned int branch_regions_get(const DocumentBranchCtx *args)
 {
     unsigned int opens = 0u;
     unsigned int closes = 0u;
     unsigned int unled = 0u;
     unsigned int found = CLI_DOC_REGION_CLOSERS;
-    for (unsigned int run = 0u; run < leaves->runs; run += 1u)
+    for (unsigned int run = 0u; run < args->leaves->runs; run += 1u)
     {
-        const unsigned int name = leaves->name[run];
-        const unsigned int end = ((run + 1u) < leaves->runs) ? leaves->col[run + 1u] : leaves->end;
-        const int mark = end <= leaves->col[run];
-        const unsigned int roles = branch_roles(finding, leaves, name);
+        const unsigned int name = args->leaves->name[run];
+        const unsigned int end = ((run + 1u) < args->leaves->runs) ? args->leaves->col[run + 1u] : args->leaves->end;
+        const int mark = end <= args->leaves->col[run];
+        const unsigned int roles =
+            EMBED_CALL(branch_roles, DocumentBranchCtx, .finding = args->finding, .leaves = args->leaves, .name = name);
         if ((roles & CLI_ROLE_REGION_OPENS) != 0u)
         {
             opens += (opens < CLI_DOC_REGION_COUNT) ? 1u : 0u;
@@ -546,19 +635,20 @@ typedef struct
 
 // one name of a grammar written, or where the names' depths are written, written once for each depth where it counts
 // the depth of a pair
-static void branch_name_written(void *context, unsigned int place, const char *name)
+static void branch_name_write(const CliNameEachCfg *args)
 {
-    (void)place;
-    CliBranchNames *const names = (CliBranchNames *)context;
+    const char *name = args->name;
+    CliBranchNames *const names = (CliBranchNames *)args->context;
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (!names->depths)
     {
         mmgr_line_put(names->out, (names->written != 0u) ? "," : "");
-        cli_json_quoted(names->out, name, size);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = names->out, .text = name,
+                   .length = size);
         names->written += 1u;
         return;
     }
-    if ((cli_symbols_name_roles(name) & CLI_DOC_PAIR_ROLES) == 0u)
+    if ((EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = name) & CLI_DOC_PAIR_ROLES) == 0u)
     {
         return;
     }
@@ -571,91 +661,95 @@ static void branch_name_written(void *context, unsigned int place, const char *n
         mmgr_line_decimal(&text, depth, 1u);
         const unsigned long long length = mmgr_line_finish(&text);
         mmgr_line_ch(names->out, ',');
-        cli_json_quoted(names->out, deep, length);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = names->out, .text = deep,
+                   .length = length);
     }
 }
 
 // one name of a grammar passed over, as its names are counted
-static void branch_name_passed(void *context, unsigned int place, const char *name)
+static void branch_name_pass(const CliNameEachCfg *args)
 {
-    (void)context;
-    (void)place;
-    (void)name;
+    (void)args;
 }
 
-void cli_document_names_written(const char *grammar, VerbaLinea *out)
+void cli_document_names_write(const CliDocumentOutGrammarCfg *args)
 {
-    CliBranchNames names = {out, 0, 0u};
-    mmgr_line_ch(out, '[');
-    if ((grammar[0] == '\0') || (cli_highlight_names_each(grammar, branch_name_written, &names) == 0u))
+    CliBranchNames names = {args->out, 0, 0u};
+    mmgr_line_ch(args->out, '[');
+    if ((args->grammar[0] == '\0') ||
+        (EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = args->grammar,
+                    .each_name_each = branch_name_write, .context = &names) == 0u))
     {
-        mmgr_line_put(out, "\"\"]");
+        mmgr_line_put(args->out, "\"\"]");
         return;
     }
     names.depths = 1;
-    (void)cli_highlight_names_each(grammar, branch_name_written, &names);
-    mmgr_line_ch(out, ']');
+    (void)EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = args->grammar,
+                     .each_name_each = branch_name_write, .context = &names);
+    mmgr_line_ch(args->out, ']');
 }
 
-// the names of `scope` kept only where the region each belongs to is at most `depth` deep and, where `waiting` is 1,
-// none waits for its region to open, the texts of those kept moved down over those let go
-static void branch_scope_left(CliBranchScope *scope, unsigned int depth, int waiting)
+// the names of `scope` saved only where the region each belongs to is at most `depth` deep and, where `waiting` is 1,
+// none waits for its region to open, the texts of those saved moved down over those let go
+EMBED_INLINE void branch_scope_leave(const DocumentBranchCtx *args)
 {
-    unsigned int kept = 0u;
+    unsigned int saved = 0u;
     unsigned int used = 0u;
-    for (unsigned int at = 0u; at < scope->count; at += 1u)
+    for (unsigned int at = 0u; at < args->scope->count; at += 1u)
     {
-        if ((scope->belongs[at] > depth) || (waiting && (scope->waits[at] != 0u)))
+        if ((args->scope->belongs[at] > args->depth) || (args->waiting && (args->scope->waits[at] != 0u)))
         {
             continue;
         }
-        memor.move_down(&(MemoriaCfg){
-            .dst = scope->text + used, .src = scope->text + scope->text_at[at], .bytes = scope->size[at]});
-        scope->text_at[kept] = used;
-        scope->size[kept] = scope->size[at];
-        scope->named[kept] = scope->named[at];
-        scope->belongs[kept] = scope->belongs[at];
-        scope->waits[kept] = scope->waits[at];
-        used += scope->size[kept];
-        kept += 1u;
+        memor.move_down(&(MemoriaCfg){.dst = args->scope->text + used,
+                                      .src = args->scope->text + args->scope->text_at[at],
+                                      .bytes = args->scope->size[at]});
+        args->scope->text_at[saved] = used;
+        args->scope->size[saved] = args->scope->size[at];
+        args->scope->named[saved] = args->scope->named[at];
+        args->scope->belongs[saved] = args->scope->belongs[at];
+        args->scope->waits[saved] = args->scope->waits[at];
+        used += args->scope->size[saved];
+        saved += 1u;
     }
-    scope->moved = scope->moved || (kept != scope->count);
-    scope->count = kept;
-    scope->used = used;
+    args->scope->moved = args->scope->moved || (saved != args->scope->count);
+    args->scope->count = saved;
+    args->scope->used = used;
 }
 
 // `size` bytes of `text` declared in `scope`, a use of it named `named`, belonging to the region `belongs` deep and
 // waiting for it to open where `waits` is 1; passed over where the scope holds no more
-static void branch_scope_put(CliBranchScope *scope, const char *text, unsigned int size, unsigned int named,
-                             unsigned int belongs, int waits)
+EMBED_INLINE void branch_scope_put(const DocumentBranchCtx *args)
 {
-    if ((scope->count == CLI_DOC_SCOPE_NAMES) || ((scope->used + size) > CLI_DOC_SCOPE_TEXT))
+    if ((args->scope->count == CLI_DOC_SCOPE_NAMES) || ((args->scope->used + args->size) > CLI_DOC_SCOPE_TEXT))
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = scope->text + scope->used, .src = text, .bytes = size});
-    scope->text_at[scope->count] = scope->used;
-    scope->size[scope->count] = size;
-    scope->named[scope->count] = named;
-    scope->belongs[scope->count] = belongs;
+    memor.cpy(&(MemoriaCfg){.dst = args->scope->text + args->scope->used, .src = args->text, .bytes = args->size});
+    args->scope->text_at[args->scope->count] = args->scope->used;
+    args->scope->size[args->scope->count] = args->size;
+    args->scope->named[args->scope->count] = args->named;
+    args->scope->belongs[args->scope->count] = args->belongs;
     // waiting is 0 or 1
-    scope->waits[scope->count] = (unsigned char)waits;
-    scope->used += size;
-    scope->count += 1u;
-    scope->moved = 1;
+    args->scope->waits[args->scope->count] = (unsigned char)args->waits;
+    args->scope->used += args->size;
+    args->scope->count += 1u;
+    args->scope->moved = 1;
 }
 
 // the name a use of `size` bytes of `text` takes in `scope`, its last declaration's that does not wait: CLI_DOC_NONE
 // where none declares it
-static unsigned int branch_scope_named(const CliBranchScope *scope, const char *text, unsigned long long size)
+EMBED_INLINE unsigned int branch_scope_by_name(const DocumentBranchCtx *args)
 {
-    for (unsigned int at = scope->count; at > 0u; at -= 1u)
+    for (unsigned int at = args->scope_read->count; at > 0u; at -= 1u)
     {
         const unsigned int one = at - 1u;
-        if ((scope->waits[one] == 0u) && (scope->size[one] == size) &&
-            (memor.cmp(&(MemoriaCfg){.src = scope->text + scope->text_at[one], .other = text, .bytes = size}) == 0))
+        if ((args->scope_read->waits[one] == 0u) && (args->scope_read->size[one] == args->size_u64) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->scope_read->text + args->scope_read->text_at[one],
+                                     .other = args->text,
+                                     .bytes = args->size_u64}) == 0))
         {
-            return scope->named[one];
+            return args->scope_read->named[one];
         }
     }
     return CLI_DOC_NONE;
@@ -663,93 +757,97 @@ static unsigned int branch_scope_named(const CliBranchScope *scope, const char *
 
 // `scope` written into `out`: its depth and the depth of its pairs as `depth.pairs`, then each name as
 // `;named.belongs.waits.size:` and its text
-static void branch_scope_written(const CliBranchScope *scope, VerbaLinea *out)
+EMBED_INLINE void branch_scope_write(const DocumentBranchCtx *args)
 {
-    mmgr_line_decimal(out, scope->depth, 1u);
-    mmgr_line_ch(out, '.');
-    mmgr_line_decimal(out, scope->pairs, 1u);
-    for (unsigned int at = 0u; at < scope->count; at += 1u)
+    mmgr_line_decimal(args->out, args->scope_read->depth, 1u);
+    mmgr_line_ch(args->out, '.');
+    mmgr_line_decimal(args->out, args->scope_read->pairs, 1u);
+    for (unsigned int at = 0u; at < args->scope_read->count; at += 1u)
     {
-        mmgr_line_ch(out, ';');
-        mmgr_line_decimal(out, scope->named[at], 1u);
-        mmgr_line_ch(out, '.');
-        mmgr_line_decimal(out, scope->belongs[at], 1u);
-        mmgr_line_ch(out, '.');
-        mmgr_line_decimal(out, scope->waits[at], 1u);
-        mmgr_line_ch(out, '.');
-        mmgr_line_decimal(out, scope->size[at], 1u);
-        mmgr_line_ch(out, ':');
-        mmgr_line_put_n(out, scope->text + scope->text_at[at], scope->size[at]);
+        mmgr_line_ch(args->out, ';');
+        mmgr_line_decimal(args->out, args->scope_read->named[at], 1u);
+        mmgr_line_ch(args->out, '.');
+        mmgr_line_decimal(args->out, args->scope_read->belongs[at], 1u);
+        mmgr_line_ch(args->out, '.');
+        mmgr_line_decimal(args->out, args->scope_read->waits[at], 1u);
+        mmgr_line_ch(args->out, '.');
+        mmgr_line_decimal(args->out, args->scope_read->size[at], 1u);
+        mmgr_line_ch(args->out, ':');
+        mmgr_line_put_n(args->out, args->scope_read->text + args->scope_read->text_at[at], args->scope_read->size[at]);
     }
 }
 
 // the number the digits from `*from` write, `*from` moved past them and past the letter `after` where it follows them,
 // never past the NUL that ends them
-static unsigned int branch_digits(const char **from, char after)
+EMBED_INLINE unsigned int branch_digits(const DocumentBranchCtx *args)
 {
+    const char **from = args->from_letters;
     unsigned int value = 0u;
     unsigned long long end = 0ull;
     // a state's digits write a place among the states, which an unsigned int counts
-    value = (unsigned int)cli_text_number(*from, 0ull,
-                                          cellul.len(&(CatenaFinitaCfg){.src = *from, .cap = CLI_CELLS_POOL}), &end);
+    value = (unsigned int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = *from, .at = 0ull,
+                                     .size = cellul.len(&(CatenaFinitaCfg){.src = *from, .cap = CLI_CELLS_POOL}),
+                                     .end = &end);
     *from += end;
-    *from += (((*from)[0] == after) && (after != '\0')) ? 1 : 0;
+    *from += (((*from)[0] == args->after) && (args->after != '\0')) ? 1 : 0;
     return value;
 }
 
 // the scope written at the place `place` among the states of `one` read into `scope`, as far as each name's text
-// stands within it, its place kept; empty where `place` is CLI_DOC_NONE or past the states
-static void branch_scope_read(const CliStoredText *one, unsigned int place, CliBranchScope *scope)
+// stands within it, its place saved; empty where `place` is CLI_DOC_NONE or past the states
+EMBED_INLINE void branch_scope_read(const DocumentBranchCtx *args)
 {
-    scope->depth = 0u;
-    scope->pairs = 0u;
-    scope->count = 0u;
-    scope->used = 0u;
-    scope->place = CLI_DOC_NONE;
-    scope->moved = 1;
-    if ((place == CLI_DOC_NONE) || (place >= one->state_used))
+    unsigned int place = args->place;
+    args->scope->depth = 0u;
+    args->scope->pairs = 0u;
+    args->scope->count = 0u;
+    args->scope->used = 0u;
+    args->scope->place = CLI_DOC_NONE;
+    args->scope->moved = 1;
+    if ((place == CLI_DOC_NONE) || (place >= args->one_read->state_used))
     {
         return;
     }
-    const char *at = one->state + place;
-    scope->depth = branch_digits(&at, '.');
-    scope->pairs = branch_digits(&at, '\0');
+    const char *at = args->one_read->state + place;
+    args->scope->depth = EMBED_CALL(branch_digits, DocumentBranchCtx, .from_letters = &at, .after = '.');
+    args->scope->pairs = EMBED_CALL(branch_digits, DocumentBranchCtx, .from_letters = &at, .after = '\0');
     while (at[0] == ';')
     {
         at += 1;
-        const unsigned int named = branch_digits(&at, '.');
-        const unsigned int belongs = branch_digits(&at, '.');
-        const int waits = branch_digits(&at, '.') != 0u;
-        const unsigned int size = branch_digits(&at, ':');
+        const unsigned int named = EMBED_CALL(branch_digits, DocumentBranchCtx, .from_letters = &at, .after = '.');
+        const unsigned int belongs = EMBED_CALL(branch_digits, DocumentBranchCtx, .from_letters = &at, .after = '.');
+        const int waits = EMBED_CALL(branch_digits, DocumentBranchCtx, .from_letters = &at, .after = '.') != 0u;
+        const unsigned int size = EMBED_CALL(branch_digits, DocumentBranchCtx, .from_letters = &at, .after = ':');
         if (cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}) < size)
         {
             return;
         }
-        branch_scope_put(scope, at, size, named, belongs, waits);
+        EMBED_CALL(branch_scope_put, DocumentBranchCtx, .scope = args->scope, .text = at, .size = size, .named = named,
+                   .belongs = belongs, .waits = waits);
         at += size;
     }
-    scope->place = place;
-    scope->moved = 0;
+    args->scope->place = place;
+    args->scope->moved = 0;
 }
 
 // the scope the line `finding` colored last ends in, written into `out` where its place among the text's states is to
 // be found as it is put in, written again only where it moved since the one before it was: its bytes, CLI_DOC_NONE for
 // a scope with no depth, pairs or names or one too large to write, and CLI_DOC_SCOPE_SAME for the one before it
-static unsigned int branch_scope_found(CliBranchFinding *finding, VerbaLinea *out)
+EMBED_INLINE unsigned int branch_scope_find(const DocumentBranchCtx *args)
 {
-    CliBranchScope *const scope = &finding->scope;
+    CliBranchScope *const scope = &args->finding_out->scope;
     if ((scope->depth == 0u) && (scope->pairs == 0u) && (scope->count == 0u))
     {
         return CLI_DOC_NONE;
     }
-    if (!scope->moved && finding->placed)
+    if (!scope->moved && args->finding_out->placed)
     {
         return CLI_DOC_SCOPE_SAME;
     }
-    branch_scope_written(scope, out);
-    const unsigned long long size = mmgr_line_finish(out);
+    EMBED_CALL(branch_scope_write, DocumentBranchCtx, .scope_read = scope, .out = args->out);
+    const unsigned long long size = mmgr_line_finish(args->out);
     scope->moved = 0;
-    finding->placed = size != 0ull;
+    args->finding_out->placed = size != 0ull;
     // a scope written within its room, which an unsigned int counts
     return (size != 0ull) ? (unsigned int)size : CLI_DOC_NONE;
 }
@@ -761,31 +859,35 @@ static unsigned int branch_scope_found(CliBranchFinding *finding, VerbaLinea *ou
 // waiting, at once and at the line's end; each bare name a use of the last declaration of it in the scope takes that
 // declaration's name, but one reached through the operator before it, blanks between; and a pair it opens deepens the
 // scope's pairs and one it closes lets one go, each run that opens or closes one named by the depth it stands at, the
-// first of its names' `names` on, as `cli_document_names_written` writes them. The leaves with each run's name so
+// first of its names' `names` on, as `cli_document_names_write` writes them. The leaves with each run's name so
 // taken, in the work's room for them, the leaves as they came where the cells cannot meet that room
-static CliLeaves branch_uses_named(CliBranchFinding *finding, const CliLeaves *leaves)
+EMBED_INLINE CliLeaves branch_uses_by_name(const DocumentBranchCtx *args)
 {
-    CliLeaves named = *leaves;
-    CliBranchScope *const scope = &finding->scope;
-    const unsigned int names = finding->names;
-    const int renaming = (leaves->runs != 0u) && (leaves->runs <= finding->named_room);
-    unsigned int *const renamed = finding->named;
-    const char *const line = leaves->line;
+    CliLeaves named = *args->leaves;
+    CliBranchScope *const scope = &args->finding_out->scope;
+    const unsigned int names = args->finding_out->names;
+    const int renaming = (args->leaves->runs != 0u) && (args->leaves->runs <= args->finding_out->named_room);
+    unsigned int *const renamed = args->finding_out->named;
+    const char *const line = args->leaves->line;
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
     unsigned long long byte = 0ull;
     unsigned int col = 0u;
     int ended = 0;
     int reached = 0;
-    for (unsigned int run = 0u; run < leaves->runs; run += 1u)
+    for (unsigned int run = 0u; run < args->leaves->runs; run += 1u)
     {
-        const unsigned int name = leaves->name[run];
-        const unsigned int roles = branch_roles(finding, leaves, name);
+        const unsigned int name = args->leaves->name[run];
+        const unsigned int roles = EMBED_CALL(branch_roles, DocumentBranchCtx, .finding = args->finding_out,
+                                              .leaves = args->leaves, .name = name);
         const int through = reached;
         // the empty name, a blank's, stands between an operator and the name it reaches
         reached = ((roles & CLI_ROLE_REACHES) != 0u) || (reached && (name == 0u));
-        const unsigned long long from = cli_symbols_byte_at(line, size, leaves->col[run], &byte, &col);
-        const unsigned int end = ((run + 1u) < leaves->runs) ? leaves->col[run + 1u] : leaves->end;
-        const unsigned long long to = cli_symbols_byte_at(line, size, end, &byte, &col);
+        const unsigned long long from =
+            EMBED_CALL(cli_symbols_size_internal.byte_at, CliSymbolsSizeCtx, .line = line, .size = size,
+                       .col = args->leaves->col[run], .byte = &byte, .at = &col);
+        const unsigned int end = ((run + 1u) < args->leaves->runs) ? args->leaves->col[run + 1u] : args->leaves->end;
+        const unsigned long long to = EMBED_CALL(cli_symbols_size_internal.byte_at, CliSymbolsSizeCtx, .line = line,
+                                                 .size = size, .col = end, .byte = &byte, .at = &col);
         // a run's bytes lie within its line, which an unsigned int counts
         const unsigned int bytes = (unsigned int)(to - from);
         if (renaming)
@@ -805,32 +907,37 @@ static CliLeaves branch_uses_named(CliBranchFinding *finding, const CliLeaves *l
         {
             scope->depth -= 1u;
             scope->moved = 1;
-            branch_scope_left(scope, scope->depth, 0);
+            EMBED_CALL(branch_scope_leave, DocumentBranchCtx, .scope = scope, .depth = scope->depth, .waiting = 0);
         }
         if ((roles & CLI_ROLE_PARAMETER) != 0u)
         {
-            branch_scope_put(scope, line + from, bytes, name, scope->depth + 1u, 1);
+            EMBED_CALL(branch_scope_put, DocumentBranchCtx, .scope = scope, .text = line + from, .size = bytes,
+                       .named = name, .belongs = scope->depth + 1u, .waits = 1);
         }
         else if ((roles & CLI_ROLE_LOCAL) != 0u)
         {
-            branch_scope_put(scope, line + from, bytes, name, scope->depth, 0);
+            EMBED_CALL(branch_scope_put, DocumentBranchCtx, .scope = scope, .text = line + from, .size = bytes,
+                       .named = name, .belongs = scope->depth, .waits = 0);
         }
         else if (renaming && !through && ((roles & CLI_ROLE_NAME) != 0u))
         {
-            const unsigned int declared = branch_scope_named(scope, line + from, bytes);
+            const unsigned int declared = EMBED_CALL(branch_scope_by_name, DocumentBranchCtx, .scope_read = scope,
+                                                     .text = line + from, .size_u64 = bytes);
             renamed[run] = (declared != CLI_DOC_NONE) ? declared : name;
         }
         if ((roles & CLI_ROLE_ENDS) != 0u)
         {
-            branch_scope_left(scope, CLI_DOC_NONE, 1);
+            EMBED_CALL(branch_scope_leave, DocumentBranchCtx, .scope = scope, .depth = CLI_DOC_NONE, .waiting = 1);
             ended = 1;
         }
         // a pair that closes stands at the depth of the one it closes
         const int closes = (roles & CLI_ROLE_DEPTH_CLOSES) != 0u;
         const int opens = (roles & CLI_ROLE_DEPTH_OPENS) != 0u;
         scope->pairs -= (closes && (scope->pairs > 0u)) ? 1u : 0u;
-        const unsigned int rank =
-            ((closes || opens) && renaming && (names != 0u)) ? branch_depth_rank(finding, leaves, name) : CLI_DOC_NONE;
+        const unsigned int rank = ((closes || opens) && renaming && (names != 0u))
+                                      ? EMBED_CALL(branch_depth_rank, DocumentBranchCtx, .finding = args->finding_out,
+                                                   .leaves = args->leaves, .name = name)
+                                      : CLI_DOC_NONE;
         if (rank != CLI_DOC_NONE)
         {
             renamed[run] = names + (rank * CLI_DOC_DEPTHS) + (scope->pairs % CLI_DOC_DEPTHS);
@@ -840,27 +947,31 @@ static CliLeaves branch_uses_named(CliBranchFinding *finding, const CliLeaves *l
     }
     if (ended)
     {
-        branch_scope_left(scope, CLI_DOC_NONE, 1);
+        EMBED_CALL(branch_scope_leave, DocumentBranchCtx, .scope = scope, .depth = CLI_DOC_NONE, .waiting = 1);
     }
-    named.name = renaming ? renamed : leaves->name;
+    named.name = renaming ? renamed : args->leaves->name;
     return named;
 }
 
 // one line's leaves, colored with no lock taken: its runs named through the scope, its regions read, and the state the
 // colorer leaves it in and the scope it ends in written after what the bundle found on the lines before it, a record of
 // its own; nothing where the cells refused the room for one before it or refuse it
-static void branch_found(void *context, const CliLeaves *leaves)
+static void branch_find(const CliLeavesEachCfg *args)
 {
-    CliBranchFinding *const finding = (CliBranchFinding *)context;
+    const CliLeaves *leaves = args->leaves;
+    CliBranchFinding *const finding = (CliBranchFinding *)args->context;
     if (finding->refused || finding->filled)
     {
         return;
     }
-    const CliLeaves named = branch_uses_named(finding, leaves);
-    const unsigned int regions = branch_regions_of(finding, leaves);
+    const CliLeaves named =
+        EMBED_CALL(branch_uses_by_name, DocumentBranchCtx, .finding_out = finding, .leaves = leaves);
+    const unsigned int regions =
+        EMBED_CALL(branch_regions_get, DocumentBranchCtx, .finding = finding, .leaves = leaves);
     char scoped[CLI_DOC_STATE];
     VerbaLinea scope = {scoped, sizeof(scoped), 0ull};
-    const unsigned int scope_size = branch_scope_found(finding, &scope);
+    const unsigned int scope_size =
+        EMBED_CALL(branch_scope_find, DocumentBranchCtx, .finding_out = finding, .out = &scope);
     const unsigned int scope_bytes =
         ((scope_size != CLI_DOC_NONE) && (scope_size != CLI_DOC_SCOPE_SAME)) ? scope_size : 0u;
     // the colorer's state, no longer than the room it is written in, which an unsigned int counts
@@ -890,11 +1001,11 @@ static void branch_found(void *context, const CliLeaves *leaves)
 }
 
 // whether a coloring under way claims the line `line` of `one`
-static int branch_claimed(const CliStoredText *one, unsigned int line)
+EMBED_INLINE int branch_claim(const DocumentBranchCtx *args)
 {
     for (unsigned int at = 0u; at < CLI_DOC_CLAIMS; at += 1u)
     {
-        if ((line >= one->claim_from[at]) && (line < one->claim_to[at]))
+        if ((args->line >= args->one_read->claim_from[at]) && (args->line < args->one_read->claim_to[at]))
         {
             return 1;
         }
@@ -903,11 +1014,11 @@ static int branch_claimed(const CliStoredText *one, unsigned int line)
 }
 
 // whether a coloring under way claims any line of `one`
-static int branch_claims_any(const CliStoredText *one)
+EMBED_INLINE int branch_claims_any(const DocumentBranchCtx *args)
 {
     for (unsigned int at = 0u; at < CLI_DOC_CLAIMS; at += 1u)
     {
-        if (one->claim_to[at] > one->claim_from[at])
+        if (args->one_read->claim_to[at] > args->one_read->claim_from[at])
         {
             return 1;
         }
@@ -917,14 +1028,14 @@ static int branch_claims_any(const CliStoredText *one)
 
 // the lines from `first` to before `end` of `one` claimed by a coloring under way: the claim's place among those of the
 // text, CLI_DOC_CLAIMS where every place is taken with none claimed
-static unsigned int branch_claim_put(CliStoredText *one, unsigned int first, unsigned int end)
+EMBED_INLINE unsigned int branch_claim_put(const DocumentBranchCtx *args)
 {
     for (unsigned int at = 0u; at < CLI_DOC_CLAIMS; at += 1u)
     {
-        if (one->claim_from[at] == one->claim_to[at])
+        if (args->one->claim_from[at] == args->one->claim_to[at])
         {
-            one->claim_from[at] = first;
-            one->claim_to[at] = end;
+            args->one->claim_from[at] = args->first;
+            args->one->claim_to[at] = args->end;
             return at;
         }
     }
@@ -932,37 +1043,38 @@ static unsigned int branch_claim_put(CliStoredText *one, unsigned int first, uns
 }
 
 // the claim at `at` among those of `one` let go, and the walk woken for the lines it claimed, which it left to it
-static void branch_claim_dropped(CliStoredText *one, unsigned int at)
+EMBED_INLINE void branch_claim_drop(const DocumentBranchCtx *args)
 {
-    if (at < CLI_DOC_CLAIMS)
+    CliStoredText *one = args->one;
+    if (args->at < CLI_DOC_CLAIMS)
     {
-        one->claim_from[at] = 0u;
-        one->claim_to[at] = 0u;
+        one->claim_from[args->at] = 0u;
+        one->claim_to[args->at] = 0u;
     }
-    cli_document_woken(one);
+    EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
 }
 
 // what `finding` found on the lines from `first` put into `one` in turn, from the state `*entering` the first is
 // entered in and the place `place` among the text's states of the scope it is entered in: each line's state it is
-// entered in and the state it ends in, its regions, its runs kept, a paged text's where the page holds the line or the
+// entered in and the state it ends in, its regions, its runs saved, a paged text's where the page holds the line or the
 // range hands it on, and handed on where the range hands it on, each no further than the text's columns where the range
 // names them; where `stopping` is 1, stopped at the first line entered in the state it was entered in before,
 // `*stopped` set. The line after the last put; under the lock
-static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding *finding, unsigned int first,
-                                     unsigned int place, int stopping, unsigned int *entering, int *stopped,
-                                     CliBranchRange *range)
+EMBED_INLINE unsigned int branch_found_put(const DocumentBranchCtx *args)
 {
-    CliLines *const lines = &one->lines;
-    const unsigned int hand_from = range->asked ? range->hand_from : one->cached_from;
-    const unsigned int hand_to = range->asked ? range->hand_to : one->cached_to;
-    range->columns = (range->columns != 0ull) ? one->columns : 0ull;
-    const unsigned int *record = finding->found;
-    const unsigned int *const last = record + finding->used;
-    unsigned int line = first;
-    unsigned int scoped = place;
-    while ((record < last) && (line < lines->lines) && !one->refused)
+    unsigned int *entering = args->entering;
+    int *stopped = args->stopped;
+    CliLines *const lines = &args->one->lines;
+    const unsigned int hand_from = args->range->asked ? args->range->hand_from : args->one->cached_from;
+    const unsigned int hand_to = args->range->asked ? args->range->hand_to : args->one->cached_to;
+    args->range->columns = (args->range->columns != 0ull) ? args->one->columns : 0ull;
+    const unsigned int *record = args->finding->found;
+    const unsigned int *const last = record + args->finding->used;
+    unsigned int line = args->first;
+    unsigned int scoped = args->place;
+    while ((record < last) && (line < lines->lines) && !args->one->refused)
     {
-        if (stopping && (lines->begun[line] == *entering))
+        if (args->stopping && (lines->begun[line] == *entering))
         {
             *stopped = 1;
             break;
@@ -977,7 +1089,7 @@ static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding 
             char scope[CLI_DOC_STATE];
             memor.cpy(&(MemoriaCfg){.dst = scope, .src = ended + (4u * ended_words), .bytes = scope_size});
             scope[scope_size] = '\0';
-            scoped = branch_state(one, scope);
+            scoped = EMBED_CALL(branch_state, DocumentBranchCtx, .one = args->one, .text = scope);
         }
         // the state the line ends in the colorer's with the place of its scope after the mark, the colorer's alone
         // where the scope has no place or the two do not fit
@@ -995,16 +1107,16 @@ static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding 
             state[colorer] = '\0';
         }
         lines->begun[line] = *entering;
-        lines->ended[line] = branch_state(one, state);
-        one->regions_moved = one->regions_moved || (lines->regions[line] != record[1]);
+        lines->ended[line] = EMBED_CALL(branch_state, DocumentBranchCtx, .one = args->one, .text = state);
+        args->one->regions_moved = args->one->regions_moved || (lines->regions[line] != record[1]);
         lines->regions[line] = record[1];
-        const CliLeaves kept = {NULL, runs, record + CLI_DOC_FOUND_HEAD, record + CLI_DOC_FOUND_HEAD + runs, NULL, NULL,
-                                NULL, 0u};
+        const CliLeaves saved = {
+            NULL, runs, record + CLI_DOC_FOUND_HEAD, record + CLI_DOC_FOUND_HEAD + runs, NULL, NULL, NULL, 0u};
         const int handed = (line >= hand_from) && (line < hand_to);
-        const int cached = (line >= one->cached_from) && (line < one->cached_to);
-        if (!one->paged || cached || handed)
+        const int cached = (line >= args->one->cached_from) && (line < args->one->cached_to);
+        if (!args->one->paged || cached || handed)
         {
-            branch_runs_kept(one, line, &kept);
+            EMBED_CALL(branch_runs_save, DocumentBranchCtx, .one = args->one, .line = line, .leaves = &saved);
         }
         else
         {
@@ -1012,7 +1124,7 @@ static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding 
         }
         if (handed)
         {
-            branch_runs_put(range, line, &kept);
+            EMBED_CALL(branch_runs_put, DocumentBranchCtx, .range = args->range, .line = line, .leaves = &saved);
         }
         *entering = lines->ended[line];
         line += 1u;
@@ -1024,44 +1136,48 @@ static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding 
 // one bundle of the lines from `first` to before `to` of `one` colored from the state `*entering` the first is entered
 // in: no more than CLI_DOC_BATCH lines where `stopping` is 1, else CLI_DOC_RUN, CLI_DOC_STEP where the range's bytes
 // reach no further, and of those as many as its bytes reach, one at the least, those spent taken from them. The lines
-// are claimed under the lock, read and colored in `work` with it given back, and put in under it again, the text kept
+// are claimed under the lock, read and colored in `work` with it given back, and put in under it again, the text saved
 // across it by its caller; where the text moved meanwhile none is put in and the range is marked stale, and where the
 // grammar or the cells refused them none is and the text is marked refused. The line after the last put; under the lock
-static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first, unsigned int to, int stopping,
-                                         unsigned int *entering, int *stopped, CliBranchRange *range)
+EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
 {
+    unsigned int to = args->to;
     const unsigned int most =
-        stopping ? CLI_DOC_BATCH : ((range->bytes != CLI_DOC_ALL_BYTES) ? CLI_DOC_STEP : CLI_DOC_RUN);
-    const unsigned int end = ((to - first) > most) ? (first + most) : to;
+        args->stopping ? CLI_DOC_BATCH : ((args->range->bytes != CLI_DOC_ALL_BYTES) ? CLI_DOC_STEP : CLI_DOC_RUN);
+    const unsigned int end = ((to - args->first) > most) ? (args->first + most) : to;
     // what the bundle reads with the lock given back, copied as its lines are claimed: the text's serial, its key and
     // its grammar's, whether it is paged and whether its last line ends it, and how many lines it counts
-    const unsigned long long serial = one->serial;
+    const unsigned long long serial = args->one->serial;
     char key[CLI_NAME_MAX_LEN];
     char grammar[CLI_NAME_MAX_LEN];
-    memor.cpy(&(MemoriaCfg){.dst = key, .src = one->key, .bytes = sizeof(key)});
-    memor.cpy(&(MemoriaCfg){.dst = grammar, .src = one->grammar, .bytes = sizeof(grammar)});
-    const int paged = one->paged;
-    const int whole = one->whole;
-    const unsigned int count = one->lines.lines;
+    memor.cpy(&(MemoriaCfg){.dst = key, .src = args->one->key, .bytes = sizeof(key)});
+    memor.cpy(&(MemoriaCfg){.dst = grammar, .src = args->one->grammar, .bytes = sizeof(grammar)});
+    const int paged = args->one->paged;
+    const int whole = args->one->whole;
+    const unsigned int count = args->one->lines.lines;
     CliBranchFinding finding;
     finding.named = NULL;
     finding.named_room = 0ull;
     finding.found = NULL;
     finding.found_room = 0ull;
     finding.filled = 0;
-    finding.names = one->names;
+    finding.names = args->one->names;
     finding.used = 0ull;
     finding.refused = 0;
     // the state the first line is entered in, copied out, the colorer's own handed to it and the scope at the place
     // after the mark read into the bundle
     char state[CLI_DOC_STATE];
     VerbaLinea entered = {state, sizeof(state), 0ull};
-    mmgr_line_put(&entered, one->state + *entering);
+    mmgr_line_put(&entered, args->one->state + *args->entering);
     const int stated = mmgr_line_finish(&entered) != 0ull;
     const char *const mark =
         stated ? cellul.chr(&(CatenaFinitaCfg){.src = state, .cap = CLI_CELLS_POOL, .byte = CLI_DOC_SCOPE_MARK}) : NULL;
     const char *place = (mark != NULL) ? (mark + 1) : NULL;
-    branch_scope_read(one, (place != NULL) ? branch_digits(&place, '\0') : CLI_DOC_NONE, &finding.scope);
+    EMBED_CALL(branch_scope_read, DocumentBranchCtx, .one_read = args->one,
+               .place = (place != NULL)
+                            ? EMBED_CALL(branch_digits, DocumentBranchCtx, .from_letters = &place, .after = '\0')
+                            : CLI_DOC_NONE,
+               .scope = &finding.scope);
     finding.placed = finding.scope.place != CLI_DOC_NONE;
     if (mark != NULL)
     {
@@ -1069,13 +1185,15 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
         state[mark - state] = '\0';
     }
     // the roles of the grammar's names copied, read first where they were not
-    branch_roles_read(one);
-    const unsigned int roles = one->roles_whole ? one->roles_room : 0u;
+    branch_roles_read(args);
+    const unsigned int roles = args->one->roles_whole ? args->one->roles_room : 0u;
     // where each line read starts, the roles and the UTF-8 of a text read whole, in one cell the bundle gives back
-    unsigned int read = first;
+    unsigned int read = args->first;
     const unsigned long long text_room =
-        paged ? 0ull : branch_lines_measured(&one->lines, first, end, range->bytes, &read);
-    const unsigned long long starts_bytes = (unsigned long long)(end - first) * sizeof(const char *);
+        paged ? 0ull
+              : EMBED_CALL(branch_lines_measure, DocumentBranchCtx, .lines = &args->one->lines, .first = args->first,
+                           .end = end, .bytes = args->range->bytes, .read = &read);
+    const unsigned long long starts_bytes = (unsigned long long)(end - args->first) * sizeof(const char *);
     const unsigned long long roles_bytes = (unsigned long long)roles * sizeof(unsigned int);
     char *const cell = g_cli_cells->temporary_buf_alloc(starts_bytes + roles_bytes + text_room, &g_cli_editor_cells);
     const char **line = (const char **)(void *)cell;
@@ -1085,21 +1203,25 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
     {
         finding.roles = (const unsigned int *)(void *)(cell + starts_bytes);
         finding.roles_count = roles;
-        memor.cpy(&(MemoriaCfg){.dst = cell + starts_bytes, .src = one->roles, .bytes = roles_bytes});
+        memor.cpy(&(MemoriaCfg){.dst = cell + starts_bytes, .src = args->one->roles, .bytes = roles_bytes});
         if (!paged)
         {
-            branch_lines_written(&one->lines, first, read, cell + starts_bytes + roles_bytes, text_room, line);
+            EMBED_CALL(branch_lines_write, DocumentBranchCtx, .lines = &args->one->lines, .from = args->first,
+                       .to = read, .text_out = cell + starts_bytes + roles_bytes, .room = text_room,
+                       .line_letters = line);
         }
     }
-    const unsigned int claim = branch_claim_put(one, first, end);
+    const unsigned int claim =
+        EMBED_CALL(branch_claim_put, DocumentBranchCtx, .one = args->one, .first = args->first, .end = end);
     cli_document_lock_give();
     char *taken = NULL;
     if (paged && (cell != NULL))
     {
         unsigned long long count = 0ull;
-        taken = cli_pages_lines_taken(key, first, end, line, &count, &g_cli_editor_cells);
+        taken = EMBED_CALL(cli_pages_from.lines_take, CliPagesFromCfg, .key = key, .from = args->first, .to = end,
+                           .line = line, .count = &count, .owner = &g_cli_editor_cells);
         // no more lines are read than were asked, which an unsigned int counts
-        read = first + (unsigned int)count;
+        read = args->first + (unsigned int)count;
     }
     line = (paged && (taken == NULL)) ? NULL : line;
     // the lines read colored as far as the range's bytes reach, one at the least
@@ -1107,18 +1229,18 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
     unsigned long long spent = 0ull;
     unsigned long long total = 0ull;
     unsigned long long longest = 0ull;
-    while ((line != NULL) && ((first + spend) < read) &&
-           ((spend == 0u) || (range->bytes == CLI_DOC_ALL_BYTES) || (spent < range->bytes)))
+    while ((line != NULL) && ((args->first + spend) < read) &&
+           ((spend == 0u) || (args->range->bytes == CLI_DOC_ALL_BYTES) || (spent < args->range->bytes)))
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = line[spend], .cap = CLI_CELLS_POOL});
-        spent += (range->bytes != CLI_DOC_ALL_BYTES) ? (length + 1ull) : 0ull;
+        spent += (args->range->bytes != CLI_DOC_ALL_BYTES) ? (length + 1ull) : 0ull;
         total += length + 1ull;
         longest = (length > longest) ? length : longest;
         spend += 1u;
     }
-    if (range->bytes != CLI_DOC_ALL_BYTES)
+    if (args->range->bytes != CLI_DOC_ALL_BYTES)
     {
-        range->bytes -= (spent < range->bytes) ? spent : range->bytes;
+        args->range->bytes -= (spent < args->range->bytes) ? spent : args->range->bytes;
     }
     // the names of a line's runs, one run for each of its bytes at the most, and the records: two words for each run, a
     // record's head and CLI_DOC_FOUND_STATE words of its state for each line, and the words of one state and scope
@@ -1140,25 +1262,29 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
         VerbaLinea last = {ended, sizeof(ended), 0ull};
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        colored = cli_highlight_leaves(grammar, stated ? state : "root", line, spend,
-                                       ((first + spend) == count) && whole, branch_found, &finding, &last, &err_msg);
+        colored =
+            EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = grammar, .state = stated ? state : "root",
+                       .lines = line, .count = spend, .ends = ((args->first + spend) == count) && whole,
+                       .each = branch_find, .context = &finding, .ended = &last, .err_msg = &err_msg);
     }
     g_cli_cells->persistent_buf_release(taken, &g_cli_editor_cells);
     cli_document_lock_take();
-    branch_claim_dropped(one, claim);
-    unsigned int put = first;
-    if (one->let_go || (one->serial != serial))
+    EMBED_CALL(branch_claim_drop, DocumentBranchCtx, .one = args->one, .at = claim);
+    unsigned int put = args->first;
+    if (args->one->let_go || (args->one->serial != serial))
     {
-        range->stale = 1;
+        args->range->stale = 1;
     }
     else if (!colored)
     {
-        one->refused = 1;
+        args->one->refused = 1;
     }
     else
     {
-        put = branch_found_put(one, &finding, first, finding.scope.place, stopping, entering, stopped, range);
-        one->refused = one->refused || finding.refused;
+        put = EMBED_CALL(branch_found_put, DocumentBranchCtx, .one = args->one, .finding = &finding,
+                         .first = args->first, .place = finding.scope.place, .stopping = args->stopping,
+                         .entering = args->entering, .stopped = args->stopped, .range = args->range);
+        args->one->refused = args->one->refused || finding.refused;
     }
     g_cli_cells->persistent_buf_release(found_cell, &g_cli_editor_cells);
     g_cli_cells->persistent_buf_release(cell, &g_cli_editor_cells);
@@ -1170,18 +1296,19 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
 // was entered in before, each line colored whole from left to right, and the lines those the range's bytes reach, the
 // last maybe past them, those spent taken from them, a bundle at a time in a work claimed for them. The runs of those
 // the range hands on handed on in it, each line's no further than the range's columns where it names them: the line
-// after the last colored. Under the lock, which it gives back as each bundle is colored, the text kept across it by its
-// caller
-static unsigned int branch_colored(CliStoredText *one, unsigned int from, unsigned int to, int stopping,
-                                   CliBranchRange *range)
+// after the last colored. Under the lock, which it gives back as each bundle is colored, the text saved across it by
+// its caller
+EMBED_INLINE unsigned int branch_color(const DocumentBranchCtx *args)
 {
-    const unsigned int above = (from != 0u) ? one->lines.ended[from - 1u] : CLI_DOC_UNCOLORED;
+    const unsigned int above = (args->from != 0u) ? args->one->lines.ended[args->from - 1u] : CLI_DOC_UNCOLORED;
     unsigned int entering = (above != CLI_DOC_UNCOLORED) ? above : CLI_DOC_ROOT;
-    unsigned int line = from;
+    unsigned int line = args->from;
     int stopped = 0;
-    while (!stopped && !one->refused && !range->stale && (line < to) && (range->bytes != 0ull))
+    while (!stopped && !args->one->refused && !args->range->stale && (line < args->to) && (args->range->bytes != 0ull))
     {
-        const unsigned int next = branch_batch_colored(one, line, to, stopping, &entering, &stopped, range);
+        const unsigned int next =
+            EMBED_CALL(branch_batch_color, DocumentBranchCtx, .one = args->one, .first = line, .to = args->to,
+                       .stopping = args->stopping, .entering = &entering, .stopped = &stopped, .range = args->range);
         // a bundle that puts no line in ends the coloring
         stopped = stopped || (next == line);
         line = next;
@@ -1191,30 +1318,40 @@ static unsigned int branch_colored(CliStoredText *one, unsigned int from, unsign
 
 // whether the line `line` of `one` is one to color: it is not colored, and where `yielding` is 1, as the walk yields,
 // no coloring under way claims it
-static int branch_uncolored(const CliStoredText *one, unsigned int line, int yielding)
+EMBED_INLINE int branch_uncolored(const DocumentBranchCtx *args)
 {
-    return (one->lines.begun[line] == CLI_DOC_UNCOLORED) && !(yielding && branch_claimed(one, line));
+    return (args->one_read->lines.begun[args->line] == CLI_DOC_UNCOLORED) && !(args->yielding && branch_claim(args));
 }
 
 // the run of lines of `one` to color about `at`, below the walk's origin where `down` is 1: its first and the line
 // after its last into `first` and `end`, no more than CLI_DOC_STEP of them reaching from `at`, down or up, none outside
 // the lines from `low` to before `high` the walk colors, and where `yielding` is 1 none a coloring under way claims; a
 // run down whose line above ends in no known state reaching as far above as CLI_DOC_LEAD lines to color reach
-static void branch_run_of(const CliStoredText *one, unsigned int at, int down, unsigned int low, unsigned int high,
-                          int yielding, unsigned int *first, unsigned int *end)
+EMBED_INLINE void branch_run_get(const DocumentBranchCtx *args)
 {
-    unsigned int start = at;
-    unsigned int stop = at + 1u;
-    while (down && (stop < high) && branch_uncolored(one, stop, yielding) && ((stop - at) < CLI_DOC_STEP))
+    unsigned int *first = args->first_pointer;
+    unsigned int *end = args->end_pointer;
+    unsigned int start = args->at;
+    unsigned int stop = args->at + 1u;
+    while (args->down && (stop < args->high) &&
+           EMBED_CALL(branch_uncolored, DocumentBranchCtx, .one_read = args->one_read, .line = stop,
+                      .yielding = args->yielding) &&
+           ((stop - args->at) < CLI_DOC_STEP))
     {
         stop += 1u;
     }
-    while (!down && (start > low) && branch_uncolored(one, start - 1u, yielding) && ((at + 1u - start) < CLI_DOC_STEP))
+    while (!args->down && (start > args->low) &&
+           EMBED_CALL(branch_uncolored, DocumentBranchCtx, .one_read = args->one_read, .line = start - 1u,
+                      .yielding = args->yielding) &&
+           ((args->at + 1u - start) < CLI_DOC_STEP))
     {
         start -= 1u;
     }
-    for (unsigned int lead = 0u;
-         down && (start > low) && branch_uncolored(one, start - 1u, yielding) && (lead < CLI_DOC_LEAD); lead += 1u)
+    for (unsigned int lead = 0u; args->down && (start > args->low) &&
+                                 EMBED_CALL(branch_uncolored, DocumentBranchCtx, .one_read = args->one_read,
+                                            .line = start - 1u, .yielding = args->yielding) &&
+                                 (lead < CLI_DOC_LEAD);
+         lead += 1u)
     {
         start -= 1u;
     }
@@ -1224,20 +1361,23 @@ static void branch_run_of(const CliStoredText *one, unsigned int at, int down, u
 
 // the lines of `one` the walk colors, from `*low` to before `*high`: a paged text's those the page holds alone, the
 // first of them entered from root, and every line of any other
-static void branch_bounds(const CliStoredText *one, unsigned int *low, unsigned int *high)
+EMBED_INLINE void branch_bounds(const DocumentBranchCtx *args)
 {
-    const unsigned int lines = one->lines.lines;
-    *high = (one->paged && (one->cached_to < lines)) ? one->cached_to : lines;
-    *low = one->paged ? ((one->cached_from < *high) ? one->cached_from : *high) : 0u;
+    unsigned int *low = args->low_pointer;
+    unsigned int *high = args->high_pointer;
+    const unsigned int lines = args->one_read->lines.lines;
+    *high = (args->one_read->paged && (args->one_read->cached_to < lines)) ? args->one_read->cached_to : lines;
+    *low = args->one_read->paged ? ((args->one_read->cached_from < *high) ? args->one_read->cached_from : *high) : 0u;
 }
 
 // a run of lines handed on in `out` begun: their runs written as `{"from", "runs"}`, after a comma where `*any` is set,
 // and `*any` set where they are, each line's no further than `columns` letters where it is not 0, no more lines than
 // `bytes` reach, those the page holds handed on, and none colored past `high`
-static CliBranchRange branch_range_begun(const CliStoredText *one, int *any, VerbaLinea *out,
-                                         unsigned long long columns, unsigned long long bytes, unsigned int high)
+EMBED_INLINE CliBranchRange branch_range_begin(const DocumentBranchCtx *args)
 {
-    const CliBranchRange range = {0, 0u, any, out, columns, one->names, bytes, 0u, 0, 0, 0u, 0u, high};
+    const CliBranchRange range = {
+        0,  0u, args->any_pointer, args->out, args->columns, args->one_read->names, args->bytes, 0u, 0, 0,
+        0u, 0u, args->high};
     return range;
 }
 
@@ -1246,39 +1386,45 @@ static CliBranchRange branch_range_begun(const CliStoredText *one, int *any, Ver
 // where its columns are not 0, the lines after them left to the walk unless `onward` is 1, as the walk's own step
 // colors them. Under the lock, which each bundle gives back as it is colored, the range marked stale where the text
 // moved
-static void branch_range_colored(CliStoredText *one, unsigned int first, unsigned int end, int onward,
-                                 CliBranchRange *range)
+EMBED_INLINE void branch_range_color(const DocumentBranchCtx *args)
 {
-    const unsigned int line = branch_colored(one, first, end, 0, range);
-    const unsigned int high = range->high;
-    if ((onward || (range->columns == 0ull)) && !range->stale && (line == end) && (end < high) &&
-        (end < one->lines.lines) && (one->lines.begun[end] != CLI_DOC_UNCOLORED))
+    const unsigned int line = EMBED_CALL(branch_color, DocumentBranchCtx, .one = args->one, .from = args->first,
+                                         .to = args->end, .stopping = 0, .range = args->range);
+    const unsigned int high = args->range->high;
+    if ((args->onward || (args->range->columns == 0ull)) && !args->range->stale && (line == args->end) &&
+        (args->end < high) && (args->end < args->one->lines.lines) &&
+        (args->one->lines.begun[args->end] != CLI_DOC_UNCOLORED))
     {
-        const unsigned int most = ((high - end) > CLI_DOC_STEP) ? (end + CLI_DOC_STEP) : high;
-        (void)branch_colored(one, end, most, 1, range);
+        const unsigned int most = ((high - args->end) > CLI_DOC_STEP) ? (args->end + CLI_DOC_STEP) : high;
+        (void)EMBED_CALL(branch_color, DocumentBranchCtx, .one = args->one, .from = args->end, .to = most,
+                         .stopping = 1, .range = args->range);
     }
 }
 
 // colors handed on begun: `{"key":` the text's key `,"seq":` the changes written to it `,"colors":`
-static void branch_colors_begun(const CliStoredText *one, VerbaLinea *out)
+EMBED_INLINE void branch_colors_begin(const DocumentBranchCtx *args)
 {
+    VerbaLinea *out = args->out;
     mmgr_line_put(out, "{\"key\":");
-    cli_json_quoted(out, one->key, cellul.len(&(CatenaFinitaCfg){.src = one->key, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->one_read->key,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->one_read->key, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"seq\":");
-    mmgr_line_decimal(out, one->changes, 1u);
+    mmgr_line_decimal(out, args->one_read->changes, 1u);
     mmgr_line_put(out, ",\"colors\":");
 }
 
 // colors handed on ended: `,"names":` the names the text's grammar's tokens take where `any` colors go and they were
 // not handed on since it was colored by the grammar, the first colors handed on carrying them, and `}`; under the lock
 // the colors are handed on after, and no colors go before the names they are named by
-static void branch_colors_ended(CliStoredText *one, int any, VerbaLinea *out)
+EMBED_INLINE void branch_colors_end(const DocumentBranchCtx *args)
 {
-    if (any && !one->named)
+    VerbaLinea *out = args->out;
+    if (args->any && !args->one->named)
     {
         mmgr_line_put(out, ",\"names\":");
-        cli_document_names_written(one->grammar, out);
-        one->named = 1;
+        EMBED_CALL(cli_document_out_grammar.names_write, CliDocumentOutGrammarCfg, .grammar = args->one->grammar,
+                   .out = out);
+        args->one->named = 1;
     }
     mmgr_line_ch(out, '}');
 }
@@ -1287,14 +1433,16 @@ static void branch_colors_ended(CliStoredText *one, int any, VerbaLinea *out)
 // or claimed, the first entered in a state the line above does not end in colored again, written into `out` as
 // `{"key", "seq", "colors"}`, `*handed` set where it holds the runs of a line the page holds: 1 where it colored a
 // line, else 0. A paged text's lines are counted again first, and it is walked across the lines the page holds alone.
-// Under the lock, which it gives back as it colors, the text kept across it by its caller
-static int branch_step(CliStoredText *one, VerbaLinea *out, int *handed)
+// Under the lock, which it gives back as it colors, the text saved across it by its caller
+EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
 {
+    CliStoredText *one = args->one;
     const CliLines *const lines = &one->lines;
-    one->refused = one->refused || (one->paged && !cli_document_paged_counted(one));
+    one->refused =
+        one->refused || (one->paged && !EMBED_CALL(cli_document_internal.paged_count, CliDocumentCtx, .one = one));
     unsigned int low = 0u;
     unsigned int high = 0u;
-    branch_bounds(one, &low, &high);
+    EMBED_CALL(branch_bounds, DocumentBranchCtx, .one_read = one, .low_pointer = &low, .high_pointer = &high);
     if ((one->grammar[0] == '\0') || one->refused || (high <= low) || (one->cached_to <= one->cached_from))
     {
         return 0;
@@ -1305,11 +1453,13 @@ static int branch_step(CliStoredText *one, VerbaLinea *out, int *handed)
     for (unsigned int distance = 0u;
          (at == CLI_DOC_NONE) && (((origin + distance) < high) || (distance < (origin - low))); distance += 1u)
     {
-        if (((origin + distance) < high) && branch_uncolored(one, origin + distance, 1))
+        if (((origin + distance) < high) &&
+            EMBED_CALL(branch_uncolored, DocumentBranchCtx, .one_read = one, .line = origin + distance, .yielding = 1))
         {
             at = origin + distance;
         }
-        else if ((distance < (origin - low)) && branch_uncolored(one, origin - distance - 1u, 1))
+        else if ((distance < (origin - low)) && EMBED_CALL(branch_uncolored, DocumentBranchCtx, .one_read = one,
+                                                           .line = origin - distance - 1u, .yielding = 1))
         {
             at = origin - distance - 1u;
             down = 0;
@@ -1319,14 +1469,15 @@ static int branch_step(CliStoredText *one, VerbaLinea *out, int *handed)
     unsigned int end = 0u;
     if (at != CLI_DOC_NONE)
     {
-        branch_run_of(one, at, down, low, high, 1, &first, &end);
+        EMBED_CALL(branch_run_get, DocumentBranchCtx, .one_read = one, .at = at, .down = down, .low = low, .high = high,
+                   .yielding = 1, .first_pointer = &first, .end_pointer = &end);
     }
     // the first line of the lines walked entered in whatever state it was entered in, where it is not the text's first
     for (unsigned int line = (low != 0u) ? (low + 1u) : 0u;
          (at == CLI_DOC_NONE) && (first == CLI_DOC_NONE) && (line < high); line += 1u)
     {
         if ((lines->begun[line] != ((line == 0u) ? CLI_DOC_ROOT : lines->ended[line - 1u])) &&
-            !branch_claimed(one, line))
+            !EMBED_CALL(branch_claim, DocumentBranchCtx, .one_read = one, .line = line))
         {
             first = line;
             end = line + 1u;
@@ -1336,13 +1487,16 @@ static int branch_step(CliStoredText *one, VerbaLinea *out, int *handed)
     {
         return 0;
     }
-    branch_colors_begun(one, out);
-    mmgr_line_ch(out, '[');
-    CliBranchRange range = branch_range_begun(one, handed, out, one->columns, CLI_DOC_STEP_BYTES, high);
-    branch_range_colored(one, first, end, 1, &range);
-    branch_range_ended(&range);
-    mmgr_line_ch(out, ']');
-    branch_colors_ended(one, *handed, out);
+    EMBED_CALL(branch_colors_begin, DocumentBranchCtx, .one_read = one, .out = args->out);
+    mmgr_line_ch(args->out, '[');
+    CliBranchRange range =
+        EMBED_CALL(branch_range_begin, DocumentBranchCtx, .one_read = one, .any_pointer = args->handed,
+                   .out = args->out, .columns = one->columns, .bytes = CLI_DOC_STEP_BYTES, .high = high);
+    EMBED_CALL(branch_range_color, DocumentBranchCtx, .one = one, .first = first, .end = end, .onward = 1,
+               .range = &range);
+    EMBED_CALL(branch_range_end, DocumentBranchCtx, .range = &range);
+    mmgr_line_ch(args->out, ']');
+    EMBED_CALL(branch_colors_end, DocumentBranchCtx, .one = one, .any = *args->handed, .out = args->out);
     return 1;
 }
 
@@ -1355,16 +1509,15 @@ static int branch_step(CliStoredText *one, VerbaLinea *out, int *handed)
 // region on the line it ends with a leaf before it, else on the last line above that holds one; a bracket closes it on
 // the line before its own where a leaf stands before it or another leaf on its line closes nothing, and on its own,
 // shown, where its line holds closes alone
-static unsigned int branch_fold_of(unsigned int opened, unsigned int line, unsigned int close, unsigned int regions,
-                                   unsigned int filled)
+EMBED_INLINE unsigned int branch_fold_get(const DocumentBranchCtx *args)
 {
-    const int mark = (regions & CLI_DOC_REGION_MARK) != 0u;
-    const int led = close >= ((regions >> CLI_DOC_REGION_UNLED_AT) & CLI_DOC_REGION_COUNT);
-    const int shown = !mark && !led && ((regions & CLI_DOC_REGION_CLOSERS) != 0u);
-    const unsigned int last = (mark && led) ? line : mark ? filled : shown ? line : (line - 1u);
+    const int mark = (args->regions & CLI_DOC_REGION_MARK) != 0u;
+    const int led = args->close >= ((args->regions >> CLI_DOC_REGION_UNLED_AT) & CLI_DOC_REGION_COUNT);
+    const int shown = !mark && !led && ((args->regions & CLI_DOC_REGION_CLOSERS) != 0u);
+    const unsigned int last = (mark && led) ? args->line : mark ? args->filled : shown ? args->line : (args->line - 1u);
     // a line shown on the fold's first line is no line hidden
     const unsigned int hidden = shown ? (last - 1u) : last;
-    if ((last == CLI_DOC_NONE) || (hidden <= opened))
+    if ((last == CLI_DOC_NONE) || (hidden <= args->opened))
     {
         return 0u;
     }
@@ -1372,27 +1525,28 @@ static unsigned int branch_fold_of(unsigned int opened, unsigned int line, unsig
 }
 
 // The regions open above a line as its folds are found: the line each opens on, the innermost last, in the room the
-// walk keeps for them, how many, and whether the cells refused it
+// walk saves for them, how many, and whether the cells refused it
 // the folds of `one` found, each handed to `each` with its first line, the last line it hides and whether it shows the
 // line it closes on after what it hides: each fold the widest of the regions that open on its first line, in the order
 // of their first lines; a paged text's those of the lines the page mirrors alone, and none where the cells cannot meet
 // the room they are found in. Under the texts' lock
-static void branch_folds_each(const CliStoredText *one, CliFoldEach each, void *context)
+static void branch_folds_each(const DocumentBranchCtx *args)
 {
-    const CliLines *const lines = &one->lines;
+    const CliLines *const lines = &args->one_read->lines;
     unsigned int first = 0u;
     unsigned int end = 0u;
-    branch_bounds(one, &first, &end);
-    const unsigned int kept = end - first;
+    EMBED_CALL(branch_bounds, DocumentBranchCtx, .one_read = args->one_read, .low_pointer = &first,
+               .high_pointer = &end);
+    const unsigned int saved = end - first;
     // the widest fold of each line and the regions open above a line, no more than the regions they open
     unsigned long long opening = 0ull;
     for (unsigned int line = first; line < end; line += 1u)
     {
         opening += lines->regions[line] & CLI_DOC_REGION_COUNT;
     }
-    const unsigned long long widest_bytes = (unsigned long long)kept * sizeof(unsigned int);
+    const unsigned long long widest_bytes = (unsigned long long)saved * sizeof(unsigned int);
     unsigned int *const widest =
-        (kept != 0u)
+        (saved != 0u)
             ? g_cli_cells->temporary_buf_alloc(widest_bytes + (opening * sizeof(unsigned int)), &g_cli_editor_cells)
             : NULL;
     if (widest == NULL)
@@ -1400,7 +1554,7 @@ static void branch_folds_each(const CliStoredText *one, CliFoldEach each, void *
         return;
     }
     memor.set(&(MemoriaCfg){.dst = widest, .val = 0, .bytes = widest_bytes});
-    unsigned int *const opened_on = widest + kept;
+    unsigned int *const opened_on = widest + saved;
     unsigned int open = 0u;
     unsigned int filled = CLI_DOC_NONE;
     for (unsigned int line = first; line < end; line += 1u)
@@ -1411,7 +1565,8 @@ static void branch_folds_each(const CliStoredText *one, CliFoldEach each, void *
         {
             open -= 1u;
             const unsigned int opened = opened_on[open];
-            const unsigned int fold = branch_fold_of(opened, line, close, regions, filled);
+            const unsigned int fold = EMBED_CALL(branch_fold_get, DocumentBranchCtx, .opened = opened, .line = line,
+                                                 .close = close, .regions = regions, .filled = filled);
             if ((fold & ~CLI_DOC_FOLD_SHOWN) > (widest[opened - first] & ~CLI_DOC_FOLD_SHOWN))
             {
                 widest[opened - first] = fold;
@@ -1424,58 +1579,63 @@ static void branch_folds_each(const CliStoredText *one, CliFoldEach each, void *
         }
         filled = ((regions & CLI_DOC_REGION_FILLED) != 0u) ? line : filled;
     }
-    for (unsigned int at = 0u; at < kept; at += 1u)
+    for (unsigned int at = 0u; at < saved; at += 1u)
     {
         if (widest[at] != 0u)
         {
-            each(context, first + at, (widest[at] & ~CLI_DOC_FOLD_SHOWN) - 1u, (widest[at] & CLI_DOC_FOLD_SHOWN) != 0u);
+            EMBED_CALL(args->each, CliFoldEachCfg, .context = args->context, .first = first + at,
+                       .last = (widest[at] & ~CLI_DOC_FOLD_SHOWN) - 1u,
+                       .shown = (widest[at] & CLI_DOC_FOLD_SHOWN) != 0u);
         }
     }
     g_cli_cells->persistent_buf_release(widest, &g_cli_editor_cells);
 }
 
 // a fold written into the line `context`, `[first, last, shown]` after a comma where one was written before it
-static void branch_fold_written(void *context, unsigned long long first, unsigned long long last, int shown)
+static void branch_fold_write(const CliFoldEachCfg *args)
 {
-    VerbaLinea *const out = context;
+    VerbaLinea *const out = args->context;
     mmgr_line_put(out, (out->out[out->at - 1ull] == '[') ? "[" : ",[");
-    mmgr_line_decimal(out, first, 1u);
+    mmgr_line_decimal(out, args->first, 1u);
     mmgr_line_ch(out, ',');
-    mmgr_line_decimal(out, last, 1u);
-    mmgr_line_put(out, shown ? ",1]" : ",0]");
+    mmgr_line_decimal(out, args->last, 1u);
+    mmgr_line_put(out, args->shown ? ",1]" : ",0]");
 }
 
 // the folds of `one` written into `out` as `{"key", "seq", "folds": [[first, last, shown], ...]}`, `seq` the changes
 // written to it, each as branch_folds_each finds them. Its regions marked as handed on
-static void branch_folds_written(CliStoredText *one, VerbaLinea *out)
+EMBED_INLINE void branch_folds_write(const DocumentBranchCtx *args)
 {
+    VerbaLinea *out = args->out;
     mmgr_line_put(out, "{\"key\":");
-    cli_json_quoted(out, one->key, cellul.len(&(CatenaFinitaCfg){.src = one->key, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->one->key,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->one->key, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"seq\":");
-    mmgr_line_decimal(out, one->changes, 1u);
+    mmgr_line_decimal(out, args->one->changes, 1u);
     mmgr_line_put(out, ",\"folds\":[");
-    branch_folds_each(one, branch_fold_written, out);
+    EMBED_CALL(branch_folds_each, DocumentBranchCtx, .one_read = args->one, .each = branch_fold_write, .context = out);
     mmgr_line_put(out, "]}");
-    one->regions_moved = 0;
+    args->one->regions_moved = 0;
 }
 
-int cli_document_folds_each(const char *key, CliFoldEach each, void *context)
+int cli_document_folds_each(const CliDocumentContextCfg *args)
 {
     cli_document_lock_take();
-    const CliStoredText *const one = cli_document_stored(key);
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if (one != NULL)
     {
-        branch_folds_each(one, each, context);
+        EMBED_CALL(branch_folds_each, DocumentBranchCtx, .one_read = one, .each = args->each_fold_each,
+                   .context = args->context);
     }
     cli_document_lock_give();
     return one != NULL;
 }
 
-unsigned int cli_document_openers(const char *key, unsigned int line, unsigned int *opener, unsigned int most)
+unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args)
 {
     cli_document_lock_take();
-    const CliStoredText *const one = cli_document_stored(key);
-    const unsigned int end = (one != NULL) ? ((line < one->lines.lines) ? line : one->lines.lines) : 0u;
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    const unsigned int end = (one != NULL) ? ((args->line < one->lines.lines) ? args->line : one->lines.lines) : 0u;
     // the regions open above the line, no more than those the lines above it open
     unsigned long long opening = 0ull;
     for (unsigned int at = 0u; at < end; at += 1u)
@@ -1497,10 +1657,10 @@ unsigned int cli_document_openers(const char *key, unsigned int line, unsigned i
             open += 1u;
         }
     }
-    const unsigned int count = (open < most) ? open : most;
+    const unsigned int count = (open < args->most_u32) ? open : args->most_u32;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        opener[at] = opened_on[open - count + at];
+        args->opener[at] = opened_on[open - count + at];
     }
     g_cli_cells->persistent_buf_release(opened_on, &g_cli_editor_cells);
     cli_document_lock_give();
@@ -1509,47 +1669,48 @@ unsigned int cli_document_openers(const char *key, unsigned int line, unsigned i
 
 // whether the folds of `one` go on: its regions moved since they last went, every line of it colored, the walk's step
 // over it having colored none and no coloring under way claiming any, and the page holding lines of it
-static int branch_folds_due(const CliStoredText *one)
+EMBED_INLINE int branch_folds_ready(const DocumentBranchCtx *args)
 {
-    return one->regions_moved && !one->refused && (one->cached_to > one->cached_from) && (one->lines.lines != 0u) &&
-           !branch_claims_any(one);
+    return args->one_read->regions_moved && !args->one_read->refused &&
+           (args->one_read->cached_to > args->one_read->cached_from) && (args->one_read->lines.lines != 0u) &&
+           !branch_claims_any(args);
 }
 
 // colors handed on to where they go, `colors` where `any` line's runs or folds were written into it: the lock they are
 // handed on under taken before the texts' lock is given back, and they go in the order they were put in; the texts'
 // lock given back either way
-static void branch_handed_out(int any, VerbaLinea *colors)
+EMBED_INLINE void branch_handed_out(const DocumentBranchCtx *args)
 {
     const CliDocColored colored = s_colored;
-    const int handing = any && (colored != NULL) && mmgr_line_ok(colors);
+    const int handing = args->any && (colored != NULL) && mmgr_line_ok(args->colors);
     if (handing)
     {
-        cli_lock_take(&s_handing);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_handing);
     }
     cli_document_lock_give();
     if (handing)
     {
-        colored(colors->out, colors->at);
-        cli_lock_give(&s_handing);
+        EMBED_CALL(colored, CliDocColoredCfg, .body = args->colors->out, .size = args->colors->at);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_handing);
     }
 }
 
 // the walk taken by `walker` step by step until no text it may walk has a line to color: each step on a text no other
-// walker walks and the walk did not find colored whole since it last moved, the text kept across the lock given back
+// walker walks and the walk did not find colored whole since it last moved, the text saved across the lock given back
 // as it colors, and the step's colors handed on once it is; on a walker's own thread where `own` is 1, marked as
 // walking no more as it ends
-static void branch_walked(CliBranchWalker *walker, int own)
+static void branch_walk(const DocumentBranchCtx *args)
 {
     for (;;)
     {
         // the line a step's colors are written into, taken as the walk begins and emptied for each step
-        if (walker->step.out == NULL)
+        if (args->walker->step.out == NULL)
         {
             char *const step_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells);
-            walker->step = mmgr_line_over(step_cell, CLI_DOC_COLORS_ROOM);
+            args->walker->step = mmgr_line_over(step_cell, CLI_DOC_COLORS_ROOM);
         }
-        const int made = walker->step.out != NULL;
-        walker->step.at = 0u;
+        const int made = args->walker->step.out != NULL;
+        args->walker->step.at = 0u;
         cli_document_lock_take();
         CliStoredText *one = made ? cli_document_texts() : NULL;
         while ((one != NULL) && (one->walked || one->resting))
@@ -1560,44 +1721,45 @@ static void branch_walked(CliBranchWalker *walker, int own)
         if (one != NULL)
         {
             one->walked = 1;
-            cli_document_holder_added(one);
-            int stepped = branch_step(one, &walker->step, &handed);
+            EMBED_CALL(cli_document_internal.holder_add, CliDocumentCtx, .one = one);
+            int stepped =
+                EMBED_CALL(branch_step, DocumentBranchCtx, .one = one, .out = &args->walker->step, .handed = &handed);
             // a text the step colored none of is colored whole: its folds go on where its regions moved
-            if (!stepped && branch_folds_due(one))
+            if (!stepped && EMBED_CALL(branch_folds_ready, DocumentBranchCtx, .one_read = one))
             {
-                branch_folds_written(one, &walker->step);
+                EMBED_CALL(branch_folds_write, DocumentBranchCtx, .one = one, .out = &args->walker->step);
                 stepped = 1;
                 handed = 1;
             }
             one->resting = !stepped;
             one->walked = 0;
-            cli_document_holder_ended(one);
+            EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
         }
         else
         {
             // the step's line given back as the walk ends, before the walker is marked free to walk again
-            g_cli_cells->persistent_buf_release(walker->step.out, &g_cli_editor_cells);
-            walker->step.out = NULL;
-            walker->walking = own ? 0 : walker->walking;
+            g_cli_cells->persistent_buf_release(args->walker->step.out, &g_cli_editor_cells);
+            args->walker->step.out = NULL;
+            args->walker->walking = args->own ? 0 : args->walker->walking;
             cli_document_lock_give();
             return;
         }
-        branch_handed_out(handed, &walker->step);
+        EMBED_CALL(branch_handed_out, DocumentBranchCtx, .any = handed, .colors = &args->walker->step);
     }
 }
 
 static void branch_walk_run(void *context)
 {
-    branch_walked((CliBranchWalker *)context, 1);
+    EMBED_CALL(branch_walk, DocumentBranchCtx, .walker = (CliBranchWalker *)context, .own = 1);
 }
 
-void cli_document_woken(CliStoredText *one)
+void cli_document_wake(const CliDocumentCtx *args)
 {
-    if (one->let_go)
+    if (args->one->let_go)
     {
         return;
     }
-    one->resting = 0;
+    args->one->resting = 0;
     // the walkers walking and the first free, the texts a walker walks now, and those that wait for one
     unsigned int walking = 0u;
     unsigned int free_at = CLI_DOC_WALKERS;
@@ -1619,31 +1781,36 @@ void cli_document_woken(CliStoredText *one)
     {
         CliBranchWalker *const walker = &s_walkers[free_at];
         walker->thread = (CliThread){branch_walk_run, walker, CLI_PRIORITY_WORK};
-        walker->walking = cli_thread_started(&walker->thread);
+        walker->walking = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &walker->thread);
     }
 }
 
-void cli_document_colors_to(CliDocColored colored, int threaded)
+void cli_document_colors_to(const CliDocumentColoredCfg *args)
 {
     const unsigned int spare = cli_processors() - 1u;
     cli_document_lock_take();
-    s_colored = colored;
-    s_threaded = threaded;
+    s_colored = args->colored;
+    s_threaded = args->threaded;
     s_walkers_most = (spare == 0u) ? 1u : ((spare < CLI_DOC_WALKERS) ? spare : CLI_DOC_WALKERS);
     cli_document_lock_give();
 }
 
-int cli_document_colored_by(const char *key, const char *grammar, int named)
+int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
 {
+    int named = args->named;
     // the names the grammar's tokens take counted before the texts' lock is taken
-    const unsigned int names = (grammar[0] != '\0') ? cli_highlight_names_each(grammar, branch_name_passed, NULL) : 0u;
+    const unsigned int names =
+        (args->grammar[0] != '\0')
+            ? EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = args->grammar,
+                         .each_name_each = branch_name_pass, .context = NULL)
+            : 0u;
     cli_document_lock_take();
-    CliStoredText *const one = cli_document_stored(key);
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = grammar, .cap = CLI_CELLS_POOL});
+    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->grammar, .cap = CLI_CELLS_POOL});
     if ((one != NULL) && (length < CLI_NAME_MAX_LEN))
     {
-        memor.cpy(&(MemoriaCfg){.dst = one->grammar, .src = grammar, .bytes = length + 1ull});
-        cli_document_serial_moved(one);
+        memor.cpy(&(MemoriaCfg){.dst = one->grammar, .src = args->grammar, .bytes = length + 1ull});
+        EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
         one->names = names;
         one->state_used = 0u;
         one->state_count = 0u;
@@ -1654,7 +1821,7 @@ int cli_document_colored_by(const char *key, const char *grammar, int named)
         }
         one->refused = 0;
         one->named = named;
-        (void)branch_state(one, "root");
+        (void)EMBED_CALL(branch_state, DocumentBranchCtx, .one = one, .text = "root");
         for (unsigned int line = 0u; line < one->lines.lines; line += 1u)
         {
             one->lines.begun[line] = CLI_DOC_UNCOLORED;
@@ -1663,45 +1830,49 @@ int cli_document_colored_by(const char *key, const char *grammar, int named)
             one->lines.runs[line] = CLI_DOC_NO_RUNS;
         }
         one->run_used = 0u;
-        // the roles kept were the last grammar's names', read again for this one as its lines are first claimed
+        // the roles saved were the last grammar's names', read again for this one as its lines are first claimed
         one->roles_whole = 0;
         one->regions_moved = 1;
-        cli_document_woken(one);
+        EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
     }
     cli_document_lock_give();
     return one != NULL;
 }
 
-int cli_document_viewed(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out)
+int cli_document_view(const CliDocumentOutKeyFirstCfg *args)
 {
     char *const colors_cell =
-        (out == NULL) ? g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells) : NULL;
+        (args->out == NULL) ? g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells) : NULL;
     VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
     const int made = colors_cell != NULL;
-    VerbaLinea *const into = (out != NULL) ? out : &colors;
+    VerbaLinea *const into = (args->out != NULL) ? args->out : &colors;
     cli_document_lock_take();
-    CliStoredText *const one = cli_document_stored(key);
+    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     const int found = one != NULL;
     int any = 0;
-    if ((one != NULL) && ((out != NULL) || made))
+    if ((one != NULL) && ((args->out != NULL) || made))
     {
-        cli_document_holder_added(one);
-        one->refused = one->refused || (one->paged && !cli_document_paged_counted(one));
+        EMBED_CALL(cli_document_internal.holder_add, CliDocumentCtx, .one = one);
+        one->refused =
+            one->refused || (one->paged && !EMBED_CALL(cli_document_internal.paged_count, CliDocumentCtx, .one = one));
         const CliLines *const lines = &one->lines;
         // a view past the text's last line is read at its last
-        one->origin = (first < lines->lines) ? (unsigned int)first : ((lines->lines != 0u) ? lines->lines - 1u : 0u);
-        if (out == NULL)
+        one->origin =
+            (args->first < lines->lines) ? (unsigned int)args->first : ((lines->lines != 0u) ? lines->lines - 1u : 0u);
+        if (args->out == NULL)
         {
-            branch_colors_begun(one, into);
+            EMBED_CALL(branch_colors_begin, DocumentBranchCtx, .one_read = one, .out = into);
         }
         mmgr_line_ch(into, '[');
         // a paged text's view colored within the lines the page holds alone
         unsigned int low = 0u;
         unsigned int high = 0u;
-        branch_bounds(one, &low, &high);
-        CliBranchRange range = branch_range_begun(one, &any, into, one->columns, CLI_DOC_ALL_BYTES, high);
-        for (unsigned long long line = (first > low) ? first : low;
-             (one->grammar[0] != '\0') && !one->refused && !range.stale && (line <= last) && (line < high);)
+        EMBED_CALL(branch_bounds, DocumentBranchCtx, .one_read = one, .low_pointer = &low, .high_pointer = &high);
+        CliBranchRange range =
+            EMBED_CALL(branch_range_begin, DocumentBranchCtx, .one_read = one, .any_pointer = &any, .out = into,
+                       .columns = one->columns, .bytes = CLI_DOC_ALL_BYTES, .high = high);
+        for (unsigned long long line = (args->first > low) ? args->first : low;
+             (one->grammar[0] != '\0') && !one->refused && !range.stale && (line <= args->last) && (line < high);)
         {
             // the view's lines stand below the text's last, which an unsigned int counts
             const unsigned int at = (unsigned int)line;
@@ -1714,23 +1885,25 @@ int cli_document_viewed(const char *key, unsigned long long first, unsigned long
             }
             unsigned int run_first = 0u;
             unsigned int run_end = 0u;
-            branch_run_of(one, at, 1, low, high, 0, &run_first, &run_end);
+            EMBED_CALL(branch_run_get, DocumentBranchCtx, .one_read = one, .at = at, .down = 1, .low = low,
+                       .high = high, .yielding = 0, .first_pointer = &run_first, .end_pointer = &run_end);
             // the view's lines alone, those below it left to the walk, which colors them on a thread of its own; a
             // line past the view's last stands below the run's end, which an unsigned int counts
-            run_end = ((unsigned long long)run_end > (last + 1ull)) ? (unsigned int)(last + 1ull) : run_end;
-            branch_range_colored(one, run_first, run_end, 0, &range);
+            run_end = ((unsigned long long)run_end > (args->last + 1ull)) ? (unsigned int)(args->last + 1ull) : run_end;
+            EMBED_CALL(branch_range_color, DocumentBranchCtx, .one = one, .first = run_first, .end = run_end,
+                       .onward = 0, .range = &range);
             line = run_end;
         }
-        branch_range_ended(&range);
+        EMBED_CALL(branch_range_end, DocumentBranchCtx, .range = &range);
         mmgr_line_ch(into, ']');
-        if (out == NULL)
+        if (args->out == NULL)
         {
-            branch_colors_ended(one, any, into);
+            EMBED_CALL(branch_colors_end, DocumentBranchCtx, .one = one, .any = any, .out = into);
         }
-        cli_document_woken(one);
-        cli_document_holder_ended(one);
+        EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
+        EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
     }
-    branch_handed_out(any && (out == NULL), &colors);
+    EMBED_CALL(branch_handed_out, DocumentBranchCtx, .any = any && (args->out == NULL), .colors = &colors);
     if (made)
     {
         g_cli_cells->persistent_buf_release(colors.out, &g_cli_editor_cells);
@@ -1739,69 +1912,72 @@ int cli_document_viewed(const char *key, unsigned long long first, unsigned long
 }
 
 // the lines from `from` to before `to` of `one`, those from `passed_from` to before `passed_to` passed over, handed on
-// again into `out` as the walk hands its colors, `{"key", "seq", "colors"}`: the runs each keeps where they stand, and
-// each that keeps none that stand not colored, the walk or a view coloring it and handing it on as it comes to it, as
+// again into `out` as the walk hands its colors, `{"key", "seq", "colors"}`: the runs each saves where they stand, and
+// each that saves none that stand not colored, the walk or a view coloring it and handing it on as it comes to it, as
 // every line is where `out` is NULL: 1 where any line's runs were written, else 0
-static int branch_runs_rehanded(CliStoredText *one, unsigned int from, unsigned int to, unsigned int passed_from,
-                                unsigned int passed_to, VerbaLinea *out)
+EMBED_INLINE int branch_runs_rehanded(const DocumentBranchCtx *args)
 {
     int any = 0;
-    if (out != NULL)
+    if (args->out != NULL)
     {
-        branch_colors_begun(one, out);
-        mmgr_line_ch(out, '[');
+        EMBED_CALL(branch_colors_begin, DocumentBranchCtx, .one_read = args->one, .out = args->out);
+        mmgr_line_ch(args->out, '[');
     }
-    CliBranchRange range = branch_range_begun(one, &any, out, one->columns, CLI_DOC_ALL_BYTES, to);
-    for (unsigned int line = from; line < to; line += 1u)
+    CliBranchRange range =
+        EMBED_CALL(branch_range_begin, DocumentBranchCtx, .one_read = args->one, .any_pointer = &any, .out = args->out,
+                   .columns = args->one->columns, .bytes = CLI_DOC_ALL_BYTES, .high = args->to);
+    for (unsigned int line = args->from; line < args->to; line += 1u)
     {
-        if ((line >= passed_from) && (line < passed_to))
+        if ((line >= args->passed_from) && (line < args->passed_to))
         {
             continue;
         }
-        if ((out != NULL) && branch_runs_standing(one, line))
+        if ((args->out != NULL) &&
+            EMBED_CALL(branch_runs_standing, DocumentBranchCtx, .one_read = args->one, .line = line))
         {
-            branch_runs_handed(one, line, &range);
+            EMBED_CALL(branch_runs_dispatch, DocumentBranchCtx, .one_read = args->one, .line = line, .range = &range);
         }
         else
         {
-            one->lines.begun[line] = CLI_DOC_UNCOLORED;
+            args->one->lines.begun[line] = CLI_DOC_UNCOLORED;
         }
     }
-    if (out != NULL)
+    if (args->out != NULL)
     {
-        branch_range_ended(&range);
-        mmgr_line_ch(out, ']');
-        branch_colors_ended(one, any, out);
+        EMBED_CALL(branch_range_end, DocumentBranchCtx, .range = &range);
+        mmgr_line_ch(args->out, ']');
+        EMBED_CALL(branch_colors_end, DocumentBranchCtx, .one = args->one, .any = any, .out = args->out);
     }
     return any;
 }
 
 // colors handed on again written into `colors`, handed to where the colors go as the lock is given back, and its cell
 // given back where `made` is 1
-static void branch_rehanded_sent(int any, VerbaLinea *colors, int made)
+EMBED_INLINE void branch_rehanded_send(const DocumentBranchCtx *args)
 {
-    branch_handed_out(any, colors);
-    if (made)
+    branch_handed_out(args);
+    if (args->made)
     {
-        g_cli_cells->persistent_buf_release(colors->out, &g_cli_editor_cells);
+        g_cli_cells->persistent_buf_release(args->colors->out, &g_cli_editor_cells);
     }
 }
 
-int cli_document_cached(const char *key, unsigned long long from, unsigned long long to)
+int cli_document_cache(const CliDocumentKeyFromCfg *args)
 {
     char *const colors_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells);
     VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
     const int made = colors.out != NULL;
     cli_document_lock_take();
-    CliStoredText *const one = cli_document_stored(key);
+    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     int any = 0;
     if (one != NULL)
     {
-        one->refused = one->refused || (one->paged && !cli_document_paged_counted(one));
+        one->refused =
+            one->refused || (one->paged && !EMBED_CALL(cli_document_internal.paged_count, CliDocumentCtx, .one = one));
         CliLines *const lines = &one->lines;
         // the lines the page mirrors stand among those the pages count, which an unsigned int counts
-        const unsigned int cached_from = (from < lines->lines) ? (unsigned int)from : lines->lines;
-        const unsigned int cached_to = (to < lines->lines) ? (unsigned int)to : lines->lines;
+        const unsigned int cached_from = (args->from < lines->lines) ? (unsigned int)args->from : lines->lines;
+        const unsigned int cached_to = (args->to < lines->lines) ? (unsigned int)args->to : lines->lines;
         const unsigned int was_from = one->cached_from;
         const unsigned int was_to = (one->cached_to < lines->lines) ? one->cached_to : lines->lines;
         // a paged text's lines the page lets go let their runs go with them
@@ -1809,27 +1985,29 @@ int cli_document_cached(const char *key, unsigned long long from, unsigned long 
         {
             lines->runs[line] = ((line < cached_from) || (line >= cached_to)) ? CLI_DOC_NO_RUNS : lines->runs[line];
         }
-        // a line the page comes to mirror handed the runs it keeps, or colored again where it keeps none that stand,
-        // the state it ends in kept: the line below it is entered in the state it was
-        any = branch_runs_rehanded(one, cached_from, cached_to, was_from, was_to, made ? &colors : NULL);
+        // a line the page comes to mirror handed the runs it saves, or colored again where it saves none that stand,
+        // the state it ends in saved: the line below it is entered in the state it was
+        any = EMBED_CALL(branch_runs_rehanded, DocumentBranchCtx, .one = one, .from = cached_from, .to = cached_to,
+                         .passed_from = was_from, .passed_to = was_to, .out = made ? &colors : NULL);
         // a paged text's folds are those of the lines the page mirrors
         one->regions_moved =
             one->regions_moved || (one->paged && ((cached_from != one->cached_from) || (cached_to != one->cached_to)));
         one->cached_from = cached_from;
         one->cached_to = cached_to;
-        cli_document_woken(one);
+        EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
     }
-    branch_rehanded_sent(any, &colors, made);
+    EMBED_CALL(branch_rehanded_send, DocumentBranchCtx, .any = any, .colors = &colors, .made = made);
     return one != NULL;
 }
 
-int cli_document_columns(const char *key, unsigned long long columns)
+int cli_document_columns(const CliDocumentKeyColumnsCfg *args)
 {
+    unsigned long long columns = args->columns;
     char *const colors_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells);
     VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
     const int made = colors.out != NULL;
     cli_document_lock_take();
-    CliStoredText *const one = cli_document_stored(key);
+    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     int any = 0;
     if (one != NULL)
     {
@@ -1840,58 +2018,61 @@ int cli_document_columns(const char *key, unsigned long long columns)
         if (farther)
         {
             const unsigned int cached_to = (one->cached_to < one->lines.lines) ? one->cached_to : one->lines.lines;
-            any = branch_runs_rehanded(one, one->cached_from, cached_to, 0u, 0u, made ? &colors : NULL);
-            cli_document_woken(one);
+            any = EMBED_CALL(branch_runs_rehanded, DocumentBranchCtx, .one = one, .from = one->cached_from,
+                             .to = cached_to, .passed_from = 0u, .passed_to = 0u, .out = made ? &colors : NULL);
+            EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
         }
     }
-    branch_rehanded_sent(any, &colors, made);
+    EMBED_CALL(branch_rehanded_send, DocumentBranchCtx, .any = any, .colors = &colors, .made = made);
     return one != NULL;
 }
 
-int cli_document_runs_written(const char *key, unsigned long long first, unsigned long long last, int mirrored,
-                              VerbaLinea *out)
+int cli_document_runs_write(const CliDocumentOutKeyFirstCfg *args)
 {
     cli_document_lock_take();
-    CliStoredText *const one = cli_document_stored(key);
+    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     const int found = one != NULL;
     int any = 0;
-    mmgr_line_ch(out, '[');
+    mmgr_line_ch(args->out, '[');
     if (one != NULL)
     {
-        cli_document_holder_added(one);
-        one->refused = one->refused || (one->paged && !cli_document_paged_counted(one));
+        EMBED_CALL(cli_document_internal.holder_add, CliDocumentCtx, .one = one);
+        one->refused =
+            one->refused || (one->paged && !EMBED_CALL(cli_document_internal.paged_count, CliDocumentCtx, .one = one));
         const CliLines *const lines = &one->lines;
         // the lines asked stand among those the text counts, which an unsigned int counts
-        const unsigned int from = (first < lines->lines) ? (unsigned int)first : lines->lines;
-        const unsigned int to = (last < lines->lines) ? ((unsigned int)last + 1u) : lines->lines;
-        // each line's runs the walk kept where they stand, and the lines that keep none colored, none past the last
+        const unsigned int from = (args->first < lines->lines) ? (unsigned int)args->first : lines->lines;
+        const unsigned int to = (args->last < lines->lines) ? ((unsigned int)args->last + 1u) : lines->lines;
+        // each line's runs the walk saved where they stand, and the lines that save none colored, none past the last
         // asked, their runs written whatever lines the page mirrors
-        const unsigned long long columns = mirrored ? one->columns : 0ull;
-        CliBranchRange range = branch_range_begun(one, &any, out, columns, CLI_DOC_ALL_BYTES, to);
+        const unsigned long long columns = args->mirrored ? one->columns : 0ull;
+        CliBranchRange range = EMBED_CALL(branch_range_begin, DocumentBranchCtx, .one_read = one, .any_pointer = &any,
+                                          .out = args->out, .columns = columns, .bytes = CLI_DOC_ALL_BYTES, .high = to);
         range.asked = 1;
         range.hand_from = from;
         range.hand_to = to;
         for (unsigned int line = from; (one->grammar[0] != '\0') && !one->refused && !range.stale && (line < to);)
         {
-            if (branch_runs_standing(one, line))
+            if (EMBED_CALL(branch_runs_standing, DocumentBranchCtx, .one_read = one, .line = line))
             {
-                branch_runs_handed(one, line, &range);
+                EMBED_CALL(branch_runs_dispatch, DocumentBranchCtx, .one_read = one, .line = line, .range = &range);
                 line += 1u;
                 continue;
             }
             unsigned int end = line + 1u;
-            while ((end < to) && !branch_runs_standing(one, end))
+            while ((end < to) && !EMBED_CALL(branch_runs_standing, DocumentBranchCtx, .one_read = one, .line = end))
             {
                 end += 1u;
             }
-            branch_range_colored(one, line, end, 0, &range);
+            EMBED_CALL(branch_range_color, DocumentBranchCtx, .one = one, .first = line, .end = end, .onward = 0,
+                       .range = &range);
             // the lines after them colored again with them written with them
             line = (range.next > end) ? range.next : end;
         }
-        branch_range_ended(&range);
+        EMBED_CALL(branch_range_end, DocumentBranchCtx, .range = &range);
         // the lines the page mirrors take the lines asked in, joined to them where the two meet and in their place
         // where they do not
-        if (mirrored)
+        if (args->mirrored)
         {
             const unsigned int cached_from = one->cached_from;
             const unsigned int cached_to = one->cached_to;
@@ -1899,16 +2080,16 @@ int cli_document_runs_written(const char *key, unsigned long long first, unsigne
             one->cached_from = (meet && (cached_from < from)) ? cached_from : from;
             one->cached_to = (meet && (cached_to > to)) ? cached_to : to;
         }
-        cli_document_holder_ended(one);
+        EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
     cli_document_lock_give();
     return found;
 }
 
-void cli_document_walked(void)
+void cli_document_walk(void)
 {
-    branch_walked(&s_walkers[CLI_DOC_WALKERS], 0);
+    EMBED_CALL(branch_walk, DocumentBranchCtx, .walker = &s_walkers[CLI_DOC_WALKERS], .own = 0);
 }
 
 unsigned int cli_document_walkers(void)
@@ -1923,10 +2104,11 @@ unsigned int cli_document_walkers(void)
     return walking;
 }
 
-char *cli_document_text_taken(const char *key, unsigned long long *size, CellOwner *owner)
+char *cli_document_text_take(const CliDocumentKeyCfg *args)
 {
+    unsigned long long *size = args->size_pointer;
     cli_document_lock_take();
-    const CliStoredText *const one = cli_document_stored(key);
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     char *taken = NULL;
     if ((one != NULL) && !one->paged)
     {
@@ -1937,13 +2119,13 @@ char *cli_document_text_taken(const char *key, unsigned long long *size, CellOwn
         {
             room += (3ull * lines->length[line]) + 1ull;
         }
-        taken = g_cli_cells->persistent_buf_alloc(room, owner);
+        taken = g_cli_cells->persistent_buf_alloc(room, args->owner);
         if (taken != NULL)
         {
             VerbaLinea text = {taken, room, 0ull};
             for (unsigned int line = 0u; line < lines->lines; line += 1u)
             {
-                branch_line_put(lines, line, &text);
+                EMBED_CALL(branch_line_put, DocumentBranchCtx, .lines = lines, .line = line, .out = &text);
                 mmgr_line_put(&text, ((line + 1u) < lines->lines) ? "\n" : "");
             }
             taken[text.at] = '\0';
@@ -1954,17 +2136,17 @@ char *cli_document_text_taken(const char *key, unsigned long long *size, CellOwn
     return taken;
 }
 
-char *cli_document_lines_taken(const char *key, unsigned long long first, unsigned long long last,
-                               unsigned long long *size, char *state, unsigned long long room, CellOwner *owner)
+char *cli_document_lines_take(const CliDocumentKeyCfg *args)
 {
-    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, owner);
+    unsigned long long *size = args->size_pointer;
+    char *const written_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, args->owner);
     VerbaLinea written = mmgr_line_over(written_cell, CLI_DOC_COLORS_ROOM);
     const int made = written.out != NULL;
     VerbaLinea *const text = &written;
     cli_document_lock_take();
-    const CliStoredText *const one = cli_document_stored(key);
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     const int found = one != NULL;
-    VerbaLinea entered = {state, room, 0ull};
+    VerbaLinea entered = {args->state, args->room, 0ull};
     // a paged text's lines, read through the pages with the lock given back: its key, and the lines asked
     char paged[CLI_NAME_MAX_LEN];
     paged[0] = '\0';
@@ -1974,8 +2156,8 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
     {
         const CliLines *const lines = &one->lines;
         // the lines asked stand below the text's last, which an unsigned int counts
-        to = (last < lines->lines) ? (unsigned int)last : (lines->lines - 1u);
-        from = (first <= to) ? (unsigned int)first : to;
+        to = (args->last < lines->lines) ? (unsigned int)args->last : (lines->lines - 1u);
+        from = (args->first <= to) ? (unsigned int)args->first : to;
         const unsigned int begun = (lines->lines != 0u) ? lines->begun[from] : CLI_DOC_UNCOLORED;
         // the colorer's own state the first is entered in, the scope after the mark left out
         const char *const begun_in =
@@ -1991,7 +2173,7 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
         }
         for (unsigned int at = from; !one->paged && (lines->lines != 0u) && (at <= to); at += 1u)
         {
-            branch_line_put(lines, at, text);
+            EMBED_CALL(branch_line_put, DocumentBranchCtx, .lines = lines, .line = at, .out = text);
             mmgr_line_put(text, (at < to) ? "\n" : "");
         }
     }
@@ -2003,7 +2185,9 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
             g_cli_cells->temporary_buf_alloc(wanted * sizeof(const char *), &g_cli_editor_cells);
         unsigned long long count = 0ull;
         char *const taken =
-            (starts != NULL) ? cli_pages_lines_taken(paged, from, to + 1u, starts, &count, &g_cli_editor_cells) : NULL;
+            (starts != NULL) ? EMBED_CALL(cli_pages_from.lines_take, CliPagesFromCfg, .key = paged, .from = from,
+                                          .to = to + 1u, .line = starts, .count = &count, .owner = &g_cli_editor_cells)
+                             : NULL;
         for (unsigned long long at = 0ull; (taken != NULL) && (at < count); at += 1ull)
         {
             mmgr_line_put(text, starts[at]);
@@ -2012,28 +2196,30 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
         g_cli_cells->persistent_buf_release(taken, &g_cli_editor_cells);
         g_cli_cells->persistent_buf_release(starts, &g_cli_editor_cells);
     }
-    if ((mmgr_line_finish(&entered) == 0ull) && (room != 0ull))
+    if ((mmgr_line_finish(&entered) == 0ull) && (args->room != 0ull))
     {
-        state[0] = '\0';
+        args->state[0] = '\0';
     }
     const int taken = made && found && mmgr_line_ok(text);
     if (made && !taken)
     {
-        g_cli_cells->persistent_buf_release(written.out, owner);
+        g_cli_cells->persistent_buf_release(written.out, args->owner);
     }
     *size = taken ? text->at : 0ull;
     return taken ? written.out : NULL;
 }
 
-int cli_document_bounds(const char *key, unsigned long long *low, unsigned long long *high)
+int cli_document_bounds(const CliDocumentKeyLowCfg *args)
 {
+    unsigned long long *low = args->low;
+    unsigned long long *high = args->high;
     cli_document_lock_take();
-    const CliStoredText *const one = cli_document_stored(key);
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     unsigned int from = 0u;
     unsigned int to = 0u;
     if (one != NULL)
     {
-        branch_bounds(one, &from, &to);
+        EMBED_CALL(branch_bounds, DocumentBranchCtx, .one_read = one, .low_pointer = &from, .high_pointer = &to);
     }
     cli_document_lock_give();
     *low = from;
@@ -2041,14 +2227,16 @@ int cli_document_bounds(const char *key, unsigned long long *low, unsigned long 
     return one != NULL;
 }
 
-int cli_document_text_written(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out,
-                              char *state, unsigned long long room)
+int cli_document_text_write(const CliDocumentOutKeyCfg *args)
 {
     unsigned long long size = 0ull;
-    char *const text = cli_document_lines_taken(key, first, last, &size, state, room, &g_cli_editor_cells);
+    char *const text = EMBED_CALL(cli_document_key.lines_take, CliDocumentKeyCfg, .key = args->key,
+                                  .first = args->first, .last = args->last, .size_pointer = &size, .state = args->state,
+                                  .room = args->room, .owner = &g_cli_editor_cells);
     if (text != NULL)
     {
-        cli_json_quoted(out, text, size);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = text,
+                   .length = size);
         g_cli_cells->persistent_buf_release(text, &g_cli_editor_cells);
     }
     return text != NULL;

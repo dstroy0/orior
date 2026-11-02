@@ -5,9 +5,28 @@
 // (symbols_read.c)
 #ifndef SYMBOLS_INTERNAL_H
 #define SYMBOLS_INTERNAL_H
+typedef struct CliSymbolsPathCtx CliSymbolsPathCtx;
+typedef struct CliSymbolsReadLanguagesTextCtx CliSymbolsReadLanguagesTextCtx;
+typedef struct CliSymbolsPathReadLanguagesTextCtx CliSymbolsPathReadLanguagesTextCtx;
+typedef struct CliSymbolsPathReadLanguagesCtx CliSymbolsPathReadLanguagesCtx;
+typedef struct CliSymbolsSizeCtx CliSymbolsSizeCtx;
+typedef struct CliSymbolsLanguagesCtx CliSymbolsLanguagesCtx;
+typedef struct CliSymbolsTextCtx CliSymbolsTextCtx;
+typedef struct CliSymbolsPathNameCtx CliSymbolsPathNameCtx;
+typedef struct CliSymbolsEffectCtx CliSymbolsEffectCtx;
+typedef struct CliSymbolsNameCtx CliSymbolsNameCtx;
+typedef struct CliSymbolsTextLengthCtx CliSymbolsTextLengthCtx;
+typedef struct CliSymbolsPathEffectCtx CliSymbolsPathEffectCtx;
+typedef struct CliSymbolsReadCtx CliSymbolsReadCtx;
+typedef struct CliSymbolsReadLeafCtx CliSymbolsReadLeafCtx;
+typedef struct CliSymbolsReadLeafTypeCtx CliSymbolsReadLeafTypeCtx;
+typedef struct CliSymbolsCtx CliSymbolsCtx;
+typedef struct CliSymbolsReadLanguagesCtx CliSymbolsReadLanguagesCtx;
+typedef struct CliSymbolsArgumentCtx CliSymbolsArgumentCtx;
 
 #include "../editor/highlight.h"
 #include "../plugins/plugins.h"
+#include "embed_dispatch_layout.h"
 #include "symbols.h"
 
 // the most languages a reading holds whose plugins have a grammar
@@ -38,15 +57,11 @@ struct CliSymbolsLanguages
 // each line ended by a NUL: 1, or 0 where the language is none read here or the cells cannot meet the copy; and the
 // byte of `line`, `size` bytes, the column `col` stands at in UTF-16 units, walked on from `*byte` at column `*at`
 // (symbols_read.c)
-int cli_symbols_reads_in(const CliSymbolsLanguages *read, const char *path);
-void cli_symbols_declared_in(CliSymbolsLanguages *read, const char *path, const char *text, unsigned long long size,
-                             CliDeclared each, void *context);
-int cli_symbols_leaves_in(CliSymbolsLanguages *read, const char *path, const char *state, const char *text,
-                          unsigned long long size, CliLeavesEach each, void *context);
-int cli_symbols_language_leaves_in(CliSymbolsLanguages *read, const char *id, const char *state, const char *text,
-                                   unsigned long long size, CliLeavesEach each, void *context);
-unsigned long long cli_symbols_byte_at(const char *line, unsigned long long size, unsigned int col,
-                                       unsigned long long *byte, unsigned int *at);
+int cli_symbols_reads_in(const CliSymbolsReadLanguagesCtx *args);
+void cli_symbols_declared_in(const CliSymbolsPathReadLanguagesCtx *args);
+int cli_symbols_leaves_in(const CliSymbolsPathReadLanguagesTextCtx *args);
+int cli_symbols_language_leaves_in(const CliSymbolsReadLanguagesTextCtx *args);
+unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 
 // what a leaf is, read off its token's name: the empty name; a name whose first segment is `string`, `comment`,
 // `number`, `identifier` or `predefined`, `keyword` or `type`; a name holding the segment `memory`, `parameter`,
@@ -151,8 +166,8 @@ typedef struct
     unsigned char does;
 } CliLeaf;
 
-// A text's leaves kept: the text, its leaves in a cell at their most, how many, the room, the lines read, whether the
-// cells refused a leaf, and where each declaration a leaf names goes as it is kept, NULL for nowhere; and whether the
+// A text's leaves saved: the text, its leaves in a cell at their most, how many, the room, the lines read, whether the
+// cells refused a leaf, and where each declaration a leaf names goes as it is saved, NULL for nowhere; and whether the
 // leaves' first cell is taken on the lane the thread is on, for a read given back before the lane is rewound
 typedef struct
 {
@@ -170,26 +185,22 @@ typedef struct
 } CliLeafRead;
 
 // the leaves of `size` bytes of `text` read in the language of the file at `path`, the first line starting in
-// `state`, kept in `read`: 1, or 0 where the language is none read here or the cells refused a leaf; the same read in
+// `state`, saved in `read`: 1, or 0 where the language is none read here or the cells refused a leaf; the same read in
 // the language `id`, the first line starting at the grammar's root; the same with each declaration a leaf names handed
-// to `each` as it is kept; a kept leaf's text and its length; whether a leaf plays every role of `roles`, CLI_LEAF_
+// to `each` as it is saved; a saved leaf's text and its length; whether a leaf plays every role of `roles`, CLI_LEAF_
 // bits its grammar names, and is neither a string nor a comment; and the leaves' cell given back (symbols_leaves.c)
-int cli_symbols_leaves_kept(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
-                            unsigned long long size, CliLeafRead *read);
-int cli_symbols_language_leaves_kept(CliSymbolsLanguages *languages, const char *id, const char *text,
-                                     unsigned long long size, CliLeafRead *read);
-int cli_symbols_leaves_declared(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
-                                unsigned long long size, CliLeafRead *read, CliDeclared each, void *context);
-// the leaves read as cli_symbols_leaves_kept reads them, their cell on the lane the thread is on, for a read given back
+int cli_symbols_leaves_save(const CliSymbolsPathCtx *args);
+int cli_symbols_language_leaves_save(const CliSymbolsTextCtx *args);
+int cli_symbols_leaves_declare(const CliSymbolsPathCtx *args);
+// the leaves read as cli_symbols_leaves_save reads them, their cell on the lane the thread is on, for a read given back
 // before the lane is rewound
-int cli_symbols_leaves_temporary(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
-                                 unsigned long long size, CliLeafRead *read);
+int cli_symbols_leaves_temporary(const CliSymbolsPathCtx *args);
 // the kind a token's name declares: the rest of the name past its segment `declaration`, or NULL where it has none
 // (symbols_read.c)
-const char *cli_symbols_declares(const char *name);
-const char *cli_leaf_text(const CliLeafRead *read, unsigned int leaf, unsigned long long *length);
-int cli_leaf_has(const CliLeafRead *read, unsigned int leaf, unsigned long long roles);
-void cli_symbols_leaves_given(CliLeafRead *read);
+const char *cli_symbols_declares(const CliSymbolsNameCtx *args);
+const char *cli_leaf_text(const CliSymbolsReadLeafCtx *args);
+int cli_leaf_has(const CliSymbolsReadCtx *args);
+void cli_symbols_leaves_free(const CliSymbolsTextCtx *args);
 
 // the most bytes of a type's text, of a head's label, the most parameters a head is read with, the most declarations
 // of a name read, and the most lines a head is read across
@@ -233,10 +244,9 @@ typedef struct
 // bytes, at
 // `head`'s line of its file under `root` read into `head`: 1, or 0 where the file is not read or has no head there
 // (symbols_heads.c)
-void cli_symbols_type_of(const CliLeafRead *read, unsigned int leaf, CliSymbolType *type);
-int cli_symbols_type_fits(const CliSymbolType *argument, const CliSymbolType *parameter);
-int cli_symbols_head_read(CliSymbolsLanguages *languages, const char *root, const char *name, unsigned long long length,
-                          CliSymbolHead *head);
+void cli_symbols_type_get(const CliSymbolsReadLeafTypeCtx *args);
+int cli_symbols_type_fits(const CliSymbolsArgumentCtx *args);
+int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args);
 
 // the most conditions open at once and the most includes deep a walk goes, the most lines one directive runs across,
 // the most declarations of the name sought read from one branch, the most macros deep a condition's value is read
@@ -334,15 +344,31 @@ typedef struct
     unsigned int kind;
 } CliEffectSeen;
 
+typedef struct
+{
+    void *context;
+    const CliLeafRead *read;
+    unsigned int leaf;
+    const char *path;
+    unsigned int line;
+} CliEffectNotedCfg;
+
 // one leaf of the branch a walk starts from that names the name sought, in an active region, handed on as the walk
 // passes its line: the branch's leaves and the leaf, and the definition of the name in effect there as a usage knows
 // it, the define in effect, else the first declaration of it the walk met: its branch's path as the tree holds it and
 // its line, CLI_EFFECT_GIVEN for a define the database gives, the path NULL for none
-typedef void (*CliEffectNoted)(void *context, const CliLeafRead *read, unsigned int leaf, const char *path,
-                               unsigned int line);
+typedef void (*CliEffectNoted)(const CliEffectNotedCfg *args);
+typedef struct
+{
+    void *context;
+    const CliLeafRead *read;
+    unsigned int leaf;
+    int active;
+} CliEffectReachedCfg;
+
 // a line of the branch a walk starts from reached, before the walk reads it: the branch's leaves, the line's first leaf
 // and whether the line stands in an active region: 1 to read on, 0 to end the walk there
-typedef int (*CliEffectReached)(void *context, const CliLeafRead *read, unsigned int leaf, int active);
+typedef int (*CliEffectReached)(const CliEffectReachedCfg *args);
 
 // A walk from a branch's first line to a line of it: the languages, the tree's top, the branch it starts from and its
 // text where the editor's stands in for the disk's, NULL where none does, and how many bytes, its texts a line, the
@@ -399,9 +425,9 @@ typedef struct
 // the text at `at` among the walk's texts; the macro of `name`, `length` bytes, the walk met last, its place, or
 // CLI_JSON_NONE where it met none or met it undefined; and `length` bytes of `text` put after the walk's texts with a
 // zero after them, their place, or CLI_JSON_NONE with the walk refused where the line is full (symbols_effect.c)
-const char *cli_effect_text(const CliEffect *effect, unsigned int at);
-unsigned int cli_effect_macro(const CliEffect *effect, const char *name, unsigned long long length);
-unsigned int cli_effect_put(CliEffect *effect, const char *text, unsigned long long length);
+const char *cli_effect_text(const CliSymbolsCtx *args);
+unsigned int cli_effect_macro(const CliSymbolsNameCtx *args);
+unsigned int cli_effect_put(const CliSymbolsTextLengthCtx *args);
 // the most entries a walk's list takes, and its values' and one branch's declarations'
 #define CLI_EFFECT_LIST_MOST (1u << 15u)
 #define CLI_EFFECT_VALUES_MOST (1u << 17u)
@@ -410,9 +436,9 @@ unsigned int cli_effect_put(CliEffect *effect, const char *text, unsigned long l
 // with why given where the cells cannot meet it; the walk taken from the file's first line to before line `line`, the
 // defines and include folders the compilation database gives the file first and the files it includes before its
 // first line walked before it; and the walk's cells given back (symbols_effect.c)
-CliEffect *cli_effect_made(const char *path, const char *name, int slicing, VerbaLinea *err_msg);
-void cli_effect_taken(CliEffect *effect, const char *path, unsigned int line);
-void cli_effect_given_back(CliEffect *effect);
+CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args);
+void cli_effect_take(const CliSymbolsPathEffectCtx *args);
+void cli_effect_input_back(const CliSymbolsTextLengthCtx *args);
 // the integer the `count` leaves `token` of a condition give, read by the roles their grammar names: a number in the
 // base its leaf names, a prefix passed over; an operator by how tightly it binds, one named `unary` or any before a
 // value taken as one before it, and one named `choice` choosing between the value after it, to the one named
@@ -422,6 +448,325 @@ void cli_effect_given_back(CliEffect *effect);
 // named `rest` the arguments past its parameters, one named `join` joining the leaves about it and one named `quote`
 // making the leaf after it a string; CLI_EFFECT_THROUGH macros deep at most, and a name of no macro 0; 0 where the
 // leaves give no integer. A bracket and a comma are known by their text (symbols_effect_value.c)
-long long cli_effect_value(CliEffect *effect, const CliEffectToken *token, unsigned int count, unsigned int through);
+long long cli_effect_value(const CliSymbolsEffectCtx *args);
+
+struct CliSymbolsPathCtx
+{
+    const char *path;
+    const char *text;
+    unsigned long long size;
+    CliDeclared each;
+    void *context;
+    const char *state;
+    CliSymbolsLanguages *languages;
+    CliLeafRead *read;
+};
+
+struct CliSymbolsReadLanguagesTextCtx
+{
+    CliSymbolsLanguages *read_symbols_languages_pointer_other;
+    const char *text;
+    unsigned long long size;
+    void *context;
+    const char *state;
+    CliLeavesEach each_leaves_each;
+    const char *id;
+};
+
+struct CliSymbolsPathReadLanguagesTextCtx
+{
+    const char *path;
+    CliSymbolsLanguages *read_symbols_languages_pointer_other;
+    const char *text;
+    unsigned long long size;
+    void *context;
+    const char *state;
+    CliLeavesEach each_leaves_each;
+};
+
+struct CliSymbolsPathReadLanguagesCtx
+{
+    const char *path;
+    CliSymbolsLanguages *read_symbols_languages_pointer_other;
+    const char *text;
+    unsigned long long size;
+    CliDeclared each;
+    void *context;
+};
+
+struct CliSymbolsSizeCtx
+{
+    unsigned long long size;
+    const char *line;
+    unsigned int col;
+    unsigned long long *byte;
+    unsigned int *at;
+};
+
+struct CliSymbolsLanguagesCtx
+{
+    CliSymbolsLanguages *languages;
+    const char *name;
+    const char *root;
+    unsigned long long length;
+    CliSymbolHead *head;
+};
+
+struct CliSymbolsTextCtx
+{
+    const char *text;
+    unsigned long long size;
+    const char *id;
+    CliSymbolsLanguages *languages;
+    CliLeafRead *read;
+};
+
+struct CliSymbolsPathNameCtx
+{
+    const char *path;
+    const char *name;
+    int slicing;
+    VerbaLinea *err_msg;
+};
+
+struct CliSymbolsEffectCtx
+{
+    CliEffect *effect;
+    const CliEffectToken *token;
+    unsigned int count;
+    unsigned int through;
+};
+
+struct CliSymbolsNameCtx
+{
+    const char *name;
+    unsigned long long length;
+    const CliEffect *effect_read;
+};
+
+struct CliSymbolsTextLengthCtx
+{
+    const char *text;
+    unsigned long long length;
+    CliEffect *effect;
+};
+
+struct CliSymbolsPathEffectCtx
+{
+    const char *path;
+    CliEffect *effect;
+    unsigned int line_u32;
+};
+
+struct CliSymbolsReadCtx
+{
+    const CliLeafRead *read_read;
+    unsigned int leaf;
+    unsigned long long roles;
+};
+
+struct CliSymbolsReadLeafCtx
+{
+    const CliLeafRead *read_read;
+    unsigned int leaf;
+    unsigned long long *length_pointer;
+};
+
+struct CliSymbolsReadLeafTypeCtx
+{
+    const CliLeafRead *read_read;
+    unsigned int leaf;
+    CliSymbolType *type;
+};
+
+struct CliSymbolsCtx
+{
+    const CliEffect *effect_read;
+    unsigned int at_value;
+};
+
+struct CliSymbolsReadLanguagesCtx
+{
+    const CliSymbolsLanguages *read_symbols_languages_pointer;
+    const char *path;
+};
+
+struct CliSymbolsArgumentCtx
+{
+    const CliSymbolType *argument;
+    const CliSymbolType *parameter;
+};
+
+typedef struct
+{
+    int (*reads_in)(const CliSymbolsReadLanguagesCtx *args);
+} CliSymbolsReadLanguagesNs;
+EMBED_TABLE_LAYOUT(CliSymbolsReadLanguagesNs, reads_in);
+EMBED_TABLE_STORAGE CliSymbolsReadLanguagesNs cli_symbols_read_languages_internal EMBED_UNUSED = {
+    .reads_in = cli_symbols_reads_in,
+};
+
+typedef struct
+{
+    void (*declared_in)(const CliSymbolsPathReadLanguagesCtx *args);
+} CliSymbolsPathReadLanguagesNs;
+EMBED_TABLE_LAYOUT(CliSymbolsPathReadLanguagesNs, declared_in);
+EMBED_TABLE_STORAGE CliSymbolsPathReadLanguagesNs cli_symbols_path_read_languages_internal EMBED_UNUSED = {
+    .declared_in = cli_symbols_declared_in,
+};
+
+typedef struct
+{
+    int (*leaves_in)(const CliSymbolsPathReadLanguagesTextCtx *args);
+} CliSymbolsPathReadLanguagesTextNs;
+EMBED_TABLE_LAYOUT(CliSymbolsPathReadLanguagesTextNs, leaves_in);
+EMBED_TABLE_STORAGE CliSymbolsPathReadLanguagesTextNs cli_symbols_path_read_languages_text_internal EMBED_UNUSED = {
+    .leaves_in = cli_symbols_leaves_in,
+};
+
+typedef struct
+{
+    int (*language_leaves_in)(const CliSymbolsReadLanguagesTextCtx *args);
+} CliSymbolsReadLanguagesTextNs;
+EMBED_TABLE_LAYOUT(CliSymbolsReadLanguagesTextNs, language_leaves_in);
+EMBED_TABLE_STORAGE CliSymbolsReadLanguagesTextNs cli_symbols_read_languages_text_internal EMBED_UNUSED = {
+    .language_leaves_in = cli_symbols_language_leaves_in,
+};
+
+typedef struct
+{
+    unsigned long long (*byte_at)(const CliSymbolsSizeCtx *args);
+} CliSymbolsSizeNs;
+EMBED_TABLE_LAYOUT(CliSymbolsSizeNs, byte_at);
+EMBED_TABLE_STORAGE CliSymbolsSizeNs cli_symbols_size_internal EMBED_UNUSED = {
+    .byte_at = cli_symbols_byte_at,
+};
+
+typedef struct
+{
+    int (*leaves_save)(const CliSymbolsPathCtx *args);
+    int (*leaves_declare)(const CliSymbolsPathCtx *args);
+    int (*leaves_temporary)(const CliSymbolsPathCtx *args);
+} CliSymbolsPathNsTable;
+EMBED_TABLE_LAYOUT(CliSymbolsPathNsTable, leaves_save, leaves_declare, leaves_temporary);
+EMBED_TABLE_STORAGE CliSymbolsPathNsTable cli_symbols_path_internal EMBED_UNUSED = {
+    .leaves_save = cli_symbols_leaves_save,
+    .leaves_declare = cli_symbols_leaves_declare,
+    .leaves_temporary = cli_symbols_leaves_temporary,
+};
+
+typedef struct
+{
+    int (*language_leaves_save)(const CliSymbolsTextCtx *args);
+    void (*leaves_free)(const CliSymbolsTextCtx *args);
+} CliSymbolsTextNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTextNs, language_leaves_save, leaves_free);
+EMBED_TABLE_STORAGE CliSymbolsTextNs cli_symbols_text_internal EMBED_UNUSED = {
+    .language_leaves_save = cli_symbols_language_leaves_save,
+    .leaves_free = cli_symbols_leaves_free,
+};
+
+typedef struct
+{
+    const char *(*declares)(const CliSymbolsNameCtx *args);
+    unsigned int (*effect_macro)(const CliSymbolsNameCtx *args);
+} CliSymbolsNameNs;
+EMBED_TABLE_LAYOUT(CliSymbolsNameNs, declares, effect_macro);
+EMBED_TABLE_STORAGE CliSymbolsNameNs cli_symbols_name_internal EMBED_UNUSED = {
+    .declares = cli_symbols_declares,
+    .effect_macro = cli_effect_macro,
+};
+
+typedef struct
+{
+    const char *(*leaf_text)(const CliSymbolsReadLeafCtx *args);
+} CliSymbolsReadLeafNs;
+EMBED_TABLE_LAYOUT(CliSymbolsReadLeafNs, leaf_text);
+EMBED_TABLE_STORAGE CliSymbolsReadLeafNs cli_symbols_read_leaf_internal EMBED_UNUSED = {
+    .leaf_text = cli_leaf_text,
+};
+
+typedef struct
+{
+    int (*leaf_has)(const CliSymbolsReadCtx *args);
+} CliSymbolsReadNsTable;
+EMBED_TABLE_LAYOUT(CliSymbolsReadNsTable, leaf_has);
+EMBED_TABLE_STORAGE CliSymbolsReadNsTable cli_symbols_read_internal EMBED_UNUSED = {
+    .leaf_has = cli_leaf_has,
+};
+
+typedef struct
+{
+    void (*type_get)(const CliSymbolsReadLeafTypeCtx *args);
+} CliSymbolsReadLeafTypeNs;
+EMBED_TABLE_LAYOUT(CliSymbolsReadLeafTypeNs, type_get);
+EMBED_TABLE_STORAGE CliSymbolsReadLeafTypeNs cli_symbols_read_leaf_type_internal EMBED_UNUSED = {
+    .type_get = cli_symbols_type_get,
+};
+
+typedef struct
+{
+    int (*type_fits)(const CliSymbolsArgumentCtx *args);
+} CliSymbolsArgumentNs;
+EMBED_TABLE_LAYOUT(CliSymbolsArgumentNs, type_fits);
+EMBED_TABLE_STORAGE CliSymbolsArgumentNs cli_symbols_argument_internal EMBED_UNUSED = {
+    .type_fits = cli_symbols_type_fits,
+};
+
+typedef struct
+{
+    int (*head_read)(const CliSymbolsLanguagesCtx *args);
+} CliSymbolsLanguagesNs;
+EMBED_TABLE_LAYOUT(CliSymbolsLanguagesNs, head_read);
+EMBED_TABLE_STORAGE CliSymbolsLanguagesNs cli_symbols_languages_internal EMBED_UNUSED = {
+    .head_read = cli_symbols_head_read,
+};
+
+typedef struct
+{
+    const char *(*effect_text)(const CliSymbolsCtx *args);
+} CliSymbolsNsTable;
+EMBED_TABLE_LAYOUT(CliSymbolsNsTable, effect_text);
+EMBED_TABLE_STORAGE CliSymbolsNsTable cli_symbols_internal EMBED_UNUSED = {
+    .effect_text = cli_effect_text,
+};
+
+typedef struct
+{
+    unsigned int (*effect_put)(const CliSymbolsTextLengthCtx *args);
+    void (*effect_input_back)(const CliSymbolsTextLengthCtx *args);
+} CliSymbolsTextLengthNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTextLengthNs, effect_put, effect_input_back);
+EMBED_TABLE_STORAGE CliSymbolsTextLengthNs cli_symbols_text_length_internal EMBED_UNUSED = {
+    .effect_put = cli_effect_put,
+    .effect_input_back = cli_effect_input_back,
+};
+
+typedef struct
+{
+    CliEffect *(*effect_init)(const CliSymbolsPathNameCtx *args);
+} CliSymbolsPathNameNsTable;
+EMBED_TABLE_LAYOUT(CliSymbolsPathNameNsTable, effect_init);
+EMBED_TABLE_STORAGE CliSymbolsPathNameNsTable cli_symbols_path_name_internal EMBED_UNUSED = {
+    .effect_init = cli_effect_init,
+};
+
+typedef struct
+{
+    void (*effect_take)(const CliSymbolsPathEffectCtx *args);
+} CliSymbolsPathEffectNs;
+EMBED_TABLE_LAYOUT(CliSymbolsPathEffectNs, effect_take);
+EMBED_TABLE_STORAGE CliSymbolsPathEffectNs cli_symbols_path_effect_internal EMBED_UNUSED = {
+    .effect_take = cli_effect_take,
+};
+
+typedef struct
+{
+    long long (*effect_value)(const CliSymbolsEffectCtx *args);
+} CliSymbolsEffectNs;
+EMBED_TABLE_LAYOUT(CliSymbolsEffectNs, effect_value);
+EMBED_TABLE_STORAGE CliSymbolsEffectNs cli_symbols_effect_internal EMBED_UNUSED = {
+    .effect_value = cli_effect_value,
+};
 
 #endif

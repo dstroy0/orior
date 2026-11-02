@@ -13,8 +13,25 @@
 // it stops them
 #ifndef RUNNER_H
 #define RUNNER_H
+typedef struct CliRunnerErrMsgCfg CliRunnerErrMsgCfg;
+typedef struct CliRunnerCommandCfg CliRunnerCommandCfg;
+typedef struct CliRunnerErrMsgRootCfg CliRunnerErrMsgRootCfg;
+typedef struct CliRunnerNameCfg CliRunnerNameCfg;
+typedef struct CliRunnerCommandNameCfg CliRunnerCommandNameCfg;
+typedef struct CliRunnerLinesCfg CliRunnerLinesCfg;
+typedef struct CliRunnerTextCfg CliRunnerTextCfg;
+typedef struct CliRunnerCfg CliRunnerCfg;
+typedef struct CliRunnerCommandFolderCfg CliRunnerCommandFolderCfg;
+typedef struct CliRunnerNameCommandCfg CliRunnerNameCommandCfg;
+typedef struct CliRunnerCommandWordCfg CliRunnerCommandWordCfg;
+typedef struct CliRunnerLinesIndexCfg CliRunnerLinesIndexCfg;
+typedef struct CliRunnerEventCfg CliRunnerEventCfg;
+typedef struct CliRunnerVariableCfg CliRunnerVariableCfg;
+typedef struct CliRunnerErrMsgRunNumberCfg CliRunnerErrMsgRunNumberCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../command_line/catalog.h"
+#include "embed_dispatch_layout.h"
 
 // the variable a job's step finds the run's number in: set on every step a run starts, and read by a command that
 // would otherwise reach a window open on the tree
@@ -83,63 +100,321 @@ typedef struct
     double ms;
 } CliRunEvent;
 
+typedef struct
+{
+    void *context;
+    const CliRunEvent *event;
+} CliEachEventCfg;
+
 // Where a run's lines and end go
 typedef struct
 {
-    void (*emit)(void *context, const CliRunEvent *event);
+    void (*emit)(const CliEachEventCfg *args);
     void *context;
 } CliRunSink;
 
 // a command begun with its program; a word put after its words; a setting put; whether it sets `name`; and its folder
 // set
-void cli_command_begun(CliCommand *command, const char *program);
-void cli_command_word(CliCommand *command, const char *word);
-void cli_command_set(CliCommand *command, const char *name, const char *value);
-int cli_command_sets(const CliCommand *command, const char *name);
-void cli_command_folder(CliCommand *command, const char *folder);
+void cli_command_begin(const CliRunnerCfg *args);
+void cli_command_word(const CliRunnerCommandWordCfg *args);
+void cli_command_set(const CliRunnerCommandNameCfg *args);
+int cli_command_sets(const CliRunnerNameCommandCfg *args);
+void cli_command_folder(const CliRunnerCommandFolderCfg *args);
 
 // a line put after the lines; and the line at `index`
-void cli_lines_put(CliLines *lines, const char *text, unsigned long long length);
-const char *cli_lines_at(const CliLines *lines, unsigned int index);
+void cli_lines_put(const CliRunnerLinesCfg *args);
+const char *cli_lines_at(const CliRunnerLinesIndexCfg *args);
 
 // the bash that runs the tree's scripts into `path`, sized for CLI_PATH_MAX_LEN: ORIOR_BASH, else the one Toolchains
 // names, else bash off Windows and Git's on it: 1, or 0 with why given; and the Python that runs them: ORIOR_PYTHON,
 // else the one Toolchains names, else python on Windows and python3 elsewhere
-int cli_runner_bash(char *path, VerbaLinea *err_msg);
-void cli_runner_python(char *path);
+int cli_runner_bash(const CliRunnerNameCfg *args);
+void cli_runner_python(const CliRunnerNameCfg *args);
 // a built program under build/ into `path`: 1, or 0 with why given
-int cli_runner_built(const char *root, const char *name, char *path, VerbaLinea *err_msg);
+int cli_runner_build(const CliRunnerNameCfg *args);
 // the program and its words an environment variable names into `words`: its text as one word where it is a file, as a
 // Windows path with its backslashes is, and else its words as a shell splits them; 1, or 0 where it is not set or
 // names nothing
-int cli_runner_program_words(const char *variable, CliWords *words);
+int cli_runner_program_words(const CliRunnerVariableCfg *args);
 // `text` split into words the way a shell does for plain words, single quotes and double quotes: 1, or 0 with why given
-int cli_runner_shell_words(const char *text, CliWords *words, VerbaLinea *err_msg);
+int cli_runner_shell_words(const CliRunnerTextCfg *args);
 // why `values` do not do for the job: a value it needs not given, or one given that is not among a choice's values;
 // 1 where they do. And the line each step the job runs with these values shows, handed to `each`: 1, or 0 with why
 // given
-int cli_runner_check(const CliCatalog *catalog, unsigned int job, const CliValues *values, VerbaLinea *err_msg);
-int cli_runner_shown(const char *root, const CliCatalog *catalog, unsigned int job, const CliValues *values,
-                     void (*each)(void *context, const char *shown), void *context, VerbaLinea *err_msg);
+int cli_runner_check(const CliRunnerErrMsgCfg *args);
+int cli_runner_show(const CliRunnerErrMsgRootCfg *args);
 // the command a step runs into `command`, with the line the window shows for it into `shown`: 1, or 0 with why given
-int cli_runner_command(const char *root, const CliCatalog *catalog, const CliStep *step, const CliValues *values,
-                       CliCommand *command, VerbaLinea *shown, VerbaLinea *err_msg);
+int cli_runner_command(const CliRunnerCommandCfg *args);
 // whether a step runs with these values: every param an Only names has the value it names, and every param a Given
 // names has a value
-int cli_runner_runs(const CliCatalog *catalog, const CliStep *step, const CliValues *values);
+int cli_runner_runs(const CliRunnerCommandCfg *args);
 
 // the runs made attached, sharing this process's console, as the command line's are; a job started, its steps on a
 // thread of their own, its number into `run`: 1, or 0 with why given; a run waited on until its end is reported; and a
 // run and everything it started stopped (runner_run.c)
-void cli_runs_attached(void);
-int cli_runs_start(CliRunSink sink, const char *root, const CliCatalog *catalog, unsigned int job,
-                   const CliValues *values, unsigned long long *run, VerbaLinea *err_msg);
-void cli_runs_wait(unsigned long long run);
-int cli_runs_stop(unsigned long long run, VerbaLinea *err_msg);
+void cli_runs_attach(void);
+int cli_runs_start(const CliRunnerErrMsgCfg *args);
+void cli_runs_wait(const CliRunnerErrMsgRunNumberCfg *args);
+int cli_runs_stop(const CliRunnerErrMsgRunNumberCfg *args);
 
 // what a run reports written as the page reads it: a start as `{"run", "job"}`, a line as `{"run", "stream", "text",
 // "ms"}`, and an end as `{"run", "code", "stopped", "views", "made", "ms"}`, a code or a program it has not `null`
 // (runner_event.c)
-void cli_run_event_written(const CliRunEvent *event, VerbaLinea *out);
+void cli_run_event_write(const CliRunnerEventCfg *args);
+
+struct CliRunnerErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    const char *root;
+    const CliCatalog *catalog;
+    unsigned int job;
+    const CliValues *values;
+    CliRunSink sink;
+    unsigned long long *run_number_pointer;
+};
+
+struct CliRunnerCommandCfg
+{
+    CliCommand *command;
+    VerbaLinea *err_msg;
+    const char *root;
+    const CliCatalog *catalog;
+    const CliValues *values;
+    const CliStep *step;
+    VerbaLinea *shown;
+};
+
+struct CliRunnerErrMsgRootCfg
+{
+    VerbaLinea *err_msg;
+    const char *root;
+    const CliCatalog *catalog;
+    unsigned int job;
+    const CliValues *values;
+    void (*each)(const CliEachShownCfg *args);
+    void *context;
+};
+
+struct CliRunnerNameCfg
+{
+    const char *name;
+    char *path;
+    VerbaLinea *err_msg;
+    const char *root;
+};
+
+struct CliRunnerCommandNameCfg
+{
+    CliCommand *command;
+    const char *name;
+    const char *value;
+};
+
+struct CliRunnerLinesCfg
+{
+    CliLines *lines;
+    const char *text;
+    unsigned long long length;
+};
+
+struct CliRunnerTextCfg
+{
+    const char *text;
+    VerbaLinea *err_msg;
+    CliWords *words;
+};
+
+struct CliRunnerCfg
+{
+    CliCommand *command;
+    const char *program;
+};
+
+struct CliRunnerCommandFolderCfg
+{
+    CliCommand *command;
+    const char *folder;
+};
+
+struct CliRunnerNameCommandCfg
+{
+    const char *name;
+    const CliCommand *command_read;
+};
+
+struct CliRunnerCommandWordCfg
+{
+    CliCommand *command;
+    const char *word;
+};
+
+struct CliRunnerLinesIndexCfg
+{
+    const CliLines *lines_read;
+    unsigned int index;
+};
+
+struct CliRunnerEventCfg
+{
+    const CliRunEvent *event;
+    VerbaLinea *out;
+};
+
+struct CliRunnerVariableCfg
+{
+    const char *variable;
+    CliWords *words;
+};
+
+struct CliRunnerErrMsgRunNumberCfg
+{
+    VerbaLinea *err_msg;
+    unsigned long long run_number;
+};
+
+typedef struct
+{
+    void (*command_begin)(const CliRunnerCfg *args);
+} CliRunnerNs;
+EMBED_TABLE_LAYOUT(CliRunnerNs, command_begin);
+EMBED_TABLE_STORAGE CliRunnerNs cli_runner EMBED_UNUSED = {
+    .command_begin = cli_command_begin,
+};
+
+typedef struct
+{
+    void (*command_word)(const CliRunnerCommandWordCfg *args);
+} CliRunnerCommandWordNs;
+EMBED_TABLE_LAYOUT(CliRunnerCommandWordNs, command_word);
+EMBED_TABLE_STORAGE CliRunnerCommandWordNs cli_runner_command_word EMBED_UNUSED = {
+    .command_word = cli_command_word,
+};
+
+typedef struct
+{
+    void (*command_set)(const CliRunnerCommandNameCfg *args);
+} CliRunnerCommandNameNs;
+EMBED_TABLE_LAYOUT(CliRunnerCommandNameNs, command_set);
+EMBED_TABLE_STORAGE CliRunnerCommandNameNs cli_runner_command_name EMBED_UNUSED = {
+    .command_set = cli_command_set,
+};
+
+typedef struct
+{
+    int (*command_sets)(const CliRunnerNameCommandCfg *args);
+} CliRunnerNameCommandNs;
+EMBED_TABLE_LAYOUT(CliRunnerNameCommandNs, command_sets);
+EMBED_TABLE_STORAGE CliRunnerNameCommandNs cli_runner_name_command EMBED_UNUSED = {
+    .command_sets = cli_command_sets,
+};
+
+typedef struct
+{
+    void (*command_folder)(const CliRunnerCommandFolderCfg *args);
+} CliRunnerCommandFolderNs;
+EMBED_TABLE_LAYOUT(CliRunnerCommandFolderNs, command_folder);
+EMBED_TABLE_STORAGE CliRunnerCommandFolderNs cli_runner_command_folder EMBED_UNUSED = {
+    .command_folder = cli_command_folder,
+};
+
+typedef struct
+{
+    void (*lines_put)(const CliRunnerLinesCfg *args);
+} CliRunnerLinesNs;
+EMBED_TABLE_LAYOUT(CliRunnerLinesNs, lines_put);
+EMBED_TABLE_STORAGE CliRunnerLinesNs cli_runner_lines EMBED_UNUSED = {
+    .lines_put = cli_lines_put,
+};
+
+typedef struct
+{
+    const char *(*lines_at)(const CliRunnerLinesIndexCfg *args);
+} CliRunnerLinesIndexNs;
+EMBED_TABLE_LAYOUT(CliRunnerLinesIndexNs, lines_at);
+EMBED_TABLE_STORAGE CliRunnerLinesIndexNs cli_runner_lines_index EMBED_UNUSED = {
+    .lines_at = cli_lines_at,
+};
+
+typedef struct
+{
+    int (*bash)(const CliRunnerNameCfg *args);
+    void (*python)(const CliRunnerNameCfg *args);
+    int (*build)(const CliRunnerNameCfg *args);
+} CliRunnerNameNs;
+EMBED_TABLE_LAYOUT(CliRunnerNameNs, bash, python, build);
+EMBED_TABLE_STORAGE CliRunnerNameNs cli_runner_name EMBED_UNUSED = {
+    .bash = cli_runner_bash,
+    .python = cli_runner_python,
+    .build = cli_runner_build,
+};
+
+typedef struct
+{
+    int (*program_words)(const CliRunnerVariableCfg *args);
+} CliRunnerVariableNs;
+EMBED_TABLE_LAYOUT(CliRunnerVariableNs, program_words);
+EMBED_TABLE_STORAGE CliRunnerVariableNs cli_runner_variable EMBED_UNUSED = {
+    .program_words = cli_runner_program_words,
+};
+
+typedef struct
+{
+    int (*shell_words)(const CliRunnerTextCfg *args);
+} CliRunnerTextNs;
+EMBED_TABLE_LAYOUT(CliRunnerTextNs, shell_words);
+EMBED_TABLE_STORAGE CliRunnerTextNs cli_runner_text EMBED_UNUSED = {
+    .shell_words = cli_runner_shell_words,
+};
+
+typedef struct
+{
+    int (*check)(const CliRunnerErrMsgCfg *args);
+    int (*runs_start)(const CliRunnerErrMsgCfg *args);
+} CliRunnerErrMsgNs;
+EMBED_TABLE_LAYOUT(CliRunnerErrMsgNs, check, runs_start);
+EMBED_TABLE_STORAGE CliRunnerErrMsgNs cli_runner_err_msg EMBED_UNUSED = {
+    .check = cli_runner_check,
+    .runs_start = cli_runs_start,
+};
+
+typedef struct
+{
+    int (*show)(const CliRunnerErrMsgRootCfg *args);
+} CliRunnerErrMsgRootNs;
+EMBED_TABLE_LAYOUT(CliRunnerErrMsgRootNs, show);
+EMBED_TABLE_STORAGE CliRunnerErrMsgRootNs cli_runner_err_msg_root EMBED_UNUSED = {
+    .show = cli_runner_show,
+};
+
+typedef struct
+{
+    int (*command)(const CliRunnerCommandCfg *args);
+    int (*runs)(const CliRunnerCommandCfg *args);
+} CliRunnerCommandNs;
+EMBED_TABLE_LAYOUT(CliRunnerCommandNs, command, runs);
+EMBED_TABLE_STORAGE CliRunnerCommandNs cli_runner_command_table EMBED_UNUSED = {
+    .command = cli_runner_command,
+    .runs = cli_runner_runs,
+};
+
+typedef struct
+{
+    void (*runs_wait)(const CliRunnerErrMsgRunNumberCfg *args);
+    int (*runs_stop)(const CliRunnerErrMsgRunNumberCfg *args);
+} CliRunnerErrMsgRunNumberNs;
+EMBED_TABLE_LAYOUT(CliRunnerErrMsgRunNumberNs, runs_wait, runs_stop);
+EMBED_TABLE_STORAGE CliRunnerErrMsgRunNumberNs cli_runner_err_msg_run_number EMBED_UNUSED = {
+    .runs_wait = cli_runs_wait,
+    .runs_stop = cli_runs_stop,
+};
+
+typedef struct
+{
+    void (*run_event_write)(const CliRunnerEventCfg *args);
+} CliRunnerEventNs;
+EMBED_TABLE_LAYOUT(CliRunnerEventNs, run_event_write);
+EMBED_TABLE_STORAGE CliRunnerEventNs cli_runner_event EMBED_UNUSED = {
+    .run_event_write = cli_run_event_write,
+};
 
 #endif

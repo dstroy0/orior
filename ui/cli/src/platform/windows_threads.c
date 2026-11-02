@@ -12,52 +12,52 @@
 _Static_assert(sizeof(SRWLOCK) == sizeof(void *), "CliLock: SRWLOCK is not one pointer wide");
 _Static_assert(sizeof(CONDITION_VARIABLE) == sizeof(void *), "CliWake: CONDITION_VARIABLE is not one pointer wide");
 
-void cli_lock_take(CliLock *lock)
+void cli_lock_take(const CliLockCtx *args)
 {
     // the storage is the lock's one word, laid out as SRWLOCK is
-    AcquireSRWLockExclusive((PSRWLOCK)(void *)&lock->system_word);
+    AcquireSRWLockExclusive((PSRWLOCK)(void *)&args->lock->system_word);
 }
 
-void cli_lock_give(CliLock *lock)
+void cli_lock_give(const CliLockCtx *args)
 {
-    ReleaseSRWLockExclusive((PSRWLOCK)(void *)&lock->system_word);
+    ReleaseSRWLockExclusive((PSRWLOCK)(void *)&args->lock->system_word);
 }
 
-void cli_wake_wait(CliWake *wake, CliLock *lock)
+void cli_wake_wait(const CliLockCtx *args)
 {
     // each is its one word, laid out as the system's type is
-    SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&wake->system_word, (PSRWLOCK)(void *)&lock->system_word,
-                              INFINITE, 0ul);
+    SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&args->wake->system_word,
+                              (PSRWLOCK)(void *)&args->lock->system_word, INFINITE, 0ul);
 }
 
-int cli_wake_wait_for(CliWake *wake, CliLock *lock, unsigned long long milliseconds)
+int cli_wake_wait_for(const CliLockCtx *args)
 {
     // a wait past the longest a DWORD counts waits that long
-    const DWORD waited = (DWORD)((milliseconds < 0xfffffffeull) ? milliseconds : 0xfffffffeull);
-    return SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&wake->system_word,
-                                     (PSRWLOCK)(void *)&lock->system_word, waited, 0ul) != 0;
+    const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
+    return SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&args->wake->system_word,
+                                     (PSRWLOCK)(void *)&args->lock->system_word, waited, 0ul) != 0;
 }
 
-void cli_wake_all(CliWake *wake)
+void cli_wake_all(const CliLockCtx *args)
 {
-    WakeAllConditionVariable((PCONDITION_VARIABLE)(void *)&wake->system_word);
+    WakeAllConditionVariable((PCONDITION_VARIABLE)(void *)&args->wake->system_word);
 }
 
 static DWORD WINAPI cli_thread_entry(LPVOID given)
 {
     // the thread is handed what it runs, which its starter retains for as long as the thread lives
     const CliThread *const thread = (const CliThread *)given;
-    cli_priority_own(thread->priority);
+    EMBED_CALL(cli_words_err_msg_internal.priority_own, CliWordsErrMsgCtx, .priority = thread->priority);
     thread->run(thread->context);
     return 0u;
 }
 
-void cli_priority_own(unsigned int priority)
+void cli_priority_own(const CliWordsErrMsgCtx *args)
 {
-    const int level = (priority == CLI_PRIORITY_RUN)     ? THREAD_PRIORITY_ABOVE_NORMAL
-                      : (priority == CLI_PRIORITY_GUEST) ? THREAD_PRIORITY_BELOW_NORMAL
-                      : (priority == CLI_PRIORITY_IDLE)  ? THREAD_PRIORITY_IDLE
-                                                         : THREAD_PRIORITY_NORMAL;
+    const int level = (args->priority == CLI_PRIORITY_RUN)     ? THREAD_PRIORITY_ABOVE_NORMAL
+                      : (args->priority == CLI_PRIORITY_GUEST) ? THREAD_PRIORITY_BELOW_NORMAL
+                      : (args->priority == CLI_PRIORITY_IDLE)  ? THREAD_PRIORITY_IDLE
+                                                               : THREAD_PRIORITY_NORMAL;
     SetThreadPriority(GetCurrentThread(), level);
 }
 
@@ -71,9 +71,9 @@ void cli_thread_yield(void)
     (void)SwitchToThread();
 }
 
-int cli_thread_started(CliThread *thread)
+int cli_thread_start(const CliThreadCtx *args)
 {
-    const HANDLE started = CreateThread(NULL, 0u, cli_thread_entry, thread, 0u, NULL);
+    const HANDLE started = CreateThread(NULL, 0u, cli_thread_entry, args->thread, 0u, NULL);
     if (started == NULL)
     {
         return 0;

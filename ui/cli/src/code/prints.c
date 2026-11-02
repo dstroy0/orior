@@ -9,13 +9,40 @@
 #include "../text/text.h"
 #include "git.h"
 
+// A print found: its path and text in the texts, its line from 0, and its text's bytes
+typedef struct
+{
+    unsigned int path;
+    unsigned int text;
+    unsigned long long size;
+    unsigned int line;
+} CliPrint;
 // the most prints found and the bytes of their paths and texts
 #define CLI_PRINTS_MOST 65536u
 #define CLI_PRINTS_TEXT (1u << 24u)
 
-// the starts of a line that prints, by the extension of its file, the list ended by NULL
-static const char *const *cli_starts(const char *extension)
+typedef struct
 {
+    const char *extension;
+    const char *from;
+    unsigned long long length;
+    const char *at;
+    const char *path;
+    unsigned long long path_length;
+    unsigned int line;
+    const char *text;
+    unsigned long long size;
+    const char *diff;
+    const char *root;
+    const CliPrint *one;
+    const CliPrint *other;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+} PrintsCtx;
+// the starts of a line that prints, by the extension of its file, the list ended by NULL
+EMBED_INLINE const char *const *cli_starts(const PrintsCtx *args)
+{
+    const char *extension = args->extension;
     static const char *const s_py[] = {"print(", "pprint(", "pprint.pprint(", NULL};
     static const char *const s_js[] = {"console.log(",  "console.debug(", "console.info(",
                                        "console.warn(", "console.error(", "console.trace(",
@@ -57,31 +84,36 @@ static const char *const *cli_starts(const char *extension)
     return s_none;
 }
 
-int cli_prints_line(const char *path, const char *text, unsigned long long length)
+int cli_prints_line(const CliPrintsPathCfg *args)
 {
     // the extension after the path's last dot, in lower case
     char extension[CLI_NAME_MAX_LEN];
-    const char *const dot =
-        cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '.');
-    (void)cli_text_lowered_into(extension, sizeof(extension), (dot != NULL) ? (dot + 1) : "");
+    const char *const dot = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->path,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '.');
+    (void)EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = extension,
+                     .room = sizeof(extension), .text = (dot != NULL) ? (dot + 1) : "");
     // the line with the whitespace at its start left off
     unsigned long long from = 0ull;
-    while (from < length)
+    while (from < args->length)
     {
         unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter((const unsigned char *)text, length, from, &letter);
-        if (!cli_fuzzy_white(letter))
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                   .text_bytes = (const unsigned char *)args->text,
+                                                   .length = args->length, .at = from, .letter = &letter);
+        if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
         {
             break;
         }
         from += step;
     }
-    for (const char *const *start = cli_starts(extension); start[0] != NULL; start += 1)
+    for (const char *const *start = EMBED_CALL(cli_starts, PrintsCtx, .extension = extension); start[0] != NULL;
+         start += 1)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = start[0], .cap = CLI_CELLS_POOL});
         // a start of no bytes has no last byte to read
-        if ((size == 0ull) || ((length - from) < size) ||
-            (memor.cmp(&(MemoriaCfg){.src = text + from, .other = start[0], .bytes = size}) != 0))
+        if ((size == 0ull) || ((args->length - from) < size) ||
+            (memor.cmp(&(MemoriaCfg){.src = args->text + from, .other = start[0], .bytes = size}) != 0))
         {
             continue;
         }
@@ -92,22 +124,13 @@ int cli_prints_line(const char *path, const char *text, unsigned long long lengt
              ((memor.cmp(&(MemoriaCfg){.src = start[0] + size - 6ull, .other = "stderr", .bytes = 6u}) == 0) ||
               (memor.cmp(&(MemoriaCfg){.src = start[0] + size - 6ull, .other = "stdout", .bytes = 6u}) == 0)));
         const unsigned long long rest = from + size;
-        if (joined || ((rest < length) && ((text[rest] == ' ') || (text[rest] == '('))))
+        if (joined || ((rest < args->length) && ((args->text[rest] == ' ') || (args->text[rest] == '('))))
         {
             return 1;
         }
     }
     return 0;
 }
-
-// A print found: its path and text in the texts, its line from 0, and its text's bytes
-typedef struct
-{
-    unsigned int path;
-    unsigned int text;
-    unsigned long long size;
-    unsigned int line;
-} CliPrint;
 
 // The prints found and their texts, the repositories and the files that differ from the last commit
 typedef struct
@@ -124,57 +147,60 @@ static CliPrints *s_prints;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // `length` bytes put in the texts, a 0 after them: their place, or the texts' end where they do not fit
-static unsigned int cli_text_stored(const char *from, unsigned long long length)
+EMBED_INLINE unsigned int cli_text_store(const PrintsCtx *args)
 {
-    if ((s_prints->used + length + 1ull) > CLI_PRINTS_TEXT)
+    if ((s_prints->used + args->length + 1ull) > CLI_PRINTS_TEXT)
     {
         return CLI_PRINTS_TEXT;
     }
     const unsigned int at = s_prints->used;
-    memor.cpy(&(MemoriaCfg){.dst = s_prints->text + at, .src = from, .bytes = length});
-    s_prints->text[at + length] = '\0';
+    memor.cpy(&(MemoriaCfg){.dst = s_prints->text + at, .src = args->from, .bytes = args->length});
+    s_prints->text[at + args->length] = '\0';
     // the texts are below CLI_PRINTS_TEXT bytes, which an unsigned int stores
-    s_prints->used += (unsigned int)length + 1u;
+    s_prints->used += (unsigned int)args->length + 1u;
     return at;
 }
 
 // a print put among those found, its path `at` before `path`
-static void cli_print_put(const char *at, const char *path, unsigned long long path_length, unsigned int line,
-                          const char *text, unsigned long long size)
+EMBED_INLINE void cli_print_put(const PrintsCtx *args)
 {
     char whole[CLI_PATH_MAX_LEN];
     VerbaLinea named = {whole, sizeof(whole), 0ull};
-    mmgr_line_put(&named, at);
-    mmgr_line_put_n(&named, path, path_length);
+    mmgr_line_put(&named, args->at);
+    mmgr_line_put_n(&named, args->path, args->path_length);
     if ((mmgr_line_finish(&named) == 0ull) || (s_prints->count >= CLI_PRINTS_MOST))
     {
         return;
     }
     const unsigned int stored_path =
-        cli_text_stored(whole, cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}));
-    const unsigned int stored_text = cli_text_stored(text, size);
+        EMBED_CALL(cli_text_store, PrintsCtx, .from = whole,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}));
+    const unsigned int stored_text = EMBED_CALL(cli_text_store, PrintsCtx, .from = args->text, .length = args->size);
     if ((stored_path == CLI_PRINTS_TEXT) || (stored_text == CLI_PRINTS_TEXT))
     {
         return;
     }
-    s_prints->item[s_prints->count] = (CliPrint){stored_path, stored_text, size, line};
+    s_prints->item[s_prints->count] = (CliPrint){stored_path, stored_text, args->size, args->line};
     s_prints->count += 1u;
 }
 
 // the lines a unified diff with no lines of context puts in that print, each by its path, its line in the file as it
 // stands, from 0, and its text, put among those found with `at` before their paths
-static void cli_put_in(const char *at, const char *diff, unsigned long long size)
+static void cli_put_in(const PrintsCtx *args)
 {
+    const char *at = args->at;
+    unsigned long long size = args->size;
     char path[CLI_PATH_MAX_LEN] = "";
     unsigned int line = 0u;
     unsigned long long from = 0ull;
     while (from < size)
     {
-        const CliTextLine bounds = cli_text_line_at(diff, from, size);
+        const CliTextLine bounds =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->diff, .at = from, .size = size);
         const unsigned long long end = bounds.stop;
         unsigned long long length = end - from;
         length -= bounds.stop - bounds.cut;
-        const char *const row = diff + from;
+        const char *const row = args->diff + from;
         from = end + 1ull;
         if ((length >= 4ull) && (memor.cmp(&(MemoriaCfg){.src = row, .other = "+++ ", .bytes = 4u}) == 0))
         {
@@ -200,7 +226,8 @@ static void cli_put_in(const char *at, const char *diff, unsigned long long size
                 }
                 unsigned long long value = 0ull;
                 unsigned long long digit = place + 1ull;
-                value = cli_text_number(row, digit, length, &digit);
+                value = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = row, .at = digit, .size = length,
+                                   .end = &digit);
                 const int whole = (digit > (place + 1ull)) && (value <= 0xffffffffull) &&
                                   ((digit == length) || (row[digit] == ',') || (row[digit] == ' '));
                 start = whole ? value : 1ull;
@@ -212,10 +239,12 @@ static void cli_put_in(const char *at, const char *diff, unsigned long long size
         else if ((length >= 1ull) && (row[0] == '+'))
         {
             if ((!cellul.eq(&(CatenaFinitaCfg){.src = path, .other = "/dev/null", .cap = CLI_CELLS_POOL})) &&
-                cli_prints_line(path, row + 1, length - 1ull))
+                EMBED_CALL(cli_prints_path.line, CliPrintsPathCfg, .path = path, .text = row + 1,
+                           .length = length - 1ull))
             {
-                cli_print_put(at, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), line,
-                              row + 1, length - 1ull);
+                EMBED_CALL(cli_print_put, PrintsCtx, .at = at, .path = path,
+                           .path_length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
+                           .line = line, .text = row + 1, .size = length - 1ull);
             }
             line += 1u;
         }
@@ -223,12 +252,15 @@ static void cli_put_in(const char *at, const char *diff, unsigned long long size
 }
 
 // the prints of a file new to git, read whole as UTF-8
-static void cli_new_read(const char *root, const char *path)
+EMBED_INLINE void cli_new_read(const PrintsCtx *args)
 {
+    const char *root = args->root;
+    const char *path = args->path;
     char full[CLI_PATH_MAX_LEN];
-    cli_full(root, path, full);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(full, &size, &g_cli_code_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+                                                  .size_pointer = &size, .owner = &g_cli_code_cells);
     if (bytes == NULL)
     {
         return;
@@ -238,7 +270,8 @@ static void cli_new_read(const char *root, const char *path)
     while (text && (at < size))
     {
         unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter(bytes, size, at, &letter);
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                   .text_bytes = bytes, .length = size, .at = at, .letter = &letter);
         text = !((step == 1ull) && (bytes[at] >= 0x80u));
         at += step;
     }
@@ -247,36 +280,43 @@ static void cli_new_read(const char *root, const char *path)
     while (text && (at < size))
     {
         const char *const row = (const char *)bytes + at;
-        const CliTextLine bounds = cli_text_line_at((const char *)bytes, at, size);
+        const CliTextLine bounds =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = (const char *)bytes, .at = at, .size = size);
         const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
         length -= bounds.stop - bounds.cut;
-        if (cli_prints_line(path, row, length))
+        if (EMBED_CALL(cli_prints_path.line, CliPrintsPathCfg, .path = path, .text = row, .length = length))
         {
-            cli_print_put("", path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), line, row,
-                          length);
+            EMBED_CALL(cli_print_put, PrintsCtx, .at = "", .path = path,
+                       .path_length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .line = line,
+                       .text = row, .size = length);
         }
         line += 1u;
         at = end + 1ull;
     }
-    cli_file_given(bytes, &g_cli_code_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
 }
 
 // whether a print comes before another: by path, then by line
-static int cli_print_before(const CliPrint *one, const CliPrint *other)
+EMBED_INLINE int cli_print_before(const PrintsCtx *args)
 {
-    const int order = cli_text_order(s_prints->text + one->path, s_prints->text + other->path);
+    const CliPrint *one = args->one;
+    const CliPrint *other = args->other;
+    const int order = EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = s_prints->text + one->path,
+                                 .other_pointer = s_prints->text + other->path);
     return (order < 0) || ((order == 0) && (one->line < other->line));
 }
 
 // the prints found, sorted by path, then line, each listed once, written as `[{"path", "line", "text"}]`
-static void cli_prints_written(VerbaLinea *out)
+EMBED_INLINE void cli_prints_write(const PrintsCtx *args)
 {
+    VerbaLinea *out = args->out;
     for (unsigned int at = 1u; at < s_prints->count; at += 1u)
     {
         const CliPrint pivot = s_prints->item[at];
         unsigned int place = at;
-        while ((place > 0u) && cli_print_before(&pivot, &s_prints->item[place - 1u]))
+        while ((place > 0u) &&
+               EMBED_CALL(cli_print_before, PrintsCtx, .one = &pivot, .other = &s_prints->item[place - 1u]))
         {
             s_prints->item[place] = s_prints->item[place - 1u];
             place -= 1u;
@@ -290,7 +330,8 @@ static void cli_prints_written(VerbaLinea *out)
         const CliPrint *const one = &s_prints->item[at];
         const CliPrint *const last = (at > 0u) ? &s_prints->item[at - 1u] : NULL;
         const int same =
-            (last != NULL) && !cli_print_before(last, one) && (last->size == one->size) &&
+            (last != NULL) && !EMBED_CALL(cli_print_before, PrintsCtx, .one = last, .other = one) &&
+            (last->size == one->size) &&
             (memor.cmp(&(MemoriaCfg){
                  .src = s_prints->text + last->text, .other = s_prints->text + one->text, .bytes = one->size}) == 0);
         if (same)
@@ -299,11 +340,13 @@ static void cli_prints_written(VerbaLinea *out)
         }
         const char *const path = s_prints->text + one->path;
         mmgr_line_put(out, (written != 0u) ? ",{\"path\":" : "{\"path\":");
-        cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = path,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
         mmgr_line_put(out, ",\"line\":");
         mmgr_line_decimal(out, one->line, 0u);
         mmgr_line_put(out, ",\"text\":");
-        cli_json_quoted_lossy(out, (const unsigned char *)(s_prints->text + one->text), one->size);
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)(s_prints->text + one->text), .length = one->size);
         mmgr_line_ch(out, '}');
         written += 1u;
     }
@@ -311,14 +354,14 @@ static void cli_prints_written(VerbaLinea *out)
 }
 
 // the lock taken and the prints' room a cell under it: 1, or 0 with why given and the lock given back
-static int prints_locked(VerbaLinea *err_msg)
+EMBED_INLINE int prints_lock(const PrintsCtx *args)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_prints = g_cli_cells->persistent_buf_alloc(sizeof(*s_prints), &g_cli_code_cells);
     if (s_prints == NULL)
     {
-        cli_lock_give(&s_lock);
-        mmgr_line_put(err_msg, "a search for prints could not be taken");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        mmgr_line_put(args->err_msg, "a search for prints could not be taken");
         return 0;
     }
     s_prints->count = 0u;
@@ -328,28 +371,32 @@ static int prints_locked(VerbaLinea *err_msg)
 }
 
 // the prints written into `out`, and the room and the lock given back
-static void prints_released(VerbaLinea *out)
+EMBED_INLINE void prints_release(const PrintsCtx *args)
 {
-    cli_prints_written(out);
-    cli_git_text_given(&s_prints->repositories.text);
+    cli_prints_write(args);
+    EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_prints->repositories.text);
     g_cli_cells->persistent_buf_release(s_prints, &g_cli_code_cells);
     s_prints = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
-int cli_prints_added(const char *root, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_prints_add(const CliPrintsCfg *args)
 {
-    if (!prints_locked(err_msg))
+    const char *root = args->root;
+    if (!EMBED_CALL(prints_lock, PrintsCtx, .err_msg = args->err_msg))
     {
         return 0;
     }
-    cli_git_repositories(root, &s_prints->repositories);
+    EMBED_CALL(cli_git_root_found_repositories.repositories, CliGitRootFoundRepositoriesCfg, .root = root,
+               .found_repositories_pointer = &s_prints->repositories);
     for (unsigned int index = 0u; index < s_prints->repositories.count; index += 1u)
     {
-        const char *const repo = cli_git_text_of(&s_prints->repositories.text, s_prints->repositories.item[index].path);
+        const char *const repo =
+            EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_prints->repositories.text,
+                       .at = s_prints->repositories.item[index].path);
         char folder[CLI_PATH_MAX_LEN];
         char at[CLI_PATH_MAX_LEN];
-        cli_full(root, repo, folder);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = repo, .joined = folder);
         VerbaLinea before = {at, sizeof(at), 0ull};
         if (repo[0] != '\0')
         {
@@ -359,37 +406,40 @@ int cli_prints_added(const char *root, VerbaLinea *out, VerbaLinea *err_msg)
         mmgr_line_finish(&before);
         static const char *const s_words[8] = {"git",        "diff",          "HEAD",       "--unified=0",
                                                "--no-color", "--no-ext-diff", "--relative", NULL};
-        CliRan *const ran = cli_ran_taken();
+        CliRan *const ran = cli_ran_take();
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea unstarted = {why, sizeof(why), 0ull};
-        if (cli_ran(s_words, folder, NULL, 0u, ran, &unstarted))
+        if (EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = s_words, .folder = folder, .settings = NULL,
+                       .count = 0u, .ran = ran, .err_msg = &unstarted))
         {
-            cli_put_in(at, ran->out, ran->out_size);
+            EMBED_CALL(cli_put_in, PrintsCtx, .at = at, .diff = ran->out, .size = ran->out_size);
         }
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     }
-    cli_git_changed(root, NULL, 0u, 0, &s_prints->changed);
+    EMBED_CALL(cli_git_root_repos.change, CliGitRootReposCfg, .root = root, .repos = NULL, .count = 0u, .named = 0,
+               .found_changed_list_pointer = &s_prints->changed);
     for (unsigned int index = 0u; index < s_prints->changed.count; index += 1u)
     {
         const CliChanged *const one = &s_prints->changed.item[index];
-        const char *const path = cli_git_text_of(&s_prints->changed.text, one->path);
+        const char *const path = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                            .text_read = &s_prints->changed.text, .at = one->path);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
         if ((one->state == 'U') && (length > 0ull) && (path[length - 1ull] != '/'))
         {
-            cli_new_read(root, path);
+            EMBED_CALL(cli_new_read, PrintsCtx, .root = root, .path = path);
         }
     }
-    prints_released(out);
+    EMBED_CALL(prints_release, PrintsCtx, .out = args->out);
     return 1;
 }
 
-int cli_prints_put_in(const char *diff, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_prints_put_in(const CliPrintsOutCfg *args)
 {
-    if (!prints_locked(err_msg))
+    if (!EMBED_CALL(prints_lock, PrintsCtx, .err_msg = args->err_msg))
     {
         return 0;
     }
-    cli_put_in("", diff, size);
-    prints_released(out);
+    EMBED_CALL(cli_put_in, PrintsCtx, .at = "", .diff = args->diff, .size = args->size);
+    EMBED_CALL(prints_release, PrintsCtx, .out = args->out);
     return 1;
 }

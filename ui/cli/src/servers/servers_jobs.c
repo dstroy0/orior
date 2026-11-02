@@ -5,6 +5,7 @@
 // own as it is handed over, its bytes a cell sized to them, copied there or handed over whole by the caller who filled
 // it, and is taken by the first of the servers' threads free, which gives the cell back once the job is done; the
 // threads started as the first jobs come; a job handed over while every place is taken waits for one
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "servers_internal.h"
 
@@ -39,11 +40,11 @@ static void jobs_worker(void *context)
     (void)context;
     for (;;)
     {
-        cli_lock_take(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_idle += 1u;
         while (s_waiting == 0u)
         {
-            cli_wake_wait(&s_wake, &s_lock);
+            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
         }
         s_idle -= 1u;
         CliServersPlace *const place = &s_place[s_order[0]];
@@ -54,31 +55,35 @@ static void jobs_worker(void *context)
         char *const bytes = place->bytes;
         place->bytes = NULL;
         place->used = 0;
-        cli_wake_all(&s_wake);
-        cli_lock_give(&s_lock);
-        run(bytes, size);
+        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        EMBED_CALL(run, CliServersJobCfg, .job = bytes, .size = size);
         g_cli_cells->persistent_buf_release(bytes, &g_cli_servers_cells);
     }
 }
 
-int cli_servers_later(CliServersJob run, const void *job, unsigned long long size)
+int cli_servers_later(const CliServersRunCtx *args)
 {
-    char *const bytes = g_cli_cells->persistent_buf_alloc(size, &g_cli_servers_cells);
+    char *const bytes = g_cli_cells->persistent_buf_alloc(args->size, &g_cli_servers_cells);
     if (bytes != NULL)
     {
         // a size the cell stores fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = bytes, .src = job, .bytes = (size_t)size});
+        memor.cpy(&(MemoriaCfg){.dst = bytes, .src = args->job, .bytes = (size_t)args->size});
     }
-    return cli_servers_later_handed(run, bytes, size);
+    return EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = args->run,
+                      .bytes = bytes, .size = args->size);
 }
 
-int cli_servers_later_handed(CliServersJob run, char *bytes, unsigned long long size)
+int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
 {
+    CliServersJob run = args->run;
+    char *bytes = args->bytes;
+    unsigned long long size = args->size;
     if (bytes == NULL)
     {
         return 0;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (;;)
     {
         unsigned int free = 0u;
@@ -97,15 +102,16 @@ int cli_servers_later_handed(CliServersJob run, char *bytes, unsigned long long 
             s_waiting += 1u;
             break;
         }
-        cli_wake_wait(&s_wake, &s_lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
     }
     if ((s_idle < s_waiting) && (s_started < CLI_SERVERS_WORKERS))
     {
         s_index[s_started] = s_started;
         s_thread[s_started] = (CliThread){jobs_worker, &s_index[s_started]};
-        s_started += cli_thread_started(&s_thread[s_started]) ? 1u : 0u;
+        s_started +=
+            EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread[s_started]) ? 1u : 0u;
     }
-    cli_wake_all(&s_wake);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }

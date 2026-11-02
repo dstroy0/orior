@@ -4,75 +4,99 @@
 #include "../text/text.h"
 #include "settings_internal.h"
 
-void cli_settings_chain_written(const CliChain *chain, VerbaLinea *out)
+void cli_settings_chain_write(const CliSettingsCfg *args)
 {
-    mmgr_line_put(out, "{\"files\":[");
-    for (unsigned int at = 0u; at < chain->files; at += 1u)
+    mmgr_line_put(args->out, "{\"files\":[");
+    for (unsigned int at = 0u; at < args->chain_read->files; at += 1u)
     {
-        mmgr_line_put(out, (at != 0u) ? ",{\"file\":" : "{\"file\":");
-        cli_json_quoted(out, chain->file[at],
-                        cellul.len(&(CatenaFinitaCfg){.src = chain->file[at], .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, ",\"values\":");
-        cli_json_write(&chain->json, chain->values[at], out, 0u, 0);
-        mmgr_line_ch(out, '}');
+        mmgr_line_put(args->out, (at != 0u) ? ",{\"file\":" : "{\"file\":");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = args->chain_read->file[at],
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->chain_read->file[at], .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(args->out, ",\"values\":");
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &args->chain_read->json,
+                   .node = args->chain_read->values[at], .out = args->out, .indent = 0u, .sorted = 0);
+        mmgr_line_ch(args->out, '}');
     }
-    mmgr_line_put(out, "],\"problems\":[");
-    for (unsigned int at = 0u; at < chain->problems; at += 1u)
+    mmgr_line_put(args->out, "],\"problems\":[");
+    for (unsigned int at = 0u; at < args->chain_read->problems; at += 1u)
     {
-        mmgr_line_put(out, (at != 0u) ? "," : "");
-        cli_json_quoted(out, chain->problem[at],
-                        cellul.len(&(CatenaFinitaCfg){.src = chain->problem[at], .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(args->out, (at != 0u) ? "," : "");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = args->chain_read->problem[at],
+                   .length =
+                       cellul.len(&(CatenaFinitaCfg){.src = args->chain_read->problem[at], .cap = CLI_CELLS_POOL}));
     }
-    mmgr_line_put(out, "]}");
+    mmgr_line_put(args->out, "]}");
 }
 
-int cli_settings_chain_read(const char *text, unsigned long long length, CliChain *chain, VerbaLinea *err_msg)
+int cli_settings_chain_read(const CliSettingsChainCfg *args)
 {
-    cli_json_begun(&chain->json, NULL, 0u, NULL, 0ull);
-    chain->files = 0u;
-    chain->problems = 0u;
-    const unsigned int root = cli_json_taken(&chain->json, text, length, 0u, 0ull, err_msg, &g_cli_machine_cells);
-    if (!cli_json_is(&chain->json, root, CFG_JSON_OBJECT))
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->chain->json,
+               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+    args->chain->files = 0u;
+    args->chain->problems = 0u;
+    const unsigned int root =
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &args->chain->json,
+                   .text = args->text, .size = args->length, .nodes_more = 0u, .text_more = 0ull,
+                   .err_msg = args->err_msg, .owner = &g_cli_machine_cells);
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &args->chain->json,
+                    .node = root, .kind = CFG_JSON_OBJECT))
     {
         return 0;
     }
-    const unsigned int files = cli_json_member(&chain->json, root, "files");
-    for (unsigned int item = cli_json_is(&chain->json, files, CFG_JSON_ARRAY) ? chain->json.node[files].first
-                                                                              : CLI_JSON_NONE;
-         (item != CLI_JSON_NONE) && (chain->files < CLI_SETTINGS_DEEPEST); item = chain->json.node[item].next)
+    const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = &args->chain->json, .object = root, .name = "files");
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                        .json_read = &args->chain->json, .node = files, .kind = CFG_JSON_ARRAY)
+                                 ? args->chain->json.node[files].first
+                                 : CLI_JSON_NONE;
+         (item != CLI_JSON_NONE) && (args->chain->files < CLI_SETTINGS_DEEPEST);
+         item = args->chain->json.node[item].next)
     {
-        const char *const file = cli_json_string(&chain->json, cli_json_member(&chain->json, item, "file"), NULL);
-        const unsigned int values = cli_json_member(&chain->json, item, "values");
-        if ((file == NULL) || !cli_json_is(&chain->json, values, CFG_JSON_OBJECT))
+        const char *const file =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &args->chain->json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = &args->chain->json, .object = item, .name = "file"),
+                       .length_pointer = NULL);
+        const unsigned int values = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = &args->chain->json, .object = item, .name = "values");
+        if ((file == NULL) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                          .json_read = &args->chain->json, .node = values, .kind = CFG_JSON_OBJECT))
         {
             continue;
         }
-        memor.cpy(&(MemoriaCfg){.dst = chain->file[chain->files],
+        memor.cpy(&(MemoriaCfg){.dst = args->chain->file[args->chain->files],
                                 .src = file,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
-        chain->values[chain->files] = values;
-        chain->files += 1u;
+        args->chain->values[args->chain->files] = values;
+        args->chain->files += 1u;
     }
-    const unsigned int problems = cli_json_member(&chain->json, root, "problems");
-    for (unsigned int item = cli_json_is(&chain->json, problems, CFG_JSON_ARRAY) ? chain->json.node[problems].first
-                                                                                 : CLI_JSON_NONE;
-         (item != CLI_JSON_NONE) && (chain->problems < CLI_SETTINGS_PROBLEMS); item = chain->json.node[item].next)
+    const unsigned int problems = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                             .json_read = &args->chain->json, .object = root, .name = "problems");
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                        .json_read = &args->chain->json, .node = problems, .kind = CFG_JSON_ARRAY)
+                                 ? args->chain->json.node[problems].first
+                                 : CLI_JSON_NONE;
+         (item != CLI_JSON_NONE) && (args->chain->problems < CLI_SETTINGS_PROBLEMS);
+         item = args->chain->json.node[item].next)
     {
-        const char *const problem = cli_json_string(&chain->json, item, NULL);
+        const char *const problem = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                               .json_read = &args->chain->json, .node = item, .length_pointer = NULL);
         if (problem != NULL)
         {
-            VerbaLinea line = {chain->problem[chain->problems], CLI_PATH_MAX_LEN * 2u, 0ull};
+            VerbaLinea line = {args->chain->problem[args->chain->problems], CLI_PATH_MAX_LEN * 2u, 0ull};
             mmgr_line_put(&line, problem);
             mmgr_line_finish(&line);
-            chain->problems += 1u;
+            args->chain->problems += 1u;
         }
     }
     return 1;
 }
 
-void cli_settings_chain_given(CliChain *chain)
+void cli_settings_chain_free(const CliSettingsPathCfg *args)
 {
-    cli_json_given(&chain->json);
-    chain->files = 0u;
-    chain->problems = 0u;
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->chain->json);
+    args->chain->files = 0u;
+    args->chain->problems = 0u;
 }

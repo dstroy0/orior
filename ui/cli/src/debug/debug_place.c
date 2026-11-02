@@ -4,15 +4,15 @@
 // they and the tree it starts with given back as the place is freed
 #include "debug_internal.h"
 
-void cli_debug_place_freed(CliDebugSession *place)
+void cli_debug_place_free(const CliDebugCtx *args)
 {
-    g_cli_cells->persistent_buf_release(place->placed, &g_cli_debug_cells);
-    place->data = NULL;
-    place->data_count = 0u;
-    place->data_room = 0u;
-    place->placed = NULL;
-    place->placed_count = 0u;
-    place->placed_room = 0u;
-    cli_json_given(&place->start);
-    place->taken = 0;
+    g_cli_cells->persistent_buf_release(args->place->placed, &g_cli_debug_cells);
+    args->place->data = NULL;
+    args->place->data_count = 0u;
+    args->place->data_room = 0u;
+    args->place->placed = NULL;
+    args->place->placed_count = 0u;
+    args->place->placed_room = 0u;
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->place->start);
+    args->place->taken = 0;
 }

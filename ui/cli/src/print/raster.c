@@ -62,13 +62,14 @@ typedef struct
 static CliTypefaces *s_typefaces;
 static CliRenderRoom *s_room;
 
-int cli_print_faces(VerbaLinea *err_msg)
+int cli_print_faces(const CliPrintJsonCfg *args)
 {
     if (s_typefaces != NULL)
     {
         for (unsigned int face = 0u; face < 4u; face += 1u)
         {
-            cli_file_given(s_typefaces->face_data[face], &g_cli_print_cells);
+            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = s_typefaces->face_data[face],
+                       .owner = &g_cli_print_cells);
         }
         g_cli_cells->persistent_buf_release(s_typefaces->cover, &g_cli_print_cells);
     }
@@ -76,24 +77,27 @@ int cli_print_faces(VerbaLinea *err_msg)
     s_typefaces = g_cli_cells->persistent_buf_alloc(sizeof(*s_typefaces), &g_cli_print_cells);
     if (s_typefaces == NULL)
     {
-        mmgr_line_put(err_msg, "the faces drawn with could not be taken");
+        mmgr_line_put(args->err_msg, "the faces drawn with could not be taken");
         return 0;
     }
     s_typefaces->cover = g_cli_cells->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), &g_cli_print_cells);
     s_typefaces->cover_room = (s_typefaces->cover != NULL) ? CLI_COVER_CACHE : 0ull;
     s_typefaces->cover_used = 0ull;
     char paths[4][CLI_PATH_MAX_LEN];
-    cli_font_monospace(paths);
+    EMBED_CALL(cli_font_families.monospace, CliFontFamiliesCfg, .paths = paths);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
-        // a face's file read whole and kept as long as it is drawn from, in a persistent cell of its size and the
+        // a face's file read whole and saved as long as it is drawn from, in a persistent cell of its size and the
         // slack, a file past CLI_FONT_BYTES let go unread
         unsigned long long size = 0ull;
         unsigned char *data =
-            ((paths[face][0] != '\0') && cli_file_size(paths[face], &size) && (size <= CLI_FONT_BYTES))
+            ((paths[face][0] != '\0') &&
+             EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = paths[face], .size_pointer = &size) &&
+             (size <= CLI_FONT_BYTES))
                 ? g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_cli_print_cells)
                 : NULL;
-        if ((data == NULL) || !cli_file_read_at(paths[face], 0ull, data, size, &size))
+        if ((data == NULL) || !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = paths[face],
+                                          .from = 0ull, .bytes_bytes = data, .count_u64 = size, .got = &size))
         {
             g_cli_cells->persistent_buf_release(data, &g_cli_print_cells);
             data = NULL;
@@ -106,7 +110,8 @@ int cli_print_faces(VerbaLinea *err_msg)
         s_typefaces->face_data[face] = data;
         s_typefaces->face_size[face] = size;
         s_typefaces->has[face] =
-            (data != NULL) && cli_font_read(&s_typefaces->faces[face], data, size, s_typefaces->face_ranges[face]);
+            (data != NULL) && EMBED_CALL(cli_font_data.read, CliFontDataCfg, .font_out = &s_typefaces->faces[face],
+                                         .data = data, .size = size, .ranges = s_typefaces->face_ranges[face]);
     }
     for (unsigned int at = 0u; at < CLI_GLYPH_CACHE; at += 1u)
     {
@@ -115,7 +120,7 @@ int cli_print_faces(VerbaLinea *err_msg)
     s_typefaces->cover_used = 0ull;
     if (!s_typefaces->has[0])
     {
-        mmgr_line_put(err_msg,
+        mmgr_line_put(args->err_msg,
                       "the system has no monospace font orior_cli reads: Consolas, Cascadia Mono, DejaVu Sans Mono, "
                       "Liberation Mono, Menlo or Courier New");
         return 0;
@@ -123,33 +128,57 @@ int cli_print_faces(VerbaLinea *err_msg)
     return 1;
 }
 
+typedef struct
+{
+    CliMask *mask;
+    unsigned long long by;
+    unsigned long long room;
+    unsigned int key_face;
+    const CliFont *font;
+    unsigned int glyph;
+    int bold;
+    int slant;
+    float em;
+    CliPixels *page;
+    const CliMask *mask_read;
+    long long left;
+    long long top;
+    const unsigned char *color;
+    const char *text;
+    unsigned long long length;
+    unsigned long long column;
+    int italic;
+    float scale;
+    float baseline;
+} RasterCtx;
 // Makes a glyph bolder by spreading its coverage `by` pixels to the right, into the scratch, which it is copied back
 // from: 1, or 0 where it would not fit
-static int cli_embolden(CliMask *mask, unsigned long long by, unsigned long long room)
+EMBED_INLINE int cli_embolden(const RasterCtx *args)
 {
-    const unsigned long long width = mask->width + by;
-    if (((width * mask->height) > (sizeof(s_room->scratch) / sizeof(s_room->scratch[0]))) ||
-        ((width * mask->height) > room))
+    const unsigned long long width = args->mask->width + args->by;
+    if (((width * args->mask->height) > (sizeof(s_room->scratch) / sizeof(s_room->scratch[0]))) ||
+        ((width * args->mask->height) > args->room))
     {
         return 0;
     }
-    memor.set(
-        &(MemoriaCfg){.dst = s_room->scratch, .val = 0, .bytes = width * mask->height * sizeof(s_room->scratch[0])});
-    for (unsigned long long y = 0ull; y < mask->height; y += 1ull)
+    memor.set(&(MemoriaCfg){
+        .dst = s_room->scratch, .val = 0, .bytes = width * args->mask->height * sizeof(s_room->scratch[0])});
+    for (unsigned long long y = 0ull; y < args->mask->height; y += 1ull)
     {
-        for (unsigned long long x = 0ull; x < mask->width; x += 1ull)
+        for (unsigned long long x = 0ull; x < args->mask->width; x += 1ull)
         {
-            const float value = mask->cover[(y * mask->width) + x];
-            for (unsigned long long shift = 0ull; shift <= by; shift += 1ull)
+            const float value = args->mask->cover[(y * args->mask->width) + x];
+            for (unsigned long long shift = 0ull; shift <= args->by; shift += 1ull)
             {
                 float *const at = &s_room->scratch[(y * width) + x + shift];
                 *at = (*at > value) ? *at : value;
             }
         }
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = mask->cover, .src = s_room->scratch, .bytes = width * mask->height * sizeof(s_room->scratch[0])});
-    mask->width = width;
+    memor.cpy(&(MemoriaCfg){.dst = args->mask->cover,
+                            .src = s_room->scratch,
+                            .bytes = width * args->mask->height * sizeof(s_room->scratch[0])});
+    args->mask->width = width;
     return 1;
 }
 
@@ -165,7 +194,7 @@ static void cli_glyphs_forgotten(void)
 
 // the coverage given room for a glyph, CLI_COVER_LEAST floats past those used: where it has none left the glyphs are
 // forgotten and the coverage begins again: 1, or 0 where no coverage can be had at all
-static int cli_cover_roomed(void)
+static int cli_cover_room(void)
 {
     if ((s_typefaces->cover_room - s_typefaces->cover_used) >= CLI_COVER_LEAST)
     {
@@ -176,16 +205,19 @@ static int cli_cover_roomed(void)
 }
 
 // the mask of a glyph of a face, made bolder or slanted, drawn once and cached: NULL where it cannot be drawn
-static const CliMask *cli_mask_of(unsigned int key_face, const CliFont *font, unsigned int glyph, int bold, int slant,
-                                  float em)
+EMBED_INLINE const CliMask *cli_mask_get(const RasterCtx *args)
 {
+    const CliFont *font = args->font;
+    unsigned int glyph = args->glyph;
+    int bold = args->bold;
+    int slant = args->slant;
     const unsigned long long bucket_start =
-        ((key_face * 31u) + (glyph * 7u) + (bold ? 3u : 0u) + (slant ? 5u : 0u)) % CLI_GLYPH_CACHE;
+        ((args->key_face * 31u) + (glyph * 7u) + (bold ? 3u : 0u) + (slant ? 5u : 0u)) % CLI_GLYPH_CACHE;
     unsigned long long bucket = bucket_start;
     while (s_typefaces->glyphs[bucket].used)
     {
         const CliCachedGlyph *const cached = &s_typefaces->glyphs[bucket];
-        if ((cached->face == key_face) && (cached->glyph == glyph) && (cached->bold == bold) &&
+        if ((cached->face == args->key_face) && (cached->glyph == glyph) && (cached->bold == bold) &&
             (cached->slant == slant))
         {
             return &cached->mask;
@@ -203,33 +235,36 @@ static const CliMask *cli_mask_of(unsigned int key_face, const CliFont *font, un
         cli_glyphs_forgotten();
         bucket = bucket_start;
     }
-    if (!cli_cover_roomed())
+    if (!cli_cover_room())
     {
         return NULL;
     }
     bucket = s_typefaces->glyphs[bucket_start].used ? bucket : bucket_start;
-    const float font_scale = em / font->units;
+    const float font_scale = args->em / font->units;
     const float shear = slant ? (0.2f * font_scale) : 0.0f;
     const float matrix[6] = {font_scale, 0.0f, shear, font_scale, 0.0f, 0.0f};
     s_room->contours.points = 0u;
     s_room->contours.contours = 0u;
-    cli_font_outline(font, glyph, matrix, 0u, &s_room->contours);
+    EMBED_CALL(cli_font_glyph_matrix.outline, CliFontGlyphMatrixCfg, .font = font, .glyph = glyph, .matrix = matrix,
+               .depth = 0u, .out = &s_room->contours);
     CliCachedGlyph *const cached = &s_typefaces->glyphs[bucket];
-    cli_font_rasterize(&s_room->contours, &cached->mask, s_typefaces->cover + s_typefaces->cover_used,
-                       s_typefaces->cover_room - s_typefaces->cover_used);
+    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_room->contours, .mask = &cached->mask,
+               .cover = s_typefaces->cover + s_typefaces->cover_used,
+               .room = s_typefaces->cover_room - s_typefaces->cover_used);
     if (bold)
     {
-        const float spread = em / 28.0f;
+        const float spread = args->em / 28.0f;
         // a spread of whole pixels, at least one
         const unsigned long long by = (unsigned long long)((spread > 1.0f) ? spread : 1.0f);
-        if (!cli_embolden(&cached->mask, by, s_typefaces->cover_room - s_typefaces->cover_used))
+        if (!EMBED_CALL(cli_embolden, RasterCtx, .mask = &cached->mask, .by = by,
+                        .room = s_typefaces->cover_room - s_typefaces->cover_used))
         {
             return NULL;
         }
     }
     s_typefaces->cover_used += cached->mask.width * cached->mask.height;
     cached->used = 1;
-    cached->face = key_face;
+    cached->face = args->key_face;
     cached->glyph = glyph;
     cached->bold = bold;
     cached->slant = slant;
@@ -237,83 +272,94 @@ static const CliMask *cli_mask_of(unsigned int key_face, const CliFont *font, un
 }
 
 // Lays `mask` on `page` with its top left at x, y in `color`
-static void cli_blend(CliPixels *page, const CliMask *mask, long long left, long long top, const unsigned char *color)
+EMBED_INLINE void cli_blend(const RasterCtx *args)
 {
-    for (unsigned long long my = 0ull; my < mask->height; my += 1ull)
+    for (unsigned long long my = 0ull; my < args->mask_read->height; my += 1ull)
     {
         // a row's place is far inside what a long long represents
-        const long long y = top + (long long)my;
-        if ((y < 0ll) || ((unsigned long long)y >= page->height))
+        const long long y = args->top + (long long)my;
+        if ((y < 0ll) || ((unsigned long long)y >= args->page->height))
         {
             continue;
         }
-        for (unsigned long long mx = 0ull; mx < mask->width; mx += 1ull)
+        for (unsigned long long mx = 0ull; mx < args->mask_read->width; mx += 1ull)
         {
-            const float cover = mask->cover[(my * mask->width) + mx];
-            const long long x = left + (long long)mx;
-            if ((cover <= 0.0f) || (x < 0ll) || ((unsigned long long)x >= page->width))
+            const float cover = args->mask_read->cover[(my * args->mask_read->width) + mx];
+            const long long x = args->left + (long long)mx;
+            if ((cover <= 0.0f) || (x < 0ll) || ((unsigned long long)x >= args->page->width))
             {
                 continue;
             }
             const unsigned long long at =
-                (((unsigned long long)y * page->width) + (unsigned long long)x) * page->channels;
-            for (unsigned long long channel = 0ull; channel < page->channels; channel += 1ull)
+                (((unsigned long long)y * args->page->width) + (unsigned long long)x) * args->page->channels;
+            for (unsigned long long channel = 0ull; channel < args->page->channels; channel += 1ull)
             {
-                const float level = (float)color[channel];
+                const float level = (float)args->color[channel];
                 // a blend of two bytes by a share from 0 to 1 is a byte
-                page->data[at + channel] =
-                    (unsigned char)roundf(((float)page->data[at + channel] * (1.0f - cover)) + (level * cover));
+                args->page->data[at + channel] =
+                    (unsigned char)roundf(((float)args->page->data[at + channel] * (1.0f - cover)) + (level * cover));
             }
         }
     }
 }
 
 // one text drawn at its column on a baseline
-static void cli_draw(CliPixels *page, const char *text, unsigned long long length, unsigned long long column,
-                     const unsigned char *color, int bold, int italic, float scale, float baseline)
+EMBED_INLINE void cli_draw(const RasterCtx *args)
 {
-    const unsigned int want = (bold ? 1u : 0u) | (italic ? 2u : 0u);
+    const char *text = args->text;
+    float scale = args->scale;
+    const unsigned int want = (args->bold ? 1u : 0u) | (args->italic ? 2u : 0u);
     const unsigned int face = s_typefaces->has[want] ? want : 0u;
-    const int make_bold = !s_typefaces->has[want] && bold;
-    const int slant = !s_typefaces->has[want] && italic;
+    const int make_bold = !s_typefaces->has[want] && args->bold;
+    const int slant = !s_typefaces->has[want] && args->italic;
     const CliFont *const font = &s_typefaces->faces[face];
     const float em = CLI_PRINT_SIZE * scale;
     const float cell = CLI_PRINT_ADVANCE * scale;
     const float font_scale = em / font->units;
-    const unsigned long long count = cli_regexp_letters(text, length, s_room->letters, CLI_PATH_MAX_LEN * 4u);
+    const unsigned long long count =
+        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length,
+                   .letters = s_room->letters, .room_u64 = CLI_PATH_MAX_LEN * 4u);
     for (unsigned long long offset = 0ull; offset < count; offset += 1ull)
     {
         if (s_room->letters[offset] == ' ')
         {
             continue;
         }
-        const unsigned int glyph = cli_font_glyph(font, s_room->letters[offset]);
-        const CliMask *const mask = cli_mask_of(face, font, glyph, make_bold, slant, em);
+        const unsigned int glyph =
+            EMBED_CALL(cli_font.glyph, CliFontCfg, .font = font, .letter = s_room->letters[offset]);
+        const CliMask *const mask = EMBED_CALL(cli_mask_get, RasterCtx, .key_face = face, .font = font, .glyph = glyph,
+                                               .bold = make_bold, .slant = slant, .em = em);
         if (mask == NULL)
         {
             continue;
         }
-        const float advance = cli_font_advance(font, glyph) * font_scale;
-        const float x = (CLI_PRINT_MARGIN * scale) + ((float)(column + offset) * cell) + ((cell - advance) / 2.0f);
+        const float advance =
+            EMBED_CALL(cli_font_glyph_table.advance, CliFontGlyphCfg, .font = font, .glyph = glyph) * font_scale;
+        const float x =
+            (CLI_PRINT_MARGIN * scale) + ((float)(args->column + offset) * cell) + ((cell - advance) / 2.0f);
         // a pixel's place, rounded, is far inside what a long long represents
-        cli_blend(page, mask, (long long)roundf(x) + mask->left, (long long)roundf(baseline) - mask->top, color);
+        EMBED_CALL(cli_blend, RasterCtx, .page = args->page, .mask_read = mask,
+                   .left = (long long)roundf(x) + mask->left, .top = (long long)roundf(args->baseline) - mask->top,
+                   .color = args->color);
     }
 }
 
-void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layout, float dpi,
-                      void (*each)(void *context, const CliPixels *page, unsigned int index, unsigned int count),
-                      void *context)
+void cli_print_render(const CliPrintLayoutListingCfg *args)
 {
+    const CliPrintListing *listing = args->listing;
+    const CliPrintLayout *layout = args->layout;
     s_room = (s_typefaces != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(*s_room), &g_cli_print_cells) : NULL;
     if (s_room == NULL)
     {
         return;
     }
-    const CliPrintLaid *const laid = cli_print_lay_out(listing, layout);
-    const float scale = dpi / 72.0f;
+    const CliPrintLaid *const laid = EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg,
+                                                .listing = listing, .layout = layout);
+    const float scale = args->dpi_f32 / 72.0f;
     float width = 0.0f;
     float height = 0.0f;
-    cli_print_size(layout, &width, &height);
+    EMBED_CALL(cli_print_layout_width.size, CliPrintLayoutWidthCfg, .layout = layout, .width = &width,
+               .height = &height);
     CliPixels page = {(unsigned long long)roundf(width * scale), (unsigned long long)roundf(height * scale),
                       layout->gray ? 1ull : 3ull, NULL};
     // the page's pixels a cell of their own, sized to the page at the resolution asked
@@ -329,12 +375,13 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < laid->pages; at += 1u)
     {
-        count += cli_print_prints(layout, at + 1ull) ? 1u : 0u;
+        count += EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = layout, .page_u64 = at + 1ull) ? 1u : 0u;
     }
     unsigned char number_tint[3];
     if (layout->gray)
     {
-        cli_print_color("#888888", 7u, 1, number_tint);
+        EMBED_CALL(cli_print_text.color, CliPrintTextCfg, .text = "#888888", .length = 7u, .gray = 1,
+                   .rgb = number_tint);
     }
     else
     {
@@ -343,7 +390,7 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
     unsigned int index = 0u;
     for (unsigned int at = 0u; at < laid->pages; at += 1u)
     {
-        if (!cli_print_prints(layout, at + 1ull))
+        if (!EMBED_CALL(cli_print_table.prints, CliPrintCfg, .layout = layout, .page_u64 = at + 1ull))
         {
             continue;
         }
@@ -364,16 +411,20 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
                 const unsigned long long numbers = (laid->number_columns > 2ull) ? (laid->number_columns - 2ull) : 0ull;
                 mmgr_line_decimal_columns(&line, row->number, (unsigned int)numbers);
                 const unsigned long long length = mmgr_line_finish(&line);
-                cli_draw(&page, number, length, 0ull, number_tint, 0, 0, scale, baseline);
+                EMBED_CALL(cli_draw, RasterCtx, .page = &page, .text = number, .length = length, .column = 0ull,
+                           .color = number_tint, .bold = 0, .italic = 0, .scale = scale, .baseline = baseline);
             }
             for (unsigned int piece_at = 0u; piece_at < row->pieces; piece_at += 1u)
             {
                 const CliPrintPiece *const piece = &laid->piece[row->first + piece_at];
-                cli_draw(&page, laid->text + piece->text, piece->length, laid->number_columns + piece->column,
-                         piece->color, piece->bold, piece->italic, scale, baseline);
+                EMBED_CALL(cli_draw, RasterCtx, .page = &page, .text = laid->text + piece->text,
+                           .length = piece->length, .column = laid->number_columns + piece->column,
+                           .color = piece->color, .bold = piece->bold, .italic = piece->italic, .scale = scale,
+                           .baseline = baseline);
             }
         }
-        each(context, &page, index, count);
+        EMBED_CALL(args->each, CliEachPageIndexCountCfg, .context = args->context, .page = &page, .index = index,
+                   .count = count);
         index += 1u;
     }
     g_cli_cells->persistent_buf_release(s_room->page, &g_cli_print_cells);
@@ -381,18 +432,21 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
     s_room = NULL;
 }
 
-void cli_print_turned(const CliPixels *page, CliPixels *out)
+void cli_print_turn(const CliPrintPageCfg *args)
 {
-    out->width = page->height;
-    out->height = page->width;
-    out->channels = page->channels;
-    for (unsigned long long y = 0ull; y < page->height; y += 1ull)
+    args->out_pixels_pointer->width = args->page->height;
+    args->out_pixels_pointer->height = args->page->width;
+    args->out_pixels_pointer->channels = args->page->channels;
+    for (unsigned long long y = 0ull; y < args->page->height; y += 1ull)
     {
-        for (unsigned long long x = 0ull; x < page->width; x += 1ull)
+        for (unsigned long long x = 0ull; x < args->page->width; x += 1ull)
         {
-            const unsigned long long from = ((y * page->width) + x) * page->channels;
-            const unsigned long long to = (((page->width - 1ull - x) * out->width) + y) * page->channels;
-            memor.cpy(&(MemoriaCfg){.dst = out->data + to, .src = page->data + from, .bytes = page->channels});
+            const unsigned long long from = ((y * args->page->width) + x) * args->page->channels;
+            const unsigned long long to =
+                (((args->page->width - 1ull - x) * args->out_pixels_pointer->width) + y) * args->page->channels;
+            memor.cpy(&(MemoriaCfg){.dst = args->out_pixels_pointer->data + to,
+                                    .src = args->page->data + from,
+                                    .bytes = args->page->channels});
         }
     }
 }

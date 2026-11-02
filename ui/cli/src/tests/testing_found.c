@@ -39,23 +39,45 @@ static CliTestsRoom s_room_storage;
 static CliTestsRoom *s_room;
 static CliLock s_tests_lock = CLI_LOCK_INIT;
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
-static void *found_part(unsigned char **at, unsigned long long bytes)
+typedef struct
 {
+    unsigned char **at;
+    unsigned long long bytes;
+    const char *text;
+    unsigned long long size;
+    unsigned int line;
+    unsigned int lines;
+    int *blank;
+    CliInspectText text_inspect_text;
+    unsigned int class_at;
+    const CliTestRules *rules;
+    int *test_case;
+    unsigned int function;
+    int bounded;
+    unsigned int after;
+    const char *file;
+    CliTestEach each;
+    void *context;
+    const char *root;
+} TestingFoundCtx;
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
+EMBED_INLINE void *found_part(const TestingFoundCtx *args)
+{
+    unsigned char **at = args->at;
     void *const part = *at;
-    *at += (bytes + 7ull) & ~7ull;
+    *at += (args->bytes + 7ull) & ~7ull;
     return part;
 }
 
 // the lines of `size` bytes of `text`: one more than its newlines, the last line's start after a final newline counted
 // as a line's
-static unsigned int found_lines(const char *text, unsigned long long size)
+EMBED_INLINE unsigned int found_lines(const TestingFoundCtx *args)
 {
     unsigned int lines = 1u;
-    for (const char *at = text; at < text + size; lines += 1u)
+    for (const char *at = args->text; at < args->text + args->size; lines += 1u)
     {
-        const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = at, .val = '\n', .bytes = (size_t)(size - (unsigned long long)(at - text))});
+        const char *const newline = memor.chr(&(MemoriaCfg){
+            .src = at, .val = '\n', .bytes = (size_t)(args->size - (unsigned long long)(at - args->text))});
         if (newline == NULL)
         {
             break;
@@ -67,15 +89,18 @@ static unsigned int found_lines(const char *text, unsigned long long size)
 
 // a file's part taken for the counts of a walk over its `size` bytes of `text` and the room's pointers set into it:
 // the cell, or NULL where the file is not read or no cell is left
-static void *found_part_taken(const char *text, unsigned long long size)
+EMBED_INLINE void *found_part_take(const TestingFoundCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
     CliFacts counted;
-    cli_facts_counting(&counted);
-    if (!cli_inspect_facts("python", text, size, &counted))
+    EMBED_CALL(cli_inspect_facts_language.facts_counting, CliInspectFactsLanguageCfg, .facts = &counted);
+    if (!EMBED_CALL(cli_inspect_facts_language.facts, CliInspectFactsLanguageCfg, .language = "python", .text = text,
+                    .size = size, .facts = &counted))
     {
         return NULL;
     }
-    const unsigned int lines = found_lines(text, size);
+    const unsigned int lines = EMBED_CALL(found_lines, TestingFoundCtx, .text = text, .size = size);
     const unsigned long long bytes =
         (counted.imports * sizeof(CliInspectImport)) + (counted.classes * sizeof(CliInspectClass)) +
         (counted.functions * sizeof(CliInspectFunction)) + (counted.findings * sizeof(CliInspectFinding)) +
@@ -89,55 +114,77 @@ static void *found_part_taken(const char *text, unsigned long long size)
         return NULL;
     }
     unsigned char *at = cell;
-    CliInspectImport *const imports = found_part(&at, counted.imports * sizeof(CliInspectImport));
-    CliInspectClass *const classes = found_part(&at, counted.classes * sizeof(CliInspectClass));
-    CliInspectFunction *const functions = found_part(&at, counted.functions * sizeof(CliInspectFunction));
-    CliInspectFinding *const findings = found_part(&at, counted.findings * sizeof(CliInspectFinding));
-    CliInspectFix *const fixes = found_part(&at, counted.fixes * sizeof(CliInspectFix));
-    CliInspectEdit *const edits = found_part(&at, counted.edits * sizeof(CliInspectEdit));
-    CliInspectName *const names = found_part(&at, counted.names * sizeof(CliInspectName));
-    char *const pool = found_part(&at, counted.used);
-    s_room->line_start = found_part(&at, (unsigned long long)lines * sizeof(unsigned int));
+    CliInspectImport *const imports =
+        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.imports * sizeof(CliInspectImport));
+    CliInspectClass *const classes =
+        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.classes * sizeof(CliInspectClass));
+    CliInspectFunction *const functions =
+        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.functions * sizeof(CliInspectFunction));
+    CliInspectFinding *const findings =
+        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.findings * sizeof(CliInspectFinding));
+    CliInspectFix *const fixes =
+        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.fixes * sizeof(CliInspectFix));
+    CliInspectEdit *const edits =
+        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.edits * sizeof(CliInspectEdit));
+    CliInspectName *const names =
+        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.names * sizeof(CliInspectName));
+    char *const pool = EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.used);
+    s_room->line_start =
+        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = (unsigned long long)lines * sizeof(unsigned int));
     s_room->lines = lines;
-    s_room->body_end = found_part(&at, (unsigned long long)counted.classes * sizeof(unsigned int));
-    s_room->test_function = found_part(&at, (unsigned long long)counted.functions * sizeof(unsigned int));
-    s_room->test_class = found_part(&at, (unsigned long long)counted.functions * sizeof(unsigned int));
-    cli_facts_begun(&s_room->facts, imports, counted.imports, classes, counted.classes, functions, counted.functions,
-                    findings, counted.findings, fixes, counted.fixes, edits, counted.edits, names, counted.names, pool,
-                    counted.used);
+    s_room->body_end = EMBED_CALL(found_part, TestingFoundCtx, .at = &at,
+                                  .bytes = (unsigned long long)counted.classes * sizeof(unsigned int));
+    s_room->test_function = EMBED_CALL(found_part, TestingFoundCtx, .at = &at,
+                                       .bytes = (unsigned long long)counted.functions * sizeof(unsigned int));
+    s_room->test_class = EMBED_CALL(found_part, TestingFoundCtx, .at = &at,
+                                    .bytes = (unsigned long long)counted.functions * sizeof(unsigned int));
+    EMBED_CALL(cli_inspect_facts_table.facts_begin, CliInspectFactsCfg, .facts = &s_room->facts, .imports = imports,
+               .imports_most = counted.imports, .classes = classes, .classes_most = counted.classes,
+               .functions = functions, .functions_most = counted.functions, .findings = findings,
+               .findings_most = counted.findings, .fixes = fixes, .fixes_most = counted.fixes, .edits = edits,
+               .edits_most = counted.edits, .names = names, .names_most = counted.names, .text_out = pool,
+               .text_most = counted.used);
     return cell;
 }
 
 // the indent of the line at `line` of `size` bytes of `text`, `lines` of them
-static unsigned int found_indent(const char *text, unsigned long long size, unsigned int line, unsigned int lines,
-                                 int *blank)
+EMBED_INLINE unsigned int found_indent(const TestingFoundCtx *args)
 {
-    const unsigned long long start = s_room->line_start[line];
-    const unsigned long long end = (line + 1u < lines) ? s_room->line_start[line + 1u] - 1u : size;
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    int *blank = args->blank;
+    const unsigned long long start = s_room->line_start[args->line];
+    const unsigned long long end = (args->line + 1u < args->lines) ? s_room->line_start[args->line + 1u] - 1u : size;
     unsigned long long at = start;
-    at = cli_text_past_any(text, at, end, " \t\r\f\v");
+    at = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = at, .size = end,
+                    .set = " \t\r\f\v");
     *blank = (at == end);
     return (unsigned int)(at - start);
 }
 
 // each class's body's last line, from its own line, the lines of `size` bytes of `text`
-static void found_bodies(const char *text, unsigned long long size)
+EMBED_INLINE void found_bodies(const TestingFoundCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
     unsigned int lines = 0u;
     for (unsigned long long at = 0ull; (at < size) && (lines < s_room->lines); lines += 1u)
     {
         s_room->line_start[lines] = (unsigned int)at;
-        at = cli_text_line_at(text, at, size).next;
+        at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size).next;
     }
     for (unsigned int at = 0u; at < s_room->facts.classes; at += 1u)
     {
         const unsigned int start = s_room->facts.class_of[at].from.line;
         int blank = 0;
-        const unsigned int own = (start < lines) ? found_indent(text, size, start, lines, &blank) : 0u;
+        const unsigned int own = (start < lines) ? EMBED_CALL(found_indent, TestingFoundCtx, .text = text, .size = size,
+                                                              .line = start, .lines = lines, .blank = &blank)
+                                                 : 0u;
         unsigned int end = start;
         for (unsigned int line = start + 1u; line < lines; line += 1u)
         {
-            const unsigned int indent = found_indent(text, size, line, lines, &blank);
+            const unsigned int indent = EMBED_CALL(found_indent, TestingFoundCtx, .text = text, .size = size,
+                                                   .line = line, .lines = lines, .blank = &blank);
             if (!blank && (indent <= own))
             {
                 break;
@@ -149,11 +196,11 @@ static void found_bodies(const char *text, unsigned long long size)
 }
 
 // the class whose body contains `line`, CLI_TESTS_NONE where none does
-static unsigned int found_class_of(unsigned int line)
+EMBED_INLINE unsigned int found_class_get(const TestingFoundCtx *args)
 {
     for (unsigned int at = 0u; at < s_room->facts.classes; at += 1u)
     {
-        if ((s_room->facts.class_of[at].from.line < line) && (line <= s_room->body_end[at]))
+        if ((s_room->facts.class_of[at].from.line < args->line) && (args->line <= s_room->body_end[at]))
         {
             return at;
         }
@@ -162,23 +209,27 @@ static unsigned int found_class_of(unsigned int line)
 }
 
 // a text of the facts
-static const char *found_text(CliInspectText text)
+EMBED_INLINE const char *found_text(const TestingFoundCtx *args)
 {
-    return s_room->facts.text + text.at;
+    return s_room->facts.text + args->text_inspect_text.at;
 }
 
 // whether the class at `class_at` collects its tests: it inherits a `TestCase`, or is named as the rules name a test
 // class and sets no `__init__`; and whether it inherits one
-static int found_collected(unsigned int class_at, const CliTestRules *rules, int *test_case)
+EMBED_INLINE int found_collect(const TestingFoundCtx *args)
 {
-    const CliInspectClass *const class_of = &s_room->facts.class_of[class_at];
+    const CliTestRules *rules = args->rules;
+    int *test_case = args->test_case;
+    const CliInspectClass *const class_of = &s_room->facts.class_of[args->class_at];
     *test_case = 0;
     for (unsigned int at = 0u; at < class_of->bases; at += 1u)
     {
         const CliInspectText base = s_room->facts.name[class_of->base_first + at].name;
-        *test_case |=
-            (base.size >= 8u) &&
-            (memor.cmp(&(MemoriaCfg){.src = found_text(base) + base.size - 8u, .other = "TestCase", .bytes = 8u}) == 0);
+        *test_case |= (base.size >= 8u) &&
+                      (memor.cmp(&(MemoriaCfg){
+                           .src = EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = base) + base.size - 8u,
+                           .other = "TestCase",
+                           .bytes = 8u}) == 0);
     }
     if (*test_case)
     {
@@ -188,30 +239,37 @@ static int found_collected(unsigned int class_at, const CliTestRules *rules, int
     {
         const CliInspectFunction *const one = &s_room->facts.function[at];
         const unsigned int other =
-            (one->name.size == 8u) &&
-                    (memor.cmp(&(MemoriaCfg){.src = found_text(one->name), .other = "__init__", .bytes = 8u}) == 0)
-                ? found_class_of(one->from.line)
+            (one->name.size == 8u) && (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(found_text, TestingFoundCtx,
+                                                                                 .text_inspect_text = one->name),
+                                                               .other = "__init__",
+                                                               .bytes = 8u}) == 0)
+                ? EMBED_CALL(found_class_get, TestingFoundCtx, .line = one->from.line)
                 : CLI_TESTS_NONE;
         if ((other != CLI_TESTS_NONE) && (s_room->facts.class_of[other].name.size == class_of->name.size) &&
-            (memor.cmp(&(MemoriaCfg){.src = found_text(s_room->facts.class_of[other].name),
-                                     .other = found_text(class_of->name),
-                                     .bytes = class_of->name.size}) == 0))
+            (memor.cmp(
+                 &(MemoriaCfg){.src = EMBED_CALL(found_text, TestingFoundCtx,
+                                                 .text_inspect_text = s_room->facts.class_of[other].name),
+                               .other = EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = class_of->name),
+                               .bytes = class_of->name.size}) == 0))
         {
             return 0;
         }
     }
-    return cli_test_named(rules, &rules->classes, found_text(class_of->name), class_of->name.size);
+    return EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg, .rules_read = rules,
+                      .rule = &rules->classes,
+                      .name = EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = class_of->name),
+                      .size = class_of->name.size);
 }
 
 // whether a function other than the one at `function` contains it, one starting after the line `after` where `bounded`
-static int found_nested(unsigned int function, int bounded, unsigned int after)
+EMBED_INLINE int found_nest(const TestingFoundCtx *args)
 {
-    const CliInspectFunction *const inner = &s_room->facts.function[function];
+    const CliInspectFunction *const inner = &s_room->facts.function[args->function];
     for (unsigned int at = 0u; at < s_room->facts.functions; at += 1u)
     {
         const CliInspectFunction *const outer = &s_room->facts.function[at];
-        if ((at != function) && (!bounded || (outer->first > after)) && (outer->first < inner->first) &&
-            (inner->last <= outer->last))
+        if ((at != args->function) && (!args->bounded || (outer->first > args->after)) &&
+            (outer->first < inner->first) && (inner->last <= outer->last))
         {
             return 1;
         }
@@ -221,29 +279,35 @@ static int found_nested(unsigned int function, int bounded, unsigned int after)
 
 // the tests of the facts read, listed in the order of their lines, those of one line in the order of their functions:
 // their count
-static unsigned int found_tests(const CliTestRules *rules)
+EMBED_INLINE unsigned int found_tests(const TestingFoundCtx *args)
 {
+    const CliTestRules *rules = args->rules;
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < s_room->facts.functions; at += 1u)
     {
         const CliInspectFunction *const function = &s_room->facts.function[at];
-        const unsigned int class_at = found_class_of(function->from.line);
-        const char *const name = found_text(function->name);
+        const unsigned int class_at = EMBED_CALL(found_class_get, TestingFoundCtx, .line = function->from.line);
+        const char *const name = EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = function->name);
         const unsigned int size = function->name.size;
         int is_test = 0;
         if (class_at != CLI_TESTS_NONE)
         {
             int test_case = 0;
-            const int collected = found_collected(class_at, rules, &test_case);
-            const int method = !found_nested(at, 1, s_room->facts.class_of[class_at].from.line);
+            const int collected = EMBED_CALL(found_collect, TestingFoundCtx, .class_at = class_at, .rules = rules,
+                                             .test_case = &test_case);
+            const int method = !EMBED_CALL(found_nest, TestingFoundCtx, .function = at, .bounded = 1,
+                                           .after = s_room->facts.class_of[class_at].from.line);
             const int test_name =
                 test_case ? ((size >= 4u) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "test", .bytes = 4u}) == 0))
-                          : cli_test_named(rules, &rules->functions, name, size);
+                          : EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg,
+                                       .rules_read = rules, .rule = &rules->functions, .name = name, .size = size);
             is_test = collected && method && test_name;
         }
         else
         {
-            is_test = !found_nested(at, 0, 0u) && cli_test_named(rules, &rules->functions, name, size);
+            is_test = !EMBED_CALL(found_nest, TestingFoundCtx, .function = at, .bounded = 0, .after = 0u) &&
+                      EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg,
+                                 .rules_read = rules, .rule = &rules->functions, .name = name, .size = size);
         }
         if (is_test)
         {
@@ -272,59 +336,68 @@ static unsigned int found_tests(const CliTestRules *rules)
 
 // the tests of `file`, its `size` bytes of `text`, each handed to `each`, in a part taken for the file and given
 // back after
-static void found_in(const char *file, const char *text, unsigned long long size, const CliTestRules *rules,
-                     CliTestEach each, void *context)
+static void found_in(const TestingFoundCtx *args)
 {
-    void *const part = found_part_taken(text, size);
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    void *const part = EMBED_CALL(found_part_take, TestingFoundCtx, .text = text, .size = size);
     if (part == NULL)
     {
         return;
     }
-    if (!cli_inspect_facts("python", text, size, &s_room->facts))
+    if (!EMBED_CALL(cli_inspect_facts_language.facts, CliInspectFactsLanguageCfg, .language = "python", .text = text,
+                    .size = size, .facts = &s_room->facts))
     {
         g_cli_cells->persistent_buf_release(part, &g_cli_tests_cells);
         return;
     }
-    found_bodies(text, size);
-    const unsigned int count = found_tests(rules);
+    EMBED_CALL(found_bodies, TestingFoundCtx, .text = text, .size = size);
+    const unsigned int count = found_tests(args);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliInspectFunction *const function = &s_room->facts.function[s_room->test_function[at]];
         const unsigned int class_at = s_room->test_class[at];
         char id[CLI_PATH_MAX_LEN * 2u];
         VerbaLinea line = {id, sizeof(id), 0ull};
-        mmgr_line_put(&line, file);
+        mmgr_line_put(&line, args->file);
         mmgr_line_put(&line, "::");
         if (class_at != CLI_TESTS_NONE)
         {
-            mmgr_line_put_n(&line, found_text(s_room->facts.class_of[class_at].name),
-                            s_room->facts.class_of[class_at].name.size);
+            mmgr_line_put_n(
+                &line,
+                EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = s_room->facts.class_of[class_at].name),
+                s_room->facts.class_of[class_at].name.size);
             mmgr_line_put(&line, "::");
         }
-        mmgr_line_put_n(&line, found_text(function->name), function->name.size);
+        mmgr_line_put_n(&line, EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = function->name),
+                        function->name.size);
         if (!mmgr_line_finish(&line))
         {
             continue;
         }
-        CliTest test = {id, file,
-                        (class_at != CLI_TESTS_NONE) ? found_text(s_room->facts.class_of[class_at].name) : NULL,
-                        found_text(function->name), function->from.line};
-        each(context, &test);
+        CliTest test = {
+            id, args->file,
+            (class_at != CLI_TESTS_NONE)
+                ? EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = s_room->facts.class_of[class_at].name)
+                : NULL,
+            EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = function->name), function->from.line};
+        EMBED_CALL(args->each, CliTestEachCfg, .context = args->context, .test = &test);
     }
     g_cli_cells->persistent_buf_release(part, &g_cli_tests_cells);
 }
 
 // whether the path `file` is one the rules search for tests: a Python file outside the folders not searched, named as
 // a test file, and inside the rules' folders where they name any
-static int found_searched(const char *file, const CliTestRules *rules)
+EMBED_INLINE int found_search(const TestingFoundCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL});
+    const CliTestRules *rules = args->rules;
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL});
     if ((length < 3u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = file + length - 3u, .other = ".py", .cap = CLI_CELLS_POOL})))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->file + length - 3u, .other = ".py", .cap = CLI_CELLS_POOL})))
     {
         return 0;
     }
-    for (const char *part = file; *part != '\0';)
+    for (const char *part = args->file; *part != '\0';)
     {
         const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = '/'});
         const size_t size = (slash != NULL) ? (size_t)(slash - part)
@@ -339,43 +412,49 @@ static int found_searched(const char *file, const CliTestRules *rules)
         }
         part += size + ((slash != NULL) ? 1u : 0u);
     }
-    const char *const slash =
-        cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '/');
-    const char *const base = (slash != NULL) ? slash + 1 : file;
-    if (!cli_test_named(rules, &rules->files, base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL})))
+    const char *const slash = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->file,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}), .byte = '/');
+    const char *const base = (slash != NULL) ? slash + 1 : args->file;
+    if (!EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg, .rules_read = rules,
+                    .rule = &rules->files, .name = base,
+                    .size = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL})))
     {
         return 0;
     }
     int inside = (rules->paths.count == 0u);
     for (unsigned int at = 0u; !inside && (at < rules->paths.count); at += 1u)
     {
-        const char *const place = cli_test_rule_value(rules, &rules->paths, at);
+        const char *const place = EMBED_CALL(cli_testing_rules_rule.test_rule_value, CliTestingRulesRuleCfg,
+                                             .rules_read = rules, .rule = &rules->paths, .at = at);
         size_t place_size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL});
-        inside = (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = place, .cap = CLI_CELLS_POOL}));
-        place_size = (size_t)cli_text_back_past(place, place_size, "/");
+        inside = (cellul.eq(&(CatenaFinitaCfg){.src = args->file, .other = place, .cap = CLI_CELLS_POOL}));
+        place_size = (size_t)EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = place,
+                                        .at = place_size, .set = "/");
         inside = inside || ((length > place_size) &&
-                            (memor.cmp(&(MemoriaCfg){.src = file, .other = place, .bytes = place_size}) == 0) &&
-                            (file[place_size] == '/'));
+                            (memor.cmp(&(MemoriaCfg){.src = args->file, .other = place, .bytes = place_size}) == 0) &&
+                            (args->file[place_size] == '/'));
     }
     return inside;
 }
 
 // the Python tests of the tree at `root`, under the finder's lock
-static void found_python(const char *root, CliTestEach each, void *context)
+EMBED_INLINE void found_python(const TestingFoundCtx *args)
 {
-    cli_test_rules_of(root, &s_room->rules);
-    const CliFiles *const files = cli_files_view(root);
+    const char *root = args->root;
+    EMBED_CALL(cli_testing_rules.test_rules_get, CliTestingRulesCfg, .root = root, .rules = &s_room->rules);
+    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
     {
-        const char *const file = cli_files_at(files, index);
-        if (!found_searched(file, &s_room->rules))
+        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
+        if (!EMBED_CALL(found_search, TestingFoundCtx, .file = file, .rules = &s_room->rules))
         {
             continue;
         }
         char path[CLI_PATH_MAX_LEN];
-        cli_full(root, file, path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = file, .joined = path);
         unsigned long long size = 0ull;
-        if (!cli_file_size(path, &size))
+        if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size))
         {
             continue;
         }
@@ -386,61 +465,64 @@ static void found_python(const char *root, CliTestEach each, void *context)
         }
         const unsigned long long read = qry_member_file_read(path, bytes, size + 1ull);
         const char *const text = (const char *)bytes;
-        if ((read != QRY_MEMBER_UNREAD) && cli_utf8_whole(text, read))
+        if ((read != QRY_MEMBER_UNREAD) &&
+            EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = text, .size = read))
         {
-            found_in(file, text, read, &s_room->rules, each, context);
+            EMBED_CALL(found_in, TestingFoundCtx, .file = file, .text = text, .size = read, .rules = &s_room->rules,
+                       .each = args->each, .context = args->context);
         }
         g_cli_cells->persistent_buf_release(bytes, &g_cli_tests_cells);
     }
-    cli_files_let(files);
+    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
 }
 
 // the tests' lock taken and the retained room set under it: 1
-static int found_room_locked(void)
+static int found_room_lock(void)
 {
-    cli_lock_take(&s_tests_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_tests_lock);
     s_room = &s_room_storage;
     return 1;
 }
 
 // the room let go and the tests' lock with it
-static void found_released(void)
+static void found_release(void)
 {
     s_room = NULL;
-    cli_lock_give(&s_tests_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tests_lock);
 }
 
-void cli_tests_in(const char *file, const char *text, unsigned long long size, const CliTestRules *rules,
-                  CliTestEach each, void *context)
+void cli_tests_in(const CliTestingRulesTextCfg *args)
 {
-    if (found_room_locked())
+    if (found_room_lock())
     {
-        found_in(file, text, size, rules, each, context);
-        found_released();
+        EMBED_CALL(found_in, TestingFoundCtx, .file = args->file, .text = args->text, .size = args->size,
+                   .rules = args->rules_read, .each = args->each, .context = args->context);
+        found_release();
     }
 }
 
-void cli_tests_python_found(const char *root, CliTestEach each, void *context)
+void cli_tests_python_find(const CliTestingRootCfg *args)
 {
-    if (found_room_locked())
+    if (found_room_lock())
     {
-        found_python(root, each, context);
-        found_released();
+        EMBED_CALL(found_python, TestingFoundCtx, .root = args->root, .each = args->each, .context = args->context);
+        found_release();
     }
 }
 
-void cli_tests_found(const char *root, CliTestEach each, void *context)
+void cli_tests_find(const CliTestingRootCfg *args)
 {
-    if (!found_room_locked())
+    const char *root = args->root;
+    if (!found_room_lock())
     {
         return;
     }
-    found_python(root, each, context);
-    cli_cargo_found(root, &s_room->cargo);
+    EMBED_CALL(found_python, TestingFoundCtx, .root = root, .each = args->each, .context = args->context);
+    EMBED_CALL(cli_cargo_tests_table.cargo_find, CliCargoTestsCfg, .root = root, .tests = &s_room->cargo);
     for (unsigned int at = 0u; at < s_room->cargo.count; at += 1u)
     {
-        each(context, &s_room->cargo.found[at].test);
+        EMBED_CALL(args->each, CliTestEachCfg, .context = args->context, .test = &s_room->cargo.found[at].test);
     }
-    cli_cargo_tests_given(&s_room->cargo);
-    found_released();
+    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_room->cargo);
+    found_release();
 }

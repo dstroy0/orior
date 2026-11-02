@@ -6,6 +6,7 @@
 // it where the checker reads its input and as the disk stores it where `disk` specifies the disk has it, a later run of
 // the same checker over the same file standing in for an earlier one still going; and each checker that reads a tree
 // whole run over the tree
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../plugins/plugins.h"
 #include "../toolchains/checkers.h"
@@ -34,57 +35,72 @@ static CliLock s_runs_lock = CLI_LOCK_INIT;
 // the checkers named and the languages known, as a job is made, under its lock
 static CliLock s_job_lock = CLI_LOCK_INIT;
 
-// the key a run is counted under: the file's key and the checker's id
-static void checkers_run_key(const char *key, const char *id, char *joined, unsigned long long room)
+typedef struct
 {
-    VerbaLinea line = {joined, room, 0ull};
-    mmgr_line_put(&line, key);
+    const char *key;
+    const char *id;
+    char *joined;
+    unsigned long long room;
+    const char *path;
+    char *into;
+} ServersCheckersCtx;
+// the key a run is counted under: the file's key and the checker's id
+EMBED_INLINE void checkers_run_key(const ServersCheckersCtx *args)
+{
+    VerbaLinea line = {args->joined, args->room, 0ull};
+    mmgr_line_put(&line, args->key);
     mmgr_line_ch(&line, '\n');
-    mmgr_line_put(&line, id);
+    mmgr_line_put(&line, args->id);
     (void)mmgr_line_finish(&line);
 }
 
-unsigned long long cli_servers_run_counted(const char *key, const char *id)
+unsigned long long cli_servers_run_count(const CliServersKeyCtx *args)
 {
     char joined[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN + 2u];
-    checkers_run_key(key, id, joined, sizeof(joined));
-    cli_lock_take(&s_runs_lock);
+    EMBED_CALL(checkers_run_key, ServersCheckersCtx, .key = args->key, .id = args->id, .joined = joined,
+               .room = sizeof(joined));
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_runs_lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
-    const char *const stored = cli_keyed_get(&s_runs, joined, &beside, &size);
+    const char *const stored = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_runs,
+                                          .key = joined, .beside = &beside, .size = &size);
     unsigned long long run = 0ull;
     if ((stored != NULL) && (size == sizeof(run)))
     {
         memor.cpy(&(MemoriaCfg){.dst = &run, .src = stored, .bytes = sizeof(run)});
     }
     run += 1ull;
-    (void)cli_keyed_put(&s_runs, joined, "", (const char *)&run, sizeof(run));
-    cli_lock_give(&s_runs_lock);
+    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_runs, .key = joined,
+                     .beside_value = "", .text = (const char *)&run, .size_value = sizeof(run));
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_runs_lock);
     return run;
 }
 
-int cli_servers_run_last(const char *key, const char *id, unsigned long long run)
+int cli_servers_run_last(const CliServersKeyCtx *args)
 {
     char joined[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN + 2u];
-    checkers_run_key(key, id, joined, sizeof(joined));
-    cli_lock_take(&s_runs_lock);
+    EMBED_CALL(checkers_run_key, ServersCheckersCtx, .key = args->key, .id = args->id, .joined = joined,
+               .room = sizeof(joined));
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_runs_lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
-    const char *const stored = cli_keyed_get(&s_runs, joined, &beside, &size);
+    const char *const stored = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_runs,
+                                          .key = joined, .beside = &beside, .size = &size);
     unsigned long long last = 0ull;
     if ((stored != NULL) && (size == sizeof(last)))
     {
         memor.cpy(&(MemoriaCfg){.dst = &last, .src = stored, .bytes = sizeof(last)});
     }
-    cli_lock_give(&s_runs_lock);
-    return last == run;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_runs_lock);
+    return last == args->run_u64;
 }
 
 // one file checked by one checker, its findings written into a cell of the most a file's findings hold and stored where
 // its run is still the last
-static void checkers_file_job(const void *job, unsigned long long size)
+static void checkers_file_job(const CliServersJobCfg *args)
 {
-    const CliServersCheckerJob *const one = job;
+    unsigned long long size = args->size;
+    const CliServersCheckerJob *const one = args->job;
     if (size < sizeof(*one) + (one->has_text ? one->size : 0ull))
     {
         return;
@@ -93,19 +109,25 @@ static void checkers_file_job(const void *job, unsigned long long size)
     VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_ANSWER);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    const char *const text = one->has_text ? (const char *)job + sizeof(*one) : NULL;
-    const int checked = cli_checkers_check_file(one->id, one->root, one->path, text, one->size, &found, &err_msg);
-    if (checked && mmgr_line_ok(&found) && cli_servers_run_last(one->key, one->id, one->run))
+    const char *const text = one->has_text ? (const char *)args->job + sizeof(*one) : NULL;
+    const int checked =
+        EMBED_CALL(cli_checkers_out.check_file, CliCheckersOutCfg, .id = one->id, .root = one->root, .path = one->path,
+                   .text = text, .length = one->size, .out = &found, .err_msg = &err_msg);
+    if (checked && mmgr_line_ok(&found) &&
+        EMBED_CALL(cli_servers_key_internal.run_last, CliServersKeyCtx, .key = one->key, .id = one->id,
+                   .run_u64 = one->run))
     {
-        cli_servers_findings_stored(one->id, found.out, found.at, 0, &one->sink);
+        EMBED_CALL(cli_servers_size_internal.findings_store, CliServersSizeCtx, .id = one->id, .found = found.out,
+                   .size = found.at, .always = 0, .sink = &one->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
 // the tree checked whole by one checker, its findings written into a cell of the most a tree's findings hold and stored
-static void checkers_tree_job(const void *job, unsigned long long size)
+static void checkers_tree_job(const CliServersJobCfg *args)
 {
-    const CliServersCheckerJob *const one = job;
+    unsigned long long size = args->size;
+    const CliServersCheckerJob *const one = args->job;
     if (size < sizeof(*one))
     {
         return;
@@ -114,56 +136,61 @@ static void checkers_tree_job(const void *job, unsigned long long size)
     VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    const int checked = cli_checkers_check_tree(one->id, one->root, &found, &err_msg);
+    const int checked = EMBED_CALL(cli_checkers_out.check_tree, CliCheckersOutCfg, .id = one->id, .root = one->root,
+                                   .out = &found, .err_msg = &err_msg);
     if (checked && mmgr_line_ok(&found))
     {
-        cli_servers_findings_stored(one->id, found.out, found.at, 0, &one->sink);
+        EMBED_CALL(cli_servers_size_internal.findings_store, CliServersSizeCtx, .id = one->id, .found = found.out,
+                   .size = found.at, .always = 0, .sink = &one->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
 // a path copied into what is sized for CLI_PATH_MAX_LEN
-static void checkers_path_copied(const char *path, char *into)
+EMBED_INLINE void checkers_path_copy(const ServersCheckersCtx *args)
 {
-    VerbaLinea line = {into, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, path);
+    VerbaLinea line = {args->into, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->path);
     (void)mmgr_line_finish(&line);
 }
 
-void cli_servers_run_checkers(const char *root, const char *path, const char *text, unsigned long long size, int disk,
-                              const CliServersSink *sink)
+void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args)
 {
+    const char *path = args->path;
+    unsigned long long size = args->size;
+    const CliServersSink *sink = args->sink;
     static char s_id[CLI_SERVERS_CHECKERS][CLI_NAME_MAX_LEN];
-    cli_lock_take(&s_job_lock);
-    cli_lock_take(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_job_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     const unsigned int ids = g_cli_servers.checkers;
     memor.cpy(&(MemoriaCfg){.dst = s_id, .src = g_cli_servers.checker, .bytes = sizeof(s_id)});
-    cli_lock_give(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     char language[CLI_NAME_MAX_LEN];
     CliLanguages languages;
-    cli_plugins_languages_for_call(&languages);
-    const int known = (ids != 0u) && cli_plugins_language_for(&languages, path, language);
-    cli_plugins_languages_given(&languages);
+    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
+    const int known = (ids != 0u) && EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                                .languages_read = &languages, .path = path, .id_out = language);
+    EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &languages);
     if (!known)
     {
-        cli_lock_give(&s_job_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_job_lock);
         return;
     }
     char key[CLI_PATH_MAX_LEN];
-    cli_servers_key_of(path, key);
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
     for (unsigned int at = 0u; at < ids; at += 1u)
     {
-        if (!cli_checkers_checks(s_id[at], language))
+        if (!EMBED_CALL(cli_checkers.checks, CliCheckersCfg, .id = s_id[at], .language = language))
         {
             continue;
         }
-        const int input = cli_checkers_reads_input(s_id[at]);
-        if (!disk && !input)
+        const int input = EMBED_CALL(cli_checkers.reads_input, CliCheckersCfg, .id = s_id[at]);
+        if (!args->disk && !input)
         {
             continue;
         }
         // the job made in a cell of its size, the text after it where the checker has it
-        const int has_text = (text != NULL) && (size <= CLI_SERVERS_LARGEST);
+        const int has_text = (args->text != NULL) && (size <= CLI_SERVERS_LARGEST);
         const unsigned long long text_size = has_text ? size : 0ull;
         char *const job =
             g_cli_cells->persistent_buf_alloc(sizeof(CliServersCheckerJob) + text_size, &g_cli_servers_cells);
@@ -174,43 +201,46 @@ void cli_servers_run_checkers(const char *root, const char *path, const char *te
         CliServersCheckerJob *const one = (CliServersCheckerJob *)(void *)job;
         memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(*one)});
         memor.cpy(&(MemoriaCfg){.dst = one->id, .src = s_id[at], .bytes = sizeof(one->id)});
-        checkers_path_copied(root, one->root);
-        checkers_path_copied(path, one->path);
+        EMBED_CALL(checkers_path_copy, ServersCheckersCtx, .path = args->root, .into = one->root);
+        EMBED_CALL(checkers_path_copy, ServersCheckersCtx, .path = path, .into = one->path);
         memor.cpy(&(MemoriaCfg){.dst = one->key, .src = key, .bytes = sizeof(key)});
-        one->run = cli_servers_run_counted(key, s_id[at]);
+        one->run = EMBED_CALL(cli_servers_key_internal.run_count, CliServersKeyCtx, .key = key, .id = s_id[at]);
         one->sink = *sink;
         one->has_text = has_text;
         one->size = text_size;
         if (has_text)
         {
             // a size under CLI_SERVERS_LARGEST fits a size_t
-            memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*one), .src = text, .bytes = (size_t)text_size});
+            memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*one), .src = args->text, .bytes = (size_t)text_size});
         }
-        (void)cli_servers_later_handed(checkers_file_job, job, sizeof(*one) + text_size);
+        (void)EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = checkers_file_job,
+                         .bytes = job, .size = sizeof(*one) + text_size);
     }
-    cli_lock_give(&s_job_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_job_lock);
 }
 
-void cli_servers_check_tree_with_checkers(const char *root, const CliServersSink *sink)
+void cli_servers_check_tree_with_checkers(const CliServersFilesCtx *args)
 {
+    const CliServersSink *sink = args->sink;
     static char s_id[CLI_SERVERS_CHECKERS][CLI_NAME_MAX_LEN];
-    cli_lock_take(&s_job_lock);
-    cli_lock_take(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_job_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     const unsigned int ids = g_cli_servers.checkers;
     memor.cpy(&(MemoriaCfg){.dst = s_id, .src = g_cli_servers.checker, .bytes = sizeof(s_id)});
-    cli_lock_give(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     for (unsigned int at = 0u; at < ids; at += 1u)
     {
-        if (!cli_checkers_reads_tree(s_id[at]))
+        if (!EMBED_CALL(cli_checkers.reads_tree, CliCheckersCfg, .id = s_id[at]))
         {
             continue;
         }
         CliServersCheckerJob one;
         memor.set(&(MemoriaCfg){.dst = &one, .val = 0, .bytes = sizeof(one)});
         memor.cpy(&(MemoriaCfg){.dst = one.id, .src = s_id[at], .bytes = sizeof(one.id)});
-        checkers_path_copied(root, one.root);
+        EMBED_CALL(checkers_path_copy, ServersCheckersCtx, .path = args->root, .into = one.root);
         one.sink = *sink;
-        (void)cli_servers_later(checkers_tree_job, &one, sizeof(one));
+        (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = checkers_tree_job, .job = &one,
+                         .size = sizeof(one));
     }
-    cli_lock_give(&s_job_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_job_lock);
 }

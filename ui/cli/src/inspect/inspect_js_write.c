@@ -22,41 +22,66 @@ static unsigned int *s_lasts;
 static const char **s_member_names;
 static unsigned int *s_member_sizes;
 
-void cli_inspect_js_write_laid(CliInspectCarve *carve)
+void cli_inspect_js_write_layout(const CliInspectCarveCtx *args)
 {
-    cli_inspect_set_laid(&s_names, carve);
+    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_names, .carve = args->carve);
     const unsigned long long lines = CLI_INSPECT_LINES;
     const unsigned long long members = CLI_JS_MEMBERS;
-    s_starts = cli_inspect_carved(carve, lines * sizeof(unsigned long long));
-    s_ends = cli_inspect_carved(carve, lines * sizeof(unsigned long long));
-    s_firsts = cli_inspect_carved(carve, members * sizeof(unsigned int));
-    s_lasts = cli_inspect_carved(carve, members * sizeof(unsigned int));
-    s_member_names = cli_inspect_carved(carve, members * sizeof(const char *));
-    s_member_sizes = cli_inspect_carved(carve, members * sizeof(unsigned int));
+    s_starts = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                          .bytes = lines * sizeof(unsigned long long));
+    s_ends = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                        .bytes = lines * sizeof(unsigned long long));
+    s_firsts = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                          .bytes = members * sizeof(unsigned int));
+    s_lasts = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                         .bytes = members * sizeof(unsigned int));
+    s_member_names = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                                .bytes = members * sizeof(const char *));
+    s_member_sizes = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                                .bytes = members * sizeof(unsigned int));
 }
 
-// the text of the token at `at`, `size` bytes of it
-static const char *write_word(const char *src, unsigned int at, unsigned int *size)
+typedef struct
 {
-    *size = g_cli_inspect_tok[at].end - g_cli_inspect_tok[at].start;
-    return src + g_cli_inspect_tok[at].start;
+    const char *src;
+    unsigned int at;
+    unsigned int *size;
+    unsigned long long size_u64;
+    unsigned int line;
+    unsigned long long *start;
+    unsigned long long *end;
+    unsigned int start_u32;
+    unsigned int close;
+    const char **name;
+    unsigned int *name_size;
+} InspectJsWriteCtx;
+// the text of the token at `at`, `size` bytes of it
+EMBED_INLINE const char *write_word(const InspectJsWriteCtx *args)
+{
+    unsigned int *size = args->size;
+    *size = g_cli_inspect_tok[args->at].end - g_cli_inspect_tok[args->at].start;
+    return args->src + g_cli_inspect_tok[args->at].start;
 }
 
 // the white letters a physical line starts with, its start and their end, into `start` and `end`
-static void write_indent(const char *src, unsigned long long size, unsigned int line, unsigned long long *start,
-                         unsigned long long *end)
+EMBED_INLINE void write_indent(const InspectJsWriteCtx *args)
 {
+    unsigned long long size = args->size_u64;
+    unsigned long long *start = args->start;
+    unsigned long long *end = args->end;
     unsigned long long at = 0ull;
-    for (unsigned int index = 0u; (index < line) && (at < size); index += 1u)
+    for (unsigned int index = 0u; (index < args->line) && (at < size); index += 1u)
     {
-        at = cli_text_line_at(src, at, size).next;
+        at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->src, .at = at, .size = size).next;
     }
     *start = at;
     while (at < size)
     {
         unsigned int letter = 0u;
-        const unsigned long long taken = cli_lossy_letter((const unsigned char *)src, size, at, &letter);
-        if ((letter == '\n') || !cli_inspect_white(letter))
+        const unsigned long long taken =
+            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)args->src, .length = size, .at = at, .letter = &letter);
+        if ((letter == '\n') || !EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter))
         {
             break;
         }
@@ -66,43 +91,54 @@ static void write_indent(const char *src, unsigned long long size, unsigned int 
 }
 
 // the function at or around `line`: its body's opening brace, CLI_JS_NO where none is
-static unsigned int write_function_at(const char *src, unsigned int line)
+EMBED_INLINE unsigned int write_function_at(const InspectJsWriteCtx *args)
 {
+    const char *src = args->src;
     unsigned int found = CLI_JS_NO;
     for (unsigned int at = 0u; at < g_cli_inspect_toks; at += 1u)
     {
-        if ((g_cli_js_brace[at] != CLI_JS_FUNCTION) || (cli_js_function_name(src, at) == CLI_JS_NO))
+        if ((g_cli_js_brace[at] != CLI_JS_FUNCTION) ||
+            (EMBED_CALL(cli_inspect_js_open.js_function_name, CliInspectJsOpenCfg, .src = src, .open = at) ==
+             CLI_JS_NO))
         {
             continue;
         }
         const unsigned int close = g_cli_js_pair[at];
-        const int encloses = (g_cli_inspect_tok[at].from.line <= line) && (close != CLI_JS_NO) &&
-                             (g_cli_inspect_tok[close].to.line >= line);
-        const int named_on = (g_cli_inspect_tok[cli_js_function_name(src, at)].from.line == line);
+        const int encloses = (g_cli_inspect_tok[at].from.line <= args->line) && (close != CLI_JS_NO) &&
+                             (g_cli_inspect_tok[close].to.line >= args->line);
+        const int named_on = (g_cli_inspect_tok[EMBED_CALL(cli_inspect_js_open.js_function_name, CliInspectJsOpenCfg,
+                                                           .src = src, .open = at)]
+                                  .from.line == args->line);
         found = (encloses || named_on) ? at : found;
     }
     return found;
 }
 
-int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned int line, CliInspectEdit *edit,
-                             VerbaLinea *text, CliInspectPlace *summary, VerbaLinea *err_msg)
+int cli_inspect_js_docstring(const CliInspectSizeSrcCtx *args)
 {
-    cli_js_read(src, size);
-    const unsigned int open = write_function_at(src, line);
+    const char *src = args->src;
+    CliInspectEdit *edit = args->edit;
+    CliInspectPlace *summary = args->summary;
+    EMBED_CALL(cli_inspect_js.js_read, CliInspectJsCfg, .src = src, .size = args->size);
+    const unsigned int open = EMBED_CALL(write_function_at, InspectJsWriteCtx, .src = src, .line = args->line);
     if (open == CLI_JS_NO)
     {
-        mmgr_line_put(err_msg, "Write Docstring writes one for the function the cursor is in.");
+        mmgr_line_put(args->err_msg, "Write Docstring writes one for the function the cursor is in.");
         return 0;
     }
     const unsigned int close = (g_cli_js_pair[open] != CLI_JS_NO) ? g_cli_js_pair[open] : open;
-    cli_inspect_set_cleared(&s_names);
-    const unsigned int first = cli_js_parameters(src, open, &s_names);
-    const unsigned int named = cli_js_function_name(src, open);
+    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_names);
+    const unsigned int first =
+        EMBED_CALL(cli_inspect_js_open.js_parameters, CliInspectJsOpenCfg, .src = src, .open = open, .names = &s_names);
+    const unsigned int named =
+        EMBED_CALL(cli_inspect_js_open.js_function_name, CliInspectJsOpenCfg, .src = src, .open = open);
     const unsigned int name_at = (named != CLI_JS_NO) ? named : first;
     const unsigned int start = (name_at < first) ? name_at : first;
     unsigned int lead = start;
-    while ((lead > 0u) && !cli_js_is(src, lead - 1u, ";") && !cli_js_is(src, lead - 1u, "{") &&
-           !cli_js_is(src, lead - 1u, "}") &&
+    while ((lead > 0u) &&
+           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u, .word = ";") &&
+           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u, .word = "{") &&
+           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u, .word = "}") &&
            (g_cli_inspect_tok[lead - 1u].from.line == g_cli_inspect_tok[start].from.line))
     {
         lead -= 1u;
@@ -113,9 +149,11 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
         const unsigned int to_line = g_cli_inspect_comment[at].to.line;
         unsigned long long line_start = 0ull;
         unsigned long long line_end = 0ull;
-        write_indent(src, size, to_line, &line_start, &line_end);
+        EMBED_CALL(write_indent, InspectJsWriteCtx, .src = src, .size_u64 = args->size, .line = to_line,
+                   .start = &line_start, .end = &line_end);
         unsigned long long end = line_start;
-        end = cli_text_to_any(src, end, size, "\n");
+        end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = src, .at = end,
+                         .size = args->size, .set = "\n");
         while ((end > line_start) && (cellul.chr(&(CatenaFinitaCfg){
                                           .src = " \t\r\v\f", .cap = CLI_CELLS_POOL, .byte = src[end - 1u]}) != NULL))
         {
@@ -125,7 +163,7 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
                            (memor.cmp(&(MemoriaCfg){.src = src + end - 2u, .other = "*/", .bytes = 2u}) == 0);
         if ((to_line + 1u == first_line) && closed)
         {
-            mmgr_line_put(err_msg, "The function has a comment over it.");
+            mmgr_line_put(args->err_msg, "The function has a comment over it.");
             return 0;
         }
     }
@@ -133,12 +171,15 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
     for (unsigned int at = first; (at < open) && (params < CLI_JS_NAMED); at += 1u)
     {
         unsigned int length = 0u;
-        const char *const word = write_word(src, at, &length);
-        int known = !cli_inspect_set_has(&s_names, word, length) || (g_cli_inspect_tok[at].kind != CLI_JS_NAME);
+        const char *const word = EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = at, .size = &length);
+        int known = !EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_names, .at = word,
+                                .size_u32 = length) ||
+                    (g_cli_inspect_tok[at].kind != CLI_JS_NAME);
         for (unsigned int index = 0u; !known && (index < params); index += 1u)
         {
             unsigned int other = 0u;
-            const char *const before = write_word(src, s_params[index], &other);
+            const char *const before =
+                EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = s_params[index], .size = &other);
             known = (other == length) && (memor.cmp(&(MemoriaCfg){.src = before, .other = word, .bytes = length}) == 0);
         }
         if (!known)
@@ -158,12 +199,19 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
             continue;
         }
         gives =
-            gives || (cli_js_is(src, at, "return") && !cli_js_is(src, at + 1u, ";") && !cli_js_is(src, at + 1u, "}"));
-        if (cli_js_is(src, at, "throw") && (thrown < CLI_JS_NAMED))
+            gives ||
+            (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "return") &&
+             !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u, .word = ";") &&
+             !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u, .word = "}"));
+        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "throw") &&
+            (thrown < CLI_JS_NAMED))
         {
-            const int made = cli_js_is(src, at + 1u, "new") && (at + 2u < g_cli_inspect_toks);
+            const int made = EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u,
+                                        .word = "new") &&
+                             (at + 2u < g_cli_inspect_toks);
             unsigned int length = 5u;
-            const char *const name = made ? write_word(src, at + 2u, &length) : "Error";
+            const char *const name =
+                made ? EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = at + 2u, .size = &length) : "Error";
             int known = 0;
             for (unsigned int index = 0u; !known && (index < thrown); index += 1u)
             {
@@ -181,46 +229,50 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
     }
     unsigned long long indent_start = 0ull;
     unsigned long long indent_end = 0ull;
-    write_indent(src, size, first_line, &indent_start, &indent_end);
+    EMBED_CALL(write_indent, InspectJsWriteCtx, .src = src, .size_u64 = args->size, .line = first_line,
+               .start = &indent_start, .end = &indent_end);
     const char *const indent = src + indent_start;
     const unsigned long long indent_size = indent_end - indent_start;
-    mmgr_line_put_n(text, indent, indent_size);
-    mmgr_line_put(text, "/**\n");
-    mmgr_line_put_n(text, indent, indent_size);
-    mmgr_line_put(text, " * \n");
+    mmgr_line_put_n(args->text, indent, indent_size);
+    mmgr_line_put(args->text, "/**\n");
+    mmgr_line_put_n(args->text, indent, indent_size);
+    mmgr_line_put(args->text, " * \n");
     if ((params > 0u) || gives || (thrown > 0u))
     {
-        mmgr_line_put_n(text, indent, indent_size);
-        mmgr_line_put(text, " *\n");
+        mmgr_line_put_n(args->text, indent, indent_size);
+        mmgr_line_put(args->text, " *\n");
     }
     for (unsigned int index = 0u; index < params; index += 1u)
     {
         unsigned int length = 0u;
-        const char *const word = write_word(src, s_params[index], &length);
-        mmgr_line_put_n(text, indent, indent_size);
-        mmgr_line_put(text, " * @param ");
-        mmgr_line_put_n(text, word, length);
-        mmgr_line_ch(text, '\n');
+        const char *const word =
+            EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = s_params[index], .size = &length);
+        mmgr_line_put_n(args->text, indent, indent_size);
+        mmgr_line_put(args->text, " * @param ");
+        mmgr_line_put_n(args->text, word, length);
+        mmgr_line_ch(args->text, '\n');
     }
     if (gives)
     {
-        mmgr_line_put_n(text, indent, indent_size);
-        mmgr_line_put(text, " * @returns\n");
+        mmgr_line_put_n(args->text, indent, indent_size);
+        mmgr_line_put(args->text, " * @returns\n");
     }
     for (unsigned int index = 0u; index < thrown; index += 1u)
     {
-        mmgr_line_put_n(text, indent, indent_size);
-        mmgr_line_put(text, " * @throws {");
-        mmgr_line_put_n(text, s_thrown[index], s_thrown_size[index]);
-        mmgr_line_put(text, "}\n");
+        mmgr_line_put_n(args->text, indent, indent_size);
+        mmgr_line_put(args->text, " * @throws {");
+        mmgr_line_put_n(args->text, s_thrown[index], s_thrown_size[index]);
+        mmgr_line_put(args->text, "}\n");
     }
-    mmgr_line_put_n(text, indent, indent_size);
-    mmgr_line_put(text, " */\n");
+    mmgr_line_put_n(args->text, indent, indent_size);
+    mmgr_line_put(args->text, " */\n");
     unsigned int units = 0u;
     for (unsigned long long letter_at = indent_start; letter_at < indent_end;)
     {
         unsigned int letter = 0u;
-        letter_at += cli_lossy_letter((const unsigned char *)src, indent_end, letter_at, &letter);
+        letter_at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                .text_bytes = (const unsigned char *)src, .length = indent_end, .at = letter_at,
+                                .letter = &letter);
         units += (letter >= 0x10000u) ? 2u : 1u;
     }
     const CliInspectPlace place = {first_line, 0u};
@@ -231,77 +283,88 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
 
 // the end of the class member that starts at `start` before `close`, the token it ends on, and its name where it is a
 // method, into `name` and `name_size`
-static unsigned int write_member_end(const char *src, unsigned int start, unsigned int close, const char **name,
-                                     unsigned int *name_size)
+EMBED_INLINE unsigned int write_member_end(const InspectJsWriteCtx *args)
 {
+    const char *src = args->src;
+    const char **name = args->name;
+    unsigned int *name_size = args->name_size;
     static const char *const s_runs_on[4] = {"(", "{", "=", "."};
-    unsigned int end = start;
+    unsigned int end = args->start_u32;
     *name = NULL;
     *name_size = 0u;
-    while (end < close)
+    while (end < args->close)
     {
         if (g_cli_js_brace[end] == CLI_JS_FUNCTION)
         {
-            const unsigned int named = cli_js_function_name(src, end);
+            const unsigned int named =
+                EMBED_CALL(cli_inspect_js_open.js_function_name, CliInspectJsOpenCfg, .src = src, .open = end);
             if (named != CLI_JS_NO)
             {
-                *name = write_word(src, named, name_size);
+                *name = EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = named, .size = name_size);
             }
             end = (g_cli_js_pair[end] != CLI_JS_NO) ? g_cli_js_pair[end] : end;
             break;
         }
-        if (cli_js_is(src, end, ";"))
+        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = ";"))
         {
             break;
         }
         const unsigned int pair = g_cli_js_pair[end];
-        const int opens = cli_js_is(src, end, "(") || cli_js_is(src, end, "[");
+        const int opens =
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = "(") ||
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = "[");
         end = ((pair != CLI_JS_NO) && (pair > end) && opens) ? (pair + 1u) : (end + 1u);
-        end = (end < close) ? end : close;
-        const int broken = (end < close) && (g_cli_inspect_tok[end].from.line > g_cli_inspect_tok[end - 1u].to.line) &&
-                           !cli_js_is(src, end - 1u, ",") && !cli_js_one_of(src, end, s_runs_on, 4u) &&
-                           (g_cli_js_brace[end] != CLI_JS_FUNCTION);
+        end = (end < args->close) ? end : args->close;
+        const int broken =
+            (end < args->close) && (g_cli_inspect_tok[end].from.line > g_cli_inspect_tok[end - 1u].to.line) &&
+            !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end - 1u, .word = ",") &&
+            !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = end, .words = s_runs_on,
+                        .count = 4u) &&
+            (g_cli_js_brace[end] != CLI_JS_FUNCTION);
         if (broken)
         {
             end -= 1u;
             break;
         }
     }
-    return (end < close - 1u) ? end : (close - 1u);
+    return (end < args->close - 1u) ? end : (args->close - 1u);
 }
 
-int cli_inspect_js_sort_methods(const char *src, unsigned long long size, unsigned int line, CliInspectEdit *edit,
-                                VerbaLinea *text, VerbaLinea *err_msg)
+int cli_inspect_js_sort_methods(const CliInspectSizeSrcCtx *args)
 {
-    cli_js_read(src, size);
+    CliInspectEdit *edit = args->edit;
+    EMBED_CALL(cli_inspect_js.js_read, CliInspectJsCfg, .src = args->src, .size = args->size);
     unsigned int open = CLI_JS_NO;
     for (unsigned int at = 0u; at < g_cli_inspect_toks; at += 1u)
     {
         const unsigned int close = g_cli_js_pair[at];
-        const int around = (g_cli_js_brace[at] == CLI_JS_CLASS) && (g_cli_inspect_tok[at].from.line <= line) &&
-                           (close != CLI_JS_NO) && (g_cli_inspect_tok[close].to.line >= line);
+        const int around = (g_cli_js_brace[at] == CLI_JS_CLASS) && (g_cli_inspect_tok[at].from.line <= args->line) &&
+                           (close != CLI_JS_NO) && (g_cli_inspect_tok[close].to.line >= args->line);
         open = around ? at : open;
     }
     if (open == CLI_JS_NO)
     {
-        mmgr_line_put(err_msg, "Sort Methods by Name sorts the class the cursor is in.");
+        mmgr_line_put(args->err_msg, "Sort Methods by Name sorts the class the cursor is in.");
         return 0;
     }
     const unsigned int close = g_cli_js_pair[open];
-    const unsigned int physical = cli_inspect_physical(src, size, s_starts, s_ends, CLI_INSPECT_LINES);
+    const unsigned int physical =
+        EMBED_CALL(cli_inspect_size_src_starts_internal.physical, CliInspectSizeSrcStartsCtx, .src = args->src,
+                   .size = args->size, .starts = s_starts, .ends = s_ends, .most = CLI_INSPECT_LINES);
     unsigned int members = 0u;
     unsigned int at = open + 1u;
     unsigned int floor = g_cli_inspect_tok[open].to.line + 1u;
     while ((at < close) && (members < CLI_JS_MEMBERS))
     {
-        if (cli_js_is(src, at, ";"))
+        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = at, .word = ";"))
         {
             at += 1u;
             continue;
         }
         const unsigned int start = at;
         const unsigned int end =
-            write_member_end(src, start, close, &s_member_names[members], &s_member_sizes[members]);
+            EMBED_CALL(write_member_end, InspectJsWriteCtx, .src = args->src, .start_u32 = start, .close = close,
+                       .name = &s_member_names[members], .name_size = &s_member_sizes[members]);
         unsigned int first = g_cli_inspect_tok[start].from.line;
         for (int moved = 1; moved && (first > floor);)
         {
@@ -329,22 +392,26 @@ int cli_inspect_js_sort_methods(const char *src, unsigned long long size, unsign
     }
     if (members == 0u)
     {
-        mmgr_line_put(err_msg, "The class has no members.");
+        mmgr_line_put(args->err_msg, "The class has no members.");
         return 0;
     }
     const unsigned int first = s_firsts[0];
     const unsigned int last = s_lasts[members - 1u];
-    if ((last >= physical) || !cli_inspect_sorted_body(src, size, s_starts, s_ends, s_firsts, s_lasts, s_member_names,
-                                                       s_member_sizes, members, text))
+    if ((last >= physical) ||
+        !EMBED_CALL(cli_inspect_size_internal.sorted_body, CliInspectSizeCtx, .src = args->src, .size = args->size,
+                    .line_starts = s_starts, .line_ends = s_ends, .firsts = s_firsts, .lasts = s_lasts,
+                    .names = s_member_names, .name_sizes = s_member_sizes, .members = members, .out = args->text))
     {
-        mmgr_line_put(err_msg, "The class's methods stand in the order of their names.");
+        mmgr_line_put(args->err_msg, "The class's methods stand in the order of their names.");
         return 0;
     }
     unsigned int end_col = 0u;
     for (unsigned long long letter_at = s_starts[last]; letter_at < s_ends[last];)
     {
         unsigned int letter = 0u;
-        letter_at += cli_lossy_letter((const unsigned char *)src, s_ends[last], letter_at, &letter);
+        letter_at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                .text_bytes = (const unsigned char *)args->src, .length = s_ends[last], .at = letter_at,
+                                .letter = &letter);
         end_col += (letter >= 0x10000u) ? 2u : 1u;
     }
     *edit = (CliInspectEdit){{first, 0u}, {last, end_col}, {0u, 0u}};

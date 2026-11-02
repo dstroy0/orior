@@ -5,6 +5,13 @@
 // and numbers of the scripts named in the tables. A letter of a block not listed has no property and no other case
 #include "regexp.h"
 
+typedef struct
+{
+    unsigned int first;
+    unsigned int last;
+    unsigned int offset;
+    unsigned int parity;
+} CliCaseBlock;
 // a block whose capitals each have their small letter `offset` above: every one from `first` to `last`, or the even or
 // the odd of them where the cases alternate
 enum
@@ -13,14 +20,6 @@ enum
     CLI_CASE_EVEN,
     CLI_CASE_ODD
 };
-
-typedef struct
-{
-    unsigned int first;
-    unsigned int last;
-    unsigned int offset;
-    unsigned int parity;
-} CliCaseBlock;
 
 static const CliCaseBlock s_case_blocks[] = {
     {'A', 'Z', 32u, CLI_CASE_ALL},           {0xc0u, 0xd6u, 32u, CLI_CASE_ALL},
@@ -57,39 +56,48 @@ static const unsigned int s_numbers[][2] = {{'0', '9'},         {0xb2u, 0xb3u}, 
                                             {0x660u, 0x669u},   {0x6f0u, 0x6f9u},  {0x966u, 0x96fu}, {0x2160u, 0x2188u},
                                             {0x2460u, 0x249bu}, {0xff10u, 0xff19u}};
 
-static int cli_case_contains(const CliCaseBlock *block, unsigned int capital)
+typedef struct
 {
-    if ((capital < block->first) || (capital > block->last))
+    const CliCaseBlock *block;
+    unsigned int capital;
+    const unsigned int (*ranges)[2];
+    unsigned int count;
+    unsigned int letter;
+} RegexpLettersCtx;
+EMBED_INLINE int cli_case_contains(const RegexpLettersCtx *args)
+{
+    if ((args->capital < args->block->first) || (args->capital > args->block->last))
     {
         return 0;
     }
-    return (block->parity == CLI_CASE_ALL) || ((capital % 2u) == ((block->parity == CLI_CASE_EVEN) ? 0u : 1u));
+    return (args->block->parity == CLI_CASE_ALL) ||
+           ((args->capital % 2u) == ((args->block->parity == CLI_CASE_EVEN) ? 0u : 1u));
 }
 
-unsigned int cli_regexp_lower(unsigned int letter)
+unsigned int cli_regexp_lower(const CliRegexpLetterCfg *args)
 {
     for (unsigned int at = 0u; at < (sizeof(s_lowered) / sizeof(s_lowered[0])); at += 1u)
     {
-        if (letter == s_lowered[at][0])
+        if (args->letter == s_lowered[at][0])
         {
             return s_lowered[at][1];
         }
     }
     for (unsigned int at = 0u; at < (sizeof(s_case_blocks) / sizeof(s_case_blocks[0])); at += 1u)
     {
-        if (cli_case_contains(&s_case_blocks[at], letter))
+        if (EMBED_CALL(cli_case_contains, RegexpLettersCtx, .block = &s_case_blocks[at], .capital = args->letter))
         {
-            return letter + s_case_blocks[at].offset;
+            return args->letter + s_case_blocks[at].offset;
         }
     }
-    return letter;
+    return args->letter;
 }
 
-unsigned int cli_regexp_upper(unsigned int letter)
+unsigned int cli_regexp_upper(const CliRegexpLetterCfg *args)
 {
     for (unsigned int at = 0u; at < (sizeof(s_raised) / sizeof(s_raised[0])); at += 1u)
     {
-        if (letter == s_raised[at][0])
+        if (args->letter == s_raised[at][0])
         {
             return s_raised[at][1];
         }
@@ -97,19 +105,20 @@ unsigned int cli_regexp_upper(unsigned int letter)
     for (unsigned int at = 0u; at < (sizeof(s_case_blocks) / sizeof(s_case_blocks[0])); at += 1u)
     {
         const unsigned int offset = s_case_blocks[at].offset;
-        if ((letter >= offset) && cli_case_contains(&s_case_blocks[at], letter - offset))
+        if ((args->letter >= offset) && EMBED_CALL(cli_case_contains, RegexpLettersCtx, .block = &s_case_blocks[at],
+                                                   .capital = args->letter - offset))
         {
-            return letter - offset;
+            return args->letter - offset;
         }
     }
-    return letter;
+    return args->letter;
 }
 
-static int cli_ranged(const unsigned int (*ranges)[2], unsigned int count, unsigned int letter)
+EMBED_INLINE int cli_on_range(const RegexpLettersCtx *args)
 {
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if ((letter >= ranges[at][0]) && (letter <= ranges[at][1]))
+        if ((args->letter >= args->ranges[at][0]) && (args->letter <= args->ranges[at][1]))
         {
             return 1;
         }
@@ -117,20 +126,22 @@ static int cli_ranged(const unsigned int (*ranges)[2], unsigned int count, unsig
     return 0;
 }
 
-int cli_regexp_property(unsigned int property, unsigned int letter)
+int cli_regexp_property(const CliRegexpLetterCfg *args)
 {
-    switch (property)
+    switch (args->property)
     {
     case CLI_REGEXP_LETTER:
-        return ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-               cli_ranged(s_letters, sizeof(s_letters) / sizeof(s_letters[0]), letter);
+        return ((args->letter >= 'a') && (args->letter <= 'z')) || ((args->letter >= 'A') && (args->letter <= 'Z')) ||
+               EMBED_CALL(cli_on_range, RegexpLettersCtx, .ranges = s_letters,
+                          .count = sizeof(s_letters) / sizeof(s_letters[0]), .letter = args->letter);
     case CLI_REGEXP_NUMBER:
-        return cli_ranged(s_numbers, sizeof(s_numbers) / sizeof(s_numbers[0]), letter);
+        return EMBED_CALL(cli_on_range, RegexpLettersCtx, .ranges = s_numbers,
+                          .count = sizeof(s_numbers) / sizeof(s_numbers[0]), .letter = args->letter);
     case CLI_REGEXP_UPPER:
-        return cli_regexp_lower(letter) != letter;
+        return cli_regexp_letter.lower(args) != args->letter;
     default:
         // the small letters with no capital: the sharp s, kra, the n after an apostrophe and the ordinal marks
-        return (cli_regexp_upper(letter) != letter) || (letter == 0xdfu) || (letter == 0x138u) || (letter == 0x149u) ||
-               (letter == 0xaau) || (letter == 0xbau);
+        return (cli_regexp_letter.upper(args) != args->letter) || (args->letter == 0xdfu) || (args->letter == 0x138u) ||
+               (args->letter == 0x149u) || (args->letter == 0xaau) || (args->letter == 0xbau);
     }
 }

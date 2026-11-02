@@ -5,40 +5,63 @@
 #include "../text/text.h"
 #include "validate_internal.h"
 
-// `text` with every `{file}` in it written as `file`, put after the words
-static void validate_filled(CliWords *words, const char *text, const char *file)
+typedef struct
 {
+    CliWords *words;
+    const char *text;
+    const char *file;
+} ValidateRunCtx;
+
+// `text` with every `{file}` in it written as `file`, put after the words
+EMBED_INLINE void validate_fill(const ValidateRunCtx *args)
+{
+    CliWords *words = args->words;
+    const char *text = args->text;
     char filled[CLI_PATH_TEXT];
     VerbaLinea line = {filled, sizeof(filled), 0ull};
-    cli_text_put_filled(&line, text, "{file}", file);
+    EMBED_CALL(cli_text_out_name.put_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = "{file}",
+               .value = args->file);
     mmgr_line_finish(&line);
-    cli_words_put(words, filled);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = filled);
 }
 
-int cli_validate_command_for(const char *program, const char *file, const char *project, CliWords *words,
-                             unsigned int *from, unsigned int *settings, char *dir, VerbaLinea *err_msg)
+int cli_validate_command_for(const CliValidateProgramCtx *args)
 {
+    unsigned int *from = args->from;
+    unsigned int *settings = args->settings;
+    char *dir = args->dir;
     const CliJson *const json = &g_cli_validate->json;
     const CliTool *const tool = &g_cli_validate->tool;
     static CliWords s_named;
     s_named.count = 0u;
     s_named.used = 0u;
     s_named.full = 0;
-    const int inside = (project != NULL) && (cli_json_item(json, tool->in_project, 0u) != CLI_JSON_NONE);
+    const int inside = (args->project != NULL) &&
+                       (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
+                                   .array = tool->in_project, .index = 0u) != CLI_JSON_NONE);
     const unsigned int listed = inside ? tool->in_project : tool->args;
     if (!inside)
     {
-        cli_words_put(&s_named, tool->program);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_named,
+                   .word = tool->program);
     }
-    for (unsigned int index = 0u; cli_json_item(json, listed, index) != CLI_JSON_NONE; index += 1u)
+    for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = json, .array = listed, .index = index) != CLI_JSON_NONE;
+         index += 1u)
     {
-        validate_filled(&s_named, cli_json_string(json, cli_json_item(json, listed, index), NULL), file);
+        EMBED_CALL(validate_fill, ValidateRunCtx, .words = &s_named,
+                   .text =
+                       EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                                  .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                                     .json_read = json, .array = listed, .index = index),
+                                  .length_pointer = NULL),
+                   .file = args->file);
     }
     if (inside)
     {
-        (void)cellul.copy(&(CatenaFinitaCfg){.dst = dir, .src = project, .cap = CLI_PATH_MAX_LEN});
+        (void)cellul.copy(&(CatenaFinitaCfg){.dst = dir, .src = args->project, .cap = CLI_PATH_MAX_LEN});
     }
-    else if (!cli_path_parent(file, dir))
+    else if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->file, .out = dir))
     {
         dir[0] = '\0';
     }
@@ -47,36 +70,41 @@ int cli_validate_command_for(const char *program, const char *file, const char *
     const char *const first = s_named.word[0];
     if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = tool->program, .cap = CLI_CELLS_POOL}))
     {
-        memor.cpy(&(MemoriaCfg){.dst = runs,
-                                .src = program,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = runs,
+                          .src = args->program,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    else if (!cli_path_parent(program, folder) || !cli_toolchains_program_in(folder, &first, 1u, runs))
+    else if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->program,
+                         .out = folder) ||
+             !EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = &first,
+                         .count = 1u, .path = runs))
     {
-        mmgr_line_put(err_msg, tool->name);
-        mmgr_line_put(err_msg, " has no ");
-        mmgr_line_put(err_msg, first);
-        mmgr_line_put(err_msg, " beside ");
-        mmgr_line_put(err_msg, program);
+        mmgr_line_put(args->err_msg, tool->name);
+        mmgr_line_put(args->err_msg, " has no ");
+        mmgr_line_put(args->err_msg, first);
+        mmgr_line_put(args->err_msg, " beside ");
+        mmgr_line_put(args->err_msg, args->program);
         return 0;
     }
     unsigned int at = 1u;
     while ((at < s_named.count) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = s_named.word[at], .other = file, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = s_named.word[at], .other = args->file, .cap = CLI_CELLS_POOL})))
     {
         at += 1u;
     }
-    words->count = 0u;
-    words->used = 0u;
-    words->full = 0;
-    cli_words_put(words, runs);
+    args->words->count = 0u;
+    args->words->used = 0u;
+    args->words->full = 0;
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words, .word = runs);
     for (unsigned int word = 1u; word < at; word += 1u)
     {
-        cli_words_put(words, s_named.word[word]);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
+                   .word = s_named.word[word]);
     }
     unsigned int keys[CLI_VALIDATE_BARRIERS];
-    const unsigned int grown = cli_validate_grown_keys(keys);
-    *from = words->count;
+    const unsigned int grown = EMBED_CALL(cli_validate_internal.grown_keys, CliValidateCtx, .keys = keys);
+    *from = args->words->count;
     *settings = grown;
     for (unsigned int key = 0u; key < grown; key += 1u)
     {
@@ -86,46 +114,59 @@ int cli_validate_command_for(const char *program, const char *file, const char *
         mmgr_line_finish(&value_line);
         char setting[CLI_PATH_MAX_LEN];
         VerbaLinea line = {setting, sizeof(setting), 0ull};
-        cli_text_put_filled(&line, tool->barriers[keys[key]].lift, "{value}", value);
+        EMBED_CALL(cli_text_out_name.put_fill, CliTextOutNameCfg, .out = &line, .text = tool->barriers[keys[key]].lift,
+                   .name = "{value}", .value = value);
         mmgr_line_finish(&line);
-        cli_words_put(words, setting);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
+                   .word = setting);
     }
     for (unsigned int word = at; word < s_named.count; word += 1u)
     {
-        cli_words_put(words, s_named.word[word]);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
+                   .word = s_named.word[word]);
     }
     return 1;
 }
 
-int cli_validate_checked(const CliWords *words, const char *dir, double *seconds, VerbaLinea *err_msg)
+int cli_validate_check(const CliValidateErrMsgCtx *args)
 {
-    cli_toolchains_run_path(g_cli_validate->path, CLI_PATH_TEXT);
+    double *seconds = args->seconds;
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = g_cli_validate->path,
+               .size = CLI_PATH_TEXT);
     const CliSetting settings[1] = {{"PATH", g_cli_validate->path}};
-    CliRan *const ran = cli_ran_taken();
+    CliRan *const ran = cli_ran_take();
     const unsigned long long began = cli_clock_milliseconds();
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
-    const int started = cli_ran_within(words->word, (dir[0] != '\0') ? dir : NULL, settings, 1u, NULL, 0ull,
-                                       g_cli_validate->tool.patience * 1000ull, ran, &unstarted);
+    const int started = EMBED_CALL(
+        cli_words_internal.ran_within, CliWordsCtx, .words = args->words_read->word,
+        .folder = (args->dir_read[0] != '\0') ? args->dir_read : NULL, .settings = settings, .count = 1u, .input = NULL,
+        .length = 0ull, .milliseconds_u64 = g_cli_validate->tool.patience * 1000ull, .ran = ran, .err_msg = &unstarted);
     *seconds = (double)(cli_clock_milliseconds() - began) / 1000.0;
     if (!started)
     {
-        cli_ran_given(ran);
-        mmgr_line_put(err_msg, "the prover did not start: ");
-        mmgr_line_put_n(err_msg, why, unstarted.at);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        mmgr_line_put(args->err_msg, "the prover did not start: ");
+        mmgr_line_put_n(args->err_msg, why, unstarted.at);
         return 0;
     }
     // an output that is not UTF-8 reads as nothing, as Rust's read_to_string leaves it
-    const unsigned long long out = cli_utf8_whole(ran->out, ran->out_size) ? ran->out_size : 0ull;
-    const unsigned long long err = cli_utf8_whole(ran->err, ran->err_size) ? ran->err_size : 0ull;
+    const unsigned long long out =
+        EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = ran->out, .size = ran->out_size)
+            ? ran->out_size
+            : 0ull;
+    const unsigned long long err =
+        EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = ran->err, .size = ran->err_size)
+            ? ran->err_size
+            : 0ull;
     // the output stored in a cell of its size, the one stored before given back
     g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
     g_cli_validate->output_size = 0ull;
     g_cli_validate->output = g_cli_cells->persistent_buf_alloc(out + err + 2ull, &g_cli_plugins_cells);
     if (g_cli_validate->output == NULL)
     {
-        cli_ran_given(ran);
-        mmgr_line_put(err_msg, "a check's output could not be stored");
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        mmgr_line_put(args->err_msg, "a check's output could not be stored");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = g_cli_validate->output, .src = ran->out, .bytes = out});
@@ -144,6 +185,6 @@ int cli_validate_checked(const CliWords *words, const char *dir, double *seconds
     }
     g_cli_validate->output_size = used;
     g_cli_validate->late = ran->stopped;
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     return 1;
 }

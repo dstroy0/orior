@@ -3,6 +3,7 @@
 // toolchains_chosen.c: the folders the reader gave orior, by tool, stored in toolchains.json in orior's own folder; and
 // what each tool's search found, cached in toolchains_found.json there, so a tool is searched for again only where what
 // the search reads has changed
+#include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 #include "toolchains_internal.h"
 
@@ -39,58 +40,84 @@ static const char *const s_found_states[4] = {"chosen", "path", "found", "missin
 // the places the cache begins with
 #define CLI_FOUND_MOST 1024u
 
-// The folders the reader gave, by tool, read into a tree sized to them with room for one folder more, which
-// cli_json_given gives back: the object of them
-static unsigned int cli_chosen_read(CliJson *json, char *path)
+typedef struct
 {
-    const int named = cli_toolchains_file("toolchains.json", path);
-    return cli_toolchains_file_read(json, named ? path : "", 1u, CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN);
+    CliJson *json;
+    char *path;
+    unsigned long long hash;
+    const void *bytes;
+    unsigned long long size;
+    const char (*path_callback)[CLI_PATH_MAX_LEN];
+    unsigned int count;
+    const char *id;
+    const char *state;
+    const char *program;
+    const char *text;
+    unsigned long long against;
+} ToolchainsChosenCtx;
+// The folders the reader gave, by tool, read into a tree sized to them with room for one folder more, which
+// cli_json_free gives back: the object of them
+EMBED_INLINE unsigned int cli_chosen_read(const ToolchainsChosenCtx *args)
+{
+    CliJson *json = args->json;
+    char *path = args->path;
+    const int named =
+        EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = "toolchains.json", .path = path);
+    return EMBED_CALL(cli_toolchains_json_internal.file_read, CliToolchainsJsonCtx, .json = json,
+                      .path_read = named ? path : "", .nodes_more = 1u,
+                      .text_more = CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN);
 }
 
 // the tree given back, and the lock with it
-static void cli_chosen_released(CliJson *json)
+EMBED_INLINE void cli_chosen_release(const ToolchainsChosenCtx *args)
 {
-    cli_json_given(json);
-    cli_lock_give(&g_cli_toolchains_lock);
+    CliJson *json = args->json;
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_toolchains_lock);
 }
 
-int cli_toolchains_chosen(const char *id, char *folder)
+int cli_toolchains_on_choose(const CliToolchainsIdFolderCfg *args)
 {
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
-    cli_lock_take(&g_cli_toolchains_lock);
-    const unsigned int chosen = cli_chosen_read(&json, path);
-    const char *const given = cli_json_string(&json, cli_json_member(&json, chosen, id), NULL);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
+    const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
+    const char *const given =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = chosen, .name = args->id),
+                   .length_pointer = NULL);
     if (given != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = folder,
+        memor.cpy(&(MemoriaCfg){.dst = args->folder,
                                 .src = given,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = given, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_chosen_released(&json);
+    EMBED_CALL(cli_chosen_release, ToolchainsChosenCtx, .json = &json);
     return given != NULL;
 }
 
-void cli_toolchains_chosen_each(void (*each)(void *context, const char *id, const char *folder), void *context)
+void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
 {
     static char s_ids[256][CLI_NAME_MAX_LEN];
     static char s_folders[256][CLI_PATH_MAX_LEN];
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
-    cli_lock_take(&g_cli_toolchains_lock);
-    const unsigned int chosen = cli_chosen_read(&json, path);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
+    const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
     // a read the cells refused has no tree, and tells nothing
     if (chosen == CLI_JSON_NONE)
     {
-        cli_chosen_released(&json);
+        EMBED_CALL(cli_chosen_release, ToolchainsChosenCtx, .json = &json);
         return;
     }
-    cli_json_sorted(&json, chosen);
+    EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = &json, .object = chosen);
     for (unsigned int item = json.node[chosen].first; (item != CLI_JSON_NONE) && (count < 256u);
          item = json.node[item].next)
     {
-        const char *const folder = cli_json_string(&json, item, NULL);
+        const char *const folder = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                              .json_read = &json, .node = item, .length_pointer = NULL);
         if (folder != NULL)
         {
             (void)cellul.copy(&(CatenaFinitaCfg){
@@ -102,94 +129,116 @@ void cli_toolchains_chosen_each(void (*each)(void *context, const char *id, cons
             count += 1u;
         }
     }
-    cli_chosen_released(&json);
+    EMBED_CALL(cli_chosen_release, ToolchainsChosenCtx, .json = &json);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        each(context, s_ids[at], s_folders[at]);
+        EMBED_CALL(args->each_callback, CliEachIdFolderCfg, .context = args->context, .id = s_ids[at],
+                   .folder = s_folders[at]);
     }
 }
 
-int cli_toolchains_choose(const char *id, const char *folder, char *program, VerbaLinea *err_msg)
+int cli_toolchains_choose(const CliToolchainsIdCfg *args)
 {
     CliJson manifest_json;
     char dir[CLI_PATH_MAX_LEN];
-    cli_toolchains_trimmed(folder, dir, sizeof(dir));
-    const unsigned int manifest = cli_toolchains_manifest(&manifest_json, 0u, 0ull);
-    const unsigned int tool = cli_toolchains_tool(&manifest_json, manifest, id, err_msg);
+    EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx, .text = args->folder_read, .out = dir,
+               .room = sizeof(dir));
+    const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                             .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
+    const unsigned int tool =
+        EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &manifest_json,
+                   .manifest = manifest, .id = args->id, .err_msg = args->err_msg);
     if (tool == CLI_JSON_NONE)
     {
-        cli_json_given(&manifest_json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &manifest_json);
         return 0;
     }
-    if (!cli_toolchains_tool_program_in(&manifest_json, tool, dir, program))
+    if (!EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = &manifest_json,
+                    .tool = tool, .dir = dir, .path = args->program))
     {
-        mmgr_line_put(err_msg, dir);
-        mmgr_line_put(err_msg, " contains none of ");
-        const unsigned int programs = cli_json_member(&manifest_json, tool, "programs");
+        mmgr_line_put(args->err_msg, dir);
+        mmgr_line_put(args->err_msg, " contains none of ");
+        const unsigned int programs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                 .json_read = &manifest_json, .object = tool, .name = "programs");
         for (unsigned int item = manifest_json.node[programs].first; item != CLI_JSON_NONE;
              item = manifest_json.node[item].next)
         {
-            mmgr_line_put(err_msg, (item != manifest_json.node[programs].first) ? ", " : "");
-            const char *const name = cli_json_string(&manifest_json, item, NULL);
-            mmgr_line_put(err_msg, (name != NULL) ? name : "");
+            mmgr_line_put(args->err_msg, (item != manifest_json.node[programs].first) ? ", " : "");
+            const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                .json_read = &manifest_json, .node = item, .length_pointer = NULL);
+            mmgr_line_put(args->err_msg, (name != NULL) ? name : "");
         }
-        cli_json_given(&manifest_json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &manifest_json);
         return 0;
     }
-    cli_json_given(&manifest_json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &manifest_json);
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
-    cli_lock_take(&g_cli_toolchains_lock);
-    const unsigned int chosen = cli_chosen_read(&json, path);
-    cli_json_set(&json, chosen, id,
-                 cli_json_string_made(&json, dir, cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_CELLS_POOL})));
-    const int saved = (path[0] != '\0') && cli_toolchains_file_saved(&json, chosen, path, 1, err_msg);
-    cli_chosen_released(&json);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
+    const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = chosen,
+               .name = args->id,
+               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                   .json = &json, .text = dir,
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_CELLS_POOL})));
+    const int saved = (path[0] != '\0') &&
+                      EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &json,
+                                 .node = chosen, .path_read = path, .sorted = 1, .err_msg = args->err_msg);
+    EMBED_CALL(cli_chosen_release, ToolchainsChosenCtx, .json = &json);
     if ((path[0] == '\0') && !saved)
     {
-        mmgr_line_put(err_msg, "orior_cli has no folder of its own to store toolchains in");
+        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store toolchains in");
     }
     return saved;
 }
 
-int cli_toolchains_forget(const char *id, VerbaLinea *err_msg)
+int cli_toolchains_forget(const CliToolchainsIdErrMsgCfg *args)
 {
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
-    cli_lock_take(&g_cli_toolchains_lock);
-    const unsigned int chosen = cli_chosen_read(&json, path);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
+    const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
     int saved = 1;
-    if (cli_json_member(&json, chosen, id) != CLI_JSON_NONE)
+    if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = chosen,
+                   .name = args->id) != CLI_JSON_NONE)
     {
-        cli_json_remove(&json, chosen, id);
-        saved = cli_toolchains_file_saved(&json, chosen, path, 1, err_msg);
+        EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = &json, .object = chosen,
+                   .name = args->id);
+        saved = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &json,
+                           .node = chosen, .path_read = path, .sorted = 1, .err_msg = args->err_msg);
     }
-    cli_chosen_released(&json);
+    EMBED_CALL(cli_chosen_release, ToolchainsChosenCtx, .json = &json);
     return saved;
 }
 
-int cli_toolchains_chosen_program(const char *id, char *path)
+int cli_toolchains_chosen_program(const CliToolchainsIdPathCfg *args)
 {
     CliJson manifest_json;
     char folder[CLI_PATH_MAX_LEN];
-    if (!cli_toolchains_chosen(id, folder))
+    if (!EMBED_CALL(cli_toolchains_id_folder.choose, CliToolchainsIdFolderCfg, .id = args->id, .folder = folder))
     {
         return 0;
     }
     char err_buf[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
     const unsigned int tool =
-        cli_toolchains_tool(&manifest_json, cli_toolchains_manifest(&manifest_json, 0u, 0ull), id, &err_msg);
-    const int found = (tool != CLI_JSON_NONE) && cli_toolchains_tool_program_in(&manifest_json, tool, folder, path);
-    cli_json_given(&manifest_json);
+        EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &manifest_json,
+                   .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                          .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull),
+                   .id = args->id, .err_msg = &err_msg);
+    const int found =
+        (tool != CLI_JSON_NONE) && EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg,
+                                              .json = &manifest_json, .tool = tool, .dir = folder, .path = args->path);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &manifest_json);
     return found;
 }
 
 // the hash `hash` carried on over `size` bytes at `bytes`, FNV-1a's
-static unsigned long long found_hashed(unsigned long long hash, const void *bytes, unsigned long long size)
+EMBED_INLINE unsigned long long found_hash(const ToolchainsChosenCtx *args)
 {
-    const unsigned char *const at = bytes;
-    for (unsigned long long one = 0ull; one < size; one += 1ull)
+    unsigned long long hash = args->hash;
+    const unsigned char *const at = args->bytes;
+    for (unsigned long long one = 0ull; one < args->size; one += 1ull)
     {
         hash = (hash ^ at[one]) * 1099511628211ull;
     }
@@ -198,39 +247,41 @@ static unsigned long long found_hashed(unsigned long long hash, const void *byte
 
 // what the search reads, as one hash: the manifest as built, the PATH's `count` folders, and the size and the time of
 // the last change of the reader's own toolchains and of the folders the reader gave
-static unsigned long long found_against(const char (*path)[CLI_PATH_MAX_LEN], unsigned int count)
+EMBED_INLINE unsigned long long found_against(const ToolchainsChosenCtx *args)
 {
+    const char (*path)[CLI_PATH_MAX_LEN] = args->path_callback;
     static unsigned long long s_manifest;
     // the manifest is built into the program, and is hashed once
-    s_manifest = (s_manifest != 0ull)
-                     ? s_manifest
-                     : found_hashed(14695981039346656037ull, g_cli_toolchains_json, g_cli_toolchains_json_size);
+    s_manifest = (s_manifest != 0ull) ? s_manifest
+                                      : EMBED_CALL(found_hash, ToolchainsChosenCtx, .hash = 14695981039346656037ull,
+                                                   .bytes = g_cli_toolchains_json, .size = g_cli_toolchains_json_size);
     unsigned long long hash = s_manifest;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        hash =
-            found_hashed(hash, path[at], cellul.len(&(CatenaFinitaCfg){.src = path[at], .cap = CLI_CELLS_POOL}) + 1u);
+        hash = EMBED_CALL(found_hash, ToolchainsChosenCtx, .hash = hash, .bytes = path[at],
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = path[at], .cap = CLI_CELLS_POOL}) + 1u);
     }
     static const char *const s_files[2] = {"user_toolchains.json", "toolchains.json"};
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         char file[CLI_PATH_MAX_LEN];
         unsigned long long stamp[2] = {0ull, 0ull};
-        if (cli_toolchains_file(s_files[at], file))
+        if (EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = s_files[at], .path = file))
         {
-            (void)cli_file_stamp(file, &stamp[0], &stamp[1]);
+            (void)EMBED_CALL(cli_path_size_internal.file_stamp, CliPathSizeCtx, .path = file, .size_pointer = &stamp[0],
+                             .changed = &stamp[1]);
         }
-        hash = found_hashed(hash, stamp, sizeof(stamp));
+        hash = EMBED_CALL(found_hash, ToolchainsChosenCtx, .hash = hash, .bytes = stamp, .size = sizeof(stamp));
     }
     return hash;
 }
 
 // the place of the tool cached of `id`, or the cache's count where none is. Under the cache's lock
-static unsigned int found_place(const char *id)
+EMBED_INLINE unsigned int found_place(const ToolchainsChosenCtx *args)
 {
     unsigned int place = 0u;
     while ((place < s_found.count) &&
-           !cellul.eq(&(CatenaFinitaCfg){.src = s_found.tool[place].id, .other = id, .cap = CLI_NAME_MAX_LEN}))
+           !cellul.eq(&(CatenaFinitaCfg){.src = s_found.tool[place].id, .other = args->id, .cap = CLI_NAME_MAX_LEN}))
     {
         place += 1u;
     }
@@ -239,11 +290,13 @@ static unsigned int found_place(const char *id)
 
 // tool `id` cached as found `state`, with `program`, in its place or after the others, the cache taken at its most as
 // the first is put: 1, or 0 where the id is too long or the cellblock cannot meet the cache. Under the cache's lock
-static int found_put(const char *id, const char *state, const char *program)
+EMBED_INLINE int found_put(const ToolchainsChosenCtx *args)
 {
-    const unsigned long long id_length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_MAX_LEN});
-    const unsigned long long program_length = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_PATH_MAX_LEN});
-    const unsigned int place = found_place(id);
+    const char *state = args->state;
+    const unsigned long long id_length = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_NAME_MAX_LEN});
+    const unsigned long long program_length =
+        cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_PATH_MAX_LEN});
+    const unsigned int place = found_place(args);
     if ((id_length >= CLI_NAME_MAX_LEN) || (program_length >= CLI_PATH_MAX_LEN))
     {
         return 0;
@@ -259,8 +312,8 @@ static int found_put(const char *id, const char *state, const char *program)
         return 0;
     }
     CliToolFound *const tool = &s_found.tool[place];
-    memor.cpy(&(MemoriaCfg){.dst = tool->id, .src = id, .bytes = (size_t)id_length + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = tool->program, .src = program, .bytes = (size_t)program_length + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = tool->id, .src = args->id, .bytes = (size_t)id_length + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = tool->program, .src = args->program, .bytes = (size_t)program_length + 1u});
     tool->state = state;
     s_found.count += (place == s_found.count) ? 1u : 0u;
     s_found.changed = 1;
@@ -268,11 +321,11 @@ static int found_put(const char *id, const char *state, const char *program)
 }
 
 // the state a search is cached with that reads as `text`, or NULL where none does
-static const char *found_state(const char *text)
+EMBED_INLINE const char *found_state(const ToolchainsChosenCtx *args)
 {
-    for (unsigned int at = 0u; (text != NULL) && (at < 4u); at += 1u)
+    for (unsigned int at = 0u; (args->text != NULL) && (at < 4u); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = s_found_states[at], .cap = CLI_NAME_MAX_LEN}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->text, .other = s_found_states[at], .cap = CLI_NAME_MAX_LEN}))
         {
             return s_found_states[at];
         }
@@ -282,16 +335,24 @@ static const char *found_state(const char *text)
 
 // the cache read from toolchains_found.json once, and emptied where what the search reads is not what it was as the
 // cache was made. Under the cache's lock
-static void found_current(unsigned long long against)
+static void found_current(const ToolchainsChosenCtx *args)
 {
+    unsigned long long against = args->against;
     if (!s_found.read)
     {
         s_found.read = 1;
         CliJson json;
         char path[CLI_PATH_MAX_LEN];
-        const int named = cli_toolchains_file("toolchains_found.json", path);
-        const unsigned int root_node = cli_toolchains_file_read(&json, named ? path : "", 0u, 0ull);
-        const char *const hex = cli_json_string(&json, cli_json_member(&json, root_node, "against"), NULL);
+        const int named =
+            EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = "toolchains_found.json", .path = path);
+        const unsigned int root_node =
+            EMBED_CALL(cli_toolchains_json_internal.file_read, CliToolchainsJsonCtx, .json = &json,
+                       .path_read = named ? path : "", .nodes_more = 0u, .text_more = 0ull);
+        const char *const hex =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = root_node, .name = "against"),
+                       .length_pointer = NULL);
         for (const char *at = hex; (at != NULL) && (*at != '\0'); at += 1)
         {
             // a hex digit read as its value, which an unsigned long long represents
@@ -299,18 +360,32 @@ static void found_current(unsigned long long against)
                 (*at >= 'a') ? (unsigned long long)(*at - 'a' + 10) : (unsigned long long)(*at - '0');
             s_found.against = (s_found.against << 4u) | (digit & 0xFull);
         }
-        const unsigned int tools = cli_json_member(&json, root_node, "tools");
-        for (unsigned int item = cli_json_is(&json, tools, CFG_JSON_OBJECT) ? json.node[tools].first : CLI_JSON_NONE;
+        const unsigned int tools = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = &json, .object = root_node, .name = "tools");
+        for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+                                            .node = tools, .kind = CFG_JSON_OBJECT)
+                                     ? json.node[tools].first
+                                     : CLI_JSON_NONE;
              item != CLI_JSON_NONE; item = json.node[item].next)
         {
-            const char *const state = found_state(cli_json_string(&json, cli_json_member(&json, item, "state"), NULL));
-            const char *const program = cli_json_string(&json, cli_json_member(&json, item, "program"), NULL);
+            const char *const state = EMBED_CALL(
+                found_state, ToolchainsChosenCtx,
+                .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                      .json_read = &json, .object = item, .name = "state"),
+                                   .length_pointer = NULL));
+            const char *const program =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = &json, .object = item, .name = "program"),
+                           .length_pointer = NULL);
             if (state != NULL)
             {
-                (void)found_put(json.text + json.node[item].key, state, (program != NULL) ? program : "");
+                (void)EMBED_CALL(found_put, ToolchainsChosenCtx, .id = json.text + json.node[item].key, .state = state,
+                                 .program = (program != NULL) ? program : "");
             }
         }
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         s_found.changed = 0;
     }
     if (s_found.against != against)
@@ -322,17 +397,18 @@ static void found_current(unsigned long long against)
 }
 
 // the cache written to toolchains_found.json where it changed since it was, its folder made. Under the cache's lock
-static void found_written(void)
+static void found_write(void)
 {
     char path[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    if (!s_found.changed || !cli_toolchains_file("toolchains_found.json", path))
+    if (!s_found.changed ||
+        !EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = "toolchains_found.json", .path = path))
     {
         return;
     }
-    if (cli_home_folder(folder))
+    if (EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
     {
-        query_folder_made(folder);
+        EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
     }
     char hex[17];
     for (unsigned int at = 0u; at < 16u; at += 1u)
@@ -342,7 +418,7 @@ static void found_written(void)
     hex[16] = '\0';
     CliFileWriting file;
     char piece[4096];
-    if (!cli_file_begun(&file, path))
+    if (!EMBED_CALL(cli_path_file_internal.file_begin, CliPathFileCtx, .file = &file, .path = path))
     {
         return;
     }
@@ -354,79 +430,91 @@ static void found_written(void)
     {
         const CliToolFound *const tool = &s_found.tool[at];
         mmgr_line_put(&out, (at != 0u) ? ",\n    " : "\n    ");
-        cli_json_quoted_lossy(&out, (const unsigned char *)tool->id,
-                              cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_NAME_MAX_LEN}));
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
+                   .text_bytes = (const unsigned char *)tool->id,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_NAME_MAX_LEN}));
         mmgr_line_put(&out, ": {\"state\": \"");
         mmgr_line_put(&out, tool->state);
         mmgr_line_put(&out, "\", \"program\": ");
-        cli_json_quoted_lossy(&out, (const unsigned char *)tool->program,
-                              cellul.len(&(CatenaFinitaCfg){.src = tool->program, .cap = CLI_PATH_MAX_LEN}));
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
+                   .text_bytes = (const unsigned char *)tool->program,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = tool->program, .cap = CLI_PATH_MAX_LEN}));
         mmgr_line_ch(&out, '}');
     }
     mmgr_line_put(&out, "\n  }\n}\n");
     const int written = mmgr_line_flush(&out);
-    s_found.changed = !cli_file_ended(&file, written);
+    s_found.changed = !EMBED_CALL(cli_file_internal.file_end, CliFileCtx, .file = &file, .whole = written);
 }
 
-int cli_toolchains_found_cached(const char *id, const char (*path)[CLI_PATH_MAX_LEN], unsigned int count,
-                                CliFound *found)
+int cli_toolchains_found_cache(const CliToolchainsIdCtx *args)
 {
-    const unsigned long long against = found_against(path, count);
-    cli_lock_take(&s_found_lock);
-    found_current(against);
-    const unsigned int place = found_place(id);
+    const char *id = args->id;
+    const char (*path)[CLI_PATH_MAX_LEN] = args->path_callback;
+    unsigned int count = args->count;
+    const unsigned long long against =
+        EMBED_CALL(found_against, ToolchainsChosenCtx, .path_callback = path, .count = count);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
+    EMBED_CALL(found_current, ToolchainsChosenCtx, .against = against);
+    const unsigned int place = EMBED_CALL(found_place, ToolchainsChosenCtx, .id = id);
     const CliToolFound *const tool = (place < s_found.count) ? &s_found.tool[place] : NULL;
     // a program cached that is gone from its folder is searched for again
-    const int cached = (tool != NULL) && ((tool->program[0] == '\0') || query_is_file(tool->program));
+    const int cached =
+        (tool != NULL) && ((tool->program[0] == '\0') ||
+                           EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = tool->program));
     if (cached)
     {
-        found->state = tool->state;
-        found->has_program = tool->program[0] != '\0';
-        memor.cpy(&(MemoriaCfg){.dst = found->program, .src = tool->program, .bytes = CLI_PATH_MAX_LEN});
-        memor.cpy(&(MemoriaCfg){.dst = found->folder, .src = tool->program, .bytes = CLI_PATH_MAX_LEN});
-        char *cut = found->folder;
-        const unsigned long long cut_past = cli_text_back_any(
-            found->folder, cellul.len(&(CatenaFinitaCfg){.src = found->folder, .cap = CLI_CELLS_POOL}), "/\\");
-        cut = (cut_past != 0ull) ? (found->folder + (cut_past - 1ull)) : cut;
+        args->found->state = tool->state;
+        args->found->has_program = tool->program[0] != '\0';
+        memor.cpy(&(MemoriaCfg){.dst = args->found->program, .src = tool->program, .bytes = CLI_PATH_MAX_LEN});
+        memor.cpy(&(MemoriaCfg){.dst = args->found->folder, .src = tool->program, .bytes = CLI_PATH_MAX_LEN});
+        char *cut = args->found->folder;
+        const unsigned long long cut_past = EMBED_CALL(
+            cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->found->folder,
+            .at = cellul.len(&(CatenaFinitaCfg){.src = args->found->folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
+        cut = (cut_past != 0ull) ? (args->found->folder + (cut_past - 1ull)) : cut;
         *cut = '\0';
     }
-    cli_lock_give(&s_found_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
     return cached;
 }
 
-void cli_toolchains_found_put(const char *id, const char (*path)[CLI_PATH_MAX_LEN], unsigned int count,
-                              const CliFound *found)
+void cli_toolchains_found_put(const CliToolchainsIdPathCtx *args)
 {
-    const char *const state = found_state(found->state);
+    const char *id = args->id;
+    const char (*path)[CLI_PATH_MAX_LEN] = args->path_callback;
+    unsigned int count = args->count;
+    const char *const state = EMBED_CALL(found_state, ToolchainsChosenCtx, .text = args->found_read->state);
     if (state == NULL)
     {
         return;
     }
-    const unsigned long long against = found_against(path, count);
-    cli_lock_take(&s_found_lock);
-    found_current(against);
-    (void)found_put(id, state, found->has_program ? found->program : "");
+    const unsigned long long against =
+        EMBED_CALL(found_against, ToolchainsChosenCtx, .path_callback = path, .count = count);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
+    EMBED_CALL(found_current, ToolchainsChosenCtx, .against = against);
+    (void)EMBED_CALL(found_put, ToolchainsChosenCtx, .id = id, .state = state,
+                     .program = args->found_read->has_program ? args->found_read->program : "");
     if (s_found.refs == 0u)
     {
-        found_written();
+        found_write();
     }
-    cli_lock_give(&s_found_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
 }
 
 void cli_toolchains_found_ref(void)
 {
-    cli_lock_take(&s_found_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     s_found.refs += 1u;
-    cli_lock_give(&s_found_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
 }
 
 void cli_toolchains_found_let(void)
 {
-    cli_lock_take(&s_found_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     s_found.refs -= 1u;
     if (s_found.refs == 0u)
     {
-        found_written();
+        found_write();
     }
-    cli_lock_give(&s_found_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
 }

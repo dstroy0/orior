@@ -5,39 +5,42 @@
 #include "../text/text.h"
 #include "pages_internal.h"
 
-void cli_page_beside(const char *path, const char *ending, char *beside)
+void cli_page_beside(const CliPagesPathCtx *args)
 {
     char parent[CLI_PATH_MAX_LEN];
-    const char *name = path;
+    const char *name = args->path;
     const unsigned long long name_past =
-        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
-    name = (name_past != 0ull) ? (path + name_past) : name;
-    VerbaLinea line = {beside, CLI_PATH_MAX_LEN, 0ull};
-    if (cli_path_parent(path, parent))
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    VerbaLinea line = {args->beside, CLI_PATH_MAX_LEN, 0ull};
+    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = parent))
     {
         mmgr_line_put(&line, parent);
         mmgr_line_ch(&line, '/');
     }
     mmgr_line_ch(&line, '.');
     mmgr_line_put(&line, name);
-    mmgr_line_put(&line, ending);
+    mmgr_line_put(&line, args->ending);
     mmgr_line_finish(&line);
 }
 
-unsigned long long cli_page_written_at(const CliPaged *one, const CliPagePiece *piece, unsigned long long line)
+unsigned long long cli_page_write_at(const CliPagesPieceCtx *args)
 {
-    if (line >= piece->lines)
+    if (args->line >= args->piece->lines)
     {
-        return piece->to;
+        return args->piece->to;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(one->shadow, &size, &g_cli_editor_cells);
-    const unsigned long long end = (piece->to < size) ? piece->to : size;
-    unsigned long long at = piece->from;
-    for (unsigned long long passed = 0ull; (passed < line) && (at < end); passed += 1ull)
+    const unsigned char *const bytes =
+        EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->one_read->shadow, .size_pointer = &size,
+                   .owner = &g_cli_editor_cells);
+    const unsigned long long end = (args->piece->to < size) ? args->piece->to : size;
+    unsigned long long at = args->piece->from;
+    for (unsigned long long passed = 0ull; (passed < args->line) && (at < end); passed += 1ull)
     {
-        at = cli_text_line_at((const char *)bytes, at, end).next;
+        at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = (const char *)bytes, .at = at, .size = end).next;
     }
-    cli_file_given(bytes, &g_cli_editor_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
     return at;
 }

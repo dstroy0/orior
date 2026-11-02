@@ -11,62 +11,64 @@
 // gives stand in platform/windows.c and platform/posix.c
 #include "container.h"
 
-CliProcess *cli_processes_taken(CellOwner *owner, unsigned int *count)
+CliProcess *cli_processes_take(const CliContainerCfg *args)
 {
+    unsigned int *count = args->count_pointer;
     CliProcess *const processes =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_PROCESSES_MOST * sizeof(CliProcess), owner);
-    *count = (processes != NULL) ? cli_processes_listed(processes, CLI_PROCESSES_MOST) : 0u;
+        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_PROCESSES_MOST * sizeof(CliProcess), args->owner);
+    *count = (processes != NULL) ? EMBED_CALL(cli_room_processes_internal.processes_list, CliRoomProcessesCtx,
+                                              .processes = processes, .room_u32 = CLI_PROCESSES_MOST)
+                                 : 0u;
     return processes;
 }
 
-int cli_under(unsigned int root, unsigned int id, const CliProcess *parents, unsigned int count)
+int cli_under(const CliContainerRootIdCfg *args)
 {
-    unsigned int at = id;
+    unsigned int at = args->id;
     // a parent's id the system has given again to a later process can close a loop, and the walk ends after as many
     // steps as the tree has processes
-    for (unsigned int step = 0u; step < count; step += 1u)
+    for (unsigned int step = 0u; step < args->count; step += 1u)
     {
-        if (at == root)
+        if (at == args->root)
         {
             return 1;
         }
-        unsigned int found = count;
-        for (unsigned int each = 0u; (found == count) && (each < count); each += 1u)
+        unsigned int found = args->count;
+        for (unsigned int each = 0u; (found == args->count) && (each < args->count); each += 1u)
         {
-            found = (parents[each].id == at) ? each : found;
+            found = (args->parents[each].id == at) ? each : found;
         }
-        if ((found == count) || (parents[found].parent == at))
+        if ((found == args->count) || (args->parents[found].parent == at))
         {
             return 0;
         }
-        at = parents[found].parent;
+        at = args->parents[found].parent;
     }
     return 0;
 }
 
-unsigned int cli_descendants(unsigned int root, const CliProcess *parents, unsigned int count, unsigned int *found,
-                             unsigned int room)
+unsigned int cli_descendants(const CliContainerRootCfg *args)
 {
     unsigned int founds = 0u;
     // the frontier stored at the end of `found` past what it contains: a process found is walked from in turn
     unsigned int walked = 0u;
-    unsigned int frontier = root;
+    unsigned int frontier = args->root;
     for (;;)
     {
-        for (unsigned int each = 0u; each < count; each += 1u)
+        for (unsigned int each = 0u; each < args->count; each += 1u)
         {
-            if ((parents[each].parent != frontier) || (parents[each].id == root))
+            if ((args->parents[each].parent != frontier) || (args->parents[each].id == args->root))
             {
                 continue;
             }
             int known = 0;
             for (unsigned int at = 0u; !known && (at < founds); at += 1u)
             {
-                known = found[at] == parents[each].id;
+                known = args->found[at] == args->parents[each].id;
             }
-            if (!known && (founds < room))
+            if (!known && (founds < args->room))
             {
-                found[founds] = parents[each].id;
+                args->found[founds] = args->parents[each].id;
                 founds += 1u;
             }
         }
@@ -74,48 +76,52 @@ unsigned int cli_descendants(unsigned int root, const CliProcess *parents, unsig
         {
             return founds;
         }
-        frontier = found[walked];
+        frontier = args->found[walked];
         walked += 1u;
     }
 }
 
-void cli_restarts_made(CliRestarts *restarts, unsigned int most, unsigned long long within)
+void cli_restarts_init(const CliContainerRestartsCfg *args)
 {
-    restarts->most = (most < CLI_RESTARTS_MOST) ? most : CLI_RESTARTS_MOST;
-    restarts->within = within;
-    restarts->deaths = 0u;
+    unsigned int most = args->most;
+    unsigned long long within = args->within;
+    args->restarts->most = (most < CLI_RESTARTS_MOST) ? most : CLI_RESTARTS_MOST;
+    args->restarts->within = within;
+    args->restarts->deaths = 0u;
 }
 
-int cli_restarts_died(CliRestarts *restarts, unsigned long long at)
+int cli_restarts_dy(const CliContainerRestartsAtCfg *args)
 {
     // deaths older than the span let go from the front
     unsigned int first = 0u;
-    while ((first < restarts->deaths) && ((at - restarts->death[first]) > restarts->within))
+    while ((first < args->restarts->deaths) && ((args->at - args->restarts->death[first]) > args->restarts->within))
     {
         first += 1u;
     }
-    memor.move_down(&(MemoriaCfg){.dst = &restarts->death[0],
-                                  .src = &restarts->death[first],
-                                  .bytes = (size_t)(restarts->deaths - first) * sizeof(restarts->death[0])});
-    restarts->deaths -= first;
-    if (restarts->deaths >= CLI_RESTARTS_MOST)
+    memor.move_down(
+        &(MemoriaCfg){.dst = &args->restarts->death[0],
+                      .src = &args->restarts->death[first],
+                      .bytes = (size_t)(args->restarts->deaths - first) * sizeof(args->restarts->death[0])});
+    args->restarts->deaths -= first;
+    if (args->restarts->deaths >= CLI_RESTARTS_MOST)
     {
-        memor.move_down(&(MemoriaCfg){.dst = &restarts->death[0],
-                                      .src = &restarts->death[1],
-                                      .bytes = (size_t)(restarts->deaths - 1u) * sizeof(restarts->death[0])});
-        restarts->deaths -= 1u;
+        memor.move_down(
+            &(MemoriaCfg){.dst = &args->restarts->death[0],
+                          .src = &args->restarts->death[1],
+                          .bytes = (size_t)(args->restarts->deaths - 1u) * sizeof(args->restarts->death[0])});
+        args->restarts->deaths -= 1u;
     }
-    restarts->death[restarts->deaths] = at;
-    restarts->deaths += 1u;
-    return restarts->deaths <= restarts->most;
+    args->restarts->death[args->restarts->deaths] = args->at;
+    args->restarts->deaths += 1u;
+    return args->restarts->deaths <= args->restarts->most;
 }
 
-unsigned int cli_restarts_count(const CliRestarts *restarts, unsigned long long at)
+unsigned int cli_restarts_count(const CliContainerAtCfg *args)
 {
     unsigned int count = 0u;
-    for (unsigned int each = 0u; each < restarts->deaths; each += 1u)
+    for (unsigned int each = 0u; each < args->restarts_read->deaths; each += 1u)
     {
-        count += ((at - restarts->death[each]) <= restarts->within) ? 1u : 0u;
+        count += ((args->at - args->restarts_read->death[each]) <= args->restarts_read->within) ? 1u : 0u;
     }
     return count;
 }

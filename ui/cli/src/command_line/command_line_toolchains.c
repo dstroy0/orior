@@ -9,6 +9,7 @@
 #include "../runs/runner.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
+#include "callback_cfg.h"
 #include "cells.h"
 #include "command_line_internal.h"
 
@@ -19,10 +20,24 @@ static CliJson s_json;
 #define CLI_TOOLCHAINS_LINE (CLI_PATH_MAX_LEN * 4u)
 #define CLI_TOOLCHAINS_FOUND (1u << 20u)
 
-// a line put out; an empty line where it did not fit
-static void toolchains_line_out(const VerbaLinea *line)
+typedef struct
 {
-    cli_out_line(line->out, mmgr_line_ok(line) ? line->at : 0ull);
+    const VerbaLinea *line;
+    unsigned int tool;
+    const char *name;
+    unsigned long long wide;
+    int done;
+    const VerbaLinea *out;
+    const VerbaLinea *err_msg;
+    const char *id;
+    VerbaLinea *out_out;
+    VerbaLinea *err_msg_out;
+} CommandLineToolchainsCtx;
+// a line put out; an empty line where it did not fit
+EMBED_INLINE void toolchains_line_out(const CommandLineToolchainsCtx *args)
+{
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = args->line->out,
+               .size = mmgr_line_ok(args->line) ? args->line->at : 0ull);
 }
 
 // What the listing is writing: the toolchains found, and the widest id among them
@@ -33,17 +48,22 @@ typedef struct
 } CliToolchainsListed;
 
 // a string member of a toolchain found, NULL where it has none
-static const char *toolchains_text(unsigned int tool, const char *name)
+EMBED_INLINE const char *toolchains_text(const CommandLineToolchainsCtx *args)
 {
-    return cli_json_string(&s_json, cli_json_member(&s_json, tool, name), NULL);
+    const char *name = args->name;
+    return EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                      .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                         .object = args->tool, .name = name),
+                      .length_pointer = NULL);
 }
 
 // a toolchain written: its id, its state as the reader reads it, and its version and program, else its install page
-static void toolchains_printed(unsigned int tool, unsigned long long wide)
+EMBED_INLINE void toolchains_print(const CommandLineToolchainsCtx *args)
 {
     static const char *const s_states[4][2] = {
         {"env", "named"}, {"chosen", "chosen"}, {"path", "on PATH"}, {"found", "not on PATH"}};
-    const char *const state = toolchains_text(tool, "state");
+    const char *const state =
+        EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = args->tool, .name = "state");
     const char *shown = "missing";
     for (unsigned int at = 0u; (at < 4u) && (state != NULL); at += 1u)
     {
@@ -51,18 +71,22 @@ static void toolchains_printed(unsigned int tool, unsigned long long wide)
                     ? s_states[at][1]
                     : shown;
     }
-    const char *const id = toolchains_text(tool, "id");
-    const char *const program = toolchains_text(tool, "program");
-    const char *const version = toolchains_text(tool, "version");
-    const char *const install = toolchains_text(tool, "install");
+    const char *const id = EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = args->tool, .name = "id");
+    const char *const program =
+        EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = args->tool, .name = "program");
+    const char *const version =
+        EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = args->tool, .name = "version");
+    const char *const install =
+        EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = args->tool, .name = "install");
     char text[CLI_TOOLCHAINS_LINE];
     VerbaLinea line = {text, sizeof(text), 0ull};
     const char *const named = (id != NULL) ? id : "";
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, named);
     for (unsigned long long letters =
-             cli_text_letters(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
-         letters < wide; letters += 1ull)
+             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = named,
+                        .size = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
+         letters < args->wide; letters += 1ull)
     {
         mmgr_line_ch(&line, ' ');
     }
@@ -89,69 +113,77 @@ static void toolchains_printed(unsigned int tool, unsigned long long wide)
         mmgr_line_put(&line, "install: ");
         mmgr_line_put(&line, install);
     }
-    toolchains_line_out(&line);
+    EMBED_CALL(toolchains_line_out, CommandLineToolchainsCtx, .line = &line);
 }
 
 // a group written, and each toolchain found in it
-static void toolchains_group(void *context, const char *group)
+static void toolchains_group(const CliEachGroupCfg *args)
 {
-    const CliToolchainsListed *const listed = context;
+    const CliToolchainsListed *const listed = args->context;
     char text[CLI_TOOLCHAINS_LINE];
     VerbaLinea line = {text, sizeof(text), 0ull};
     mmgr_line_ch(&line, '\n');
-    mmgr_line_put(&line, group);
-    toolchains_line_out(&line);
+    mmgr_line_put(&line, args->group);
+    EMBED_CALL(toolchains_line_out, CommandLineToolchainsCtx, .line = &line);
     int any = 0;
     for (unsigned int tool = s_json.node[listed->found].first; tool != CLI_JSON_NONE; tool = s_json.node[tool].next)
     {
-        const char *const tool_group = toolchains_text(tool, "group");
+        const char *const tool_group =
+            EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = tool, .name = "group");
         if ((tool_group != NULL) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = tool_group, .other = group, .cap = CLI_CELLS_POOL})))
+            (cellul.eq(&(CatenaFinitaCfg){.src = tool_group, .other = args->group, .cap = CLI_CELLS_POOL})))
         {
-            toolchains_printed(tool, listed->wide);
+            EMBED_CALL(toolchains_print, CommandLineToolchainsCtx, .tool = tool, .wide = listed->wide);
             any = 1;
         }
     }
     if (!any)
     {
-        cli_out("  no toolchain yet");
+        EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "  no toolchain yet");
     }
 }
 
 // every toolchain as orior_cli finds it, a group at a time, and whether orior_cli is on the PATH
-static int toolchains_listed(void)
+static int toolchains_list(void)
 {
     char *const found_text = g_cli_cells->temporary_buf_alloc(CLI_TOOLCHAINS_FOUND, &g_cli_toolchains_words_cells);
     VerbaLinea found = mmgr_line_over(found_text, CLI_TOOLCHAINS_FOUND);
-    cli_toolchains_check(1, NULL, NULL, &found);
+    EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 1, .seen = NULL,
+               .context_read = NULL, .out = &found);
     const unsigned long long found_size = mmgr_line_finish(&found);
-    cli_json_begun(&s_json, NULL, 0u, NULL, 0ull);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json,
+               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
     char why[512];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    CliToolchainsListed listed = {(found_size != 0ull) ? cli_json_taken(&s_json, found_text, found_size, 0u, 0ull,
-                                                                        &unread, &g_cli_toolchains_words_cells)
-                                                       : CLI_JSON_NONE,
-                                  0ull};
+    CliToolchainsListed listed = {
+        (found_size != 0ull) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+                                          .json = &s_json, .text = found_text, .size = found_size, .nodes_more = 0u,
+                                          .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_toolchains_words_cells)
+                             : CLI_JSON_NONE,
+        0ull};
     g_cli_cells->persistent_buf_release(found_text, &g_cli_toolchains_words_cells);
-    if (cli_json_is(&s_json, listed.found, CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = listed.found,
+                   .kind = CFG_JSON_ARRAY))
     {
         for (unsigned int tool = s_json.node[listed.found].first; tool != CLI_JSON_NONE; tool = s_json.node[tool].next)
         {
-            const char *const id = toolchains_text(tool, "id");
+            const char *const id = EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = tool, .name = "id");
             const unsigned long long size =
                 (id != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) : 0ull;
             listed.wide = (size > listed.wide) ? size : listed.wide;
         }
-        cli_toolchains_groups(toolchains_group, &listed);
+        EMBED_CALL(cli_toolchains_each.groups, CliToolchainsEachCfg, .each = toolchains_group, .context = &listed);
     }
-    cli_json_given(&s_json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     char folder[CLI_PATH_MAX_LEN];
     int on_path = 0;
     char err_buf[1024];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
-    if (!cli_toolchains_own(folder, &on_path, &err_msg))
+    if (!EMBED_CALL(cli_toolchains_err_msg_folder_on_path.own, CliToolchainsErrMsgFolderOnPathCfg, .folder = folder,
+                    .on_path = &on_path, .err_msg = &err_msg))
     {
-        cli_err_line(err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+        EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = err_buf,
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return 0;
     }
     char text[CLI_TOOLCHAINS_LINE];
@@ -159,131 +191,167 @@ static int toolchains_listed(void)
     mmgr_line_put(&line, on_path ? "\norior_cli is on PATH: "
                                  : "\norior_cli is not on PATH: orior_cli file toolchains add-path orior_cli adds ");
     mmgr_line_put(&line, folder);
-    toolchains_line_out(&line);
+    EMBED_CALL(toolchains_line_out, CommandLineToolchainsCtx, .line = &line);
     return 0;
 }
 
 // what a toolchain command did written, 0; or why it did not, NO_CODE
-static int toolchains_done(int done, const VerbaLinea *out, const VerbaLinea *err_msg)
+EMBED_INLINE int toolchains_finish(const CommandLineToolchainsCtx *args)
 {
-    if (done)
+    if (args->done)
     {
-        cli_out_line(out->out, mmgr_line_ok(out) ? out->at : 0ull);
+        EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = args->out->out,
+                   .size = mmgr_line_ok(args->out) ? args->out->at : 0ull);
         return 0;
     }
-    cli_err_line(err_msg->out, mmgr_line_ok(err_msg) ? err_msg->at : 0ull);
+    EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = args->err_msg->out,
+               .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ull);
     return CLI_NO_CODE;
 }
 
 // tool `id` installed: by the line its makers give, run in bash in this terminal, or its install page opened
-static int toolchains_install(const char *id, VerbaLinea *out, VerbaLinea *err_msg)
+EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
 {
+    const char *id = args->id;
+    VerbaLinea *out = args->out_out;
+    VerbaLinea *err_msg = args->err_msg_out;
     char setup_line[CLI_TOOLCHAINS_LINE];
     VerbaLinea setup = {setup_line, sizeof(setup_line), 0ull};
-    const int has_setup = cli_toolchains_setup_line(id, &setup, err_msg);
+    const int has_setup = EMBED_CALL(cli_toolchains_id_err_msg.setup_line, CliToolchainsIdErrMsgCfg, .id = id,
+                                     .out = &setup, .err_msg = err_msg);
     if (!has_setup || (mmgr_line_finish(&setup) == 0u))
     {
         err_msg->at = 0ull;
         char url_text[CLI_PATH_MAX_LEN * 4u];
         VerbaLinea url = {url_text, sizeof(url_text), 0ull};
-        const int opened = cli_toolchains_open_install(id, &url, err_msg);
+        const int opened = EMBED_CALL(cli_toolchains_id_err_msg.open_install, CliToolchainsIdErrMsgCfg, .id = id,
+                                      .out = &url, .err_msg = err_msg);
         if (opened)
         {
             mmgr_line_put(out, "opened ");
             mmgr_line_put_n(out, url_text, mmgr_line_ok(&url) ? url.at : 0ull);
         }
-        return toolchains_done(opened, out, err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = opened, .out = out, .err_msg = err_msg);
     }
     char bash[CLI_PATH_MAX_LEN];
     // the PATH a setup runs with, as long as the system lets an environment's value be
-    char *const path = cli_runner_bash(bash, err_msg)
+    char *const path = EMBED_CALL(cli_runner_name.bash, CliRunnerNameCfg, .path = bash, .err_msg = err_msg)
                            ? g_cli_cells->temporary_buf_alloc(CLI_PATH_TEXT, &g_cli_toolchains_words_cells)
                            : NULL;
     if (path == NULL)
     {
-        return toolchains_done(0, out, err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = 0, .out = out, .err_msg = err_msg);
     }
     char shown_text[CLI_TOOLCHAINS_LINE + 2u];
     VerbaLinea shown = {shown_text, sizeof(shown_text), 0ull};
     mmgr_line_put(&shown, "$ ");
     mmgr_line_put(&shown, setup_line);
-    cli_err_line(shown_text, mmgr_line_ok(&shown) ? shown.at : 0ull);
-    cli_toolchains_run_path(path, CLI_PATH_TEXT);
+    EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = shown_text,
+               .size = mmgr_line_ok(&shown) ? shown.at : 0ull);
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = CLI_PATH_TEXT);
     const CliSetting setting = {"PATH", path};
     const char *const words[4] = {bash, "-c", setup_line, NULL};
     long long code = 0ll;
-    const int spawned = cli_spawn_shared(words, &setting, 1u, &code, err_msg);
+    const int spawned =
+        EMBED_CALL(cli_words_err_msg_settings_internal.spawn_share, CliWordsErrMsgSettingsCtx, .words = words,
+                   .settings = &setting, .count = 1u, .code = &code, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_words_cells);
     if (!spawned)
     {
-        return toolchains_done(0, out, err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = 0, .out = out, .err_msg = err_msg);
     }
     return (code >= 0ll) ? (int)code : CLI_NO_CODE;
 }
 
-int cli_toolchains_words(const char *const *words, unsigned int count)
+int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
 {
     char out_text[CLI_PATH_MAX_LEN * 4u];
     char err_buf[CLI_PATH_MAX_LEN * 4u];
     VerbaLinea out = {out_text, sizeof(out_text), 0ull};
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
-    const char *const first = (count > 0u) ? words[0] : NULL;
-    const char *const second = (count > 1u) ? words[1] : NULL;
+    const char *const first = (args->count > 0u) ? args->words[0] : NULL;
+    const char *const second = (args->count > 1u) ? args->words[1] : NULL;
     if ((first != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add", .cap = CLI_CELLS_POOL})))
     {
-        return toolchains_done(cli_toolchain_added(words + 1, count - 1u, &out, &err_msg), &out, &err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx,
+                          .done = EMBED_CALL(cli_command_line_out_err_msg_internal.toolchain_add,
+                                             CliCommandLineOutErrMsgCtx, .words = args->words + 1,
+                                             .count = args->count - 1u, .out = &out, .err_msg = &err_msg),
+                          .out = &out, .err_msg = &err_msg);
     }
     if ((first == NULL) ||
         ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "check", .cap = CLI_CELLS_POOL})) && (second == NULL)))
     {
-        return toolchains_listed();
+        return toolchains_list();
     }
     char folder[CLI_PATH_MAX_LEN] = "";
-    if ((count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add-group", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add-group", .cap = CLI_CELLS_POOL})))
     {
         mmgr_line_put(&out, "added the group ");
         mmgr_line_put(&out, second);
-        return toolchains_done(cli_toolchains_add_group(second, &err_msg), &out, &err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx,
+                          .done = EMBED_CALL(cli_toolchains_err_msg_name.add_group, CliToolchainsErrMsgNameCfg,
+                                             .name = second, .err_msg = &err_msg),
+                          .out = &out, .err_msg = &err_msg);
     }
-    if ((count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "remove", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "remove", .cap = CLI_CELLS_POOL})))
     {
         mmgr_line_put(&out, "took out ");
         mmgr_line_put(&out, second);
-        return toolchains_done(cli_toolchains_remove(second, &err_msg), &out, &err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx,
+                          .done = EMBED_CALL(cli_toolchains_id_err_msg.remove, CliToolchainsIdErrMsgCfg, .id = second,
+                                             .err_msg = &err_msg),
+                          .out = &out, .err_msg = &err_msg);
     }
-    if ((count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "remove-group", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "remove-group", .cap = CLI_CELLS_POOL})))
     {
         mmgr_line_put(&out, "took out the group ");
         mmgr_line_put(&out, second);
-        return toolchains_done(cli_toolchains_remove_group(second, &err_msg), &out, &err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx,
+                          .done = EMBED_CALL(cli_toolchains_err_msg_name.remove_group, CliToolchainsErrMsgNameCfg,
+                                             .name = second, .err_msg = &err_msg),
+                          .out = &out, .err_msg = &err_msg);
     }
-    if ((count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "install", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "install", .cap = CLI_CELLS_POOL})))
     {
-        return toolchains_install(second, &out, &err_msg);
+        return EMBED_CALL(toolchains_install, CommandLineToolchainsCtx, .id = second, .out_out = &out,
+                          .err_msg_out = &err_msg);
     }
-    if ((count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add-path", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "add-path", .cap = CLI_CELLS_POOL})))
     {
-        const int added = cli_toolchains_add_to_path(second, folder, &err_msg);
+        const int added = EMBED_CALL(cli_toolchains_err_msg_folder.add_to_path, CliToolchainsErrMsgFolderCfg,
+                                     .what = second, .folder = folder, .err_msg = &err_msg);
         mmgr_line_put(&out, folder);
         mmgr_line_put(&out, " is on your PATH for every terminal started from now");
-        return toolchains_done(added, &out, &err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = added, .out = &out, .err_msg = &err_msg);
     }
-    if ((count == 3u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "use", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 3u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "use", .cap = CLI_CELLS_POOL})))
     {
         char program[CLI_PATH_MAX_LEN] = "";
-        const int chosen = cli_toolchains_choose(second, words[2], program, &err_msg);
+        const int chosen = EMBED_CALL(cli_toolchains_id.choose, CliToolchainsIdCfg, .id = second,
+                                      .folder_read = args->words[2], .program = program, .err_msg = &err_msg);
         mmgr_line_put(&out, "orior_cli runs ");
         mmgr_line_put(&out, program);
-        return toolchains_done(chosen, &out, &err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = chosen, .out = &out,
+                          .err_msg = &err_msg);
     }
-    if ((count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "forget", .cap = CLI_CELLS_POOL})))
+    if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "forget", .cap = CLI_CELLS_POOL})))
     {
         mmgr_line_put(&out, "orior_cli looks for ");
         mmgr_line_put(&out, second);
         mmgr_line_put(&out, " on the PATH again");
-        return toolchains_done(cli_toolchains_forget(second, &err_msg), &out, &err_msg);
+        return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx,
+                          .done = EMBED_CALL(cli_toolchains_id_err_msg.forget, CliToolchainsIdErrMsgCfg, .id = second,
+                                             .err_msg = &err_msg),
+                          .out = &out, .err_msg = &err_msg);
     }
-    cli_err("toolchains takes check, install <tool>, add-path <tool|orior>, use <tool> <folder>, forget <tool>, add "
+    EMBED_CALL(
+        cli_command_line_internal.err, CliCommandLineCtx,
+        .text =
+            "toolchains takes check, install <tool>, add-path <tool|orior>, use <tool> <folder>, forget <tool>, add "
             "<name> --group <group> --program <name,...>, add-group <group>, remove <tool> or remove-group <group>");
     return CLI_WRONG;
 }

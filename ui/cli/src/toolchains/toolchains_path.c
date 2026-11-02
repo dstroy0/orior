@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // toolchains_path.c: the tree whose own tools come first, its environment, the PATH's folders as orior_cli reads them,
 // the PATH every step runs with, and a folder added to the reader's own PATH
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "toolchains_internal.h"
@@ -28,96 +29,105 @@ static int s_shell_read;
 static CliThread s_shell_thread;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-void cli_toolchains_set_tree(const char *root)
+void cli_toolchains_set_tree(const CliToolchainsRootCfg *args)
 {
-    cli_lock_take(&s_lock);
-    memor.cpy(&(MemoriaCfg){
-        .dst = s_tree, .src = root, .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    memor.cpy(&(MemoriaCfg){.dst = s_tree,
+                            .src = args->root,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     s_has_tree = 1;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
-unsigned int cli_toolchains_tree_tools(char (*folders)[CLI_PATH_MAX_LEN], unsigned int room)
+unsigned int cli_toolchains_tree_tools(const CliToolchainsCountCfg *args)
 {
     static const char *const s_folders[CLI_TREE_TOOLS] = {"/node_modules/.bin", "/vendor/bin"};
     char root[CLI_PATH_MAX_LEN];
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int has = s_has_tree;
     memor.cpy(&(MemoriaCfg){.dst = root,
                             .src = s_tree,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_tree, .cap = CLI_CELLS_POOL}) + 1u});
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     unsigned int count = 0u;
-    for (unsigned int at = 0u; has && (at < CLI_TREE_TOOLS) && (count < room); at += 1u)
+    for (unsigned int at = 0u; has && (at < CLI_TREE_TOOLS) && (count < args->room); at += 1u)
     {
-        VerbaLinea line = {folders[count], CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ull};
         mmgr_line_put(&line, root);
         mmgr_line_put(&line, s_folders[at]);
-        count += ((mmgr_line_finish(&line) != 0ull) && query_is_folder(folders[count])) ? 1u : 0u;
+        count += ((mmgr_line_finish(&line) != 0ull) &&
+                  EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->folders[count]))
+                     ? 1u
+                     : 0u;
     }
     return count;
 }
 
-void cli_toolchains_set_environment(const CliTreeEnvironment *environment)
+void cli_toolchains_set_environment(const CliToolchainsEnvironmentCfg *args)
 {
-    cli_lock_take(&s_lock);
-    s_has_environment = environment != NULL;
-    if (environment != NULL)
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    s_has_environment = args->environment != NULL;
+    if (args->environment != NULL)
     {
-        s_environment = *environment;
+        s_environment = *args->environment;
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
-int cli_toolchains_environment(CliTreeEnvironment *environment)
+int cli_toolchains_environment(const CliToolchainsCfg *args)
 {
-    cli_lock_take(&s_lock);
+    CliTreeEnvironment *environment = args->environment_out;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int has = s_has_environment;
     if (has)
     {
         *environment = s_environment;
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return has;
 }
 
 // The PATH `shell` sets as a login shell, or none where it reports none within the patience: 1, or 0
-int cli_toolchains_path_of_shell(const char *shell, char *path, unsigned long long size)
+int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args)
 {
-    const char *const words[5] = {shell, "-l", "-c", "printf '%s' \"$PATH\"", NULL};
+    const char *const words[5] = {args->shell, "-l", "-c", "printf '%s' \"$PATH\"", NULL};
     CliSpawned spawned;
     char err_buf[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
-    if (!cli_spawn(&spawned, words, NULL, NULL, 0u, 1, &err_msg))
+    if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = words,
+                    .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg))
     {
         return 0;
     }
     const unsigned long long began = cli_clock_milliseconds();
     long long code = 0ll;
-    while (!cli_spawn_poll(&spawned, &code))
+    while (!EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &spawned, .code = &code))
     {
         if ((cli_clock_milliseconds() - began) >= CLI_SHELL_PATIENCE)
         {
-            cli_spawn_tree_end(spawned.id);
-            cli_spawn_wait(&spawned);
-            cli_spawn_closed(&spawned);
+            EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = spawned.id);
+            EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
+            EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
             return 0;
         }
-        query_paused(20u);
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
     }
     unsigned long long read = 0ull;
     for (;;)
     {
-        const unsigned long long got = cli_spawn_read(spawned.out, path + read, size - read - 1ull);
+        const unsigned long long got =
+            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = spawned.out,
+                       .piece = args->path + read, .room = args->size - read - 1ull);
         if (got == 0ull)
         {
             break;
         }
         read += got;
     }
-    cli_spawn_closed(&spawned);
-    read = cli_text_back_past(path, read, CLI_TEXT_WHITE);
-    path[read] = '\0';
+    EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
+    read = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->path, .at = read,
+                      .set = CLI_TEXT_WHITE);
+    args->path[read] = '\0';
     return read != 0ull;
 }
 
@@ -125,8 +135,9 @@ static void cli_shell_reading(void *context)
 {
     const char *const shell = (const char *)context;
     char *const text = g_cli_cells->temporary_buf_alloc(CLI_PATH_TEXT, &g_cli_toolchains_cells);
-    const int read = (text != NULL) && cli_toolchains_path_of_shell(shell, text, CLI_PATH_TEXT);
-    cli_lock_take(&s_lock);
+    const int read = (text != NULL) && EMBED_CALL(cli_toolchains_shell_internal.path_of_shell, CliToolchainsShellCtx,
+                                                  .shell = shell, .path = text, .size = CLI_PATH_TEXT);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (read)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_shell_path,
@@ -134,47 +145,57 @@ static void cli_shell_reading(void *context)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
         s_shell_read = 1;
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(text, &g_cli_toolchains_cells);
 }
 
+typedef struct
+{
+    char *path;
+    unsigned long long size;
+    const char *text;
+    char (*folders)[CLI_PATH_MAX_LEN];
+    unsigned int count;
+    unsigned int room;
+    unsigned int listed;
+    const char (*from)[CLI_PATH_MAX_LEN];
+} ToolchainsPathCtx;
 // the login shell's PATH into `path`: 1 once it has been read, its reading begun the first time it is requested
-static int cli_shell_path(char *path, unsigned long long size)
+EMBED_INLINE int cli_shell_path(const ToolchainsPathCtx *args)
 {
 #if defined(_WIN32)
-    (void)path;
-    (void)size;
     return 0;
 #else
     static char s_shell[CLI_PATH_MAX_LEN];
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int query = !s_shell_queried;
     s_shell_queried = 1;
     const int read = s_shell_read;
     if (read)
     {
         memor.cpy(
-            &(MemoriaCfg){.dst = path,
+            &(MemoriaCfg){.dst = args->path,
                           .src = s_shell_path,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_shell_path, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_lock_give(&s_lock);
-    if (query && query_environment_read("SHELL", s_shell, sizeof(s_shell)))
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    if (query && EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "SHELL",
+                            .value_out = s_shell, .room = sizeof(s_shell)))
     {
         s_shell_thread.run = cli_shell_reading;
         s_shell_thread.context = s_shell;
-        cli_thread_started(&s_shell_thread);
+        EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_shell_thread);
     }
     return read;
 #endif
 }
 
 // each folder of a PATH's text put after the folders, each once by its key: the count after
-static unsigned int cli_split(const char *text, char (*folders)[CLI_PATH_MAX_LEN], unsigned int count,
-                              unsigned int room)
+EMBED_INLINE unsigned int cli_split(const ToolchainsPathCtx *args)
 {
-    const char *from = text;
-    for (const char *at = text;; at += 1)
+    unsigned int count = args->count;
+    const char *from = args->text;
+    for (const char *at = args->text;; at += 1)
     {
         if ((at[0] == CLI_SEPARATOR) || (at[0] == '\0'))
         {
@@ -184,18 +205,19 @@ static unsigned int cli_split(const char *text, char (*folders)[CLI_PATH_MAX_LEN
             if ((at > from) && (mmgr_line_finish(&line) != 0ull))
             {
                 char key[CLI_PATH_MAX_LEN];
-                cli_toolchains_key_of(folder, key);
+                EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folder, .key = key);
                 int seen = 0;
                 for (unsigned int each = 0u; !seen && (each < count); each += 1u)
                 {
                     char path_buf[CLI_PATH_MAX_LEN];
-                    cli_toolchains_key_of(folders[each], path_buf);
+                    EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = args->folders[each],
+                               .key = path_buf);
                     seen = cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL});
                 }
-                if (!seen && (count < room))
+                if (!seen && (count < args->room))
                 {
                     memor.cpy(&(MemoriaCfg){
-                        .dst = folders[count],
+                        .dst = args->folders[count],
                         .src = folder,
                         .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
                     count += 1u;
@@ -212,51 +234,66 @@ static unsigned int cli_split(const char *text, char (*folders)[CLI_PATH_MAX_LEN
 }
 
 // the system's and the reader's PATH as the registry stores them now, put after the folders: the count after
-static unsigned int cli_registry_folders(char (*folders)[CLI_PATH_MAX_LEN], unsigned int count, unsigned int room)
+EMBED_INLINE unsigned int cli_registry_folders(const ToolchainsPathCtx *args)
 {
+    unsigned int count = args->count;
+    unsigned int room = args->room;
     // the PATH as the registry stores it and as it reads expanded, a cell of the two
     char *const registry_buf = g_cli_cells->temporary_buf_alloc(2ull * CLI_PATH_TEXT, &g_cli_toolchains_cells);
     if (registry_buf != NULL)
     {
         char *const expanded = registry_buf + CLI_PATH_TEXT;
-        if (cli_registry_machine_path(registry_buf, CLI_PATH_TEXT))
+        if (EMBED_CALL(cli_out_internal.registry_machine_path, CliOutCtx, .out = registry_buf, .room = CLI_PATH_TEXT))
         {
-            cli_registry_expand(registry_buf, expanded, CLI_PATH_TEXT);
-            count = cli_split(expanded, folders, count, room);
+            EMBED_CALL(cli_out_internal.registry_expand, CliOutCtx, .text = registry_buf, .out = expanded,
+                       .room = CLI_PATH_TEXT);
+            count = EMBED_CALL(cli_split, ToolchainsPathCtx, .text = expanded, .folders = args->folders, .count = count,
+                               .room = room);
         }
-        if (cli_registry_user_value("Path", registry_buf, CLI_PATH_TEXT))
+        if (EMBED_CALL(cli_out_room_internal.registry_user_value, CliOutRoomCtx, .name = "Path", .out = registry_buf,
+                       .room = CLI_PATH_TEXT))
         {
-            cli_registry_expand(registry_buf, expanded, CLI_PATH_TEXT);
-            count = cli_split(expanded, folders, count, room);
+            EMBED_CALL(cli_out_internal.registry_expand, CliOutCtx, .text = registry_buf, .out = expanded,
+                       .room = CLI_PATH_TEXT);
+            count = EMBED_CALL(cli_split, ToolchainsPathCtx, .text = expanded, .folders = args->folders, .count = count,
+                               .room = room);
         }
     }
     g_cli_cells->persistent_buf_release(registry_buf, &g_cli_toolchains_cells);
     return count;
 }
 
-unsigned int cli_toolchains_path_folders(char (*folders)[CLI_PATH_MAX_LEN], unsigned int room)
+unsigned int cli_toolchains_path_folders(const CliToolchainsCountCfg *args)
 {
+    char (*folders)[CLI_PATH_MAX_LEN] = args->folders;
+    unsigned int room = args->room;
     char *const text = g_cli_cells->temporary_buf_alloc(CLI_PATH_TEXT, &g_cli_toolchains_cells);
-    unsigned int count = cli_toolchains_tree_tools(folders, room);
-    count = cli_registry_folders(folders, count, room);
-    if ((text != NULL) && query_environment_read("PATH", text, CLI_PATH_TEXT))
+    unsigned int count =
+        EMBED_CALL(cli_toolchains_count.tree_tools, CliToolchainsCountCfg, .folders = folders, .room = room);
+    count = EMBED_CALL(cli_registry_folders, ToolchainsPathCtx, .folders = folders, .count = count, .room = room);
+    if ((text != NULL) && EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
+                                     .value_out = text, .room = CLI_PATH_TEXT))
     {
-        count = cli_split(text, folders, count, room);
+        count =
+            EMBED_CALL(cli_split, ToolchainsPathCtx, .text = text, .folders = folders, .count = count, .room = room);
     }
-    if ((text != NULL) && cli_shell_path(text, CLI_PATH_TEXT))
+    if ((text != NULL) && EMBED_CALL(cli_shell_path, ToolchainsPathCtx, .path = text, .size = CLI_PATH_TEXT))
     {
-        count = cli_split(text, folders, count, room);
+        count =
+            EMBED_CALL(cli_split, ToolchainsPathCtx, .text = text, .folders = folders, .count = count, .room = room);
     }
     g_cli_cells->persistent_buf_release(text, &g_cli_toolchains_cells);
     return count;
 }
 
 // the folders a list the separator parts names at the most: one for each separator, and one more
-static unsigned int cli_parts(const char *text)
+EMBED_INLINE unsigned int cli_parts(const ToolchainsPathCtx *args)
 {
+    const char *text = args->text;
     unsigned int parts = 1u;
-    parts += (unsigned int)cli_text_counted(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
-                                            CLI_SEPARATOR);
+    parts += (unsigned int)EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text,
+                                      .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
+                                      .byte = CLI_SEPARATOR);
     return parts;
 }
 
@@ -271,47 +308,60 @@ char (*cli_toolchains_path_taken(unsigned int *count, CellOwner *owner)) [CLI_PA
         return NULL;
     }
     unsigned int most = CLI_TREE_TOOLS;
-    if (cli_registry_machine_path(text, CLI_PATH_TEXT))
+    if (EMBED_CALL(cli_out_internal.registry_machine_path, CliOutCtx, .out = text, .room = CLI_PATH_TEXT))
     {
-        cli_registry_expand(text, expanded, CLI_PATH_TEXT);
-        most += cli_parts(expanded);
+        EMBED_CALL(cli_out_internal.registry_expand, CliOutCtx, .text = text, .out = expanded, .room = CLI_PATH_TEXT);
+        most += EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = expanded);
     }
-    if (cli_registry_user_value("Path", text, CLI_PATH_TEXT))
+    if (EMBED_CALL(cli_out_room_internal.registry_user_value, CliOutRoomCtx, .name = "Path", .out = text,
+                   .room = CLI_PATH_TEXT))
     {
-        cli_registry_expand(text, expanded, CLI_PATH_TEXT);
-        most += cli_parts(expanded);
+        EMBED_CALL(cli_out_internal.registry_expand, CliOutCtx, .text = text, .out = expanded, .room = CLI_PATH_TEXT);
+        most += EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = expanded);
     }
-    most += query_environment_read("PATH", text, CLI_PATH_TEXT) ? cli_parts(text) : 0u;
-    most += cli_shell_path(text, CLI_PATH_TEXT) ? cli_parts(text) : 0u;
+    most += EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH", .value_out = text,
+                       .room = CLI_PATH_TEXT)
+                ? EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = text)
+                : 0u;
+    most += EMBED_CALL(cli_shell_path, ToolchainsPathCtx, .path = text, .size = CLI_PATH_TEXT)
+                ? EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = text)
+                : 0u;
     g_cli_cells->persistent_buf_release(text, &g_cli_toolchains_cells);
     char (*const folders)[CLI_PATH_MAX_LEN] =
         g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, owner);
-    *count = (folders != NULL) ? cli_toolchains_path_folders(folders, most) : 0u;
+    *count = (folders != NULL) ? EMBED_CALL(cli_toolchains_count.path_folders, CliToolchainsCountCfg,
+                                            .folders = folders, .room = most)
+                               : 0u;
     return folders;
 }
 
-int cli_toolchains_on_path(const char *const *names, unsigned int count, char *program)
+int cli_toolchains_on_path(const CliToolchainsNamesCfg *args)
 {
     unsigned int folders = 0u;
     char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders, &g_cli_toolchains_cells);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < folders); at += 1u)
     {
-        found = cli_toolchains_program_in(path[at], names, count, program);
+        found = EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = path[at], .names = args->names,
+                           .count = args->count, .path = args->program);
     }
     g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_cells);
     return found;
 }
 
-unsigned int cli_toolchains_system_path(char (*folders)[CLI_PATH_MAX_LEN], unsigned int room)
+unsigned int cli_toolchains_system_path(const CliToolchainsCountCfg *args)
 {
+    char (*folders)[CLI_PATH_MAX_LEN] = args->folders;
+    unsigned int room = args->room;
 #if defined(_WIN32)
-    return cli_registry_folders(folders, 0u, room);
+    return EMBED_CALL(cli_registry_folders, ToolchainsPathCtx, .folders = folders, .count = 0u, .room = room);
 #else
     char *const text = g_cli_cells->temporary_buf_alloc(CLI_PATH_TEXT, &g_cli_toolchains_cells);
-    const unsigned int count = ((text != NULL) && query_environment_read("PATH", text, CLI_PATH_TEXT))
-                                   ? cli_split(text, folders, 0u, room)
-                                   : 0u;
+    const unsigned int count =
+        ((text != NULL) && EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
+                                      .value_out = text, .room = CLI_PATH_TEXT))
+            ? EMBED_CALL(cli_split, ToolchainsPathCtx, .text = text, .folders = folders, .count = 0u, .room = room)
+            : 0u;
     g_cli_cells->persistent_buf_release(text, &g_cli_toolchains_cells);
     return count;
 #endif
@@ -326,11 +376,10 @@ typedef struct
     unsigned int room;
 } CliChosenFolders;
 
-static void cli_chosen_each(void *context, const char *id, const char *folder)
+static void cli_chosen_each(const CliEachIdFolderCfg *args)
 {
-    CliChosenFolders *const chosen = (CliChosenFolders *)context;
-    (void)id;
-    if (!query_is_folder(folder))
+    CliChosenFolders *const chosen = (CliChosenFolders *)args->context;
+    if (!EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->folder))
     {
         return;
     }
@@ -341,36 +390,42 @@ static void cli_chosen_each(void *context, const char *id, const char *folder)
     }
     if (chosen->count < chosen->room)
     {
-        memor.cpy(&(MemoriaCfg){.dst = chosen->folders[chosen->count],
-                                .src = folder,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = chosen->folders[chosen->count],
+                          .src = args->folder,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}) + 1u});
         chosen->count += 1u;
     }
 }
 
 // `count` folders of `from` put after the folders, `listed` of them, which are sized for `room`: the count after
-static unsigned int cli_folders_put(char (*folders)[CLI_PATH_MAX_LEN], unsigned int listed, unsigned int room,
-                                    const char (*from)[CLI_PATH_MAX_LEN], unsigned int count)
+EMBED_INLINE unsigned int cli_folders_put(const ToolchainsPathCtx *args)
 {
-    for (unsigned int at = 0u; (at < count) && (listed < room); at += 1u)
+    unsigned int listed = args->listed;
+    for (unsigned int at = 0u; (at < args->count) && (listed < args->room); at += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = folders[listed],
-                                .src = from[at],
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = from[at], .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = args->folders[listed],
+                          .src = args->from[at],
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->from[at], .cap = CLI_CELLS_POOL}) + 1u});
         listed += 1u;
     }
     return listed;
 }
 
-void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigned int count, char *path,
-                                  unsigned long long size)
+void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
 {
+    unsigned int count = args->count;
     unsigned int path_count = 0u;
     char (*const path_folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&path_count, &g_cli_toolchains_cells);
     CliTreeEnvironment environment;
-    const unsigned int bins = cli_toolchains_environment(&environment) ? environment.bins : 0u;
+    const unsigned int bins =
+        EMBED_CALL(cli_toolchains_table.environment, CliToolchainsCfg, .environment_out = &environment)
+            ? environment.bins
+            : 0u;
     CliChosenFolders counted = {NULL, 0u, 0u};
-    cli_toolchains_chosen_each(cli_chosen_each, &counted);
+    EMBED_CALL(cli_toolchains_context.chosen_each, CliToolchainsContextCfg, .each_callback = cli_chosen_each,
+               .context = &counted);
     // the folders ahead, the environment's, the tree's own tools', those the reader chose and the PATH's, in a cell
     // of their count
     const unsigned int most = count + bins + CLI_TREE_TOOLS + counted.count + path_count;
@@ -379,28 +434,34 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
     if (folders == NULL)
     {
         g_cli_cells->persistent_buf_release(path_folders, &g_cli_toolchains_cells);
-        query_environment_read("PATH", path, size);
+        EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
+                   .value_out = args->path, .room = args->size);
         return;
     }
-    unsigned int listed = cli_folders_put(folders, 0u, most, ahead, count);
-    listed = cli_folders_put(folders, listed, most, (const char (*)[CLI_PATH_MAX_LEN])environment.bin, bins);
-    listed += cli_toolchains_tree_tools(folders + listed, most - listed);
+    unsigned int listed = EMBED_CALL(cli_folders_put, ToolchainsPathCtx, .folders = folders, .listed = 0u, .room = most,
+                                     .from = args->ahead, .count = count);
+    listed = EMBED_CALL(cli_folders_put, ToolchainsPathCtx, .folders = folders, .listed = listed, .room = most,
+                        .from = (const char (*)[CLI_PATH_MAX_LEN])environment.bin, .count = bins);
+    listed += EMBED_CALL(cli_toolchains_count.tree_tools, CliToolchainsCountCfg, .folders = folders + listed,
+                         .room = most - listed);
     CliChosenFolders chosen = {folders, listed, most};
-    cli_toolchains_chosen_each(cli_chosen_each, &chosen);
-    listed = cli_folders_put(folders, chosen.count, most, (const char (*)[CLI_PATH_MAX_LEN])path_folders, path_count);
+    EMBED_CALL(cli_toolchains_context.chosen_each, CliToolchainsContextCfg, .each_callback = cli_chosen_each,
+               .context = &chosen);
+    listed = EMBED_CALL(cli_folders_put, ToolchainsPathCtx, .folders = folders, .listed = chosen.count, .room = most,
+                        .from = (const char (*)[CLI_PATH_MAX_LEN])path_folders, .count = path_count);
     g_cli_cells->persistent_buf_release(path_folders, &g_cli_toolchains_cells);
     // each folder once by its key, in order
-    VerbaLinea line = {path, size, 0ull};
+    VerbaLinea line = {args->path, args->size, 0ull};
     unsigned int folder_count = 0u;
     for (unsigned int at = 0u; at < listed; at += 1u)
     {
         char key[CLI_PATH_MAX_LEN];
-        cli_toolchains_key_of(folders[at], key);
+        EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folders[at], .key = key);
         int seen = folders[at][0] == '\0';
         for (unsigned int before = 0u; !seen && (before < at); before += 1u)
         {
             char path_buf[CLI_PATH_MAX_LEN];
-            cli_toolchains_key_of(folders[before], path_buf);
+            EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folders[before], .key = path_buf);
             seen = cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL});
         }
         if (!seen)
@@ -416,37 +477,46 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
     g_cli_cells->persistent_buf_release(folders, &g_cli_toolchains_cells);
     if (mmgr_line_finish(&line) == 0ull)
     {
-        query_environment_read("PATH", path, size);
+        EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
+                   .value_out = args->path, .room = args->size);
     }
 }
 
-void cli_toolchains_run_path(char *path, unsigned long long size)
+void cli_toolchains_run_path(const CliToolchainsCountPathCfg *args)
 {
-    cli_toolchains_run_path_with(NULL, 0u, path, size);
+    EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg, .ahead = NULL, .count = 0u,
+               .path = args->path, .size = args->size);
 }
 
-unsigned int cli_toolchains_folders_for(const CliJson *json, unsigned int by_system, char (*folders)[CLI_PATH_MAX_LEN],
-                                        unsigned int count, unsigned int room)
+unsigned int cli_toolchains_folders_for(const CliToolchainsJsonCountCfg *args)
 {
-    const unsigned int patterns = cli_toolchains_for_system(json, by_system);
-    for (unsigned int item = cli_json_is(json, patterns, CFG_JSON_ARRAY) ? json->node[patterns].first : CLI_JSON_NONE;
+    const CliJson *json = args->json;
+    unsigned int count = args->count;
+    const unsigned int patterns =
+        EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = json, .map = args->by_system);
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                        .node = patterns, .kind = CFG_JSON_ARRAY)
+                                 ? json->node[patterns].first
+                                 : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
-        const char *const pattern = cli_json_string(json, item, NULL);
+        const char *const pattern = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                               .json_read = json, .node = item, .length_pointer = NULL);
         if (pattern != NULL)
         {
-            count = cli_toolchains_folders_of(pattern, folders, count, room);
+            count = EMBED_CALL(cli_toolchains_count.folders_get, CliToolchainsCountCfg, .pattern = pattern,
+                               .folders = args->folders, .count = count, .room = args->room);
         }
     }
     return count;
 }
 
-int cli_toolchains_joined(const char *path, const char *folder, char *out, unsigned long long size)
+int cli_toolchains_join(const CliToolchainsFolderCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
-    cli_toolchains_key_of(folder, key);
-    const char *from = path;
-    for (const char *at = path;; at += 1)
+    EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = args->folder_read, .key = key);
+    const char *from = args->path_read;
+    for (const char *at = args->path_read;; at += 1)
     {
         if ((at[0] == CLI_SEPARATOR) || (at[0] == '\0'))
         {
@@ -456,7 +526,7 @@ int cli_toolchains_joined(const char *path, const char *folder, char *out, unsig
             mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
             if ((at > from) && (mmgr_line_finish(&line) != 0ull))
             {
-                cli_toolchains_key_of(dir, path_buf);
+                EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = dir, .key = path_buf);
                 if (cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL}))
                 {
                     return 0;
@@ -469,17 +539,17 @@ int cli_toolchains_joined(const char *path, const char *folder, char *out, unsig
             from = at + 1;
         }
     }
-    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    while ((length != 0ull) && (path[length - 1u] == CLI_SEPARATOR))
+    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path_read, .cap = CLI_CELLS_POOL});
+    while ((length != 0ull) && (args->path_read[length - 1u] == CLI_SEPARATOR))
     {
         length -= 1ull;
     }
-    VerbaLinea line = {out, size, 0ull};
-    mmgr_line_put_n(&line, path, length);
+    VerbaLinea line = {args->out_room, args->size, 0ull};
+    mmgr_line_put_n(&line, args->path_read, length);
     if (length != 0ull)
     {
         mmgr_line_ch(&line, CLI_SEPARATOR);
     }
-    mmgr_line_put(&line, folder);
+    mmgr_line_put(&line, args->folder_read);
     return mmgr_line_finish(&line) != 0ull;
 }

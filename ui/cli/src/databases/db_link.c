@@ -3,146 +3,169 @@
 // db_link.c: one link to a database, PostgreSQL's, MySQL's or SQLite's, each implemented alike: opened, read-only where
 // the connection matters and is guarded so, a statement started and its rows read, its transaction's state, what stops
 // it, what the server noted, and the link ended
+#include "../command_line/callback_cfg.h"
 #include "db_internal.h"
 
-// whether a path is whole, from a root or a drive, and not by its place in the tree
-static int link_whole(const char *path)
+typedef struct
 {
-    const int drive = (((path[0] >= 'A') && (path[0] <= 'Z')) || ((path[0] >= 'a') && (path[0] <= 'z'))) &&
-                      (path[1] == ':') && ((path[2] == '\\') || (path[2] == '/'));
-    return (path[0] == '/') || (path[0] == '\\') || drive;
+    const char *path;
+} DbLinkCtx;
+
+// whether a path is whole, from a root or a drive, and not by its place in the tree
+EMBED_INLINE int link_whole(const DbLinkCtx *args)
+{
+    const int drive =
+        (((args->path[0] >= 'A') && (args->path[0] <= 'Z')) || ((args->path[0] >= 'a') && (args->path[0] <= 'z'))) &&
+        (args->path[1] == ':') && ((args->path[2] == '\\') || (args->path[2] == '/'));
+    return (args->path[0] == '/') || (args->path[0] == '\\') || drive;
 }
 
 // a row passed over, as a setting's answer is
-static int link_passed(void *context, const CliDbValue *values, unsigned int count)
+static int link_pass(const CliDbRowCfg *args)
 {
-    (void)context;
-    (void)values;
-    (void)count;
+    (void)args;
     return 1;
 }
 
-int cli_db_link_open(CliDbLink *link, const char *root, const CliDbConnection *config, const char *password,
-                     const char *host, unsigned int port, int runs, CliDbFailure *failure)
+int cli_db_link_open(const CliDbLinkCtx *args)
 {
     const int read_only =
-        config->matters &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = config->guard, .other = "read-only", .cap = CLI_CELLS_POOL}));
-    memor.set(&(MemoriaCfg){.dst = link, .val = 0, .bytes = sizeof(*link)});
-    if (cellul.eq(&(CatenaFinitaCfg){.src = config->kind, .other = "postgres", .cap = CLI_CELLS_POOL}))
+        args->config->matters &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->config->guard, .other = "read-only", .cap = CLI_CELLS_POOL}));
+    memor.set(&(MemoriaCfg){.dst = args->link, .val = 0, .bytes = sizeof(*args->link)});
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "postgres", .cap = CLI_CELLS_POOL}))
     {
         static const char s_read_only[] = "SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY";
-        const char *const database = (config->database[0] != '\0') ? config->database : config->user;
-        link->pg = cli_pg_connected(host, port, config->user, password, database, CLI_DB_WAIT, failure);
-        if (link->pg == NULL)
+        const char *const database = (args->config->database[0] != '\0') ? args->config->database : args->config->user;
+        args->link->pg = EMBED_CALL(cli_pg_host.connect, CliPgHostCfg, .host = args->host, .port = args->port,
+                                    .user = args->config->user, .password = args->password, .database = database,
+                                    .wait = CLI_DB_WAIT, .failure = args->failure);
+        if (args->link->pg == NULL)
         {
             return 0;
         }
-        link->kind = CLI_DB_LINK_PG;
-        if (runs && read_only &&
-            !cli_pg_all(link->pg, s_read_only, sizeof(s_read_only) - 1u, link_passed, NULL, failure))
+        args->link->kind = CLI_DB_LINK_PG;
+        if (args->runs && read_only &&
+            !EMBED_CALL(cli_pg_failure_sql.all, CliPgFailureSqlCfg, .pg = args->link->pg, .sql = s_read_only,
+                        .size = sizeof(s_read_only) - 1u, .each_row = link_pass, .context = NULL,
+                        .failure = args->failure))
         {
-            cli_db_link_closed(link);
+            cli_db_link_internal.link_close(args);
             return 0;
         }
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = config->kind, .other = "mysql", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "mysql", .cap = CLI_CELLS_POOL}))
     {
         static const char s_read_only[] = "SET SESSION TRANSACTION READ ONLY";
-        link->my = cli_mysql_connected(host, port, config->user, password, config->database, CLI_DB_WAIT, failure);
-        if (link->my == NULL)
+        args->link->my = EMBED_CALL(cli_mysql_host.connect, CliMysqlHostCfg, .host = args->host, .port = args->port,
+                                    .user = args->config->user, .password = args->password,
+                                    .database = args->config->database, .wait = CLI_DB_WAIT, .failure = args->failure);
+        if (args->link->my == NULL)
         {
             return 0;
         }
-        link->kind = CLI_DB_LINK_MY;
-        if (runs && read_only &&
-            !cli_mysql_all(link->my, s_read_only, sizeof(s_read_only) - 1u, link_passed, NULL, failure))
+        args->link->kind = CLI_DB_LINK_MY;
+        if (args->runs && read_only &&
+            !EMBED_CALL(cli_mysql_failure_sql.all, CliMysqlFailureSqlCfg, .mysql_out = args->link->my,
+                        .sql = s_read_only, .size = sizeof(s_read_only) - 1u, .each_row = link_pass, .context = NULL,
+                        .failure = args->failure))
         {
-            cli_db_link_closed(link);
+            cli_db_link_internal.link_close(args);
             return 0;
         }
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = config->kind, .other = "sqlite", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "sqlite", .cap = CLI_CELLS_POOL}))
     {
         char file[CLI_PATH_MAX_LEN];
-        if (link_whole(config->file))
+        if (EMBED_CALL(link_whole, DbLinkCtx, .path = args->config->file))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = file,
-                .src = config->file,
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = config->file, .cap = CLI_CELLS_POOL}) + 1u});
+                .src = args->config->file,
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->config->file, .cap = CLI_CELLS_POOL}) + 1u});
         }
         else
         {
-            cli_full(root, config->file, file);
+            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->config->file,
+                       .joined = file);
         }
         // the schema's link reads alone, and the one that runs the reader's statements reads alone where it is set so
-        link->lite = cli_db_lite_open(file, (runs && read_only) || !runs, failure);
-        link->kind = (link->lite != NULL) ? CLI_DB_LINK_LITE : CLI_DB_LINK_NONE;
-        return link->lite != NULL;
+        args->link->lite = EMBED_CALL(cli_db_failure_file_internal.lite_open, CliDbFailureFileCtx, .file = file,
+                                      .read_only = (args->runs && read_only) || !args->runs, .failure = args->failure);
+        args->link->kind = (args->link->lite != NULL) ? CLI_DB_LINK_LITE : CLI_DB_LINK_NONE;
+        return args->link->lite != NULL;
     }
     char warned[CLI_NAME_MAX_LEN + 64u];
     VerbaLinea line = {warned, sizeof(warned), 0ull};
-    mmgr_line_put(&line, config->kind);
+    mmgr_line_put(&line, args->config->kind);
     mmgr_line_put(&line, " is no kind of database orior_cli supports");
     mmgr_line_finish(&line);
-    cli_db_failure_set(failure, warned);
+    EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure, .message = warned);
     return 0;
 }
 
-int cli_db_link_start(CliDbLink *link, const char *statement, unsigned long long size, CliDbFailure *failure)
+int cli_db_link_start(const CliDbLinkFailureStatementCtx *args)
 {
-    if (link->kind == CLI_DB_LINK_PG)
+    if (args->link->kind == CLI_DB_LINK_PG)
     {
-        return cli_pg_start(link->pg, statement, size, failure);
+        return EMBED_CALL(cli_pg_failure_sql.start, CliPgFailureSqlCfg, .pg = args->link->pg, .sql = args->statement,
+                          .size = args->size, .failure = args->failure);
     }
-    if (link->kind == CLI_DB_LINK_MY)
+    if (args->link->kind == CLI_DB_LINK_MY)
     {
-        return cli_mysql_start(link->my, statement, size, failure);
+        return EMBED_CALL(cli_mysql_failure_sql.start, CliMysqlFailureSqlCfg, .mysql_out = args->link->my,
+                          .sql = args->statement, .size = args->size, .failure = args->failure);
     }
-    return cli_db_lite_start(link->lite, statement, size, failure);
+    return EMBED_CALL(cli_db_failure_statement_internal.lite_start, CliDbFailureStatementCtx, .lite = args->link->lite,
+                      .statement = args->statement, .size = args->size, .failure = args->failure);
 }
 
-const CliDbHead *cli_db_link_head(const CliDbLink *link)
+const CliDbHead *cli_db_link_head(const CliDbCtx *args)
 {
-    if (link->kind == CLI_DB_LINK_PG)
+    if (args->link_read->kind == CLI_DB_LINK_PG)
     {
-        return cli_pg_head(link->pg);
+        return EMBED_CALL(cli_pg_cancel.head, CliPgCancelCfg, .pg_read = args->link_read->pg);
     }
-    if (link->kind == CLI_DB_LINK_MY)
+    if (args->link_read->kind == CLI_DB_LINK_MY)
     {
-        return cli_mysql_head(link->my);
+        return EMBED_CALL(cli_mysql_cancel.head, CliMysqlCancelCfg, .mysql = args->link_read->my);
     }
-    return &link->lite->head;
+    return &args->link_read->lite->head;
 }
 
-int cli_db_link_rows(CliDbLink *link, unsigned long long count, CliDbRowFn each_row, void *context, int *done,
-                     char *tag, CliDbFailure *failure)
+int cli_db_link_rows(const CliDbLinkFailureCtx *args)
 {
-    if (link->kind == CLI_DB_LINK_PG)
+    if (args->link->kind == CLI_DB_LINK_PG)
     {
-        return cli_pg_rows(link->pg, count, each_row, context, done, tag, failure);
+        return EMBED_CALL(cli_pg_failure.rows, CliPgFailureCfg, .pg = args->link->pg, .count = args->count,
+                          .each_row = args->each_row, .context = args->context, .done = args->done, .tag = args->tag,
+                          .failure = args->failure);
     }
-    if (link->kind == CLI_DB_LINK_MY)
+    if (args->link->kind == CLI_DB_LINK_MY)
     {
-        return cli_mysql_rows(link->my, count, each_row, context, done, tag, failure);
+        return EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = args->link->my, .count = args->count,
+                          .each_row = args->each_row, .context = args->context, .done = args->done, .tag = args->tag,
+                          .failure = args->failure);
     }
-    return cli_db_lite_rows(link->lite, count, each_row, context, done, tag, failure);
+    return EMBED_CALL(cli_db_failure_internal.lite_rows, CliDbFailureCtx, .lite = args->link->lite,
+                      .count = args->count, .each_row = args->each_row, .context = args->context, .done = args->done,
+                      .tag = args->tag, .failure = args->failure);
 }
 
-int cli_db_link_all(CliDbLink *link, const char *statement, unsigned long long size, CliDbRowFn each_row, void *context,
-                    CliDbFailure *failure)
+int cli_db_link_all(const CliDbLinkFailureStatementCtx *args)
 {
     char tag[CLI_DB_TAG];
-    if (!cli_db_link_start(link, statement, size, failure))
+    if (!cli_db_link_failure_statement_internal.link_start(args))
     {
         return 0;
     }
-    for (int done = !cli_db_link_head(link)->rows; !done;)
+    for (int done = !EMBED_CALL(cli_db_internal.link_head, CliDbCtx, .link_read = args->link)->rows; !done;)
     {
-        if (!cli_db_link_rows(link, 4096ull, each_row, context, &done, tag, failure))
+        if (!EMBED_CALL(cli_db_link_failure_internal.link_rows, CliDbLinkFailureCtx, .link = args->link,
+                        .count = 4096ull, .each_row = args->each_row, .context = args->context, .done = &done,
+                        .tag = tag, .failure = args->failure))
         {
             return 0;
         }
@@ -150,96 +173,107 @@ int cli_db_link_all(CliDbLink *link, const char *statement, unsigned long long s
     return 1;
 }
 
-const char *cli_db_link_transaction(const CliDbLink *link)
+const char *cli_db_link_transaction(const CliDbCtx *args)
 {
-    if (link->kind == CLI_DB_LINK_PG)
+    if (args->link_read->kind == CLI_DB_LINK_PG)
     {
-        const char status = cli_pg_status(link->pg);
+        const char status = EMBED_CALL(cli_pg_cancel.status, CliPgCancelCfg, .pg_read = args->link_read->pg);
         return (status == 'T') ? "open" : (status == 'E') ? "failed" : "idle";
     }
-    if (link->kind == CLI_DB_LINK_MY)
+    if (args->link_read->kind == CLI_DB_LINK_MY)
     {
-        return cli_mysql_in_transaction(link->my) ? "open" : "idle";
+        return EMBED_CALL(cli_mysql_cancel.in_transaction, CliMysqlCancelCfg, .mysql = args->link_read->my) ? "open"
+                                                                                                            : "idle";
     }
-    return link->lite->in_transaction ? "open" : "idle";
+    return args->link_read->lite->in_transaction ? "open" : "idle";
 }
 
-int cli_db_link_stopper(const CliDbLink *link, CliDbStop *stop)
+int cli_db_link_stopper(const CliDbCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = stop, .val = 0, .bytes = sizeof(*stop)});
-    stop->kind = link->kind;
-    if (link->kind == CLI_DB_LINK_PG)
+    memor.set(&(MemoriaCfg){.dst = args->stop, .val = 0, .bytes = sizeof(*args->stop)});
+    args->stop->kind = args->link_read->kind;
+    if (args->link_read->kind == CLI_DB_LINK_PG)
     {
-        return cli_pg_canceller(link->pg, &stop->pg);
+        return EMBED_CALL(cli_pg_cancel.canceller, CliPgCancelCfg, .pg_read = args->link_read->pg,
+                          .cancel = &args->stop->pg);
     }
-    if (link->kind == CLI_DB_LINK_MY)
+    if (args->link_read->kind == CLI_DB_LINK_MY)
     {
-        cli_mysql_canceller(link->my, &stop->my);
+        EMBED_CALL(cli_mysql_cancel.canceller, CliMysqlCancelCfg, .mysql = args->link_read->my,
+                   .cancel = &args->stop->my);
         return 1;
     }
-    stop->lite = link->lite;
-    return link->kind == CLI_DB_LINK_LITE;
+    args->stop->lite = args->link_read->lite;
+    return args->link_read->kind == CLI_DB_LINK_LITE;
 }
 
-int cli_db_stop_sent(const CliDbStop *stop, VerbaLinea *err_msg)
+int cli_db_stop_send(const CliDbStopCtx *args)
 {
-    if (stop->kind == CLI_DB_LINK_PG)
+    if (args->stop_read->kind == CLI_DB_LINK_PG)
     {
-        return cli_pg_cancel_sent(&stop->pg, err_msg);
+        return EMBED_CALL(cli_pg.cancel_send, CliPgCfg, .cancel_read = &args->stop_read->pg, .err_msg = args->err_msg);
     }
-    if (stop->kind == CLI_DB_LINK_MY)
+    if (args->stop_read->kind == CLI_DB_LINK_MY)
     {
-        return cli_mysql_cancel_sent(&stop->my, err_msg);
+        return EMBED_CALL(cli_mysql.cancel_send, CliMysqlCfg, .cancel_read = &args->stop_read->my,
+                          .err_msg = args->err_msg);
     }
-    return cli_db_lite_interrupted(stop->lite, err_msg);
+    return EMBED_CALL(cli_db_err_msg_internal.lite_interrupt, CliDbErrMsgCtx, .lite = args->stop_read->lite,
+                      .err_msg = args->err_msg);
 }
 
 // The warnings MySQL gave, written each a row's values joined by spaces, and how many there are
 typedef struct
 {
-    void (*each)(void *context, const char *notice);
+    void (*each)(const CliEachNoticeCfg *args);
     void *context;
     unsigned int warned;
 } CliDbLinkWarnings;
 
-static int link_warning(void *context, const CliDbValue *values, unsigned int count)
+static int link_warning(const CliDbRowCfg *args)
 {
-    CliDbLinkWarnings *const warnings = (CliDbLinkWarnings *)context;
+    CliDbLinkWarnings *const warnings = (CliDbLinkWarnings *)args->context;
     char notice[CLI_DB_FIELD];
     VerbaLinea line = {notice, sizeof(notice), 0ull};
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (!values[at].null)
+        if (!args->values[at].null)
         {
             mmgr_line_put(&line, (line.at > 0ull) ? " " : "");
-            cli_lossy(&line, (const unsigned char *)values[at].text, values[at].size);
+            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
+                       .text_bytes = (const unsigned char *)args->values[at].text, .length = args->values[at].size);
         }
     }
     mmgr_line_finish(&line);
-    warnings->each(warnings->context, notice);
+    EMBED_CALL(warnings->each, CliEachNoticeCfg, .context = warnings->context, .notice = notice);
     warnings->warned += 1u;
     return 1;
 }
 
-void cli_db_link_notices(CliDbLink *link, void (*each)(void *context, const char *notice), void *context)
+void cli_db_link_notices(const CliDbLinkContextCtx *args)
 {
-    if (link->kind == CLI_DB_LINK_PG)
+    void *context = args->context;
+    if (args->link->kind == CLI_DB_LINK_PG)
     {
-        for (unsigned int at = 0u; cli_pg_notice(link->pg, at) != NULL; at += 1u)
+        for (unsigned int at = 0u;
+             EMBED_CALL(cli_pg_at.notice, CliPgAtCfg, .pg_read = args->link->pg, .at = at) != NULL; at += 1u)
         {
-            each(context, cli_pg_notice(link->pg, at));
+            EMBED_CALL(args->each, CliEachNoticeCfg, .context = context,
+                       .notice = EMBED_CALL(cli_pg_at.notice, CliPgAtCfg, .pg_read = args->link->pg, .at = at));
         }
         return;
     }
-    if ((link->kind != CLI_DB_LINK_MY) || (cli_mysql_warnings(link->my) == 0u))
+    if ((args->link->kind != CLI_DB_LINK_MY) ||
+        (EMBED_CALL(cli_mysql_cancel.warnings, CliMysqlCancelCfg, .mysql = args->link->my) == 0u))
     {
         return;
     }
     static const char s_show[] = "SHOW WARNINGS";
-    const unsigned int count = cli_mysql_warnings(link->my);
-    CliDbLinkWarnings warnings = {each, context, 0u};
+    const unsigned int count = EMBED_CALL(cli_mysql_cancel.warnings, CliMysqlCancelCfg, .mysql = args->link->my);
+    CliDbLinkWarnings warnings = {args->each, context, 0u};
     CliDbFailure failure;
-    (void)cli_mysql_all(link->my, s_show, sizeof(s_show) - 1u, link_warning, &warnings, &failure);
+    (void)EMBED_CALL(cli_mysql_failure_sql.all, CliMysqlFailureSqlCfg, .mysql_out = args->link->my, .sql = s_show,
+                     .size = sizeof(s_show) - 1u, .each_row = link_warning, .context = &warnings, .failure = &failure);
     if (warnings.warned == 0u)
     {
         char notice[64];
@@ -247,23 +281,23 @@ void cli_db_link_notices(CliDbLink *link, void (*each)(void *context, const char
         mmgr_line_decimal(&line, count, 1u);
         mmgr_line_put(&line, (count == 1u) ? " warning" : " warnings");
         mmgr_line_finish(&line);
-        each(context, notice);
+        EMBED_CALL(args->each, CliEachNoticeCfg, .context = context, .notice = notice);
     }
 }
 
-void cli_db_link_closed(CliDbLink *link)
+void cli_db_link_close(const CliDbLinkCtx *args)
 {
-    if (link->kind == CLI_DB_LINK_PG)
+    if (args->link->kind == CLI_DB_LINK_PG)
     {
-        cli_pg_closed(link->pg);
+        EMBED_CALL(cli_pg_failure_sql.close, CliPgFailureSqlCfg, .pg = args->link->pg);
     }
-    else if (link->kind == CLI_DB_LINK_MY)
+    else if (args->link->kind == CLI_DB_LINK_MY)
     {
-        cli_mysql_closed(link->my);
+        EMBED_CALL(cli_mysql_failure_sql.close, CliMysqlFailureSqlCfg, .mysql_out = args->link->my);
     }
-    else if (link->kind == CLI_DB_LINK_LITE)
+    else if (args->link->kind == CLI_DB_LINK_LITE)
     {
-        cli_db_lite_closed(link->lite);
+        EMBED_CALL(cli_db_err_msg_internal.lite_close, CliDbErrMsgCtx, .lite = args->link->lite);
     }
-    memor.set(&(MemoriaCfg){.dst = link, .val = 0, .bytes = sizeof(*link)});
+    memor.set(&(MemoriaCfg){.dst = args->link, .val = 0, .bytes = sizeof(*args->link)});
 }

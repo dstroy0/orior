@@ -8,13 +8,6 @@
 #include "../text/text.h"
 #include "serve_internal.h"
 
-// the most bytes of a notebook, the most nodes a notebook's tree contains, the bytes past its own a notebook's text is
-// written in, and the bytes a stage of a merge is read in
-#define CLI_SERVE_NOTEBOOK (32ull << 20u)
-#define CLI_SERVE_BOOK_NODES (1u << 19u)
-#define CLI_SERVE_BOOK_MORE (64ull << 10u)
-#define CLI_SERVE_STAGE_ROOM (64ull << 20u)
-
 // A notebook's room: the tree its notebooks are read into and the tokens each is read with; the nodes and bytes of the
 // tree, from what the notebooks contain, the tokens of the largest, and four times the nodes, the bytes and the lines
 // of each for what reading it makes of it
@@ -26,58 +19,95 @@ typedef struct
     unsigned int nodes;
     unsigned long long text;
 } CliBookRoom;
+// the most bytes of a notebook, the most nodes a notebook's tree contains, the bytes past its own a notebook's text is
+// written in, and the bytes a stage of a merge is read in
+#define CLI_SERVE_NOTEBOOK (32ull << 20u)
+#define CLI_SERVE_BOOK_NODES (1u << 19u)
+#define CLI_SERVE_BOOK_MORE (64ull << 10u)
+#define CLI_SERVE_STAGE_ROOM (64ull << 20u)
 
-// a notebook's text of `size` bytes added to what the room is taken for
-static void book_room_added(CliBookRoom *room, const char *text, unsigned long long size)
+typedef struct
 {
-    const unsigned int tokens = cli_json_tokens_counted(text, size) + 1u;
-    const unsigned int lines = (unsigned int)cli_text_counted(text, size, '\n') + 1u;
-    room->tokens_most = (tokens > room->tokens_most) ? tokens : room->tokens_most;
-    const unsigned long long nodes = (unsigned long long)room->nodes + (4ull * tokens) + (4ull * lines) + 64ull;
-    room->nodes = (nodes < CLI_SERVE_BOOK_NODES) ? (unsigned int)nodes : CLI_SERVE_BOOK_NODES;
-    room->text += (4ull * size) + 4096ull;
+    CliBookRoom *room;
+    const char *text;
+    unsigned long long size;
+    VerbaLinea *err_msg;
+    const CliServeArgs *request;
+    char *full;
+    unsigned long long *size_pointer;
+    const char *root;
+    const char *given;
+    unsigned int stage;
+    VerbaLinea *text_verba_linea_pointer;
+    const VerbaLinea *stages;
+    int has_base;
+    VerbaLinea *out;
+} ServeCallNotebookCtx;
+// a notebook's text of `size` bytes added to what the room is taken for
+EMBED_INLINE void book_room_add(const ServeCallNotebookCtx *args)
+{
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    const unsigned int tokens =
+        EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = size) + 1u;
+    const unsigned int lines = (unsigned int)EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text,
+                                                        .size = size, .byte = '\n') +
+                               1u;
+    args->room->tokens_most = (tokens > args->room->tokens_most) ? tokens : args->room->tokens_most;
+    const unsigned long long nodes = (unsigned long long)args->room->nodes + (4ull * tokens) + (4ull * lines) + 64ull;
+    args->room->nodes = (nodes < CLI_SERVE_BOOK_NODES) ? (unsigned int)nodes : CLI_SERVE_BOOK_NODES;
+    args->room->text += (4ull * size) + 4096ull;
 }
 
 // the room's tree and tokens taken: 1, or 0 with why given where the cells cannot meet them
-static int book_room_taken(CliBookRoom *room, VerbaLinea *err_msg)
+EMBED_INLINE int book_room_take(const ServeCallNotebookCtx *args)
 {
-    room->tokens = g_cli_cells->persistent_buf_alloc((unsigned long long)room->tokens_most * sizeof(CfgJsonToken),
-                                                     &g_cli_window_cells);
-    if ((room->tokens == NULL) ||
-        !cli_json_reserved(&room->json, room->nodes, room->text, "a notebook's tree", &g_cli_window_cells))
+    args->room->tokens = g_cli_cells->persistent_buf_alloc(
+        (unsigned long long)args->room->tokens_most * sizeof(CfgJsonToken), &g_cli_window_cells);
+    if ((args->room->tokens == NULL) ||
+        !EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = &args->room->json,
+                    .nodes_most = args->room->nodes, .text_most = args->room->text, .what = "a notebook's tree",
+                    .owner = &g_cli_window_cells))
     {
-        g_cli_cells->persistent_buf_release(room->tokens, &g_cli_window_cells);
-        room->tokens = NULL;
-        mmgr_line_put(err_msg, "the notebook's cells could not be taken");
+        g_cli_cells->persistent_buf_release(args->room->tokens, &g_cli_window_cells);
+        args->room->tokens = NULL;
+        mmgr_line_put(args->err_msg, "the notebook's cells could not be taken");
         return 0;
     }
     return 1;
 }
 
 // the room's tree and tokens given back
-static void book_room_given(CliBookRoom *room)
+EMBED_INLINE void book_room_free(const ServeCallNotebookCtx *args)
 {
-    cli_json_given(&room->json);
-    g_cli_cells->persistent_buf_release(room->tokens, &g_cli_window_cells);
-    room->tokens = NULL;
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->room->json);
+    g_cli_cells->persistent_buf_release(args->room->tokens, &g_cli_window_cells);
+    args->room->tokens = NULL;
 }
 
 // the file of the argument `path` mapped, its path into `full`: its bytes and size, or NULL with why given where it
 // cannot be read, is larger than a notebook is read or is not whole UTF-8
-static const char *notebook_file(const CliServeArgs *args, char *full, unsigned long long *size, VerbaLinea *err_msg)
+EMBED_INLINE const char *notebook_file(const ServeCallNotebookCtx *args)
 {
+    const CliServeArgs *arguments = args->request;
+    char *full = args->full;
+    unsigned long long *size = args->size_pointer;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     *size = 0ull;
-    if (!cli_serve_at(args, root, full, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx, .request = arguments,
+                    .root = root, .full = full, .err_msg = err_msg))
     {
         return NULL;
     }
-    const unsigned char *const bytes = cli_file_taken(full, size, &g_cli_window_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+                                                  .size_pointer = size, .owner = &g_cli_window_cells);
     // the file's bytes read as the text they are
     const char *const text = (const char *)bytes;
-    if ((bytes == NULL) || (*size > CLI_SERVE_NOTEBOOK) || !cli_utf8_whole(text, *size))
+    if ((bytes == NULL) || (*size > CLI_SERVE_NOTEBOOK) ||
+        !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = text, .size = *size))
     {
-        cli_file_given(bytes, &g_cli_window_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_window_cells);
         mmgr_line_put(err_msg, full);
         mmgr_line_put(err_msg, ": it could not be read");
         return NULL;
@@ -85,136 +115,195 @@ static const char *notebook_file(const CliServeArgs *args, char *full, unsigned 
     return text;
 }
 
-static int notebook_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int notebook_read(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char full[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    const char *const text = notebook_file(args, full, &size, err_msg);
+    const char *const text = EMBED_CALL(notebook_file, ServeCallNotebookCtx, .request = arguments, .full = full,
+                                        .size_pointer = &size, .err_msg = err_msg);
     if (text == NULL)
     {
         return 0;
     }
     CliBookRoom room = {{0}, NULL, 0u, 0u, 0ull};
-    book_room_added(&room, text, size);
+    EMBED_CALL(book_room_add, ServeCallNotebookCtx, .room = &room, .text = text, .size = size);
     const unsigned int book =
-        book_room_taken(&room, err_msg)
-            ? cli_notebook_read(&room.json, full, text, size, room.tokens, room.tokens_most, err_msg)
+        EMBED_CALL(book_room_take, ServeCallNotebookCtx, .room = &room, .err_msg = err_msg)
+            ? EMBED_CALL(cli_notebook_path.read, CliNotebookPathCfg, .json = &room.json, .path = full, .text = text,
+                         .size = size, .tokens = room.tokens, .tokens_most = room.tokens_most, .err_msg = err_msg)
             : CLI_JSON_NONE;
     if (book != CLI_JSON_NONE)
     {
-        cli_json_write(&room.json, book, out, 0u, 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &room.json, .node = book,
+                   .out = out, .indent = 0u, .sorted = 0);
     }
-    book_room_given(&room);
+    EMBED_CALL(book_room_free, ServeCallNotebookCtx, .room = &room);
     // the bytes were mapped from the text
-    cli_file_given((const unsigned char *)text, &g_cli_window_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = (const unsigned char *)text,
+               .owner = &g_cli_window_cells);
     return book != CLI_JSON_NONE;
 }
 
-static int notebook_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int notebook_write(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    if ((path == NULL) || !cli_serve_at(args, root, full, err_msg))
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    if ((path == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx,
+                                      .request = arguments, .root = root, .full = full, .err_msg = err_msg))
     {
         return 0;
     }
-    const unsigned long long text_room = cli_json_written_room(args->json) + CLI_SERVE_BOOK_MORE;
+    const unsigned long long text_room =
+        EMBED_CALL(cli_json_tree_node_out.json_write_room, CliJsonTreeNodeOutCfg, .json_read = arguments->json) +
+        CLI_SERVE_BOOK_MORE;
     char *const text_cell = g_cli_cells->temporary_buf_alloc(text_room, &g_cli_window_cells);
     VerbaLinea text = mmgr_line_over(text_cell, text_room);
     // the arguments' tree is the call's own room, which the writer may add nodes to
-    cli_notebook_write((CliJson *)args->json, full, cli_serve_arg(args, "book"), &text);
-    const int done = mmgr_line_ok(&text) && cli_serve_file_write(path, text.out, text.at, err_msg);
+    EMBED_CALL(cli_notebook_path_book.write, CliNotebookPathBookCfg, .json = (CliJson *)arguments->json, .path = full,
+               .book =
+                   EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "book"),
+               .out = &text);
+    const int done =
+        mmgr_line_ok(&text) && EMBED_CALL(cli_serve_err_msg_path_internal.file_write, CliServeErrMsgPathCtx,
+                                          .path = path, .text = text.out, .length = text.at, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(text.out, &g_cli_window_cells);
     mmgr_line_put(out, done ? "null" : "");
     return done;
 }
 
-static int notebook_diff_text(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int notebook_diff_text(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long size = 0ull;
-    const char *const text = cli_serve_string(args, "text", err_msg);
+    const char *const text = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "text", .err_msg = err_msg);
     if (text == NULL)
     {
         return 0;
     }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &size);
+    (void)EMBED_CALL(
+        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text"),
+        .length_pointer = &size);
     CliBookRoom room = {{0}, NULL, 0u, 0u, 0ull};
-    book_room_added(&room, text, size);
-    const int done = book_room_taken(&room, err_msg) &&
-                     cli_notebook_for_diff(&room.json, text, size, room.tokens, room.tokens_most, out, err_msg);
-    book_room_given(&room);
+    EMBED_CALL(book_room_add, ServeCallNotebookCtx, .room = &room, .text = text, .size = size);
+    const int done =
+        EMBED_CALL(book_room_take, ServeCallNotebookCtx, .room = &room, .err_msg = err_msg) &&
+        EMBED_CALL(cli_notebook_text.for_diff, CliNotebookTextCfg, .json = &room.json, .text = text, .size = size,
+                   .tokens = room.tokens, .tokens_most = room.tokens_most, .out = out, .err_msg = err_msg);
+    EMBED_CALL(book_room_free, ServeCallNotebookCtx, .room = &room);
     return done;
 }
 
-static int notebook_without_outputs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int notebook_without_outputs(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char full[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    const char *const text = notebook_file(args, full, &size, err_msg);
+    const char *const text = EMBED_CALL(notebook_file, ServeCallNotebookCtx, .request = arguments, .full = full,
+                                        .size_pointer = &size, .err_msg = err_msg);
     if (text == NULL)
     {
         return 0;
     }
     CliBookRoom room = {{0}, NULL, 0u, 0u, 0ull};
-    book_room_added(&room, text, size);
-    const int done = book_room_taken(&room, err_msg) &&
-                     cli_notebook_without_outputs(&room.json, text, size, room.tokens, room.tokens_most, out, err_msg);
-    book_room_given(&room);
+    EMBED_CALL(book_room_add, ServeCallNotebookCtx, .room = &room, .text = text, .size = size);
+    const int done = EMBED_CALL(book_room_take, ServeCallNotebookCtx, .room = &room, .err_msg = err_msg) &&
+                     EMBED_CALL(cli_notebook_text.without_outputs, CliNotebookTextCfg, .json = &room.json, .text = text,
+                                .size = size, .tokens = room.tokens, .tokens_most = room.tokens_most, .out = out,
+                                .err_msg = err_msg);
+    EMBED_CALL(book_room_free, ServeCallNotebookCtx, .room = &room);
     // the bytes were mapped from the text
-    cli_file_given((const unsigned char *)text, &g_cli_window_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = (const unsigned char *)text,
+               .owner = &g_cli_window_cells);
     return done;
 }
 
 // stage `stage` of a merge of the notebook `given` read into `text`, a line: 1, or 0 with why given
-static int notebook_stage(const char *root, const char *given, unsigned int stage, VerbaLinea *text,
-                          VerbaLinea *err_msg)
+EMBED_INLINE int notebook_stage(const ServeCallNotebookCtx *args)
 {
+    const char *root = args->root;
+    unsigned int stage = args->stage;
+    VerbaLinea *text = args->text_verba_linea_pointer;
     char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_STAGE_ROOM, &g_cli_window_cells);
     *text = mmgr_line_over(text_cell, CLI_SERVE_STAGE_ROOM);
-    if (!cli_git_stage_text(root, given, stage, text) || !mmgr_line_ok(text))
+    if (!EMBED_CALL(cli_git_root_file_stage.stage_text, CliGitRootFileStageCfg, .root = root, .file = args->given,
+                    .stage = stage, .out = text) ||
+        !mmgr_line_ok(text))
     {
-        mmgr_line_put(err_msg, given);
-        mmgr_line_put(err_msg, " contains no stage ");
-        mmgr_line_decimal(err_msg, stage, 1u);
-        mmgr_line_put(err_msg, " of a merge");
+        mmgr_line_put(args->err_msg, args->given);
+        mmgr_line_put(args->err_msg, " contains no stage ");
+        mmgr_line_decimal(args->err_msg, stage, 1u);
+        mmgr_line_put(args->err_msg, " of a merge");
         return 0;
     }
     return 1;
 }
 
 // the merge of the stages read into the room's tree and written into `out`: 1 where it is, else 0 with why given
-static int notebook_merged(CliBookRoom *room, const VerbaLinea *stages, int has_base, VerbaLinea *out,
-                           VerbaLinea *err_msg)
+EMBED_INLINE int notebook_on_merge(const ServeCallNotebookCtx *args)
 {
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char quiet[1024];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    unsigned int base = has_base ? cli_notebook_read(&room->json, "x.ipynb", stages[0].out, stages[0].at, room->tokens,
-                                                     room->tokens_most, &ignored)
-                                 : CLI_JSON_NONE;
+    unsigned int base =
+        args->has_base
+            ? EMBED_CALL(cli_notebook_path.read, CliNotebookPathCfg, .json = &args->room->json, .path = "x.ipynb",
+                         .text = args->stages[0].out, .size = args->stages[0].at, .tokens = args->room->tokens,
+                         .tokens_most = args->room->tokens_most, .err_msg = &ignored)
+            : CLI_JSON_NONE;
     if (base == CLI_JSON_NONE)
     {
-        base = cli_json_made(&room->json, CFG_JSON_OBJECT);
-        cli_json_set(&room->json, base, "cells", cli_json_made(&room->json, CFG_JSON_ARRAY));
+        base = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &args->room->json,
+                          .kind = CFG_JSON_OBJECT);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &args->room->json,
+                   .object = base, .name = "cells",
+                   .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &args->room->json,
+                                       .kind = CFG_JSON_ARRAY));
     }
-    const unsigned int ours = cli_notebook_read(&room->json, "x.ipynb", stages[1].out, stages[1].at, room->tokens,
-                                                room->tokens_most, err_msg);
-    const unsigned int theirs = (ours != CLI_JSON_NONE)
-                                    ? cli_notebook_read(&room->json, "x.ipynb", stages[2].out, stages[2].at,
-                                                        room->tokens, room->tokens_most, err_msg)
-                                    : CLI_JSON_NONE;
+    const unsigned int ours =
+        EMBED_CALL(cli_notebook_path.read, CliNotebookPathCfg, .json = &args->room->json, .path = "x.ipynb",
+                   .text = args->stages[1].out, .size = args->stages[1].at, .tokens = args->room->tokens,
+                   .tokens_most = args->room->tokens_most, .err_msg = err_msg);
+    const unsigned int theirs =
+        (ours != CLI_JSON_NONE)
+            ? EMBED_CALL(cli_notebook_path.read, CliNotebookPathCfg, .json = &args->room->json, .path = "x.ipynb",
+                         .text = args->stages[2].out, .size = args->stages[2].at, .tokens = args->room->tokens,
+                         .tokens_most = args->room->tokens_most, .err_msg = err_msg)
+            : CLI_JSON_NONE;
     if (theirs != CLI_JSON_NONE)
     {
-        cli_json_write(&room->json, cli_notebook_merge(&room->json, base, ours, theirs), out, 0u, 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &args->room->json,
+                   .node = EMBED_CALL(cli_notebook.merge, CliNotebookCfg, .json = &args->room->json, .base = base,
+                                      .ours = ours, .theirs = theirs),
+                   .out = out, .indent = 0u, .sorted = 0);
     }
     return theirs != CLI_JSON_NONE;
 }
 
-static int notebook_merge(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int notebook_merge(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const given = cli_serve_string(args, "path", err_msg);
-    if ((given == NULL) || !cli_serve_tree(root, err_msg))
+    const char *const given = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                         .key = "path", .err_msg = err_msg);
+    if ((given == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx,
+                                       .root = root, .err_msg = err_msg))
     {
         return 0;
     }
@@ -223,18 +312,24 @@ static int notebook_merge(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     VerbaLinea stages[3] = {{NULL, 0ull, 0ull, NULL, NULL, 0ull},
                             {NULL, 0ull, 0ull, NULL, NULL, 0ull},
                             {NULL, 0ull, 0ull, NULL, NULL, 0ull}};
-    const int has_base = notebook_stage(root, given, 1u, &stages[0], &ignored);
-    int read = notebook_stage(root, given, 2u, &stages[1], err_msg);
-    read = read && notebook_stage(root, given, 3u, &stages[2], err_msg);
+    const int has_base = EMBED_CALL(notebook_stage, ServeCallNotebookCtx, .root = root, .given = given, .stage = 1u,
+                                    .text_verba_linea_pointer = &stages[0], .err_msg = &ignored);
+    int read = EMBED_CALL(notebook_stage, ServeCallNotebookCtx, .root = root, .given = given, .stage = 2u,
+                          .text_verba_linea_pointer = &stages[1], .err_msg = err_msg);
+    read = read && EMBED_CALL(notebook_stage, ServeCallNotebookCtx, .root = root, .given = given, .stage = 3u,
+                              .text_verba_linea_pointer = &stages[2], .err_msg = err_msg);
     CliBookRoom room = {{0}, NULL, 0u, 0u, 0ull};
     // the merge contains the three sides and copies of their cells, a fourth reading
     for (unsigned int at = 0u; read && (at < 4u); at += 1u)
     {
         const unsigned int side = (at < 3u) ? at : 1u;
-        book_room_added(&room, stages[side].out, mmgr_line_ok(&stages[side]) ? stages[side].at : 0ull);
+        EMBED_CALL(book_room_add, ServeCallNotebookCtx, .room = &room, .text = stages[side].out,
+                   .size = mmgr_line_ok(&stages[side]) ? stages[side].at : 0ull);
     }
-    const int done = read && book_room_taken(&room, err_msg) && notebook_merged(&room, stages, has_base, out, err_msg);
-    book_room_given(&room);
+    const int done = read && EMBED_CALL(book_room_take, ServeCallNotebookCtx, .room = &room, .err_msg = err_msg) &&
+                     EMBED_CALL(notebook_on_merge, ServeCallNotebookCtx, .room = &room, .stages = stages,
+                                .has_base = has_base, .out = out, .err_msg = err_msg);
+    EMBED_CALL(book_room_free, ServeCallNotebookCtx, .room = &room);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         g_cli_cells->persistent_buf_release(stages[at].out, &g_cli_window_cells);

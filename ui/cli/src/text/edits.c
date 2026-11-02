@@ -16,41 +16,42 @@ static unsigned long long *s_byte;
 static unsigned int *s_order;
 static CliLock s_edits_lock = CLI_LOCK_INIT;
 
-void cli_text_place_written(CliTextPlace place, VerbaLinea *out)
+void cli_text_place_write(const CliEditsPlaceCfg *args)
 {
-    mmgr_line_put(out, "{\"line\":");
-    mmgr_line_decimal(out, place.line, 1u);
-    mmgr_line_put(out, ",\"col\":");
-    mmgr_line_decimal(out, place.col, 1u);
-    mmgr_line_ch(out, '}');
+    mmgr_line_put(args->out, "{\"line\":");
+    mmgr_line_decimal(args->out, args->place.line, 1u);
+    mmgr_line_put(args->out, ",\"col\":");
+    mmgr_line_decimal(args->out, args->place.col, 1u);
+    mmgr_line_ch(args->out, '}');
 }
 
-void cli_text_edit_written(const CliTextEdit *edit, VerbaLinea *out)
+void cli_text_edit_write(const CliEditsCfg *args)
 {
-    mmgr_line_put(out, "{\"from\":");
-    cli_text_place_written(edit->from, out);
-    mmgr_line_put(out, ",\"to\":");
-    cli_text_place_written(edit->to, out);
-    mmgr_line_put(out, ",\"text\":");
-    cli_json_quoted(out, edit->text, edit->size);
-    mmgr_line_ch(out, '}');
+    mmgr_line_put(args->out, "{\"from\":");
+    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg, .place = args->edit->from, .out = args->out);
+    mmgr_line_put(args->out, ",\"to\":");
+    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg, .place = args->edit->to, .out = args->out);
+    mmgr_line_put(args->out, ",\"text\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+               .text = args->edit->text, .length = args->edit->size);
+    mmgr_line_ch(args->out, '}');
 }
 
-unsigned long long cli_text_byte_of(const char *line, unsigned long long size, unsigned int col)
+unsigned long long cli_text_byte_get(const CliEditsLineCfg *args)
 {
     unsigned long long units = 0ull;
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ull; at < args->size;)
     {
-        if (units >= col)
+        if (units >= args->col)
         {
             return at;
         }
-        const unsigned char lead = (unsigned char)line[at];
+        const unsigned char lead = (unsigned char)args->line[at];
         const unsigned long long letter = (lead < 0xc0u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
         units += (letter == 4u) ? 2u : 1u;
         at += letter;
     }
-    return size;
+    return args->size;
 }
 
 // two places in the order of their lines
@@ -81,28 +82,35 @@ static int edits_by_span(const void *one, const void *other)
     return (left < right) ? -1 : (left > right) ? 1 : 0;
 }
 
-// each place's byte in `size` bytes of `text`, `count` places
-static void edits_bytes(const char *text, unsigned long long size, unsigned int count)
+typedef struct
 {
-    for (unsigned int at = 0u; at < count; at += 1u)
+    const char *text;
+    unsigned long long size;
+    unsigned int count;
+} EditsCtx;
+// each place's byte in `size` bytes of `text`, `count` places
+EMBED_INLINE void edits_bytes(const EditsCtx *args)
+{
+    unsigned long long size = args->size;
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         s_order[at] = at;
     }
-    qsort(s_order, count, sizeof(s_order[0]), edits_by_line);
+    qsort(s_order, args->count, sizeof(s_order[0]), edits_by_line);
     unsigned int line = 0u;
     unsigned long long start = 0ull;
     int beyond = 0;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const CliTextPlace place = s_place[s_order[at]];
         while (!beyond && (line < place.line))
         {
             const char *const newline =
                 (start < size)
-                    ? memor.chr(&(MemoriaCfg){.src = text + start, .val = '\n', .bytes = (size_t)(size - start)})
+                    ? memor.chr(&(MemoriaCfg){.src = args->text + start, .val = '\n', .bytes = (size_t)(size - start)})
                     : NULL;
             beyond = (newline == NULL);
-            start = beyond ? size : (unsigned long long)(newline - text) + 1u;
+            start = beyond ? size : (unsigned long long)(newline - args->text) + 1u;
             line += 1u;
         }
         if (beyond)
@@ -111,62 +119,63 @@ static void edits_bytes(const char *text, unsigned long long size, unsigned int 
             continue;
         }
         const char *const newline =
-            (start < size) ? memor.chr(&(MemoriaCfg){.src = text + start, .val = '\n', .bytes = (size_t)(size - start)})
-                           : NULL;
-        unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
-        if ((end > start) && (text[end - 1u] == '\r'))
+            (start < size)
+                ? memor.chr(&(MemoriaCfg){.src = args->text + start, .val = '\n', .bytes = (size_t)(size - start)})
+                : NULL;
+        unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - args->text) : size;
+        if ((end > start) && (args->text[end - 1u] == '\r'))
         {
             end -= 1u;
         }
-        s_byte[s_order[at]] = start + cli_text_byte_of(text + start, end - start, place.col);
+        s_byte[s_order[at]] = start + EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg,
+                                                 .line = args->text + start, .size = end - start, .col = place.col);
     }
 }
 
-int cli_text_applied(const char *text, unsigned long long size, const CliTextEdit *edits, unsigned int count,
-                     VerbaLinea *out)
+int cli_text_apply(const CliEditsOutCfg *args)
 {
-    if (count > CLI_TEXT_EDITS)
+    if (args->count > CLI_TEXT_EDITS)
     {
         return 0;
     }
     // the bytes first on the cell's boundary, then the places, then the order
-    const unsigned long long places = 2ull * count;
+    const unsigned long long places = 2ull * args->count;
     char *const cell = g_cli_cells->temporary_buf_alloc(
         (places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)), &g_cli_text_cells);
     if (cell == NULL)
     {
         return 0;
     }
-    cli_lock_take(&s_edits_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_edits_lock);
     s_byte = (unsigned long long *)(void *)cell;
     s_place = (CliTextPlace *)(void *)(s_byte + places + 1ull);
     s_order = (unsigned int *)(void *)(s_place + places + 1ull);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        s_place[2u * at] = edits[at].from;
-        s_place[(2u * at) + 1u] = edits[at].to;
+        s_place[2u * at] = args->edits[at].from;
+        s_place[(2u * at) + 1u] = args->edits[at].to;
     }
-    edits_bytes(text, size, 2u * count);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    EMBED_CALL(edits_bytes, EditsCtx, .text = args->text, .size = args->size, .count = 2u * args->count);
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         s_order[at] = at;
     }
-    qsort(s_order, count, sizeof(s_order[0]), edits_by_span);
+    qsort(s_order, args->count, sizeof(s_order[0]), edits_by_span);
     unsigned long long cursor = 0ull;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const unsigned int edit = s_order[at];
         const unsigned long long from = (s_byte[2u * edit] > cursor) ? s_byte[2u * edit] : cursor;
         const unsigned long long to = s_byte[(2u * edit) + 1u];
-        mmgr_line_put_n(out, text + cursor, from - cursor);
-        mmgr_line_put_n(out, edits[edit].text, edits[edit].size);
+        mmgr_line_put_n(args->out, args->text + cursor, from - cursor);
+        mmgr_line_put_n(args->out, args->edits[edit].text, args->edits[edit].size);
         cursor = (to > from) ? to : from;
     }
-    mmgr_line_put_n(out, text + cursor, size - cursor);
+    mmgr_line_put_n(args->out, args->text + cursor, args->size - cursor);
     s_byte = NULL;
     s_place = NULL;
     s_order = NULL;
-    cli_lock_give(&s_edits_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_edits_lock);
     g_cli_cells->persistent_buf_release(cell, &g_cli_text_cells);
     return 1;
 }

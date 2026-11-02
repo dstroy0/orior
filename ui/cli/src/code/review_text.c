@@ -17,24 +17,33 @@ typedef struct
     unsigned int most;
 } CliTextLines;
 
+typedef struct
+{
+    const char *text;
+    unsigned long long size;
+    CliTextLines *lines;
+} ReviewTextCtx;
 // the lines `size` bytes of `text` can contain, its newlines and one, up to CLI_REVIEW_LINES
-static unsigned int text_lines_most(const char *text, unsigned long long size)
+EMBED_INLINE unsigned int text_lines_most(const ReviewTextCtx *args)
 {
     unsigned int most = 1u;
-    for (unsigned long long at = 0ull; (at < size) && (most < CLI_REVIEW_LINES); at += 1ull)
+    for (unsigned long long at = 0ull; (at < args->size) && (most < CLI_REVIEW_LINES); at += 1ull)
     {
-        most += (text[at] == '\n') ? 1u : 0u;
+        most += (args->text[at] == '\n') ? 1u : 0u;
     }
     return most;
 }
 
 // a text's lines read, `size` bytes of it, up to the lines it has room for
-static void cli_lines_of(const char *text, unsigned long long size, CliTextLines *lines)
+EMBED_INLINE void cli_lines_get(const ReviewTextCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    CliTextLines *lines = args->lines;
     lines->lines = 0u;
     for (unsigned long long at = 0ull; (at < size) && (lines->lines < lines->most);)
     {
-        const CliTextLine bounds = cli_text_line_at(text, at, size);
+        const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size);
         const unsigned long long end = bounds.stop;
         unsigned long long length = end - at;
         length -= bounds.stop - bounds.cut;
@@ -46,15 +55,19 @@ static void cli_lines_of(const char *text, unsigned long long size, CliTextLines
     }
 }
 
-void cli_review_trimmed(const char **text, unsigned long long *length)
+void cli_review_trim(const CliReviewTextLengthKindCtx *args)
 {
+    const char **text = args->text_pointer;
+    unsigned long long *length = args->length_pointer;
     unsigned long long start = *length;
     unsigned long long end = 0ull;
     for (unsigned long long at = 0ull; at < *length;)
     {
         unsigned int letter = 0u;
-        const unsigned long long step = cli_lossy_letter((const unsigned char *)*text, *length, at, &letter);
-        if (!cli_fuzzy_white(letter))
+        const unsigned long long step =
+            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)*text, .length = *length, .at = at, .letter = &letter);
+        if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
         {
             start = (start == *length) ? at : start;
             end = at + step;
@@ -65,13 +78,16 @@ void cli_review_trimmed(const char **text, unsigned long long *length)
     *length = (start < end) ? (end - start) : 0ull;
 }
 
-int cli_review_share(const char *one, const char *other, unsigned long long *same, unsigned long long *longest)
+int cli_review_share(const CliReviewOneCtx *args)
 {
-    const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL});
+    const char *other = args->other;
+    unsigned long long *same = args->same;
+    unsigned long long *longest = args->longest;
+    const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_CELLS_POOL});
     const unsigned long long other_size = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_CELLS_POOL});
     // both texts' lines, and a mark for each of the first's that one of the second's contains, in one cell
-    const unsigned int one_most = text_lines_most(one, one_size);
-    const unsigned int other_most = text_lines_most(other, other_size);
+    const unsigned int one_most = EMBED_CALL(text_lines_most, ReviewTextCtx, .text = args->one, .size = one_size);
+    const unsigned int other_most = EMBED_CALL(text_lines_most, ReviewTextCtx, .text = other, .size = other_size);
     const unsigned long long words = (2ull * one_most) + (2ull * other_most);
     unsigned int *const cell =
         g_cli_cells->temporary_buf_alloc((words * sizeof(unsigned int)) + one_most, &g_cli_review_cells);
@@ -82,8 +98,8 @@ int cli_review_share(const char *one, const char *other, unsigned long long *sam
     CliTextLines first = {cell, cell + one_most, 0u, one_most};
     CliTextLines second = {cell + (2u * one_most), cell + (2u * one_most) + other_most, 0u, other_most};
     unsigned char *const used = (unsigned char *)(cell + words);
-    cli_lines_of(one, one_size, &first);
-    cli_lines_of(other, other_size, &second);
+    EMBED_CALL(cli_lines_get, ReviewTextCtx, .text = args->one, .size = one_size, .lines = &first);
+    EMBED_CALL(cli_lines_get, ReviewTextCtx, .text = other, .size = other_size, .lines = &second);
     *longest = (first.lines > second.lines) ? first.lines : second.lines;
     *same = 0ull;
     memor.set(&(MemoriaCfg){.dst = used, .val = 0, .bytes = first.lines});
@@ -91,12 +107,14 @@ int cli_review_share(const char *one, const char *other, unsigned long long *sam
     {
         const char *right_text = other + second.start[right];
         unsigned long long right_length = second.length[right];
-        cli_review_trimmed(&right_text, &right_length);
+        EMBED_CALL(cli_review_text_length_kind_internal.trim, CliReviewTextLengthKindCtx, .text_pointer = &right_text,
+                   .length_pointer = &right_length);
         for (unsigned int left = 0u; left < first.lines; left += 1u)
         {
-            const char *left_text = one + first.start[left];
+            const char *left_text = args->one + first.start[left];
             unsigned long long left_length = first.length[left];
-            cli_review_trimmed(&left_text, &left_length);
+            EMBED_CALL(cli_review_text_length_kind_internal.trim, CliReviewTextLengthKindCtx,
+                       .text_pointer = &left_text, .length_pointer = &left_length);
             if (!used[left] && (left_length == right_length) &&
                 (memor.cmp(&(MemoriaCfg){.src = left_text, .other = right_text, .bytes = left_length}) == 0))
             {
@@ -116,38 +134,42 @@ int cli_review_share(const char *one, const char *other, unsigned long long *sam
     return 1;
 }
 
-int cli_review_calls(const char *text, const char *name)
+int cli_review_calls(const CliReviewCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     if (length == 0ull)
     {
         return 0;
     }
-    for (const char *at = cellul.find(
-             &(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .other = name, .other_cap = CLI_CELLS_POOL});
+    for (const char *at = cellul.find(&(CatenaFinitaCfg){
+             .src = args->text, .cap = CLI_CELLS_POOL, .other = args->name, .other_cap = CLI_CELLS_POOL});
          at != NULL; at = cellul.find(&(CatenaFinitaCfg){
-                         .src = at + 1, .cap = CLI_CELLS_POOL, .other = name, .other_cap = CLI_CELLS_POOL}))
+                         .src = at + 1, .cap = CLI_CELLS_POOL, .other = args->name, .other_cap = CLI_CELLS_POOL}))
     {
         // the letter before the name, read back to where it starts
         const char *before = at;
-        while ((before > text) && ((((unsigned char)before[-1]) & 0xc0u) == 0x80u))
+        while ((before > args->text) && ((((unsigned char)before[-1]) & 0xc0u) == 0x80u))
         {
             before -= 1;
         }
         unsigned int letter = 0u;
         int joined = 0;
-        if (before > text)
+        if (before > args->text)
         {
             before -= 1;
-            cli_lossy_letter((const unsigned char *)before, (unsigned long long)(at - before), 0ull, &letter);
-            joined = cli_hit_wordy(letter);
+            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)before, .length = (unsigned long long)(at - before),
+                       .at = 0ull, .letter = &letter);
+            joined = EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = letter);
         }
         const char *after = at + length;
         unsigned long long rest = cellul.len(&(CatenaFinitaCfg){.src = after, .cap = CLI_CELLS_POOL});
         while (rest > 0ull)
         {
-            const unsigned long long step = cli_lossy_letter((const unsigned char *)after, rest, 0ull, &letter);
-            if (!cli_fuzzy_white(letter))
+            const unsigned long long step =
+                EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                           .text_bytes = (const unsigned char *)after, .length = rest, .at = 0ull, .letter = &letter);
+            if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
             {
                 break;
             }

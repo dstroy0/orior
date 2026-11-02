@@ -10,7 +10,7 @@
 // an own entry that is an include and not a rule: the top bit set on its name's text
 #define CLI_INCLUDE_MARK 0x80000000u
 
-// the room the grammar under way is read into, the one the keeper handed the read
+// the room the grammar under way is read into, the one the store handed the read
 static CliGrammarRoom *s_read;
 
 // 1 where what is read does not fit the room
@@ -21,218 +21,293 @@ static int s_full;
 static unsigned int s_brackets;
 static char s_bracket_name[CLI_NAME_MAX_LEN];
 
-// the name of a bracket's token, written into `out`, followed by `.` and `role` where `role` is not empty
-static void cli_bracket_named(const char *role, char *out)
+typedef struct
 {
-    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
+    const char *role;
+    char *out;
+    CliGrammar *grammar;
+    const char *text;
+    unsigned long long length;
+    int lower;
+    const char *name;
+    unsigned int kind;
+    unsigned int name_u32;
+    unsigned int place;
+    const char *key;
+    unsigned long long size;
+    const CliJson *json;
+    unsigned int item;
+    const char **pair;
+    unsigned long long *first;
+    unsigned long long *second;
+    unsigned int value;
+    unsigned int *token;
+    VerbaLinea *err_msg;
+    CliHighlightRule *rule;
+    unsigned int *own;
+    unsigned int state;
+    unsigned int *seen;
+    unsigned int depth;
+    unsigned int def;
+    const CliGrammar *grammar_read;
+    unsigned int node;
+    unsigned int indent;
+} HighlightCtx;
+// the name of a bracket's token, written into `out`, followed by `.` and `role` where `role` is not empty
+EMBED_INLINE void cli_bracket_by_name(const HighlightCtx *args)
+{
+    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put(&line, s_bracket_name);
-    if (role[0] != '\0')
+    if (args->role[0] != '\0')
     {
         mmgr_line_ch(&line, '.');
-        mmgr_line_put(&line, role);
+        mmgr_line_put(&line, args->role);
     }
     (void)mmgr_line_finish(&line);
 }
 
 // `length` bytes of `text` put among the grammar's texts, lower case where `lower` is 1: where they start
-static unsigned int cli_text(CliGrammar *grammar, const char *text, unsigned long long length, int lower)
+EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
 {
+    const char *text = args->text;
     unsigned int letters[CLI_NAME_MAX_LEN];
-    const unsigned long long count = cli_regexp_letters(text, length, letters, CLI_NAME_MAX_LEN);
-    VerbaLinea line = {grammar->text + grammar->text_size, s_read->text_most - grammar->text_size, 0ull};
-    if (lower && (count < CLI_NAME_MAX_LEN))
+    const unsigned long long count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text,
+                                                .size = args->length, .letters = letters, .room_u64 = CLI_NAME_MAX_LEN);
+    VerbaLinea line = {args->grammar->text + args->grammar->text_size, s_read->text_most - args->grammar->text_size,
+                       0ull};
+    if (args->lower && (count < CLI_NAME_MAX_LEN))
     {
         for (unsigned long long at = 0ull; at < count; at += 1ull)
         {
-            cli_utf8_put(&line, cli_regexp_lower(letters[at]));
+            EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line,
+                       .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letters[at]));
         }
     }
     else
     {
-        mmgr_line_put_n(&line, text, length);
+        mmgr_line_put_n(&line, text, args->length);
     }
     if (!mmgr_line_ok(&line))
     {
         s_full = 1;
         return 0u;
     }
-    const unsigned int at = grammar->text_size;
+    const unsigned int at = args->grammar->text_size;
     // the texts are below the room's text_most, which an unsigned int counts
-    grammar->text_size += (unsigned int)mmgr_line_finish(&line) + 1u;
+    args->grammar->text_size += (unsigned int)mmgr_line_finish(&line) + 1u;
     return at;
 }
 
 // The place of a token's name among the names, added where it is new; a bracket's name is the grammar's bracket name
-static unsigned int cli_name_of(CliGrammar *grammar, const char *name)
+EMBED_INLINE unsigned int cli_name_get(const HighlightCtx *args)
 {
-    const char *const named = (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "@brackets", .cap = CLI_CELLS_POOL}))
-                                  ? s_bracket_name
-                                  : name;
-    for (unsigned int at = 0u; at < grammar->names; at += 1u)
+    const char *const named =
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "@brackets", .cap = CLI_CELLS_POOL})) ? s_bracket_name
+                                                                                                        : args->name;
+    for (unsigned int at = 0u; at < args->grammar->names; at += 1u)
     {
-        if (cellul.eq(
-                &(CatenaFinitaCfg){.src = grammar->text + grammar->name[at], .other = named, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){
+                .src = args->grammar->text + args->grammar->name[at], .other = named, .cap = CLI_CELLS_POOL}))
         {
             return at;
         }
     }
-    if (grammar->names >= s_read->names_most)
+    if (args->grammar->names >= s_read->names_most)
     {
         s_full = 1;
         return 0u;
     }
-    grammar->name[grammar->names] =
-        cli_text(grammar, named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), 0);
-    grammar->names += 1u;
-    return grammar->names - 1u;
+    args->grammar->name[args->grammar->names] =
+        EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = named,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), .lower = 0);
+    args->grammar->names += 1u;
+    return args->grammar->names - 1u;
 }
 
-static unsigned int cli_token_made(CliGrammar *grammar, unsigned int kind, unsigned int name)
+EMBED_INLINE unsigned int cli_token_init(const HighlightCtx *args)
 {
-    if (grammar->tokens >= s_read->tokens_most)
+    if (args->grammar->tokens >= s_read->tokens_most)
     {
         s_full = 1;
         return CLI_HIGHLIGHT_NONE;
     }
-    const CliHighlightToken token = {kind, name, 0u, 0u};
-    grammar->token[grammar->tokens] = token;
-    grammar->tokens += 1u;
-    return grammar->tokens - 1u;
+    const CliHighlightToken token = {args->kind, args->name_u32, 0u, 0u};
+    args->grammar->token[args->grammar->tokens] = token;
+    args->grammar->tokens += 1u;
+    return args->grammar->tokens - 1u;
 }
 
 // a case put at `place` among the grammar's cases: `size` bytes of `key` naming `name`
-static void cli_case_put(CliGrammar *grammar, unsigned int place, const char *key, unsigned long long size,
-                         const char *name)
+EMBED_INLINE void cli_case_put(const HighlightCtx *args)
 {
-    const CliHighlightCase entry = {cli_text(grammar, key, size, 0),
-                                    cli_token_made(grammar, CLI_TOKEN_NAME, cli_name_of(grammar, name)),
+    const CliHighlightCase entry = {EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = args->key,
+                                               .length = args->size, .lower = 0),
+                                    EMBED_CALL(cli_token_init, HighlightCtx, .grammar = args->grammar,
+                                               .kind = CLI_TOKEN_NAME, .name_u32 = cli_name_get(args)),
                                     CLI_HIGHLIGHT_NONE, 0};
-    grammar->cases[place] = entry;
+    args->grammar->cases[args->place] = entry;
 }
 
 // the pair at `item` of the grammar's brackets, `*pair`, and the bytes its first letter takes, `*first`, and its
 // second,
 // `*second`: 1 where it is two letters that differ, else 0
-static int cli_pair_split(const CliJson *json, unsigned int item, const char **pair, unsigned long long *first,
-                          unsigned long long *second)
+EMBED_INLINE int cli_pair_split(const HighlightCtx *args)
 {
+    const CliJson *json = args->json;
+    const char **pair = args->pair;
+    unsigned long long *first = args->first;
+    unsigned long long *second = args->second;
     unsigned long long size = 0ull;
-    *pair = cli_json_string(json, item, &size);
+    *pair = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = args->item, .length_pointer = &size);
     unsigned int opens = 0u;
     unsigned int closes = 0u;
-    *first = (*pair != NULL) ? cli_lossy_letter((const unsigned char *)*pair, size, 0ull, &opens) : 0ull;
-    *second = (*first < size) ? cli_lossy_letter((const unsigned char *)*pair, size, *first, &closes) : 0ull;
+    *first = (*pair != NULL)
+                 ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                              .text_bytes = (const unsigned char *)*pair, .length = size, .at = 0ull, .letter = &opens)
+                 : 0ull;
+    *second = (*first < size) ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                           .text_bytes = (const unsigned char *)*pair, .length = size, .at = *first,
+                                           .letter = &closes)
+                              : 0ull;
     return ((*first + *second) == size) && (*second != 0ull) && (opens != closes);
 }
 
 // the token `@brackets` names: a bracket the grammar's brackets give as a pair's first letter the grammar's bracket
 // name with `.open`, one they give as its second that name with `.close`, and any other that name, the name alone
 // where no pair of two letters of its own gives one
-static unsigned int cli_brackets_token(CliGrammar *grammar, const CliJson *json)
+EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
 {
+    const CliJson *json = args->json;
     char opens[CLI_NAME_MAX_LEN];
     char closes[CLI_NAME_MAX_LEN];
-    cli_bracket_named("open", opens);
-    cli_bracket_named("close", closes);
-    const unsigned int listed =
-        cli_json_is(json, s_brackets, CFG_JSON_ARRAY) ? json->node[s_brackets].first : CLI_JSON_NONE;
+    EMBED_CALL(cli_bracket_by_name, HighlightCtx, .role = "open", .out = opens);
+    EMBED_CALL(cli_bracket_by_name, HighlightCtx, .role = "close", .out = closes);
+    const unsigned int listed = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                           .node = s_brackets, .kind = CFG_JSON_ARRAY)
+                                    ? json->node[s_brackets].first
+                                    : CLI_JSON_NONE;
     unsigned int pairs = 0u;
     for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
     {
         const char *pair = NULL;
         unsigned long long first = 0ull;
         unsigned long long second = 0ull;
-        pairs += cli_pair_split(json, item, &pair, &first, &second) ? 1u : 0u;
+        pairs += EMBED_CALL(cli_pair_split, HighlightCtx, .json = json, .item = item, .pair = &pair, .first = &first,
+                            .second = &second)
+                     ? 1u
+                     : 0u;
     }
     if (pairs == 0u)
     {
-        return cli_token_made(grammar, CLI_TOKEN_NAME, cli_name_of(grammar, s_bracket_name));
+        return EMBED_CALL(cli_token_init, HighlightCtx, .grammar = args->grammar, .kind = CLI_TOKEN_NAME,
+                          .name_u32 =
+                              EMBED_CALL(cli_name_get, HighlightCtx, .grammar = args->grammar, .name = s_bracket_name));
     }
-    const unsigned int made = cli_token_made(grammar, CLI_TOKEN_CASES, 0u);
+    const unsigned int made =
+        EMBED_CALL(cli_token_init, HighlightCtx, .grammar = args->grammar, .kind = CLI_TOKEN_CASES, .name_u32 = 0u);
     const unsigned int count = (2u * pairs) + 1u;
-    if ((made == CLI_HIGHLIGHT_NONE) || ((grammar->case_count + count) > s_read->tokens_most))
+    if ((made == CLI_HIGHLIGHT_NONE) || ((args->grammar->case_count + count) > s_read->tokens_most))
     {
         s_full = 1;
         return made;
     }
-    const unsigned int first_case = grammar->case_count;
-    grammar->case_count += count;
-    grammar->token[made].first = first_case;
-    grammar->token[made].count = count;
+    const unsigned int first_case = args->grammar->case_count;
+    args->grammar->case_count += count;
+    args->grammar->token[made].first = first_case;
+    args->grammar->token[made].count = count;
     unsigned int place = first_case;
     for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
     {
         const char *pair = NULL;
         unsigned long long first = 0ull;
         unsigned long long second = 0ull;
-        if (!cli_pair_split(json, item, &pair, &first, &second))
+        if (!EMBED_CALL(cli_pair_split, HighlightCtx, .json = json, .item = item, .pair = &pair, .first = &first,
+                        .second = &second))
         {
             continue;
         }
-        cli_case_put(grammar, place, pair, first, opens);
-        cli_case_put(grammar, place + 1u, pair + first, second, closes);
+        EMBED_CALL(cli_case_put, HighlightCtx, .grammar = args->grammar, .place = place, .key = pair, .size = first,
+                   .name = opens);
+        EMBED_CALL(cli_case_put, HighlightCtx, .grammar = args->grammar, .place = place + 1u, .key = pair + first,
+                   .size = second, .name = closes);
         place += 2u;
     }
-    cli_case_put(grammar, place, "@default", 8ull, s_bracket_name);
+    EMBED_CALL(cli_case_put, HighlightCtx, .grammar = args->grammar, .place = place, .key = "@default", .size = 8ull,
+               .name = s_bracket_name);
     return made;
 }
 
 // the token a value writes into `token`, none for null: 1, or 0 with why given
-static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int value, unsigned int *token,
-                        VerbaLinea *err_msg)
+static int cli_token_get(const HighlightCtx *args)
 {
+    const CliJson *json = args->json;
+    unsigned int *token = args->token;
     *token = CLI_HIGHLIGHT_NONE;
-    if ((value == CLI_JSON_NONE) || cli_json_is(json, value, CFG_JSON_NULL))
+    if ((args->value == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                     .json_read = json, .node = args->value, .kind = CFG_JSON_NULL))
     {
         return 1;
     }
-    const char *const name = cli_json_string(json, value, NULL);
+    const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                        .json_read = json, .node = args->value, .length_pointer = NULL);
     if ((name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "@brackets", .cap = CLI_CELLS_POOL}))
     {
-        *token = cli_brackets_token(grammar, json);
+        *token = EMBED_CALL(cli_brackets_token, HighlightCtx, .grammar = args->grammar, .json = json);
         return 1;
     }
     if (name != NULL)
     {
-        *token = cli_token_made(grammar, CLI_TOKEN_NAME, cli_name_of(grammar, name));
+        *token = EMBED_CALL(cli_token_init, HighlightCtx, .grammar = args->grammar, .kind = CLI_TOKEN_NAME,
+                            .name_u32 = EMBED_CALL(cli_name_get, HighlightCtx, .grammar = args->grammar, .name = name));
         return 1;
     }
-    const unsigned int cases = cli_json_member(json, value, "cases");
-    const int grouped = cli_json_is(json, value, CFG_JSON_ARRAY);
-    if (!grouped && !cli_json_is(json, cases, CFG_JSON_OBJECT))
+    const unsigned int cases = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->value, .name = "cases");
+    const int grouped = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                   .node = args->value, .kind = CFG_JSON_ARRAY);
+    if (!grouped && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                .node = cases, .kind = CFG_JSON_OBJECT))
     {
-        mmgr_line_put(err_msg, "a token that is neither a name, a list nor cases");
+        mmgr_line_put(args->err_msg, "a token that is neither a name, a list nor cases");
         return 0;
     }
-    const unsigned int list = grouped ? value : cases;
+    const unsigned int list = grouped ? args->value : cases;
     const unsigned int count = json->node[list].count;
-    const unsigned int made = cli_token_made(grammar, grouped ? CLI_TOKEN_GROUPS : CLI_TOKEN_CASES, 0u);
-    if ((made == CLI_HIGHLIGHT_NONE) || ((grammar->case_count + count) > s_read->tokens_most))
+    const unsigned int made = EMBED_CALL(cli_token_init, HighlightCtx, .grammar = args->grammar,
+                                         .kind = grouped ? CLI_TOKEN_GROUPS : CLI_TOKEN_CASES, .name_u32 = 0u);
+    if ((made == CLI_HIGHLIGHT_NONE) || ((args->grammar->case_count + count) > s_read->tokens_most))
     {
         s_full = 1;
         return 1;
     }
     // the range of the cases placed first, so the tokens under them go after it
-    const unsigned int first = grammar->case_count;
-    grammar->case_count += count;
-    grammar->token[made].first = first;
-    grammar->token[made].count = count;
+    const unsigned int first = args->grammar->case_count;
+    args->grammar->case_count += count;
+    args->grammar->token[made].first = first;
+    args->grammar->token[made].count = count;
     unsigned int place = first;
     for (unsigned int child = json->node[list].first; child != CLI_JSON_NONE; child = json->node[child].next)
     {
         unsigned int inner = CLI_HIGHLIGHT_NONE;
-        if (!cli_token_of(grammar, json, child, &inner, err_msg))
+        if (!EMBED_CALL(cli_token_get, HighlightCtx, .grammar = args->grammar, .json = json, .value = child,
+                        .token = &inner, .err_msg = args->err_msg))
         {
             return 0;
         }
         const char *const key = grouped ? NULL : (json->text + json->node[child].key);
         const unsigned int key_text =
-            (key != NULL) ? cli_text(grammar, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}), 0)
-                          : CLI_HIGHLIGHT_NONE;
-        const CliHighlightCase entry = {
-            key_text, (inner != CLI_HIGHLIGHT_NONE) ? inner : cli_token_made(grammar, CLI_TOKEN_NAME, 0u),
-            CLI_HIGHLIGHT_NONE, 0};
-        grammar->cases[place] = entry;
+            (key != NULL)
+                ? EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = key,
+                             .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}), .lower = 0)
+                : CLI_HIGHLIGHT_NONE;
+        const CliHighlightCase entry = {key_text,
+                                        (inner != CLI_HIGHLIGHT_NONE)
+                                            ? inner
+                                            : EMBED_CALL(cli_token_init, HighlightCtx, .grammar = args->grammar,
+                                                         .kind = CLI_TOKEN_NAME, .name_u32 = 0u),
+                                        CLI_HIGHLIGHT_NONE, 0};
+        args->grammar->cases[place] = entry;
         place += 1u;
     }
     *token = made;
@@ -240,20 +315,30 @@ static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int v
 }
 
 // a rule's pattern read, its arrays put after the grammar's: 1, or 0 with why given
-static int cli_pattern_of(CliGrammar *grammar, const CliJson *json, unsigned int value, CliHighlightRule *rule,
-                          VerbaLinea *err_msg)
+static int cli_pattern_get(const HighlightCtx *args)
 {
-    const char *source = cli_json_string(json, value, NULL);
+    const CliJson *json = args->json;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *source = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                                    .node = args->value, .length_pointer = NULL);
     const char *flags = "";
-    if ((source == NULL) && cli_json_is(json, value, CFG_JSON_OBJECT))
+    if ((source == NULL) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                       .node = args->value, .kind = CFG_JSON_OBJECT))
     {
-        source = cli_json_string(json, cli_json_member(json, value, "pattern"), NULL);
+        source = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = json, .object = args->value, .name = "pattern"),
+                            .length_pointer = NULL);
         if (source == NULL)
         {
             mmgr_line_put(err_msg, "a pattern with no source");
             return 0;
         }
-        const char *const given = cli_json_string(json, cli_json_member(json, value, "flags"), NULL);
+        const char *const given =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->value, .name = "flags"),
+                       .length_pointer = NULL);
         flags = (given != NULL) ? given : "";
     }
     else if (source == NULL)
@@ -262,64 +347,74 @@ static int cli_pattern_of(CliGrammar *grammar, const CliJson *json, unsigned int
         return 0;
     }
     CliRegexp read;
-    cli_regexp_roomed(&read, s_read->pattern);
-    if (!cli_regexp_read(&read, source, flags, err_msg))
+    EMBED_CALL(cli_regexp_room.room, CliRegexpRoomCfg, .regexp_out = &read, .room = s_read->pattern);
+    if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &read, .source = source, .flags = flags,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    if (((grammar->nodes + read.nodes) > s_read->nodes_most) || ((grammar->items + read.items) > s_read->items_most) ||
-        ((grammar->parts + read.parts) > s_read->parts_most))
+    if (((args->grammar->nodes + read.nodes) > s_read->nodes_most) ||
+        ((args->grammar->items + read.items) > s_read->items_most) ||
+        ((args->grammar->parts + read.parts) > s_read->parts_most))
     {
         s_full = 1;
         return 1;
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = grammar->node + grammar->nodes, .src = read.node, .bytes = read.nodes * sizeof(read.node[0])});
-    memor.cpy(&(MemoriaCfg){
-        .dst = grammar->item + grammar->items, .src = read.item, .bytes = read.items * sizeof(read.item[0])});
-    memor.cpy(&(MemoriaCfg){
-        .dst = grammar->part + grammar->parts, .src = read.part, .bytes = read.parts * sizeof(read.part[0])});
-    memor.cpy(&(MemoriaCfg){.dst = grammar->part_first + grammar->parts,
+    memor.cpy(&(MemoriaCfg){.dst = args->grammar->node + args->grammar->nodes,
+                            .src = read.node,
+                            .bytes = read.nodes * sizeof(read.node[0])});
+    memor.cpy(&(MemoriaCfg){.dst = args->grammar->item + args->grammar->items,
+                            .src = read.item,
+                            .bytes = read.items * sizeof(read.item[0])});
+    memor.cpy(&(MemoriaCfg){.dst = args->grammar->part + args->grammar->parts,
+                            .src = read.part,
+                            .bytes = read.parts * sizeof(read.part[0])});
+    memor.cpy(&(MemoriaCfg){.dst = args->grammar->part_first + args->grammar->parts,
                             .src = read.part_first,
                             .bytes = read.parts * sizeof(read.part_first[0])});
-    rule->node_first = grammar->nodes;
-    rule->nodes = read.nodes;
-    rule->item_first = grammar->items;
-    rule->items = read.items;
-    rule->part_first = grammar->parts;
-    rule->parts = read.parts;
-    rule->root = read.root;
-    rule->groups = read.groups;
-    rule->fold = read.fold;
-    rule->first = read.first;
-    rule->anchored = read.anchored;
-    grammar->nodes += read.nodes;
-    grammar->items += read.items;
-    grammar->parts += read.parts;
+    args->rule->node_first = args->grammar->nodes;
+    args->rule->nodes = read.nodes;
+    args->rule->item_first = args->grammar->items;
+    args->rule->items = read.items;
+    args->rule->part_first = args->grammar->parts;
+    args->rule->parts = read.parts;
+    args->rule->root = read.root;
+    args->rule->groups = read.groups;
+    args->rule->fold = read.fold;
+    args->rule->first = read.first;
+    args->rule->anchored = read.anchored;
+    args->grammar->nodes += read.nodes;
+    args->grammar->items += read.items;
+    args->grammar->parts += read.parts;
     return 1;
 }
 
-void cli_highlight_pattern(const CliGrammar *grammar, const CliHighlightRule *rule, CliRegexp *pattern)
+void cli_highlight_pattern(const CliHighlightCtx *args)
 {
-    pattern->node = grammar->node + rule->node_first;
-    pattern->nodes = rule->nodes;
-    pattern->item = grammar->item + rule->item_first;
-    pattern->items = rule->items;
-    pattern->part = grammar->part + rule->part_first;
-    pattern->part_first = grammar->part_first + rule->part_first;
-    pattern->parts = rule->parts;
-    pattern->root = rule->root;
-    pattern->groups = rule->groups;
-    pattern->fold = rule->fold;
-    pattern->first = rule->first;
-    pattern->anchored = rule->anchored;
+    args->pattern->node = args->grammar->node + args->rule->node_first;
+    args->pattern->nodes = args->rule->nodes;
+    args->pattern->item = args->grammar->item + args->rule->item_first;
+    args->pattern->items = args->rule->items;
+    args->pattern->part = args->grammar->part + args->rule->part_first;
+    args->pattern->part_first = args->grammar->part_first + args->rule->part_first;
+    args->pattern->parts = args->rule->parts;
+    args->pattern->root = args->rule->root;
+    args->pattern->groups = args->rule->groups;
+    args->pattern->fold = args->rule->fold;
+    args->pattern->first = args->rule->first;
+    args->pattern->anchored = args->rule->anchored;
 }
 
 // one rule of a state read: an include, or a pattern with its token and the state it goes to. 1, or 0 with why given
-static int cli_rule_read(CliGrammar *grammar, const CliJson *json, unsigned int value, unsigned int *own,
-                         VerbaLinea *err_msg)
+EMBED_INLINE int cli_rule_read(const HighlightCtx *args)
 {
-    const char *const included = cli_json_string(json, cli_json_member(json, value, "include"), NULL);
+    const CliJson *json = args->json;
+    unsigned int *own = args->own;
+    const char *const included =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->value, .name = "include"),
+                   .length_pointer = NULL);
     if (*own >= s_read->own_most)
     {
         s_full = 1;
@@ -329,90 +424,110 @@ static int cli_rule_read(CliGrammar *grammar, const CliJson *json, unsigned int 
     {
         const char *const name = (included[0] == '@') ? (included + 1) : included;
         s_read->own[*own] =
-            cli_text(grammar, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), 0) |
+            EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = name,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .lower = 0) |
             CLI_INCLUDE_MARK;
         *own += 1u;
         return 1;
     }
-    if (!cli_json_is(json, value, CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->value,
+                    .kind = CFG_JSON_ARRAY))
     {
-        mmgr_line_put(err_msg, "a rule that is no list");
+        mmgr_line_put(args->err_msg, "a rule that is no list");
         return 0;
     }
-    const unsigned int pattern = cli_json_item(json, value, 0u);
+    const unsigned int pattern = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                            .json_read = json, .array = args->value, .index = 0u);
     if (pattern == CLI_JSON_NONE)
     {
-        mmgr_line_put(err_msg, "a rule with no pattern");
+        mmgr_line_put(args->err_msg, "a rule with no pattern");
         return 0;
     }
-    if (grammar->rules >= s_read->rules_most)
+    if (args->grammar->rules >= s_read->rules_most)
     {
         s_full = 1;
         return 1;
     }
-    CliHighlightRule *const rule = &grammar->rule[grammar->rules];
-    if (!cli_pattern_of(grammar, json, pattern, rule, err_msg))
+    CliHighlightRule *const rule = &args->grammar->rule[args->grammar->rules];
+    if (!EMBED_CALL(cli_pattern_get, HighlightCtx, .grammar = args->grammar, .json = json, .value = pattern,
+                    .rule = rule, .err_msg = args->err_msg))
     {
         return 0;
     }
-    const unsigned int action = cli_json_item(json, value, 1u);
-    const int own_next =
-        cli_json_is(json, action, CFG_JSON_OBJECT) && (cli_json_member(json, action, "cases") == CLI_JSON_NONE);
-    const unsigned int token = own_next ? cli_json_member(json, action, "token") : action;
+    const unsigned int action = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                           .json_read = json, .array = args->value, .index = 1u);
+    const int own_next = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                    .node = action, .kind = CFG_JSON_OBJECT) &&
+                         (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                     .object = action, .name = "cases") == CLI_JSON_NONE);
+    const unsigned int token = own_next ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                     .json_read = json, .object = action, .name = "token")
+                                        : action;
     const char *const next =
-        cli_json_string(json, own_next ? cli_json_member(json, action, "next") : cli_json_item(json, value, 2u), NULL);
-    if (!cli_token_of(grammar, json, token, &rule->token, err_msg))
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = own_next ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                 .json_read = json, .object = action, .name = "next")
+                                    : EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                                 .json_read = json, .array = args->value, .index = 2u),
+                   .length_pointer = NULL);
+    if (!EMBED_CALL(cli_token_get, HighlightCtx, .grammar = args->grammar, .json = json, .value = token,
+                    .token = &rule->token, .err_msg = args->err_msg))
     {
         return 0;
     }
-    rule->next = (next != NULL)
-                     ? cli_text(grammar, next, cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}), 0)
-                     : CLI_HIGHLIGHT_NONE;
-    s_read->own[*own] = grammar->rules;
+    rule->next =
+        (next != NULL)
+            ? EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = next,
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}), .lower = 0)
+            : CLI_HIGHLIGHT_NONE;
+    s_read->own[*own] = args->grammar->rules;
     *own += 1u;
-    grammar->rules += 1u;
+    args->grammar->rules += 1u;
     return 1;
 }
 
 // A state's rules with each include read in its place, a state included within itself once
-static void cli_expanded(CliGrammar *grammar, unsigned int state, unsigned int *seen, unsigned int depth)
+static void cli_on_expand(const HighlightCtx *args)
 {
-    const CliHighlightList *const own = &s_read->own_state[state];
+    const CliHighlightList *const own = &s_read->own_state[args->state];
     for (unsigned int at = own->first; at < (own->first + own->count); at += 1u)
     {
         const unsigned int entry = s_read->own[at];
         if ((entry & CLI_INCLUDE_MARK) == 0u)
         {
-            if (grammar->listed_count >= s_read->listed_most)
+            if (args->grammar->listed_count >= s_read->listed_most)
             {
                 s_full = 1;
                 return;
             }
-            grammar->listed[grammar->listed_count] = entry;
-            grammar->listed_count += 1u;
+            args->grammar->listed[args->grammar->listed_count] = entry;
+            args->grammar->listed_count += 1u;
             continue;
         }
-        const char *const name = grammar->text + (entry & ~CLI_INCLUDE_MARK);
+        const char *const name = args->grammar->text + (entry & ~CLI_INCLUDE_MARK);
         int already = 0;
-        for (unsigned int each = 0u; each < depth; each += 1u)
+        for (unsigned int each = 0u; each < args->depth; each += 1u)
         {
-            already = already || (cellul.eq(&(CatenaFinitaCfg){
-                                     .src = grammar->text + seen[each], .other = name, .cap = CLI_CELLS_POOL}));
+            already =
+                already || (cellul.eq(&(CatenaFinitaCfg){
+                               .src = args->grammar->text + args->seen[each], .other = name, .cap = CLI_CELLS_POOL}));
         }
         unsigned int included = CLI_HIGHLIGHT_NONE;
-        for (unsigned int each = 0u; each < grammar->states; each += 1u)
+        for (unsigned int each = 0u; each < args->grammar->states; each += 1u)
         {
-            included = (cellul.eq(&(CatenaFinitaCfg){
-                           .src = grammar->text + s_read->own_state[each].name, .other = name, .cap = CLI_CELLS_POOL}))
-                           ? each
-                           : included;
+            included =
+                (cellul.eq(&(CatenaFinitaCfg){
+                    .src = args->grammar->text + s_read->own_state[each].name, .other = name, .cap = CLI_CELLS_POOL}))
+                    ? each
+                    : included;
         }
-        if (!already && (depth < CLI_GRAMMAR_DEPTH))
+        if (!already && (args->depth < CLI_GRAMMAR_DEPTH))
         {
-            seen[depth] = entry & ~CLI_INCLUDE_MARK;
+            args->seen[args->depth] = entry & ~CLI_INCLUDE_MARK;
             if (included != CLI_HIGHLIGHT_NONE)
             {
-                cli_expanded(grammar, included, seen, depth + 1u);
+                EMBED_CALL(cli_on_expand, HighlightCtx, .grammar = args->grammar, .state = included, .seen = args->seen,
+                           .depth = args->depth + 1u);
             }
         }
     }
@@ -420,35 +535,41 @@ static void cli_expanded(CliGrammar *grammar, unsigned int state, unsigned int *
 
 // the words of each member of the grammar that is a list, each once, lower case where the grammar ignores case, in
 // order so a word is found by halves
-static void cli_words_read(CliGrammar *grammar, const CliJson *json, unsigned int def)
+EMBED_INLINE void cli_words_read(const HighlightCtx *args)
 {
-    for (unsigned int member = json->node[def].first; member != CLI_JSON_NONE; member = json->node[member].next)
+    const CliJson *json = args->json;
+    for (unsigned int member = json->node[args->def].first; member != CLI_JSON_NONE; member = json->node[member].next)
     {
-        if ((json->node[member].kind != CFG_JSON_ARRAY) || (grammar->word_lists >= s_read->word_lists_most))
+        if ((json->node[member].kind != CFG_JSON_ARRAY) || (args->grammar->word_lists >= s_read->word_lists_most))
         {
             continue;
         }
         const char *const name = json->text + json->node[member].key;
-        CliHighlightList *const list = &grammar->words[grammar->word_lists];
-        list->name = cli_text(grammar, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), 0);
-        list->first = grammar->word_count;
+        CliHighlightList *const list = &args->grammar->words[args->grammar->word_lists];
+        list->name =
+            EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = name,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .lower = 0);
+        list->first = args->grammar->word_count;
         list->count = 0u;
         for (unsigned int item = json->node[member].first; item != CLI_JSON_NONE; item = json->node[item].next)
         {
             unsigned long long length = 0ull;
-            const char *const word = cli_json_string(json, item, &length);
-            if ((word == NULL) || (grammar->word_count >= s_read->words_most))
+            const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                .json_read = json, .node = item, .length_pointer = &length);
+            if ((word == NULL) || (args->grammar->word_count >= s_read->words_most))
             {
                 continue;
             }
-            const unsigned int text = cli_text(grammar, word, length, grammar->ignore_case);
+            const unsigned int text = EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = word,
+                                                 .length = length, .lower = args->grammar->ignore_case);
             // put in its place among the list's words, none twice
             unsigned int place = list->count;
             int twice = 0;
             while ((place > 0u) && !twice)
             {
-                const int order =
-                    cli_text_order(grammar->text + grammar->word[list->first + place - 1u], grammar->text + text);
+                const int order = EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                             .one = args->grammar->text + args->grammar->word[list->first + place - 1u],
+                                             .other_pointer = args->grammar->text + text);
                 twice = order == 0;
                 if (order <= 0)
                 {
@@ -462,66 +583,89 @@ static void cli_words_read(CliGrammar *grammar, const CliJson *json, unsigned in
             }
             for (unsigned int at = list->count; at > place; at -= 1u)
             {
-                grammar->word[list->first + at] = grammar->word[list->first + at - 1u];
+                args->grammar->word[list->first + at] = args->grammar->word[list->first + at - 1u];
             }
-            grammar->word[list->first + place] = text;
+            args->grammar->word[list->first + place] = text;
             list->count += 1u;
-            grammar->word_count += 1u;
+            args->grammar->word_count += 1u;
         }
-        grammar->word_lists += 1u;
+        args->grammar->word_lists += 1u;
     }
 }
 
 // the place among the grammar's states of the state the JSON string `node` names, none where it names none
-static unsigned int cli_state_named(const CliGrammar *grammar, const CliJson *json, unsigned int node)
+EMBED_INLINE unsigned int cli_state_by_name(const HighlightCtx *args)
 {
+    const CliGrammar *grammar = args->grammar_read;
+    const CliJson *json = args->json;
+    unsigned int node = args->node;
     unsigned long long length = 0ull;
-    const char *const name = cli_json_string(json, node, &length);
-    return (name != NULL) ? cli_highlight_state(grammar, name, length) : CLI_HIGHLIGHT_NONE;
+    const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                        .json_read = json, .node = node, .length_pointer = &length);
+    return (name != NULL) ? EMBED_CALL(cli_highlight_name_internal.state, CliHighlightNameCtx, .grammar = grammar,
+                                       .name = name, .length = length)
+                          : CLI_HIGHLIGHT_NONE;
 }
 
 // the grammar's `indent` at `indent` read, none where it has none: each state it runs with the name its close takes,
 // the columns a tab reaches to the next multiple of, the pattern of a line it passes over as a rule of no state, and
 // the states a line begun with on top begins a statement. 1, or 0 with why given
-static int cli_indent_read(CliGrammar *grammar, const CliJson *json, unsigned int indent, VerbaLinea *err_msg)
+EMBED_INLINE int cli_indent_read(const HighlightCtx *args)
 {
+    CliGrammar *grammar = args->grammar;
+    const CliJson *json = args->json;
     grammar->tab = 1u;
     grammar->skip = CLI_HIGHLIGHT_NONE;
-    const unsigned int states = cli_json_member(json, indent, "states");
-    const unsigned int named = cli_json_is(json, states, CFG_JSON_OBJECT) ? json->node[states].first : CLI_JSON_NONE;
+    const unsigned int states = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = args->indent, .name = "states");
+    const unsigned int named = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                          .node = states, .kind = CFG_JSON_OBJECT)
+                                   ? json->node[states].first
+                                   : CLI_JSON_NONE;
     for (unsigned int member = named; member != CLI_JSON_NONE; member = json->node[member].next)
     {
         const char *const state = json->text + json->node[member].key;
-        const char *const close = cli_json_string(json, member, NULL);
+        const char *const close = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                             .json_read = json, .node = member, .length_pointer = NULL);
         const unsigned int at =
-            cli_highlight_state(grammar, state, cellul.len(&(CatenaFinitaCfg){.src = state, .cap = CLI_CELLS_POOL}));
+            EMBED_CALL(cli_highlight_name_internal.state, CliHighlightNameCtx, .grammar = grammar, .name = state,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = state, .cap = CLI_CELLS_POOL}));
         if ((close != NULL) && (at != CLI_HIGHLIGHT_NONE))
         {
-            grammar->state[at].close = cli_name_of(grammar, close);
+            grammar->state[at].close = EMBED_CALL(cli_name_get, HighlightCtx, .grammar = grammar, .name = close);
             grammar->indents = 1;
         }
     }
-    const unsigned int begins = cli_json_member(json, indent, "begins");
-    const unsigned int listed = cli_json_is(json, begins, CFG_JSON_ARRAY) ? json->node[begins].first : CLI_JSON_NONE;
+    const unsigned int begins = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = args->indent, .name = "begins");
+    const unsigned int listed = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                           .node = begins, .kind = CFG_JSON_ARRAY)
+                                    ? json->node[begins].first
+                                    : CLI_JSON_NONE;
     for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
     {
-        const unsigned int at = cli_state_named(grammar, json, item);
+        const unsigned int at =
+            EMBED_CALL(cli_state_by_name, HighlightCtx, .grammar_read = grammar, .json = json, .node = item);
         if (at != CLI_HIGHLIGHT_NONE)
         {
             grammar->state[at].begins = 1;
         }
     }
-    const unsigned int tab = cli_json_member(json, indent, "tab");
+    const unsigned int tab = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = args->indent, .name = "tab");
     unsigned int columns = 0u;
-    for (unsigned long long digit = 0ull; cli_json_is(json, tab, CFG_JSON_NUMBER) && (digit < json->node[tab].length) &&
-                                          (json->text[json->node[tab].text + digit] >= '0') &&
-                                          (json->text[json->node[tab].text + digit] <= '9') && (columns < 1000u);
+    for (unsigned long long digit = 0ull;
+         EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = tab,
+                    .kind = CFG_JSON_NUMBER) &&
+         (digit < json->node[tab].length) && (json->text[json->node[tab].text + digit] >= '0') &&
+         (json->text[json->node[tab].text + digit] <= '9') && (columns < 1000u);
          digit += 1ull)
     {
         columns = (columns * 10u) + (unsigned int)(json->text[json->node[tab].text + digit] - '0');
     }
     grammar->tab = (columns != 0u) ? columns : 1u;
-    const unsigned int skip = cli_json_member(json, indent, "skip");
+    const unsigned int skip = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                         .object = args->indent, .name = "skip");
     if (!grammar->indents || (skip == CLI_JSON_NONE))
     {
         return 1;
@@ -532,7 +676,8 @@ static int cli_indent_read(CliGrammar *grammar, const CliJson *json, unsigned in
         return 1;
     }
     CliHighlightRule *const rule = &grammar->rule[grammar->rules];
-    if (!cli_pattern_of(grammar, json, skip, rule, err_msg))
+    if (!EMBED_CALL(cli_pattern_get, HighlightCtx, .grammar = grammar, .json = json, .value = skip, .rule = rule,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
@@ -543,35 +688,48 @@ static int cli_indent_read(CliGrammar *grammar, const CliJson *json, unsigned in
     return 1;
 }
 
-int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *room, CliGrammar *grammar,
-                       VerbaLinea *err_msg)
+int cli_highlight_read(const CliHighlightJsonCtx *args)
 {
-    if (!cli_json_is(json, def, CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = args->def,
+                    .kind = CFG_JSON_OBJECT))
     {
-        mmgr_line_put(err_msg, "a grammar that is no object");
+        mmgr_line_put(args->err_msg, "a grammar that is no object");
         return 0;
     }
-    s_read = room;
-    memor.set(&(MemoriaCfg){.dst = grammar, .val = 0, .bytes = sizeof(*grammar)});
-    grammar->node = room->node;
-    grammar->item = room->item;
-    grammar->part = room->part;
-    grammar->part_first = room->part_first;
-    grammar->rule = room->rule;
-    grammar->token = room->token;
-    grammar->cases = room->cases;
-    grammar->listed = room->listed;
-    grammar->state = room->state;
-    grammar->word = room->word;
-    grammar->words = room->words;
-    grammar->name = room->name;
-    grammar->text = room->text;
+    s_read = args->room_grammar_room_pointer;
+    memor.set(&(MemoriaCfg){.dst = args->grammar_out, .val = 0, .bytes = sizeof(*args->grammar_out)});
+    args->grammar_out->node = args->room_grammar_room_pointer->node;
+    args->grammar_out->item = args->room_grammar_room_pointer->item;
+    args->grammar_out->part = args->room_grammar_room_pointer->part;
+    args->grammar_out->part_first = args->room_grammar_room_pointer->part_first;
+    args->grammar_out->rule = args->room_grammar_room_pointer->rule;
+    args->grammar_out->token = args->room_grammar_room_pointer->token;
+    args->grammar_out->cases = args->room_grammar_room_pointer->cases;
+    args->grammar_out->listed = args->room_grammar_room_pointer->listed;
+    args->grammar_out->state = args->room_grammar_room_pointer->state;
+    args->grammar_out->word = args->room_grammar_room_pointer->word;
+    args->grammar_out->words = args->room_grammar_room_pointer->words;
+    args->grammar_out->name = args->room_grammar_room_pointer->name;
+    args->grammar_out->text = args->room_grammar_room_pointer->text;
     s_full = 0;
-    grammar->ignore_case = cli_json_is(json, cli_json_member(json, def, "ignoreCase"), CFG_JSON_TRUE);
-    grammar->per_line = cli_json_is(json, cli_json_member(json, def, "perLine"), CFG_JSON_TRUE);
-    s_brackets = cli_json_member(json, def, "brackets");
+    args->grammar_out->ignore_case =
+        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                      .object = args->def, .name = "ignoreCase"),
+                   .kind = CFG_JSON_TRUE);
+    args->grammar_out->per_line =
+        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                      .object = args->def, .name = "perLine"),
+                   .kind = CFG_JSON_TRUE);
+    s_brackets = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                            .object = args->def, .name = "brackets");
     unsigned long long bracket_size = 0ull;
-    const char *const bracket_name = cli_json_string(json, cli_json_member(json, def, "bracketToken"), &bracket_size);
+    const char *const bracket_name =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                      .object = args->def, .name = "bracketToken"),
+                   .length_pointer = &bracket_size);
     VerbaLinea bracket_line = {s_bracket_name, sizeof(s_bracket_name), 0ull};
     if ((bracket_name != NULL) && (bracket_size != 0ull))
     {
@@ -582,65 +740,76 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
         mmgr_line_put(&bracket_line, "delimiter.bracket");
     }
     (void)mmgr_line_finish(&bracket_line);
-    cli_words_read(grammar, json, def);
-    const unsigned int tokenizer = cli_json_member(json, def, "tokenizer");
-    if (!cli_json_is(json, tokenizer, CFG_JSON_OBJECT))
+    EMBED_CALL(cli_words_read, HighlightCtx, .grammar = args->grammar_out, .json = args->json, .def = args->def);
+    const unsigned int tokenizer = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = args->json, .object = args->def, .name = "tokenizer");
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = tokenizer,
+                    .kind = CFG_JSON_OBJECT))
     {
-        mmgr_line_put(err_msg, "a grammar with no tokenizer");
+        mmgr_line_put(args->err_msg, "a grammar with no tokenizer");
         return 0;
     }
-    grammar->name[0] = cli_text(grammar, "", 0u, 0);
-    grammar->names = 1u;
+    args->grammar_out->name[0] =
+        EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar_out, .text = "", .length = 0u, .lower = 0);
+    args->grammar_out->names = 1u;
     unsigned int own = 0u;
-    for (unsigned int state = json->node[tokenizer].first; state != CLI_JSON_NONE; state = json->node[state].next)
+    for (unsigned int state = args->json->node[tokenizer].first; state != CLI_JSON_NONE;
+         state = args->json->node[state].next)
     {
-        if (!cli_json_is(json, state, CFG_JSON_ARRAY))
+        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = state,
+                        .kind = CFG_JSON_ARRAY))
         {
-            mmgr_line_put(err_msg, "a state that is no list");
+            mmgr_line_put(args->err_msg, "a state that is no list");
             return 0;
         }
-        if (grammar->states >= s_read->states_most)
+        if (args->grammar_out->states >= s_read->states_most)
         {
             s_full = 1;
             break;
         }
-        const char *const name = json->text + json->node[state].key;
-        CliHighlightList *const entry = &s_read->own_state[grammar->states];
-        entry->name = cli_text(grammar, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), 0);
+        const char *const name = args->json->text + args->json->node[state].key;
+        CliHighlightList *const entry = &s_read->own_state[args->grammar_out->states];
+        entry->name =
+            EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar_out, .text = name,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .lower = 0);
         entry->first = own;
-        for (unsigned int rule = json->node[state].first; rule != CLI_JSON_NONE; rule = json->node[rule].next)
+        for (unsigned int rule = args->json->node[state].first; rule != CLI_JSON_NONE;
+             rule = args->json->node[rule].next)
         {
-            if (!cli_rule_read(grammar, json, rule, &own, err_msg))
+            if (!EMBED_CALL(cli_rule_read, HighlightCtx, .grammar = args->grammar_out, .json = args->json,
+                            .value = rule, .own = &own, .err_msg = args->err_msg))
             {
                 return 0;
             }
         }
         entry->count = own - entry->first;
-        grammar->states += 1u;
+        args->grammar_out->states += 1u;
     }
-    for (unsigned int state = 0u; state < grammar->states; state += 1u)
+    for (unsigned int state = 0u; state < args->grammar_out->states; state += 1u)
     {
         unsigned int seen[CLI_GRAMMAR_DEPTH];
         seen[0] = s_read->own_state[state].name;
-        grammar->state[state].name = s_read->own_state[state].name;
-        grammar->state[state].close = CLI_HIGHLIGHT_NONE;
-        grammar->state[state].begins = 0;
-        grammar->state[state].first = grammar->listed_count;
-        cli_expanded(grammar, state, seen, 1u);
-        grammar->state[state].count = grammar->listed_count - grammar->state[state].first;
+        args->grammar_out->state[state].name = s_read->own_state[state].name;
+        args->grammar_out->state[state].close = CLI_HIGHLIGHT_NONE;
+        args->grammar_out->state[state].begins = 0;
+        args->grammar_out->state[state].first = args->grammar_out->listed_count;
+        EMBED_CALL(cli_on_expand, HighlightCtx, .grammar = args->grammar_out, .state = state, .seen = seen,
+                   .depth = 1u);
+        args->grammar_out->state[state].count = args->grammar_out->listed_count - args->grammar_out->state[state].first;
         // the letters a rule of the state that colors or changes the state starts at, each such rule's first letters
         // joined, and whether any takes nothing; a rule with the plain token and no next is a skip, which a stride over
         // its letters as plain is the same as, and it joins nothing
-        CliRegexpFirst *const starts = &grammar->state[state].starts;
+        CliRegexpFirst *const starts = &args->grammar_out->state[state].starts;
         starts->ascii[0] = 0ull;
         starts->ascii[1] = 0ull;
         starts->other = 0;
         starts->empty = 0;
-        for (unsigned int each = 0u; each < grammar->state[state].count; each += 1u)
+        for (unsigned int each = 0u; each < args->grammar_out->state[state].count; each += 1u)
         {
-            const CliHighlightRule *const rule = &grammar->rule[grammar->listed[grammar->state[state].first + each]];
+            const CliHighlightRule *const rule =
+                &args->grammar_out->rule[args->grammar_out->listed[args->grammar_out->state[state].first + each]];
             const CliHighlightToken *const token =
-                (rule->token != CLI_HIGHLIGHT_NONE) ? &grammar->token[rule->token] : NULL;
+                (rule->token != CLI_HIGHLIGHT_NONE) ? &args->grammar_out->token[rule->token] : NULL;
             const int plain = (token == NULL) || ((token->kind == CLI_TOKEN_NAME) && (token->name == 0u));
             if (plain && (rule->next == CLI_HIGHLIGHT_NONE) && !rule->first.empty)
             {
@@ -654,24 +823,30 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
         // the ASCII letters among them as the table the colorer's stride reads, one byte a letter
         for (unsigned int byte = 0u; byte < 128u; byte += 1u)
         {
-            grammar->state[state].starts_at[byte] = (unsigned char)((starts->ascii[byte / 64u] >> (byte % 64u)) & 1ull);
+            args->grammar_out->state[state].starts_at[byte] =
+                (unsigned char)((starts->ascii[byte / 64u] >> (byte % 64u)) & 1ull);
         }
     }
-    if (!cli_indent_read(grammar, json, cli_json_member(json, def, "indent"), err_msg))
+    if (!EMBED_CALL(cli_indent_read, HighlightCtx, .grammar = args->grammar_out, .json = args->json,
+                    .indent = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                         .json_read = args->json, .object = args->def, .name = "indent"),
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
     // each case's text read once here: `@default` is the fallback, and a text starting with `@` names a word list
-    for (unsigned int at = 0u; at < grammar->case_count; at += 1u)
+    for (unsigned int at = 0u; at < args->grammar_out->case_count; at += 1u)
     {
-        CliHighlightCase *const entry = &grammar->cases[at];
-        const char *const key = (entry->key != CLI_HIGHLIGHT_NONE) ? grammar->text + entry->key : "";
+        CliHighlightCase *const entry = &args->grammar_out->cases[at];
+        const char *const key = (entry->key != CLI_HIGHLIGHT_NONE) ? args->grammar_out->text + entry->key : "";
         entry->fallback = cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "@default", .cap = CLI_CELLS_POOL});
         entry->list = CLI_HIGHLIGHT_NONE;
-        for (unsigned int list = 0u; !entry->fallback && (key[0] == '@') && (list < grammar->word_lists); list += 1u)
+        for (unsigned int list = 0u; !entry->fallback && (key[0] == '@') && (list < args->grammar_out->word_lists);
+             list += 1u)
         {
-            if (cellul.eq(&(CatenaFinitaCfg){
-                    .src = grammar->text + grammar->words[list].name, .other = key + 1, .cap = CLI_CELLS_POOL}))
+            if (cellul.eq(&(CatenaFinitaCfg){.src = args->grammar_out->text + args->grammar_out->words[list].name,
+                                             .other = key + 1,
+                                             .cap = CLI_CELLS_POOL}))
             {
                 entry->list = list;
                 break;
@@ -680,7 +855,7 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
     }
     if (s_full)
     {
-        mmgr_line_put(err_msg, "a grammar that contains more than a grammar is read into");
+        mmgr_line_put(args->err_msg, "a grammar that contains more than a grammar is read into");
         return 0;
     }
     return 1;

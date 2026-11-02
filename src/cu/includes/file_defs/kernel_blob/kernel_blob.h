@@ -6,6 +6,8 @@
 #ifndef KERNEL_BLOB_H
 #define KERNEL_BLOB_H
 
+#include <assert.h>
+
 // the record's name the vendor's writer appends the kernel under
 #define KERNEL_BLOB_NAME "kernel_blob"
 
@@ -22,6 +24,6 @@ typedef struct
     unsigned int place;
 } KernelBlobHead;
 
-_Static_assert(sizeof(KernelBlobHead) == 16u, "KernelBlobHead must be the 16 bytes a kernel's blob opens with");
+static_assert(sizeof(KernelBlobHead) == 16u, "KernelBlobHead must be the 16 bytes a kernel's blob opens with");
 
 #endif

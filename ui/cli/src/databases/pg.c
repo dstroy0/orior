@@ -11,191 +11,212 @@
 static CliPg *s_links[CLI_PG_LINKS];
 static CliLock s_links_lock = CLI_LOCK_INIT;
 
-// `size` bytes read whole off the connection, through its room: 1, or 0 where it broke
-static int pg_read(CliPg *pg, unsigned char *out, unsigned long long size)
+typedef struct
 {
-    for (unsigned long long at = 0ull; at < size;)
+    CliPg *pg;
+    unsigned char *out;
+    unsigned long long size;
+} PgCtx;
+// `size` bytes read whole off the connection, through its room: 1, or 0 where it broke
+EMBED_INLINE int pg_read(const PgCtx *args)
+{
+    for (unsigned long long at = 0ull; at < args->size;)
     {
-        if (pg->start == pg->end)
+        if (args->pg->start == args->pg->end)
         {
-            const long long got = cli_socket_some(&pg->socket, pg->in, sizeof(pg->in));
+            const long long got = EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &args->pg->socket,
+                                             .bytes_out = args->pg->in, .room = sizeof(args->pg->in));
             if (got <= 0ll)
             {
                 return 0;
             }
-            pg->start = 0ull;
-            pg->end = (unsigned long long)got;
+            args->pg->start = 0ull;
+            args->pg->end = (unsigned long long)got;
         }
-        const unsigned long long have = pg->end - pg->start;
-        const unsigned long long piece = (have < size - at) ? have : size - at;
-        if (out != NULL)
+        const unsigned long long have = args->pg->end - args->pg->start;
+        const unsigned long long piece = (have < args->size - at) ? have : args->size - at;
+        if (args->out != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = out + at, .src = pg->in + pg->start, .bytes = (size_t)piece});
+            memor.cpy(
+                &(MemoriaCfg){.dst = args->out + at, .src = args->pg->in + args->pg->start, .bytes = (size_t)piece});
         }
-        pg->start += piece;
+        args->pg->start += piece;
         at += piece;
     }
     return 1;
 }
 
-int cli_pg_message(CliPg *pg, unsigned char *kind, CliDbFailure *failure)
+int cli_pg_message(const CliPgKindCtx *args)
 {
+    unsigned char *kind = args->kind;
+    CliDbFailure *failure = args->failure;
     unsigned char head[5];
-    if (!pg_read(pg, head, sizeof(head)))
+    if (!EMBED_CALL(pg_read, PgCtx, .pg = args->pg, .out = head, .size = sizeof(head)))
     {
-        cli_db_failure_set(failure, "the connection broke: the server closed it or did not answer");
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                   .message = "the connection broke: the server closed it or did not answer");
         return 0;
     }
     const unsigned long long length = ((unsigned long long)head[1] << 24u) | ((unsigned long long)head[2] << 16u) |
                                       ((unsigned long long)head[3] << 8u) | (unsigned long long)head[4];
     const unsigned long long size = (length > 4ull) ? length - 4ull : 0ull;
-    if (size > sizeof(pg->message))
+    if (size > sizeof(args->pg->message))
     {
         // a message past the room is read past, so that the connection reads on from the next
-        (void)pg_read(pg, NULL, size);
+        (void)EMBED_CALL(pg_read, PgCtx, .pg = args->pg, .out = NULL, .size = size);
         char msg_buf[160];
         VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
         mmgr_line_put(&line, "a message of ");
         mmgr_line_decimal(&line, size, 1u);
         mmgr_line_put(&line, " bytes is past the room orior_cli reads one in");
         mmgr_line_finish(&line);
-        cli_db_failure_set(failure, msg_buf);
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = msg_buf);
         return 0;
     }
-    if (!pg_read(pg, pg->message, size))
+    if (!EMBED_CALL(pg_read, PgCtx, .pg = args->pg, .out = args->pg->message, .size = size))
     {
-        cli_db_failure_set(failure, "the connection broke: the server closed it or did not answer");
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                   .message = "the connection broke: the server closed it or did not answer");
         return 0;
     }
     *kind = head[0];
-    pg->size = size;
+    args->pg->size = size;
     return 1;
 }
 
-int cli_pg_sent(CliPg *pg, unsigned char kind, const void *const *parts, const unsigned long long *sizes,
-                unsigned int count, CliDbFailure *failure)
+int cli_pg_send(const CliPgFailureKindCtx *args)
 {
+    CliDbFailure *failure = args->failure;
     unsigned long long length = 4ull;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        length += sizes[at];
+        length += args->sizes[at];
     }
-    const unsigned char head[5] = {kind, (unsigned char)((length >> 24u) & 0xffu),
+    const unsigned char head[5] = {args->kind_value, (unsigned char)((length >> 24u) & 0xffu),
                                    (unsigned char)((length >> 16u) & 0xffu), (unsigned char)((length >> 8u) & 0xffu),
                                    (unsigned char)(length & 0xffu)};
-    int sent = cli_socket_written(&pg->socket, head, sizeof(head));
-    for (unsigned int at = 0u; sent && (at < count); at += 1u)
+    int sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->pg->socket,
+                          .bytes = head, .size = sizeof(head));
+    for (unsigned int at = 0u; sent && (at < args->count); at += 1u)
     {
-        sent = cli_socket_written(&pg->socket, parts[at], sizes[at]);
+        sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->pg->socket,
+                          .bytes = args->parts[at], .size = args->sizes[at]);
     }
     if (!sent)
     {
-        cli_db_failure_set(failure, "the connection broke: the server closed it");
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                   .message = "the connection broke: the server closed it");
     }
     return sent;
 }
 
-void cli_pg_failure_of(const unsigned char *body, unsigned long long size, CliDbFailure *failure)
+void cli_pg_failure_get(const CliPgCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = failure, .val = 0, .bytes = sizeof(*failure)});
-    for (unsigned long long at = 0ull; at < size;)
+    memor.set(&(MemoriaCfg){.dst = args->failure, .val = 0, .bytes = sizeof(*args->failure)});
+    for (unsigned long long at = 0ull; at < args->size;)
     {
         const unsigned char *const nul =
-            memor.chr(&(MemoriaCfg){.src = body + at, .val = 0, .bytes = (size_t)(size - at)});
-        const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - body) : size;
+            memor.chr(&(MemoriaCfg){.src = args->body + at, .val = 0, .bytes = (size_t)(args->size - at)});
+        const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - args->body) : args->size;
         if (end > at)
         {
-            char *const field = (body[at] == 'M')   ? failure->message
-                                : (body[at] == 'C') ? failure->code
-                                : (body[at] == 'D') ? failure->detail
-                                : (body[at] == 'H') ? failure->hint
-                                                    : NULL;
-            const unsigned long long room = (body[at] == 'C') ? sizeof(failure->code) : sizeof(failure->message);
+            char *const field = (args->body[at] == 'M')   ? args->failure->message
+                                : (args->body[at] == 'C') ? args->failure->code
+                                : (args->body[at] == 'D') ? args->failure->detail
+                                : (args->body[at] == 'H') ? args->failure->hint
+                                                          : NULL;
+            const unsigned long long room =
+                (args->body[at] == 'C') ? sizeof(args->failure->code) : sizeof(args->failure->message);
             if (field != NULL)
             {
                 VerbaLinea line = {field, room, 0ull};
-                cli_lossy(&line, body + at + 1u, end - at - 1u);
+                EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
+                           .text_bytes = args->body + at + 1u, .length = end - at - 1u);
                 mmgr_line_finish(&line);
             }
-            if (body[at] == 'P')
+            if (args->body[at] == 'P')
             {
                 // the place, where the field is a number alone, else 0
                 unsigned long long value = 0ull;
                 int whole = (end > at + 1u) && (end - at - 1u <= 19ull);
                 for (unsigned long long digit = at + 1u; whole && (digit < end); digit += 1ull)
                 {
-                    whole = (body[digit] >= '0') && (body[digit] <= '9');
-                    value = (value * 10ull) + (unsigned long long)(body[digit] - '0');
+                    whole = (args->body[digit] >= '0') && (args->body[digit] <= '9');
+                    value = (value * 10ull) + (unsigned long long)(args->body[digit] - '0');
                 }
-                failure->position = whole ? value : 0ull;
+                args->failure->position = whole ? value : 0ull;
             }
         }
         at = end + 1ull;
     }
 }
 
-void cli_pg_parameter_stored(CliPg *pg, const unsigned char *body, unsigned long long size)
+void cli_pg_parameter_store(const CliPgBodyCtx *args)
 {
-    const unsigned char *const nul = memor.chr(&(MemoriaCfg){.src = body, .val = 0, .bytes = (size_t)size});
-    if ((nul == NULL) || (pg->parameters == CLI_PG_PARAMETERS))
+    const unsigned char *const nul = memor.chr(&(MemoriaCfg){.src = args->body, .val = 0, .bytes = (size_t)args->size});
+    if ((nul == NULL) || (args->pg->parameters == CLI_PG_PARAMETERS))
     {
         return;
     }
-    const unsigned long long key = (unsigned long long)(nul - body);
+    const unsigned long long key = (unsigned long long)(nul - args->body);
     const unsigned char *const value = nul + 1;
     const unsigned char *const value_end =
-        memor.chr(&(MemoriaCfg){.src = value, .val = 0, .bytes = (size_t)(size - key - 1u)});
+        memor.chr(&(MemoriaCfg){.src = value, .val = 0, .bytes = (size_t)(args->size - key - 1u)});
     const unsigned long long value_size =
-        (value_end != NULL) ? (unsigned long long)(value_end - value) : size - key - 1u;
-    unsigned int place = pg->parameters;
-    for (unsigned int at = 0u; at < pg->parameters; at += 1u)
+        (value_end != NULL) ? (unsigned long long)(value_end - value) : args->size - key - 1u;
+    unsigned int place = args->pg->parameters;
+    for (unsigned int at = 0u; at < args->pg->parameters; at += 1u)
     {
-        place = ((cellul.len(&(CatenaFinitaCfg){.src = pg->names[at], .cap = CLI_CELLS_POOL}) == key) &&
-                 (memor.cmp(&(MemoriaCfg){.src = pg->names[at], .other = body, .bytes = (size_t)key}) == 0))
+        place = ((cellul.len(&(CatenaFinitaCfg){.src = args->pg->names[at], .cap = CLI_CELLS_POOL}) == key) &&
+                 (memor.cmp(&(MemoriaCfg){.src = args->pg->names[at], .other = args->body, .bytes = (size_t)key}) == 0))
                     ? at
                     : place;
     }
-    VerbaLinea name = {pg->names[place], CLI_PG_PARAMETER, 0ull};
-    cli_lossy(&name, body, key);
+    VerbaLinea name = {args->pg->names[place], CLI_PG_PARAMETER, 0ull};
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &name, .text_bytes = args->body,
+               .length = key);
     mmgr_line_finish(&name);
-    VerbaLinea value_line = {pg->values[place], CLI_PG_PARAMETER, 0ull};
-    cli_lossy(&value_line, value, value_size);
+    VerbaLinea value_line = {args->pg->values[place], CLI_PG_PARAMETER, 0ull};
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &value_line, .text_bytes = value,
+               .length = value_size);
     mmgr_line_finish(&value_line);
-    pg->parameters += (place == pg->parameters) ? 1u : 0u;
+    args->pg->parameters += (place == args->pg->parameters) ? 1u : 0u;
 }
 
-void cli_pg_notice_stored(CliPg *pg)
+void cli_pg_notice_store(const CliPgFailurePasswordCtx *args)
 {
     CliDbFailure notice;
-    cli_pg_failure_of(pg->message, pg->size, &notice);
-    if (pg->notice_count < CLI_PG_NOTICES)
+    EMBED_CALL(cli_pg_internal.failure_get, CliPgCtx, .body = args->pg->message, .size = args->pg->size,
+               .failure = &notice);
+    if (args->pg->notice_count < CLI_PG_NOTICES)
     {
-        VerbaLinea line = {pg->notices[pg->notice_count], CLI_PG_NOTICE, 0ull};
-        cli_db_failure_written(&notice, &line);
+        VerbaLinea line = {args->pg->notices[args->pg->notice_count], CLI_PG_NOTICE, 0ull};
+        EMBED_CALL(cli_db_wire_out.db_failure_write, CliDbWireOutCfg, .failure_read = &notice, .out = &line);
         mmgr_line_finish(&line);
-        pg->notice_count += 1u;
+        args->pg->notice_count += 1u;
     }
 }
 
-CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, const char *password,
-                        const char *database, unsigned long long wait, CliDbFailure *failure)
+CliPg *cli_pg_connect(const CliPgHostCfg *args)
 {
+    CliDbFailure *failure = args->failure;
     char address[CLI_NAME_MAX_LEN + 16u];
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     VerbaLinea named = {address, sizeof(address), 0ull};
-    mmgr_line_put(&named, host);
+    mmgr_line_put(&named, args->host);
     mmgr_line_ch(&named, ':');
-    mmgr_line_decimal(&named, port, 1u);
+    mmgr_line_decimal(&named, args->port, 1u);
     mmgr_line_finish(&named);
-    if (!cli_net_reach(address, "a PostgreSQL connection", &err_msg))
+    if (!EMBED_CALL(cli_net_address.reach, CliNetAddressCfg, .address = address, .purpose = "a PostgreSQL connection",
+                    .err_msg = &err_msg))
     {
         mmgr_line_finish(&err_msg);
-        cli_db_failure_set(failure, why);
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = why);
         return NULL;
     }
     CliPg *pg = NULL;
-    cli_lock_take(&s_links_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
     unsigned int at = 0u;
     while ((at < CLI_PG_LINKS) && (s_links[at] != NULL))
     {
@@ -207,10 +228,11 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
         pg->place = at;
         s_links[at] = pg;
     }
-    cli_lock_give(&s_links_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
     if (pg == NULL)
     {
-        cli_db_failure_set(failure, "orior_cli has as many PostgreSQL connections as it can");
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                   .message = "orior_cli has as many PostgreSQL connections as it can");
         return NULL;
     }
     pg->start = 0ull;
@@ -222,41 +244,45 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
     pg->reading = 0;
     pg->has_failed = 0;
     // the wait is at most what a socket's wait counts, in milliseconds
-    const unsigned int within = (wait > 0xffffffffull) ? 0xffffffffu : (unsigned int)wait;
-    if (!cli_socket_connected_within(&pg->socket, host, port, within, &err_msg))
+    const unsigned int within = (args->wait > 0xffffffffull) ? 0xffffffffu : (unsigned int)args->wait;
+    if (!EMBED_CALL(cli_err_msg_internal.socket_connected_within, CliErrMsgCtx, .sock_out = &pg->socket,
+                    .host = args->host, .port = args->port, .milliseconds = within, .err_msg = &err_msg))
     {
         mmgr_line_finish(&err_msg);
-        cli_db_failure_set(failure, why);
-        cli_lock_take(&s_links_lock);
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = why);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
         s_links[pg->place] = NULL;
-        cli_lock_give(&s_links_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
         mmgr_zero_buf(pg, sizeof(*pg));
         g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
         return NULL;
     }
-    cli_socket_waited(&pg->socket, within);
-    if (!cli_pg_signed_in(pg, host, port, user, password, database, failure))
+    EMBED_CALL(cli_sock_internal.socket_wait, CliSockCtx, .sock = &pg->socket, .milliseconds = within);
+    if (!EMBED_CALL(cli_pg_failure_password_internal.signed_in, CliPgFailurePasswordCtx, .pg = pg, .host = args->host,
+                    .port = args->port, .user = args->user, .password = args->password, .database = args->database,
+                    .failure = failure))
     {
-        cli_socket_closed(&pg->socket);
-        cli_lock_take(&s_links_lock);
+        EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &pg->socket);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
         s_links[pg->place] = NULL;
-        cli_lock_give(&s_links_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
         mmgr_zero_buf(pg, sizeof(*pg));
         g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
         return NULL;
     }
-    cli_socket_waited(&pg->socket, 0u);
+    EMBED_CALL(cli_sock_internal.socket_wait, CliSockCtx, .sock = &pg->socket, .milliseconds = 0u);
     return pg;
 }
 
-void cli_pg_closed(CliPg *pg)
+void cli_pg_close(const CliPgFailureSqlCfg *args)
 {
     CliDbFailure failure;
-    (void)cli_pg_sent(pg, 'X', NULL, NULL, 0u, &failure);
-    cli_socket_closed(&pg->socket);
-    cli_lock_take(&s_links_lock);
-    s_links[pg->place] = NULL;
-    cli_lock_give(&s_links_lock);
-    mmgr_zero_buf(pg, sizeof(*pg));
-    g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
+    (void)EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = args->pg, .kind_value = 'X',
+                     .parts = NULL, .sizes = NULL, .count = 0u, .failure = &failure);
+    EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->pg->socket);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
+    s_links[args->pg->place] = NULL;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
+    mmgr_zero_buf(args->pg, sizeof(*args->pg));
+    g_cli_cells->persistent_buf_release(args->pg, &g_cli_db_cells);
 }

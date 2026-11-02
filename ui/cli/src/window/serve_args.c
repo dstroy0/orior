@@ -6,64 +6,74 @@
 #include "../text/text.h"
 #include "serve_internal.h"
 
-void *cli_serve_cell(unsigned long long size, const char *what, VerbaLinea *err_msg)
+void *cli_serve_cell(const CliServeSizeErrMsgCtx *args)
 {
-    void *const cell = g_cli_cells->persistent_buf_alloc(size, &g_cli_serve_strings_cells);
+    void *const cell = g_cli_cells->persistent_buf_alloc(args->size, &g_cli_serve_strings_cells);
     if (cell == NULL)
     {
-        mmgr_line_put(err_msg, what);
-        mmgr_line_put(err_msg, ": the cells cannot meet it");
+        mmgr_line_put(args->err_msg, args->what);
+        mmgr_line_put(args->err_msg, ": the cells cannot meet it");
     }
     return cell;
 }
 
-CliServeFiles *cli_serve_files_listed(const char *root, VerbaLinea *err_msg)
+CliServeFiles *cli_serve_files_list(const CliServeErrMsgRootCtx *args)
 {
-    const CliFiles *const files = cli_files_view(root);
+    const char *root = args->root_read;
+    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
     if (files == NULL)
     {
-        mmgr_line_put(err_msg, "the tree's files: the cells cannot meet it");
+        mmgr_line_put(args->err_msg, "the tree's files: the cells cannot meet it");
         return NULL;
     }
-    CliServeFiles *const listed = cli_serve_cell(
-        sizeof(CliServeFiles) + ((unsigned long long)files->count * sizeof(const char *)), "the tree's files", err_msg);
+    CliServeFiles *const listed =
+        EMBED_CALL(cli_serve_size_err_msg_internal.cell, CliServeSizeErrMsgCtx,
+                   .size = sizeof(CliServeFiles) + ((unsigned long long)files->count * sizeof(const char *)),
+                   .what = "the tree's files", .err_msg = args->err_msg);
     if (listed == NULL)
     {
-        cli_files_let(files);
+        EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
         return NULL;
     }
     // the pointers lie in the cell past the list, which the cell's alignment and the list's size maintain aligned
     *listed = (CliServeFiles){files, files->count, (const char **)(void *)(listed + 1)};
     for (unsigned int at = 0u; at < listed->count; at += 1u)
     {
-        listed->paths[at] = cli_files_at(files, at);
+        listed->paths[at] = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
     }
     return listed;
 }
 
-void cli_serve_files_given(CliServeFiles *listed)
+void cli_serve_files_free(const CliServeListedCtx *args)
 {
-    if (listed != NULL)
+    if (args->listed != NULL)
     {
-        cli_files_let(listed->files);
-        g_cli_cells->persistent_buf_release(listed, &g_cli_serve_strings_cells);
+        EMBED_CALL(cli_files.let, CliFilesCfg, .files = args->listed->files);
+        g_cli_cells->persistent_buf_release(args->listed, &g_cli_serve_strings_cells);
     }
 }
 
-// the page's name for `key`: each letter after a `_` in upper case, the `_` left out, into `out`, sized for `room`
-static void args_camel(const char *key, char *out, unsigned long long room)
+typedef struct
 {
-    VerbaLinea line = {out, room, 0ull};
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
+    const char *key;
+    char *out;
+    unsigned long long room;
+} ServeArgsCtx;
+// the page's name for `key`: each letter after a `_` in upper case, the `_` left out, into `out`, sized for `room`
+EMBED_INLINE void args_camel(const ServeArgsCtx *args)
+{
+    VerbaLinea line = {args->out, args->room, 0ull};
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
     int upper = 0;
     for (unsigned long long at = 0ull; at < size;)
     {
-        const unsigned long long stop = cli_text_to_any(key, at, size, "_");
+        const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                   .text = args->key, .at = at, .size = size, .set = "_");
         if (stop > at)
         {
-            const char first = key[at];
+            const char first = args->key[at];
             mmgr_line_ch(&line, (upper && (first >= 'a') && (first <= 'z')) ? (char)(first - 'a' + 'A') : first);
-            mmgr_line_put_n(&line, key + at + 1ull, stop - at - 1ull);
+            mmgr_line_put_n(&line, args->key + at + 1ull, stop - at - 1ull);
         }
         upper = 1;
         at = stop + 1ull;
@@ -71,62 +81,73 @@ static void args_camel(const char *key, char *out, unsigned long long room)
     (void)mmgr_line_finish(&line);
 }
 
-unsigned int cli_serve_arg(const CliServeArgs *args, const char *key)
+unsigned int cli_serve_arg(const CliServeErrMsgCtx *args)
 {
-    const unsigned int found = cli_json_member(args->json, args->object, key);
+    const unsigned int found =
+        EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->request->json,
+                   .object = args->request->object, .name = args->key);
     if (found != CLI_JSON_NONE)
     {
         return found;
     }
     char camel[CLI_NAME_MAX_LEN];
-    args_camel(key, camel, sizeof(camel));
-    return cli_json_member(args->json, args->object, camel);
+    EMBED_CALL(args_camel, ServeArgsCtx, .key = args->key, .out = camel, .room = sizeof(camel));
+    return EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->request->json,
+                      .object = args->request->object, .name = camel);
 }
 
 // why an argument of the wrong kind is refused, as serde reports it: its name, what it is, and what was expected
-void cli_serve_refused(const CliServeArgs *args, unsigned int node, const char *key, const char *expected,
-                       VerbaLinea *err_msg)
+void cli_serve_reject(const CliServeErrMsgRequestCtx *args)
 {
     static const char *const s_kinds[7] = {"map", "sequence", "string", "number", "boolean `true`", "boolean `false`",
                                            "null"};
-    mmgr_line_put(err_msg, key);
-    mmgr_line_put(err_msg, ": invalid type: ");
-    const CfgJsonKind kind = (node == CLI_JSON_NONE) ? CFG_JSON_NULL : args->json->node[node].kind;
-    mmgr_line_put(err_msg, s_kinds[kind]);
+    mmgr_line_put(args->err_msg, args->key);
+    mmgr_line_put(args->err_msg, ": invalid type: ");
+    const CfgJsonKind kind = (args->node == CLI_JSON_NONE) ? CFG_JSON_NULL : args->request->json->node[args->node].kind;
+    mmgr_line_put(args->err_msg, s_kinds[kind]);
     if (kind == CFG_JSON_STRING)
     {
-        mmgr_line_ch(err_msg, ' ');
-        cli_json_quoted(err_msg, args->json->text + args->json->node[node].text, args->json->node[node].length);
+        mmgr_line_ch(args->err_msg, ' ');
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->err_msg,
+                   .text = args->request->json->text + args->request->json->node[args->node].text,
+                   .length = args->request->json->node[args->node].length);
     }
     else if (kind == CFG_JSON_NUMBER)
     {
-        mmgr_line_ch(err_msg, ' ');
-        mmgr_line_put_n(err_msg, args->json->text + args->json->node[node].text, args->json->node[node].length);
+        mmgr_line_ch(args->err_msg, ' ');
+        mmgr_line_put_n(args->err_msg, args->request->json->text + args->request->json->node[args->node].text,
+                        args->request->json->node[args->node].length);
     }
-    mmgr_line_put(err_msg, ", expected ");
-    mmgr_line_put(err_msg, expected);
+    mmgr_line_put(args->err_msg, ", expected ");
+    mmgr_line_put(args->err_msg, args->expected);
 }
 
-const char *cli_serve_string(const CliServeArgs *args, const char *key, VerbaLinea *err_msg)
+const char *cli_serve_string(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
-    const char *const text = cli_json_string(args->json, node, NULL);
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
+    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                        .json_read = args->request->json, .node = node, .length_pointer = NULL);
     if (text == NULL)
     {
-        cli_serve_refused(args, node, key, "a string", err_msg);
+        EMBED_CALL(cli_serve_err_msg_request_internal.reject, CliServeErrMsgRequestCtx, .request = args->request,
+                   .node = node, .key = args->key, .expected = "a string", .err_msg = args->err_msg);
     }
     return text;
 }
 
-const char *cli_serve_string_or(const CliServeArgs *args, const char *key, const char *otherwise)
+const char *cli_serve_string_or(const CliServeErrMsgCtx *args)
 {
-    const char *const text = cli_json_string(args->json, cli_serve_arg(args, key), NULL);
-    return (text != NULL) ? text : otherwise;
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->request->json,
+                   .node = cli_serve_err_msg_internal.arg(args), .length_pointer = NULL);
+    return (text != NULL) ? text : args->otherwise;
 }
 
-void cli_serve_secret_wiped(const CliServeArgs *args, const char *key)
+void cli_serve_secret_wiped(const CliServeErrMsgCtx *args)
 {
-    const char *const text = cli_json_string(args->json, cli_serve_arg(args, key), NULL);
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->request->json,
+                   .node = cli_serve_err_msg_internal.arg(args), .length_pointer = NULL);
     if (text != NULL)
     {
         // the text lies in the arguments' cell, which this call owns; const is the reader's view of it
@@ -134,41 +155,52 @@ void cli_serve_secret_wiped(const CliServeArgs *args, const char *key)
     }
 }
 
-int cli_serve_whole(const CliServeArgs *args, const char *key, unsigned long long *value, VerbaLinea *err_msg)
+int cli_serve_whole(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
+    unsigned long long *value = args->value;
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
     const unsigned long long none = ~0ull;
-    *value = cli_servers_whole(args->json, node, none);
+    *value = EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx,
+                        .json = args->request->json, .node = node, .otherwise = none);
     if (*value == none)
     {
-        cli_serve_refused(args, node, key, "u64", err_msg);
+        EMBED_CALL(cli_serve_err_msg_request_internal.reject, CliServeErrMsgRequestCtx, .request = args->request,
+                   .node = node, .key = args->key, .expected = "u64", .err_msg = args->err_msg);
         return 0;
     }
     return 1;
 }
 
-unsigned long long cli_serve_whole_or(const CliServeArgs *args, const char *key, unsigned long long otherwise)
+unsigned long long cli_serve_whole_or(const CliServeErrMsgCtx *args)
 {
-    return cli_servers_whole(args->json, cli_serve_arg(args, key), otherwise);
+    unsigned long long otherwise = args->otherwise_u64;
+    return EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx,
+                      .json = args->request->json, .node = cli_serve_err_msg_internal.arg(args),
+                      .otherwise = otherwise);
 }
 
-int cli_serve_signed(const CliServeArgs *args, const char *key, long long *value, VerbaLinea *err_msg)
+int cli_serve_sign(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
-    if (!cli_json_is(args->json, node, CFG_JSON_NUMBER) || (args->json->node[node].length == 0ull))
+    long long *value = args->value_i64s;
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->request->json,
+                    .node = node, .kind = CFG_JSON_NUMBER) ||
+        (args->request->json->node[node].length == 0ull))
     {
-        cli_serve_refused(args, node, key, "i64", err_msg);
+        EMBED_CALL(cli_serve_err_msg_request_internal.reject, CliServeErrMsgRequestCtx, .request = args->request,
+                   .node = node, .key = args->key, .expected = "i64", .err_msg = args->err_msg);
         return 0;
     }
-    const char *const digits = args->json->text + args->json->node[node].text;
-    const unsigned long long length = args->json->node[node].length;
+    const char *const digits = args->request->json->text + args->request->json->node[node].text;
+    const unsigned long long length = args->request->json->node[node].length;
     const int below = (digits[0] == '-');
     unsigned long long magnitude = 0ull;
     for (unsigned long long at = below ? 1ull : 0ull; at < length; at += 1ull)
     {
         if ((digits[at] < '0') || (digits[at] > '9') || (magnitude > 922337203685477580ull))
         {
-            cli_serve_refused(args, node, key, "i64", err_msg);
+            EMBED_CALL(cli_serve_err_msg_request_internal.reject, CliServeErrMsgRequestCtx, .request = args->request,
+                       .node = node, .key = args->key, .expected = "i64", .err_msg = args->err_msg);
             return 0;
         }
         magnitude = (magnitude * 10ull) + (unsigned long long)(digits[at] - '0');
@@ -178,75 +210,96 @@ int cli_serve_signed(const CliServeArgs *args, const char *key, long long *value
     return 1;
 }
 
-int cli_serve_bool_or(const CliServeArgs *args, const char *key, int otherwise)
+int cli_serve_bool_or(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
-    if (cli_json_is(args->json, node, CFG_JSON_TRUE))
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->request->json,
+                   .node = node, .kind = CFG_JSON_TRUE))
     {
         return 1;
     }
-    return cli_json_is(args->json, node, CFG_JSON_FALSE) ? 0 : otherwise;
+    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->request->json,
+                      .node = node, .kind = CFG_JSON_FALSE)
+               ? 0
+               : args->otherwise_i32;
 }
 
-int cli_serve_bool(const CliServeArgs *args, const char *key, int *value, VerbaLinea *err_msg)
+int cli_serve_bool(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
-    if (!cli_json_is(args->json, node, CFG_JSON_TRUE) && !cli_json_is(args->json, node, CFG_JSON_FALSE))
+    int *value = args->value_i32s;
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->request->json,
+                    .node = node, .kind = CFG_JSON_TRUE) &&
+        !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->request->json,
+                    .node = node, .kind = CFG_JSON_FALSE))
     {
-        cli_serve_refused(args, node, key, "a boolean", err_msg);
+        EMBED_CALL(cli_serve_err_msg_request_internal.reject, CliServeErrMsgRequestCtx, .request = args->request,
+                   .node = node, .key = args->key, .expected = "a boolean", .err_msg = args->err_msg);
         return 0;
     }
-    *value = cli_json_is(args->json, node, CFG_JSON_TRUE);
+    *value = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->request->json,
+                        .node = node, .kind = CFG_JSON_TRUE);
     return 1;
 }
 
-int cli_serve_strings(const CliServeArgs *args, const char *key, const char **items, unsigned int room,
-                      unsigned int *count, VerbaLinea *err_msg)
+int cli_serve_strings(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
+    unsigned int *count = args->count;
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
     *count = 0u;
-    if (!cli_json_is(args->json, node, CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->request->json,
+                    .node = node, .kind = CFG_JSON_ARRAY))
     {
-        cli_serve_refused(args, node, key, "a sequence", err_msg);
+        EMBED_CALL(cli_serve_err_msg_request_internal.reject, CliServeErrMsgRequestCtx, .request = args->request,
+                   .node = node, .key = args->key, .expected = "a sequence", .err_msg = args->err_msg);
         return 0;
     }
-    for (unsigned int item = args->json->node[node].first; item != CLI_JSON_NONE; item = args->json->node[item].next)
+    for (unsigned int item = args->request->json->node[node].first; item != CLI_JSON_NONE;
+         item = args->request->json->node[item].next)
     {
-        const char *const text = cli_json_string(args->json, item, NULL);
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = args->request->json, .node = item, .length_pointer = NULL);
         if (text == NULL)
         {
-            cli_serve_refused(args, item, key, "a string", err_msg);
+            EMBED_CALL(cli_serve_err_msg_request_internal.reject, CliServeErrMsgRequestCtx, .request = args->request,
+                       .node = item, .key = args->key, .expected = "a string", .err_msg = args->err_msg);
             return 0;
         }
-        if (*count < room)
+        if (*count < args->room)
         {
-            items[*count] = text;
+            args->items[*count] = text;
             *count += 1u;
         }
     }
     return 1;
 }
 
-int cli_serve_strings_or(const CliServeArgs *args, const char *key, const char **items, unsigned int room,
-                         unsigned int *count, VerbaLinea *err_msg)
+int cli_serve_strings_or(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
+    unsigned int *count = args->count;
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
     *count = 0u;
-    if ((node == CLI_JSON_NONE) || cli_json_is(args->json, node, CFG_JSON_NULL))
+    if ((node == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                              .json_read = args->request->json, .node = node, .kind = CFG_JSON_NULL))
     {
         return 1;
     }
-    return cli_serve_strings(args, key, items, room, count, err_msg);
+    return EMBED_CALL(cli_serve_err_msg_internal.strings, CliServeErrMsgCtx, .request = args->request, .key = args->key,
+                      .items = args->items, .room = args->room, .count = count, .err_msg = args->err_msg);
 }
 
-int cli_serve_strings_taken(const CliServeArgs *args, const char *key, unsigned int most, const char ***items,
-                            unsigned int *count, VerbaLinea *err_msg)
+int cli_serve_strings_take(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
-    const unsigned int first =
-        cli_json_is(args->json, node, CFG_JSON_ARRAY) ? args->json->node[node].first : CLI_JSON_NONE;
+    const char ***items = args->items_pointer;
+    unsigned int *count = args->count;
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                          .json_read = args->request->json, .node = node, .kind = CFG_JSON_ARRAY)
+                                   ? args->request->json->node[node].first
+                                   : CLI_JSON_NONE;
     unsigned int room = 0u;
-    for (unsigned int item = first; (item != CLI_JSON_NONE) && (room < most); item = args->json->node[item].next)
+    for (unsigned int item = first; (item != CLI_JSON_NONE) && (room < args->most);
+         item = args->request->json->node[item].next)
     {
         room += 1u;
     }
@@ -254,47 +307,61 @@ int cli_serve_strings_taken(const CliServeArgs *args, const char *key, unsigned 
     *items = g_cli_cells->persistent_buf_alloc((room + 1ull) * sizeof(**items), &g_cli_serve_strings_cells);
     if (*items == NULL)
     {
-        mmgr_line_put(err_msg, "the strings a call names could not be given a cell");
+        mmgr_line_put(args->err_msg, "the strings a call names could not be given a cell");
         return 0;
     }
-    const int read = cli_serve_strings(args, key, *items, room, count, err_msg);
+    const int read =
+        EMBED_CALL(cli_serve_err_msg_internal.strings, CliServeErrMsgCtx, .request = args->request, .key = args->key,
+                   .items = *items, .room = room, .count = count, .err_msg = args->err_msg);
     (*items)[*count] = NULL;
     return read;
 }
 
-void cli_serve_strings_given(const char **items)
+void cli_serve_strings_free(const CliServeItemsCtx *args)
 {
-    g_cli_cells->persistent_buf_release(items, &g_cli_serve_strings_cells);
+    g_cli_cells->persistent_buf_release(args->items, &g_cli_serve_strings_cells);
 }
 
-int cli_serve_tree(char *root, VerbaLinea *err_msg)
+int cli_serve_tree(const CliServeErrMsgRequestRootCtx *args)
 {
-    return cli_serve_root(root, err_msg);
+    char *root = args->root;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(cli_serve_err_msg_root.root, CliServeErrMsgRootCfg, .root_out = root, .err_msg = err_msg);
 }
 
-int cli_serve_at(const CliServeArgs *args, char *root, char *full, VerbaLinea *err_msg)
+int cli_serve_at(const CliServeErrMsgRequestRootCtx *args)
 {
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    if ((path == NULL) || !cli_serve_root(root, err_msg))
+    char *root = args->root;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = args->request,
+                                        .key = "path", .err_msg = err_msg);
+    if ((path == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_root.root, CliServeErrMsgRootCfg, .root_out = root, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_full(root, path, full);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = args->full);
     return 1;
 }
 
-int cli_serve_place(const CliServeArgs *args, const char *key, CliTextPlace *place, VerbaLinea *err_msg)
+int cli_serve_place(const CliServeErrMsgCtx *args)
 {
-    const unsigned int node = cli_serve_arg(args, key);
-    const CliServeArgs inner = {args->json, node};
+    CliTextPlace *place = args->place;
+    const unsigned int node = cli_serve_err_msg_internal.arg(args);
+    const CliServeArgs inner = {args->request->json, node};
     unsigned long long line = 0ull;
     unsigned long long col = 0ull;
-    if (!cli_json_is(args->json, node, CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->request->json,
+                    .node = node, .kind = CFG_JSON_OBJECT))
     {
-        cli_serve_refused(args, node, key, "struct Place", err_msg);
+        EMBED_CALL(cli_serve_err_msg_request_internal.reject, CliServeErrMsgRequestCtx, .request = args->request,
+                   .node = node, .key = args->key, .expected = "struct Place", .err_msg = args->err_msg);
         return 0;
     }
-    if (!cli_serve_whole(&inner, "line", &line, err_msg) || !cli_serve_whole(&inner, "col", &col, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = &inner, .key = "line",
+                    .value = &line, .err_msg = args->err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = &inner, .key = "col", .value = &col,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }

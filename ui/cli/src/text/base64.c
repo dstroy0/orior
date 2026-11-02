@@ -4,53 +4,57 @@
 // a group stops at its first `=`
 #include "base64.h"
 
-void cli_base64(VerbaLinea *out, const unsigned char *bytes, unsigned long long size)
+void cli_base64(const CliBase64Cfg *args)
 {
     static const char s_letters[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    for (unsigned long long at = 0ull; at < size; at += 3ull)
+    for (unsigned long long at = 0ull; at < args->size; at += 3ull)
     {
-        const unsigned long long length = ((size - at) < 3ull) ? (size - at) : 3ull;
-        const unsigned int group = ((unsigned int)bytes[at] << 16u) |
-                                   ((length > 1ull) ? ((unsigned int)bytes[at + 1ull] << 8u) : 0u) |
-                                   ((length > 2ull) ? (unsigned int)bytes[at + 2ull] : 0u);
+        const unsigned long long length = ((args->size - at) < 3ull) ? (args->size - at) : 3ull;
+        const unsigned int group = ((unsigned int)args->bytes[at] << 16u) |
+                                   ((length > 1ull) ? ((unsigned int)args->bytes[at + 1ull] << 8u) : 0u) |
+                                   ((length > 2ull) ? (unsigned int)args->bytes[at + 2ull] : 0u);
         for (unsigned int place = 0u; place < 4u; place += 1u)
         {
             const char letter = s_letters[(group >> (18u - (6u * place))) & 63u];
-            mmgr_line_ch(out, (place <= length) ? letter : '=');
+            mmgr_line_ch(args->out, (place <= length) ? letter : '=');
         }
     }
 }
 
-// the six bits a base64 letter stands for, or 64 where it is none
-static unsigned int cli_sextet(char letter)
+typedef struct
 {
-    if ((letter >= 'A') && (letter <= 'Z'))
+    char letter;
+} Base64Ctx;
+// the six bits a base64 letter stands for, or 64 where it is none
+EMBED_INLINE unsigned int cli_sextet(const Base64Ctx *args)
+{
+    if ((args->letter >= 'A') && (args->letter <= 'Z'))
     {
-        return (unsigned int)(letter - 'A');
+        return (unsigned int)(args->letter - 'A');
     }
-    if ((letter >= 'a') && (letter <= 'z'))
+    if ((args->letter >= 'a') && (args->letter <= 'z'))
     {
-        return (unsigned int)(letter - 'a') + 26u;
+        return (unsigned int)(args->letter - 'a') + 26u;
     }
-    if ((letter >= '0') && (letter <= '9'))
+    if ((args->letter >= '0') && (args->letter <= '9'))
     {
-        return (unsigned int)(letter - '0') + 52u;
+        return (unsigned int)(args->letter - '0') + 52u;
     }
-    return (letter == '+') ? 62u : ((letter == '/') ? 63u : 64u);
+    return (args->letter == '+') ? 62u : ((args->letter == '/') ? 63u : 64u);
 }
 
-int cli_unbase64(const char *text, unsigned long long length, unsigned char *out, unsigned long long room,
-                 unsigned long long *size)
+int cli_unbase64(const CliBase64TextCfg *args)
 {
+    unsigned long long *size = args->size_pointer;
     *size = 0ull;
     unsigned int group = 0u;
     unsigned int bits = 0u;
     unsigned int taken = 0u;
     int padded = 0;
-    for (unsigned long long at = 0ull; at <= length; at += 1ull)
+    for (unsigned long long at = 0ull; at <= args->length; at += 1ull)
     {
-        const int ended = at == length;
-        const char letter = ended ? '\0' : text[at];
+        const int ended = at == args->length;
+        const char letter = ended ? '\0' : args->text[at];
         const int white =
             (letter == ' ') || (letter == '\t') || (letter == '\n') || (letter == '\f') || (letter == '\r');
         if (!ended && white)
@@ -61,7 +65,7 @@ int cli_unbase64(const char *text, unsigned long long length, unsigned char *out
         {
             // a letter after `=` in its group is passed over, as is `=` itself
             padded = padded || (letter == '=');
-            const unsigned int sextet = cli_sextet(letter);
+            const unsigned int sextet = EMBED_CALL(cli_sextet, Base64Ctx, .letter = letter);
             if (!padded && (sextet == 64u))
             {
                 return 0;
@@ -77,14 +81,14 @@ int cli_unbase64(const char *text, unsigned long long length, unsigned char *out
         {
             group <<= 6u * (4u - bits);
             const unsigned int bytes = (bits > 1u) ? (bits - 1u) : 0u;
-            if ((*size + bytes) > room)
+            if ((*size + bytes) > args->room)
             {
                 return 0;
             }
             for (unsigned int place = 0u; place < bytes; place += 1u)
             {
                 // each byte is eight bits of the group
-                out[*size] = (unsigned char)(group >> (16u - (8u * place)));
+                args->out_bytes[*size] = (unsigned char)(group >> (16u - (8u * place)));
                 *size += 1ull;
             }
             group = 0u;

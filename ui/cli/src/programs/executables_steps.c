@@ -13,13 +13,14 @@ static int cli_needs_vsenv(void)
 {
 #if defined(_WIN32)
     char include[CLI_PATH_MAX_LEN];
-    if (query_environment_read("INCLUDE", include, sizeof(include)))
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "INCLUDE",
+                   .value_out = include, .room = sizeof(include)))
     {
         return 0;
     }
     static const char *const s_cl[1] = {"cl"};
     char path[CLI_PATH_MAX_LEN];
-    return cli_toolchains_on_path(s_cl, 1u, path);
+    return EMBED_CALL(cli_toolchains_names.on_path, CliToolchainsNamesCfg, .names = s_cl, .count = 1u, .program = path);
 #else
     return 0;
 #endif
@@ -43,127 +44,157 @@ static const char *cli_dotnet_runtime(void)
 #endif
 }
 
-// an argument written as it is
-static void cli_lit(CliCatalog *catalog, const char *text)
+typedef struct
 {
-    cli_catalog_arg(catalog, CLI_ARG_LIT, text, NULL, NULL, NULL, 0);
+    CliCatalog *catalog;
+    const char *text;
+    const char *key;
+    const char *value;
+    const char *const *words;
+    unsigned int count;
+    const char *tool;
+    const char *program;
+    const char *root;
+    const CliExecutable *exe;
+    char *out;
+    const char *folder;
+    const char *inner;
+    int vsenv;
+    const char *script;
+    const char *runtime;
+} ExecutablesStepsCtx;
+// an argument written as it is
+EMBED_INLINE void cli_lit(const ExecutablesStepsCtx *args)
+{
+    CliCatalog *catalog = args->catalog;
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_LIT, .a = args->text,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
 // an argument of the words listed, `count` of them, where the param `key`'s value is `value`
-static void cli_when(CliCatalog *catalog, const char *key, const char *value, const char *const *words,
-                     unsigned int count)
+EMBED_INLINE void cli_when(const ExecutablesStepsCtx *args)
 {
-    cli_catalog_arg(catalog, CLI_ARG_WHEN, key, value, NULL, NULL, 0);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    CliCatalog *catalog = args->catalog;
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WHEN, .a = args->key,
+               .b = args->value, .c = NULL, .d = NULL, .separated = 0);
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        cli_catalog_word(catalog, words[at]);
+        EMBED_CALL(cli_catalog_word_table.word, CliCatalogWordCfg, .catalog = catalog, .word = args->words[at]);
     }
 }
 
 // the words a build tool prints every command it runs by, where the build's trace is verbose
-static void cli_verbose(CliCatalog *catalog, const char *const *words, unsigned int count)
+EMBED_INLINE void cli_verbose(const ExecutablesStepsCtx *args)
 {
-    cli_when(catalog, CLI_TRACE, CLI_TRACE_VERBOSE, words, count);
+    EMBED_CALL(cli_when, ExecutablesStepsCtx, .catalog = args->catalog, .key = CLI_TRACE, .value = CLI_TRACE_VERBOSE,
+               .words = args->words, .count = args->count);
 }
 
 // a step of the toolchain `tool`'s program `program`
-static void cli_tool(CliCatalog *catalog, const char *tool, const char *program)
+EMBED_INLINE void cli_tool(const ExecutablesStepsCtx *args)
 {
-    cli_catalog_step(catalog, CLI_PROGRAM_TOOL, tool, program, 0);
+    CliCatalog *catalog = args->catalog;
+    const char *program = args->program;
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog, .program = CLI_PROGRAM_TOOL,
+               .text = args->tool, .tool_program = program, .system = 0);
 }
 
 // the script's path in the tree into `out`, sized for CLI_PATH_MAX_LEN
-static void cli_script_of(const char *root, const CliExecutable *exe, char *out)
+EMBED_INLINE void cli_script_get(const ExecutablesStepsCtx *args)
 {
-    cli_relative(root, exe->script, out);
+    const char *root = args->root;
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = args->exe->script,
+               .relative_out = args->out);
 }
 
 // `inner` under the script's folder, as a path in the tree, into `out`
-static void cli_under_folder(const char *folder, const char *inner, char *out)
+EMBED_INLINE void cli_under_folder(const ExecutablesStepsCtx *args)
 {
-    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = ".", .cap = CLI_CELLS_POOL}))
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = ".", .cap = CLI_CELLS_POOL}))
     {
-        mmgr_line_put(&line, folder);
+        mmgr_line_put(&line, args->folder);
         mmgr_line_ch(&line, '/');
     }
-    mmgr_line_put(&line, inner);
+    mmgr_line_put(&line, args->inner);
     mmgr_line_finish(&line);
 }
 
-int cli_executables_job_begun(const char *root, const CliExecutable *exe, const char *title, CliCatalog *catalog)
+int cli_executables_job_begin(const CliExecutablesRootCtx *args)
 {
     static char s_about[CLI_PATH_MAX_LEN * 4u];
     static CliLock s_lock = CLI_LOCK_INIT;
     char script[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char build[CLI_PATH_MAX_LEN];
-    cli_script_of(root, exe, script);
-    cli_folder_of(root, exe->script, folder);
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_script_get, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .out = script);
+    EMBED_CALL(cli_executables_out_internal.folder_get, CliExecutablesOutCtx, .root = args->root,
+               .script = args->exe->script, .out = folder);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea about = {s_about, sizeof(s_about), 0ull};
-    if (exe->kind == CLI_KIND_CARGO)
+    if (args->exe->kind == CLI_KIND_CARGO)
     {
         mmgr_line_put(&about, "cargo builds the ");
-        mmgr_line_put(&about, exe->name);
+        mmgr_line_put(&about, args->exe->name);
         mmgr_line_put(&about, " binary of ");
         mmgr_line_put(&about, script);
         mmgr_line_put(&about, ", by the profile chosen, for this machine or for the target chosen.");
     }
-    else if ((exe->kind == CLI_KIND_CMAKE) || (exe->kind == CLI_KIND_MESON))
+    else if ((args->exe->kind == CLI_KIND_CMAKE) || (args->exe->kind == CLI_KIND_MESON))
     {
-        const int cmake = exe->kind == CLI_KIND_CMAKE;
-        cli_build_folder(root, exe->script, cmake ? "cmake" : "meson", build);
+        const int cmake = args->exe->kind == CLI_KIND_CMAKE;
+        EMBED_CALL(cli_executables_out_internal.build_folder, CliExecutablesOutCtx, .root = args->root,
+                   .script = args->exe->script, .tool = cmake ? "cmake" : "meson", .out = build);
         mmgr_line_put(&about, cmake ? "CMake configures " : "Meson sets up ");
         mmgr_line_put(&about, script);
         mmgr_line_put(&about, cmake ? " into " : " in ");
         mmgr_line_put(&about, build);
         mmgr_line_put(&about, cmake ? "<config> and builds its " : "<buildtype> and compiles its ");
-        mmgr_line_put(&about, exe->name);
+        mmgr_line_put(&about, args->exe->name);
         mmgr_line_put(&about, cmake ? " target." : " executable.");
     }
-    else if (exe->kind == CLI_KIND_GO)
+    else if (args->exe->kind == CLI_KIND_GO)
     {
         mmgr_line_put(&about, "go builds the ");
-        mmgr_line_put(&about, (exe->detail[0] != '\0') ? exe->detail : ".");
+        mmgr_line_put(&about, (args->exe->detail[0] != '\0') ? args->exe->detail : ".");
         mmgr_line_put(&about, " package of ");
         mmgr_line_put(&about, script);
         mmgr_line_put(&about, " into build/exe/<GOOS>-<GOARCH>/, for the system and processor chosen, with cgo as Go "
                               "chooses or as chosen.");
     }
-    else if (exe->kind == CLI_KIND_DOTNET)
+    else if (args->exe->kind == CLI_KIND_DOTNET)
     {
         mmgr_line_put(&about, "dotnet builds ");
         mmgr_line_put(&about, script);
         mmgr_line_put(&about, " by the configuration chosen, as its files or published as one file with its native "
                               "libraries inside it.");
     }
-    else if (exe->kind == CLI_KIND_ZIG)
+    else if (args->exe->kind == CLI_KIND_ZIG)
     {
         mmgr_line_put(&about, "zig builds ");
         mmgr_line_put(&about, script);
         mmgr_line_put(&about, " into its zig-out, ");
-        mmgr_line_put(&about, exe->name);
+        mmgr_line_put(&about, args->exe->name);
         mmgr_line_put(&about, " among the executables it installs.");
     }
-    else if (exe->kind == CLI_KIND_PYINSTALLER)
+    else if (args->exe->kind == CLI_KIND_PYINSTALLER)
     {
         char made[CLI_PATH_MAX_LEN];
-        cli_under_folder(folder, exe->detail, made);
+        EMBED_CALL(cli_under_folder, ExecutablesStepsCtx, .folder = folder, .inner = args->exe->detail, .out = made);
         mmgr_line_put(&about, "PyInstaller, run by the tree's Python, freezes ");
         mmgr_line_put(&about, script);
         mmgr_line_put(&about, " into ");
         mmgr_line_put(&about, made);
         mmgr_line_ch(&about, '.');
     }
-    else if (exe->kind == CLI_KIND_NPM)
+    else if (args->exe->kind == CLI_KIND_NPM)
     {
         mmgr_line_put(&about, "builds the ");
-        mmgr_line_put(&about, exe->name);
+        mmgr_line_put(&about, args->exe->name);
         mmgr_line_put(&about, " bin of ");
         mmgr_line_put(&about, script);
         mmgr_line_put(&about, " into build/exe/");
-        mmgr_line_put(&about, exe->name);
+        mmgr_line_put(&about, args->exe->name);
         mmgr_line_put(&about,
                       ": with Node's own single executable, which contains Node's modules alone, with bun build "
                       "--compile, or with deno compile, given every permission a Node program has.");
@@ -174,273 +205,342 @@ int cli_executables_job_begun(const char *root, const CliExecutable *exe, const 
     mmgr_line_put(&named, "executable/");
     mmgr_line_put(&named, script);
     mmgr_line_ch(&named, ':');
-    mmgr_line_put(&named, exe->name);
+    mmgr_line_put(&named, args->exe->name);
     mmgr_line_finish(&named);
-    const unsigned int job = cli_catalog_job(catalog, id, "executable", title, script, s_about, "program");
-    cli_lock_give(&s_lock);
+    const unsigned int job =
+        EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->catalog, .id = id,
+                   .group = "executable", .title = args->title, .file = script, .about = s_about, .opens = "program");
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return job != CLI_CATALOG_NONE;
 }
 
 // the steps of a Cargo build
-static void cli_cargo_steps(const char *root, const CliExecutable *exe, const char *folder, CliCatalog *catalog)
+EMBED_INLINE void cli_cargo_steps(const ExecutablesStepsCtx *args)
 {
+    CliCatalog *catalog = args->catalog;
     static const char *const s_vv[1] = {"-vv"};
     char remap[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {remap, sizeof(remap), 0ull};
     mmgr_line_put(&line, "build.rustflags=['--remap-path-prefix=");
-    mmgr_line_put(&line, root);
+    mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "=.']");
     mmgr_line_finish(&line);
     const char *const release[2] = {"--config", remap};
-    cli_tool(catalog, "rust", "cargo");
-    cli_catalog_arg(catalog, CLI_ARG_FOLDER, folder, NULL, NULL, NULL, 0);
-    cli_lit(catalog, "build");
-    cli_lit(catalog, "--bin");
-    cli_lit(catalog, exe->name);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG, "--profile", "profile", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_FLAG_BUT, "--target", "target", "this machine", NULL, 0);
-    cli_when(catalog, "profile", "release", release, 2u);
-    cli_verbose(catalog, s_vv, 1u);
-    cli_catalog_arg(catalog, CLI_ARG_CROSS, "rust", NULL, NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "rust", .program = "cargo");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FOLDER,
+               .a = args->folder, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "build");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--bin");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->exe->name);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG, .a = "--profile",
+               .b = "profile", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG_BUT,
+               .a = "--target", .b = "target", .c = "this machine", .d = NULL, .separated = 0);
+    EMBED_CALL(cli_when, ExecutablesStepsCtx, .catalog = catalog, .key = "profile", .value = "release",
+               .words = release, .count = 2u);
+    EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = catalog, .words = s_vv, .count = 1u);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_CROSS, .a = "rust",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
 // the steps of a CMake build: the file API's query requested for its code model and toolchains, which the code help
 // reads the build's compilers from, then the configure and the build
-static void cli_cmake_steps(const char *root, const CliExecutable *exe, const char *folder, CliCatalog *catalog)
+EMBED_INLINE void cli_cmake_steps(const ExecutablesStepsCtx *args)
 {
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
     static const char *const s_log[1] = {"--log-level=VERBOSE"};
     static const char *const s_verbose[1] = {"--verbose"};
     static const char *const s_queries[3][2] = {{"make_directory", "/.cmake/api/v1/query"},
                                                 {"touch", "/.cmake/api/v1/query/codemodel-v2"},
                                                 {"touch", "/.cmake/api/v1/query/toolchains-v1"}};
     char build[CLI_PATH_MAX_LEN];
-    cli_build_folder(root, exe->script, "cmake", build);
+    EMBED_CALL(cli_executables_out_internal.build_folder, CliExecutablesOutCtx, .root = root,
+               .script = args->exe->script, .tool = "cmake", .out = build);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        cli_tool(catalog, "cmake", "cmake");
-        cli_lit(catalog, "-E");
-        cli_lit(catalog, s_queries[at][0]);
-        cli_catalog_arg(catalog, CLI_ARG_AROUND, build, "config", s_queries[at][1], NULL, 0);
-        cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+        EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "cmake", .program = "cmake");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-E");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = s_queries[at][0]);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_AROUND, .a = build,
+                   .b = "config", .c = s_queries[at][1], .d = NULL, .separated = 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE,
+                   .a = NULL, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
-    cli_tool(catalog, "cmake", "cmake");
-    cli_lit(catalog, "-S");
-    cli_lit(catalog, folder);
-    cli_lit(catalog, "-B");
-    cli_catalog_arg(catalog, CLI_ARG_AROUND, build, "config", "", NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_AROUND, "-DCMAKE_BUILD_TYPE=", "config", "", NULL, 0);
-    cli_verbose(catalog, s_log, 1u);
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
-    cli_tool(catalog, "cmake", "cmake");
-    cli_lit(catalog, "--build");
-    cli_catalog_arg(catalog, CLI_ARG_AROUND, build, "config", "", NULL, 0);
-    cli_lit(catalog, "--target");
-    cli_lit(catalog, exe->name);
-    cli_lit(catalog, "--config");
-    cli_catalog_arg(catalog, CLI_ARG_VALUE, "config", NULL, NULL, NULL, 0);
-    cli_verbose(catalog, s_verbose, 1u);
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "cmake", .program = "cmake");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-S");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->folder);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-B");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_AROUND, .a = build,
+               .b = "config", .c = "", .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_AROUND,
+               .a = "-DCMAKE_BUILD_TYPE=", .b = "config", .c = "", .d = NULL, .separated = 0);
+    EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = catalog, .words = s_log, .count = 1u);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "cmake", .program = "cmake");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--build");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_AROUND, .a = build,
+               .b = "config", .c = "", .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--target");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->exe->name);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--config");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE, .a = "config",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = catalog, .words = s_verbose, .count = 1u);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
 // the steps of a Meson build: its setup, and its compile, each without cl's folders where Meson sets up Visual
 // Studio's environment itself
-static void cli_meson_steps(const char *root, const CliExecutable *exe, const char *folder, int vsenv,
-                            CliCatalog *catalog)
+EMBED_INLINE void cli_meson_steps(const ExecutablesStepsCtx *args)
 {
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
     static const char *const s_verbose[1] = {"--verbose"};
     char build[CLI_PATH_MAX_LEN];
-    cli_build_folder(root, exe->script, "meson", build);
-    cli_tool(catalog, "meson", "meson");
-    cli_lit(catalog, "setup");
-    cli_lit(catalog, "--reconfigure");
-    cli_catalog_arg(catalog, CLI_ARG_AROUND, build, "buildtype", "", NULL, 0);
-    cli_lit(catalog, folder);
-    cli_catalog_arg(catalog, CLI_ARG_AROUND, "--buildtype=", "buildtype", "", NULL, 0);
-    if (vsenv)
+    EMBED_CALL(cli_executables_out_internal.build_folder, CliExecutablesOutCtx, .root = root,
+               .script = args->exe->script, .tool = "meson", .out = build);
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "meson", .program = "meson");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "setup");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--reconfigure");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_AROUND, .a = build,
+               .b = "buildtype", .c = "", .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->folder);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_AROUND,
+               .a = "--buildtype=", .b = "buildtype", .c = "", .d = NULL, .separated = 0);
+    if (args->vsenv)
     {
-        cli_lit(catalog, "--vsenv");
-        cli_catalog_arg(catalog, CLI_ARG_UNPATH, "cl", NULL, NULL, NULL, 0);
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--vsenv");
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_UNPATH, .a = "cl",
+                   .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
-    cli_tool(catalog, "meson", "meson");
-    cli_lit(catalog, "compile");
-    cli_lit(catalog, "-C");
-    cli_catalog_arg(catalog, CLI_ARG_AROUND, build, "buildtype", "", NULL, 0);
-    cli_lit(catalog, exe->name);
-    cli_verbose(catalog, s_verbose, 1u);
-    if (vsenv)
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "meson", .program = "meson");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "compile");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-C");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_AROUND, .a = build,
+               .b = "buildtype", .c = "", .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->exe->name);
+    EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = catalog, .words = s_verbose, .count = 1u);
+    if (args->vsenv)
     {
-        cli_catalog_arg(catalog, CLI_ARG_UNPATH, "cl", NULL, NULL, NULL, 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_UNPATH, .a = "cl",
+                   .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
 // the step of a Go build, into build/exe/<GOOS>-<GOARCH>/ under the tree's top folder
-static void cli_go_steps(const char *root, const CliExecutable *exe, const char *folder, CliCatalog *catalog)
+EMBED_INLINE void cli_go_steps(const ExecutablesStepsCtx *args)
 {
+    CliCatalog *catalog = args->catalog;
     static const char *const s_verbose[2] = {"-v", "-x"};
     static const char s_out[] = "build/exe/{GOOS}-{GOARCH}/";
-    cli_tool(catalog, "go", "go");
-    cli_catalog_arg(catalog, CLI_ARG_ENV, "GOOS", NULL, NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_ENV, "GOARCH", NULL, NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_ENV_BUT, "CGO_ENABLED", "as Go chooses", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_CROSS, "go", NULL, NULL, NULL, 0);
-    cli_lit(catalog, "build");
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "go", .program = "go");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_ENV, .a = "GOOS",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_ENV, .a = "GOARCH",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_ENV_BUT,
+               .a = "CGO_ENABLED", .b = "as Go chooses", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_CROSS, .a = "go",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "build");
     char out[CLI_PATH_MAX_LEN];
     VerbaLinea line = {out, sizeof(out), 0ull};
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = ".", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->folder, .other = ".", .cap = CLI_CELLS_POOL}))
     {
-        cli_lit(catalog, "-C");
-        cli_lit(catalog, folder);
-        (void)cli_text_put_swapped(&line, root, '\\', '/');
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-C");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->folder);
+        (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = args->root, .from = '\\',
+                         .to = '/');
         mmgr_line_ch(&line, '/');
     }
     mmgr_line_put(&line, s_out);
     mmgr_line_finish(&line);
-    cli_lit(catalog, "-trimpath");
-    cli_verbose(catalog, s_verbose, 2u);
-    cli_lit(catalog, "-o");
-    cli_catalog_arg(catalog, CLI_ARG_FORMAT, out, NULL, NULL, NULL, 0);
-    cli_lit(catalog, (exe->detail[0] != '\0') ? exe->detail : ".");
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-trimpath");
+    EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = catalog, .words = s_verbose, .count = 2u);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-o");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FORMAT, .a = out,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog,
+               .text = (args->exe->detail[0] != '\0') ? args->exe->detail : ".");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
 // the step of a .NET build, a build of its files or a publish of one file with its native libraries inside it
-static void cli_dotnet_steps(const char *script, CliCatalog *catalog, const char *runtime)
+EMBED_INLINE void cli_dotnet_steps(const ExecutablesStepsCtx *args)
 {
+    CliCatalog *catalog = args->catalog;
     static const char *const s_build[1] = {"build"};
     static const char *const s_publish[1] = {"publish"};
     static const char *const s_ci[1] = {"-p:ContinuousIntegrationBuild=true"};
     static const char *const s_detailed[2] = {"-v", "detailed"};
     const char *const one_file[6] = {"-r",
-                                     runtime,
+                                     args->runtime,
                                      "--self-contained",
                                      "true",
                                      "-p:PublishSingleFile=true",
                                      "-p:IncludeNativeLibrariesForSelfExtract=true"};
-    cli_tool(catalog, "dotnet", "dotnet");
-    cli_catalog_arg(catalog, CLI_ARG_SET, "DOTNET_CLI_TELEMETRY_OPTOUT", "1", NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_SET, "DOTNET_NOLOGO", "1", NULL, NULL, 0);
-    cli_when(catalog, "output", "files", s_build, 1u);
-    cli_when(catalog, "output", "one file", s_publish, 1u);
-    cli_lit(catalog, script);
-    cli_lit(catalog, "-c");
-    cli_catalog_arg(catalog, CLI_ARG_VALUE, "configuration", NULL, NULL, NULL, 0);
-    cli_when(catalog, "output", "one file", one_file, 6u);
-    cli_when(catalog, "configuration", "Release", s_ci, 1u);
-    cli_verbose(catalog, s_detailed, 2u);
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "dotnet", .program = "dotnet");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SET,
+               .a = "DOTNET_CLI_TELEMETRY_OPTOUT", .b = "1", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SET,
+               .a = "DOTNET_NOLOGO", .b = "1", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_when, ExecutablesStepsCtx, .catalog = catalog, .key = "output", .value = "files", .words = s_build,
+               .count = 1u);
+    EMBED_CALL(cli_when, ExecutablesStepsCtx, .catalog = catalog, .key = "output", .value = "one file",
+               .words = s_publish, .count = 1u);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->script);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-c");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE,
+               .a = "configuration", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_when, ExecutablesStepsCtx, .catalog = catalog, .key = "output", .value = "one file",
+               .words = one_file, .count = 6u);
+    EMBED_CALL(cli_when, ExecutablesStepsCtx, .catalog = catalog, .key = "configuration", .value = "Release",
+               .words = s_ci, .count = 1u);
+    EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = catalog, .words = s_detailed, .count = 2u);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
 // the steps of a Node bin's build: Node's own single executable, run as orior's own `sea`, bun build --compile, or
 // deno compile, the one the job's `with` names
-static void cli_npm_steps(const CliExecutable *exe, CliCatalog *catalog)
+EMBED_INLINE void cli_npm_steps(const ExecutablesStepsCtx *args)
 {
+    CliCatalog *catalog = args->catalog;
     static const char *const s_debug[1] = {"--log-level=debug"};
     char out[CLI_PATH_MAX_LEN];
     VerbaLinea line = {out, sizeof(out), 0ull};
     mmgr_line_put(&line, "build/exe/");
-    mmgr_line_put(&line, exe->name);
+    mmgr_line_put(&line, args->exe->name);
     mmgr_line_finish(&line);
-    cli_catalog_step(catalog, CLI_PROGRAM_ORIOR, NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_ONLY, "with", "node", NULL, NULL, 0);
-    cli_lit(catalog, "sea");
-    cli_lit(catalog, exe->detail);
-    cli_lit(catalog, out);
-    if (!exe->commonjs)
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+               .program = CLI_PROGRAM_ORIOR, .text = NULL, .tool_program = NULL, .system = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_ONLY, .a = "with",
+               .b = "node", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "sea");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->exe->detail);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = out);
+    if (!args->exe->commonjs)
     {
-        cli_lit(catalog, "module");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "module");
     }
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
-    cli_tool(catalog, "bun", "bun");
-    cli_catalog_arg(catalog, CLI_ARG_ONLY, "with", "bun", NULL, NULL, 0);
-    cli_lit(catalog, "build");
-    cli_lit(catalog, "--compile");
-    cli_lit(catalog, exe->detail);
-    cli_lit(catalog, "--outfile");
-    cli_lit(catalog, out);
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
-    cli_tool(catalog, "deno", "deno");
-    cli_catalog_arg(catalog, CLI_ARG_ONLY, "with", "deno", NULL, NULL, 0);
-    cli_lit(catalog, "compile");
-    cli_lit(catalog, "-A");
-    if (exe->commonjs)
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "bun", .program = "bun");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_ONLY, .a = "with",
+               .b = "bun", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "build");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--compile");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->exe->detail);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--outfile");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = out);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = catalog, .tool = "deno", .program = "deno");
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_ONLY, .a = "with",
+               .b = "deno", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "compile");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-A");
+    if (args->exe->commonjs)
     {
-        cli_lit(catalog, "--unstable-detect-cjs");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--unstable-detect-cjs");
     }
-    cli_verbose(catalog, s_debug, 1u);
-    cli_lit(catalog, "--output");
-    cli_lit(catalog, out);
-    cli_lit(catalog, exe->detail);
-    cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+    EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = catalog, .words = s_debug, .count = 1u);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "--output");
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = out);
+    EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->exe->detail);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_SOURCE_DATE, .a = NULL,
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
 }
 
-void cli_executables_steps(const char *root, const CliExecutable *exe, CliCatalog *catalog)
+void cli_executables_steps(const CliExecutablesRootCtx *args)
 {
     static const char *const s_zig_verbose[1] = {"--verbose"};
     static const char *const s_pyinstaller_verbose[2] = {"--log-level", "DEBUG"};
     char script[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    cli_script_of(root, exe, script);
-    cli_folder_of(root, exe->script, folder);
-    if (exe->kind == CLI_KIND_CARGO)
+    EMBED_CALL(cli_script_get, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .out = script);
+    EMBED_CALL(cli_executables_out_internal.folder_get, CliExecutablesOutCtx, .root = args->root,
+               .script = args->exe->script, .out = folder);
+    if (args->exe->kind == CLI_KIND_CARGO)
     {
-        cli_cargo_steps(root, exe, folder, catalog);
+        EMBED_CALL(cli_cargo_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
+                   .catalog = args->catalog);
     }
-    else if (exe->kind == CLI_KIND_CMAKE)
+    else if (args->exe->kind == CLI_KIND_CMAKE)
     {
-        cli_cmake_steps(root, exe, folder, catalog);
+        EMBED_CALL(cli_cmake_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
+                   .catalog = args->catalog);
     }
-    else if (exe->kind == CLI_KIND_MESON)
+    else if (args->exe->kind == CLI_KIND_MESON)
     {
-        cli_meson_steps(root, exe, folder, cli_needs_vsenv(), catalog);
+        EMBED_CALL(cli_meson_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
+                   .vsenv = cli_needs_vsenv(), .catalog = args->catalog);
     }
-    else if (exe->kind == CLI_KIND_GO)
+    else if (args->exe->kind == CLI_KIND_GO)
     {
-        cli_go_steps(root, exe, folder, catalog);
+        EMBED_CALL(cli_go_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
+                   .catalog = args->catalog);
     }
-    else if (exe->kind == CLI_KIND_DOTNET)
+    else if (args->exe->kind == CLI_KIND_DOTNET)
     {
-        cli_dotnet_steps(script, catalog, cli_dotnet_runtime());
+        EMBED_CALL(cli_dotnet_steps, ExecutablesStepsCtx, .script = script, .catalog = args->catalog,
+                   .runtime = cli_dotnet_runtime());
     }
-    else if (exe->kind == CLI_KIND_ZIG)
+    else if (args->exe->kind == CLI_KIND_ZIG)
     {
-        cli_tool(catalog, "zig", "zig");
-        cli_lit(catalog, "build");
-        cli_lit(catalog, "--build-file");
-        cli_lit(catalog, script);
-        cli_verbose(catalog, s_zig_verbose, 1u);
-        if (exe->optimize)
+        EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = args->catalog, .tool = "zig", .program = "zig");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "build");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "--build-file");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = script);
+        EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = args->catalog, .words = s_zig_verbose, .count = 1u);
+        if (args->exe->optimize)
         {
-            cli_catalog_arg(catalog, CLI_ARG_AROUND, "-Doptimize=", "optimize", "", NULL, 0);
+            EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_AROUND,
+                       .a = "-Doptimize=", .b = "optimize", .c = "", .d = NULL, .separated = 0);
         }
-        cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_SOURCE_DATE,
+                   .a = NULL, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
-    else if (exe->kind == CLI_KIND_PYINSTALLER)
+    else if (args->exe->kind == CLI_KIND_PYINSTALLER)
     {
         char dist[CLI_PATH_MAX_LEN];
         char work[CLI_PATH_MAX_LEN];
-        cli_under_folder(folder, "dist", dist);
-        cli_under_folder(folder, "build", work);
-        cli_tool(catalog, "python", "python");
-        cli_lit(catalog, "-m");
-        cli_lit(catalog, "PyInstaller");
-        cli_lit(catalog, "--noconfirm");
-        cli_verbose(catalog, s_pyinstaller_verbose, 2u);
-        cli_lit(catalog, "--distpath");
-        cli_lit(catalog, dist);
-        cli_lit(catalog, "--workpath");
-        cli_lit(catalog, work);
-        cli_lit(catalog, script);
-        cli_catalog_arg(catalog, CLI_ARG_SOURCE_DATE, NULL, NULL, NULL, NULL, 0);
+        EMBED_CALL(cli_under_folder, ExecutablesStepsCtx, .folder = folder, .inner = "dist", .out = dist);
+        EMBED_CALL(cli_under_folder, ExecutablesStepsCtx, .folder = folder, .inner = "build", .out = work);
+        EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = args->catalog, .tool = "python", .program = "python");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "-m");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "PyInstaller");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "--noconfirm");
+        EMBED_CALL(cli_verbose, ExecutablesStepsCtx, .catalog = args->catalog, .words = s_pyinstaller_verbose,
+                   .count = 2u);
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "--distpath");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = dist);
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "--workpath");
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = work);
+        EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = script);
+        EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_SOURCE_DATE,
+                   .a = NULL, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
-    else if (exe->kind == CLI_KIND_NPM)
+    else if (args->exe->kind == CLI_KIND_NPM)
     {
-        cli_npm_steps(exe, catalog);
+        EMBED_CALL(cli_npm_steps, ExecutablesStepsCtx, .exe = args->exe, .catalog = args->catalog);
     }
-    cli_catalog_step(catalog, CLI_PROGRAM_MADE, NULL, NULL, 0);
-    cli_catalog_arg(catalog, CLI_ARG_ONLY, "then", "run", NULL, NULL, 0);
-    cli_catalog_step(catalog, CLI_PROGRAM_MADE, NULL, NULL, 1);
-    cli_catalog_arg(catalog, CLI_ARG_ONLY, "then", "run as the system runs it", NULL, NULL, 0);
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = args->catalog,
+               .program = CLI_PROGRAM_MADE, .text = NULL, .tool_program = NULL, .system = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_ONLY, .a = "then",
+               .b = "run", .c = NULL, .d = NULL, .separated = 0);
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = args->catalog,
+               .program = CLI_PROGRAM_MADE, .text = NULL, .tool_program = NULL, .system = 1);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_ONLY, .a = "then",
+               .b = "run as the system runs it", .c = NULL, .d = NULL, .separated = 0);
 }

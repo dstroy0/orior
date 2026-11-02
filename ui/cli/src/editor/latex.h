@@ -16,8 +16,10 @@
 // latex_text.c, latex_read.c, latex_sync.c)
 #ifndef LATEX_H
 #define LATEX_H
+typedef struct CliLatexCfg CliLatexCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // how long an engine or pdftocairo may take before it is stopped, in milliseconds, and the most errors a make gives
 #define CLI_LATEX_PATIENCE 120000ull
@@ -25,14 +27,36 @@
 
 // the engine `length` bytes of LaTeX text are made with: the one a `% !TEX program = ...` line before the text's first
 // command names, else lualatex where it takes fontspec or unicode-math, else pdflatex (latex_text.c)
-const char *cli_latex_engine_of(const char *text, unsigned long long length);
+const char *cli_latex_engine_get(const CliLatexCfg *args);
 
 // the LaTeX text of the file `path` of the tree `root` made into pages, in orior's own folder, written as `{"engine",
 // "defs", "pages": [{"width", "height", "svg"}], "boxes": [{"page", "file", "x", "y", "w", "h", "lines"}], "errors":
 // [{"file", "line", "text"}], "ms"}`; and the same with its files stored under `out_dir`. Each 1, or 0 with why given
-int cli_latex_make(const char *root, const char *path, const char *text, unsigned long long length, VerbaLinea *out,
-                   VerbaLinea *err_msg);
-int cli_latex_make_in(const char *root, const char *path, const char *text, unsigned long long length,
-                      const char *out_dir, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_latex_make(const CliLatexCfg *args);
+int cli_latex_make_in(const CliLatexCfg *args);
+
+struct CliLatexCfg
+{
+    const char *text;
+    unsigned long long length;
+    const char *root;
+    const char *path;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+    const char *out_dir;
+};
+
+typedef struct
+{
+    const char *(*engine_get)(const CliLatexCfg *args);
+    int (*make)(const CliLatexCfg *args);
+    int (*make_in)(const CliLatexCfg *args);
+} CliLatexNs;
+EMBED_TABLE_LAYOUT(CliLatexNs, engine_get, make, make_in);
+EMBED_TABLE_STORAGE CliLatexNs cli_latex EMBED_UNUSED = {
+    .engine_get = cli_latex_engine_get,
+    .make = cli_latex_make,
+    .make_in = cli_latex_make_in,
+};
 
 #endif

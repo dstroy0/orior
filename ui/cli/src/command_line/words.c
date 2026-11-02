@@ -4,36 +4,39 @@
 // written in UTF-8
 #include "cli_internal.h"
 
-void cli_words_put(CliWords *words, const char *word)
+void cli_words_put(const CliWordsWordsCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}) + 1ull;
-    if ((words->count >= CLI_WORDS_MOST) || ((words->used + size) > CLI_WORDS_TEXT))
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) + 1ull;
+    if ((args->words_words_pointer->count >= CLI_WORDS_MOST) ||
+        ((args->words_words_pointer->used + size) > CLI_WORDS_TEXT))
     {
-        words->full = 1;
+        args->words_words_pointer->full = 1;
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = words->text + words->used, .src = word, .bytes = size});
-    words->word[words->count] = words->text + words->used;
-    words->count += 1u;
-    words->word[words->count] = NULL;
+    memor.cpy(&(MemoriaCfg){
+        .dst = args->words_words_pointer->text + args->words_words_pointer->used, .src = args->word, .bytes = size});
+    args->words_words_pointer->word[args->words_words_pointer->count] =
+        args->words_words_pointer->text + args->words_words_pointer->used;
+    args->words_words_pointer->count += 1u;
+    args->words_words_pointer->word[args->words_words_pointer->count] = NULL;
     // the size is below CLI_WORDS_TEXT, checked above
-    words->used += (unsigned int)size;
+    args->words_words_pointer->used += (unsigned int)size;
 }
 
-void cli_utf8_put(VerbaLinea *line, unsigned int letter)
+void cli_utf8_put(const CliLineLetterCtx *args)
 {
-    if (letter < 0x80u)
+    if (args->letter < 0x80u)
     {
         // below 0x80 a letter is its one byte
-        mmgr_line_ch(line, (char)letter);
+        mmgr_line_ch(args->line, (char)args->letter);
         return;
     }
-    const unsigned int bytes = (letter < 0x800u) ? 2u : (letter < 0x10000u) ? 3u : 4u;
+    const unsigned int bytes = (args->letter < 0x800u) ? 2u : (args->letter < 0x10000u) ? 3u : 4u;
     static const unsigned int s_marks[5] = {0x00u, 0x00u, 0xc0u, 0xe0u, 0xf0u};
     // each byte is the letter's bits in turn under its UTF-8 mark, which a char stores
-    mmgr_line_ch(line, (char)(s_marks[bytes] | (letter >> (6u * (bytes - 1u)))));
+    mmgr_line_ch(args->line, (char)(s_marks[bytes] | (args->letter >> (6u * (bytes - 1u)))));
     for (unsigned int place = bytes - 1u; place > 0u; place -= 1u)
     {
-        mmgr_line_ch(line, (char)(0x80u | ((letter >> (6u * (place - 1u))) & 0x3fu)));
+        mmgr_line_ch(args->line, (char)(0x80u | ((args->letter >> (6u * (place - 1u))) & 0x3fu)));
     }
 }

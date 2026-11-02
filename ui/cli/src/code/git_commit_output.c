@@ -5,16 +5,17 @@
 #include "../text/text.h"
 #include "git_internal.h"
 
-void cli_git_commit_line(const char *output, unsigned long long length, VerbaLinea *out)
+void cli_git_commit_line(const CliGitLengthOutCtx *args)
 {
     const char *first = NULL;
     unsigned long long first_length = 0ull;
-    const char *line = output;
-    const char *const end = output + length;
+    const char *line = args->output;
+    const char *const end = args->output + args->length;
     while (line < end)
     {
         const char *stop = line;
-        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+                           .size = (unsigned long long)(end - stop), .set = "\n");
         const unsigned long long size =
             (unsigned long long)(stop - line) - (((stop > line) && (stop[-1] == '\r')) ? 1ull : 0ull);
         if (first == NULL)
@@ -24,35 +25,34 @@ void cli_git_commit_line(const char *output, unsigned long long length, VerbaLin
         }
         if ((size != 0ull) && (line[0] == '['))
         {
-            mmgr_line_put_n(out, line, size);
+            mmgr_line_put_n(args->out, line, size);
             return;
         }
         line = stop + 1;
     }
     if (first != NULL)
     {
-        mmgr_line_put_n(out, first, first_length);
+        mmgr_line_put_n(args->out, first, first_length);
     }
 }
 
-void cli_git_failed_after(const VerbaLinea *out, unsigned long long from, const char *error, unsigned long long length,
-                          VerbaLinea *err_msg)
+void cli_git_failed_after(const CliGitLengthCtx *args)
 {
-    const unsigned long long joined_room = (out->at - from) + length + 2ull;
+    const unsigned long long joined_room = (args->out_read->at - args->from_u64) + args->length + 2ull;
     char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_room, &g_cli_code_cells);
     VerbaLinea joined = mmgr_line_over(joined_cell, joined_room);
     if (joined.out == NULL)
     {
-        mmgr_line_put_n(err_msg, error, length);
+        mmgr_line_put_n(args->err_msg, args->error, args->length);
         return;
     }
-    mmgr_line_put_n(&joined, out->out + from, out->at - from);
+    mmgr_line_put_n(&joined, args->out_read->out + args->from_u64, args->out_read->at - args->from_u64);
     mmgr_line_ch(&joined, '\n');
-    mmgr_line_put_n(&joined, error, length);
+    mmgr_line_put_n(&joined, args->error, args->length);
     const char *start = joined.out;
     const char *stop = joined.out + joined.at;
-    cli_git_trimmed(&start, &stop);
+    EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &start, .to = &stop);
     // the trimmed text's length, a difference of two places in it, `stop` never before `start`
-    mmgr_line_put_n(err_msg, start, (unsigned long long)(stop - start));
+    mmgr_line_put_n(args->err_msg, start, (unsigned long long)(stop - start));
     g_cli_cells->persistent_buf_release(joined.out, &g_cli_code_cells);
 }

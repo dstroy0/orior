@@ -9,6 +9,7 @@
 #include "../code/prints.h"
 #include "../code/purpose.h"
 #include "../code/review.h"
+#include "../command_line/callback_cfg.h"
 #include "../comms/link.h"
 #include "../editor/latex.h"
 #include "../machine/settings.h"
@@ -25,22 +26,26 @@
 #define CLI_SERVE_REQUIRES 4096u
 
 // a group of the reader's written after those written
-static void tool_group_written(void *context, const char *group)
+static void tool_group_write(const CliEachGroupCfg *args)
 {
-    VerbaLinea *const out = context;
+    VerbaLinea *const out = args->context;
     mmgr_line_put(out, (out->out[out->at - 1u] == '[') ? "" : ",");
-    cli_json_quoted_lossy(out, (const unsigned char *)group,
-                          cellul.len(&(CatenaFinitaCfg){.src = group, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)args->group,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->group, .cap = CLI_CELLS_POOL}));
 }
 
 // whether the tree's view saw a file of the name or the ending `kind`, its kinds `context`
-static int tool_kind_seen(const void *context, const char *kind)
+static int tool_kind_visit(const CliEachKindCfg *args)
 {
-    return cli_files_contains(context, kind);
+    return EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = args->context, .path = args->kind);
 }
 
-static int toolchains_check(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchains_check(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     (void)err_msg;
     mmgr_line_put(out, "{\"tools\":");
     // the kinds of the open tree's files, as its view saw them, where the call requests which tools the tree uses; none
@@ -48,22 +53,29 @@ static int toolchains_check(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     char root[CLI_PATH_MAX_LEN];
     char unopened[CLI_NAME_MAX_LEN];
     VerbaLinea ignored_err = {unopened, sizeof(unopened), 0ull};
-    const CliFiles *const kinds =
-        (cli_serve_bool_or(args, "uses", 0) && cli_serve_tree(root, &ignored_err)) ? cli_files_kinds_view(root) : NULL;
-    cli_toolchains_check(0, (kinds != NULL) ? tool_kind_seen : NULL, kinds, out);
-    cli_files_let(kinds);
+    const CliFiles *const kinds = (EMBED_CALL(cli_serve_err_msg_internal.bool_or, CliServeErrMsgCtx,
+                                              .request = arguments, .key = "uses", .otherwise_i32 = 0) &&
+                                   EMBED_CALL(cli_serve_err_msg_request_root_internal.tree,
+                                              CliServeErrMsgRequestRootCtx, .root = root, .err_msg = &ignored_err))
+                                      ? EMBED_CALL(cli_files_root_paths.kinds_view, CliFilesRootPathsCfg, .root = root)
+                                      : NULL;
+    EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 0,
+               .seen = (kinds != NULL) ? tool_kind_visit : NULL, .context_read = kinds, .out = out);
+    EMBED_CALL(cli_files.let, CliFilesCfg, .files = kinds);
     mmgr_line_put(out, ",\"groups\":[");
-    cli_toolchains_groups(tool_group_written, out);
+    EMBED_CALL(cli_toolchains_each.groups, CliToolchainsEachCfg, .each = tool_group_write, .context = out);
     mmgr_line_put(out, "],\"own\":");
     char folder[CLI_PATH_MAX_LEN];
     int on_path = 0;
     char quiet[1024];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    if (cli_toolchains_own(folder, &on_path, &ignored))
+    if (EMBED_CALL(cli_toolchains_err_msg_folder_on_path.own, CliToolchainsErrMsgFolderOnPathCfg, .folder = folder,
+                   .on_path = &on_path, .err_msg = &ignored))
     {
         mmgr_line_put(out, "{\"folder\":");
-        cli_json_quoted_lossy(out, (const unsigned char *)folder,
-                              cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)folder,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
         mmgr_line_put(out, on_path ? ",\"on_path\":true}" : ",\"on_path\":false}");
     }
     else
@@ -74,140 +86,232 @@ static int toolchains_check(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     return 1;
 }
 
-static int toolchain_add(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_add(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char id[CLI_NAME_MAX_LEN];
-    if (!cli_toolchains_add(args->json, cli_serve_arg(args, "tool"), id, err_msg))
+    if (!EMBED_CALL(
+            cli_toolchains_err_msg.add, CliToolchainsErrMsgCfg, .given = arguments->json,
+            .tool = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "tool"),
+            .id_out = id, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_json_quoted_lossy(out, (const unsigned char *)id,
-                          cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)id,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
     return 1;
 }
 
+typedef struct
+{
+    int done;
+    VerbaLinea *out;
+    const char *text;
+    unsigned long long size;
+} ServeCallToolCtx;
 // a call of a name that answers with nothing: 1 with `null` written, or 0 with why given
-static int tool_done(int done, VerbaLinea *out)
+EMBED_INLINE int tool_finish(const ServeCallToolCtx *args)
 {
-    mmgr_line_put(out, done ? "null" : "");
-    return done;
+    mmgr_line_put(args->out, args->done ? "null" : "");
+    return args->done;
 }
 
-static int toolchain_add_group(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_add_group(const CliServeAnswerCfg *args)
 {
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    return (name != NULL) && tool_done(cli_toolchains_add_group(name, err_msg), out);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    return (name != NULL) &&
+           EMBED_CALL(tool_finish, ServeCallToolCtx,
+                      .done = EMBED_CALL(cli_toolchains_err_msg_name.add_group, CliToolchainsErrMsgNameCfg,
+                                         .name = name, .err_msg = err_msg),
+                      .out = out);
 }
 
-static int toolchain_remove(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_remove(const CliServeAnswerCfg *args)
 {
-    const char *const id = cli_serve_string(args, "id", err_msg);
-    return (id != NULL) && tool_done(cli_toolchains_remove(id, err_msg), out);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
+    return (id != NULL) && EMBED_CALL(tool_finish, ServeCallToolCtx,
+                                      .done = EMBED_CALL(cli_toolchains_id_err_msg.remove, CliToolchainsIdErrMsgCfg,
+                                                         .id = id, .err_msg = err_msg),
+                                      .out = out);
 }
 
-static int toolchain_remove_group(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_remove_group(const CliServeAnswerCfg *args)
 {
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    return (name != NULL) && tool_done(cli_toolchains_remove_group(name, err_msg), out);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    return (name != NULL) &&
+           EMBED_CALL(tool_finish, ServeCallToolCtx,
+                      .done = EMBED_CALL(cli_toolchains_err_msg_name.remove_group, CliToolchainsErrMsgNameCfg,
+                                         .name = name, .err_msg = err_msg),
+                      .out = out);
 }
 
-static int toolchain_forget(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_forget(const CliServeAnswerCfg *args)
 {
-    const char *const id = cli_serve_string(args, "id", err_msg);
-    return (id != NULL) && tool_done(cli_toolchains_forget(id, err_msg), out);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
+    return (id != NULL) && EMBED_CALL(tool_finish, ServeCallToolCtx,
+                                      .done = EMBED_CALL(cli_toolchains_id_err_msg.forget, CliToolchainsIdErrMsgCfg,
+                                                         .id = id, .err_msg = err_msg),
+                                      .out = out);
 }
 
 // a text a call wrote written as a JSON string, where `done`
-static int tool_text_given(int done, const char *text, unsigned long long size, VerbaLinea *out)
+EMBED_INLINE int tool_text_free(const ServeCallToolCtx *args)
 {
-    if (done)
+    const char *text = args->text;
+    VerbaLinea *out = args->out;
+    if (args->done)
     {
-        cli_json_quoted_lossy(out, (const unsigned char *)text, size);
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                   .text_bytes = (const unsigned char *)text, .length = args->size);
     }
-    return done;
+    return args->done;
 }
 
-static int toolchain_version(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_version(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char text[4096];
     VerbaLinea line = {text, sizeof(text), 0ull};
-    const char *const id = cli_serve_string(args, "id", err_msg);
-    const int done = (id != NULL) && cli_toolchains_version(id, &line, err_msg);
-    return tool_text_given(done, text, mmgr_line_ok(&line) ? line.at : 0ull, out);
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
+    const int done = (id != NULL) && EMBED_CALL(cli_toolchains_id_err_msg.version, CliToolchainsIdErrMsgCfg, .id = id,
+                                                .out = &line, .err_msg = err_msg);
+    return EMBED_CALL(tool_text_free, ServeCallToolCtx, .done = done, .text = text,
+                      .size = mmgr_line_ok(&line) ? line.at : 0ull, .out = out);
 }
 
-static int toolchain_setup(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_setup(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char text[4096];
     VerbaLinea line = {text, sizeof(text), 0ull};
-    const char *const id = cli_serve_string(args, "id", err_msg);
-    const int done = (id != NULL) && cli_toolchains_setup_line(id, &line, err_msg);
-    return tool_text_given(done, text, mmgr_line_ok(&line) ? line.at : 0ull, out);
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
+    const int done = (id != NULL) && EMBED_CALL(cli_toolchains_id_err_msg.setup_line, CliToolchainsIdErrMsgCfg,
+                                                .id = id, .out = &line, .err_msg = err_msg);
+    return EMBED_CALL(tool_text_free, ServeCallToolCtx, .done = done, .text = text,
+                      .size = mmgr_line_ok(&line) ? line.at : 0ull, .out = out);
 }
 
-static int toolchain_add_path(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_add_path(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char folder[CLI_PATH_MAX_LEN];
-    const char *const what = cli_serve_string(args, "what", err_msg);
-    const int done = (what != NULL) && cli_toolchains_add_to_path(what, folder, err_msg);
-    return tool_text_given(done, folder,
-                           done ? cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) : 0ull, out);
+    const char *const what = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "what", .err_msg = err_msg);
+    const int done =
+        (what != NULL) && EMBED_CALL(cli_toolchains_err_msg_folder.add_to_path, CliToolchainsErrMsgFolderCfg,
+                                     .what = what, .folder = folder, .err_msg = err_msg);
+    return EMBED_CALL(tool_text_free, ServeCallToolCtx, .done = done, .text = folder,
+                      .size = done ? cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) : 0ull,
+                      .out = out);
 }
 
-static int toolchain_use(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int toolchain_use(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char program[CLI_PATH_MAX_LEN];
-    const char *const id = cli_serve_string(args, "id", err_msg);
-    const char *const folder = (id != NULL) ? cli_serve_string(args, "folder", err_msg) : NULL;
-    if ((folder == NULL) || !cli_toolchains_choose(id, folder, program, err_msg))
+    const char *const id = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                      .key = "id", .err_msg = err_msg);
+    const char *const folder = (id != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "folder", .err_msg = err_msg)
+                                            : NULL;
+    if ((folder == NULL) || !EMBED_CALL(cli_toolchains_id.choose, CliToolchainsIdCfg, .id = id, .folder_read = folder,
+                                        .program = program, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_json_quoted_lossy(out, (const unsigned char *)program,
-                          cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)program,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}));
     return 1;
 }
 
-static int validate_file(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int validate_file(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     char id[CLI_NAME_MAX_LEN];
-    const char *const language = cli_serve_string(args, "language", err_msg);
+    const char *const language = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                            .key = "language", .err_msg = err_msg);
     if (language == NULL)
     {
         return 0;
     }
-    if (!cli_validate_tool_for(language, id))
+    if (!EMBED_CALL(cli_validate.tool_for, CliValidateCfg, .language = language, .id = id))
     {
         mmgr_line_put(err_msg, "no tool plugin validates ");
         mmgr_line_put(err_msg, language);
         return 0;
     }
-    return cli_serve_at(args, root, full, err_msg) && cli_validated(id, full, out, err_msg);
+    return EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx, .request = arguments,
+                      .root = root, .full = full, .err_msg = err_msg) &&
+           EMBED_CALL(cli_validate_path.validate, CliValidatePathCfg, .id_read = id, .path = full, .report = args->out,
+                      .err_msg = err_msg);
 }
 
-static int run_file_line(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int run_file_line(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
-    const char *const language = cli_serve_string(args, "language", err_msg);
-    return (language != NULL) && cli_serve_at(args, root, full, err_msg) &&
-           cli_run_file_line(root, full, language, out, err_msg);
+    const char *const language = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                            .key = "language", .err_msg = err_msg);
+    return (language != NULL) &&
+           EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx, .request = arguments,
+                      .root = root, .full = full, .err_msg = err_msg) &&
+           EMBED_CALL(cli_run_file.line, CliRunFileCfg, .root = root, .path = full, .language = language, .out = out,
+                      .err_msg = err_msg);
 }
 
 // the shell line that verifies the disassembly of the module at the argument `path`, for the terminal to run: this
 // program, with the tree as its root, running the console command disasm-verify on the module
-static int disasm_verify_line(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int disasm_verify_line(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     char program[CLI_PATH_MAX_LEN];
-    if (!cli_serve_at(args, root, full, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx, .request = arguments,
+                    .root = root, .full = full, .err_msg = err_msg))
     {
         return 0;
     }
-    if (!cli_program_own(program, sizeof(program)))
+    if (!EMBED_CALL(cli_path_room_internal.program_own, CliPathRoomCtx, .path_out = program,
+                    .room_size = sizeof(program)))
     {
         mmgr_line_put(err_msg, "orior's program could not be found");
         return 0;
@@ -215,147 +319,193 @@ static int disasm_verify_line(const CliServeArgs *args, VerbaLinea *out, VerbaLi
     char piece[1024];
     CliJsonQuoting quoting;
     VerbaLinea line;
-    cli_json_quoting_begun(&quoting, out, &line, piece, sizeof(piece));
-    cli_link_path_word(program, &line);
+    EMBED_CALL(cli_json_tree_out.json_quoting_begin, CliJsonTreeOutCfg, .quoting = &quoting, .out = out, .line = &line,
+               .piece = piece, .piece_size = sizeof(piece));
+    EMBED_CALL(cli_link_out_path.path_word, CliLinkOutPathCfg, .path = program, .out = &line);
     mmgr_line_put(&line, " --root ");
-    cli_link_path_word(root, &line);
+    EMBED_CALL(cli_link_out_path.path_word, CliLinkOutPathCfg, .path = root, .out = &line);
     mmgr_line_put(&line, " run disasm-verify ");
-    cli_link_path_word(full, &line);
-    cli_json_quoting_ended(&quoting, &line);
+    EMBED_CALL(cli_link_out_path.path_word, CliLinkOutPathCfg, .path = full, .out = &line);
+    EMBED_CALL(cli_json_tree_out.json_quoting_end, CliJsonTreeOutCfg, .quoting = &quoting, .line = &line);
     return 1;
 }
 
-static int template_save(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int template_save(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char made[CLI_PATH_MAX_LEN];
-    const char *const name = cli_serve_string(args, "name", err_msg);
-    if ((name == NULL) || !cli_serve_tree(root, err_msg) || !cli_templates_save(root, name, made, err_msg))
+    const char *const name = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "name", .err_msg = err_msg);
+    if ((name == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg) ||
+        !EMBED_CALL(cli_templates_name.save, CliTemplatesNameCfg, .root = root, .name = name, .made = made,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    cli_json_quoted_lossy(out, (const unsigned char *)made,
-                          cellul.len(&(CatenaFinitaCfg){.src = made, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)made,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = made, .cap = CLI_CELLS_POOL}));
     return 1;
 }
 
-static int envs_found(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int envs_find(const CliServeAnswerCfg *args)
 {
-    (void)args;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    cli_envs_found(root, out);
+    EMBED_CALL(cli_envs_table.find, CliEnvsCfg, .root = root, .out = out);
     return 1;
 }
 
-static int env_use(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int env_use(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     static const char *s_requires[CLI_SERVE_REQUIRES];
     static CliTreeEnvironment s_environment;
     static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
-    const char *const place = cli_serve_string(args, "place", err_msg);
-    if ((place == NULL) || !cli_serve_strings(args, "requires", s_requires, CLI_SERVE_REQUIRES, &count, err_msg) ||
-        !cli_serve_tree(root, err_msg))
+    const char *const place = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                         .key = "place", .err_msg = err_msg);
+    if ((place == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.strings, CliServeErrMsgCtx, .request = arguments, .key = "requires",
+                    .items = s_requires, .room = CLI_SERVE_REQUIRES, .count = &count, .err_msg = err_msg) ||
+        !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    const char *const kind = cli_serve_string_or(args, "kind", NULL);
-    cli_lock_take(&s_lock);
+    const char *const kind = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "kind", .otherwise = NULL);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (kind == NULL)
     {
-        cli_toolchains_set_environment(NULL);
+        EMBED_CALL(cli_toolchains_environment_table.set_environment, CliToolchainsEnvironmentCfg, .environment = NULL);
         mmgr_line_put(out, "{\"python\":null,\"missing\":[]}");
     }
     else
     {
         memor.set(&(MemoriaCfg){.dst = &s_environment, .val = 0, .bytes = sizeof(s_environment)});
-        if (!cli_envs_resolve(root, kind, place, &s_environment, err_msg))
+        if (!EMBED_CALL(cli_envs_root.resolve, CliEnvsRootCfg, .root = root, .kind = kind, .place = place,
+                        .environment = &s_environment, .err_msg = err_msg))
         {
-            cli_lock_give(&s_lock);
+            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
             return 0;
         }
         mmgr_line_put(out, "{\"python\":");
         if (s_environment.has_python)
         {
-            cli_json_quoted_lossy(out, (const unsigned char *)s_environment.python,
-                                  cellul.len(&(CatenaFinitaCfg){.src = s_environment.python, .cap = CLI_CELLS_POOL}));
+            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+                       .text_bytes = (const unsigned char *)s_environment.python,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = s_environment.python, .cap = CLI_CELLS_POOL}));
         }
         else
         {
             mmgr_line_put(out, "null");
         }
         mmgr_line_put(out, ",\"missing\":");
-        cli_envs_missing(&s_environment, s_requires, count, out);
+        EMBED_CALL(cli_envs_out.missing, CliEnvsOutCfg, .environment_read = &s_environment, .requires = s_requires,
+                   .count = count, .out = out);
         mmgr_line_ch(out, '}');
-        cli_toolchains_set_environment(&s_environment);
+        EMBED_CALL(cli_toolchains_environment_table.set_environment, CliToolchainsEnvironmentCfg,
+                   .environment = &s_environment);
     }
-    cli_lock_give(&s_lock);
-    cli_servers_settings_changed();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    cli_servers_settings_change();
     return 1;
 }
 
-static int format_text(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int format_text(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     char program[CLI_NAME_MAX_LEN];
     unsigned long long length = 0ull;
-    const char *const language = cli_serve_string(args, "language", err_msg);
-    const char *const text = (language != NULL) ? cli_serve_string(args, "text", err_msg) : NULL;
-    if ((text == NULL) || !cli_serve_at(args, root, full, err_msg))
+    const char *const language = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                            .key = "language", .err_msg = err_msg);
+    const char *const text = (language != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                             .request = arguments, .key = "text", .err_msg = err_msg)
+                                                : NULL;
+    if ((text == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx,
+                                      .request = arguments, .root = root, .full = full, .err_msg = err_msg))
     {
         return 0;
     }
-    if (cli_format_program_of(language, program) &&
+    if (EMBED_CALL(cli_format_language.program_get, CliFormatLanguageCfg, .language = language, .program = program) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = program, .other = "prettier", .cap = CLI_CELLS_POOL})) &&
-        cli_trust_prettier_blocked(root))
+        EMBED_CALL(cli_trust_tree_words.prettier_block, CliTrustTreeWordsCfg, .tree = root))
     {
         mmgr_line_put(err_msg, "Prettier would run the tree's own configuration, and the tree is not trusted: File, "
                                "Trust This Tree.");
         return 0;
     }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &length);
-    return cli_format(full, language, text, length, out, err_msg);
+    (void)EMBED_CALL(
+        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text"),
+        .length_pointer = &length);
+    return EMBED_CALL(cli_format_path.format, CliFormatPathCfg, .path = full, .language = language, .text = text,
+                      .length = length, .out = out, .err_msg = err_msg);
 }
 
-static int format_width(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int format_width(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned int width = 0u;
-    const char *const language = cli_serve_string(args, "language", err_msg);
-    if ((language == NULL) || !cli_serve_at(args, root, full, err_msg))
+    const char *const language = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                            .key = "language", .err_msg = err_msg);
+    if ((language == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx,
+                                          .request = arguments, .root = root, .full = full, .err_msg = err_msg))
     {
         return 0;
     }
-    if (cli_format_width(full, language, &width))
+    if (EMBED_CALL(cli_format_path_language.width, CliFormatPathLanguageCfg, .path = full, .language = language,
+                   .width = &width))
     {
-        mmgr_line_decimal(out, width, 1u);
+        mmgr_line_decimal(args->out, width, 1u);
     }
     else
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
     }
     return 1;
 }
 
-static int format_margin(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int format_margin(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     char by[CLI_NAME_MAX_LEN];
     unsigned int width = 0u;
-    const char *const language = cli_serve_string(args, "language", err_msg);
-    if ((language == NULL) || !cli_serve_at(args, root, full, err_msg))
+    const char *const language = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                            .key = "language", .err_msg = err_msg);
+    if ((language == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.at, CliServeErrMsgRequestRootCtx,
+                                          .request = arguments, .root = root, .full = full, .err_msg = err_msg))
     {
         return 0;
     }
-    if (!cli_format_margin(full, language, &width, by))
+    if (!EMBED_CALL(cli_format_path_language.margin, CliFormatPathLanguageCfg, .path = full, .language = language,
+                    .width = &width, .by = by))
     {
         mmgr_line_put(out, "null");
         return 1;
@@ -363,48 +513,72 @@ static int format_margin(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
     mmgr_line_put(out, "{\"width\":");
     mmgr_line_decimal(out, width, 1u);
     mmgr_line_put(out, ",\"by\":");
-    cli_json_quoted_lossy(out, (const unsigned char *)by,
-                          cellul.len(&(CatenaFinitaCfg){.src = by, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)by,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = by, .cap = CLI_CELLS_POOL}));
     mmgr_line_ch(out, '}');
     return 1;
 }
 
-static int latex_make(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int latex_make(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    const char *const text = (path != NULL) ? cli_serve_string(args, "text", err_msg) : NULL;
-    if ((text == NULL) || !cli_serve_tree(root, err_msg))
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    const char *const text = (path != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "text", .err_msg = err_msg)
+                                            : NULL;
+    if ((text == NULL) || !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx,
+                                      .root = root, .err_msg = err_msg))
     {
         return 0;
     }
-    (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &length);
-    return cli_latex_make(root, path, text, length, out, err_msg);
+    (void)EMBED_CALL(
+        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = arguments->json,
+        .node = EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "text"),
+        .length_pointer = &length);
+    return EMBED_CALL(cli_latex.make, CliLatexCfg, .root = root, .path = path, .text = text, .length = length,
+                      .out = out, .err_msg = err_msg);
 }
 
-static int review_structure(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int review_structure(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    return cli_serve_tree(root, err_msg) && cli_review(root, cli_serve_string_or(args, "commit", NULL), out, err_msg);
+    return EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_review_table.review, CliReviewCfg, .root = root,
+                      .commit = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx,
+                                           .request = arguments, .key = "commit", .otherwise = NULL),
+                      .out = out, .err_msg = err_msg);
 }
 
-static int prints_added(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int prints_add(const CliServeAnswerCfg *args)
 {
-    (void)args;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    return cli_prints_added(root, out, err_msg);
+    return EMBED_CALL(cli_prints.add, CliPrintsCfg, .root = root, .out = out, .err_msg = err_msg);
 }
 
-static int settings_tree(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int settings_tree(const CliServeAnswerCfg *args)
 {
-    (void)args;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
@@ -414,25 +588,41 @@ static int settings_tree(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
         mmgr_line_put(err_msg, "the cell a tree's settings are read into could not be taken");
         return 0;
     }
-    cli_settings_tree(root, chain);
-    cli_settings_chain_written(chain, out);
-    cli_settings_chain_given(chain);
+    EMBED_CALL(cli_settings_path_table.tree, CliSettingsPathCfg, .root = root, .chain = chain);
+    EMBED_CALL(cli_settings_table.chain_write, CliSettingsCfg, .chain_read = chain, .out = out);
+    EMBED_CALL(cli_settings_path_table.chain_free, CliSettingsPathCfg, .chain = chain);
     g_cli_cells->persistent_buf_release(chain, &g_cli_settings_cells);
     return 1;
 }
 
-static int file_purpose(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int file_purpose(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    return (path != NULL) && cli_serve_tree(root, err_msg) && cli_purpose_written(root, path, out, err_msg);
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    return (path != NULL) &&
+           EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_purpose_table.write, CliPurposeCfg, .root = root, .path = path, .out = out,
+                      .err_msg = err_msg);
 }
 
-static int file_users(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int file_users(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    const char *const path = cli_serve_string(args, "path", err_msg);
-    return (path != NULL) && cli_serve_tree(root, err_msg) && cli_purpose_users(root, path, out, err_msg);
+    const char *const path = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "path", .err_msg = err_msg);
+    return (path != NULL) &&
+           EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                      .err_msg = err_msg) &&
+           EMBED_CALL(cli_purpose_table.users, CliPurposeCfg, .root = root, .path = path, .out = out,
+                      .err_msg = err_msg);
 }
 
 const CliServeCall g_cli_serve_tool_calls[] = {
@@ -450,14 +640,14 @@ const CliServeCall g_cli_serve_tool_calls[] = {
     {"run_file_line", run_file_line},
     {"disasm_verify_line", disasm_verify_line},
     {"template_save", template_save},
-    {"envs_found", envs_found},
+    {"envs_found", envs_find},
     {"env_use", env_use},
     {"format_text", format_text},
     {"format_width", format_width},
     {"format_margin", format_margin},
     {"latex_make", latex_make},
     {"review_structure", review_structure},
-    {"prints_added", prints_added},
+    {"prints_added", prints_add},
     {"settings_tree", settings_tree},
     {"file_purpose", file_purpose},
     {"file_users", file_users},

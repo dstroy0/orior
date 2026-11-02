@@ -38,11 +38,11 @@ static unsigned int image_bytes(unsigned int size)
 
 int main(void)
 {
-    (void)cli_cells_made(CLI_CELLS_POOL);
+    (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     char why_text[1024];
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     static GuiWindow window;
-    if (!gui_window_begun(&window, woken, NULL, &why))
+    if (!EMBED_CALL(gui_window_woken.begin, GuiWindowWokenCfg, .window = &window, .woken = woken, .context = NULL, .err_msg = &why))
     {
         mmgr_line_finish(&why);
         printf("the window did not begin: %s\n", why_text);
@@ -76,7 +76,7 @@ int main(void)
         const unsigned int size = s_sizes[at];
         GuiRaster icon;
         memor.set(&(MemoriaCfg){.dst = &icon, .val = 0, .bytes = sizeof(icon)});
-        if (!gui_window_icon(&window, &icon, size))
+        if (!EMBED_CALL(cli_window_icon.icon, GuiWindowIconCfg, .window = &window, .icon = &icon, .size = size))
         {
             printf("the icon at %u was not drawn\n", size);
             fclose(file);
@@ -107,10 +107,10 @@ int main(void)
         {
             put(file, 0u, 1u);
         }
-        gui_raster_given(&icon);
+        EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &icon);
     }
     fclose(file);
-    gui_window_ended(&window);
+    EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &window);
     printf("orior.ico written with %u sizes, %u to %u\n", (unsigned int)ICON_SIZES, s_sizes[0], s_sizes[ICON_SIZES - 1u]);
     return 0;
 }

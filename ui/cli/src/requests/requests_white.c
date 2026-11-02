@@ -5,51 +5,68 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-const char *cli_requests_text(const char *pool, CliRequestsText text)
+const char *cli_requests_text(const CliRequestsPoolCtx *args)
 {
-    return pool + text.at;
+    return args->pool + args->text_requests_text.at;
 }
 
+typedef struct
+{
+    unsigned int letter;
+    const char *text;
+    unsigned long long start;
+    unsigned long long end;
+} RequestsWhiteCtx;
 // whether a letter is white as Rust's char::is_whitespace has it
-static int white_is(unsigned int letter)
+EMBED_INLINE int white_is(const RequestsWhiteCtx *args)
 {
-    return ((letter >= 0x09u) && (letter <= 0x0du)) || (letter == 0x20u) || (letter == 0x85u) || (letter == 0xa0u) ||
-           (letter == 0x1680u) || ((letter >= 0x2000u) && (letter <= 0x200au)) || (letter == 0x2028u) ||
-           (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u);
+    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
+           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
+           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
+           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
+           (args->letter == 0x3000u);
 }
 
-unsigned long long cli_requests_white_at(const char *text, unsigned long long at, unsigned long long end)
+unsigned long long cli_requests_white_at(const CliRequestsTextAtCtx *args)
 {
     unsigned int letter = 0u;
-    const unsigned long long taken = cli_lossy_letter((const unsigned char *)text, end, at, &letter);
-    return white_is(letter) ? taken : 0ull;
+    const unsigned long long taken = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                .text_bytes = (const unsigned char *)args->text,
+                                                .length = args->end_value, .at = args->at, .letter = &letter);
+    return EMBED_CALL(white_is, RequestsWhiteCtx, .letter = letter) ? taken : 0ull;
 }
 
 // the bytes of the white letter that ends at `end`, 0 where the letter there is not white
-static unsigned long long white_before(const char *text, unsigned long long start, unsigned long long end)
+EMBED_INLINE unsigned long long white_before(const RequestsWhiteCtx *args)
 {
-    unsigned long long at = end - 1u;
-    while ((at > start) && (((unsigned char)text[at] & 0xc0u) == 0x80u) && (end - at < 4u))
+    const char *text = args->text;
+    unsigned long long at = args->end - 1u;
+    while ((at > args->start) && (((unsigned char)text[at] & 0xc0u) == 0x80u) && (args->end - at < 4u))
     {
         at -= 1u;
     }
     unsigned int letter = 0u;
-    const unsigned long long taken = cli_lossy_letter((const unsigned char *)text, end, at, &letter);
-    return ((at + taken == end) && white_is(letter)) ? taken : 0ull;
+    const unsigned long long taken =
+        EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = (const unsigned char *)text,
+                   .length = args->end, .at = at, .letter = &letter);
+    return ((at + taken == args->end) && EMBED_CALL(white_is, RequestsWhiteCtx, .letter = letter)) ? taken : 0ull;
 }
 
-void cli_requests_trimmed(const char *text, unsigned long long *start, unsigned long long *end)
+void cli_requests_trim(const CliRequestsTextStartCtx *args)
 {
+    unsigned long long *start = args->start;
+    unsigned long long *end = args->end;
     unsigned long long taken = 1ull;
     while ((*start < *end) && (taken > 0ull))
     {
-        taken = cli_requests_white_at(text, *start, *end);
+        taken = EMBED_CALL(cli_requests_text_at_internal.white_at, CliRequestsTextAtCtx, .text = args->text,
+                           .at = *start, .end_value = *end);
         *start += taken;
     }
     taken = 1ull;
     while ((*end > *start) && (taken > 0ull))
     {
-        taken = white_before(text, *start, *end);
+        taken = EMBED_CALL(white_before, RequestsWhiteCtx, .text = args->text, .start = *start, .end = *end);
         *end -= taken;
     }
 }

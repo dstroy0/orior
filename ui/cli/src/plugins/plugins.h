@@ -37,9 +37,24 @@
 // and try
 #ifndef PLUGINS_H
 #define PLUGINS_H
+typedef struct CliPluginsIdCfg CliPluginsIdCfg;
+typedef struct CliPluginsErrMsgCfg CliPluginsErrMsgCfg;
+typedef struct CliPluginsErrMsgJsonCfg CliPluginsErrMsgJsonCfg;
+typedef struct CliPluginsErrMsgJsonSpecCfg CliPluginsErrMsgJsonSpecCfg;
+typedef struct CliPluginsJsonCfg CliPluginsJsonCfg;
+typedef struct CliPluginsErrMsgJsonSpecKindCfg CliPluginsErrMsgJsonSpecKindCfg;
+typedef struct CliPluginsIdKeyCfg CliPluginsIdKeyCfg;
+typedef struct CliPluginsLanguagesPathCfg CliPluginsLanguagesPathCfg;
+typedef struct CliPluginsJsonOutCfg CliPluginsJsonOutCfg;
+typedef struct CliPluginsEachCfg CliPluginsEachCfg;
+typedef struct CliPluginsIdNameCfg CliPluginsIdNameCfg;
+typedef struct CliPluginsCfg CliPluginsCfg;
+typedef struct CliPluginsRootCfg CliPluginsRootCfg;
+typedef struct CliPluginsTreeCfg CliPluginsTreeCfg;
 
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
 
 // the most keys of extensions, names and paths the languages contain, and the most plugins the reader installs
 #define CLI_LANGUAGE_PAIRS 4096u
@@ -86,7 +101,7 @@ typedef struct
 
 // The language each extension, whole name and pattern of paths opens as: `/<name>` for a whole name, `?<pattern>` for
 // a pattern, and the extension itself; each key with its language id, a later plugin's standing in for an earlier's,
-// in a cell of `room`, given back with cli_plugins_languages_given
+// in a cell of `room`, given back with cli_plugins_languages_free
 typedef struct
 {
     CliLanguagePair *pair;
@@ -94,67 +109,307 @@ typedef struct
     unsigned int room;
 } CliLanguages;
 
+typedef struct
+{
+    void *context;
+    const CliPlugin *plugin;
+} CliEachPluginCfg;
+
 // every plugin handed to `each`: those that come with orior, then the reader's, each in the order of its id
-void cli_plugins_each(void (*each)(void *context, const CliPlugin *plugin), void *context);
+void cli_plugins_each(const CliPluginsEachCfg *args);
 // the language each extension opens as, by the language plugins, a reader's plugin standing in for one that comes with
 // orior, a key whose room could not be taken left out; the same for a caller giving it back within its call, from the
 // temporary tier; and the languages' cell given back, either way
-void cli_plugins_languages(CliLanguages *languages);
-void cli_plugins_languages_for_call(CliLanguages *languages);
-void cli_plugins_languages_given(CliLanguages *languages);
+void cli_plugins_languages(const CliPluginsCfg *args);
+void cli_plugins_languages_for_call(const CliPluginsCfg *args);
+void cli_plugins_languages_free(const CliPluginsCfg *args);
 // the grammar of the language plugin `id` stored for the colorer under `plugin:<id>`, its key written into `key`,
 // sized for CLI_NAME_MAX_LEN: read from the plugin.json of the plugin of that id that stands, and read again only where
 // that text changed since it was stored. 1, or 0 with why given (plugins_grammar.c)
-int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg);
+int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args);
 // the language the file at `path` opens as, of those `languages` gives, into `id`, sized for CLI_NAME_MAX_LEN: by
 // its whole name where a plugin names it, by a plugin's pattern of paths where one takes it, and by its extension where
 // neither does. 1, or 0 where none does
-int cli_plugins_language_for(const CliLanguages *languages, const char *path, char *id);
+int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args);
 // the tree a plugin's tables are read from, as the window opens it; and that tree into `tree`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 where none is open (plugins_tables.c)
-void cli_plugins_set_tree(const char *root);
-int cli_plugins_tree(char *tree);
+void cli_plugins_set_tree(const CliPluginsRootCfg *args);
+int cli_plugins_tree(const CliPluginsTreeCfg *args);
 // The grammar at `grammar` in `json` made whole into `out` as JSON, before the colorer stores it: each word list a
 // table of the tree `tree` fills, `{"table", "columns", "rows": {"column", "match", "skip"}, "match", "skip"}`, read
-// from the table, `{name}` in its path `name`: the cell of each row `rows` keeps in each of `columns`, the first group
+// from the table, `{name}` in its path `name`: the cell of each row `rows` saves in each of `columns`, the first group
 // of `match` or its whole match, none `skip` matches, none where the table does not read; and each rule whose pattern
 // is a word list, `{"words", "before", "after"}`, given the list's words, escaped, the longest first, between `before`
 // and `after` as its pattern, a rule whose list has none left out. 1, or 0 with why given (plugins_tables.c)
-int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const char *tree, const char *name,
-                              VerbaLinea *out, VerbaLinea *err_msg);
+int cli_plugins_grammar_whole(const CliPluginsErrMsgJsonCfg *args);
 // whether the folder `name` is one of the languages of the plugin whose `each`, `{"folder", "table", "unless":
 // {"column", "match"}, "except"}`, is at `each` in `json`: its table read from the folder of that name in `folder` of
 // the tree `tree`, no row's cell in `unless`'s column matched by its pattern, and the name not among `except`
 // (plugins_tables.c)
-int cli_plugins_folder_stands(const CliJson *json, unsigned int each, const char *tree, const char *name);
+int cli_plugins_folder_stands(const CliPluginsJsonCfg *args);
 // the code the script plugin `id` runs into `out`: the file its plugin.json names as `main`, or each of a list of them
 // there in order, joined by a line's end, plugin.js where it names none, in the plugin's own folder, or the code built
 // into the program for one that comes with orior. A name that leaves the folder is refused. 1, or 0 with why given
 // (plugins.c); and the same code read for the plugin `id` of the folder `folder` whose plugin.json is `size` bytes of
 // `text` (plugins_code.c)
-int cli_plugins_code_of(const char *id, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_plugins_code_in(const char *id, const char *folder, const char *text, unsigned long long size, VerbaLinea *out,
-                        VerbaLinea *err_msg);
+int cli_plugins_code_get(const CliPluginsIdCfg *args);
+int cli_plugins_code_in(const CliPluginsIdCfg *args);
 // a name as an id into `id`, sized for CLI_NAME_MAX_LEN: its letters and digits in lower case, every run of anything
 // else one dash
-void cli_plugins_slug(const char *name, char *id);
+void cli_plugins_slug(const CliPluginsIdNameCfg *args);
 // The plugin the answers at `spec` in `json` request, `{name, id, extensions, from, lineComment, blockComment,
 // keywords, types, constants, quotes}` each of which may be left out, made in `json`: its node, or CLI_JSON_NONE with
-// why given; and a tree allocated into `draft`, given back with cli_json_given, sized to the answers at `spec` in
+// why given; and a tree allocated into `draft`, given back with cli_json_free, sized to the answers at `spec` in
 // `json`, to the plugin they start from and to what a draft of them makes, the answers copied into it: their node
 // there, or CLI_JSON_NONE with why given (plugins_draft.c)
-unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, VerbaLinea *err_msg);
-unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigned int spec, VerbaLinea *err_msg);
+unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecKindCfg *args);
+unsigned int cli_plugins_draft_tree(const CliPluginsErrMsgJsonSpecCfg *args);
 // a plugin as its file lays out it: each value on one line where it fits in 110 characters; and a few lines in its
 // language to open and try, a comment, a keyword, a type, a constant, a string and a number, each where the plugin has
 // one, each ended by "\n" (plugins_text.c)
-void cli_plugins_text_of(const CliJson *json, unsigned int plugin, VerbaLinea *out);
-void cli_plugins_sample_of(const CliJson *json, unsigned int plugin, VerbaLinea *out);
+void cli_plugins_text_get(const CliPluginsJsonOutCfg *args);
+void cli_plugins_sample_get(const CliPluginsJsonOutCfg *args);
 // the plugin the answers request written under `dir`, in a folder of its id, with a sample file beside it, the folder
 // into `folder`, sized for CLI_PATH_MAX_LEN: a plugin of that id already there is retained unless `replace`. And the
 // same under the reader's plugins folder. 1, or 0 with why given
-int cli_plugins_create_in(const char *dir, const CliJson *json, unsigned int spec, int replace, char *folder,
-                          VerbaLinea *err_msg);
-int cli_plugins_create(const CliJson *json, unsigned int spec, int replace, char *folder, VerbaLinea *err_msg);
+int cli_plugins_create_in(const CliPluginsErrMsgCfg *args);
+int cli_plugins_create(const CliPluginsErrMsgCfg *args);
+
+struct CliPluginsIdCfg
+{
+    const char *id;
+    VerbaLinea *err_msg;
+    VerbaLinea *out;
+    const char *folder_read;
+    const char *text;
+    unsigned long long size;
+};
+
+struct CliPluginsErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    const CliJson *json;
+    unsigned int spec;
+    const char *dir;
+    int replace;
+    char *folder;
+};
+
+struct CliPluginsErrMsgJsonCfg
+{
+    VerbaLinea *err_msg;
+    const CliJson *json;
+    unsigned int grammar;
+    const char *tree;
+    const char *name;
+    VerbaLinea *out;
+};
+
+struct CliPluginsErrMsgJsonSpecCfg
+{
+    VerbaLinea *err_msg;
+    const CliJson *json;
+    unsigned int spec;
+    CliJson *draft;
+};
+
+struct CliPluginsJsonCfg
+{
+    const CliJson *json;
+    const char *tree;
+    const char *name;
+    unsigned int each_u32;
+};
+
+struct CliPluginsErrMsgJsonSpecKindCfg
+{
+    VerbaLinea *err_msg;
+    CliJson *json_out;
+    unsigned int spec;
+};
+
+struct CliPluginsIdKeyCfg
+{
+    const char *id;
+    char *key;
+    VerbaLinea *err_msg;
+};
+
+struct CliPluginsLanguagesPathCfg
+{
+    const CliLanguages *languages_read;
+    const char *path;
+    char *id_out;
+};
+
+struct CliPluginsJsonOutCfg
+{
+    const CliJson *json;
+    VerbaLinea *out;
+    unsigned int plugin;
+};
+
+struct CliPluginsEachCfg
+{
+    void (*each)(const CliEachPluginCfg *args);
+    void *context;
+};
+
+struct CliPluginsIdNameCfg
+{
+    char *id_out;
+    const char *name;
+};
+
+struct CliPluginsCfg
+{
+    CliLanguages *languages;
+};
+
+struct CliPluginsRootCfg
+{
+    const char *root;
+};
+
+struct CliPluginsTreeCfg
+{
+    char *tree_out;
+};
+
+typedef struct
+{
+    void (*each)(const CliPluginsEachCfg *args);
+} CliPluginsEachNs;
+EMBED_TABLE_LAYOUT(CliPluginsEachNs, each);
+EMBED_TABLE_STORAGE CliPluginsEachNs cli_plugins_each_table EMBED_UNUSED = {
+    .each = cli_plugins_each,
+};
+
+typedef struct
+{
+    void (*languages)(const CliPluginsCfg *args);
+    void (*languages_for_call)(const CliPluginsCfg *args);
+    void (*languages_free)(const CliPluginsCfg *args);
+} CliPluginsNs;
+EMBED_TABLE_LAYOUT(CliPluginsNs, languages, languages_for_call, languages_free);
+EMBED_TABLE_STORAGE CliPluginsNs cli_plugins_table EMBED_UNUSED = {
+    .languages = cli_plugins_languages,
+    .languages_for_call = cli_plugins_languages_for_call,
+    .languages_free = cli_plugins_languages_free,
+};
+
+typedef struct
+{
+    int (*grammar_store)(const CliPluginsIdKeyCfg *args);
+} CliPluginsIdKeyNs;
+EMBED_TABLE_LAYOUT(CliPluginsIdKeyNs, grammar_store);
+EMBED_TABLE_STORAGE CliPluginsIdKeyNs cli_plugins_id_key EMBED_UNUSED = {
+    .grammar_store = cli_plugins_grammar_store,
+};
+
+typedef struct
+{
+    int (*language_for)(const CliPluginsLanguagesPathCfg *args);
+} CliPluginsLanguagesPathNs;
+EMBED_TABLE_LAYOUT(CliPluginsLanguagesPathNs, language_for);
+EMBED_TABLE_STORAGE CliPluginsLanguagesPathNs cli_plugins_languages_path EMBED_UNUSED = {
+    .language_for = cli_plugins_language_for,
+};
+
+typedef struct
+{
+    void (*set_tree)(const CliPluginsRootCfg *args);
+} CliPluginsRootNs;
+EMBED_TABLE_LAYOUT(CliPluginsRootNs, set_tree);
+EMBED_TABLE_STORAGE CliPluginsRootNs cli_plugins_root EMBED_UNUSED = {
+    .set_tree = cli_plugins_set_tree,
+};
+
+typedef struct
+{
+    int (*tree)(const CliPluginsTreeCfg *args);
+} CliPluginsTreeNs;
+EMBED_TABLE_LAYOUT(CliPluginsTreeNs, tree);
+EMBED_TABLE_STORAGE CliPluginsTreeNs cli_plugins_tree_table EMBED_UNUSED = {
+    .tree = cli_plugins_tree,
+};
+
+typedef struct
+{
+    int (*grammar_whole)(const CliPluginsErrMsgJsonCfg *args);
+} CliPluginsErrMsgJsonNs;
+EMBED_TABLE_LAYOUT(CliPluginsErrMsgJsonNs, grammar_whole);
+EMBED_TABLE_STORAGE CliPluginsErrMsgJsonNs cli_plugins_err_msg_json EMBED_UNUSED = {
+    .grammar_whole = cli_plugins_grammar_whole,
+};
+
+typedef struct
+{
+    int (*folder_stands)(const CliPluginsJsonCfg *args);
+} CliPluginsJsonNs;
+EMBED_TABLE_LAYOUT(CliPluginsJsonNs, folder_stands);
+EMBED_TABLE_STORAGE CliPluginsJsonNs cli_plugins_json EMBED_UNUSED = {
+    .folder_stands = cli_plugins_folder_stands,
+};
+
+typedef struct
+{
+    int (*code_get)(const CliPluginsIdCfg *args);
+    int (*code_in)(const CliPluginsIdCfg *args);
+} CliPluginsIdNs;
+EMBED_TABLE_LAYOUT(CliPluginsIdNs, code_get, code_in);
+EMBED_TABLE_STORAGE CliPluginsIdNs cli_plugins_id EMBED_UNUSED = {
+    .code_get = cli_plugins_code_get,
+    .code_in = cli_plugins_code_in,
+};
+
+typedef struct
+{
+    void (*slug)(const CliPluginsIdNameCfg *args);
+} CliPluginsIdNameNs;
+EMBED_TABLE_LAYOUT(CliPluginsIdNameNs, slug);
+EMBED_TABLE_STORAGE CliPluginsIdNameNs cli_plugins_id_name EMBED_UNUSED = {
+    .slug = cli_plugins_slug,
+};
+
+typedef struct
+{
+    unsigned int (*draft)(const CliPluginsErrMsgJsonSpecKindCfg *args);
+} CliPluginsErrMsgJsonSpecKindNs;
+EMBED_TABLE_LAYOUT(CliPluginsErrMsgJsonSpecKindNs, draft);
+EMBED_TABLE_STORAGE CliPluginsErrMsgJsonSpecKindNs cli_plugins_err_msg_json_spec_kind EMBED_UNUSED = {
+    .draft = cli_plugins_draft,
+};
+
+typedef struct
+{
+    unsigned int (*draft_tree)(const CliPluginsErrMsgJsonSpecCfg *args);
+} CliPluginsErrMsgJsonSpecNs;
+EMBED_TABLE_LAYOUT(CliPluginsErrMsgJsonSpecNs, draft_tree);
+EMBED_TABLE_STORAGE CliPluginsErrMsgJsonSpecNs cli_plugins_err_msg_json_spec EMBED_UNUSED = {
+    .draft_tree = cli_plugins_draft_tree,
+};
+
+typedef struct
+{
+    void (*text_get)(const CliPluginsJsonOutCfg *args);
+    void (*sample_get)(const CliPluginsJsonOutCfg *args);
+} CliPluginsJsonOutNs;
+EMBED_TABLE_LAYOUT(CliPluginsJsonOutNs, text_get, sample_get);
+EMBED_TABLE_STORAGE CliPluginsJsonOutNs cli_plugins_json_out EMBED_UNUSED = {
+    .text_get = cli_plugins_text_get,
+    .sample_get = cli_plugins_sample_get,
+};
+
+typedef struct
+{
+    int (*create_in)(const CliPluginsErrMsgCfg *args);
+    int (*create)(const CliPluginsErrMsgCfg *args);
+} CliPluginsErrMsgNs;
+EMBED_TABLE_LAYOUT(CliPluginsErrMsgNs, create_in, create);
+EMBED_TABLE_STORAGE CliPluginsErrMsgNs cli_plugins_err_msg EMBED_UNUSED = {
+    .create_in = cli_plugins_create_in,
+    .create = cli_plugins_create,
+};
 
 #endif

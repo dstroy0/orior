@@ -28,41 +28,62 @@ static const char s_shim[] =
     "print(json.dumps({\"name\": best.co_qualname if hasattr(best, \"co_qualname\") else best.co_name, "
     "\"instructions\": out}))\n";
 
+typedef struct
+{
+    const CliRan *ran;
+    VerbaLinea *err_msg;
+    const CliJson *json;
+    unsigned int one;
+    VerbaLinea *out;
+} DebugBytecodeCtx;
 // the last line of what the shim wrote to its errors, the whole trimmed first, into `err_msg`; where it wrote none,
 // that the bytecode could not be read
-static void bytecode_failed(const CliRan *ran, VerbaLinea *err_msg)
+EMBED_INLINE void bytecode_fail(const DebugBytecodeCtx *args)
 {
     unsigned long long start = 0ull;
-    unsigned long long end = ran->err_size;
+    unsigned long long end = args->ran->err_size;
     while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = ran->err[start]}) != NULL))
+                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->ran->err[start]}) != NULL))
     {
         start += 1ull;
     }
-    while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = ran->err[end - 1ull]}) != NULL))
+    while ((end > start) &&
+           (cellul.chr(&(CatenaFinitaCfg){
+                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->ran->err[end - 1ull]}) != NULL))
     {
         end -= 1ull;
     }
     if (end == start)
     {
-        mmgr_line_put(err_msg, "the bytecode could not be read");
+        mmgr_line_put(args->err_msg, "the bytecode could not be read");
         return;
     }
     unsigned long long last = end;
-    last = (start + cli_text_back_any(ran->err + start, last - start, "\n"));
-    const unsigned long long stop = ((end > last) && (ran->err[end - 1ull] == '\r')) ? end - 1ull : end;
-    cli_lossy(err_msg, (const unsigned char *)ran->err + last, stop - last);
+    last = (start + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                               .text = args->ran->err + start, .at = last - start, .set = "\n"));
+    const unsigned long long stop = ((end > last) && (args->ran->err[end - 1ull] == '\r')) ? end - 1ull : end;
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
+               .text_bytes = (const unsigned char *)args->ran->err + last, .length = stop - last);
 }
 
 // an instruction the shim wrote, written as the window reads one
-static void bytecode_instruction(const CliJson *json, unsigned int one, VerbaLinea *out)
+EMBED_INLINE void bytecode_instruction(const DebugBytecodeCtx *args)
 {
+    const CliJson *json = args->json;
+    VerbaLinea *out = args->out;
     unsigned long long line = 0ull;
     unsigned long long name_size = 0ull;
     unsigned long long argument_size = 0ull;
-    const char *const name = cli_json_string(json, cli_json_member(json, one, "name"), &name_size);
-    const char *const argument = cli_json_string(json, cli_json_member(json, one, "argument"), &argument_size);
+    const char *const name =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->one, .name = "name"),
+                   .length_pointer = &name_size);
+    const char *const argument =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->one, .name = "argument"),
+                   .length_pointer = &argument_size);
     char text[CLI_NAME_MAX_LEN * 4u];
     VerbaLinea joined = {text, sizeof(text), 0ull};
     mmgr_line_put_n(&joined, (name != NULL) ? name : "", name_size);
@@ -84,20 +105,27 @@ static void bytecode_instruction(const CliJson *json, unsigned int one, VerbaLin
     // the offset as JSON writes it, quoted as the window reads an address
     char offset[64];
     VerbaLinea offset_line = {offset, sizeof(offset), 0ull};
-    const unsigned int offset_node = cli_json_member(json, one, "offset");
+    const unsigned int offset_node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = json, .object = args->one, .name = "offset");
     if (offset_node != CLI_JSON_NONE)
     {
-        cli_json_write(json, offset_node, &offset_line, 0u, 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = offset_node,
+                   .out = &offset_line, .indent = 0u, .sorted = 0);
     }
     else
     {
         mmgr_line_put(&offset_line, "null");
     }
-    cli_json_quoted_lossy(out, (const unsigned char *)offset_line.out, offset_line.at);
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)offset_line.out, .length = offset_line.at);
     mmgr_line_put(out, ",\"text\":");
-    cli_json_quoted_lossy(out, (const unsigned char *)text + start, end - start);
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)text + start, .length = end - start);
     mmgr_line_put(out, ",\"bytes\":\"\",\"symbol\":\"\",\"line\":");
-    if (cli_debug_unsigned(json, cli_json_member(json, one, "line"), &line))
+    if (EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx, .json = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->one, .name = "line"),
+                   .value_u64s = &line))
     {
         mmgr_line_decimal(out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
     }
@@ -108,56 +136,70 @@ static void bytecode_instruction(const CliJson *json, unsigned int one, VerbaLin
     mmgr_line_ch(out, '}');
 }
 
-int cli_debug_bytecode(const char *root, const char *path, unsigned int line, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_debug_bytecode(const CliDebugRootOutCfg *args)
 {
     char python[CLI_PATH_MAX_LEN];
-    if (!cli_test_python(python))
+    if (!EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python))
     {
-        mmgr_line_put(err_msg, "No Python is found to read the bytecode: File, Toolchains finds one");
+        mmgr_line_put(args->err_msg, "No Python is found to read the bytecode: File, Toolchains finds one");
         return 0;
     }
     char number[32];
     VerbaLinea line_text = {number, sizeof(number), 0ull};
-    mmgr_line_decimal(&line_text, (unsigned long long)line + 1ull, 1u);
+    mmgr_line_decimal(&line_text, (unsigned long long)args->line + 1ull, 1u);
     mmgr_line_finish(&line_text);
-    const char *const words[5] = {python, "-", path, number, NULL};
+    const char *const words[5] = {python, "-", args->path, number, NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_taken();
-    if (!cli_ran_fed(words, root, NULL, 0u, s_shim, sizeof(s_shim) - 1u, ran, &err_buf))
+    CliRan *const ran = cli_ran_take();
+    if (!EMBED_CALL(cli_words_internal.ran_feed, CliWordsCtx, .words = words, .folder = args->root, .settings = NULL,
+                    .count = 0u, .input = s_shim, .length = sizeof(s_shim) - 1u, .ran = ran, .err_msg = &err_buf))
     {
-        cli_ran_given(ran);
-        mmgr_line_put(err_msg, python);
-        mmgr_line_put(err_msg, ": ");
-        mmgr_line_put_n(err_msg, err_buf.out, err_buf.at);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        mmgr_line_put(args->err_msg, python);
+        mmgr_line_put(args->err_msg, ": ");
+        mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
         return 0;
     }
     if (ran->code != 0ll)
     {
-        bytecode_failed(ran, err_msg);
-        cli_ran_given(ran);
+        EMBED_CALL(bytecode_fail, DebugBytecodeCtx, .ran = ran, .err_msg = args->err_msg);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return 0;
     }
     CliJson json;
-    const unsigned int value = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, err_msg, &g_cli_debug_cells);
-    cli_ran_given(ran);
+    const unsigned int value = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+                                          .json = &json, .text = ran->out, .size = ran->out_size, .nodes_more = 0u,
+                                          .text_more = 0ull, .err_msg = args->err_msg, .owner = &g_cli_debug_cells);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     if (value == CLI_JSON_NONE)
     {
-        cli_json_given(&json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         return 0;
     }
-    const unsigned int instructions = cli_json_member(&json, value, "instructions");
+    const unsigned int instructions = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                 .json_read = &json, .object = value, .name = "instructions");
     unsigned long long name_size = 0ull;
-    const char *const name = cli_json_string(&json, cli_json_member(&json, value, "name"), &name_size);
-    mmgr_line_ch(out, '[');
-    cli_json_quoted_lossy(out, (const unsigned char *)((name != NULL) ? name : ""), name_size);
-    mmgr_line_put(out, ",[");
-    for (unsigned int at = 0u; cli_json_item(&json, instructions, at) != CLI_JSON_NONE; at += 1u)
+    const char *const name =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = value, .name = "name"),
+                   .length_pointer = &name_size);
+    mmgr_line_ch(args->out, '[');
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+               .text_bytes = (const unsigned char *)((name != NULL) ? name : ""), .length = name_size);
+    mmgr_line_put(args->out, ",[");
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = &json, .array = instructions, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
-        mmgr_line_put(out, (at > 0u) ? "," : "");
-        bytecode_instruction(&json, cli_json_item(&json, instructions, at), out);
+        mmgr_line_put(args->out, (at > 0u) ? "," : "");
+        EMBED_CALL(bytecode_instruction, DebugBytecodeCtx, .json = &json,
+                   .one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json,
+                                     .array = instructions, .index = at),
+                   .out = args->out);
     }
-    mmgr_line_put(out, "]]");
-    cli_json_given(&json);
+    mmgr_line_put(args->out, "]]");
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     return 1;
 }

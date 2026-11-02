@@ -8,14 +8,12 @@
 // a define's parameters and the file an include names are known by the roles their grammar's tokens name; nothing here
 // reads a language's text
 #include "../builds/compile_db.h"
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 #include "symbols_tree.h"
-
-// the bytes the walk's texts are taken with, and the room its macros and branches walked are taken with, the same
-#define CLI_EFFECT_TEXT_ROOM (8ull << 20u)
 
 // One condition open: whether its region is active, whether one of its arms was taken, and whether the region it
 // opens in is active
@@ -25,7 +23,6 @@ typedef struct
     int taken;
     int outer;
 } CliEffectCondition;
-
 // One declaration the leaves of a branch a slice's walk walks name: its line, the name it declares and its kind,
 // places among the walk's texts, and the name's length
 typedef struct
@@ -35,7 +32,6 @@ typedef struct
     unsigned int length;
     unsigned int kind;
 } CliEffectDeclared;
-
 // A branch being walked: its leaves, its conditions open and how many, the lines of the declarations of the name sought
 // in it and how many; and for a slice's walk, every declaration its leaves name, read as they are, in a cell at their
 // most, how many and the room, and its place among the branches read whole
@@ -51,61 +47,6 @@ typedef struct
     unsigned int declared_room;
     unsigned int read_at;
 } CliEffectBranch;
-
-// A branch a slice's walk reads: the walk and the branch
-typedef struct
-{
-    CliEffect *effect;
-    CliEffectBranch *branch;
-} CliEffectDeclaring;
-
-const char *cli_effect_text(const CliEffect *effect, unsigned int at)
-{
-    return effect->text.out + at;
-}
-
-unsigned int cli_effect_put(CliEffect *effect, const char *text, unsigned long long length)
-{
-    // a walk's texts are far under 4 GiB
-    const unsigned int at = (unsigned int)effect->text.at;
-    mmgr_line_put_n(&effect->text, text, length);
-    mmgr_line_ch(&effect->text, '\0');
-    effect->refused |= !mmgr_line_ok(&effect->text);
-    return mmgr_line_ok(&effect->text) ? at : CLI_JSON_NONE;
-}
-
-// what a slice's walk met put in the walk's cell after what it met before: its place among them, or CLI_JSON_NONE
-// where the walk is no slice's, or the cells cannot meet it and the walk is refused
-static unsigned int cli_effect_seen(CliEffect *effect, const CliEffectSeen *seen)
-{
-    if (!effect->slicing)
-    {
-        return CLI_JSON_NONE;
-    }
-    if (effect->seens >= effect->seen_room)
-    {
-        effect->refused = 1;
-        return CLI_JSON_NONE;
-    }
-    effect->seen[effect->seens] = *seen;
-    effect->seens += 1u;
-    return effect->seens - 1u;
-}
-
-unsigned int cli_effect_macro(const CliEffect *effect, const char *name, unsigned long long length)
-{
-    for (unsigned int at = effect->macros; at > 0u; at -= 1u)
-    {
-        const char *const named = cli_effect_text(effect, effect->macro[at - 1u].name);
-        if ((cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) == length) &&
-            cli_text_same(named, name, length))
-        {
-            return effect->macro[at - 1u].undefined ? CLI_JSON_NONE : (at - 1u);
-        }
-    }
-    return CLI_JSON_NONE;
-}
-
 // A macro met: its name and its value's text, each a text and its length; its value's leaves, those of `read` from
 // `first` to before `end`; whether it is called with arguments, and if so its parameters' names, each a text and its
 // length, how many, and whether it takes the arguments past them; the branch it was met in, a place among the walk's
@@ -129,15 +70,111 @@ typedef struct
     unsigned int line;
     int undefined;
 } CliEffectMet;
+// the bytes the walk's texts are taken with, and the room its macros and branches walked are taken with, the same
+#define CLI_EFFECT_TEXT_ROOM (8ull << 20u)
+
+// A branch a slice's walk reads: the walk and the branch
+typedef struct
+{
+    CliEffect *effect;
+    CliEffectBranch *branch;
+} CliEffectDeclaring;
+
+const char *cli_effect_text(const CliSymbolsCtx *args)
+{
+    return args->effect_read->text.out + args->at_value;
+}
+
+unsigned int cli_effect_put(const CliSymbolsTextLengthCtx *args)
+{
+    // a walk's texts are far under 4 GiB
+    const unsigned int at = (unsigned int)args->effect->text.at;
+    mmgr_line_put_n(&args->effect->text, args->text, args->length);
+    mmgr_line_ch(&args->effect->text, '\0');
+    args->effect->refused |= !mmgr_line_ok(&args->effect->text);
+    return mmgr_line_ok(&args->effect->text) ? at : CLI_JSON_NONE;
+}
+
+typedef struct
+{
+    CliEffect *effect;
+    const CliEffectSeen *seen;
+    const CliLeafRead *read;
+    unsigned int leaf;
+    const CliEffectMet *met;
+    const CliEffect *effect_read;
+    const char *whole;
+    char *out;
+    const char *path;
+    const char *folder;
+    unsigned long long folder_length;
+    const char *named;
+    unsigned long long length;
+    int angled;
+    unsigned int upto;
+    unsigned int depth;
+    CliEffectBranch *branch;
+    unsigned int role;
+    unsigned int from;
+    unsigned int to;
+    unsigned int path_u32;
+    unsigned int read_at;
+    unsigned int named_u32;
+    unsigned int end;
+    const unsigned char *bytes;
+    unsigned long long size;
+    int from_disk;
+    unsigned int first;
+} SymbolsEffectCtx;
+// what a slice's walk met put in the walk's cell after what it met before: its place among them, or CLI_JSON_NONE
+// where the walk is no slice's, or the cells cannot meet it and the walk is refused
+EMBED_INLINE unsigned int cli_effect_visit(const SymbolsEffectCtx *args)
+{
+    if (!args->effect->slicing)
+    {
+        return CLI_JSON_NONE;
+    }
+    if (args->effect->seens >= args->effect->seen_room)
+    {
+        args->effect->refused = 1;
+        return CLI_JSON_NONE;
+    }
+    args->effect->seen[args->effect->seens] = *args->seen;
+    args->effect->seens += 1u;
+    return args->effect->seens - 1u;
+}
+
+unsigned int cli_effect_macro(const CliSymbolsNameCtx *args)
+{
+    for (unsigned int at = args->effect_read->macros; at > 0u; at -= 1u)
+    {
+        const char *const named =
+            EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = args->effect_read,
+                       .at_value = args->effect_read->macro[at - 1u].name);
+        if ((cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) == args->length) &&
+            EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = named, .other_pointer = args->name,
+                       .size = args->length))
+        {
+            return args->effect_read->macro[at - 1u].undefined ? CLI_JSON_NONE : (at - 1u);
+        }
+    }
+    return CLI_JSON_NONE;
+}
 
 // the leaf `leaf` of `read` put in the walk's cell of value leaves after those before it, its text put among the walk's
 // texts: 1, or 0 with the walk refused where the cells cannot meet it
-static int cli_effect_value_leaf_put(CliEffect *effect, const CliLeafRead *read, unsigned int leaf)
+EMBED_INLINE int cli_effect_value_leaf_put(const SymbolsEffectCtx *args)
 {
+    CliEffect *effect = args->effect;
+    const CliLeafRead *read = args->read;
+    unsigned int leaf = args->leaf;
     unsigned long long length = 0ull;
-    const char *const text = cli_leaf_text(read, leaf, &length);
-    const unsigned int put =
-        (effect->value_leaves < effect->value_leaf_room) ? cli_effect_put(effect, text, length) : CLI_JSON_NONE;
+    const char *const text = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
+                                        .read_read = read, .leaf = leaf, .length_pointer = &length);
+    const unsigned int put = (effect->value_leaves < effect->value_leaf_room)
+                                 ? EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx,
+                                              .effect = effect, .text = text, .length = length)
+                                 : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
     {
         effect->refused = 1;
@@ -153,12 +190,19 @@ static int cli_effect_value_leaf_put(CliEffect *effect, const CliLeafRead *read,
 
 // a macro met put after those met before, its value's leaves put in the walk's cell of value leaves but its blanks,
 // comments and the leaves that carry its line on to the next
-static void cli_effect_met(CliEffect *effect, const CliEffectMet *met)
+static void cli_effect_intersect(const SymbolsEffectCtx *args)
 {
+    CliEffect *effect = args->effect;
     const unsigned int named =
-        (effect->macros < effect->macro_room) ? cli_effect_put(effect, met->name, met->name_length) : CLI_JSON_NONE;
+        (effect->macros < effect->macro_room)
+            ? EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx, .effect = effect,
+                         .text = args->met->name, .length = args->met->name_length)
+            : CLI_JSON_NONE;
     const unsigned int valued =
-        (named != CLI_JSON_NONE) ? cli_effect_put(effect, met->value, met->value_length) : CLI_JSON_NONE;
+        (named != CLI_JSON_NONE)
+            ? EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx, .effect = effect,
+                         .text = args->met->value, .length = args->met->value_length)
+            : CLI_JSON_NONE;
     if (valued == CLI_JSON_NONE)
     {
         effect->refused = 1;
@@ -166,18 +210,21 @@ static void cli_effect_met(CliEffect *effect, const CliEffectMet *met)
     }
     // the parameters' names put one after another, each ended by its zero, the first's place theirs
     unsigned int params = valued;
-    for (unsigned int at = 0u; at < met->params; at += 1u)
+    for (unsigned int at = 0u; at < args->met->params; at += 1u)
     {
-        const unsigned int put = cli_effect_put(effect, met->param[at], met->param_length[at]);
+        const unsigned int put =
+            EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx, .effect = effect,
+                       .text = args->met->param[at], .length = args->met->param_length[at]);
         params = (at == 0u) ? put : params;
     }
     const unsigned int first = effect->value_leaves;
     const unsigned long long passed = CLI_LEAF_BLANK | CLI_LEAF_COMMENT | CLI_LEAF_CONTINUED;
-    for (unsigned int leaf = met->first; !effect->refused && (leaf < met->end); leaf += 1u)
+    for (unsigned int leaf = args->met->first; !effect->refused && (leaf < args->met->end); leaf += 1u)
     {
-        if ((met->read->leaf[leaf].is & passed) == 0u)
+        if ((args->met->read->leaf[leaf].is & passed) == 0u)
         {
-            (void)cli_effect_value_leaf_put(effect, met->read, leaf);
+            (void)EMBED_CALL(cli_effect_value_leaf_put, SymbolsEffectCtx, .effect = effect, .read = args->met->read,
+                             .leaf = leaf);
         }
     }
     if (effect->refused)
@@ -186,165 +233,176 @@ static void cli_effect_met(CliEffect *effect, const CliEffectMet *met)
     }
     effect->macro[effect->macros] = (CliEffectMacro){named,
                                                      valued,
-                                                     met->path,
-                                                     met->line,
-                                                     met->undefined,
-                                                     met->called,
+                                                     args->met->path,
+                                                     args->met->line,
+                                                     args->met->undefined,
+                                                     args->met->called,
                                                      params,
-                                                     met->params,
-                                                     met->rest,
+                                                     args->met->params,
+                                                     args->met->rest,
                                                      first,
                                                      effect->value_leaves - first,
-                                                     met->seen};
+                                                     args->met->seen};
     effect->macros += 1u;
 }
 
 // One define the compilation database gives the branch the walk starts from, met before its first line: its value's
 // leaves read by the grammar of the branch's language from its first state
-static void cli_effect_given(void *context, const CliDefineGiven *define)
+static void cli_effect_free(const CliDefineEachCfg *args)
 {
-    CliEffect *const effect = (CliEffect *)context;
-    const unsigned int path = cli_effect_put(
-        effect, define->node, cellul.len(&(CatenaFinitaCfg){.src = define->node, .cap = CLI_CELLS_POOL}));
+    CliEffect *const effect = (CliEffect *)args->context;
+    const unsigned int path =
+        EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx, .effect = effect,
+                   .text = args->define->node,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->define->node, .cap = CLI_CELLS_POOL}));
     if (path == CLI_JSON_NONE)
     {
         return;
     }
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = define->value, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->define->value, .cap = CLI_CELLS_POOL});
     CliLeafRead read;
     // a value no grammar reads has no leaves, and a condition reads it as none
-    const int leaved = cli_symbols_leaves_kept(effect->languages, effect->start, "root", define->value, size, &read);
+    const int leaved =
+        EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .languages = effect->languages,
+                   .path = effect->start, .state = "root", .text = args->define->value, .size = size, .read = &read);
     CliEffectMet met = {.seen = CLI_JSON_NONE,
-                        .name = define->name,
-                        .name_length = cellul.len(&(CatenaFinitaCfg){.src = define->name, .cap = CLI_CELLS_POOL}),
-                        .value = define->value,
+                        .name = args->define->name,
+                        .name_length = cellul.len(&(CatenaFinitaCfg){.src = args->define->name, .cap = CLI_CELLS_POOL}),
+                        .value = args->define->value,
                         .value_length = size,
                         .read = &read,
                         .first = 0u,
                         .end = leaved ? read.count : 0u,
-                        .called = define->called,
-                        .params = (define->params < CLI_DEFINE_PARAMS) ? define->params : CLI_DEFINE_PARAMS,
-                        .rest = define->rest,
+                        .called = args->define->called,
+                        .params = (args->define->params < CLI_DEFINE_PARAMS) ? args->define->params : CLI_DEFINE_PARAMS,
+                        .rest = args->define->rest,
                         .path = path,
                         .line = CLI_EFFECT_GIVEN,
                         .undefined = 0};
     for (unsigned int at = 0u; at < met.params; at += 1u)
     {
-        met.param[at] = define->param[at];
-        met.param_length[at] = cellul.len(&(CatenaFinitaCfg){.src = define->param[at], .cap = CLI_CELLS_POOL});
+        met.param[at] = args->define->param[at];
+        met.param_length[at] = cellul.len(&(CatenaFinitaCfg){.src = args->define->param[at], .cap = CLI_CELLS_POOL});
     }
-    cli_effect_met(effect, &met);
-    cli_symbols_leaves_given(&read);
+    EMBED_CALL(cli_effect_intersect, SymbolsEffectCtx, .effect = effect, .met = &met);
+    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
 }
 
 // the whole path `whole`, its slashes `/`, as the tree holds it into `out`, sized for CLI_PATH_MAX_LEN: from the
 // tree's top where it lies inside it, else under the name of the mount that holds it; 1, or 0 where neither does
-static int cli_effect_tree_path(const CliEffect *effect, const char *whole, char *out)
+EMBED_INLINE int cli_effect_tree_path(const SymbolsEffectCtx *args)
 {
     const char *names[CLI_MOUNTS_MOST];
     const char *paths[CLI_MOUNTS_MOST];
-    const unsigned int mounts = cli_mounts(names, paths, CLI_MOUNTS_MOST);
+    const unsigned int mounts = EMBED_CALL(cli_room_names_internal.mounts, CliRoomNamesCtx, .names = names,
+                                           .paths_read = paths, .room_u32 = CLI_MOUNTS_MOST);
     for (unsigned int at = 0u; at <= mounts; at += 1u)
     {
         // the tree's top first, then each mount
-        const char *const top = (at == 0u) ? effect->root : paths[at - 1u];
+        const char *const top = (at == 0u) ? args->effect_read->root : paths[at - 1u];
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
         int under = length != 0ull;
         for (unsigned long long each = 0ull; under && (each < length); each += 1ull)
         {
-            under = ((top[each] == '\\') ? '/' : top[each]) == ((whole[each] == '\\') ? '/' : whole[each]);
+            under = ((top[each] == '\\') ? '/' : top[each]) == ((args->whole[each] == '\\') ? '/' : args->whole[each]);
         }
-        under = under && ((whole[length] == '/') || (whole[length] == '\0'));
+        under = under && ((args->whole[length] == '/') || (args->whole[length] == '\0'));
         if (!under)
         {
             continue;
         }
-        VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull, NULL, NULL, 0ull};
+        VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull, NULL, NULL, 0ull};
         if (at != 0u)
         {
             mmgr_line_ch(&line, '@');
             mmgr_line_put(&line, names[at - 1u]);
-            mmgr_line_put(&line, (whole[length] == '/') ? "/" : "");
+            mmgr_line_put(&line, (args->whole[length] == '/') ? "/" : "");
         }
-        mmgr_line_put(&line, whole + length + ((whole[length] == '/') ? 1u : 0u));
-        return mmgr_line_finish(&line) != 0ull || (whole[length] == '\0');
+        mmgr_line_put(&line, args->whole + length + ((args->whole[length] == '/') ? 1u : 0u));
+        return mmgr_line_finish(&line) != 0ull || (args->whole[length] == '\0');
     }
     return 0;
 }
 
 // One include folder or file of the branch the walk starts from, put in the walk's cell as the tree holds it where it
 // does
-static void cli_effect_include_met(void *context, const char *path, unsigned int kind)
+static void cli_effect_include_intersect(const CliEachPathKindCfg *args)
 {
-    CliEffect *const effect = (CliEffect *)context;
+    CliEffect *const effect = (CliEffect *)args->context;
     char tree_path[CLI_PATH_MAX_LEN];
-    if (!cli_effect_tree_path(effect, path, tree_path))
+    if (!EMBED_CALL(cli_effect_tree_path, SymbolsEffectCtx, .effect_read = effect, .whole = args->path,
+                    .out = tree_path))
     {
         return;
     }
     const unsigned int put =
         (effect->includes < effect->include_room)
-            ? cli_effect_put(effect, tree_path, cellul.len(&(CatenaFinitaCfg){.src = tree_path, .cap = CLI_CELLS_POOL}))
+            ? EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx, .effect = effect,
+                         .text = tree_path,
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = tree_path, .cap = CLI_CELLS_POOL}))
             : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
     {
         effect->refused = 1;
         return;
     }
-    effect->include[effect->includes] = (CliEffectInclude){put, kind};
+    effect->include[effect->includes] = (CliEffectInclude){put, args->kind};
     effect->includes += 1u;
 }
 
 // `path` made whole into `out`, sized for CLI_PATH_MAX_LEN: each `.` left off and each `..` taking the folder before
 // it away; 0 where a `..` leaves the tree's top
-static int cli_effect_path_made(const char *path, char *out)
+EMBED_INLINE int cli_effect_path_init(const SymbolsEffectCtx *args)
 {
     unsigned long long at = 0ull;
     unsigned long long length = 0ull;
-    while (path[at] != '\0')
+    while (args->path[at] != '\0')
     {
         unsigned long long end = at;
-        end = cli_text_to_any(path, end, end + cellul.len(&(CatenaFinitaCfg){.src = path + end, .cap = CLI_CELLS_POOL}),
-                              "/");
+        end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->path, .at = end,
+                         .size = end + cellul.len(&(CatenaFinitaCfg){.src = args->path + end, .cap = CLI_CELLS_POOL}),
+                         .set = "/");
         const unsigned long long size = end - at;
-        if ((size == 2ull) && (path[at] == '.') && (path[at + 1u] == '.'))
+        if ((size == 2ull) && (args->path[at] == '.') && (args->path[at + 1u] == '.'))
         {
             if (length == 0ull)
             {
                 return 0;
             }
-            length = cli_text_back_any(out, length, "/");
+            length = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->out,
+                                .at = length, .set = "/");
             length -= (length > 0ull) ? 1ull : 0ull;
         }
-        else if ((size != 0ull) && !((size == 1ull) && (path[at] == '.')) &&
+        else if ((size != 0ull) && !((size == 1ull) && (args->path[at] == '.')) &&
                  ((length + size + 2ull) < CLI_PATH_MAX_LEN))
         {
             if (length > 0ull)
             {
-                out[length] = '/';
+                args->out[length] = '/';
                 length += 1ull;
             }
-            memor.cpy(&(MemoriaCfg){.dst = out + length, .src = path + at, .bytes = (size_t)size});
+            memor.cpy(&(MemoriaCfg){.dst = args->out + length, .src = args->path + at, .bytes = (size_t)size});
             length += size;
         }
-        at = (path[end] == '/') ? (end + 1ull) : end;
+        at = (args->path[end] == '/') ? (end + 1ull) : end;
     }
-    out[length] = '\0';
+    args->out[length] = '\0';
     return 1;
 }
 
 // whether `folder`, the tree's path of a folder, and `named`, `length` bytes, joined and made whole into `out` are a
 // file of the tree; called under the lock
-static int cli_effect_tree_file(const char *folder, unsigned long long folder_length, const char *named,
-                                unsigned long long length, char *out)
+EMBED_INLINE int cli_effect_tree_file(const SymbolsEffectCtx *args)
 {
     char joined[CLI_PATH_MAX_LEN];
     VerbaLinea line = {joined, sizeof(joined), 0ull, NULL, NULL, 0ull};
-    mmgr_line_put_n(&line, folder, folder_length);
-    mmgr_line_put(&line, ((folder_length != 0ull) && (folder[folder_length - 1u] != '/')) ? "/" : "");
-    mmgr_line_put_n(&line, named, length);
-    return (mmgr_line_finish(&line) != 0ull) && cli_effect_path_made(joined, out) &&
-           (cli_branch_of(out) != CLI_BRANCHES_MOST);
+    mmgr_line_put_n(&line, args->folder, args->folder_length);
+    mmgr_line_put(&line, ((args->folder_length != 0ull) && (args->folder[args->folder_length - 1u] != '/')) ? "/" : "");
+    mmgr_line_put_n(&line, args->named, args->length);
+    return (mmgr_line_finish(&line) != 0ull) &&
+           EMBED_CALL(cli_effect_path_init, SymbolsEffectCtx, .path = joined, .out = args->out) &&
+           (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = args->out) !=
+            CLI_BRANCHES_MOST);
 }
 
 // the file of the tree an include of `named`, `length` bytes, in the branch at `path` reaches into `out`, sized for
@@ -352,61 +410,76 @@ static int cli_effect_tree_file(const char *folder, unsigned long long folder_le
 // then in each include folder of the branch the walk starts from in the order a compiler searches them, a folder for
 // quotes alone passed over for one in angle brackets, then from the tree's top, else the first of the tree's files
 // whose path ends with it; 1, or 0 where none does
-static int cli_effect_included(const CliEffect *effect, const char *path, const char *named, unsigned long long length,
-                               int angled, char *out)
+EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
 {
+    const CliEffect *effect = args->effect_read;
+    const char *path = args->path;
+    unsigned long long length = args->length;
     const char *const slash =
-        cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/');
-    cli_lock_take(&g_cli_walk_lock);
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/');
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     // the branch's folder runs to its last slash, at or past its start
-    int found = !angled && cli_effect_tree_file(path, (slash != NULL) ? (unsigned long long)(slash - path) : 0ull,
-                                                named, length, out);
+    int found =
+        !args->angled && EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = path,
+                                    .folder_length = (slash != NULL) ? (unsigned long long)(slash - path) : 0ull,
+                                    .named = args->named, .length = length, .out = args->out);
     for (unsigned int at = 0u; !found && (at < effect->includes); at += 1u)
     {
         const CliEffectInclude *const include = &effect->include[at];
-        const char *const folder = cli_effect_text(effect, include->path);
-        found = (include->kind != CLI_INCLUDE_FORCED) && (!angled || (include->kind != CLI_INCLUDE_QUOTE)) &&
-                cli_effect_tree_file(folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}),
-                                     named, length, out);
+        const char *const folder = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                                              .at_value = include->path);
+        found = (include->kind != CLI_INCLUDE_FORCED) && (!args->angled || (include->kind != CLI_INCLUDE_QUOTE)) &&
+                EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = folder,
+                           .folder_length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}),
+                           .named = args->named, .length = length, .out = args->out);
     }
-    found = found || cli_effect_tree_file("", 0ull, named, length, out);
+    found = found || EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = "", .folder_length = 0ull,
+                                .named = args->named, .length = length, .out = args->out);
     for (unsigned int file = 0u; !found && (file < g_cli_branch_count); file += 1u)
     {
         const CliTreeBranch *const branch = &g_cli_branches[file];
         char stored_path[CLI_PATH_MAX_LEN] = {'\0'};
         if (branch->used)
         {
-            cli_branch_path_read(branch, stored_path);
+            EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
+                       .path_out = stored_path);
         }
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = stored_path, .cap = CLI_CELLS_POOL});
         const int ends = (size > length) && (stored_path[size - length - 1u] == '/') &&
-                         cli_text_same(stored_path + size - length, named, length);
+                         EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = stored_path + size - length,
+                                    .other_pointer = args->named, .size = length);
         if (ends && (size < CLI_PATH_MAX_LEN))
         {
-            memor.cpy(&(MemoriaCfg){.dst = out, .src = stored_path, .bytes = (size_t)size + 1u});
+            memor.cpy(&(MemoriaCfg){.dst = args->out, .src = stored_path, .bytes = (size_t)size + 1u});
             found = 1;
         }
     }
-    cli_lock_give(&g_cli_walk_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
     return found;
 }
 
-static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int upto, unsigned int depth);
+static void cli_effect_walk(const SymbolsEffectCtx *args);
 
 // whether the branch at `path` was walked already, and where it was not, it put among those walked
-static int cli_effect_walked(CliEffect *effect, const char *path)
+EMBED_INLINE int cli_effect_on_walk(const SymbolsEffectCtx *args)
 {
+    CliEffect *effect = args->effect;
     for (unsigned int at = 0u; at < effect->walks; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){
-                .src = cli_effect_text(effect, effect->walked[at]), .other = path, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx,
+                                                           .effect_read = effect, .at_value = effect->walked[at]),
+                                         .other = args->path,
+                                         .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
     }
     const unsigned int put =
         (effect->walks < effect->walk_room)
-            ? cli_effect_put(effect, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}))
+            ? EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx, .effect = effect,
+                         .text = args->path,
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}))
             : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
     {
@@ -420,55 +493,60 @@ static int cli_effect_walked(CliEffect *effect, const char *path)
 
 // the lines of the declarations of the name sought the tree holds in the branch at `path`, in the order of their lines;
 // a walk that notes the name's leaves reads them off the branch's own leaves as it reads them
-static void cli_effect_sought(CliEffect *effect, const char *path, CliEffectBranch *branch)
+EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
 {
+    const char *path = args->path;
+    CliEffectBranch *branch = args->branch;
     branch->soughts = 0u;
     branch->declared =
-        effect->slicing
+        args->effect->slicing
             ? g_cli_cells->temporary_buf_alloc(CLI_EFFECT_DECLARED_MOST * sizeof(CliEffectDeclared), &g_cli_code_cells)
             : NULL;
     branch->declareds = 0u;
     branch->declared_room = (branch->declared != NULL) ? CLI_EFFECT_DECLARED_MOST : 0u;
-    if (effect->noted != NULL)
+    if (args->effect->noted != NULL)
     {
         return;
     }
-    cli_lock_take(&g_cli_walk_lock);
-    const unsigned int file = cli_branch_of(path);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
+    const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path);
     const CliTreeBranch *const stored = (file != CLI_BRANCHES_MOST) ? &g_cli_branches[file] : NULL;
-    char *const scratch = (stored != NULL) ? cli_branch_copy_taken() : NULL;
+    char *const scratch = (stored != NULL) ? cli_branch_copy_take() : NULL;
     if (scratch != NULL)
     {
-        cli_branch_copied(stored, scratch);
+        EMBED_CALL(cli_symbols_tree_branch.branch_copy, CliSymbolsTreeBranchCfg, .branch = stored, .scratch = scratch);
     }
     const unsigned int count = (scratch != NULL) ? stored->count : 0u;
     for (unsigned int each = 0u; each < count; each += 1u)
     {
-        const CliDeclaration *const symbol = &cli_branch_copy_declarations(scratch)[each];
-        if ((symbol->length == effect->length) && (branch->soughts < CLI_EFFECT_SOUGHT) &&
-            cli_text_same(scratch + symbol->name, effect->name, effect->length))
+        const CliDeclaration *const symbol = &EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations,
+                                                         CliSymbolsTreeBranchScratchCfg, .scratch_read = scratch)[each];
+        if ((symbol->length == args->effect->length) && (branch->soughts < CLI_EFFECT_SOUGHT) &&
+            EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = scratch + symbol->name,
+                       .other_pointer = args->effect->name, .size = args->effect->length))
         {
             branch->sought[branch->soughts] = symbol->line;
             branch->soughts += 1u;
         }
     }
-    cli_branch_copy_given(scratch);
-    cli_lock_give(&g_cli_walk_lock);
+    EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
 }
 
 // a declaration the leaves of a branch a slice's walk or a noting walk reads name, as the leaves are read: a branch's
 // own text, the editor's or one the tree has not read yet, declares what its leaves name. For a noting walk, its line
 // among those of the name sought; for a slice's walk, put after those before it
-static void cli_effect_declaring(void *context, const char *name, unsigned long long length, const char *kind,
-                                 unsigned int line)
+static void cli_effect_declaring(const CliDeclaredCfg *args)
 {
-    CliEffectDeclaring *const declaring = (CliEffectDeclaring *)context;
+    unsigned long long length = args->length;
+    CliEffectDeclaring *const declaring = (CliEffectDeclaring *)args->context;
     CliEffect *const effect = declaring->effect;
     CliEffectBranch *const branch = declaring->branch;
     if ((effect->length != 0ull) && (length == effect->length) && (branch->soughts < CLI_EFFECT_SOUGHT) &&
-        cli_text_same(name, effect->name, length))
+        EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->name, .other_pointer = effect->name,
+                   .size = length))
     {
-        branch->sought[branch->soughts] = line;
+        branch->sought[branch->soughts] = args->line;
         branch->soughts += 1u;
     }
     if (!effect->slicing)
@@ -480,33 +558,35 @@ static void cli_effect_declaring(void *context, const char *name, unsigned long 
         effect->refused = 1;
         return;
     }
-    const unsigned int named = cli_effect_put(effect, name, length);
-    const unsigned int kinded =
-        cli_effect_put(effect, kind, cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}));
+    const unsigned int named = EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx,
+                                          .effect = effect, .text = args->name, .length = length);
+    const unsigned int kinded = EMBED_CALL(
+        cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx, .effect = effect, .text = args->kind,
+        .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_CELLS_POOL}));
     if ((named != CLI_JSON_NONE) && (kinded != CLI_JSON_NONE))
     {
         // a name a grammar's token covers is below 2^32 bytes
-        branch->declared[branch->declareds] = (CliEffectDeclared){line, named, (unsigned int)length, kinded};
+        branch->declared[branch->declareds] = (CliEffectDeclared){args->line, named, (unsigned int)length, kinded};
         branch->declareds += 1u;
     }
 }
 
 // the leaf after the last of the directive whose role is the leaf `role`: the end of its line, and of each line after
 // while the line before it ends with a leaf its grammar names `continued`
-static unsigned int cli_effect_directive_end(const CliLeafRead *read, unsigned int role)
+EMBED_INLINE unsigned int cli_effect_directive_end(const SymbolsEffectCtx *args)
 {
-    unsigned int leaf = role;
+    unsigned int leaf = args->role;
     for (unsigned int lines = 0u; lines < CLI_EFFECT_DIRECTIVE_LINES; lines += 1u)
     {
-        const unsigned int line = read->leaf[leaf].line;
+        const unsigned int line = args->read->leaf[leaf].line;
         unsigned int last = leaf;
-        while (((leaf + 1u) < read->count) && (read->leaf[leaf + 1u].line == line))
+        while (((leaf + 1u) < args->read->count) && (args->read->leaf[leaf + 1u].line == line))
         {
             leaf += 1u;
-            last = ((read->leaf[leaf].is & CLI_LEAF_BLANK) == 0u) ? leaf : last;
+            last = ((args->read->leaf[leaf].is & CLI_LEAF_BLANK) == 0u) ? leaf : last;
         }
-        const int continued = (read->leaf[last].is & CLI_LEAF_CONTINUED) != 0u;
-        if (!continued || ((leaf + 1u) >= read->count))
+        const int continued = (args->read->leaf[last].is & CLI_LEAF_CONTINUED) != 0u;
+        if (!continued || ((leaf + 1u) >= args->read->count))
         {
             break;
         }
@@ -516,9 +596,10 @@ static unsigned int cli_effect_directive_end(const CliLeafRead *read, unsigned i
 }
 
 // the first leaf from `from` to before `to` none of whose blank or comment it is, `to` where all are
-static unsigned int cli_effect_next(const CliLeafRead *read, unsigned int from, unsigned int to)
+EMBED_INLINE unsigned int cli_effect_next(const SymbolsEffectCtx *args)
 {
-    while ((from < to) && ((read->leaf[from].is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u))
+    unsigned int from = args->from;
+    while ((from < args->to) && ((args->read->leaf[from].is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u))
     {
         from += 1u;
     }
@@ -527,28 +608,32 @@ static unsigned int cli_effect_next(const CliLeafRead *read, unsigned int from, 
 
 // the integer the leaves from `from` to before `to` give as a condition, its blanks, comments and the leaves that carry
 // its line on to the next passed over
-static long long cli_effect_judged(CliEffect *effect, const CliLeafRead *read, unsigned int from, unsigned int to)
+EMBED_INLINE long long cli_effect_judged(const SymbolsEffectCtx *args)
 {
+    CliEffect *effect = args->effect;
+    const CliLeafRead *read = args->read;
     CliEffectToken *const token = g_cli_cells->temporary_buf_alloc(
-        (unsigned long long)((to - from) + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
+        (unsigned long long)((args->to - args->from) + 1u) * sizeof(CliEffectToken), &g_cli_code_cells);
     if (token == NULL)
     {
         effect->refused = 1;
         return 0ll;
     }
     unsigned int count = 0u;
-    for (unsigned int leaf = from; leaf < to; leaf += 1u)
+    for (unsigned int leaf = args->from; leaf < args->to; leaf += 1u)
     {
         const CliLeaf *const one = &read->leaf[leaf];
         if ((one->is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT | CLI_LEAF_CONTINUED)) == 0u)
         {
             unsigned long long length = 0ull;
-            const char *const text = cli_leaf_text(read, leaf, &length);
+            const char *const text = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
+                                                .read_read = read, .leaf = leaf, .length_pointer = &length);
             token[count] = (CliEffectToken){text, length, one->is, one->binds, one->base, one->does};
             count += 1u;
         }
     }
-    const long long value = cli_effect_value(effect, token, count, 0u);
+    const long long value = EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx, .effect = effect,
+                                       .token = token, .count = count, .through = 0u);
     g_cli_cells->persistent_buf_release(token, &g_cli_code_cells);
     return value;
 }
@@ -559,20 +644,23 @@ static long long cli_effect_judged(CliEffect *effect, const CliLeafRead *read, u
 // arguments: that leaf opens its parameters and the next such closes them, each name between that its grammar names a
 // parameter is one, and a leaf named `rest` among them takes the arguments past them. Its value is the leaves after,
 // and its text the define's from the leaf after its name, white space at either end left off
-static void cli_effect_defined(CliEffect *effect, const CliLeafRead *read, unsigned int path, unsigned int read_at,
-                               unsigned int role, unsigned int from, unsigned int named, unsigned int end)
+EMBED_INLINE void cli_effect_define(const SymbolsEffectCtx *args)
 {
-    const CliEffectSeen seen = {CLI_SEEN_MACRO, read_at, read->leaf[role].line, from, end,
-                                CLI_JSON_NONE,  0u,      CLI_JSON_NONE};
-    CliEffectMet met = {.seen = cli_effect_seen(effect, &seen),
+    const CliLeafRead *read = args->read;
+    unsigned int path = args->path_u32;
+    unsigned int end = args->end;
+    const CliEffectSeen seen = {
+        CLI_SEEN_MACRO, args->read_at, read->leaf[args->role].line, args->from, end, CLI_JSON_NONE, 0u, CLI_JSON_NONE};
+    CliEffectMet met = {.seen = EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = args->effect, .seen = &seen),
                         .read = read,
                         .path = path,
-                        .line = read->leaf[role].line,
-                        .undefined = (read->leaf[role].is & CLI_LEAF_UNDEF) != 0u};
-    met.name = cli_leaf_text(read, named, &met.name_length);
+                        .line = read->leaf[args->role].line,
+                        .undefined = (read->leaf[args->role].is & CLI_LEAF_UNDEF) != 0u};
+    met.name = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx, .read_read = read,
+                          .leaf = args->named_u32, .length_pointer = &met.name_length);
     // a leaf of the parameters' brackets is a parameter's and no name's nor the rest's
     const unsigned long long roles = CLI_LEAF_PARAMETER | CLI_LEAF_NAME | CLI_LEAF_REST;
-    unsigned int leaf = named + 1u;
+    unsigned int leaf = args->named_u32 + 1u;
     met.called = (leaf < end) && ((read->leaf[leaf].is & roles) == CLI_LEAF_PARAMETER);
     if (met.called)
     {
@@ -583,7 +671,9 @@ static void cli_effect_defined(CliEffect *effect, const CliLeafRead *read, unsig
             met.rest |= (is & CLI_LEAF_REST) != 0u;
             if (((is & roles) == (CLI_LEAF_PARAMETER | CLI_LEAF_NAME)) && (met.params < CLI_DEFINE_PARAMS))
             {
-                met.param[met.params] = cli_leaf_text(read, leaf, &met.param_length[met.params]);
+                met.param[met.params] =
+                    EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx, .read_read = read,
+                               .leaf = leaf, .length_pointer = &met.param_length[met.params]);
                 met.params += 1u;
             }
             leaf += 1u;
@@ -593,7 +683,8 @@ static void cli_effect_defined(CliEffect *effect, const CliLeafRead *read, unsig
     met.first = leaf;
     met.end = met.undefined ? leaf : end;
     const unsigned long long passed = CLI_LEAF_BLANK | CLI_LEAF_COMMENT | CLI_LEAF_CONTINUED;
-    const unsigned int first = cli_effect_next(read, named + 1u, end);
+    const unsigned int first =
+        EMBED_CALL(cli_effect_next, SymbolsEffectCtx, .read = read, .from = args->named_u32 + 1u, .to = end);
     unsigned int last = end;
     while ((last > first) && ((read->leaf[last - 1u].is & passed) != 0u))
     {
@@ -602,39 +693,49 @@ static void cli_effect_defined(CliEffect *effect, const CliLeafRead *read, unsig
     const unsigned long long text_from = (first < last) ? read->leaf[first].from : 0ull;
     met.value = read->text + text_from;
     met.value_length = (first < last) ? (read->leaf[last - 1u].to - text_from) : 0ull;
-    cli_effect_met(effect, &met);
+    EMBED_CALL(cli_effect_intersect, SymbolsEffectCtx, .effect = args->effect, .met = &met);
 }
 
 // the directive whose role is the leaf `role`, its leaves running from its line's first, `from`, to before `end`,
 // taken in the branch at `path`, a place among the texts: its conditions opened, turned and closed, and in an active
 // region its defines and undefines met, its includes of the tree's files walked, and for a slice's walk an include of
 // no file of the tree met
-static void cli_effect_directive(CliEffect *effect, CliEffectBranch *branch, unsigned int path, unsigned int role,
-                                 unsigned int from, unsigned int end, unsigned int depth)
+static void cli_effect_directive(const SymbolsEffectCtx *args)
 {
-    const CliLeafRead *const read = &branch->read;
-    const unsigned long long is = read->leaf[role].is;
-    const int active = (branch->open == 0u) || branch->condition[branch->open - 1u].active;
-    const unsigned int named = cli_effect_next(read, role + 1u, end);
+    CliEffect *effect = args->effect;
+    const CliLeafRead *const read = &args->branch->read;
+    const unsigned long long is = read->leaf[args->role].is;
+    const int active = (args->branch->open == 0u) || args->branch->condition[args->branch->open - 1u].active;
+    const unsigned int named =
+        EMBED_CALL(cli_effect_next, SymbolsEffectCtx, .read = read, .from = args->role + 1u, .to = args->end);
     unsigned long long length = 0ull;
-    const char *const name = (named < end) ? cli_leaf_text(read, named, &length) : "";
+    const char *const name = (named < args->end)
+                                 ? EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
+                                              .read_read = read, .leaf = named, .length_pointer = &length)
+                                 : "";
     if ((is & (CLI_LEAF_IF | CLI_LEAF_IFDEF | CLI_LEAF_IFNDEF)) != 0u)
     {
-        const int defined = (length != 0ull) && (cli_effect_macro(effect, name, length) != CLI_JSON_NONE);
-        const int holds = ((is & CLI_LEAF_IF) != 0u)      ? (cli_effect_judged(effect, read, role + 1u, end) != 0ll)
+        const int defined =
+            (length != 0ull) && (EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx,
+                                            .effect_read = effect, .name = name, .length = length) != CLI_JSON_NONE);
+        const int holds = ((is & CLI_LEAF_IF) != 0u)
+                              ? (EMBED_CALL(cli_effect_judged, SymbolsEffectCtx, .effect = effect, .read = read,
+                                            .from = args->role + 1u, .to = args->end) != 0ll)
                           : ((is & CLI_LEAF_IFDEF) != 0u) ? defined
                                                           : !defined;
-        if (branch->open < CLI_EFFECT_DEPTH)
+        if (args->branch->open < CLI_EFFECT_DEPTH)
         {
-            branch->condition[branch->open] = (CliEffectCondition){active && holds, holds, active};
-            branch->open += 1u;
+            args->branch->condition[args->branch->open] = (CliEffectCondition){active && holds, holds, active};
+            args->branch->open += 1u;
         }
         return;
     }
-    CliEffectCondition *const open = (branch->open > 0u) ? &branch->condition[branch->open - 1u] : NULL;
+    CliEffectCondition *const open =
+        (args->branch->open > 0u) ? &args->branch->condition[args->branch->open - 1u] : NULL;
     if (((is & CLI_LEAF_ELIF) != 0u) && (open != NULL))
     {
-        const int holds = !open->taken && (cli_effect_judged(effect, read, role + 1u, end) != 0ll);
+        const int holds = !open->taken && (EMBED_CALL(cli_effect_judged, SymbolsEffectCtx, .effect = effect,
+                                                      .read = read, .from = args->role + 1u, .to = args->end) != 0ll);
         open->active = open->outer && holds;
         open->taken |= holds;
         return;
@@ -647,77 +748,100 @@ static void cli_effect_directive(CliEffect *effect, CliEffectBranch *branch, uns
     }
     if ((is & CLI_LEAF_ENDIF) != 0u)
     {
-        branch->open -= (branch->open > 0u) ? 1u : 0u;
+        args->branch->open -= (args->branch->open > 0u) ? 1u : 0u;
         return;
     }
-    if (!active || (named >= end))
+    if (!active || (named >= args->end))
     {
         return;
     }
     if ((is & (CLI_LEAF_DEFINE | CLI_LEAF_UNDEF)) != 0u)
     {
-        cli_effect_defined(effect, read, path, branch->read_at, role, from, named, end);
+        EMBED_CALL(cli_effect_define, SymbolsEffectCtx, .effect = effect, .read = read, .path_u32 = args->path_u32,
+                   .read_at = args->branch->read_at, .role = args->role, .from = args->from, .named_u32 = named,
+                   .end = args->end);
         return;
     }
     // an include's file is the leaf its grammar names the included, beside the branch where it names it so
     unsigned int included = named;
-    while ((included < end) && ((read->leaf[included].is & CLI_LEAF_INCLUDED) == 0u))
+    while ((included < args->end) && ((read->leaf[included].is & CLI_LEAF_INCLUDED) == 0u))
     {
         included += 1u;
     }
-    if (((is & CLI_LEAF_INCLUDE) != 0u) && (included < end) && (depth < CLI_EFFECT_DEPTH))
+    if (((is & CLI_LEAF_INCLUDE) != 0u) && (included < args->end) && (args->depth < CLI_EFFECT_DEPTH))
     {
         unsigned long long size = 0ull;
-        const char *const file = cli_leaf_text(read, included, &size);
+        const char *const file = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
+                                            .read_read = read, .leaf = included, .length_pointer = &size);
         const int angled = (read->leaf[included].is & CLI_LEAF_BESIDE) == 0u;
         char reached[CLI_PATH_MAX_LEN];
-        if (cli_effect_included(effect, cli_effect_text(effect, path), file, size, angled, reached))
+        if (EMBED_CALL(cli_effect_include, SymbolsEffectCtx, .effect_read = effect,
+                       .path = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                                          .at_value = args->path_u32),
+                       .named = file, .length = size, .angled = angled, .out = reached))
         {
-            cli_effect_walk(effect, reached, CLI_EFFECT_GIVEN, depth + 1u);
+            EMBED_CALL(cli_effect_walk, SymbolsEffectCtx, .effect = effect, .path = reached, .upto = CLI_EFFECT_GIVEN,
+                       .depth = args->depth + 1u);
             return;
         }
-        const CliEffectSeen seen = {
-            CLI_SEEN_INCLUDE, branch->read_at, read->leaf[role].line, from, end, CLI_JSON_NONE, 0u, CLI_JSON_NONE};
-        (void)cli_effect_seen(effect, &seen);
+        const CliEffectSeen seen = {CLI_SEEN_INCLUDE,
+                                    args->branch->read_at,
+                                    read->leaf[args->role].line,
+                                    args->from,
+                                    args->end,
+                                    CLI_JSON_NONE,
+                                    0u,
+                                    CLI_JSON_NONE};
+        (void)EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = effect, .seen = &seen);
     }
 }
 
 // a branch a slice's walk read whole, its bytes and its leaves, put in the walk's cell after those read before: its
 // place among them, or CLI_JSON_NONE, the walk refused, where the cells cannot meet it
-static unsigned int cli_effect_branch_read_put(CliEffect *effect, unsigned int path, const unsigned char *bytes,
-                                               unsigned long long size, int from_disk, const CliLeafRead *read)
+EMBED_INLINE unsigned int cli_effect_branch_read_put(const SymbolsEffectCtx *args)
 {
-    if (effect->branches_read >= effect->branch_read_room)
+    if (args->effect->branches_read >= args->effect->branch_read_room)
     {
-        effect->refused = 1;
+        args->effect->refused = 1;
         return CLI_JSON_NONE;
     }
-    effect->branch_read[effect->branches_read] = (CliEffectBranchRead){path, bytes, size, from_disk, *read};
-    effect->branches_read += 1u;
-    return effect->branches_read - 1u;
+    args->effect->branch_read[args->effect->branches_read] =
+        (CliEffectBranchRead){args->path_u32, args->bytes, args->size, args->from_disk, *args->read};
+    args->effect->branches_read += 1u;
+    return args->effect->branches_read - 1u;
 }
 
 // each leaf from `first` to before `end` of the branch the walk starts from that names the name sought, neither a
 // comment's nor a string's, handed on with the definition of the name in effect there as a usage knows it: the define
 // in effect, else the first declaration of it the walk met, else none
-static void cli_effect_noted_line(CliEffect *effect, const CliLeafRead *read, unsigned int first, unsigned int end)
+EMBED_INLINE void cli_effect_noted_line(const SymbolsEffectCtx *args)
 {
-    for (unsigned int leaf = first; (effect->noted != NULL) && (effect->length != 0ull) && (leaf < end); leaf += 1u)
+    CliEffect *effect = args->effect;
+    const CliLeafRead *read = args->read;
+    for (unsigned int leaf = args->first; (effect->noted != NULL) && (effect->length != 0ull) && (leaf < args->end);
+         leaf += 1u)
     {
         unsigned long long length = 0ull;
-        const char *const text = cli_leaf_text(read, leaf, &length);
+        const char *const text = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
+                                            .read_read = read, .leaf = leaf, .length_pointer = &length);
         if (((read->leaf[leaf].is & CLI_LEAF_NAME) == 0u) ||
             ((read->leaf[leaf].is & (CLI_LEAF_COMMENT | CLI_LEAF_STRING)) != 0u) || (length != effect->length) ||
-            !cli_text_same(text, effect->name, length))
+            !EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = text, .other_pointer = effect->name,
+                        .size = length))
         {
             continue;
         }
-        const unsigned int macro = cli_effect_macro(effect, effect->name, effect->length);
-        const char *const defined = (macro != CLI_JSON_NONE) ? cli_effect_text(effect, effect->macro[macro].path)
-                                    : effect->first_found    ? cli_effect_text(effect, effect->first_path)
-                                                             : NULL;
+        const unsigned int macro = EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx,
+                                              .effect_read = effect, .name = effect->name, .length = effect->length);
+        const char *const defined =
+            (macro != CLI_JSON_NONE) ? EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx,
+                                                  .effect_read = effect, .at_value = effect->macro[macro].path)
+            : effect->first_found ? EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                                               .at_value = effect->first_path)
+                                  : NULL;
         const unsigned int line = (macro != CLI_JSON_NONE) ? effect->macro[macro].line : effect->first_line;
-        effect->noted(effect->noted_context, read, leaf, defined, line);
+        EMBED_CALL(effect->noted, CliEffectNotedCfg, .context = effect->noted_context, .read = read, .leaf = leaf,
+                   .path = defined, .line = line);
     }
 }
 
@@ -726,23 +850,26 @@ static void cli_effect_noted_line(CliEffect *effect, const CliLeafRead *read, un
 // given back, and each declaration its leaves name on a line of an active region is met; for a noting walk, each leaf
 // of the name in the branch it starts from handed on as the walk passes its line; and each line of that branch handed
 // where its lines go before the walk reads it, the walk ended there where it is refused
-static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int upto, unsigned int depth)
+static void cli_effect_walk(const SymbolsEffectCtx *args)
 {
-    if (effect->refused || cli_effect_walked(effect, path))
+    CliEffect *effect = args->effect;
+    const char *path = args->path;
+    if (effect->refused || EMBED_CALL(cli_effect_on_walk, SymbolsEffectCtx, .effect = effect, .path = path))
     {
         return;
     }
     const unsigned int path_at = effect->walked[effect->walks - 1u];
     CliEffectBranch *const branch = g_cli_cells->temporary_buf_alloc(sizeof(CliEffectBranch), &g_cli_code_cells);
     char full[CLI_PATH_MAX_LEN];
-    cli_full(effect->root, path, full);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = effect->root, .relative = path, .joined = full);
     // the branch the walk starts from is the editor's text where one is given, else every branch is the disk's
     const int from_disk = (effect->start_text == NULL) ||
                           !cellul.eq(&(CatenaFinitaCfg){.src = path, .other = effect->start, .cap = CLI_CELLS_POOL});
     unsigned long long size = from_disk ? 0ull : effect->start_size;
     const unsigned char *const bytes = (branch == NULL) ? NULL
-                                       : from_disk      ? cli_file_taken(full, &size, &g_cli_code_cells)
-                                                        : (const unsigned char *)effect->start_text;
+                                       : from_disk ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+                                                                .size_pointer = &size, .owner = &g_cli_code_cells)
+                                                   : (const unsigned char *)effect->start_text;
     if (bytes == NULL)
     {
         effect->refused |= branch == NULL;
@@ -751,28 +878,32 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
     }
     branch->open = 0u;
     branch->read_at = CLI_JSON_NONE;
-    cli_effect_sought(effect, path, branch);
+    EMBED_CALL(cli_effect_find, SymbolsEffectCtx, .effect = effect, .path = path, .branch = branch);
     const char *const text = (const char *)bytes;
     CliEffectDeclaring declaring = {effect, branch};
     const int declares = effect->slicing || (effect->noted != NULL);
     const int leaved =
-        cli_symbols_leaves_declared(effect->languages, path, "root", text, size, &branch->read,
-                                    declares ? cli_effect_declaring : NULL, declares ? &declaring : NULL);
-    branch->read_at = (leaved && effect->slicing)
-                          ? cli_effect_branch_read_put(effect, path_at, bytes, size, from_disk, &branch->read)
-                          : CLI_JSON_NONE;
+        EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .languages = effect->languages,
+                   .path = path, .state = "root", .text = text, .size = size, .read = &branch->read,
+                   .each = declares ? cli_effect_declaring : NULL, .context = declares ? &declaring : NULL);
+    branch->read_at =
+        (leaved && effect->slicing)
+            ? EMBED_CALL(cli_effect_branch_read_put, SymbolsEffectCtx, .effect = effect, .path_u32 = path_at,
+                         .bytes = bytes, .size = size, .from_disk = from_disk, .read = &branch->read)
+            : CLI_JSON_NONE;
     if (leaved)
     {
         const CliLeafRead *const read = &branch->read;
         unsigned int leaf = 0u;
         unsigned int declared = 0u;
-        while ((leaf < read->count) && (read->leaf[leaf].line < upto) && !effect->refused)
+        while ((leaf < read->count) && (read->leaf[leaf].line < args->upto) && !effect->refused)
         {
             const unsigned int line = read->leaf[leaf].line;
             const unsigned int line_first = leaf;
             const int active_here = (branch->open == 0u) || branch->condition[branch->open - 1u].active;
-            if ((depth == 0u) && (effect->reached != NULL) &&
-                !effect->reached(effect->reached_context, read, leaf, active_here))
+            if ((args->depth == 0u) && (effect->reached != NULL) &&
+                !EMBED_CALL(effect->reached, CliEffectReachedCfg, .context = effect->reached_context, .read = read,
+                            .leaf = leaf, .active = active_here))
             {
                 break;
             }
@@ -791,11 +922,14 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
             if ((role < read->count) && (read->leaf[role].line == line) &&
                 ((read->leaf[role].is & CLI_LEAF_DIRECTIVE) != 0u))
             {
-                const unsigned int end = cli_effect_directive_end(read, role);
-                cli_effect_directive(effect, branch, path_at, role, leaf, end, depth);
-                if ((depth == 0u) && active_here)
+                const unsigned int end =
+                    EMBED_CALL(cli_effect_directive_end, SymbolsEffectCtx, .read = read, .role = role);
+                EMBED_CALL(cli_effect_directive, SymbolsEffectCtx, .effect = effect, .branch = branch,
+                           .path_u32 = path_at, .role = role, .from = leaf, .end = end, .depth = args->depth);
+                if ((args->depth == 0u) && active_here)
                 {
-                    cli_effect_noted_line(effect, read, line_first, end);
+                    EMBED_CALL(cli_effect_noted_line, SymbolsEffectCtx, .effect = effect, .read = read,
+                               .first = line_first, .end = end);
                 }
                 leaf = end;
                 continue;
@@ -808,7 +942,7 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
                                             one->name,         one->length,     one->kind};
                 if (active)
                 {
-                    (void)cli_effect_seen(effect, &seen);
+                    (void)EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = effect, .seen = &seen);
                 }
             }
             for (unsigned int at = 0u; active && (at < branch->soughts); at += 1u)
@@ -824,9 +958,12 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
                 {
                     last += 1u;
                 }
-                const unsigned int first = cli_effect_next(read, leaf, last + 1u);
+                const unsigned int first =
+                    EMBED_CALL(cli_effect_next, SymbolsEffectCtx, .read = read, .from = leaf, .to = last + 1u);
                 const unsigned long long from = (first <= last) ? read->leaf[first].from : 0ull;
-                const unsigned int said = cli_effect_put(effect, text + from, read->leaf[last].to - from);
+                const unsigned int said =
+                    EMBED_CALL(cli_symbols_text_length_internal.effect_put, CliSymbolsTextLengthCtx, .effect = effect,
+                               .text = text + from, .length = read->leaf[last].to - from);
                 effect->found_path = path_at;
                 effect->found_text = said;
                 effect->found_line = line;
@@ -839,27 +976,31 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
             {
                 leaf += 1u;
             }
-            if ((depth == 0u) && active_here)
+            if ((args->depth == 0u) && active_here)
             {
-                cli_effect_noted_line(effect, read, line_first, leaf);
+                EMBED_CALL(cli_effect_noted_line, SymbolsEffectCtx, .effect = effect, .read = read, .first = line_first,
+                           .end = leaf);
             }
         }
     }
     // a branch a slice's walk read whole stays in the walk's cell until the walk is given back
     if (branch->read_at == CLI_JSON_NONE)
     {
-        cli_symbols_leaves_given(&branch->read);
+        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &branch->read);
         if (from_disk)
         {
-            cli_file_given(bytes, &g_cli_code_cells);
+            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
+                       .owner = &g_cli_code_cells);
         }
     }
     g_cli_cells->persistent_buf_release(branch->declared, &g_cli_code_cells);
     g_cli_cells->persistent_buf_release(branch, &g_cli_code_cells);
 }
 
-CliEffect *cli_effect_made(const char *path, const char *name, int slicing, VerbaLinea *err_msg)
+CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
 {
+    const char *name = args->name;
+    int slicing = args->slicing;
     CliEffect *const effect = g_cli_cells->persistent_buf_alloc(sizeof(CliEffect), &g_cli_code_cells);
     CliSymbolsLanguages *const languages = (effect != NULL) ? cli_symbols_languages_read() : NULL;
     // the walk's lists and texts in one cell, each at its most
@@ -876,17 +1017,17 @@ CliEffect *cli_effect_made(const char *path, const char *name, int slicing, Verb
                            : NULL;
     if (cell == NULL)
     {
-        cli_symbols_languages_given(languages);
+        EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
         g_cli_cells->persistent_buf_release(effect, &g_cli_code_cells);
-        mmgr_line_put(err_msg, "the cells cannot meet the walk");
+        mmgr_line_put(args->err_msg, "the cells cannot meet the walk");
         return NULL;
     }
     effect->text = (VerbaLinea){cell + list_bytes, CLI_EFFECT_TEXT_ROOM, 0ull};
     effect->languages = languages;
-    cli_lock_take(&g_cli_walk_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     memor.cpy(&(MemoriaCfg){.dst = effect->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
-    cli_lock_give(&g_cli_walk_lock);
-    effect->start = path;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
+    effect->start = args->path;
     effect->start_text = NULL;
     effect->start_size = 0ull;
     effect->branch_read = (CliEffectBranchRead *)(void *)cell;
@@ -923,79 +1064,97 @@ CliEffect *cli_effect_made(const char *path, const char *name, int slicing, Verb
     return effect;
 }
 
-void cli_effect_taken(CliEffect *effect, const char *path, unsigned int line)
+void cli_effect_take(const CliSymbolsPathEffectCtx *args)
 {
-    cli_compile_db_defines_of(effect->root, path, cli_effect_given, effect);
-    cli_compile_db_includes_of(effect->root, path, cli_effect_include_met, effect);
+    const char *path = args->path;
+    EMBED_CALL(cli_compile_db_root.defines_get, CliCompileDbRootCfg, .root = args->effect->root, .path = path,
+               .each_define_each = cli_effect_free, .context = args->effect);
+    EMBED_CALL(cli_compile_db_root_path.includes_get, CliCompileDbRootPathCfg, .root = args->effect->root, .path = path,
+               .each = cli_effect_include_intersect, .context = args->effect);
     // each file the branch includes before its first line walked before it, as its compiler reads them
-    for (unsigned int at = 0u; at < effect->includes; at += 1u)
+    for (unsigned int at = 0u; at < args->effect->includes; at += 1u)
     {
-        if (effect->include[at].kind == CLI_INCLUDE_FORCED)
+        if (args->effect->include[at].kind == CLI_INCLUDE_FORCED)
         {
-            cli_effect_walk(effect, cli_effect_text(effect, effect->include[at].path), CLI_EFFECT_GIVEN, 1u);
+            EMBED_CALL(cli_effect_walk, SymbolsEffectCtx, .effect = args->effect,
+                       .path = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = args->effect,
+                                          .at_value = args->effect->include[at].path),
+                       .upto = CLI_EFFECT_GIVEN, .depth = 1u);
         }
     }
-    cli_effect_walk(effect, path, line, 0u);
+    EMBED_CALL(cli_effect_walk, SymbolsEffectCtx, .effect = args->effect, .path = path, .upto = args->line_u32,
+               .depth = 0u);
 }
 
-void cli_effect_given_back(CliEffect *effect)
+void cli_effect_input_back(const CliSymbolsTextLengthCtx *args)
 {
-    for (unsigned int at = 0u; at < effect->branches_read; at += 1u)
+    for (unsigned int at = 0u; at < args->effect->branches_read; at += 1u)
     {
-        cli_symbols_leaves_given(&effect->branch_read[at].read);
-        if (effect->branch_read[at].from_disk)
+        EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx,
+                   .read = &args->effect->branch_read[at].read);
+        if (args->effect->branch_read[at].from_disk)
         {
-            cli_file_given(effect->branch_read[at].bytes, &g_cli_code_cells);
+            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx,
+                       .bytes_bytes_other = args->effect->branch_read[at].bytes, .owner = &g_cli_code_cells);
         }
     }
-    g_cli_cells->persistent_buf_release(effect->branch_read, &g_cli_code_cells);
-    cli_symbols_languages_given(effect->languages);
-    g_cli_cells->persistent_buf_release(effect, &g_cli_code_cells);
+    g_cli_cells->persistent_buf_release(args->effect->branch_read, &g_cli_code_cells);
+    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = args->effect->languages);
+    g_cli_cells->persistent_buf_release(args->effect, &g_cli_code_cells);
 }
 
-int cli_symbols_effect(const char *path, unsigned int line, const char *name, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_symbols_effect(const CliSymbolsPathNameCfg *args)
 {
-    CliEffect *const effect = cli_effect_made(path, name, 0, err_msg);
+    CliEffect *const effect =
+        EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx, .path = args->path,
+                   .name = args->name, .slicing = 0, .err_msg = args->err_msg);
     if (effect == NULL)
     {
         return 0;
     }
-    cli_effect_taken(effect, path, line);
-    const unsigned int macro = cli_effect_macro(effect, name, effect->length);
+    EMBED_CALL(cli_symbols_path_effect_internal.effect_take, CliSymbolsPathEffectCtx, .effect = effect,
+               .path = args->path, .line_u32 = args->line);
+    const unsigned int macro = EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx,
+                                          .effect_read = effect, .name = args->name, .length = effect->length);
     const int refused = effect->refused;
     if (!refused && ((macro != CLI_JSON_NONE) || effect->found))
     {
         const unsigned int where = (macro != CLI_JSON_NONE) ? effect->macro[macro].path : effect->found_path;
         const unsigned int at = (macro != CLI_JSON_NONE) ? effect->macro[macro].line : effect->found_line;
         const char *const said =
-            cli_effect_text(effect, (macro != CLI_JSON_NONE) ? effect->macro[macro].value : effect->found_text);
-        const char *const where_text = cli_effect_text(effect, where);
-        mmgr_line_put(out, "{\"name\":");
-        cli_json_quoted_lossy(out, (const unsigned char *)name, effect->length);
-        mmgr_line_put(out, ",\"path\":");
-        cli_json_quoted(out, where_text, cellul.len(&(CatenaFinitaCfg){.src = where_text, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, ",\"line\":");
+            EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                       .at_value = (macro != CLI_JSON_NONE) ? effect->macro[macro].value : effect->found_text);
+        const char *const where_text =
+            EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect, .at_value = where);
+        mmgr_line_put(args->out, "{\"name\":");
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+                   .text_bytes = (const unsigned char *)args->name, .length = effect->length);
+        mmgr_line_put(args->out, ",\"path\":");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = where_text,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = where_text, .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(args->out, ",\"line\":");
         if (at == CLI_EFFECT_GIVEN)
         {
-            mmgr_line_put(out, "null");
+            mmgr_line_put(args->out, "null");
         }
         else
         {
-            mmgr_line_decimal(out, at, 1u);
+            mmgr_line_decimal(args->out, at, 1u);
         }
-        mmgr_line_put(out, ",\"text\":");
-        cli_json_quoted_lossy(out, (const unsigned char *)said,
-                              cellul.len(&(CatenaFinitaCfg){.src = said, .cap = CLI_CELLS_POOL}));
-        mmgr_line_ch(out, '}');
+        mmgr_line_put(args->out, ",\"text\":");
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+                   .text_bytes = (const unsigned char *)said,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = said, .cap = CLI_CELLS_POOL}));
+        mmgr_line_ch(args->out, '}');
     }
     else if (!refused)
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
     }
-    cli_effect_given_back(effect);
+    EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
     if (refused)
     {
-        mmgr_line_put(err_msg, "the cells cannot meet the walk");
+        mmgr_line_put(args->err_msg, "the cells cannot meet the walk");
     }
     return !refused;
 }

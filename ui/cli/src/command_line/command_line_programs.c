@@ -13,6 +13,7 @@
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "../window/serve.h"
+#include "callback_cfg.h"
 #include "command_line_internal.h"
 
 // What a program's libraries are read with, a cell taken as they are read: the report of what it loads, and the PATH
@@ -27,91 +28,116 @@ static char s_err_buf[1u << 14u];
 static char s_line[1u << 16u];
 
 // a line printed written to the output
-static void programs_out(void *context, const char *line, unsigned long long size)
+static void programs_out(const CliEachLineSizeCfg *args)
 {
-    (void)context;
-    cli_out_line(line, size);
+    unsigned long long size = args->size;
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = args->line,
+               .size = size);
 }
 
 // a line printed written to the errors
-static void programs_err(void *context, const char *line, unsigned long long size)
+static void programs_err(const CliEachLineSizeCfg *args)
 {
-    (void)context;
-    cli_err_line(line, size);
+    unsigned long long size = args->size;
+    EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = args->line,
+               .size = size);
 }
 
-// why given written to the errors, and `code`
-static int programs_failed(const VerbaLinea *err_msg, int code)
+typedef struct
 {
-    cli_err_line(err_msg->out, mmgr_line_ok(err_msg) ? err_msg->at : 0ull);
-    return code;
+    const VerbaLinea *err_msg;
+    int code;
+    const char *named;
+    const char *const *words;
+    unsigned int count;
+} CommandLineProgramsCtx;
+// why given written to the errors, and `code`
+EMBED_INLINE int programs_fail(const CommandLineProgramsCtx *args)
+{
+    EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = args->err_msg->out,
+               .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ull);
+    return args->code;
 }
 
 // `orior_cli serve`: the window on another machine answered, then every run, shell and server still in the container
 // ended with it, on the machine the window reached as on the window's own
-static int programs_serve(const char *named)
+EMBED_INLINE int programs_serve(const CommandLineProgramsCtx *args)
 {
+    const char *named = args->named;
     static char s_root[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
-    if ((named != NULL) && !cli_command_line_tree(named, s_root, &err_msg))
+    if ((named != NULL) && !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named,
+                                       .root = s_root, .err_msg = &err_msg))
     {
-        return programs_failed(&err_msg, CLI_NO_CODE);
+        return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_NO_CODE);
     }
-    cli_serve((named != NULL) ? s_root : NULL);
-    cli_container_members_ended();
+    EMBED_CALL(cli_serve_root_table.serve, CliServeRootCfg, .root = (named != NULL) ? s_root : NULL);
+    cli_container_members_end();
     return 0;
 }
 
 // `orior_cli deploy <name> <do> <changed> <gone>`, the tree the one --root names or the folder it runs in
-static int programs_deploy(const char *named, const char *const *words, unsigned int count)
+EMBED_INLINE int programs_deploy(const CommandLineProgramsCtx *args)
 {
-    const int act = (count > 2u) ? cli_deploy_act_of(words[2]) : -1;
+    const char *named = args->named;
+    const int act =
+        (args->count > 2u) ? EMBED_CALL(cli_deploy_table.act_get, CliDeployCfg, .word = args->words[2]) : -1;
     if (act < 0)
     {
-        cli_err("deploy takes a deployment's name and what to do, preview, send or roll back, and then what to do of "
+        EMBED_CALL(
+            cli_command_line_internal.err, CliCommandLineCtx,
+            .text =
+                "deploy takes a deployment's name and what to do, preview, send or roll back, and then what to do of "
                 "files changed there and of files gone from the tree");
         return CLI_WRONG;
     }
     static char s_root[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
-    if ((named != NULL) ? !cli_command_line_tree(named, s_root, &err_msg) : !cli_folder_current(s_root, sizeof(s_root)))
+    if ((named != NULL) ? !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named,
+                                      .root = s_root, .err_msg = &err_msg)
+                        : !EMBED_CALL(cli_path_room_internal.folder_current, CliPathRoomCtx, .path_out = s_root,
+                                      .room_size = sizeof(s_root)))
     {
         if (named == NULL)
         {
             mmgr_line_put(&err_msg, "orior_cli finds no folder to run in");
         }
-        return programs_failed(&err_msg, CLI_NO_CODE);
+        return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_NO_CODE);
     }
     const int replace =
-        (count > 3u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = words[3], .other = "replace them", .cap = CLI_CELLS_POOL}));
+        (args->count > 3u) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[3], .other = "replace them", .cap = CLI_CELLS_POOL}));
     const int remove =
-        (count > 4u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[4], .other = "delete them", .cap = CLI_CELLS_POOL}));
-    if (!cli_deploy_run(s_root, words[1], act, replace, remove, programs_out, NULL, &err_msg))
+        (args->count > 4u) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->words[4], .other = "delete them", .cap = CLI_CELLS_POOL}));
+    if (!EMBED_CALL(cli_deploy_root.run, CliDeployRootCfg, .root = s_root, .name = args->words[1], .act = act,
+                    .replace = replace, .remove = remove, .print = programs_out, .context = NULL, .err_msg = &err_msg))
     {
-        return programs_failed(&err_msg, CLI_WRONG);
+        return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_WRONG);
     }
     return 0;
 }
 
 // `orior_cli libraries <program>`: each library the program loads, where it is found and the file found, then what the
 // report reports about the program
-static int programs_libraries(const char *const *words, unsigned int count)
+EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
 {
     static const char *const s_found[] = {"beside",      "system",     "redistributable", "debug_runtime",
                                           "system_path", "orior_path", "build_path",      "missing"};
-    if (count < 2u)
+    if (args->count < 2u)
     {
-        cli_err("libraries takes the program to read");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "libraries takes the program to read");
         return CLI_WRONG;
     }
     CliProgramsReading *const reading = g_cli_cells->temporary_buf_alloc(sizeof(*reading), &g_cli_command_line_cells);
     if (reading == NULL)
     {
-        cli_err("the cells cannot meet what a program's libraries are read with");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text = "the cells cannot meet what a program's libraries are read with");
         return CLI_WRONG;
     }
-    cli_toolchains_run_path(reading->path, sizeof(reading->path));
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = reading->path,
+               .size = sizeof(reading->path));
 #if defined(_WIN32)
     const char between = ';';
 #else
@@ -119,8 +145,9 @@ static int programs_libraries(const char *const *words, unsigned int count)
 #endif
     // the PATH's folders in a cell of the most it names, one for each mark between them and one more
     unsigned int most = 1u;
-    most += (unsigned int)cli_text_counted(
-        reading->path, cellul.len(&(CatenaFinitaCfg){.src = reading->path, .cap = CLI_CELLS_POOL}), between);
+    most += (unsigned int)EMBED_CALL(
+        cli_text_size_byte.count, CliTextSizeByteCfg, .text = reading->path,
+        .size = cellul.len(&(CatenaFinitaCfg){.src = reading->path, .cap = CLI_CELLS_POOL}), .byte = between);
     char (*const folder)[CLI_PATH_MAX_LEN] =
         g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, &g_cli_command_line_cells);
     unsigned int folders = 0u;
@@ -138,13 +165,14 @@ static int programs_libraries(const char *const *words, unsigned int count)
         part = (end != NULL) ? end + 1 : NULL;
     }
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
-    const int read =
-        cli_binary_read(words[1], (const char (*)[CLI_PATH_MAX_LEN])folder, folders, &reading->report, &err_msg);
+    const int read = EMBED_CALL(cli_binary_path_orior_path.read, CliBinaryPathOriorPathCfg, .path = args->words[1],
+                                .orior_path = (const char (*)[CLI_PATH_MAX_LEN])folder, .count = folders,
+                                .report = &reading->report, .err_msg = &err_msg);
     g_cli_cells->persistent_buf_release(folder, &g_cli_command_line_cells);
     if (!read)
     {
         g_cli_cells->persistent_buf_release(reading, &g_cli_command_line_cells);
-        return programs_failed(&err_msg, CLI_WRONG);
+        return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_WRONG);
     }
     const CliBinaryReport *const report = &reading->report;
     for (unsigned int at = 0u; at < report->libraries; at += 1u)
@@ -156,77 +184,90 @@ static int programs_libraries(const char *const *words, unsigned int count)
         mmgr_line_put(&line, (one->found < (sizeof(s_found) / sizeof(s_found[0]))) ? s_found[one->found] : "");
         mmgr_line_put(&line, "  ");
         mmgr_line_put(&line, one->has_at ? one->at : "");
-        cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
+        EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
+                   .size = mmgr_line_ok(&line) ? line.at : 0ull);
     }
     const QuerySink sink = {programs_err, NULL};
-    cli_binary_report_print(report, sink);
+    EMBED_CALL(cli_binary_report.report_print, CliBinaryReportCfg, .report_read = report, .sink = sink);
     g_cli_cells->persistent_buf_release(reading, &g_cli_command_line_cells);
     return 0;
 }
 
 // `orior_cli sea <script> <program> [module]`: the script built into Node's single executable
-static int programs_sea(const char *const *words, unsigned int count)
+EMBED_INLINE int programs_sea(const CommandLineProgramsCtx *args)
 {
-    if (count < 3u)
+    if (args->count < 3u)
     {
-        cli_err("sea takes the script and the program to make of it, and module after them for an ES module");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text =
+                       "sea takes the script and the program to make of it, and module after them for an ES module");
         return CLI_WRONG;
     }
-    const int module =
-        (count > 3u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[3], .other = "module", .cap = CLI_CELLS_POOL}));
+    const int module = (args->count > 3u) &&
+                       (cellul.eq(&(CatenaFinitaCfg){.src = args->words[3], .other = "module", .cap = CLI_CELLS_POOL}));
     char node[CLI_PATH_MAX_LEN];
     char made[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
     const QuerySink sink = {programs_out, NULL};
-    if (!cli_executables_program("node", "node", node, &err_msg) ||
-        !cli_sea_build(node, words[1], words[2], module, sink, made, &err_msg))
+    if (!EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "node", .name = "node", .path = node,
+                    .err_msg = &err_msg) ||
+        !EMBED_CALL(cli_sea_node.build, CliSeaNodeCfg, .node = node, .main = args->words[1], .output = args->words[2],
+                    .module = module, .sink = sink, .made = made, .err_msg = &err_msg))
     {
-        return programs_failed(&err_msg, CLI_WRONG);
+        return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_WRONG);
     }
     VerbaLinea line = {s_line, sizeof(s_line), 0ull};
     mmgr_line_put(&line, "made ");
     mmgr_line_put(&line, made);
-    cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
+               .size = mmgr_line_ok(&line) ? line.at : 0ull);
     return 0;
 }
 
-int cli_line_program(const char *first, const char *named, const char *const *words, unsigned int count, int *code)
+int cli_line_program(const CliCommandLineWordsCtx *args)
 {
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "serve", .cap = CLI_CELLS_POOL}))
+    int *code = args->code;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "serve", .cap = CLI_CELLS_POOL}))
     {
-        *code = programs_serve(named);
+        *code = EMBED_CALL(programs_serve, CommandLineProgramsCtx, .named = args->named);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "write-raised", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "write-raised", .cap = CLI_CELLS_POOL}))
     {
-        if (count < 3u)
+        if (args->count < 3u)
         {
-            cli_err("write-raised takes the file staged and the file to write");
+            EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                       .text = "write-raised takes the file staged and the file to write");
             *code = CLI_WRONG;
             return 1;
         }
         VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
-        *code = cli_raised_copy_over(words[1], words[2], &err_msg) ? 0 : programs_failed(&err_msg, 1);
+        *code = EMBED_CALL(cli_raised_from.copy_over, CliRaisedFromCfg, .from = args->words[1], .to = args->words[2],
+                           .err_msg = &err_msg)
+                    ? 0
+                    : EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = 1);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "detached-run", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "detached-run", .cap = CLI_CELLS_POOL}))
     {
-        *code = (count > 1u) ? cli_serve_detached_run(words[1]) : CLI_WRONG;
+        *code = (args->count > 1u) ? EMBED_CALL(cli_serve_table.detached_run, CliServeCfg, .base = args->words[1])
+                                   : CLI_WRONG;
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "deploy", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "deploy", .cap = CLI_CELLS_POOL}))
     {
-        *code = programs_deploy(named, words, count);
+        *code = EMBED_CALL(programs_deploy, CommandLineProgramsCtx, .named = args->named, .words = args->words,
+                           .count = args->count);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "libraries", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "libraries", .cap = CLI_CELLS_POOL}))
     {
-        *code = programs_libraries(words, count);
+        *code = EMBED_CALL(programs_libraries, CommandLineProgramsCtx, .words = args->words, .count = args->count);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "sea", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->first, .other = "sea", .cap = CLI_CELLS_POOL}))
     {
-        *code = programs_sea(words, count);
+        *code = EMBED_CALL(programs_sea, CommandLineProgramsCtx, .words = args->words, .count = args->count);
         return 1;
     }
     return 0;

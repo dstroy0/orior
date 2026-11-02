@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // executables_cmake.c: the file a CMake build made, as the reply of CMake's file API names it, and the file a Meson
 // build made, as `meson introspect` names it, each reply walked by key off its bytes
+#include "../command_line/callback_cfg.h"
 #include "../text/reply.h"
 #include "../text/text.h"
 #include "executables_internal.h"
@@ -13,72 +14,113 @@ typedef struct
     int has;
 } CliIndex;
 
-static void cli_index_each(void *context, const char *name, int is_folder)
+static void cli_index_each(const CliEachNameIsFolderCfg *args)
 {
-    CliIndex *const index = (CliIndex *)context;
-    if (!is_folder && (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "index-", .cap = CLI_CELLS_POOL})) &&
-        (!index->has || (cli_text_order(name, index->last) > 0)))
+    CliIndex *const index = (CliIndex *)args->context;
+    if (!args->is_folder &&
+        (cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "index-", .cap = CLI_CELLS_POOL})) &&
+        (!index->has ||
+         (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = args->name, .other_pointer = index->last) > 0)))
     {
-        memor.cpy(&(MemoriaCfg){.dst = index->last,
-                                .src = name,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = index->last,
+                          .src = args->name,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
         index->has = 1;
     }
 }
 
-// `name` joined to `folder` into `out`, sized for CLI_PATH_MAX_LEN
-static void cli_in(const char *folder, const char *name, char *out)
+typedef struct
 {
-    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, folder);
+    const char *folder;
+    const char *name;
+    char *out;
+    const char *path;
+    CliReply *reply;
+    VerbaLinea *err_msg;
+    const char *one;
+    const char *other;
+    const CliReply *reply_read;
+    unsigned long long array;
+    const char *match;
+    const char *wanted;
+    const char *key;
+    const CliReply *target;
+    const CliReply *model;
+    const char *config;
+} ExecutablesCmakeCtx;
+// `name` joined to `folder` into `out`, sized for CLI_PATH_MAX_LEN
+EMBED_INLINE void cli_in(const ExecutablesCmakeCtx *args)
+{
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->folder);
     mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, args->name);
     mmgr_line_finish(&line);
 }
 
 // the reply file at `path` read into `reply`: 1, or 0 with why given
-static int cli_reply_file(const char *path, CliReply *reply, VerbaLinea *err_msg)
+EMBED_INLINE int cli_reply_file(const ExecutablesCmakeCtx *args)
 {
-    if (cli_reply_read(path, reply))
+    const char *path = args->path;
+    CliReply *reply = args->reply;
+    if (EMBED_CALL(cli_reply_path.read, CliReplyPathCfg, .path = path, .reply_out = reply))
     {
         return 1;
     }
-    mmgr_line_put(err_msg, path);
-    mmgr_line_put(err_msg, ": it could not be read");
+    mmgr_line_put(args->err_msg, path);
+    mmgr_line_put(args->err_msg, ": it could not be read");
     return 0;
 }
 
 // whether two texts are the same, ASCII's case aside
-static int cli_same_case_aside(const char *one, const char *other)
+EMBED_INLINE int cli_same_case_aside(const ExecutablesCmakeCtx *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = CLI_CELLS_POOL, .ci = 1});
+    const char *other = args->other;
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->one, .other = other, .cap = CLI_CELLS_POOL, .ci = 1});
 }
 
 // the member `key` of the first item of the array at `array` whose member `match` is `wanted`, decoded into `out`,
 // which is sized for CLI_PATH_MAX_LEN: 1, or 0 where none is
-static int cli_found_in(const CliReply *reply, unsigned long long array, const char *match, const char *wanted,
-                        const char *key, char *out)
+EMBED_INLINE int cli_found_in(const ExecutablesCmakeCtx *args)
 {
-    for (unsigned long long item = cli_reply_first(reply, array); item != CLI_REPLY_NONE;
-         item = cli_reply_next(reply, item))
+    const CliReply *reply = args->reply_read;
+    unsigned long long array = args->array;
+    const char *key = args->key;
+    char *out = args->out;
+    for (unsigned long long item = EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = reply, .array = array);
+         item != CLI_REPLY_NONE; item = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = reply, .item = item))
     {
-        if (cli_reply_string_is(reply, cli_reply_member(reply, item, match), wanted))
+        if (EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = reply,
+                       .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = reply, .object = item,
+                                        .key = args->match),
+                       .word = args->wanted))
         {
-            return cli_reply_string(reply, cli_reply_member(reply, item, key), out, CLI_PATH_MAX_LEN);
+            return EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = reply,
+                              .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = reply,
+                                               .object = item, .key = key),
+                              .out = out, .capacity = CLI_PATH_MAX_LEN);
         }
     }
     return 0;
 }
 
 // the first path of a target's artifacts that is no debug database or import library into `out`: 1, or 0
-static int cli_artifact(const CliReply *target, char *out)
+EMBED_INLINE int cli_artifact(const ExecutablesCmakeCtx *args)
 {
+    char *out = args->out;
     static const char *const s_passed[4] = {".pdb", ".lib", ".exp", ".ilk"};
-    const unsigned long long artifacts = cli_reply_member(target, cli_reply_root(target), "artifacts");
-    for (unsigned long long item = cli_reply_first(target, artifacts); item != CLI_REPLY_NONE;
-         item = cli_reply_next(target, item))
+    const unsigned long long artifacts =
+        EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
+                   .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = args->target), .key = "artifacts");
+    for (unsigned long long item =
+             EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = args->target, .array = artifacts);
+         item != CLI_REPLY_NONE; item = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->target, .item = item))
     {
-        if (!cli_reply_string(target, cli_reply_member(target, item, "path"), out, CLI_PATH_MAX_LEN))
+        if (!EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->target,
+                        .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
+                                         .object = item, .key = "path"),
+                        .out = out, .capacity = CLI_PATH_MAX_LEN))
         {
             continue;
         }
@@ -86,7 +128,8 @@ static int cli_artifact(const CliReply *target, char *out)
         int passed = 0;
         for (unsigned int at = 0u; !passed && (at < 4u); at += 1u)
         {
-            passed = (length >= 4ull) && cli_same_case_aside(out + length - 4ull, s_passed[at]);
+            passed = (length >= 4ull) && EMBED_CALL(cli_same_case_aside, ExecutablesCmakeCtx,
+                                                    .one = out + length - 4ull, .other = s_passed[at]);
         }
         if (!passed)
         {
@@ -98,15 +141,22 @@ static int cli_artifact(const CliReply *target, char *out)
 
 // the configuration of the code model named `config`, its case aside, else the first: its object, CLI_REPLY_NONE
 // where the model contains none
-static unsigned long long cli_configuration(const CliReply *model, const char *config)
+EMBED_INLINE unsigned long long cli_configuration(const ExecutablesCmakeCtx *args)
 {
-    const unsigned long long configs = cli_reply_member(model, cli_reply_root(model), "configurations");
-    const unsigned long long first = cli_reply_first(model, configs);
-    for (unsigned long long item = first; item != CLI_REPLY_NONE; item = cli_reply_next(model, item))
+    const unsigned long long configs =
+        EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->model,
+                   .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = args->model), .key = "configurations");
+    const unsigned long long first =
+        EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = args->model, .array = configs);
+    for (unsigned long long item = first; item != CLI_REPLY_NONE;
+         item = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->model, .item = item))
     {
         char named[CLI_NAME_MAX_LEN];
-        if (cli_reply_string(model, cli_reply_member(model, item, "name"), named, sizeof(named)) &&
-            cli_same_case_aside(named, config))
+        if (EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->model,
+                       .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->model,
+                                        .object = item, .key = "name"),
+                       .out = named, .capacity = sizeof(named)) &&
+            EMBED_CALL(cli_same_case_aside, ExecutablesCmakeCtx, .one = named, .other = args->config))
         {
             return item;
         }
@@ -114,127 +164,148 @@ static unsigned long long cli_configuration(const CliReply *model, const char *c
     return first;
 }
 
-int cli_cmake_artifact(const char *build, const char *name, const char *config, char *out, VerbaLinea *err_msg)
+int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
 {
     char reply_folder[CLI_PATH_MAX_LEN];
-    cli_in(build, ".cmake/api/v1/reply", reply_folder);
+    EMBED_CALL(cli_in, ExecutablesCmakeCtx, .folder = args->build, .name = ".cmake/api/v1/reply", .out = reply_folder);
     CliIndex index = {"", 0};
-    if (!query_folder_each(reply_folder, cli_index_each, &index))
+    if (!EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = reply_folder,
+                    .each = cli_index_each, .context_bytess = &index))
     {
-        mmgr_line_put(err_msg, reply_folder);
-        mmgr_line_put(err_msg, ": it could not be read");
+        mmgr_line_put(args->err_msg, reply_folder);
+        mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
     }
     if (!index.has)
     {
-        mmgr_line_put(err_msg, "CMake wrote no reply in ");
-        mmgr_line_put(err_msg, reply_folder);
+        mmgr_line_put(args->err_msg, "CMake wrote no reply in ");
+        mmgr_line_put(args->err_msg, reply_folder);
         return 0;
     }
     char path[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
-    cli_in(reply_folder, index.last, path);
+    EMBED_CALL(cli_in, ExecutablesCmakeCtx, .folder = reply_folder, .name = index.last, .out = path);
     CliReply reply = {NULL, 0ull};
-    if (!cli_reply_file(path, &reply, err_msg))
+    if (!EMBED_CALL(cli_reply_file, ExecutablesCmakeCtx, .path = path, .reply = &reply, .err_msg = args->err_msg))
     {
         return 0;
     }
-    const int modelled = cli_found_in(&reply, cli_reply_member(&reply, cli_reply_root(&reply), "objects"), "kind",
-                                      "codemodel", "jsonFile", file);
-    cli_reply_let_go(&reply);
+    const int modelled = EMBED_CALL(
+        cli_found_in, ExecutablesCmakeCtx, .reply_read = &reply,
+        .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply,
+                            .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply), .key = "objects"),
+        .match = "kind", .wanted = "codemodel", .key = "jsonFile", .out = file);
+    EMBED_CALL(cli_reply_path.let_go, CliReplyPathCfg, .reply_out = &reply);
     if (!modelled)
     {
-        mmgr_line_put(err_msg, "CMake's reply contains no code model");
+        mmgr_line_put(args->err_msg, "CMake's reply contains no code model");
         return 0;
     }
-    cli_in(reply_folder, file, path);
+    EMBED_CALL(cli_in, ExecutablesCmakeCtx, .folder = reply_folder, .name = file, .out = path);
     CliReply model = {NULL, 0ull};
-    if (!cli_reply_file(path, &model, err_msg))
+    if (!EMBED_CALL(cli_reply_file, ExecutablesCmakeCtx, .path = path, .reply = &model, .err_msg = args->err_msg))
     {
         return 0;
     }
-    const unsigned long long chosen = cli_configuration(&model, config);
+    const unsigned long long chosen =
+        EMBED_CALL(cli_configuration, ExecutablesCmakeCtx, .model = &model, .config = args->config);
     int targeted = 0;
     if (chosen == CLI_REPLY_NONE)
     {
-        mmgr_line_put(err_msg, "CMake's code model contains no configuration");
+        mmgr_line_put(args->err_msg, "CMake's code model contains no configuration");
     }
     else
     {
-        targeted = cli_found_in(&model, cli_reply_member(&model, chosen, "targets"), "name", name, "jsonFile", file);
+        targeted = EMBED_CALL(cli_found_in, ExecutablesCmakeCtx, .reply_read = &model,
+                              .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &model,
+                                                  .object = chosen, .key = "targets"),
+                              .match = "name", .wanted = args->name, .key = "jsonFile", .out = file);
         if (!targeted)
         {
-            mmgr_line_put(err_msg, "CMake's code model contains no target ");
-            mmgr_line_put(err_msg, name);
+            mmgr_line_put(args->err_msg, "CMake's code model contains no target ");
+            mmgr_line_put(args->err_msg, args->name);
         }
     }
-    cli_reply_let_go(&model);
+    EMBED_CALL(cli_reply_path.let_go, CliReplyPathCfg, .reply_out = &model);
     if (!targeted)
     {
         return 0;
     }
-    cli_in(reply_folder, file, path);
+    EMBED_CALL(cli_in, ExecutablesCmakeCtx, .folder = reply_folder, .name = file, .out = path);
     CliReply target = {NULL, 0ull};
-    if (!cli_reply_file(path, &target, err_msg))
+    if (!EMBED_CALL(cli_reply_file, ExecutablesCmakeCtx, .path = path, .reply = &target, .err_msg = args->err_msg))
     {
         return 0;
     }
     char artifact[CLI_PATH_MAX_LEN];
-    const int found = cli_artifact(&target, artifact);
-    cli_reply_let_go(&target);
+    const int found = EMBED_CALL(cli_artifact, ExecutablesCmakeCtx, .target = &target, .out = artifact);
+    EMBED_CALL(cli_reply_path.let_go, CliReplyPathCfg, .reply_out = &target);
     if (!found)
     {
-        mmgr_line_put(err_msg, "CMake names no file for ");
-        mmgr_line_put(err_msg, name);
+        mmgr_line_put(args->err_msg, "CMake names no file for ");
+        mmgr_line_put(args->err_msg, args->name);
         return 0;
     }
     const int absolute =
         (artifact[0] == '/') || (artifact[0] == '\\') || ((artifact[0] != '\0') && (artifact[1] == ':'));
     if (absolute)
     {
-        memor.cpy(&(MemoriaCfg){.dst = out,
+        memor.cpy(&(MemoriaCfg){.dst = args->out,
                                 .src = artifact,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = artifact, .cap = CLI_CELLS_POOL}) + 1u});
     }
     else
     {
-        cli_in(build, artifact, out);
+        EMBED_CALL(cli_in, ExecutablesCmakeCtx, .folder = args->build, .name = artifact, .out = args->out);
     }
     return 1;
 }
 
-int cli_meson_artifact(const char *build, const char *name, char *out, VerbaLinea *err_msg)
+int cli_meson_artifact(const CliExecutablesNameOutCtx *args)
 {
-    const char *const args[3] = {"introspect", "--targets", build};
-    CliRan *const ran = cli_ran_taken();
-    if (!cli_executables_output("meson", "meson", args, 3u, NULL, ran, err_msg))
+    const char *const arguments[3] = {"introspect", "--targets", args->build};
+    CliRan *const ran = cli_ran_take();
+    if (!EMBED_CALL(cli_executables_name_internal.output, CliExecutablesNameCtx, .tool = "meson", .name = "meson",
+                    .request = arguments, .count = 3u, .folder = NULL, .ran = ran, .err_msg = args->err_msg))
     {
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return 0;
     }
     // the program's output read where it stands
     const CliReply reply = {ran->out, ran->out_size};
-    const unsigned long long targets = cli_reply_root(&reply);
+    const unsigned long long targets = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply);
     int found = 0;
-    for (unsigned long long item = cli_reply_first(&reply, targets); !found && (item != CLI_REPLY_NONE);
-         item = cli_reply_next(&reply, item))
+    for (unsigned long long item =
+             EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = &reply, .array = targets);
+         !found && (item != CLI_REPLY_NONE);
+         item = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = &reply, .item = item))
     {
-        if (!cli_reply_string_is(&reply, cli_reply_member(&reply, item, "name"), name) ||
-            !cli_reply_string_is(&reply, cli_reply_member(&reply, item, "type"), "executable"))
+        if (!EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = &reply,
+                        .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply, .object = item,
+                                         .key = "name"),
+                        .word = args->name) ||
+            !EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = &reply,
+                        .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply, .object = item,
+                                         .key = "type"),
+                        .word = "executable"))
         {
             continue;
         }
         // the first target named so ends the search, whether or not it names a file
-        found = cli_reply_string(&reply, cli_reply_item(&reply, cli_reply_member(&reply, item, "filename"), 0ull), out,
-                                 CLI_PATH_MAX_LEN)
+        found = EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = &reply,
+                           .at = EMBED_CALL(cli_reply_array.item, CliReplyArrayCfg, .reply = &reply,
+                                            .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg,
+                                                                .reply = &reply, .object = item, .key = "filename"),
+                                            .index = 0ull),
+                           .out = args->out, .capacity = CLI_PATH_MAX_LEN)
                     ? 1
                     : -1;
     }
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     if (found != 1)
     {
-        mmgr_line_put(err_msg, "Meson names no executable ");
-        mmgr_line_put(err_msg, name);
+        mmgr_line_put(args->err_msg, "Meson names no executable ");
+        mmgr_line_put(args->err_msg, args->name);
         return 0;
     }
     return 1;

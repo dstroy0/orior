@@ -14,7 +14,7 @@
 typedef struct
 {
     const char *name;
-    int (*loop)(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg);
+    int (*loop)(const QueryLoopCfg *args);
     const char *word;
 } QueryStep;
 
@@ -35,60 +35,67 @@ const char *const g_query_course_names[10] = {"vendor tables", "discover",    "t
 const unsigned int g_query_course_steps = 10u;
 
 // the names of the steps joined by `, ` into `line`
-void query_names_joined(VerbaLinea *line)
+void query_names_join(const QueryLoopsCfg *args)
 {
     for (unsigned int at = 0u; at < g_query_course_steps; at += 1u)
     {
-        mmgr_line_put(line, (at == 0u) ? "" : ", ");
-        mmgr_line_put(line, s_steps[at].name);
+        mmgr_line_put(args->line, (at == 0u) ? "" : ", ");
+        mmgr_line_put(args->line, s_steps[at].name);
     }
 }
 
 // The index of the step `--from` names in `words`, the first where none is named; a name no step has, or a flag with
 // no name after it, refused. A name shared by two steps names the first. 1, or 0 with why given
-int query_course_from(const char *const *words, unsigned int count, unsigned int *first, VerbaLinea *err_msg)
+int query_course_from(const QueryLoopsErrMsgWordsCountCfg *args)
 {
+    unsigned int *first = args->first;
     *first = 0u;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--from", .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--from", .cap = CLI_CELLS_POOL}))
         {
             continue;
         }
-        if ((at + 1u) >= count)
+        if ((at + 1u) >= args->count)
         {
-            mmgr_line_put(err_msg, "--from takes the name of a step");
+            mmgr_line_put(args->err_msg, "--from takes the name of a step");
             return 0;
         }
         for (unsigned int step = 0u; step < g_query_course_steps; step += 1u)
         {
-            if (cellul.eq(
-                    &(CatenaFinitaCfg){.src = s_steps[step].name, .other = words[at + 1u], .cap = CLI_CELLS_POOL}))
+            if (cellul.eq(&(CatenaFinitaCfg){
+                    .src = s_steps[step].name, .other = args->words[at + 1u], .cap = CLI_CELLS_POOL}))
             {
                 *first = step;
                 return 1;
             }
         }
-        mmgr_line_put(err_msg, "no step of the course is ");
-        mmgr_line_put(err_msg, words[at + 1u]);
-        mmgr_line_put(err_msg, "; the steps are ");
-        query_names_joined(err_msg);
+        mmgr_line_put(args->err_msg, "no step of the course is ");
+        mmgr_line_put(args->err_msg, args->words[at + 1u]);
+        mmgr_line_put(args->err_msg, "; the steps are ");
+        EMBED_CALL(cli_loops.names_join, QueryLoopsCfg, .line = args->err_msg);
         return 0;
     }
     return 1;
 }
 
-int query_course_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
+int query_course_run(const QueryLoopCfg *args)
 {
+    QueryContext *context = args->context;
+    const char *const *words = args->words;
+    unsigned int count = args->count;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned int first = 0u;
-    if (!query_course_from(words, count, &first, err_msg))
+    if (!EMBED_CALL(query_loops_err_msg_words_count.course_from, QueryLoopsErrMsgWordsCountCfg, .words = words,
+                    .count = count, .first = &first, .err_msg = err_msg))
     {
         return -1;
     }
     // the course's run, open on the context so that every step joins it; a course run inside a run already
     // open joins that one
     static QueryRun s_run;
-    if (!query_context_started(context, &s_run, QUERY_COURSE_FOLDER, err_msg))
+    if (!EMBED_CALL(query_loops_context_run.context_start, QueryLoopsContextRunCfg, .context = context,
+                    .run_out = &s_run, .folder = QUERY_COURSE_FOLDER, .err_msg = err_msg))
     {
         return -1;
     }
@@ -103,9 +110,9 @@ int query_course_run(QueryContext *context, const char *const *words, unsigned i
     mmgr_line_put(&print_line, "course: ");
     mmgr_line_decimal(&print_line, g_query_course_steps, 0u);
     mmgr_line_put(&print_line, " steps: ");
-    query_names_joined(&print_line);
+    EMBED_CALL(cli_loops.names_join, QueryLoopsCfg, .line = &print_line);
     mmgr_line_finish(&print_line);
-    query_print(context, line);
+    EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
     int ended = 0;
     for (unsigned int index = first; index < g_query_course_steps; index += 1u)
     {
@@ -118,13 +125,14 @@ int query_course_run(QueryContext *context, const char *const *words, unsigned i
         mmgr_line_put(&print_line, ": ");
         mmgr_line_put(&print_line, s_steps[index].name);
         mmgr_line_finish(&print_line);
-        query_print(context, line);
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
         char step_err_buf[QUERY_LINE_MAX_LEN];
         VerbaLinea step_err_msg = {step_err_buf, sizeof(step_err_buf), 0ull};
         const char *const given[1] = {s_steps[index].word};
-        const int code = s_steps[index].loop(context, given, 1u, &step_err_msg);
+        const int code = EMBED_CALL(s_steps[index].loop, QueryLoopCfg, .context = context, .words = given, .count = 1u,
+                                    .err_msg = &step_err_msg);
         // a step that joined the run parts from it as it ends: the course is the run's member again
-        query_writer_joined(&s_run.writer);
+        EMBED_CALL(query_err_msg_writer_internal.writer_join, QueryErrMsgWriterCtx, .writer_out = &s_run.writer);
         if (code == 0)
         {
             continue;
@@ -148,7 +156,7 @@ int query_course_run(QueryContext *context, const char *const *words, unsigned i
             ended = -1;
         }
         mmgr_line_finish(&print_line);
-        query_print(context, line);
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
         break;
     }
     if (ended == 0)
@@ -158,10 +166,11 @@ int query_course_run(QueryContext *context, const char *const *words, unsigned i
         mmgr_line_decimal(&print_line, g_query_course_steps, 0u);
         mmgr_line_put(&print_line, " steps");
         mmgr_line_finish(&print_line);
-        query_print(context, line);
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
     }
     memor.cpy(&(MemoriaCfg){.dst = context->open, .src = saved_open, .bytes = sizeof(saved_open)});
-    if (!query_context_ended(context, &s_run, err_msg))
+    if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
+                    .err_msg = err_msg))
     {
         return -1;
     }

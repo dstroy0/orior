@@ -11,61 +11,104 @@
 static CliServersReading s_reading = {CLI_LOCK_INIT};
 static CliServersReading s_resolved = {CLI_LOCK_INIT};
 
-// a place of an edit orior_cli wrote, `{"line", "col"}`, written again: 1, or 0 with why given where it is none
-static int actions_place_written(const CliJson *json, unsigned int edit, const char *name, VerbaLinea *out,
-                                 VerbaLinea *err_msg)
+typedef struct
 {
-    const unsigned int place = cli_json_member(json, edit, name);
+    const CliJson *json;
+    unsigned int edit;
+    const char *name;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+    const char *tree;
+    const char *path;
+    unsigned int edits;
+    CliLsp *server;
+    const char *plugin;
+    unsigned int command;
+    unsigned int action;
+    const char *raw;
+    unsigned long long size;
+    unsigned int wrapped;
+} ServersActCtx;
+// a place of an edit orior_cli wrote, `{"line", "col"}`, written again: 1, or 0 with why given where it is none
+EMBED_INLINE int actions_place_write(const ServersActCtx *args)
+{
+    const CliJson *json = args->json;
+    const char *name = args->name;
+    VerbaLinea *out = args->out;
+    const unsigned int place = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->edit, .name = name);
     const unsigned long long none = ~0ull;
-    const unsigned long long line = cli_servers_whole(json, cli_json_member(json, place, "line"), none);
-    const unsigned long long col = cli_servers_whole(json, cli_json_member(json, place, "col"), none);
+    const unsigned long long line =
+        EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = place, .name = "line"),
+                   .otherwise = none);
+    const unsigned long long col =
+        EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = place, .name = "col"),
+                   .otherwise = none);
     if ((place == CLI_JSON_NONE) || (line > 0xffffffffull) || (col > 0xffffffffull))
     {
-        mmgr_line_put(err_msg, (place == CLI_JSON_NONE) ? "missing field `" : "invalid type: expected field `");
-        mmgr_line_put(err_msg, (place == CLI_JSON_NONE) ? name : ((line > 0xffffffffull) ? "line" : "col"));
-        mmgr_line_ch(err_msg, '`');
+        mmgr_line_put(args->err_msg, (place == CLI_JSON_NONE) ? "missing field `" : "invalid type: expected field `");
+        mmgr_line_put(args->err_msg, (place == CLI_JSON_NONE) ? name : ((line > 0xffffffffull) ? "line" : "col"));
+        mmgr_line_ch(args->err_msg, '`');
         return 0;
     }
-    cli_text_place_written((CliTextPlace){(unsigned int)line, (unsigned int)col}, out);
+    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg,
+               .place = (CliTextPlace){(unsigned int)line, (unsigned int)col}, .out = out);
     return 1;
 }
 
 // orior's own edits of a fix written as the file's edits: 1, or 0 with why given where they are not edits
-static int actions_ours_written(const char *tree, const char *path, const CliJson *json, unsigned int edits,
-                                VerbaLinea *out, VerbaLinea *err_msg)
+EMBED_INLINE int actions_ours_write(const ServersActCtx *args)
 {
-    if (!cli_json_is(json, edits, CFG_JSON_ARRAY))
+    const char *tree = args->tree;
+    const char *path = args->path;
+    const CliJson *json = args->json;
+    VerbaLinea *out = args->out;
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->edits,
+                    .kind = CFG_JSON_ARRAY))
     {
-        mmgr_line_put(err_msg, "invalid type: expected a sequence");
+        mmgr_line_put(args->err_msg, "invalid type: expected a sequence");
         return 0;
     }
     char shown[CLI_PATH_MAX_LEN];
     VerbaLinea where = {shown, sizeof(shown), 0ull};
-    cli_servers_tree_path(tree, path, &where);
+    EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = tree, .path = path,
+               .out = &where);
     mmgr_line_put(out, "[{\"path\":");
-    cli_json_quoted_lossy(out, (const unsigned char *)shown, mmgr_line_ok(&where) ? where.at : 0ull);
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)shown, .length = mmgr_line_ok(&where) ? where.at : 0ull);
     mmgr_line_put(out, ",\"edits\":[");
-    for (unsigned int edit = json->node[edits].first; edit != CLI_JSON_NONE; edit = json->node[edit].next)
+    for (unsigned int edit = json->node[args->edits].first; edit != CLI_JSON_NONE; edit = json->node[edit].next)
     {
         unsigned long long size = 0ull;
-        const char *const text = cli_json_string(json, cli_json_member(json, edit, "text"), &size);
-        mmgr_line_put(out, (edit != json->node[edits].first) ? ",{\"from\":" : "{\"from\":");
-        if (!actions_place_written(json, edit, "from", out, err_msg))
+        const char *const text =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = edit, .name = "text"),
+                       .length_pointer = &size);
+        mmgr_line_put(out, (edit != json->node[args->edits].first) ? ",{\"from\":" : "{\"from\":");
+        if (!EMBED_CALL(actions_place_write, ServersActCtx, .json = json, .edit = edit, .name = "from", .out = out,
+                        .err_msg = args->err_msg))
         {
             return 0;
         }
         mmgr_line_put(out, ",\"to\":");
-        if (!actions_place_written(json, edit, "to", out, err_msg))
+        if (!EMBED_CALL(actions_place_write, ServersActCtx, .json = json, .edit = edit, .name = "to", .out = out,
+                        .err_msg = args->err_msg))
         {
             return 0;
         }
         if (text == NULL)
         {
-            mmgr_line_put(err_msg, "missing field `text`");
+            mmgr_line_put(args->err_msg, "missing field `text`");
             return 0;
         }
         mmgr_line_put(out, ",\"text\":");
-        cli_json_quoted(out, text, size);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = text,
+                   .length = size);
         mmgr_line_ch(out, '}');
     }
     mmgr_line_put(out, "]}]");
@@ -74,32 +117,47 @@ static int actions_ours_written(const char *tree, const char *path, const CliJso
 
 // the server's command `command`, named by `name` with its `arguments`, run: by the server where it runs it, and passed
 // to the plugin `plugin` where the server is a plugin's and does not: 1, or 0 with why given
-static int actions_command(CliLsp *server, const char *plugin, const CliJson *json, unsigned int command,
-                           const char *name, VerbaLinea *err_msg)
+static int actions_command(const ServersActCtx *args)
 {
+    CliLsp *server = args->server;
+    const CliJson *json = args->json;
+    unsigned int command = args->command;
+    const char *name = args->name;
+    VerbaLinea *err_msg = args->err_msg;
     // a command and its arguments come in a server's answer, and so fit what an answer holds
     char *const params_text = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
     VerbaLinea params = mmgr_line_over(params_text, CLI_SERVERS_ANSWER);
     mmgr_line_put(&params, "{\"command\":");
-    cli_servers_member_written(json, command, name, &params);
+    EMBED_CALL(cli_servers_json_node_internal.member_write, CliServersJsonNodeCtx, .json = json, .node = command,
+               .name = name, .out = &params);
     mmgr_line_put(&params, ",\"arguments\":");
-    cli_servers_member_written(json, command, "arguments", &params);
+    EMBED_CALL(cli_servers_json_node_internal.member_write, CliServersJsonNodeCtx, .json = json, .node = command,
+               .name = "arguments", .out = &params);
     mmgr_line_ch(&params, '}');
     const int whole = mmgr_line_ok(&params);
     if (!whole)
     {
         mmgr_line_put(err_msg, "the command could not be written: its params do not fit");
     }
-    const char *const named = cli_json_string(json, cli_json_member(json, command, name), NULL);
-    const int passed = (plugin != NULL) && ((named == NULL) || !cli_servers_capable_command(server, named));
+    const char *const named =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = command, .name = name),
+                   .length_pointer = NULL);
+    const int passed = (args->plugin != NULL) &&
+                       ((named == NULL) || !EMBED_CALL(cli_servers_server_command_internal.capable_command,
+                                                       CliServersServerCommandCtx, .server = server, .command = named));
     if (passed && whole)
     {
-        cli_servers_plugin_command(plugin, params.out, params.at);
+        EMBED_CALL(cli_servers_size_command_internal.plugin_command, CliServersSizeCommandCtx, .id = args->plugin,
+                   .command = params.out, .size = params.at);
     }
     // nothing reads the command's answer
     CliLspAnswer answer = {NULL, NULL, 0ull};
-    const int done = whole && (passed || cli_lsp_requested(server, "workspace/executeCommand", params.out, params.at,
-                                                           CLI_SERVERS_SEARCHING, &answer, err_msg));
+    const int done =
+        whole && (passed || EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = server,
+                                       .method = "workspace/executeCommand", .params = params.out, .length = params.at,
+                                       .wait = CLI_SERVERS_SEARCHING, .answer = &answer, .err_msg = err_msg));
     g_cli_cells->persistent_buf_release(answer.message, &g_cli_servers_cells);
     g_cli_cells->persistent_buf_release(params_text, &g_cli_servers_cells);
     return done;
@@ -108,44 +166,67 @@ static int actions_command(CliLsp *server, const char *plugin, const CliJson *js
 // the action at `action` of `json`, `size` bytes of `raw` as the server gave it, carried out by `server`, the server of
 // the plugin `plugin` where that is not NULL: its edits written to `out`, filled in by the server first where it left
 // them out, and its command run: 1, or 0 with why given
-static int actions_by(CliLsp *server, const char *plugin, const char *tree, const CliJson *json, unsigned int action,
-                      const char *raw, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg)
+static int actions_by(const ServersActCtx *args)
 {
-    if (cli_json_is(json, cli_json_member(json, action, "command"), CFG_JSON_STRING))
+    CliLsp *server = args->server;
+    const char *tree = args->tree;
+    const CliJson *json = args->json;
+    unsigned int action = args->action;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = action, .name = "command"),
+                   .kind = CFG_JSON_STRING))
     {
-        const int done = actions_command(server, plugin, json, action, "command", err_msg);
+        const int done = EMBED_CALL(actions_command, ServersActCtx, .server = server, .plugin = args->plugin,
+                                    .json = json, .command = action, .name = "command", .err_msg = err_msg);
         mmgr_line_put(out, done ? "[]" : "");
         return done;
     }
     int done = 1;
-    const unsigned int edit = cli_json_member(json, action, "edit");
-    const unsigned int command = cli_json_member(json, action, "command");
-    if (((edit == CLI_JSON_NONE) || cli_json_is(json, edit, CFG_JSON_NULL)) &&
-        ((command == CLI_JSON_NONE) || cli_json_is(json, command, CFG_JSON_NULL)) &&
-        cli_servers_capable_true(server, "codeActionProvider", "resolveProvider"))
+    const unsigned int edit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                         .object = action, .name = "edit");
+    const unsigned int command = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = action, .name = "command");
+    if (((edit == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                               .json_read = json, .node = edit, .kind = CFG_JSON_NULL)) &&
+        ((command == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                  .json_read = json, .node = command, .kind = CFG_JSON_NULL)) &&
+        EMBED_CALL(cli_servers_server_internal.capable_true, CliServersServerCtx, .server = server,
+                   .name = "codeActionProvider", .inner = "resolveProvider"))
     {
         CliLspAnswer answer = {NULL, NULL, 0ull};
-        done = cli_lsp_requested(server, "codeAction/resolve", raw, size, CLI_SERVERS_REQUEST_TIMEOUT_MS, &answer,
-                                 err_msg);
+        done = EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = server,
+                          .method = "codeAction/resolve", .params = args->raw, .length = args->size,
+                          .wait = CLI_SERVERS_REQUEST_TIMEOUT_MS, .answer = &answer, .err_msg = err_msg);
         json = &s_resolved.json;
-        action = done ? cli_servers_answer_read(&s_resolved, &answer) : CLI_JSON_NONE;
+        action = done ? EMBED_CALL(cli_servers_reading_answer_internal.answer_read, CliServersReadingAnswerCtx,
+                                   .reading = &s_resolved, .answer = &answer)
+                      : CLI_JSON_NONE;
     }
-    // the edits kept until the command after them has run, and written only where it ran
+    // the edits saved until the command after them has run, and written only where it ran
     char *const edits_text = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
     VerbaLinea edits = mmgr_line_over(edits_text, CLI_SERVERS_ANSWER);
     if (done)
     {
-        cli_servers_workspace_edit_of(json, cli_json_member(json, action, "edit"), tree, &edits);
+        EMBED_CALL(cli_servers_json_tree_out_internal.workspace_edit_get, CliServersJsonTreeOutCtx, .json = json,
+                   .edit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = action, .name = "edit"),
+                   .tree = tree, .out = &edits);
         done = mmgr_line_ok(&edits);
         if (!done)
         {
             mmgr_line_put(err_msg, "the action's edits could not be stored: they do not fit");
         }
     }
-    const unsigned int then = cli_json_member(json, action, "command");
-    if (done && cli_json_is(json, then, CFG_JSON_OBJECT))
+    const unsigned int then = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                         .object = action, .name = "command");
+    if (done && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = then,
+                           .kind = CFG_JSON_OBJECT))
     {
-        done = actions_command(server, plugin, json, then, "command", err_msg);
+        done = EMBED_CALL(actions_command, ServersActCtx, .server = server, .plugin = args->plugin, .json = json,
+                          .command = then, .name = "command", .err_msg = err_msg);
     }
     if (done)
     {
@@ -157,63 +238,86 @@ static int actions_by(CliLsp *server, const char *plugin, const char *tree, cons
 
 // an action of a plugin's server, `{"orior_plugin", "action"}` at `wrapped`, carried out by the plugin's server: 1, or
 // 0 with why given
-static int actions_plugin_by(const char *tree, const CliJson *json, unsigned int wrapped, VerbaLinea *out,
-                             VerbaLinea *err_msg)
+EMBED_INLINE int actions_plugin_by(const ServersActCtx *args)
 {
-    const char *const plugin = cli_json_string(json, cli_json_member(json, wrapped, "orior_plugin"), NULL);
-    CliLsp *const server = (plugin != NULL) ? cli_servers_plugin_of(plugin, err_msg) : NULL;
+    const CliJson *json = args->json;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const plugin =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->wrapped, .name = "orior_plugin"),
+                   .length_pointer = NULL);
+    CliLsp *const server = (plugin != NULL) ? EMBED_CALL(cli_servers_err_msg_server_internal.plugin_get,
+                                                         CliServersErrMsgServerCtx, .id = plugin, .err_msg = err_msg)
+                                            : NULL;
     if (server == NULL)
     {
         mmgr_line_put(err_msg, (plugin == NULL) ? "invalid type: expected a string `orior_plugin`" : "");
         return 0;
     }
     // the action as the server gave it, for the server to fill in
-    const unsigned int action = cli_json_member(json, wrapped, "action");
-    const unsigned long long room = cli_json_written_room(json);
+    const unsigned int action = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = args->wrapped, .name = "action");
+    const unsigned long long room =
+        EMBED_CALL(cli_json_tree_node_out.json_write_room, CliJsonTreeNodeOutCfg, .json_read = json);
     char *const raw = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
     VerbaLinea text = mmgr_line_over(raw, room);
-    cli_json_write(json, action, &text, 0u, 0);
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = action,
+               .out = &text, .indent = 0u, .sorted = 0);
     const int done =
-        mmgr_line_ok(&text) && actions_by(server, plugin, tree, json, action, text.out, text.at, out, err_msg);
+        mmgr_line_ok(&text) &&
+        EMBED_CALL(actions_by, ServersActCtx, .server = server, .plugin = plugin, .tree = args->tree, .json = json,
+                   .action = action, .raw = text.out, .size = text.at, .out = out, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(raw, &g_cli_servers_cells);
-    cli_lsp_unref(server);
+    EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     return done;
 }
 
-int cli_servers_act(const char *tree, const char *path, const char *raw, unsigned long long size, VerbaLinea *out,
-                    VerbaLinea *err_msg)
+int cli_servers_act(const CliServersPathSizeCfg *args)
 {
-    cli_servers_reading_locked(&s_reading);
-    cli_servers_reading_locked(&s_resolved);
+    EMBED_CALL(cli_servers_reading_answer_internal.reading_lock, CliServersReadingAnswerCtx, .reading = &s_reading);
+    EMBED_CALL(cli_servers_reading_answer_internal.reading_lock, CliServersReadingAnswerCtx, .reading = &s_resolved);
     const CliJson *const json = &s_reading.json;
-    const unsigned int action = cli_servers_read(&s_reading, raw, size);
+    const unsigned int action = EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx,
+                                           .reading = &s_reading, .text = args->raw, .size = args->size);
     int done = 1;
-    if (cli_json_member(json, action, "orior_run") != CLI_JSON_NONE)
+    if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = action,
+                   .name = "orior_run") != CLI_JSON_NONE)
     {
-        mmgr_line_put(out, "[]");
+        mmgr_line_put(args->out, "[]");
     }
-    else if (cli_json_member(json, action, "orior") != CLI_JSON_NONE)
+    else if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = action,
+                        .name = "orior") != CLI_JSON_NONE)
     {
-        done = actions_ours_written(tree, path, json, cli_json_member(json, action, "orior"), out, err_msg);
+        done = EMBED_CALL(actions_ours_write, ServersActCtx, .tree = args->tree, .path = args->path, .json = json,
+                          .edits = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                              .object = action, .name = "orior"),
+                          .out = args->out, .err_msg = args->err_msg);
     }
-    else if (cli_json_member(json, action, "orior_plugin") != CLI_JSON_NONE)
+    else if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = action,
+                        .name = "orior_plugin") != CLI_JSON_NONE)
     {
-        done = actions_plugin_by(tree, json, action, out, err_msg);
+        done = EMBED_CALL(actions_plugin_by, ServersActCtx, .tree = args->tree, .json = json, .wrapped = action,
+                          .out = args->out, .err_msg = args->err_msg);
     }
     else
     {
-        CliLsp *const server = cli_servers_owner_started(path);
-        done = (server != NULL) && actions_by(server, NULL, tree, json, action, raw, size, out, err_msg);
+        CliLsp *const server =
+            EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx, .path = args->path);
+        done = (server != NULL) && EMBED_CALL(actions_by, ServersActCtx, .server = server, .plugin = NULL,
+                                              .tree = args->tree, .json = json, .action = action, .raw = args->raw,
+                                              .size = args->size, .out = args->out, .err_msg = args->err_msg);
         if (server == NULL)
         {
-            mmgr_line_put(err_msg, "no language server has this file open");
+            mmgr_line_put(args->err_msg, "no language server has this file open");
         }
         else
         {
-            cli_lsp_unref(server);
+            EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
         }
     }
-    cli_servers_reading_released(&s_resolved);
-    cli_servers_reading_released(&s_reading);
+    EMBED_CALL(cli_servers_reading_answer_internal.reading_release, CliServersReadingAnswerCtx, .reading = &s_resolved);
+    EMBED_CALL(cli_servers_reading_answer_internal.reading_release, CliServersReadingAnswerCtx, .reading = &s_reading);
     return done;
 }

@@ -13,8 +13,14 @@
 // process's own (platform/windows_transfer.c, platform/posix_transfer.c, platform/posix_descriptors.c)
 #ifndef TRANSFER_H
 #define TRANSFER_H
+typedef struct CliTransferRegionCfg CliTransferRegionCfg;
+typedef struct CliTransferCfg CliTransferCfg;
+typedef struct CliTransferRegionBytesCfg CliTransferRegionBytesCfg;
+typedef struct CliTransferSocketCfg CliTransferSocketCfg;
+typedef struct CliTransferSizeCfg CliTransferSizeCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the least body, in bytes, that goes through the transfer layer, a smaller one going in its frame; and the most a
 // region contains
@@ -34,17 +40,16 @@ typedef struct
 // a region containing `size` bytes of `bytes`, sealed on Linux against every change from now on; the region of `length`
 // bytes the container made in this process as `handle`, or whose descriptor `handle` came from another process; and
 // the region let go. Each 1, or 0 with why given
-int cli_region_with(CliRegion *region, const void *bytes, unsigned long long size, VerbaLinea *err_msg);
-int cli_region_received(CliRegion *region, unsigned long long handle, unsigned long long length, VerbaLinea *err_msg);
-void cli_region_closed(CliRegion *region);
+int cli_region_with(const CliTransferRegionBytesCfg *args);
+int cli_region_receive(const CliTransferRegionCfg *args);
+void cli_region_close(const CliTransferRegionBytesCfg *args);
 
 #if defined(_WIN32)
 // a handle to the region made in the process `process`, which reads the region and cannot write it, its value there
 // into `theirs`; and the region of `length` bytes the process `process` names by its handle `handle` there, taken into
 // this process to be read. Each 1, or 0 with why given
-int cli_region_given(const CliRegion *region, unsigned int process, unsigned long long *theirs, VerbaLinea *err_msg);
-int cli_region_taken(CliRegion *region, unsigned int process, unsigned long long handle, unsigned long long length,
-                     VerbaLinea *err_msg);
+int cli_region_free(const CliTransferCfg *args);
+int cli_region_take(const CliTransferRegionCfg *args);
 #else
 // the most descriptors retained that came with bytes read and are not yet taken
 #define CLI_DESCRIPTORS_PENDING_MAX 64u
@@ -63,10 +68,79 @@ typedef struct
 // not be; what came on `socket` read into `buffer`, sized for `room`, each descriptor that came with it stored in
 // `pending`: the count read, 0 at the end, -1 where the read failed; the first descriptor stored taken, -1 where none
 // is; and every descriptor pending closed
-int cli_socket_sent_with(int socket, const void *frame, unsigned long long size, int fd);
-long long cli_socket_received(int socket, void *buffer, unsigned long long room, CliDescriptors *pending);
-int cli_descriptor_taken(CliDescriptors *pending);
-void cli_descriptors_closed(CliDescriptors *pending);
+int cli_socket_sent_with(const CliTransferSizeCfg *args);
+long long cli_socket_receive(const CliTransferSocketCfg *args);
+int cli_descriptor_take(const CliTransferSocketCfg *args);
+void cli_descriptors_close(const CliTransferSocketCfg *args);
 #endif
+
+struct CliTransferRegionCfg
+{
+    CliRegion *region;
+    VerbaLinea *err_msg;
+    unsigned long long handle;
+    unsigned long long length;
+#if (defined(_WIN32))
+    unsigned int process;
+#endif
+};
+
+struct CliTransferCfg
+{
+    VerbaLinea *err_msg;
+#if (defined(_WIN32))
+    const CliRegion *region_read;
+    unsigned int process;
+    unsigned long long *theirs;
+#endif
+};
+
+struct CliTransferRegionBytesCfg
+{
+    CliRegion *region;
+    const void *bytes;
+    unsigned long long size;
+    VerbaLinea *err_msg;
+};
+
+struct CliTransferSocketCfg
+{
+#if !((defined(_WIN32)))
+    int socket;
+    void *buffer;
+    unsigned long long room;
+    CliDescriptors *pending;
+#endif
+};
+
+struct CliTransferSizeCfg
+{
+    unsigned long long size;
+#if !((defined(_WIN32)))
+    int socket;
+    const void *frame;
+    int fd;
+#endif
+};
+
+typedef struct
+{
+    int (*region_with)(const CliTransferRegionBytesCfg *args);
+    void (*region_close)(const CliTransferRegionBytesCfg *args);
+} CliTransferRegionBytesNs;
+EMBED_TABLE_LAYOUT(CliTransferRegionBytesNs, region_with, region_close);
+EMBED_TABLE_STORAGE CliTransferRegionBytesNs cli_transfer_region_bytes EMBED_UNUSED = {
+    .region_with = cli_region_with,
+    .region_close = cli_region_close,
+};
+
+typedef struct
+{
+    int (*region_receive)(const CliTransferRegionCfg *args);
+} CliTransferRegionNs;
+EMBED_TABLE_LAYOUT(CliTransferRegionNs, region_receive);
+EMBED_TABLE_STORAGE CliTransferRegionNs cli_transfer_region EMBED_UNUSED = {
+    .region_receive = cli_region_receive,
+};
 
 #endif

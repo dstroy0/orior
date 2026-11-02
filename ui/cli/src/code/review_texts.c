@@ -4,31 +4,34 @@
 #include "../command_line/cells.h"
 #include "review_internal.h"
 
-unsigned int cli_review_text_put(const char *text, unsigned long long length)
+unsigned int cli_review_text_put(const CliReviewTextLengthCtx *args)
 {
-    if ((length + 1ull) > (g_cli_review.text_room - g_cli_review.used))
+    if ((args->length + 1ull) > (g_cli_review.text_room - g_cli_review.used))
     {
         return 0u;
     }
     const unsigned int at = g_cli_review.used;
-    memor.cpy(&(MemoriaCfg){.dst = g_cli_review.text + at, .src = text, .bytes = length});
-    g_cli_review.text[at + length] = '\0';
+    memor.cpy(&(MemoriaCfg){.dst = g_cli_review.text + at, .src = args->text, .bytes = args->length});
+    g_cli_review.text[at + args->length] = '\0';
     // the texts are below CLI_REVIEW_TEXT bytes, which an unsigned int stores
-    g_cli_review.used += (unsigned int)length + 1u;
+    g_cli_review.used += (unsigned int)args->length + 1u;
     return at;
 }
 
-int cli_review_text_added(VerbaLinea *line, int written, unsigned int *at, unsigned long long *size)
+int cli_review_text_add(const CliReviewLineCtx *args)
 {
+    unsigned int *at = args->at;
+    unsigned long long *size = args->size;
     // a text stored moves the texts' end
     const unsigned int was = g_cli_review.used;
-    if (written && mmgr_line_ok(line))
+    if (args->written && mmgr_line_ok(args->line))
     {
-        *at = cli_review_text_put(line->out, line->at);
+        *at = EMBED_CALL(cli_review_text_length_internal.text_put, CliReviewTextLengthCtx, .text = args->line->out,
+                         .length = args->line->at);
     }
     const int added = g_cli_review.used != was;
-    *size = added ? line->at : 0ull;
-    g_cli_cells->persistent_buf_release(line->out, &g_cli_code_cells);
+    *size = added ? args->line->at : 0ull;
+    g_cli_cells->persistent_buf_release(args->line->out, &g_cli_code_cells);
     return added;
 }
 

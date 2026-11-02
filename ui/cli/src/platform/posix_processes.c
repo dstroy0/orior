@@ -8,6 +8,7 @@
 // O_CLOEXEC is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
+#include "../command_line/callback_cfg.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
@@ -17,6 +18,19 @@
 #if defined(__APPLE__)
 #include <libproc.h>
 #endif
+
+typedef struct
+{
+#if (!defined(_WIN32)) && (defined(__linux__))
+    const char *path;
+    char *out;
+    unsigned long long room;
+    const char *text;
+    const char *field;
+    unsigned int pid;
+    const char *file;
+#endif
+} PosixProcessesCtx;
 
 // the most bytes of a process's name and line read
 #define CLI_PROCESS_TEXT (1u << 16u)
@@ -29,9 +43,9 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static char s_line[CLI_PROCESS_TEXT];
 
 // the file at `path` read into `out`, sized for `room`: the bytes read, -1 where it cannot be opened
-static long long processes_read(const char *path, char *out, unsigned long long room)
+EMBED_INLINE long long processes_read(const PosixProcessesCtx *args)
 {
-    const int file = open(path, O_RDONLY | O_CLOEXEC);
+    const int file = open(args->path, O_RDONLY | O_CLOEXEC);
     if (file < 0)
     {
         return -1ll;
@@ -39,7 +53,7 @@ static long long processes_read(const char *path, char *out, unsigned long long 
     unsigned long long used = 0ull;
     for (;;)
     {
-        const ssize_t count = read(file, out + used, room - used);
+        const ssize_t count = read(file, args->out + used, args->room - used);
         if (count <= 0)
         {
             break;
@@ -53,20 +67,23 @@ static long long processes_read(const char *path, char *out, unsigned long long 
 // The list being read: where each process goes
 typedef struct
 {
-    void (*each)(void *context, unsigned int pid, const char *name, const char *command);
+    void (*each)(const CliEachPidNameCommandCfg *args);
     void *context;
 } CliProcessesRead;
 
 // one entry of /proc read where its name is a process's number
-static void processes_entry(void *context, const char *entry, int is_folder)
+static void processes_entry(const CliEachNameIsFolderCfg *args)
 {
-    const CliProcessesRead *const read_list = (const CliProcessesRead *)context;
+    const CliProcessesRead *const read_list = (const CliProcessesRead *)args->context;
     unsigned long long pid = 0ull;
-    int number =
-        is_folder && (entry[0] != '\0') && (cellul.len(&(CatenaFinitaCfg){.src = entry, .cap = CLI_CELLS_POOL}) <= 10u);
-    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = entry, .cap = CLI_CELLS_POOL});
-    number = number && (cli_text_past_class(entry, 0ull, digits, CLI_TEXT_DIGITS, "") == digits);
-    pid = number ? cli_text_number(entry, 0ull, digits, NULL) : 0ull;
+    int number = args->is_folder && (args->name[0] != '\0') &&
+                 (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) <= 10u);
+    const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    number = number && (EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->name,
+                                   .at = 0ull, .size = digits, .classes = CLI_TEXT_DIGITS, .set = "") == digits);
+    pid = number ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->name, .at = 0ull, .size = digits,
+                              .end = NULL)
+                 : 0ull;
     if (!number || (pid > 0xffffffffull))
     {
         return;
@@ -74,10 +91,11 @@ static void processes_entry(void *context, const char *entry, int is_folder)
     char path[64];
     VerbaLinea named = {path, sizeof(path), 0ull};
     mmgr_line_put(&named, "/proc/");
-    mmgr_line_put(&named, entry);
+    mmgr_line_put(&named, args->name);
     mmgr_line_put(&named, "/comm");
     mmgr_line_finish(&named);
-    const long long name_size = processes_read(path, s_name, sizeof(s_name) - 1u);
+    const long long name_size =
+        EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = s_name, .room = sizeof(s_name) - 1u);
     if (name_size < 0ll)
     {
         return;
@@ -91,10 +109,11 @@ static void processes_entry(void *context, const char *entry, int is_folder)
     s_name[end] = '\0';
     named.at = 0ull;
     mmgr_line_put(&named, "/proc/");
-    mmgr_line_put(&named, entry);
+    mmgr_line_put(&named, args->name);
     mmgr_line_put(&named, "/cmdline");
     mmgr_line_finish(&named);
-    const long long line_size = processes_read(path, s_line, sizeof(s_line));
+    const long long line_size =
+        EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = s_line, .room = sizeof(s_line));
     VerbaLinea command = {s_command, sizeof(s_command), 0ull};
     unsigned long long word = 0ull;
     for (unsigned long long at = 0ull; at <= (unsigned long long)((line_size > 0ll) ? line_size : 0ll); at += 1ull)
@@ -103,39 +122,42 @@ static void processes_entry(void *context, const char *entry, int is_folder)
         if (ends && (at > word))
         {
             mmgr_line_put(&command, (command.at > 0ull) ? " " : "");
-            cli_lossy(&command, (const unsigned char *)s_line + word, at - word);
+            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &command,
+                       .text_bytes = (const unsigned char *)s_line + word, .length = at - word);
         }
         word = ends ? at + 1ull : word;
     }
     mmgr_line_finish(&command);
-    read_list->each(read_list->context, (unsigned int)pid, s_name, s_command);
+    EMBED_CALL(read_list->each, CliEachPidNameCommandCfg, .context = read_list->context, .pid = (unsigned int)pid,
+               .name = s_name, .command = s_command);
 }
 
-void cli_processes_each(void (*each)(void *context, unsigned int pid, const char *name, const char *command),
-                        void *context)
+void cli_processes_each(const CliContextCtx *args)
 {
-    CliProcessesRead read_list = {each, context};
-    cli_lock_take(&s_lock);
-    (void)query_folder_each("/proc", processes_entry, &read_list);
-    cli_lock_give(&s_lock);
+    CliProcessesRead read_list = {args->each_callback, args->context};
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = "/proc",
+                     .each = processes_entry, .context_bytess = &read_list);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 #else
-void cli_processes_each(void (*each)(void *context, unsigned int pid, const char *name, const char *command),
-                        void *context)
+void cli_processes_each(const CliContextCtx *args)
 {
     const char *const words[4] = {"ps", "-eo", "pid=,comm=,args=", NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_taken();
-    if (!cli_ran(words, NULL, NULL, 0u, ran, &err_msg))
+    CliRan *const ran = cli_ran_take();
+    if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u,
+                    .ran = ran, .err_msg = &err_msg))
     {
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned long long start = 0ull; start < ran->out_size;)
     {
-        const unsigned long long end = cli_text_line_at(ran->out, start, ran->out_size).stop;
+        const unsigned long long end =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = ran->out, .at = start, .size = ran->out_size).stop;
         // the line's words apart by spaces: its number, its name, then the words of its line joined by one space
         unsigned long long pid = 0ull;
         unsigned int index = 0u;
@@ -166,12 +188,14 @@ void cli_processes_each(void (*each)(void *context, unsigned int pid, const char
             }
             if (index == 1u)
             {
-                cli_lossy(&name, (const unsigned char *)ran->out + first, at - first);
+                EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &name,
+                           .text_bytes = (const unsigned char *)ran->out + first, .length = at - first);
             }
             else if (index > 1u)
             {
                 mmgr_line_put(&command, (command.at > 0ull) ? " " : "");
-                cli_lossy(&command, (const unsigned char *)ran->out + first, at - first);
+                EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &command,
+                           .text_bytes = (const unsigned char *)ran->out + first, .length = at - first);
             }
             index += 1u;
         }
@@ -179,129 +203,137 @@ void cli_processes_each(void (*each)(void *context, unsigned int pid, const char
         mmgr_line_finish(&command);
         if ((index >= 2u) && number && (pid <= 0xffffffffull))
         {
-            each(context, (unsigned int)pid, s_name, s_command);
+            EMBED_CALL(args->each_callback, CliEachPidNameCommandCfg, .context = args->context,
+                       .pid = (unsigned int)pid, .name = s_name, .command = s_command);
         }
         start = end + 1ull;
     }
-    cli_lock_give(&s_lock);
-    cli_ran_given(ran);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
 }
 #endif
 #endif
 
 #if !defined(_WIN32)
-int cli_process_running(unsigned int pid)
+int cli_process_running(const CliPidCtx *args)
 {
-    if (!query_is_folder("/proc"))
+    if (!EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = "/proc"))
     {
         return 1;
     }
     char path[64];
     VerbaLinea named = {path, sizeof(path), 0ull};
     mmgr_line_put(&named, "/proc/");
-    mmgr_line_decimal(&named, pid, 1u);
+    mmgr_line_decimal(&named, args->pid, 1u);
     (void)mmgr_line_finish(&named);
-    return query_is_folder(path);
+    return EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path);
 }
 
 #if defined(__linux__)
 // the kilobytes the line of `text` that starts with `field` gives, in bytes, 0 where no line gives them
-static unsigned long long processes_kilobytes(const char *text, const char *field)
+EMBED_INLINE unsigned long long processes_kilobytes(const PosixProcessesCtx *args)
 {
+    const char *text = args->text;
     const char *at = cellul.find(
-        &(CatenaFinitaCfg){.src = text, .cap = CLI_PROCESS_TEXT, .other = field, .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = text, .cap = CLI_PROCESS_TEXT, .other = args->field, .other_cap = CLI_CELLS_POOL});
     if (at == NULL)
     {
         return 0ull;
     }
-    at += cellul.len(&(CatenaFinitaCfg){.src = field, .cap = CLI_CELLS_POOL});
-    at += cli_text_past_any(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), " \t");
+    at += cellul.len(&(CatenaFinitaCfg){.src = args->field, .cap = CLI_CELLS_POOL});
+    at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+                     .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = " \t");
     unsigned long long kilobytes = 0ull;
-    kilobytes = cli_text_number(at, 0ull, cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), NULL);
+    kilobytes = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at, .at = 0ull,
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .end = NULL);
     return kilobytes * 1024ull;
 }
 
 // the file `file` of the process `pid`'s folder in /proc read into `out`, sized for CLI_PROCESS_TEXT, a 0 after what
 // was read: 1, or 0 where it cannot be read
-static int processes_proc_read(unsigned int pid, const char *file, char *out)
+EMBED_INLINE int processes_proc_read(const PosixProcessesCtx *args)
 {
     char path[64];
     VerbaLinea named = {path, sizeof(path), 0ull};
     mmgr_line_put(&named, "/proc/");
-    mmgr_line_decimal(&named, pid, 1u);
-    mmgr_line_put(&named, file);
+    mmgr_line_decimal(&named, args->pid, 1u);
+    mmgr_line_put(&named, args->file);
     (void)mmgr_line_finish(&named);
-    const long long size = processes_read(path, out, CLI_PROCESS_TEXT - 1u);
+    const long long size =
+        EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = args->out, .room = CLI_PROCESS_TEXT - 1u);
     // a size read is below the room, which an unsigned long long counts
-    out[(size > 0ll) ? (unsigned long long)size : 0ull] = '\0';
+    args->out[(size > 0ll) ? (unsigned long long)size : 0ull] = '\0';
     return size >= 0ll;
 }
 
-int cli_process_memory(unsigned int pid, CliProcessMemory *memory)
+int cli_process_memory(const CliPidCtx *args)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int read =
-        processes_proc_read(pid, "/smaps_rollup", s_line) && processes_proc_read(pid, "/status", s_command);
+        EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/smaps_rollup", .out = s_line) &&
+        EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/status", .out = s_command);
     if (read)
     {
-        memory->working = processes_kilobytes(s_line, "Private_Clean:") + processes_kilobytes(s_line, "Private_Dirty:");
-        memory->commit = processes_kilobytes(s_command, "RssAnon:") + processes_kilobytes(s_command, "VmSwap:");
-        memory->started = 0ull;
+        args->memory->working =
+            EMBED_CALL(processes_kilobytes, PosixProcessesCtx, .text = s_line, .field = "Private_Clean:") +
+            EMBED_CALL(processes_kilobytes, PosixProcessesCtx, .text = s_line, .field = "Private_Dirty:");
+        args->memory->commit =
+            EMBED_CALL(processes_kilobytes, PosixProcessesCtx, .text = s_command, .field = "RssAnon:") +
+            EMBED_CALL(processes_kilobytes, PosixProcessesCtx, .text = s_command, .field = "VmSwap:");
+        args->memory->started = 0ull;
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return read;
 }
 
-int cli_process_named(unsigned int pid, char *name, size_t room)
+int cli_process_by_name(const CliRoomPidCtx *args)
 {
-    cli_lock_take(&s_lock);
-    const int read = processes_proc_read(pid, "/comm", s_name);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int read =
+        EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/comm", .out = s_name);
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = s_name, .cap = CLI_PROCESS_TEXT});
     while ((end > 0ull) && (cellul.chr(&(CatenaFinitaCfg){
                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = s_name[end - 1ull]}) != NULL))
     {
         end -= 1ull;
     }
-    VerbaLinea written = {name, room, 0ull};
+    VerbaLinea written = {args->name_out, args->room_size, 0ull};
     mmgr_line_put_n(&written, s_name, end);
     (void)mmgr_line_finish(&written);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return read;
 }
 #elif defined(__APPLE__)
-int cli_process_memory(unsigned int pid, CliProcessMemory *memory)
+int cli_process_memory(const CliPidCtx *args)
 {
     struct rusage_info_v4 info;
     // a process id the system gives is below what an int counts, and the call writes a rusage_info_v4 where it is asked
     // for RUSAGE_INFO_V4
-    if (proc_pid_rusage((int)pid, RUSAGE_INFO_V4, (rusage_info_t *)&info) != 0)
+    if (proc_pid_rusage((int)args->pid, RUSAGE_INFO_V4, (rusage_info_t *)&info) != 0)
     {
         return 0;
     }
-    memory->working = info.ri_phys_footprint;
-    memory->commit = info.ri_phys_footprint;
-    memory->started = 0ull;
+    args->memory->working = info.ri_phys_footprint;
+    args->memory->commit = info.ri_phys_footprint;
+    args->memory->started = 0ull;
     return 1;
 }
 
-int cli_process_named(unsigned int pid, char *name, size_t room)
+int cli_process_by_name(const CliRoomPidCtx *args)
 {
     // a process id the system gives is below what an int counts, and a room is far below what a uint32_t counts
-    return proc_name((int)pid, name, (uint32_t)room) > 0;
+    return proc_name((int)args->pid, args->name_out, (uint32_t)args->room_size) > 0;
 }
 #else
-int cli_process_memory(unsigned int pid, CliProcessMemory *memory)
+int cli_process_memory(const CliPidCtx *args)
 {
-    (void)pid;
-    (void)memory;
+    (void)args;
     return 0;
 }
 
-int cli_process_named(unsigned int pid, char *name, size_t room)
+int cli_process_by_name(const CliRoomPidCtx *args)
 {
-    (void)pid;
-    (void)name;
-    (void)room;
+    (void)args;
     return 0;
 }
 #endif

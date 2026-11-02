@@ -7,56 +7,69 @@
 #include "../text/json_tree.h"
 #include "mysql_internal.h"
 
+typedef struct
+{
+    CliMysql *mysql;
+    unsigned char *out;
+    unsigned long long size;
+} MysqlCtx;
+
 // `size` bytes read whole off the connection, through its room, or passed over where `out` is NULL: 1, or 0 where it
 // broke
-static int mysql_read(CliMysql *mysql, unsigned char *out, unsigned long long size)
+EMBED_INLINE int mysql_read(const MysqlCtx *args)
 {
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ull; at < args->size;)
     {
-        if (mysql->start == mysql->end)
+        if (args->mysql->start == args->mysql->end)
         {
-            const long long got = cli_socket_some(&mysql->socket, mysql->in, sizeof(mysql->in));
+            const long long got = EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &args->mysql->socket,
+                                             .bytes_out = args->mysql->in, .room = sizeof(args->mysql->in));
             if (got <= 0ll)
             {
                 return 0;
             }
-            mysql->start = 0ull;
-            mysql->end = (unsigned long long)got;
+            args->mysql->start = 0ull;
+            args->mysql->end = (unsigned long long)got;
         }
-        const unsigned long long have = mysql->end - mysql->start;
-        const unsigned long long piece = (have < size - at) ? have : size - at;
-        if (out != NULL)
+        const unsigned long long have = args->mysql->end - args->mysql->start;
+        const unsigned long long piece = (have < args->size - at) ? have : args->size - at;
+        if (args->out != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = out + at, .src = mysql->in + mysql->start, .bytes = (size_t)piece});
+            memor.cpy(&(MemoriaCfg){
+                .dst = args->out + at, .src = args->mysql->in + args->mysql->start, .bytes = (size_t)piece});
         }
-        mysql->start += piece;
+        args->mysql->start += piece;
         at += piece;
     }
     return 1;
 }
 
-int cli_mysql_packet(CliMysql *mysql, CliDbFailure *failure)
+int cli_mysql_packet(const CliMysqlFailureCtx *args)
 {
-    mysql->size = 0ull;
+    CliDbFailure *failure = args->failure;
+    args->mysql->size = 0ull;
     int fits = 1;
     for (;;)
     {
         unsigned char head[4];
-        if (!mysql_read(mysql, head, sizeof(head)))
+        if (!EMBED_CALL(mysql_read, MysqlCtx, .mysql = args->mysql, .out = head, .size = sizeof(head)))
         {
-            cli_db_failure_set(failure, "the connection broke: the server closed it or did not answer");
+            EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                       .message = "the connection broke: the server closed it or did not answer");
             return 0;
         }
         const unsigned long long length =
             (unsigned long long)head[0] | ((unsigned long long)head[1] << 8u) | ((unsigned long long)head[2] << 16u);
-        mysql->sequence = (unsigned char)(head[3] + 1u);
-        fits = fits && (mysql->size + length <= sizeof(mysql->packet));
-        if (!mysql_read(mysql, fits ? mysql->packet + mysql->size : NULL, length))
+        args->mysql->sequence = (unsigned char)(head[3] + 1u);
+        fits = fits && (args->mysql->size + length <= sizeof(args->mysql->packet));
+        if (!EMBED_CALL(mysql_read, MysqlCtx, .mysql = args->mysql,
+                        .out = fits ? args->mysql->packet + args->mysql->size : NULL, .size = length))
         {
-            cli_db_failure_set(failure, "the connection broke: the server closed it or did not answer");
+            EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                       .message = "the connection broke: the server closed it or did not answer");
             return 0;
         }
-        mysql->size += fits ? length : 0ull;
+        args->mysql->size += fits ? length : 0ull;
         if (length < 0xffffffull)
         {
             break;
@@ -64,71 +77,83 @@ int cli_mysql_packet(CliMysql *mysql, CliDbFailure *failure)
     }
     if (!fits)
     {
-        cli_db_failure_set(failure, "a packet is past the room orior_cli reads one in");
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                   .message = "a packet is past the room orior_cli reads one in");
     }
     return fits;
 }
 
-int cli_mysql_sent(CliMysql *mysql, const unsigned char *payload, unsigned long long size, CliDbFailure *failure)
+int cli_mysql_send(const CliMysqlFailureCtx *args)
 {
+    CliDbFailure *failure = args->failure;
     unsigned long long last = 0ull;
     int sent = 1;
-    if (size == 0ull)
+    if (args->size == 0ull)
     {
-        const unsigned char head[4] = {0u, 0u, 0u, mysql->sequence};
-        sent = cli_socket_written(&mysql->socket, head, sizeof(head));
-        mysql->sequence = (unsigned char)(mysql->sequence + 1u);
+        const unsigned char head[4] = {0u, 0u, 0u, args->mysql->sequence};
+        sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
+                          .bytes = head, .size = sizeof(head));
+        args->mysql->sequence = (unsigned char)(args->mysql->sequence + 1u);
     }
-    for (unsigned long long at = 0ull; sent && (at < size); at += last)
+    for (unsigned long long at = 0ull; sent && (at < args->size); at += last)
     {
-        last = ((size - at) < 0xffffffull) ? (size - at) : 0xffffffull;
+        last = ((args->size - at) < 0xffffffull) ? (args->size - at) : 0xffffffull;
         const unsigned char head[4] = {(unsigned char)(last & 0xffu), (unsigned char)((last >> 8u) & 0xffu),
-                                       (unsigned char)((last >> 16u) & 0xffu), mysql->sequence};
-        sent = cli_socket_written(&mysql->socket, head, sizeof(head)) &&
-               cli_socket_written(&mysql->socket, payload + at, last);
-        mysql->sequence = (unsigned char)(mysql->sequence + 1u);
+                                       (unsigned char)((last >> 16u) & 0xffu), args->mysql->sequence};
+        sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
+                          .bytes = head, .size = sizeof(head)) &&
+               EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
+                          .bytes = args->payload + at, .size = last);
+        args->mysql->sequence = (unsigned char)(args->mysql->sequence + 1u);
     }
     // a payload whose last piece fills a packet whole is ended by an empty one
     if (sent && (last == 0xffffffull))
     {
-        const unsigned char head[4] = {0u, 0u, 0u, mysql->sequence};
-        sent = cli_socket_written(&mysql->socket, head, sizeof(head));
-        mysql->sequence = (unsigned char)(mysql->sequence + 1u);
+        const unsigned char head[4] = {0u, 0u, 0u, args->mysql->sequence};
+        sent = EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
+                          .bytes = head, .size = sizeof(head));
+        args->mysql->sequence = (unsigned char)(args->mysql->sequence + 1u);
     }
     if (!sent)
     {
-        cli_db_failure_set(failure, "the connection broke: the server closed it");
+        EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
+                   .message = "the connection broke: the server closed it");
     }
     return sent;
 }
 
-void cli_mysql_failure_of(const unsigned char *payload, unsigned long long size, CliDbFailure *failure)
+void cli_mysql_failure_get(const CliMysqlFailureCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = failure, .val = 0, .bytes = sizeof(*failure)});
-    const unsigned int code = ((size > 1u) ? payload[1] : 0u) | ((size > 2u) ? ((unsigned int)payload[2] << 8u) : 0u);
-    const int has_state = (size > 3u) && (payload[3] == '#');
-    VerbaLinea message = {failure->message, sizeof(failure->message), 0ull};
+    memor.set(&(MemoriaCfg){.dst = args->failure, .val = 0, .bytes = sizeof(*args->failure)});
+    const unsigned int code =
+        ((args->size > 1u) ? args->payload[1] : 0u) | ((args->size > 2u) ? ((unsigned int)args->payload[2] << 8u) : 0u);
+    const int has_state = (args->size > 3u) && (args->payload[3] == '#');
+    VerbaLinea message = {args->failure->message, sizeof(args->failure->message), 0ull};
     const unsigned long long from = has_state ? 9ull : 3ull;
-    cli_lossy(&message, payload + from, (size > from) ? size - from : 0ull);
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &message,
+               .text_bytes = args->payload + from, .length = (args->size > from) ? args->size - from : 0ull);
     mmgr_line_finish(&message);
-    VerbaLinea code_line = {failure->code, sizeof(failure->code), 0ull};
+    VerbaLinea code_line = {args->failure->code, sizeof(args->failure->code), 0ull};
     mmgr_line_decimal(&code_line, code, 1u);
     if (has_state)
     {
         mmgr_line_ch(&code_line, ' ');
-        cli_lossy(&code_line, payload + 4u, (size >= 9u) ? 5ull : ((size > 4u) ? size - 4u : 0ull));
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &code_line,
+                   .text_bytes = args->payload + 4u,
+                   .length = (args->size >= 9u) ? 5ull : ((args->size > 4u) ? args->size - 4u : 0ull));
     }
     mmgr_line_finish(&code_line);
 }
 
-int cli_mysql_lenenc(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
-                     unsigned long long *value)
+int cli_mysql_lenenc(const CliMysqlSizeBytesAtCtx *args)
 {
-    if (*at >= size)
+    unsigned long long *at = args->at;
+    unsigned long long *value = args->value;
+    if (*at >= args->size)
     {
         return 0;
     }
-    const unsigned char first = bytes[*at];
+    const unsigned char first = args->bytes[*at];
     *at += 1u;
     const unsigned int width = (first == 0xfcu) ? 2u : (first == 0xfdu) ? 3u : (first == 0xfeu) ? 8u : 0u;
     if (first == 0xfbu)
@@ -143,9 +168,9 @@ int cli_mysql_lenenc(const unsigned char *bytes, unsigned long long size, unsign
     unsigned long long read = 0ull;
     for (unsigned int index = 0u; index < width; index += 1u)
     {
-        read |= (unsigned long long)((*at + index < size) ? bytes[*at + index] : 0u) << (8u * index);
+        read |= (unsigned long long)((*at + index < args->size) ? args->bytes[*at + index] : 0u) << (8u * index);
     }
-    if (*at + width > size)
+    if (*at + width > args->size)
     {
         return 0;
     }
@@ -154,11 +179,15 @@ int cli_mysql_lenenc(const unsigned char *bytes, unsigned long long size, unsign
     return 1;
 }
 
-int cli_mysql_lenenc_bytes(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
-                           unsigned long long *start, unsigned long long *length)
+int cli_mysql_lenenc_bytes(const CliMysqlSizeBytesCtx *args)
 {
+    unsigned long long *at = args->at;
+    unsigned long long *start = args->start;
+    unsigned long long *length = args->length_pointer;
     unsigned long long count = 0ull;
-    if (!cli_mysql_lenenc(bytes, size, at, &count) || (*at + count > size))
+    if (!EMBED_CALL(cli_mysql_size_bytes_at_internal.lenenc, CliMysqlSizeBytesAtCtx, .bytes = args->bytes,
+                    .size = args->size, .at = at, .value = &count) ||
+        (*at + count > args->size))
     {
         return 0;
     }
@@ -170,10 +199,9 @@ int cli_mysql_lenenc_bytes(const unsigned char *bytes, unsigned long long size, 
 
 // mysql_native_password's answer, SHA1(password) XOR SHA1(scramble, SHA1(SHA1(password))), or caching_sha2_password's,
 // SHA256(password) XOR SHA256(SHA256(SHA256(password)), scramble), into `answer`: its length, 0 for an empty password
-unsigned int cli_mysql_answer(const char *password, const unsigned char *scramble, unsigned long long size, int caching,
-                              unsigned char *answer)
+unsigned int cli_mysql_answer(const CliMysqlSizePasswordCtx *args)
 {
-    if (password[0] == '\0')
+    if (args->password[0] == '\0')
     {
         return 0u;
     }
@@ -181,27 +209,35 @@ unsigned int cli_mysql_answer(const char *password, const unsigned char *scrambl
     unsigned char twice[32];
     unsigned char mixed[32];
     unsigned char joined[96];
-    const unsigned int width = caching ? 32u : 20u;
-    const unsigned long long copied_len = (size < 64u) ? size : 64ull;
-    if (caching)
+    const unsigned int width = args->caching ? 32u : 20u;
+    const unsigned long long copied_len = (args->size < 64u) ? args->size : 64ull;
+    if (args->caching)
     {
-        cli_sha256_bytes(password, cellul.len(&(CatenaFinitaCfg){.src = password, .cap = CLI_CELLS_POOL}), once);
-        cli_sha256_bytes(once, width, twice);
+        EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = args->password,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}),
+                   .digest = once);
+        EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = once, .size = width,
+                   .digest = twice);
         memor.cpy(&(MemoriaCfg){.dst = joined, .src = twice, .bytes = width});
-        memor.cpy(&(MemoriaCfg){.dst = joined + width, .src = scramble, .bytes = (size_t)copied_len});
-        cli_sha256_bytes(joined, width + copied_len, mixed);
+        memor.cpy(&(MemoriaCfg){.dst = joined + width, .src = args->scramble, .bytes = (size_t)copied_len});
+        EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = joined,
+                   .size = width + copied_len, .digest = mixed);
     }
     else
     {
-        cli_sha1_bytes(password, cellul.len(&(CatenaFinitaCfg){.src = password, .cap = CLI_CELLS_POOL}), once);
-        cli_sha1_bytes(once, width, twice);
-        memor.cpy(&(MemoriaCfg){.dst = joined, .src = scramble, .bytes = (size_t)copied_len});
+        EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = args->password,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_CELLS_POOL}),
+                   .digest = once);
+        EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = once, .size = width,
+                   .digest = twice);
+        memor.cpy(&(MemoriaCfg){.dst = joined, .src = args->scramble, .bytes = (size_t)copied_len});
         memor.cpy(&(MemoriaCfg){.dst = joined + copied_len, .src = twice, .bytes = width});
-        cli_sha1_bytes(joined, copied_len + width, mixed);
+        EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = joined, .size = copied_len + width,
+                   .digest = mixed);
     }
     for (unsigned int at = 0u; at < width; at += 1u)
     {
-        answer[at] = (unsigned char)(once[at] ^ mixed[at]);
+        args->answer[at] = (unsigned char)(once[at] ^ mixed[at]);
     }
     return width;
 }

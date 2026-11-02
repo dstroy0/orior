@@ -14,58 +14,72 @@
 #define XSETTINGS_NAME_SIZE 20ull
 static const char s_animations[] = "Gtk/EnableAnimations";
 
-// the four bytes at `at` as a word, in the list's byte order
-static unsigned int xsettings_word(const unsigned char *at, int high_first)
+typedef struct
 {
-    return high_first ? (((unsigned int)at[0] << 24u) | ((unsigned int)at[1] << 16u) | ((unsigned int)at[2] << 8u) | at[3])
-                      : (((unsigned int)at[3] << 24u) | ((unsigned int)at[2] << 16u) | ((unsigned int)at[1] << 8u) | at[0]);
+    const unsigned char *at;
+    int high_first;
+} XsettingsCtx;
+// the four bytes at `at` as a word, in the list's byte order
+EMBED_INLINE unsigned int xsettings_word(const XsettingsCtx *args)
+{
+    return args->high_first ? (((unsigned int)args->at[0] << 24u) | ((unsigned int)args->at[1] << 16u) |
+                               ((unsigned int)args->at[2] << 8u) | args->at[3])
+                            : (((unsigned int)args->at[3] << 24u) | ((unsigned int)args->at[2] << 16u) |
+                               ((unsigned int)args->at[1] << 8u) | args->at[0]);
 }
 
-int gui_xsettings_animations(const unsigned char *data, unsigned long long size, int *enabled)
+int gui_xsettings_animations(const GuiXsettingsCfg *args)
 {
-    if ((data == NULL) || (size < XSETTINGS_HEAD))
+    int *enabled = args->enabled;
+    if ((args->data == NULL) || (args->size < XSETTINGS_HEAD))
     {
         return 0;
     }
-    const int high_first = data[0] != 0u;
-    const unsigned int settings = xsettings_word(data + 8u, high_first);
+    const int high_first = args->data[0] != 0u;
+    const unsigned int settings =
+        EMBED_CALL(xsettings_word, XsettingsCtx, .at = args->data + 8u, .high_first = high_first);
     unsigned long long at = XSETTINGS_HEAD;
     for (unsigned int setting = 0u; setting < settings; setting += 1u)
     {
-        if (at + 4ull > size)
+        if (at + 4ull > args->size)
         {
             return 0;
         }
-        const unsigned int type = data[at];
-        const unsigned long long name_size = high_first ? (((unsigned long long)data[at + 2ull] << 8u) | data[at + 3ull])
-                                                        : (((unsigned long long)data[at + 3ull] << 8u) | data[at + 2ull]);
+        const unsigned int type = args->data[at];
+        const unsigned long long name_size =
+            high_first ? (((unsigned long long)args->data[at + 2ull] << 8u) | args->data[at + 3ull])
+                       : (((unsigned long long)args->data[at + 3ull] << 8u) | args->data[at + 2ull]);
         const unsigned long long name_at = at + 4ull;
         // past the name, padded to four, and the setting's serial
         const unsigned long long value_at = name_at + ((name_size + 3ull) & ~3ull) + 4ull;
-        if (value_at > size)
+        if (value_at > args->size)
         {
             return 0;
         }
         if (type == XSETTINGS_INTEGER)
         {
-            if (value_at + 4ull > size)
+            if (value_at + 4ull > args->size)
             {
                 return 0;
             }
-            if ((name_size == XSETTINGS_NAME_SIZE) && (memor.cmp(&(MemoriaCfg){.src = data + name_at, .other = s_animations, .bytes = XSETTINGS_NAME_SIZE}) == 0))
+            if ((name_size == XSETTINGS_NAME_SIZE) &&
+                (memor.cmp(&(MemoriaCfg){
+                     .src = args->data + name_at, .other = s_animations, .bytes = XSETTINGS_NAME_SIZE}) == 0))
             {
-                *enabled = xsettings_word(data + value_at, high_first) != 0u;
+                *enabled = EMBED_CALL(xsettings_word, XsettingsCtx, .at = args->data + value_at,
+                                      .high_first = high_first) != 0u;
                 return 1;
             }
             at = value_at + 4ull;
         }
         else if (type == XSETTINGS_STRING)
         {
-            if (value_at + 4ull > size)
+            if (value_at + 4ull > args->size)
             {
                 return 0;
             }
-            const unsigned long long value_size = xsettings_word(data + value_at, high_first);
+            const unsigned long long value_size =
+                EMBED_CALL(xsettings_word, XsettingsCtx, .at = args->data + value_at, .high_first = high_first);
             at = value_at + 4ull + ((value_size + 3ull) & ~3ull);
         }
         else if (type == XSETTINGS_COLOR)

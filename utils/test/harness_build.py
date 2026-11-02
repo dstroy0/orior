@@ -15,7 +15,7 @@ the compiler and the linker's tools.
     harness.py source frames                  each CLI function whose stack frame is 64 KB or more
     harness.py source static-sizes <list>     each object's .bss and .data bytes, the largest last
     harness.py source static-symbols <name>...  the zero-filled statics of a CLI object, largest first
-    harness.py source format                  clang-format over ui/cli/src and ui/query/src, the files changed listed
+    harness.py source format                  clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed
     harness.py source page-names <file>...    the page's modules named, each parsed as a module and read for the
                                               names they share: each import the module it names exports and the
                                               importer uses, and each top-level name of one of them that another uses
@@ -248,7 +248,8 @@ FORMAT_BATCH = 200
 
 def cmd_source_format(a):
     os.makedirs(OUT, exist_ok=True)
-    files = sorted(os.path.join(folder, name) for top in ("ui/cli/src", "ui/query/src") for folder, _, names in os.walk(os.path.join(ROOT, *top.split("/"))) for name in names if name.endswith((".c", ".h")))
+    # the lattice stays as it stands until the window's own computing replaces it
+    files = sorted(os.path.join(folder, name) for top in ("ui/gui/src", "ui/cli/src", "ui/query/src") for folder, _, names in os.walk(os.path.join(ROOT, *top.split("/"))) for name in names if name.endswith((".c", ".h")) and name not in ("lattice.c", "lattice.h"))
     before = {path: digest(path) for path in files}
     # a few at a time, since every file on one command line passes the length Windows takes
     for at in range(0, len(files), FORMAT_BATCH):
@@ -508,7 +509,7 @@ def register(sub):
     p = source.add_parser("static-symbols", help="the zero-filled statics of CLI objects, largest first")
     p.add_argument("names", nargs="+", help="the source's name under ui/cli/src, without .c")
     p.set_defaults(fn=cmd_source_static_symbols)
-    p = source.add_parser("format", help="clang-format over ui/cli/src and ui/query/src, the files changed listed")
+    p = source.add_parser("format", help="clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed")
     p.set_defaults(fn=cmd_source_format)
     p = source.add_parser("page-names", help="the page's modules named, each import exported where it comes from and used, each name another uses imported")
     p.add_argument("files", nargs="+", help="relative to ui/gui/src-js")

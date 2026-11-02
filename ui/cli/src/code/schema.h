@@ -17,20 +17,61 @@
 // with comments writes one (schema_*.c)
 #ifndef SCHEMA_H
 #define SCHEMA_H
+typedef struct CliSchemaLineCfg CliSchemaLineCfg;
+typedef struct CliSchemaCfg CliSchemaCfg;
 
 #include "../text/edits.h"
+#include "embed_dispatch_layout.h"
 
 // whether the file at `path` is JSON this reader reads, by its extension, `json` or `jsonc`
-int cli_schema_reads(const char *path);
+int cli_schema_reads(const CliSchemaCfg *args);
 
 // the diagnostics of the JSON file at `path` of the tree at `root`, `size` bytes of its text: what prevented it from
 // reading, and what its schema finds, written as the protocol's array of them into `out`
-void cli_schema_check(const char *root, const char *path, const char *text, unsigned long long size, VerbaLinea *out);
+void cli_schema_check(const CliSchemaCfg *args);
 
 // what completes the word before `line`, `col` of the JSON file at `path`, `size` bytes of its text: the keys its
 // schema gives the object the cursor is in and that it does not contain yet, or the values the schema allows the value
 // the cursor is at, into `items`
-void cli_schema_complete(const char *path, const char *text, unsigned long long size, unsigned int line,
-                         unsigned int col, CliCompletions *items);
+void cli_schema_complete(const CliSchemaLineCfg *args);
+
+struct CliSchemaLineCfg
+{
+    const char *path;
+    const char *text;
+    unsigned long long size;
+    unsigned int line;
+    unsigned int col;
+    CliCompletions *items;
+};
+
+struct CliSchemaCfg
+{
+    const char *path;
+    const char *root;
+    const char *text;
+    unsigned long long size;
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    int (*reads)(const CliSchemaCfg *args);
+    void (*check)(const CliSchemaCfg *args);
+} CliSchemaNs;
+EMBED_TABLE_LAYOUT(CliSchemaNs, reads, check);
+EMBED_TABLE_STORAGE CliSchemaNs cli_schema EMBED_UNUSED = {
+    .reads = cli_schema_reads,
+    .check = cli_schema_check,
+};
+
+typedef struct
+{
+    void (*complete)(const CliSchemaLineCfg *args);
+} CliSchemaLineNs;
+EMBED_TABLE_LAYOUT(CliSchemaLineNs, complete);
+EMBED_TABLE_STORAGE CliSchemaLineNs cli_schema_line EMBED_UNUSED = {
+    .complete = cli_schema_complete,
+};
 
 #endif

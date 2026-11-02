@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // toolchains_find.c: each tool found, as the search last found it where nothing it reads has changed, every tool
 // written as the window reads it, a tool's version queried, and its install line and page
+#include "../command_line/callback_cfg.h"
 #include "../machine/report.h"
 #include "../text/text.h"
 #include "toolchains_internal.h"
@@ -22,32 +23,53 @@ unsigned int cli_toolchains_find_path(void)
     return count;
 }
 
-void cli_toolchains_find_released(CliJson *json)
+void cli_toolchains_find_release(const CliToolchainsJsonCtx *args)
 {
-    if (json != NULL)
+    if (args->json != NULL)
     {
-        cli_json_given(json);
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = args->json);
     }
     g_cli_cells->persistent_buf_release(g_cli_toolchains_path, &g_cli_toolchains_cells);
     g_cli_toolchains_path = NULL;
-    cli_lock_give(&g_cli_toolchains_find_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
 }
 
-// whether the folder is passed over for the tool: a part of it is a name `notIn` lists, case aside
-static int cli_passed_over(const CliJson *json, unsigned int tool, const char *dir)
+typedef struct
 {
-    const unsigned int not_in = cli_json_member(json, tool, "notIn");
-    for (unsigned int item = cli_json_is(json, not_in, CFG_JSON_ARRAY) ? json->node[not_in].first : CLI_JSON_NONE;
+    const CliJson *json;
+    unsigned int tool;
+    const char *dir;
+    CliFound *found;
+    const char *state;
+    const char *program;
+    VerbaLinea *out;
+    const char *text;
+    const CliFound *found_read;
+    VerbaLinea *err_msg;
+    const char *key;
+} ToolchainsFindCtx;
+// whether the folder is passed over for the tool: a part of it is a name `notIn` lists, case aside
+EMBED_INLINE int cli_passed_over(const ToolchainsFindCtx *args)
+{
+    const CliJson *json = args->json;
+    const unsigned int not_in = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = args->tool, .name = "notIn");
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                        .node = not_in, .kind = CFG_JSON_ARRAY)
+                                 ? json->node[not_in].first
+                                 : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
-        const char *const name = cli_json_string(json, item, NULL);
+        const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = item, .length_pointer = NULL);
         const unsigned long long length =
             (name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) : 0ull;
-        const char *part = dir;
+        const char *part = args->dir;
         while ((name != NULL) && (part[0] != '\0'))
         {
             const char *end = part;
-            end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "/\\");
+            end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+                              .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "/\\");
             if (((unsigned long long)(end - part) == length) &&
                 cellul.starts(&(CatenaFinitaCfg){.src = part, .other = name, .cap = length, .ci = 1}))
             {
@@ -60,128 +82,180 @@ static int cli_passed_over(const CliJson *json, unsigned int tool, const char *d
 }
 
 // whether the folder contains what the tool's `contains` names, where it names one
-static int cli_dir_has_tool(const CliJson *json, unsigned int tool, const char *dir)
+EMBED_INLINE int cli_dir_has_tool(const ToolchainsFindCtx *args)
 {
-    const char *const inner = cli_json_string(json, cli_json_member(json, tool, "contains"), NULL);
+    const CliJson *json = args->json;
+    const char *const inner =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->tool, .name = "contains"),
+                   .length_pointer = NULL);
     if (inner == NULL)
     {
         return 1;
     }
     char path[CLI_PATH_MAX_LEN];
     VerbaLinea line = {path, sizeof(path), 0ull};
-    mmgr_line_put(&line, dir);
+    mmgr_line_put(&line, args->dir);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, inner);
-    return (mmgr_line_finish(&line) != 0ull) && query_is_folder(path);
+    return (mmgr_line_finish(&line) != 0ull) &&
+           EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path);
 }
 
 // the program found set with its state, and its folder
-static void cli_set(CliFound *found, const char *state, const char *program)
+EMBED_INLINE void cli_set(const ToolchainsFindCtx *args)
 {
-    found->state = state;
-    found->has_program = 1;
-    memor.cpy(&(MemoriaCfg){.dst = found->program,
-                            .src = program,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = found->folder,
-                            .src = program,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}) + 1u});
-    char *cut = found->folder + cellul.len(&(CatenaFinitaCfg){.src = found->folder, .cap = CLI_CELLS_POOL});
-    cut = found->folder + cli_text_back_any(found->folder, (unsigned long long)(cut - found->folder), "/\\");
-    cut -= (cut > found->folder) ? 1 : 0;
+    const char *state = args->state;
+    args->found->state = state;
+    args->found->has_program = 1;
+    memor.cpy(&(MemoriaCfg){.dst = args->found->program,
+                            .src = args->program,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = args->found->folder,
+                            .src = args->program,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_CELLS_POOL}) + 1u});
+    char *cut = args->found->folder + cellul.len(&(CatenaFinitaCfg){.src = args->found->folder, .cap = CLI_CELLS_POOL});
+    cut = args->found->folder + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                           .text = args->found->folder,
+                                           .at = (unsigned long long)(cut - args->found->folder), .set = "/\\");
+    cut -= (cut > args->found->folder) ? 1 : 0;
     cut[0] = '\0';
 }
 
-void cli_toolchains_find(const CliJson *json, unsigned int tool, const char (*path)[CLI_PATH_MAX_LEN],
-                         unsigned int count, CliFound *found)
+void cli_toolchains_find(const CliToolchainsJsonCfg *args)
 {
+    const CliJson *json = args->json;
+    unsigned int tool = args->tool;
+    const char (*path)[CLI_PATH_MAX_LEN] = args->path_callback;
+    unsigned int count = args->count;
+    CliFound *found = args->found;
     found->state = "missing";
     found->has_program = 0;
     found->program[0] = '\0';
     found->folder[0] = '\0';
     char program[CLI_PATH_MAX_LEN];
-    const char *const env = cli_json_string(json, cli_json_member(json, tool, "env"), NULL);
-    if ((env != NULL) && query_environment_read(env, program, sizeof(program)))
+    const char *const env =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = tool, .name = "env"),
+                   .length_pointer = NULL);
+    if ((env != NULL) && EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = env,
+                                    .value_out = program, .room = sizeof(program)))
     {
-        cli_set(found, "env", program);
+        EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "env", .program = program);
         return;
     }
-    const char *const id = cli_json_string(json, cli_json_member(json, tool, "id"), NULL);
+    const char *const id =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = tool, .name = "id"),
+                   .length_pointer = NULL);
     CliTreeEnvironment environment;
     if ((id != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = id, .other = "python", .cap = CLI_CELLS_POOL})) &&
-        cli_toolchains_environment(&environment) && environment.has_python)
+        EMBED_CALL(cli_toolchains_table.environment, CliToolchainsCfg, .environment_out = &environment) &&
+        environment.has_python)
     {
-        cli_set(found, "tree", environment.python);
+        EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "tree", .program = environment.python);
         return;
     }
-    if ((id == NULL) || cli_toolchains_found_cached(id, path, count, found))
+    if ((id == NULL) || EMBED_CALL(cli_toolchains_id_internal.found_cache, CliToolchainsIdCtx, .id = id,
+                                   .path_callback = path, .count = count, .found = found))
     {
         return;
     }
     char chosen[CLI_PATH_MAX_LEN];
-    if (cli_toolchains_chosen(id, chosen) && cli_toolchains_tool_program_in(json, tool, chosen, program))
+    if (EMBED_CALL(cli_toolchains_id_folder.choose, CliToolchainsIdFolderCfg, .id = id, .folder = chosen) &&
+        EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json, .tool = tool,
+                   .dir = chosen, .path = program))
     {
-        cli_set(found, "chosen", program);
-        cli_toolchains_found_put(id, path, count, found);
+        EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "chosen", .program = program);
+        EMBED_CALL(cli_toolchains_id_path_internal.found_put, CliToolchainsIdPathCtx, .id = id, .path_callback = path,
+                   .count = count, .found_read = found);
         return;
     }
-    const unsigned int programs = cli_json_member(json, tool, "programs");
-    for (unsigned int item = cli_json_is(json, programs, CFG_JSON_ARRAY) ? json->node[programs].first : CLI_JSON_NONE;
+    const unsigned int programs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                             .object = tool, .name = "programs");
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                        .node = programs, .kind = CFG_JSON_ARRAY)
+                                 ? json->node[programs].first
+                                 : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
-        const char *const name = cli_json_string(json, item, NULL);
+        const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = item, .length_pointer = NULL);
         for (unsigned int at = 0u; (name != NULL) && (at < count); at += 1u)
         {
-            if (!cli_passed_over(json, tool, path[at]) && cli_dir_has_tool(json, tool, path[at]) &&
-                cli_toolchains_program_in(path[at], &name, 1u, program))
+            if (!EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = path[at]) &&
+                EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = path[at]) &&
+                EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = path[at], .names = &name,
+                           .count = 1u, .path = program))
             {
-                cli_set(found, "path", program);
-                cli_toolchains_found_put(id, path, count, found);
+                EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "path", .program = program);
+                EMBED_CALL(cli_toolchains_id_path_internal.found_put, CliToolchainsIdPathCtx, .id = id,
+                           .path_callback = path, .count = count, .found_read = found);
                 return;
             }
         }
     }
     const unsigned int places =
-        cli_toolchains_folders_for(json, cli_json_member(json, tool, "places"), s_places, 0u, 64u);
+        EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
+                   .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = tool, .name = "places"),
+                   .folders = s_places, .count = 0u, .room = 64u);
     for (unsigned int at = 0u; at < places; at += 1u)
     {
-        if (!cli_passed_over(json, tool, s_places[at]) && cli_dir_has_tool(json, tool, s_places[at]) &&
-            cli_toolchains_tool_program_in(json, tool, s_places[at], program))
+        if (!EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = s_places[at]) &&
+            EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = s_places[at]) &&
+            EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json, .tool = tool,
+                       .dir = s_places[at], .path = program))
         {
-            cli_set(found, "found", program);
-            cli_toolchains_found_put(id, path, count, found);
+            EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "found", .program = program);
+            EMBED_CALL(cli_toolchains_id_path_internal.found_put, CliToolchainsIdPathCtx, .id = id,
+                       .path_callback = path, .count = count, .found_read = found);
             return;
         }
     }
-    cli_toolchains_found_put(id, path, count, found);
+    EMBED_CALL(cli_toolchains_id_path_internal.found_put, CliToolchainsIdPathCtx, .id = id, .path_callback = path,
+               .count = count, .found_read = found);
 }
 
 // a text written as a JSON string, or null where it is none
-static void cli_quoted_or_null(VerbaLinea *out, const char *text)
+EMBED_INLINE void cli_quoted_or_null(const ToolchainsFindCtx *args)
 {
+    VerbaLinea *out = args->out;
+    const char *text = args->text;
     if (text == NULL)
     {
         mmgr_line_put(out, "null");
         return;
     }
-    cli_json_quoted(out, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = text,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
 // What tool `tool` reports its version is into `out`: the first line it writes with a dotted number, else its first
 // line, at most 120 letters. 1, or 0 with why given
-static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound *found, VerbaLinea *out,
-                          VerbaLinea *err_msg)
+static int cli_version_get(const ToolchainsFindCtx *args)
 {
+    const CliJson *json = args->json;
+    VerbaLinea *err_msg = args->err_msg;
     static char s_output_buf[1u << 16u];
-    const char *const name = cli_json_string(json, cli_json_member(json, tool, "name"), NULL);
-    const unsigned int version = cli_json_member(json, tool, "version");
-    if (!cli_json_is(json, version, CFG_JSON_ARRAY))
+    const char *const name =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->tool, .name = "name"),
+                   .length_pointer = NULL);
+    const unsigned int version = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = args->tool, .name = "version");
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = version,
+                    .kind = CFG_JSON_ARRAY))
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, " is not queried for its version: running it opens a window or takes long");
         return 0;
     }
-    if (!found->has_program)
+    if (!args->found_read->has_program)
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, " is not found");
@@ -189,12 +263,13 @@ static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound
     }
     const char *words[32];
     unsigned int count = 0u;
-    words[count] = found->program;
+    words[count] = args->found_read->program;
     count += 1u;
     for (unsigned int item = json->node[version].first; (item != CLI_JSON_NONE) && (count < 31u);
          item = json->node[item].next)
     {
-        const char *const word = cli_json_string(json, item, NULL);
+        const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = item, .length_pointer = NULL);
         if (word != NULL)
         {
             words[count] = word;
@@ -203,25 +278,27 @@ static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound
     }
     words[count] = NULL;
     CliSpawned spawned;
-    if (!cli_spawn_as(CLI_PRIORITY_GUEST, &spawned, words, NULL, NULL, 0u, 1, err_msg))
+    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
+                    .spawned = &spawned, .words = words, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1,
+                    .err_msg = err_msg))
     {
         return 0;
     }
     // the output read first, then the errors, each until it ends or the patience runs out
     const unsigned long long began = cli_clock_milliseconds();
     long long code = 0ll;
-    while (!cli_spawn_poll(&spawned, &code))
+    while (!EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &spawned, .code = &code))
     {
         if ((cli_clock_milliseconds() - began) >= CLI_PATIENCE)
         {
-            cli_spawn_tree_end(spawned.id);
-            cli_spawn_wait(&spawned);
-            cli_spawn_closed(&spawned);
+            EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = spawned.id);
+            EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
+            EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
             mmgr_line_put(err_msg, name);
             mmgr_line_put(err_msg, " did not report its version in 6 s");
             return 0;
         }
-        query_paused(40u);
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 40u);
     }
     unsigned long long read = 0ull;
     for (unsigned int stream = 0u; stream < 2u; stream += 1u)
@@ -230,7 +307,8 @@ static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound
         for (;;)
         {
             const unsigned long long got =
-                cli_spawn_read(pipe, s_output_buf + read, sizeof(s_output_buf) - read - 2ull);
+                EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = pipe,
+                           .piece = s_output_buf + read, .room = sizeof(s_output_buf) - read - 2ull);
             if (got == 0ull)
             {
                 break;
@@ -240,7 +318,7 @@ static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound
         s_output_buf[read] = '\n';
         read += (read + 1ull < sizeof(s_output_buf)) ? 1ull : 0ull;
     }
-    cli_spawn_closed(&spawned);
+    EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
     s_output_buf[read] = '\0';
     const char *first = NULL;
     const char *numbered = NULL;
@@ -250,11 +328,14 @@ static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound
     while ((at[0] != '\0') && (numbered == NULL))
     {
         const char *end = at;
-        end += cli_text_to_any(end, 0ull, cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), "\n");
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "\n");
         const char *from = at;
         const char *to = end;
-        from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
-        to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+        from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+                           .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
+        to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+                               .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
         if ((to > from) && (first == NULL))
         {
             first = from;
@@ -290,58 +371,86 @@ static int cli_version_of(const CliJson *json, unsigned int tool, const CliFound
         }
         letters += 1u;
     }
-    mmgr_line_put_n(out, line, cut);
+    mmgr_line_put_n(args->out, line, cut);
     return 1;
 }
 
-int cli_toolchains_version(const char *id, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_toolchains_version(const CliToolchainsIdErrMsgCfg *args)
 {
     CliJson json;
-    cli_lock_take(&g_cli_toolchains_find_lock);
-    const unsigned int tool = cli_toolchains_tool(&json, cli_toolchains_manifest(&json, 0u, 0ull), id, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
+    const unsigned int tool =
+        EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
+                   .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                   .id = args->id, .err_msg = args->err_msg);
     int done = 0;
     if (tool != CLI_JSON_NONE)
     {
         CliFound found;
         const unsigned int count = cli_toolchains_find_path();
-        cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])g_cli_toolchains_path, count, &found);
-        done = cli_version_of(&json, tool, &found, out, err_msg);
+        EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool,
+                   .path_callback = (const char (*)[CLI_PATH_MAX_LEN])g_cli_toolchains_path, .count = count,
+                   .found = &found);
+        done = EMBED_CALL(cli_version_get, ToolchainsFindCtx, .json = &json, .tool = tool, .found_read = &found,
+                          .out = args->out, .err_msg = args->err_msg);
     }
-    cli_toolchains_find_released(&json);
+    EMBED_CALL(cli_toolchains_json_internal.find_release, CliToolchainsJsonCtx, .json = &json);
     return done;
 }
 
 // a member of a tool written: its text, or its list of texts, or null
-static void cli_member_written(const CliJson *json, unsigned int tool, const char *key, VerbaLinea *out)
+EMBED_INLINE void cli_member_write(const ToolchainsFindCtx *args)
 {
-    const unsigned int value = cli_json_member(json, tool, key);
-    if (cli_json_is(json, value, CFG_JSON_ARRAY))
+    const CliJson *json = args->json;
+    VerbaLinea *out = args->out;
+    const unsigned int value = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->tool, .name = args->key);
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = value,
+                   .kind = CFG_JSON_ARRAY))
     {
-        cli_json_write(json, value, out, 0u, 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = value,
+                   .out = out, .indent = 0u, .sorted = 0);
         return;
     }
-    cli_quoted_or_null(out, cli_json_string(json, value, NULL));
+    EMBED_CALL(cli_quoted_or_null, ToolchainsFindCtx, .out = out,
+               .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                                  .node = value, .length_pointer = NULL));
 }
 
-void cli_toolchains_check(int versions, int (*seen)(const void *context, const char *kind), const void *context,
-                          VerbaLinea *out)
+void cli_toolchains_check(const CliToolchainsVersionsCfg *args)
 {
+    VerbaLinea *out = args->out;
     CliJson json;
-    cli_lock_take(&g_cli_toolchains_find_lock);
-    const unsigned int manifest = cli_toolchains_manifest(&json, 0u, 0ull);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
+    const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                             .json_out = &json, .nodes_more = 0u, .text_more = 0ull);
     const unsigned int count = cli_toolchains_find_path();
     cli_toolchains_found_ref();
     mmgr_line_ch(out, '[');
     int first = 1;
-    for (unsigned int tool = cli_json_is(&json, manifest, CFG_JSON_ARRAY) ? json.node[manifest].first : CLI_JSON_NONE;
+    for (unsigned int tool = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+                                        .node = manifest, .kind = CFG_JSON_ARRAY)
+                                 ? json.node[manifest].first
+                                 : CLI_JSON_NONE;
          tool != CLI_JSON_NONE; tool = json.node[tool].next)
     {
         CliFound found;
-        cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])g_cli_toolchains_path, count, &found);
-        const char *const id = cli_json_string(&json, cli_json_member(&json, tool, "id"), NULL);
+        EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool,
+                   .path_callback = (const char (*)[CLI_PATH_MAX_LEN])g_cli_toolchains_path, .count = count,
+                   .found = &found);
+        const char *const id =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = tool, .name = "id"),
+                       .length_pointer = NULL);
         char chosen[CLI_PATH_MAX_LEN];
-        const int has_chosen = (id != NULL) && cli_toolchains_chosen(id, chosen);
-        const unsigned int install = cli_toolchains_for_system(&json, cli_json_member(&json, tool, "install"));
+        const int has_chosen = (id != NULL) && EMBED_CALL(cli_toolchains_id_folder.choose, CliToolchainsIdFolderCfg,
+                                                          .id = id, .folder = chosen);
+        const unsigned int install =
+            EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = &json,
+                       .map = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                         .object = tool, .name = "install"));
         mmgr_line_put(out, first ? "{" : ",{");
         first = 0;
         static const char *const s_keys[4] = {"id", "name", "group", "for"};
@@ -350,130 +459,183 @@ void cli_toolchains_check(int versions, int (*seen)(const void *context, const c
             mmgr_line_put(out, (key != 0u) ? ",\"" : "\"");
             mmgr_line_put(out, (key == 3u) ? "for" : s_keys[key]);
             mmgr_line_put(out, "\":");
-            const char *const text = cli_json_string(&json, cli_json_member(&json, tool, s_keys[key]), NULL);
-            cli_quoted_or_null(out, (text != NULL) ? text : "");
+            const char *const text =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = &json, .object = tool, .name = s_keys[key]),
+                           .length_pointer = NULL);
+            EMBED_CALL(cli_quoted_or_null, ToolchainsFindCtx, .out = out, .text = (text != NULL) ? text : "");
         }
         mmgr_line_put(out, ",\"programs\":");
-        cli_member_written(&json, tool, "programs", out);
+        EMBED_CALL(cli_member_write, ToolchainsFindCtx, .json = &json, .tool = tool, .key = "programs", .out = out);
         mmgr_line_put(out, ",\"formats\":");
-        const unsigned int formats = cli_json_member(&json, tool, "formats");
-        if (cli_json_is(&json, formats, CFG_JSON_ARRAY))
+        const unsigned int formats = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = &json, .object = tool, .name = "formats");
+        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = formats,
+                       .kind = CFG_JSON_ARRAY))
         {
-            cli_json_write(&json, formats, out, 0u, 0);
+            EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = formats,
+                       .out = out, .indent = 0u, .sorted = 0);
         }
         else
         {
             mmgr_line_put(out, "[]");
         }
         mmgr_line_put(out, ",\"state\":");
-        cli_quoted_or_null(out, found.state);
+        EMBED_CALL(cli_quoted_or_null, ToolchainsFindCtx, .out = out, .text = found.state);
         mmgr_line_put(out, ",\"program\":");
-        cli_quoted_or_null(out, found.has_program ? found.program : NULL);
+        EMBED_CALL(cli_quoted_or_null, ToolchainsFindCtx, .out = out, .text = found.has_program ? found.program : NULL);
         mmgr_line_put(out, ",\"folder\":");
-        cli_quoted_or_null(out, found.has_program ? found.folder : NULL);
+        EMBED_CALL(cli_quoted_or_null, ToolchainsFindCtx, .out = out, .text = found.has_program ? found.folder : NULL);
         mmgr_line_put(out, ",\"chosen\":");
-        cli_quoted_or_null(out, has_chosen ? chosen : NULL);
+        EMBED_CALL(cli_quoted_or_null, ToolchainsFindCtx, .out = out, .text = has_chosen ? chosen : NULL);
         mmgr_line_put(out, ",\"install\":");
-        cli_quoted_or_null(out, cli_json_string(&json, install, NULL));
-        mmgr_line_put(out, (cli_toolchains_for_system(&json, cli_json_member(&json, tool, "setup")) != CLI_JSON_NONE)
-                               ? ",\"setup\":true"
-                               : ",\"setup\":false");
-        const int versioned = cli_json_is(&json, cli_json_member(&json, tool, "version"), CFG_JSON_ARRAY);
+        EMBED_CALL(cli_quoted_or_null, ToolchainsFindCtx, .out = out,
+                   .text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                      .json_read = &json, .node = install, .length_pointer = NULL));
+        mmgr_line_put(
+            out, (EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = &json,
+                             .map = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = &json, .object = tool, .name = "setup")) != CLI_JSON_NONE)
+                     ? ",\"setup\":true"
+                     : ",\"setup\":false");
+        const int versioned = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+                                         .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                            .json_read = &json, .object = tool, .name = "version"),
+                                         .kind = CFG_JSON_ARRAY);
         mmgr_line_put(out, versioned ? ",\"versioned\":true" : ",\"versioned\":false");
-        mmgr_line_put(out, cli_json_is(&json, cli_json_member(&json, tool, "needed"), CFG_JSON_TRUE)
+        mmgr_line_put(out, EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+                                      .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                         .json_read = &json, .object = tool, .name = "needed"),
+                                      .kind = CFG_JSON_TRUE)
                                ? ",\"needed\":true"
                                : ",\"needed\":false");
-        const int added = (id != NULL) && cli_toolchains_added(id);
+        const int added = (id != NULL) && EMBED_CALL(cli_toolchains_id_folder.add, CliToolchainsIdFolderCfg, .id = id);
         mmgr_line_put(out, added ? ",\"added\":true" : ",\"added\":false");
-        int used = cli_json_is(&json, cli_json_member(&json, tool, "needed"), CFG_JSON_TRUE) || added;
-        const unsigned int uses = cli_json_member(&json, tool, "uses");
-        for (unsigned int use = ((seen != NULL) && cli_json_is(&json, uses, CFG_JSON_ARRAY)) ? json.node[uses].first
-                                                                                             : CLI_JSON_NONE;
+        int used = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+                              .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                 .json_read = &json, .object = tool, .name = "needed"),
+                              .kind = CFG_JSON_TRUE) ||
+                   added;
+        const unsigned int uses = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                             .object = tool, .name = "uses");
+        for (unsigned int use =
+                 ((args->seen != NULL) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                     .json_read = &json, .node = uses, .kind = CFG_JSON_ARRAY))
+                     ? json.node[uses].first
+                     : CLI_JSON_NONE;
              !used && (use != CLI_JSON_NONE); use = json.node[use].next)
         {
-            const char *const kind = cli_json_string(&json, use, NULL);
-            used = (kind != NULL) && seen(context, (kind[0] == '*') ? (kind + 1) : kind);
+            const char *const kind = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                .json_read = &json, .node = use, .length_pointer = NULL);
+            used = (kind != NULL) && EMBED_CALL(args->seen, CliEachKindCfg, .context = args->context_read,
+                                                .kind = (kind[0] == '*') ? (kind + 1) : kind);
         }
         mmgr_line_put(out, used ? ",\"used\":true" : ",\"used\":false");
-        if (versions && versioned && found.has_program)
+        if (args->versions && versioned && found.has_program)
         {
             char line[512];
             char err_buf[CLI_PATH_MAX_LEN];
             VerbaLinea version_line = {line, sizeof(line), 0ull};
             VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
-            if (cli_version_of(&json, tool, &found, &version_line, &err_msg))
+            if (EMBED_CALL(cli_version_get, ToolchainsFindCtx, .json = &json, .tool = tool, .found_read = &found,
+                           .out = &version_line, .err_msg = &err_msg))
             {
                 mmgr_line_finish(&version_line);
                 mmgr_line_put(out, ",\"version\":");
-                cli_quoted_or_null(out, line);
+                EMBED_CALL(cli_quoted_or_null, ToolchainsFindCtx, .out = out, .text = line);
             }
         }
         mmgr_line_ch(out, '}');
     }
     mmgr_line_ch(out, ']');
     cli_toolchains_found_let();
-    cli_toolchains_find_released(&json);
+    EMBED_CALL(cli_toolchains_json_internal.find_release, CliToolchainsJsonCtx, .json = &json);
 }
 
-int cli_toolchains_setup_line(const char *id, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_toolchains_setup_line(const CliToolchainsIdErrMsgCfg *args)
 {
     CliJson json;
-    cli_lock_take(&g_cli_toolchains_find_lock);
-    const unsigned int tool = cli_toolchains_tool(&json, cli_toolchains_manifest(&json, 0u, 0ull), id, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
+    const unsigned int tool =
+        EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
+                   .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                   .id = args->id, .err_msg = args->err_msg);
     const char *const line =
         (tool != CLI_JSON_NONE)
-            ? cli_json_string(&json, cli_toolchains_for_system(&json, cli_json_member(&json, tool, "setup")), NULL)
+            ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                         .node = EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = &json,
+                                            .map = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                              .json_read = &json, .object = tool, .name = "setup")),
+                         .length_pointer = NULL)
             : NULL;
     if ((tool != CLI_JSON_NONE) && (line == NULL))
     {
-        const char *const name = cli_json_string(&json, cli_json_member(&json, tool, "name"), NULL);
-        mmgr_line_put(err_msg, "orior_cli has no way to install ");
-        mmgr_line_put(err_msg, (name != NULL) ? name : id);
-        mmgr_line_put(err_msg, " on ");
-        mmgr_line_put(err_msg, cli_toolchains_system());
-        mmgr_line_put(err_msg, ": its install page has the steps");
+        const char *const name =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = tool, .name = "name"),
+                       .length_pointer = NULL);
+        mmgr_line_put(args->err_msg, "orior_cli has no way to install ");
+        mmgr_line_put(args->err_msg, (name != NULL) ? name : args->id);
+        mmgr_line_put(args->err_msg, " on ");
+        mmgr_line_put(args->err_msg, cli_toolchains_system());
+        mmgr_line_put(args->err_msg, ": its install page has the steps");
     }
     if (line != NULL)
     {
-        mmgr_line_put(out, line);
+        mmgr_line_put(args->out, line);
     }
-    cli_toolchains_find_released(&json);
+    EMBED_CALL(cli_toolchains_json_internal.find_release, CliToolchainsJsonCtx, .json = &json);
     return line != NULL;
 }
 
-int cli_toolchains_open_install(const char *id, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_toolchains_open_install(const CliToolchainsIdErrMsgCfg *args)
 {
     CliJson json;
     char url[CLI_PATH_MAX_LEN];
-    cli_lock_take(&g_cli_toolchains_find_lock);
-    const unsigned int tool = cli_toolchains_tool(&json, cli_toolchains_manifest(&json, 0u, 0ull), id, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
+    const unsigned int tool =
+        EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
+                   .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
+                                          .json_out = &json, .nodes_more = 0u, .text_more = 0ull),
+                   .id = args->id, .err_msg = args->err_msg);
     const char *const page =
         (tool != CLI_JSON_NONE)
-            ? cli_json_string(&json, cli_toolchains_for_system(&json, cli_json_member(&json, tool, "install")), NULL)
+            ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                         .node = EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = &json,
+                                            .map = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                              .json_read = &json, .object = tool, .name = "install")),
+                         .length_pointer = NULL)
             : NULL;
     if ((tool != CLI_JSON_NONE) && (page == NULL))
     {
-        const char *const name = cli_json_string(&json, cli_json_member(&json, tool, "name"), NULL);
-        mmgr_line_put(err_msg, (name != NULL) ? name : id);
-        mmgr_line_put(err_msg, " has no install page for ");
-        mmgr_line_put(err_msg, cli_toolchains_system());
+        const char *const name =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = tool, .name = "name"),
+                       .length_pointer = NULL);
+        mmgr_line_put(args->err_msg, (name != NULL) ? name : args->id);
+        mmgr_line_put(args->err_msg, " has no install page for ");
+        mmgr_line_put(args->err_msg, cli_toolchains_system());
     }
-    cli_text_copied_or(url, page, "");
-    cli_toolchains_find_released(&json);
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = url, .text = page, .otherwise = "");
+    EMBED_CALL(cli_toolchains_json_internal.find_release, CliToolchainsJsonCtx, .json = &json);
     if (page == NULL)
     {
         return 0;
     }
     if (!cellul.starts(&(CatenaFinitaCfg){.src = url, .other = "https://", .cap = CLI_CELLS_POOL}))
     {
-        mmgr_line_put(err_msg, url);
-        mmgr_line_put(err_msg, " is not an https page");
+        mmgr_line_put(args->err_msg, url);
+        mmgr_line_put(args->err_msg, " is not an https page");
         return 0;
     }
-    if (!cli_report_open_url(url, err_msg))
+    if (!EMBED_CALL(cli_report_err_msg.open_url, CliReportErrMsgCfg, .url = url, .err_msg = args->err_msg))
     {
         return 0;
     }
-    mmgr_line_put(out, url);
+    mmgr_line_put(args->out, url);
     return 1;
 }

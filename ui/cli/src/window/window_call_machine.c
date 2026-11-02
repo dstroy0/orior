@@ -12,33 +12,36 @@
 // the session as the system names it, `{booted, logon}`: when the machine started, in seconds since 1970 as this start
 // reads it, a few seconds either way from one start to the next; and the reader's log in, where the system names one,
 // empty where it does not
-static int machine_session_key(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int machine_session_key(const CliServeAnswerCfg *args)
 {
-    (void)args;
-    (void)err_msg;
+    VerbaLinea *out = args->out;
     char logon[CLI_MACHINE_LOGON_MAX_LEN];
-    cli_logon_named(logon, sizeof(logon));
+    EMBED_CALL(cli_room_logon_internal.logon_by_name, CliRoomLogonCtx, .logon = logon, .room_size = sizeof(logon));
     mmgr_line_put(out, "{\"booted\":");
     mmgr_line_decimal(out, cli_booted_seconds(), 1u);
     mmgr_line_put(out, ",\"logon\":");
-    cli_window_quoted(out, logon);
+    EMBED_CALL(cli_window_out_text_internal.quote, CliWindowOutTextCtx, .out = out, .text = logon);
     mmgr_line_ch(out, '}');
     return 1;
 }
 
 // the system's picker shown for the reader to pick a file to open, a folder, `dir` or `save-dir`, or a file to save,
 // `save`: the path chosen, or null where none was
-static int machine_pick(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+static int machine_pick(const CliServeAnswerCfg *args)
 {
-    (void)err_msg;
-    const char *const kind = cli_serve_string_or(args, "kind", "");
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    const char *const kind = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "kind", .otherwise = "");
     const int folder = cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "dir", .cap = 16u}) ||
                        cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "save-dir", .cap = 16u});
     const int save = cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "save", .cap = 16u});
     char path[CLI_PATH_MAX_LEN];
-    if (cli_file_picked(folder ? CLI_PICK_FOLDER : (save ? CLI_PICK_SAVE : CLI_PICK_FILE), path, sizeof(path)))
+    if (EMBED_CALL(cli_path_room_internal.file_pick, CliPathRoomCtx,
+                   .kind = folder ? CLI_PICK_FOLDER : (save ? CLI_PICK_SAVE : CLI_PICK_FILE), .path_out = path,
+                   .room_size = sizeof(path)))
     {
-        cli_window_quoted(out, path);
+        EMBED_CALL(cli_window_out_text_internal.quote, CliWindowOutTextCtx, .out = out, .text = path);
     }
     else
     {

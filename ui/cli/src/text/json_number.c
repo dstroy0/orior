@@ -12,21 +12,36 @@
 #define CLI_NUMBER_DIGITS 832u
 #define CLI_NUMBER_SHORTEST 17u
 
-// the whole number in `limb`, `count` words, the lowest first, times `by`: its words
-static unsigned int cli_limbs_times(unsigned int *limb, unsigned int count, unsigned int by)
+typedef struct
 {
+    unsigned int *limb;
+    unsigned int count;
+    unsigned int by;
+    char *digits;
+    double value;
+    int *point;
+    const char *digits_read;
+    unsigned int most;
+    char *cut;
+    const char *cut_read;
+    int point_value;
+} JsonNumberCtx;
+// the whole number in `limb`, `count` words, the lowest first, times `by`: its words
+EMBED_INLINE unsigned int cli_limbs_times(const JsonNumberCtx *args)
+{
+    unsigned int count = args->count;
     unsigned long long carry = 0ull;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const unsigned long long product = ((unsigned long long)limb[at] * by) + carry;
+        const unsigned long long product = ((unsigned long long)args->limb[at] * args->by) + carry;
         // the product's low 32 bits stay in the word and the rest carries
-        limb[at] = (unsigned int)product;
+        args->limb[at] = (unsigned int)product;
         carry = product >> 32u;
     }
     if (carry != 0ull)
     {
         // a carry is below 2^32, `by` being
-        limb[count] = (unsigned int)carry;
+        args->limb[count] = (unsigned int)carry;
         count += 1u;
     }
     return count;
@@ -34,8 +49,9 @@ static unsigned int cli_limbs_times(unsigned int *limb, unsigned int count, unsi
 
 // the decimal digits of the whole number, above 0, into `digits`, the first not 0, the number taken apart as they are
 // read: their count
-static unsigned int cli_limbs_digits(unsigned int *limb, unsigned int count, char *digits)
+EMBED_INLINE unsigned int cli_limbs_digits(const JsonNumberCtx *args)
 {
+    unsigned int count = args->count;
     unsigned int chunk[(CLI_NUMBER_DIGITS / 9u) + 1u];
     unsigned int chunks = 0u;
     while (count > 0u)
@@ -43,12 +59,12 @@ static unsigned int cli_limbs_digits(unsigned int *limb, unsigned int count, cha
         unsigned long long rest = 0ull;
         for (unsigned int at = count; at > 0u; at -= 1u)
         {
-            const unsigned long long part = (rest << 32u) | limb[at - 1u];
+            const unsigned long long part = (rest << 32u) | args->limb[at - 1u];
             // a quotient is below 2^32, the rest before it being below 10^9
-            limb[at - 1u] = (unsigned int)(part / 1000000000ull);
+            args->limb[at - 1u] = (unsigned int)(part / 1000000000ull);
             rest = part % 1000000000ull;
         }
-        while ((count > 0u) && (limb[count - 1u] == 0u))
+        while ((count > 0u) && (args->limb[count - 1u] == 0u))
         {
             count -= 1u;
         }
@@ -73,7 +89,7 @@ static unsigned int cli_limbs_digits(unsigned int *limb, unsigned int count, cha
         }
         for (; from < 9u; from += 1u)
         {
-            digits[written] = nine[from];
+            args->digits[written] = nine[from];
             written += 1u;
         }
     }
@@ -82,8 +98,10 @@ static unsigned int cli_limbs_digits(unsigned int *limb, unsigned int count, cha
 
 // the exact decimal digits of a finite float above 0 into `digits`, sized for CLI_NUMBER_DIGITS, and where the point
 // stands into `point`, the float being 0.d1d2... times ten to it: their count
-static unsigned int cli_exact(double value, char *digits, int *point)
+EMBED_INLINE unsigned int cli_exact(const JsonNumberCtx *args)
 {
+    double value = args->value;
+    int *point = args->point;
     unsigned long long bits = 0ull;
     memor.cpy(&(MemoriaCfg){.dst = &bits, .src = &value, .bytes = sizeof(bits)});
     // the exponent's field is 11 bits
@@ -110,7 +128,8 @@ static unsigned int cli_exact(double value, char *digits, int *point)
     for (int left = exponent; left > 0; left -= 31)
     {
         const int step = (left > 31) ? 31 : left;
-        count = cli_limbs_times(limb, count, 1u << (unsigned int)step);
+        count =
+            EMBED_CALL(cli_limbs_times, JsonNumberCtx, .limb = limb, .count = count, .by = 1u << (unsigned int)step);
     }
     for (int left = -exponent; left > 0; left -= 13)
     {
@@ -120,9 +139,10 @@ static unsigned int cli_exact(double value, char *digits, int *point)
         {
             by *= 5u;
         }
-        count = cli_limbs_times(limb, count, by);
+        count = EMBED_CALL(cli_limbs_times, JsonNumberCtx, .limb = limb, .count = count, .by = by);
     }
-    const unsigned int written = cli_limbs_digits(limb, count, digits);
+    const unsigned int written =
+        EMBED_CALL(cli_limbs_digits, JsonNumberCtx, .limb = limb, .count = count, .digits = args->digits);
     // a count of digits is below CLI_NUMBER_DIGITS, which an int represents
     *point = (int)written - ((exponent < 0) ? -exponent : 0);
     return written;
@@ -130,86 +150,93 @@ static unsigned int cli_exact(double value, char *digits, int *point)
 
 // the exact digits cut to `most`, rounded to the nearer, a tie to the even, into `cut`, the trailing 0s left out, the
 // point moved up where 9s carry past the first: their count
-static unsigned int cli_rounded(const char *digits, unsigned int count, unsigned int most, char *cut, int *point)
+EMBED_INLINE unsigned int cli_round(const JsonNumberCtx *args)
 {
-    const unsigned int taken = (count < most) ? count : most;
-    memor.cpy(&(MemoriaCfg){.dst = cut, .src = digits, .bytes = taken});
+    int *point = args->point;
+    const unsigned int taken = (args->count < args->most) ? args->count : args->most;
+    memor.cpy(&(MemoriaCfg){.dst = args->cut, .src = args->digits_read, .bytes = taken});
     unsigned int cut_len = taken;
-    if (count > most)
+    if (args->count > args->most)
     {
-        int up = digits[most] > '5';
-        if (digits[most] == '5')
+        int up = args->digits_read[args->most] > '5';
+        if (args->digits_read[args->most] == '5')
         {
             int beyond = 0;
-            for (unsigned int at = most + 1u; at < count; at += 1u)
+            for (unsigned int at = args->most + 1u; at < args->count; at += 1u)
             {
-                beyond = beyond || (digits[at] != '0');
+                beyond = beyond || (args->digits_read[at] != '0');
             }
-            up = beyond || (((cut[most - 1u] - '0') & 1) != 0);
+            up = beyond || (((args->cut[args->most - 1u] - '0') & 1) != 0);
         }
         if (up)
         {
-            cut_len = (unsigned int)cli_text_back_past(cut, cut_len, "9");
+            cut_len = (unsigned int)EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+                                               .text = args->cut, .at = cut_len, .set = "9");
             if (cut_len == 0u)
             {
-                cut[0] = '1';
+                args->cut[0] = '1';
                 cut_len = 1u;
                 *point += 1;
             }
             else
             {
-                cut[cut_len - 1u] = (char)(cut[cut_len - 1u] + 1);
+                args->cut[cut_len - 1u] = (char)(args->cut[cut_len - 1u] + 1);
             }
         }
     }
-    cut_len = (unsigned int)(1u + cli_text_back_past(cut + 1u, cut_len - 1u, "0"));
+    cut_len = (unsigned int)(1u + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+                                             .text = args->cut + 1u, .at = cut_len - 1u, .set = "0"));
     return cut_len;
 }
 
 // whether `count` digits with the point where `point` stands read back as `value`
-static int cli_reads_back(const char *cut, unsigned int count, int point, double value)
+EMBED_INLINE int cli_reads_back(const JsonNumberCtx *args)
 {
     char text[CLI_NUMBER_SHORTEST + 16u];
     VerbaLinea line = {text, sizeof(text), 0ull};
-    mmgr_line_ch(&line, cut[0]);
+    mmgr_line_ch(&line, args->cut_read[0]);
     mmgr_line_ch(&line, '.');
-    mmgr_line_put_n(&line, cut + 1, count - 1u);
+    mmgr_line_put_n(&line, args->cut_read + 1, args->count - 1u);
     mmgr_line_ch(&line, 'e');
-    mmgr_line_decimal_signed(&line, (long long)point - 1ll);
+    mmgr_line_decimal_signed(&line, (long long)args->point_value - 1ll);
     mmgr_line_finish(&line);
-    return strtod(text, NULL) == value;
+    return strtod(text, NULL) == args->value;
 }
 
-void cli_json_double(VerbaLinea *out, double value)
+void cli_json_double(const CliJsonTreeOutValueCfg *args)
 {
+    double value = args->value_f64;
     unsigned long long bits = 0ull;
     memor.cpy(&(MemoriaCfg){.dst = &bits, .src = &value, .bytes = sizeof(bits)});
     if (((bits >> 52u) & 0x7ffull) == 0x7ffull)
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
         return;
     }
     if ((bits >> 63u) != 0ull)
     {
-        mmgr_line_ch(out, '-');
+        mmgr_line_ch(args->out, '-');
         value = -value;
     }
     if (value == 0.0)
     {
-        mmgr_line_put(out, "0.0");
+        mmgr_line_put(args->out, "0.0");
         return;
     }
     char digits[CLI_NUMBER_DIGITS];
     int exact_point = 0;
-    const unsigned int count = cli_exact(value, digits, &exact_point);
+    const unsigned int count =
+        EMBED_CALL(cli_exact, JsonNumberCtx, .value = value, .digits = digits, .point = &exact_point);
     char cut[CLI_NUMBER_SHORTEST + 1u];
     unsigned int length = 0u;
     int point = exact_point;
     for (unsigned int most = 1u; most <= CLI_NUMBER_SHORTEST; most += 1u)
     {
         point = exact_point;
-        length = cli_rounded(digits, count, most, cut, &point);
-        if (cli_reads_back(cut, length, point, value))
+        length = EMBED_CALL(cli_round, JsonNumberCtx, .digits_read = digits, .count = count, .most = most, .cut = cut,
+                            .point = &point);
+        if (EMBED_CALL(cli_reads_back, JsonNumberCtx, .cut_read = cut, .count = length, .point_value = point,
+                       .value = value))
         {
             break;
         }
@@ -218,38 +245,38 @@ void cli_json_double(VerbaLinea *out, double value)
     const int shift = point - (int)length;
     if ((shift >= 0) && (point <= 16))
     {
-        mmgr_line_put_n(out, cut, length);
+        mmgr_line_put_n(args->out, cut, length);
         for (int zero = 0; zero < shift; zero += 1)
         {
-            mmgr_line_ch(out, '0');
+            mmgr_line_ch(args->out, '0');
         }
-        mmgr_line_put(out, ".0");
+        mmgr_line_put(args->out, ".0");
     }
     else if ((point > 0) && (point <= 16))
     {
         // the point stands inside the digits, so it is below their count
-        mmgr_line_put_n(out, cut, (unsigned long long)point);
-        mmgr_line_ch(out, '.');
-        mmgr_line_put_n(out, cut + point, length - (unsigned int)point);
+        mmgr_line_put_n(args->out, cut, (unsigned long long)point);
+        mmgr_line_ch(args->out, '.');
+        mmgr_line_put_n(args->out, cut + point, length - (unsigned int)point);
     }
     else if ((point > -5) && (point <= 0))
     {
-        mmgr_line_put(out, "0.");
+        mmgr_line_put(args->out, "0.");
         for (int zero = point; zero < 0; zero += 1)
         {
-            mmgr_line_ch(out, '0');
+            mmgr_line_ch(args->out, '0');
         }
-        mmgr_line_put_n(out, cut, length);
+        mmgr_line_put_n(args->out, cut, length);
     }
     else
     {
-        mmgr_line_ch(out, cut[0]);
+        mmgr_line_ch(args->out, cut[0]);
         if (length > 1u)
         {
-            mmgr_line_ch(out, '.');
-            mmgr_line_put_n(out, cut + 1, length - 1u);
+            mmgr_line_ch(args->out, '.');
+            mmgr_line_put_n(args->out, cut + 1, length - 1u);
         }
-        mmgr_line_ch(out, 'e');
-        mmgr_line_decimal_signed(out, (long long)point - 1ll);
+        mmgr_line_ch(args->out, 'e');
+        mmgr_line_decimal_signed(args->out, (long long)point - 1ll);
     }
 }

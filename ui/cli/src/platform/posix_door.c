@@ -22,54 +22,67 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+typedef struct
+{
+#if (!defined(_WIN32))
+    VerbaLinea *err_msg;
+    const char *what;
+    const char *path;
+    struct sockaddr_un *address;
+    CliDoorEnd *end;
+    int fd;
+    unsigned int *peer;
+#endif
+} PosixDoorCtx;
+
 // what the system reported of the last call that failed, after `what`
-static void door_failed(VerbaLinea *err_msg, const char *what)
+EMBED_INLINE void door_fail(const PosixDoorCtx *args)
 {
     const int error = errno;
-    mmgr_line_put(err_msg, what);
-    mmgr_line_put(err_msg, ": the system reported ");
-    mmgr_line_decimal(err_msg, (unsigned long long)error, 1u);
+    mmgr_line_put(args->err_msg, args->what);
+    mmgr_line_put(args->err_msg, ": the system reported ");
+    mmgr_line_decimal(args->err_msg, (unsigned long long)error, 1u);
 }
 
 // the socket address of the path `path` into `address`: 1, or 0 where the path is longer than a socket's name fits
-static int door_address(const char *path, struct sockaddr_un *address)
+EMBED_INLINE int door_address(const PosixDoorCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = address, .val = 0, .bytes = sizeof(*address)});
-    address->sun_family = AF_UNIX;
-    if (cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) >= sizeof(address->sun_path))
+    memor.set(&(MemoriaCfg){.dst = args->address, .val = 0, .bytes = sizeof(*args->address)});
+    args->address->sun_family = AF_UNIX;
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) >= sizeof(args->address->sun_path))
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = address->sun_path,
-                            .src = path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = args->address->sun_path,
+                            .src = args->path,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
     return 1;
 }
 
 // an end made of the socket `fd`, marked to close as a program starts
-static void door_end_made(CliDoorEnd *end, int fd)
+EMBED_INLINE void door_end_init(const PosixDoorCtx *args)
 {
-    (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
+    (void)fcntl(args->fd, F_SETFD, FD_CLOEXEC);
 #if defined(__APPLE__)
     // a write to an end the peer closed fails, and sends no signal, as MSG_NOSIGNAL has it elsewhere
     const int on = 1;
-    (void)setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
+    (void)setsockopt(args->fd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
 #endif
-    memor.set(&(MemoriaCfg){.dst = end, .val = 0, .bytes = sizeof(*end)});
-    end->handle = (unsigned long long)fd;
-    end->open = 1;
-    end->pending.lock = (CliLock)CLI_LOCK_INIT;
+    memor.set(&(MemoriaCfg){.dst = args->end, .val = 0, .bytes = sizeof(*args->end)});
+    args->end->handle = (unsigned long long)args->fd;
+    args->end->open = 1;
+    args->end->pending.lock = (CliLock)CLI_LOCK_INIT;
 }
 
-int cli_door_listening(CliDoorListener *listener, char *address, VerbaLinea *err_msg)
+int cli_door_listening(const CliDoorListenerAddressCtx *args)
 {
     unsigned char secret[8];
     char temporary[CLI_PATH_MAX_LEN];
     char name[96];
     char folder[CLI_PATH_MAX_LEN];
-    if (!cli_random_bytes(secret, sizeof(secret)))
+    if (!EMBED_CALL(cli_size_bytes_internal.random_bytes, CliSizeBytesCtx, .bytes_out = secret, .size = sizeof(secret)))
     {
-        mmgr_line_put(err_msg, "the system gave no secret");
+        mmgr_line_put(args->err_msg, "the system gave no secret");
         return 0;
     }
     VerbaLinea named = {name, sizeof(name), 0ull};
@@ -82,70 +95,70 @@ int cli_door_listening(CliDoorListener *listener, char *address, VerbaLinea *err
         mmgr_line_ch(&named, "0123456789abcdef"[secret[at] & 15u]);
     }
     mmgr_line_finish(&named);
-    cli_temp_folder(temporary);
-    cli_full(temporary, name, folder);
+    EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = folder);
     if (mkdir(folder, 0700) != 0)
     {
-        door_failed(err_msg, folder);
+        EMBED_CALL(door_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = folder);
         return 0;
     }
-    cli_full(folder, "door", address);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "door", .joined = args->address);
     struct sockaddr_un bound;
-    if (!door_address(address, &bound))
+    if (!EMBED_CALL(door_address, PosixDoorCtx, .path = args->address, .address = &bound))
     {
-        mmgr_line_put(err_msg, address);
-        mmgr_line_put(err_msg, ": the path is longer than a socket's name fits");
+        mmgr_line_put(args->err_msg, args->address);
+        mmgr_line_put(args->err_msg, ": the path is longer than a socket's name fits");
         return 0;
     }
     const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
-        door_failed(err_msg, address);
+        EMBED_CALL(door_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = args->address);
         return 0;
     }
     (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
     if ((bind(fd, (const struct sockaddr *)&bound, sizeof(bound)) != 0) || (listen(fd, 128) != 0))
     {
-        door_failed(err_msg, address);
+        EMBED_CALL(door_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = args->address);
         close(fd);
         return 0;
     }
-    listener->lock = (CliLock)CLI_LOCK_INIT;
+    args->listener->lock = (CliLock)CLI_LOCK_INIT;
     // a descriptor that opened is not negative
-    listener->waiting = (unsigned long long)fd;
+    args->listener->waiting = (unsigned long long)fd;
     return 1;
 }
 
 // the process at the other end of the socket `fd`, as the system reports: 1 with it into `peer`, or 0 where it does not
-static int door_peer(int fd, unsigned int *peer)
+EMBED_INLINE int door_peer(const PosixDoorCtx *args)
 {
+    unsigned int *peer = args->peer;
 #if defined(__linux__)
     struct ucred credentials;
     socklen_t length = sizeof(credentials);
-    const int read_well = (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &credentials, &length) == 0);
+    const int read_well = (getsockopt(args->fd, SOL_SOCKET, SO_PEERCRED, &credentials, &length) == 0);
     *peer = read_well ? (unsigned int)credentials.pid : 0u;
     return read_well;
 #elif defined(__APPLE__)
     // LOCAL_PEERPID of SOL_LOCAL gives the process
     int pid = 0;
     socklen_t length = sizeof(pid);
-    const int read_well = (getsockopt(fd, 0, 2, &pid, &length) == 0);
+    const int read_well = (getsockopt(args->fd, 0, 2, &pid, &length) == 0);
     *peer = read_well ? (unsigned int)pid : 0u;
     return read_well;
 #else
-    (void)fd;
     *peer = 0u;
     return 0;
 #endif
 }
 
-int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer, unsigned int *peer,
-                      VerbaLinea *err_msg)
+int cli_door_accept(const CliDoorListenerCtx *args)
 {
-    cli_lock_take(&listener->lock);
+    int *has_peer = args->has_peer;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->listener->lock);
     // the socket was a descriptor when it was stored
-    const int socket_fd = (int)listener->waiting;
-    cli_lock_give(&listener->lock);
+    const int socket_fd = (int)args->listener->waiting;
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->listener->lock);
     int fd = -1;
     do
     {
@@ -153,45 +166,46 @@ int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer,
     } while ((fd < 0) && (errno == EINTR));
     if (fd < 0)
     {
-        door_failed(err_msg, "no process joined");
+        EMBED_CALL(door_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = "no process joined");
         return 0;
     }
-    door_end_made(end, fd);
-    *has_peer = door_peer(fd, peer);
+    EMBED_CALL(door_end_init, PosixDoorCtx, .end = args->end, .fd = fd);
+    *has_peer = EMBED_CALL(door_peer, PosixDoorCtx, .fd = fd, .peer = args->peer);
     return 1;
 }
 
-int cli_door_connected(const char *address, CliDoorEnd *end, VerbaLinea *err_msg)
+int cli_door_connect(const CliDoorCtx *args)
 {
     struct sockaddr_un joined;
-    if (!door_address(address, &joined))
+    if (!EMBED_CALL(door_address, PosixDoorCtx, .path = args->address_read, .address = &joined))
     {
-        mmgr_line_put(err_msg, address);
-        mmgr_line_put(err_msg, ": the path is longer than a socket's name fits");
+        mmgr_line_put(args->err_msg, args->address_read);
+        mmgr_line_put(args->err_msg, ": the path is longer than a socket's name fits");
         return 0;
     }
     const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
-        door_failed(err_msg, address);
+        EMBED_CALL(door_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = args->address_read);
         return 0;
     }
     if (connect(fd, (const struct sockaddr *)&joined, sizeof(joined)) != 0)
     {
-        door_failed(err_msg, address);
+        EMBED_CALL(door_fail, PosixDoorCtx, .err_msg = args->err_msg, .what = args->address_read);
         close(fd);
         return 0;
     }
-    door_end_made(end, fd);
+    EMBED_CALL(door_end_init, PosixDoorCtx, .end = args->end, .fd = fd);
     return 1;
 }
 
-int cli_door_read(CliDoorEnd *end, void *bytes, unsigned long long size)
+int cli_door_read(const CliDoorEndBytesCtx *args)
 {
-    unsigned char *const into = (unsigned char *)bytes;
-    for (unsigned long long at = 0ull; at < size;)
+    unsigned char *const into = (unsigned char *)args->bytes;
+    for (unsigned long long at = 0ull; at < args->size;)
     {
-        const long long got = cli_socket_received((int)end->handle, into + at, size - at, &end->pending);
+        const long long got = EMBED_CALL(cli_socket_receive, CliTransferSocketCfg, .socket = (int)args->end->handle,
+                                         .buffer = into + at, .room = args->size - at, .pending = &args->end->pending);
         if (got <= 0ll)
         {
             return 0;
@@ -201,21 +215,22 @@ int cli_door_read(CliDoorEnd *end, void *bytes, unsigned long long size)
     return 1;
 }
 
-int cli_door_written(CliDoorEnd *end, const void *bytes, unsigned long long size, const CliRegion *region)
+int cli_door_write(const CliDoorEndSizeCtx *args)
 {
-    if (region != NULL)
+    if (args->region != NULL)
     {
-        return cli_socket_sent_with((int)end->handle, bytes, size, (int)region->section);
+        return EMBED_CALL(cli_socket_sent_with, CliTransferSizeCfg, .socket = (int)args->end->handle,
+                          .frame = args->bytes_read, .size = args->size, .fd = (int)args->region->section);
     }
-    const unsigned char *const from = (const unsigned char *)bytes;
+    const unsigned char *const from = (const unsigned char *)args->bytes_read;
 #if defined(MSG_NOSIGNAL)
     const int flags = MSG_NOSIGNAL;
 #else
     const int flags = 0;
 #endif
-    for (unsigned long long at = 0ull; at < size;)
+    for (unsigned long long at = 0ull; at < args->size;)
     {
-        const ssize_t wrote = send((int)end->handle, from + at, (size_t)(size - at), flags);
+        const ssize_t wrote = send((int)args->end->handle, from + at, (size_t)(args->size - at), flags);
         if ((wrote < 0) && (errno == EINTR))
         {
             continue;
@@ -229,27 +244,27 @@ int cli_door_written(CliDoorEnd *end, const void *bytes, unsigned long long size
     return 1;
 }
 
-int cli_door_descriptor(CliDoorEnd *end)
+int cli_door_descriptor(const CliDoorErrMsgCtx *args)
 {
-    return cli_descriptor_taken(&end->pending);
+    return EMBED_CALL(cli_descriptor_take, CliTransferSocketCfg, .pending = &args->end->pending);
 }
 
-void cli_door_shut(CliDoorEnd *end)
+void cli_door_shut(const CliDoorCtx *args)
 {
-    if (end->open)
+    if (args->end->open)
     {
-        (void)shutdown((int)end->handle, SHUT_RDWR);
+        (void)shutdown((int)args->end->handle, SHUT_RDWR);
     }
 }
 
-void cli_door_closed(CliDoorEnd *end)
+void cli_door_close(const CliDoorCtx *args)
 {
-    if (end->open)
+    if (args->end->open)
     {
-        close((int)end->handle);
-        cli_descriptors_closed(&end->pending);
+        close((int)args->end->handle);
+        EMBED_CALL(cli_descriptors_close, CliTransferSocketCfg, .pending = &args->end->pending);
     }
-    end->open = 0;
-    end->handle = 0ull;
+    args->end->open = 0;
+    args->end->handle = 0ull;
 }
 #endif

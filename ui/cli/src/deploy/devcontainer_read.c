@@ -7,121 +7,190 @@
 // the lock acquired while a description is read
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// what the container is built from, as the description specifies, into the plan: 1, or 0 with why given
-static int cli_source_read(CliPlan *plan, const char *file, const char *base, const CliPlanPlaces *places,
-                           const unsigned int *compose, unsigned int composes, VerbaLinea *err_msg)
+typedef struct
 {
+    CliPlan *plan;
+    const char *file;
+    const char *base;
+    const CliPlanPlaces *places;
+    const unsigned int *compose;
+    unsigned int composes;
+    VerbaLinea *err_msg;
+    const char *path;
+    char *name;
+    const char *root;
+} DevcontainerReadCtx;
+// what the container is built from, as the description specifies, into the plan: 1, or 0 with why given
+EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
+{
+    CliPlan *plan = args->plan;
+    const char *base = args->base;
+    const CliPlanPlaces *places = args->places;
     static char s_text[CLI_STRING_MAX_LEN];
     static char s_read[CLI_STRING_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    if (composes != 0u)
+    if (args->composes != 0u)
     {
-        if (!cli_plan_string(cli_plan_member("service"), s_text))
+        if (!EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                        .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
+                                            .name = "service"),
+                        .out = s_text))
         {
-            mmgr_line_put(err_msg, file);
-            mmgr_line_put(err_msg, " names dockerComposeFile and no service");
+            mmgr_line_put(args->err_msg, args->file);
+            mmgr_line_put(args->err_msg, " names dockerComposeFile and no service");
             return 0;
         }
         plan->source = CLI_SOURCE_COMPOSE;
-        plan->service = cli_plan_put(plan, s_text);
-        for (unsigned int at = 0u; at < composes; at += 1u)
+        plan->service = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+                                   .plan = plan, .text = s_text);
+        for (unsigned int at = 0u; at < args->composes; at += 1u)
         {
-            if (cli_plan_string(compose[at], s_text))
+            if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                           .value = args->compose[at], .out = s_text))
             {
-                cli_plan_expanded(s_text, places, s_read);
-                cli_plan_joined(base, s_read, path);
-                cli_plan_listed(plan, &plan->files, path);
+                EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text,
+                           .places = places, .out = s_read);
+                EMBED_CALL(cli_devcontainer_out_base_internal.plan_join, CliDevcontainerOutBaseCtx, .base = base,
+                           .path = s_read, .out = path);
+                EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = plan,
+                           .list = &plan->files, .text = path);
             }
         }
         unsigned int tokens[CLI_PLAN_LIST_MOST];
-        const unsigned int services = cli_plan_strings(cli_plan_member("runServices"), tokens, CLI_PLAN_LIST_MOST);
+        const unsigned int services = EMBED_CALL(cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,
+                                                 .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member,
+                                                                     CliDevcontainerNameCtx, .name = "runServices"),
+                                                 .tokens = tokens, .room = CLI_PLAN_LIST_MOST);
         for (unsigned int at = 0u; at < services; at += 1u)
         {
-            if (cli_plan_string(tokens[at], s_text))
+            if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                           .value = tokens[at], .out = s_text))
             {
-                cli_plan_listed(plan, &plan->services, s_text);
+                EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = plan,
+                           .list = &plan->services, .text = s_text);
             }
         }
         return 1;
     }
-    if (cli_plan_string(cli_plan_member("image"), s_text))
+    if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                   .value =
+                       EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx, .name = "image"),
+                   .out = s_text))
     {
         plan->source = CLI_SOURCE_IMAGE;
-        cli_plan_expanded(s_text, places, s_read);
-        plan->image = cli_plan_put(plan, s_read);
+        EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .places = places,
+                   .out = s_read);
+        plan->image = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
+                                 .text = s_read);
         return 1;
     }
-    const unsigned int build = cli_plan_member("build");
-    if (!cli_plan_string(cli_plan_member_of(build, "dockerfile"), s_text) &&
-        !cli_plan_string(cli_plan_member("dockerFile"), s_text))
+    const unsigned int build =
+        EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx, .name = "build");
+    if (!EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                    .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member_get, CliDevcontainerNameCtx,
+                                        .object = build, .name = "dockerfile"),
+                    .out = s_text) &&
+        !EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                    .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
+                                        .name = "dockerFile"),
+                    .out = s_text))
     {
-        mmgr_line_put(err_msg, file);
-        mmgr_line_put(err_msg, " names no image, build.dockerfile or dockerComposeFile");
+        mmgr_line_put(args->err_msg, args->file);
+        mmgr_line_put(args->err_msg, " names no image, build.dockerfile or dockerComposeFile");
         return 0;
     }
     plan->source = CLI_SOURCE_BUILD;
-    cli_plan_expanded(s_text, places, s_read);
-    cli_plan_joined(base, s_read, path);
-    plan->dockerfile = cli_plan_put(plan, path);
-    if (!cli_plan_string(cli_plan_member_of(build, "context"), s_text))
+    EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .places = places,
+               .out = s_read);
+    EMBED_CALL(cli_devcontainer_out_base_internal.plan_join, CliDevcontainerOutBaseCtx, .base = base, .path = s_read,
+               .out = path);
+    plan->dockerfile = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+                                  .plan = plan, .text = path);
+    if (!EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                    .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member_get, CliDevcontainerNameCtx,
+                                        .object = build, .name = "context"),
+                    .out = s_text))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_text,
                                 .src = ".",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_plan_expanded(s_text, places, s_read);
-    cli_plan_joined(base, s_read, path);
-    plan->context = cli_plan_put(plan, path);
-    cli_plan_pairs(plan, cli_plan_member_of(build, "args"), places, &plan->args);
-    plan->targeted = cli_plan_string(cli_plan_member_of(build, "target"), s_text);
-    plan->target = plan->targeted ? cli_plan_put(plan, s_text) : 0u;
+    EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .places = places,
+               .out = s_read);
+    EMBED_CALL(cli_devcontainer_out_base_internal.plan_join, CliDevcontainerOutBaseCtx, .base = base, .path = s_read,
+               .out = path);
+    plan->context = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
+                               .text = path);
+    EMBED_CALL(cli_devcontainer_object_internal.plan_pairs, CliDevcontainerObjectCtx, .plan = plan,
+               .object = EMBED_CALL(cli_devcontainer_name_internal.plan_member_get, CliDevcontainerNameCtx,
+                                    .object = build, .name = "args"),
+               .places = places, .list = &plan->args);
+    plan->targeted = EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                                .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member_get,
+                                                    CliDevcontainerNameCtx, .object = build, .name = "target"),
+                                .out = s_text);
+    plan->target = plan->targeted ? EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+                                               .plan = plan, .text = s_text)
+                                  : 0u;
     return 1;
 }
 
 // the last part of `path` into `name`, sized for CLI_PATH_MAX_LEN: the separators after it left off, and a drive's
 // root none
-static void cli_last_named(const char *path, char *name)
+EMBED_INLINE void cli_last_by_name(const DevcontainerReadCtx *args)
 {
-    const char *end = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    end = path + cli_text_back_past(path, (unsigned long long)(end - path), "/\\");
+    const char *end = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    end = args->path + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->path,
+                                  .at = (unsigned long long)(end - args->path), .set = "/\\");
     const char *last = end;
-    last = path + cli_text_back_any(path, (unsigned long long)(last - path), "/\\");
+    last = args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                                   .at = (unsigned long long)(last - args->path), .set = "/\\");
     last += (((end - last) == 2) && (last[1] == ':')) ? 2 : 0;
-    VerbaLinea line = {name, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->name, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put_n(&line, last, (unsigned long long)(end - last));
     mmgr_line_finish(&line);
 }
 
-static int cli_plan_locked(const char *root, CliPlan *plan, VerbaLinea *err_msg)
+EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
 {
+    const char *root = args->root;
+    CliPlan *plan = args->plan;
+    VerbaLinea *err_msg = args->err_msg;
     static char s_text[CLI_STRING_MAX_LEN];
     static char s_read[CLI_STRING_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
-    if (!cli_devcontainer_find(root, file))
+    if (!EMBED_CALL(cli_devcontainer_table.find, CliDevcontainerCfg, .root = root, .file = file))
     {
         mmgr_line_put(err_msg, root);
         mmgr_line_put(err_msg, " has no .devcontainer/devcontainer.json");
         return 0;
     }
-    if (!cli_plan_description_read(file, err_msg))
+    if (!EMBED_CALL(cli_devcontainer_internal.plan_description_read, CliDevcontainerCtx, .file = file,
+                    .err_msg = err_msg))
     {
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = plan, .val = 0, .bytes = sizeof(*plan)});
     // the text at 0 is the empty one
     plan->used = 1u;
-    plan->file = cli_plan_put(plan, file);
-    plan->root = cli_plan_put(plan, root);
+    plan->file = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
+                            .text = file);
+    plan->root = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
+                            .text = root);
     char name[CLI_PATH_MAX_LEN];
-    cli_devcontainer_name(root, name);
-    plan->name = cli_plan_put(plan, name);
+    EMBED_CALL(cli_devcontainer_root_name.name, CliDevcontainerRootNameCfg, .root = root, .name = name);
+    plan->name = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
+                            .text = name);
     // the description's folder, or the tree where it stands in none
     char base[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = base, .src = file, .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
-    char *const forward = cli_text_last(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), '/');
+    char *const forward =
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = base,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), .byte = '/');
     char *const backward =
-        cli_text_last(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), '\\');
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = base,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), .byte = '\\');
     char *const cut = ((backward != NULL) && ((forward == NULL) || (backward > forward))) ? backward : forward;
     if (cut != NULL)
     {
@@ -134,48 +203,78 @@ static int cli_plan_locked(const char *root, CliPlan *plan, VerbaLinea *err_msg)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     }
     unsigned int compose[CLI_PLAN_LIST_MOST];
-    const unsigned int composes = cli_plan_strings(cli_plan_member("dockerComposeFile"), compose, CLI_PLAN_LIST_MOST);
+    const unsigned int composes = EMBED_CALL(cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,
+                                             .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member,
+                                                                 CliDevcontainerNameCtx, .name = "dockerComposeFile"),
+                                             .tokens = compose, .room = CLI_PLAN_LIST_MOST);
     const CliPlanPlaces outside = {root, ""};
-    if (cli_plan_string(cli_plan_member("workspaceFolder"), s_text))
+    if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                   .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
+                                       .name = "workspaceFolder"),
+                   .out = s_text))
     {
-        cli_plan_expanded(s_text, &outside, s_read);
-        plan->folder = cli_plan_put(plan, s_read);
+        EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .places = &outside,
+                   .out = s_read);
+        plan->folder = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+                                  .plan = plan, .text = s_read);
     }
     else
     {
         // the tree's folder's name is shorter than a path, and the folder it is put under shorter than a string
         char tree_name[CLI_PATH_MAX_LEN];
-        cli_last_named(root, tree_name);
+        EMBED_CALL(cli_last_by_name, DevcontainerReadCtx, .path = root, .name = tree_name);
         VerbaLinea line = {s_read, sizeof(s_read), 0ull};
         mmgr_line_put(&line, (composes != 0u) ? "/" : "/workspaces/");
         mmgr_line_put(&line, (composes != 0u) ? "" : tree_name);
         mmgr_line_finish(&line);
-        plan->folder = cli_plan_put(plan, s_read);
+        plan->folder = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+                                  .plan = plan, .text = s_read);
     }
     const CliPlanPlaces places = {root, plan->text + plan->folder};
-    if (!cli_source_read(plan, file, base, &places, compose, composes, err_msg))
+    if (!EMBED_CALL(cli_source_read, DevcontainerReadCtx, .plan = plan, .file = file, .base = base, .places = &places,
+                    .compose = compose, .composes = composes, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_plan_pairs(plan, cli_plan_member("containerEnv"), &places, &plan->env);
-    cli_plan_mounts(plan, &places);
+    EMBED_CALL(cli_devcontainer_object_internal.plan_pairs, CliDevcontainerObjectCtx, .plan = plan,
+               .object = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
+                                    .name = "containerEnv"),
+               .places = &places, .list = &plan->env);
+    EMBED_CALL(cli_devcontainer_object_internal.plan_mounts, CliDevcontainerObjectCtx, .plan = plan, .places = &places);
     unsigned int tokens[CLI_PLAN_LIST_MOST];
-    const unsigned int run_args = cli_plan_strings(cli_plan_member("runArgs"), tokens, CLI_PLAN_LIST_MOST);
+    const unsigned int run_args = EMBED_CALL(
+        cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,
+        .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx, .name = "runArgs"),
+        .tokens = tokens, .room = CLI_PLAN_LIST_MOST);
     for (unsigned int each = 0u; each < run_args; each += 1u)
     {
-        if (cli_plan_string(tokens[each], s_text))
+        if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                       .value = tokens[each], .out = s_text))
         {
-            cli_plan_expanded(s_text, &places, s_read);
-            cli_plan_listed(plan, &plan->run_args, s_read);
+            EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text,
+                       .places = &places, .out = s_read);
+            EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = plan,
+                       .list = &plan->run_args, .text = s_read);
         }
     }
-    plan->has_user = cli_plan_string(cli_plan_member("containerUser"), s_text) ||
-                     cli_plan_string(cli_plan_member("remoteUser"), s_text);
-    plan->user = plan->has_user ? cli_plan_put(plan, s_text) : 0u;
-    cli_plan_commands(plan, "onCreateCommand", plan->on_create, &plan->on_creates);
-    cli_plan_commands(plan, "postCreateCommand", plan->on_create, &plan->on_creates);
-    cli_plan_commands(plan, "postStartCommand", plan->on_start, &plan->on_starts);
-    if (cli_plan_overflowed())
+    plan->has_user = EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                                .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
+                                                    .name = "containerUser"),
+                                .out = s_text) ||
+                     EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
+                                .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
+                                                    .name = "remoteUser"),
+                                .out = s_text);
+    plan->user = plan->has_user ? EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+                                             .plan = plan, .text = s_text)
+                                : 0u;
+    EMBED_CALL(cli_devcontainer_plan_internal.plan_commands, CliDevcontainerPlanCtx, .plan = plan,
+               .key = "onCreateCommand", .commands = plan->on_create, .count = &plan->on_creates);
+    EMBED_CALL(cli_devcontainer_plan_internal.plan_commands, CliDevcontainerPlanCtx, .plan = plan,
+               .key = "postCreateCommand", .commands = plan->on_create, .count = &plan->on_creates);
+    EMBED_CALL(cli_devcontainer_plan_internal.plan_commands, CliDevcontainerPlanCtx, .plan = plan,
+               .key = "postStartCommand", .commands = plan->on_start, .count = &plan->on_starts);
+    if (cli_plan_overflow())
     {
         mmgr_line_put(err_msg, file);
         mmgr_line_put(err_msg, ": it contains more than a plan stores");
@@ -184,11 +283,12 @@ static int cli_plan_locked(const char *root, CliPlan *plan, VerbaLinea *err_msg)
     return 1;
 }
 
-int cli_devcontainer_plan(const char *root, CliPlan *plan, VerbaLinea *err_msg)
+int cli_devcontainer_plan(const CliDevcontainerRootCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const int done = cli_plan_locked(root, plan, err_msg);
-    cli_plan_description_given();
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int done = EMBED_CALL(cli_plan_lock, DevcontainerReadCtx, .root = args->root, .plan = args->plan_out,
+                                .err_msg = args->err_msg);
+    cli_plan_description_free();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }

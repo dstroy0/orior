@@ -10,8 +10,15 @@
 // end a statement
 #ifndef SQL_H
 #define SQL_H
+typedef struct CliSqlTextCfg CliSqlTextCfg;
+typedef struct CliSqlTextLengthCfg CliSqlTextLengthCfg;
+typedef struct CliSqlTextLengthDialectCfg CliSqlTextLengthDialectCfg;
+typedef struct CliSqlLengthCfg CliSqlLengthCfg;
+typedef struct CliSqlLengthDialectCfg CliSqlLengthDialectCfg;
+typedef struct CliSqlCfg CliSqlCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the SQL each database writes
 enum
@@ -71,26 +78,135 @@ typedef struct
 } CliShaped;
 
 // the dialect a database's name writes: mysql and mariadb, sqlite, and PostgreSQL's for any other
-unsigned int cli_sql_dialect(const char *name);
+unsigned int cli_sql_dialect(const CliSqlCfg *args);
 // the token that starts at `*at` of `length` bytes of `text`, every byte in one, into `token`, `*at` moved past it: 1,
 // or 0 at the text's end
-int cli_sql_token(const char *text, unsigned long long length, unsigned int dialect, unsigned long long *at,
-                  CliSqlToken *token);
+int cli_sql_token(const CliSqlTextLengthDialectCfg *args);
+typedef struct
+{
+    void *context;
+    CliSqlSpan span;
+} CliEachSpanCfg;
+
 // each statement of a text handed to `each` in order
-void cli_sql_statements(const char *text, unsigned long long length, unsigned int dialect,
-                        void (*each)(void *context, CliSqlSpan span), void *context);
+void cli_sql_statements(const CliSqlTextLengthCfg *args);
 // the statement of a text the place `at` stands in, into `span`: within it, at its semicolon, or after it on its last
 // line with nothing but spaces and a comment between. 1, or 0 where the place stands in no statement, on a blank line
 // or in a comment of its own
-int cli_sql_statement_at(const char *text, unsigned long long length, unsigned long long at, unsigned int dialect,
-                         CliSqlSpan *span);
+int cli_sql_statement_at(const CliSqlTextCfg *args);
 // what a statement does (sql_does.c); whether running it changes anything the database stores; the query that counts
 // the rows it reaches into `out` where it is an UPDATE or a DELETE with no WHERE at its own level, or a TRUNCATE: 1,
 // or 0 where it is none; and the object a statement that shapes one makes, changes or drops: 1, or 0 where it shapes
 // none
-unsigned int cli_sql_does(const char *statement, unsigned long long length, unsigned int dialect);
-int cli_sql_changes(const char *statement, unsigned long long length, unsigned int dialect);
-int cli_sql_unbounded(const char *statement, unsigned long long length, unsigned int dialect, VerbaLinea *out);
-int cli_sql_shaped(const char *statement, unsigned long long length, unsigned int dialect, CliShaped *shaped);
+unsigned int cli_sql_does(const CliSqlLengthCfg *args);
+int cli_sql_changes(const CliSqlLengthCfg *args);
+int cli_sql_unbounded(const CliSqlLengthDialectCfg *args);
+int cli_sql_shape(const CliSqlLengthCfg *args);
+
+struct CliSqlTextCfg
+{
+    const char *text;
+    unsigned long long length;
+    unsigned int dialect;
+    unsigned long long at_value;
+    CliSqlSpan *span;
+};
+
+struct CliSqlTextLengthCfg
+{
+    const char *text;
+    unsigned long long length;
+    unsigned int dialect;
+    void (*each)(const CliEachSpanCfg *args);
+    void *context;
+};
+
+struct CliSqlTextLengthDialectCfg
+{
+    const char *text;
+    unsigned long long length;
+    unsigned int dialect;
+    unsigned long long *at;
+    CliSqlToken *token;
+};
+
+struct CliSqlLengthCfg
+{
+    unsigned long long length;
+    unsigned int dialect;
+    const char *statement;
+    CliShaped *shaped;
+};
+
+struct CliSqlLengthDialectCfg
+{
+    unsigned long long length;
+    unsigned int dialect;
+    const char *statement;
+    VerbaLinea *out;
+};
+
+struct CliSqlCfg
+{
+    const char *name;
+};
+
+typedef struct
+{
+    unsigned int (*dialect)(const CliSqlCfg *args);
+} CliSqlNs;
+EMBED_TABLE_LAYOUT(CliSqlNs, dialect);
+EMBED_TABLE_STORAGE CliSqlNs cli_sql EMBED_UNUSED = {
+    .dialect = cli_sql_dialect,
+};
+
+typedef struct
+{
+    int (*token)(const CliSqlTextLengthDialectCfg *args);
+} CliSqlTextLengthDialectNs;
+EMBED_TABLE_LAYOUT(CliSqlTextLengthDialectNs, token);
+EMBED_TABLE_STORAGE CliSqlTextLengthDialectNs cli_sql_text_length_dialect EMBED_UNUSED = {
+    .token = cli_sql_token,
+};
+
+typedef struct
+{
+    void (*statements)(const CliSqlTextLengthCfg *args);
+} CliSqlTextLengthNs;
+EMBED_TABLE_LAYOUT(CliSqlTextLengthNs, statements);
+EMBED_TABLE_STORAGE CliSqlTextLengthNs cli_sql_text_length EMBED_UNUSED = {
+    .statements = cli_sql_statements,
+};
+
+typedef struct
+{
+    int (*statement_at)(const CliSqlTextCfg *args);
+} CliSqlTextNs;
+EMBED_TABLE_LAYOUT(CliSqlTextNs, statement_at);
+EMBED_TABLE_STORAGE CliSqlTextNs cli_sql_text EMBED_UNUSED = {
+    .statement_at = cli_sql_statement_at,
+};
+
+typedef struct
+{
+    unsigned int (*does)(const CliSqlLengthCfg *args);
+    int (*changes)(const CliSqlLengthCfg *args);
+    int (*shape)(const CliSqlLengthCfg *args);
+} CliSqlLengthNs;
+EMBED_TABLE_LAYOUT(CliSqlLengthNs, does, changes, shape);
+EMBED_TABLE_STORAGE CliSqlLengthNs cli_sql_length EMBED_UNUSED = {
+    .does = cli_sql_does,
+    .changes = cli_sql_changes,
+    .shape = cli_sql_shape,
+};
+
+typedef struct
+{
+    int (*unbounded)(const CliSqlLengthDialectCfg *args);
+} CliSqlLengthDialectNs;
+EMBED_TABLE_LAYOUT(CliSqlLengthDialectNs, unbounded);
+EMBED_TABLE_STORAGE CliSqlLengthDialectNs cli_sql_length_dialect EMBED_UNUSED = {
+    .unbounded = cli_sql_unbounded,
+};
 
 #endif

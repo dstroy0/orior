@@ -22,40 +22,64 @@ typedef struct
     void *context;
 } CliSpans;
 
+typedef struct
+{
+    const CliLeafRead *read;
+    unsigned int leaf;
+    const char *text;
+    unsigned long long size;
+    CliSymbolPlace place;
+    const CliSpans *spans_read;
+    unsigned long long byte;
+    CliSpans *spans;
+    unsigned int first;
+    unsigned long long from;
+    unsigned int last;
+    unsigned long long to;
+    unsigned int end;
+    unsigned int open;
+    unsigned int start;
+    unsigned int close;
+} SymbolsSpansCtx;
 // whether the leaf `leaf` of `read` is a blank, a comment or a mark with no bytes, a statement's end or a block's
 // close the leaves' reading put
-static int spans_blank(const CliLeafRead *read, unsigned int leaf)
+EMBED_INLINE int spans_blank(const SymbolsSpansCtx *args)
 {
-    return ((read->leaf[leaf].is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u) ||
-           (read->leaf[leaf].from == read->leaf[leaf].to);
+    return ((args->read->leaf[args->leaf].is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u) ||
+           (args->read->leaf[args->leaf].from == args->read->leaf[args->leaf].to);
 }
 
 // the byte of `size` bytes of `text` the place `place` falls at, the text's end where it is past it
-static unsigned long long spans_byte_of(const char *text, unsigned long long size, CliSymbolPlace place)
+EMBED_INLINE unsigned long long spans_byte_get(const SymbolsSpansCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
     unsigned long long start = 0ull;
-    for (unsigned int line = 0u; (line < place.line) && (start < size); start += 1ull)
+    for (unsigned int line = 0u; (line < args->place.line) && (start < size); start += 1ull)
     {
         line += (text[start] == '\n') ? 1u : 0u;
     }
     unsigned long long end = start;
-    end = cli_text_to_any(text, end, size, "\n");
-    return start + cli_text_byte_of(text + start, end - start, place.col);
+    end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = end, .size = size,
+                     .set = "\n");
+    return start + EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = text + start, .size = end - start,
+                              .col = args->place.col);
 }
 
 // the place of the byte `byte` of the text, the text's first byte or one on the line of the leaf `leaf` or past it by
 // the line ends between
-static CliSymbolPlace spans_place(const CliSpans *spans, unsigned int leaf, unsigned long long byte)
+EMBED_INLINE CliSymbolPlace spans_place(const SymbolsSpansCtx *args)
 {
-    if (byte == 0ull)
+    if (args->byte == 0ull)
     {
         return (CliSymbolPlace){0u, 0u};
     }
-    const char *const text = spans->read->text;
-    unsigned int line = spans->read->leaf[leaf].line;
-    unsigned long long start = spans->read->leaf[leaf].from;
-    start = cli_text_back_any(text, start, "\n");
-    for (unsigned long long at = spans->read->leaf[leaf].from; at < byte; at += 1ull)
+    const char *const text = args->spans_read->read->text;
+    unsigned int line = args->spans_read->read->leaf[args->leaf].line;
+    unsigned long long start = args->spans_read->read->leaf[args->leaf].from;
+    start =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text, .at = start, .set = "\n");
+    for (unsigned long long at = args->spans_read->read->leaf[args->leaf].from; at < args->byte; at += 1ull)
     {
         if (text[at] == '\n')
         {
@@ -64,52 +88,64 @@ static CliSymbolPlace spans_place(const CliSpans *spans, unsigned int leaf, unsi
         }
     }
     // a line's units are below 2^32
-    return (CliSymbolPlace){line, (unsigned int)cli_text_units(text + start, byte - start)};
+    return (CliSymbolPlace){line, (unsigned int)EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg,
+                                                           .text = text + start, .size = args->byte - start)};
 }
 
 // the bytes `from` to `to` handed as a span, the leaves `first` and `last` on their lines, where they hold the last
 // span handed and are more than it
-static void spans_handed(CliSpans *spans, unsigned int first, unsigned long long from, unsigned int last,
-                         unsigned long long to)
+EMBED_INLINE void spans_dispatch(const SymbolsSpansCtx *args)
 {
-    if ((from > spans->from) || (to < spans->to) || ((from == spans->from) && (to == spans->to)))
+    unsigned long long from = args->from;
+    unsigned long long to = args->to;
+    if ((from > args->spans->from) || (to < args->spans->to) ||
+        ((from == args->spans->from) && (to == args->spans->to)))
     {
         return;
     }
-    spans->each(spans->context, spans_place(spans, first, from), spans_place(spans, last, to));
-    spans->from = from;
-    spans->to = to;
+    EMBED_CALL(
+        args->spans->each, CliSpannedCfg, .context = args->spans->context,
+        .from = EMBED_CALL(spans_place, SymbolsSpansCtx, .spans_read = args->spans, .leaf = args->first, .byte = from),
+        .to = EMBED_CALL(spans_place, SymbolsSpansCtx, .spans_read = args->spans, .leaf = args->last, .byte = to));
+    args->spans->from = from;
+    args->spans->to = to;
 }
 
 // the leaves `first` to before `end` handed as a span, the blanks and comments at either end left out
-static void spans_leaves_handed(CliSpans *spans, unsigned int first, unsigned int end)
+EMBED_INLINE void spans_leaves_dispatch(const SymbolsSpansCtx *args)
 {
-    const CliLeafRead *const read = spans->read;
-    while ((first < end) && spans_blank(read, first))
+    unsigned int first = args->first;
+    unsigned int end = args->end;
+    const CliLeafRead *const read = args->spans->read;
+    while ((first < end) && EMBED_CALL(spans_blank, SymbolsSpansCtx, .read = read, .leaf = first))
     {
         first += 1u;
     }
-    while ((end > first) && spans_blank(read, end - 1u))
+    while ((end > first) && EMBED_CALL(spans_blank, SymbolsSpansCtx, .read = read, .leaf = end - 1u))
     {
         end -= 1u;
     }
     if (end > first)
     {
-        spans_handed(spans, first, read->leaf[first].from, end - 1u, read->leaf[end - 1u].to);
+        EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = args->spans, .first = first,
+                   .from = read->leaf[first].from, .last = end - 1u, .to = read->leaf[end - 1u].to);
     }
 }
 
 // the bracket that closes the pair the leaf `open` of `read` opens, `read->count` where none does
-static unsigned int spans_closing(const CliLeafRead *read, unsigned int open)
+EMBED_INLINE unsigned int spans_closing(const SymbolsSpansCtx *args)
 {
+    const CliLeafRead *read = args->read;
     unsigned int depth = 0u;
-    for (unsigned int leaf = open + 1u; leaf < read->count; leaf += 1u)
+    for (unsigned int leaf = args->open + 1u; leaf < read->count; leaf += 1u)
     {
-        if (cli_leaf_has(read, leaf, CLI_LEAF_OPEN))
+        if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
+                       .roles = CLI_LEAF_OPEN))
         {
             depth += 1u;
         }
-        else if (cli_leaf_has(read, leaf, CLI_LEAF_CLOSE))
+        else if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
+                            .roles = CLI_LEAF_CLOSE))
         {
             if (depth == 0u)
             {
@@ -122,16 +158,20 @@ static unsigned int spans_closing(const CliLeafRead *read, unsigned int open)
 }
 
 // the bracket that opens the pair the leaves before the leaf `leaf` of `read` stand in, CLI_JSON_NONE where none does
-static unsigned int spans_opening(const CliLeafRead *read, unsigned int leaf)
+EMBED_INLINE unsigned int spans_opening(const SymbolsSpansCtx *args)
 {
+    const CliLeafRead *read = args->read;
+    unsigned int leaf = args->leaf;
     unsigned int depth = 0u;
     for (unsigned int back = leaf; back > 0u; back -= 1u)
     {
-        if (cli_leaf_has(read, back - 1u, CLI_LEAF_CLOSE))
+        if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = back - 1u,
+                       .roles = CLI_LEAF_CLOSE))
         {
             depth += 1u;
         }
-        else if (cli_leaf_has(read, back - 1u, CLI_LEAF_OPEN))
+        else if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = back - 1u,
+                            .roles = CLI_LEAF_OPEN))
         {
             if (depth == 0u)
             {
@@ -146,17 +186,21 @@ static unsigned int spans_opening(const CliLeafRead *read, unsigned int leaf)
 // the first leaf of the statement the leaf `leaf` of `read` stands in among those from `first` on at their depth: past
 // the last statement's end, region's close or directive's line at that depth before it, or the first of the directive's
 // line it stands on
-static unsigned int spans_statement_first(const CliLeafRead *read, unsigned int first, unsigned int leaf)
+EMBED_INLINE unsigned int spans_statement_first(const SymbolsSpansCtx *args)
 {
+    const CliLeafRead *read = args->read;
+    unsigned int leaf = args->leaf;
     unsigned int depth = 0u;
-    unsigned int start = first;
-    unsigned int line_first = first;
+    unsigned int start = args->first;
+    unsigned int line_first = args->first;
     unsigned int directive_line = CLI_SLICE_NOWHERE;
-    for (unsigned int one = first; one < leaf; one += 1u)
+    for (unsigned int one = args->first; one < leaf; one += 1u)
     {
-        line_first = ((one > first) && (read->leaf[one].line != read->leaf[one - 1u].line)) ? one : line_first;
-        const int opens = cli_leaf_has(read, one, CLI_LEAF_OPEN);
-        const int closes = cli_leaf_has(read, one, CLI_LEAF_CLOSE);
+        line_first = ((one > args->first) && (read->leaf[one].line != read->leaf[one - 1u].line)) ? one : line_first;
+        const int opens = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
+                                     .leaf = one, .roles = CLI_LEAF_OPEN);
+        const int closes = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
+                                      .leaf = one, .roles = CLI_LEAF_CLOSE);
         depth = opens ? (depth + 1u) : ((closes && (depth > 0u)) ? (depth - 1u) : depth);
         if ((depth > 0u) || opens)
         {
@@ -168,7 +212,10 @@ static unsigned int spans_statement_first(const CliLeafRead *read, unsigned int 
             start = line_first;
         }
         else if (((read->leaf[one].line == directive_line) && (directive_line != read->leaf[leaf].line)) ||
-                 cli_leaf_has(read, one, CLI_LEAF_STATEMENT) || (closes && cli_leaf_has(read, one, CLI_LEAF_REGION)))
+                 EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = one,
+                            .roles = CLI_LEAF_STATEMENT) ||
+                 (closes && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
+                                       .leaf = one, .roles = CLI_LEAF_REGION)))
         {
             start = one + 1u;
         }
@@ -179,29 +226,36 @@ static unsigned int spans_statement_first(const CliLeafRead *read, unsigned int 
 // the leaf past the statement whose first leaf is `start`, the leaf `leaf` among it: past its end at its depth, at the
 // opening bracket of the region its head is before, at the bracket that closes the pair it stands in, or past the
 // directive's line it is
-static unsigned int spans_statement_end(const CliLeafRead *read, unsigned int start, unsigned int leaf)
+EMBED_INLINE unsigned int spans_statement_end(const SymbolsSpansCtx *args)
 {
+    const CliLeafRead *read = args->read;
+    unsigned int leaf = args->leaf;
     int directive = 0;
-    for (unsigned int one = start; (one < read->count) && (read->leaf[one].line == read->leaf[start].line); one += 1u)
+    for (unsigned int one = args->start; (one < read->count) && (read->leaf[one].line == read->leaf[args->start].line);
+         one += 1u)
     {
         directive |= (read->leaf[one].is & CLI_LEAF_DIRECTIVE) != 0u;
     }
     unsigned int depth = 0u;
-    for (unsigned int one = start; one < read->count; one += 1u)
+    for (unsigned int one = args->start; one < read->count; one += 1u)
     {
-        if (directive && (read->leaf[one].line != read->leaf[start].line))
+        if (directive && (read->leaf[one].line != read->leaf[args->start].line))
         {
             return one;
         }
-        if (cli_leaf_has(read, one, CLI_LEAF_OPEN))
+        if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = one,
+                       .roles = CLI_LEAF_OPEN))
         {
-            if ((depth == 0u) && (one >= leaf) && cli_leaf_has(read, one, CLI_LEAF_REGION))
+            if ((depth == 0u) && (one >= leaf) &&
+                EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = one,
+                           .roles = CLI_LEAF_REGION))
             {
                 return one;
             }
             depth += 1u;
         }
-        else if (cli_leaf_has(read, one, CLI_LEAF_CLOSE))
+        else if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = one,
+                            .roles = CLI_LEAF_CLOSE))
         {
             if (depth == 0u)
             {
@@ -209,7 +263,9 @@ static unsigned int spans_statement_end(const CliLeafRead *read, unsigned int st
             }
             depth -= 1u;
         }
-        else if ((depth == 0u) && (one >= leaf) && cli_leaf_has(read, one, CLI_LEAF_STATEMENT))
+        else if ((depth == 0u) && (one >= leaf) &&
+                 EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = one,
+                            .roles = CLI_LEAF_STATEMENT))
         {
             return one + 1u;
         }
@@ -220,51 +276,59 @@ static unsigned int spans_statement_end(const CliLeafRead *read, unsigned int st
 // the pair the leaf `open` opens and `close` closes handed, inside its brackets and with them, the text's end where no
 // bracket closes it; a pair a mark of no bytes closes ending, both ways, where the last leaf before the mark that is
 // no blank ends
-static void spans_pair_handed(CliSpans *spans, unsigned int open, unsigned int close)
+EMBED_INLINE void spans_pair_dispatch(const SymbolsSpansCtx *args)
 {
-    const CliLeafRead *const read = spans->read;
-    unsigned int last = (close < read->count) ? close : (read->count - 1u);
-    unsigned long long inside = (close < read->count) ? read->leaf[close].from : spans->size;
-    unsigned long long whole = (close < read->count) ? read->leaf[close].to : spans->size;
-    if ((close < read->count) && (read->leaf[close].from == read->leaf[close].to))
+    const CliLeafRead *const read = args->spans->read;
+    unsigned int last = (args->close < read->count) ? args->close : (read->count - 1u);
+    unsigned long long inside = (args->close < read->count) ? read->leaf[args->close].from : args->spans->size;
+    unsigned long long whole = (args->close < read->count) ? read->leaf[args->close].to : args->spans->size;
+    if ((args->close < read->count) && (read->leaf[args->close].from == read->leaf[args->close].to))
     {
-        last = close;
-        while ((last > (open + 1u)) && spans_blank(read, last - 1u))
+        last = args->close;
+        while ((last > (args->open + 1u)) && EMBED_CALL(spans_blank, SymbolsSpansCtx, .read = read, .leaf = last - 1u))
         {
             last -= 1u;
         }
-        last = (last > (open + 1u)) ? (last - 1u) : open;
+        last = (last > (args->open + 1u)) ? (last - 1u) : args->open;
         inside = read->leaf[last].to;
         whole = inside;
     }
-    spans_handed(spans, open, read->leaf[open].to, last, inside);
-    spans_handed(spans, open, read->leaf[open].from, last, whole);
+    EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = args->spans, .first = args->open,
+               .from = read->leaf[args->open].to, .last = last, .to = inside);
+    EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = args->spans, .first = args->open,
+               .from = read->leaf[args->open].from, .last = last, .to = whole);
 }
 
 // the statement the leaf `leaf` stands in among those from `first` on handed, and where it is the head of a region,
 // the region with it
-static void spans_statement_handed(CliSpans *spans, unsigned int first, unsigned int leaf)
+EMBED_INLINE void spans_statement_dispatch(const SymbolsSpansCtx *args)
 {
-    const CliLeafRead *const read = spans->read;
-    const unsigned int start = spans_statement_first(read, first, leaf);
-    const unsigned int end = spans_statement_end(read, start, leaf);
-    spans_leaves_handed(spans, start, end);
-    if ((end < read->count) && cli_leaf_has(read, end, CLI_LEAF_REGION | CLI_LEAF_OPEN))
+    unsigned int leaf = args->leaf;
+    const CliLeafRead *const read = args->spans->read;
+    const unsigned int start =
+        EMBED_CALL(spans_statement_first, SymbolsSpansCtx, .read = read, .first = args->first, .leaf = leaf);
+    const unsigned int end =
+        EMBED_CALL(spans_statement_end, SymbolsSpansCtx, .read = read, .start = start, .leaf = leaf);
+    EMBED_CALL(spans_leaves_dispatch, SymbolsSpansCtx, .spans = args->spans, .first = start, .end = end);
+    if ((end < read->count) && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
+                                          .leaf = end, .roles = CLI_LEAF_REGION | CLI_LEAF_OPEN))
     {
-        spans_leaves_handed(spans, start, spans_closing(read, end) + 1u);
+        EMBED_CALL(spans_leaves_dispatch, SymbolsSpansCtx, .spans = args->spans, .first = start,
+                   .end = EMBED_CALL(spans_closing, SymbolsSpansCtx, .read = read, .open = end) + 1u);
     }
 }
 
 // the leaf a place at the byte `byte` stands in: the one that holds it, else the one that ends at it where that one is
 // a name and the one that holds it is not, or is a blank; the last that starts at or before it
-static unsigned int spans_leaf_at(const CliLeafRead *read, unsigned long long byte)
+EMBED_INLINE unsigned int spans_leaf_at(const SymbolsSpansCtx *args)
 {
+    const CliLeafRead *read = args->read;
     unsigned int low = 0u;
     unsigned int high = read->count;
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (read->leaf[middle].from <= byte)
+        if (read->leaf[middle].from <= args->byte)
         {
             low = middle + 1u;
         }
@@ -274,78 +338,104 @@ static unsigned int spans_leaf_at(const CliLeafRead *read, unsigned long long by
         }
     }
     const unsigned int at = (low > 0u) ? (low - 1u) : 0u;
-    const int before =
-        (at > 0u) && (read->leaf[at].from == byte) && (read->leaf[at - 1u].to == byte) && !spans_blank(read, at - 1u);
-    const int named_before =
-        before && cli_leaf_has(read, at - 1u, CLI_LEAF_NAME) && !cli_leaf_has(read, at, CLI_LEAF_NAME);
-    return (before && (spans_blank(read, at) || named_before)) ? (at - 1u) : at;
+    const int before = (at > 0u) && (read->leaf[at].from == args->byte) && (read->leaf[at - 1u].to == args->byte) &&
+                       !EMBED_CALL(spans_blank, SymbolsSpansCtx, .read = read, .leaf = at - 1u);
+    const int named_before = before &&
+                             EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
+                                        .leaf = at - 1u, .roles = CLI_LEAF_NAME) &&
+                             !EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
+                                         .leaf = at, .roles = CLI_LEAF_NAME);
+    return (before && (EMBED_CALL(spans_blank, SymbolsSpansCtx, .read = read, .leaf = at) || named_before)) ? (at - 1u)
+                                                                                                            : at;
 }
 
-int cli_symbols_spans(const char *path, const char *text, unsigned long long size, CliSymbolPlace from,
-                      CliSymbolPlace to, CliSpanned each, void *context, VerbaLinea *err_msg)
+int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceCfg *args)
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
-    CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
-    const int leaved = (languages != NULL) && cli_symbols_leaves_kept(languages, path, "root", text, size, &read);
+    CliLeafRead read = {args->text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
+    const int leaved = (languages != NULL) && EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx,
+                                                         .languages = languages, .path = args->path, .state = "root",
+                                                         .text = args->text, .size = args->size, .read = &read);
     if (leaved && (read.count > 0u))
     {
-        CliSpans spans = {&read, size, spans_byte_of(text, size, from), spans_byte_of(text, size, to), each, context};
-        const unsigned int word = spans_leaf_at(&read, spans.from);
-        if (!spans_blank(&read, word))
+        CliSpans spans = {&read,
+                          args->size,
+                          EMBED_CALL(spans_byte_get, SymbolsSpansCtx, .text = args->text, .size = args->size,
+                                     .place = args->from_symbol_place),
+                          EMBED_CALL(spans_byte_get, SymbolsSpansCtx, .text = args->text, .size = args->size,
+                                     .place = args->to_symbol_place),
+                          args->each_spanned,
+                          args->context};
+        const unsigned int word = EMBED_CALL(spans_leaf_at, SymbolsSpansCtx, .read = &read, .byte = spans.from);
+        if (!EMBED_CALL(spans_blank, SymbolsSpansCtx, .read = &read, .leaf = word))
         {
-            spans_handed(&spans, word, read.leaf[word].from, word, read.leaf[word].to);
+            EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = &spans, .first = word, .from = read.leaf[word].from,
+                       .last = word, .to = read.leaf[word].to);
         }
         // each pair around the place from the innermost out, the statement of a region's before its brackets
         unsigned int inner = word;
-        unsigned int open = cli_leaf_has(&read, word, CLI_LEAF_OPEN) ? word : spans_opening(&read, word);
+        unsigned int open = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = &read,
+                                       .leaf = word, .roles = CLI_LEAF_OPEN)
+                                ? word
+                                : EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = word);
         while (open != CLI_JSON_NONE)
         {
-            const unsigned int outer = spans_opening(&read, open);
-            const int region = cli_leaf_has(&read, open, CLI_LEAF_REGION);
+            const unsigned int outer = EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = open);
+            const int region = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = &read,
+                                          .leaf = open, .roles = CLI_LEAF_REGION);
             if (region && (inner != open))
             {
-                spans_statement_handed(&spans, open + 1u, inner);
+                EMBED_CALL(spans_statement_dispatch, SymbolsSpansCtx, .spans = &spans, .first = open + 1u,
+                           .leaf = inner);
             }
-            const unsigned int close = spans_closing(&read, open);
-            spans_pair_handed(&spans, open, close);
+            const unsigned int close = EMBED_CALL(spans_closing, SymbolsSpansCtx, .read = &read, .open = open);
+            EMBED_CALL(spans_pair_dispatch, SymbolsSpansCtx, .spans = &spans, .open = open, .close = close);
             if (region)
             {
                 const unsigned int head =
-                    spans_statement_first(&read, (outer != CLI_JSON_NONE) ? (outer + 1u) : 0u, open);
-                spans_leaves_handed(&spans, head, (close < read.count) ? (close + 1u) : read.count);
+                    EMBED_CALL(spans_statement_first, SymbolsSpansCtx, .read = &read,
+                               .first = (outer != CLI_JSON_NONE) ? (outer + 1u) : 0u, .leaf = open);
+                EMBED_CALL(spans_leaves_dispatch, SymbolsSpansCtx, .spans = &spans, .first = head,
+                           .end = (close < read.count) ? (close + 1u) : read.count);
             }
             inner = open;
             open = outer;
         }
-        spans_statement_handed(&spans, 0u, inner);
-        spans_handed(&spans, 0u, 0ull, read.count - 1u, size);
+        EMBED_CALL(spans_statement_dispatch, SymbolsSpansCtx, .spans = &spans, .first = 0u, .leaf = inner);
+        EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = &spans, .first = 0u, .from = 0ull, .last = read.count - 1u,
+                   .to = args->size);
     }
     const int refused = (languages != NULL) && read.refused;
-    cli_symbols_leaves_given(&read);
-    cli_symbols_languages_given(languages);
+    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
     if (refused)
     {
-        mmgr_line_put(err_msg, "the cells cannot meet the text's leaves");
+        mmgr_line_put(args->err_msg, "the cells cannot meet the text's leaves");
     }
     return !refused;
 }
 
 // whether the leaf `leaf` of `read` is a bracket of a pair: a leaf of one byte or more that opens or closes
-static int spans_bracket(const CliLeafRead *read, unsigned int leaf)
+EMBED_INLINE int spans_bracket(const SymbolsSpansCtx *args)
 {
+    const CliLeafRead *read = args->read;
+    unsigned int leaf = args->leaf;
     return (leaf < read->count) && (read->leaf[leaf].to > read->leaf[leaf].from) &&
-           (cli_leaf_has(read, leaf, CLI_LEAF_OPEN) || cli_leaf_has(read, leaf, CLI_LEAF_CLOSE));
+           (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
+                       .roles = CLI_LEAF_OPEN) ||
+            EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
+                       .roles = CLI_LEAF_CLOSE));
 }
 
 // the bracket of `read` that ends at the byte `byte`, else the one that starts at it, `read->count` where neither does
-static unsigned int spans_bracket_at(const CliLeafRead *read, unsigned long long byte)
+EMBED_INLINE unsigned int spans_bracket_at(const SymbolsSpansCtx *args)
 {
     unsigned int low = 0u;
-    unsigned int high = read->count;
+    unsigned int high = args->read->count;
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (read->leaf[middle].from < byte)
+        if (args->read->leaf[middle].from < args->byte)
         {
             low = middle + 1u;
         }
@@ -354,32 +444,45 @@ static unsigned int spans_bracket_at(const CliLeafRead *read, unsigned long long
             high = middle;
         }
     }
-    if ((low > 0u) && (read->leaf[low - 1u].to == byte) && spans_bracket(read, low - 1u))
+    if ((low > 0u) && (args->read->leaf[low - 1u].to == args->byte) &&
+        EMBED_CALL(spans_bracket, SymbolsSpansCtx, .read = args->read, .leaf = low - 1u))
     {
         return low - 1u;
     }
-    return ((low < read->count) && (read->leaf[low].from == byte) && spans_bracket(read, low)) ? low : read->count;
+    return ((low < args->read->count) && (args->read->leaf[low].from == args->byte) &&
+            EMBED_CALL(spans_bracket, SymbolsSpansCtx, .read = args->read, .leaf = low))
+               ? low
+               : args->read->count;
 }
 
-int cli_symbols_pair(const char *path, const char *state, const char *text, unsigned long long size, CliSymbolPlace at,
-                     CliSymbolPlace *pair)
+int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
-    CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
-    const int leaved = (languages != NULL) && cli_symbols_leaves_temporary(languages, path, state, text, size, &read);
-    const unsigned int bracket = leaved ? spans_bracket_at(&read, spans_byte_of(text, size, at)) : read.count;
-    const int opens = (bracket < read.count) && cli_leaf_has(&read, bracket, CLI_LEAF_OPEN);
+    CliLeafRead read = {args->text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
+    const int leaved =
+        (languages != NULL) &&
+        EMBED_CALL(cli_symbols_path_internal.leaves_temporary, CliSymbolsPathCtx, .languages = languages,
+                   .path = args->path, .state = args->state, .text = args->text, .size = args->size, .read = &read);
+    const unsigned int bracket =
+        leaved ? EMBED_CALL(spans_bracket_at, SymbolsSpansCtx, .read = &read,
+                            .byte = EMBED_CALL(spans_byte_get, SymbolsSpansCtx, .text = args->text, .size = args->size,
+                                               .place = args->at_symbol_place))
+               : read.count;
+    const int opens = (bracket < read.count) && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx,
+                                                           .read_read = &read, .leaf = bracket, .roles = CLI_LEAF_OPEN);
     const unsigned int mate = (bracket >= read.count) ? read.count
-                              : opens                 ? spans_closing(&read, bracket)
-                                                      : spans_opening(&read, bracket);
-    const int paired = spans_bracket(&read, mate);
+                              : opens ? EMBED_CALL(spans_closing, SymbolsSpansCtx, .read = &read, .open = bracket)
+                                      : EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = bracket);
+    const int paired = EMBED_CALL(spans_bracket, SymbolsSpansCtx, .read = &read, .leaf = mate);
     if (paired)
     {
-        const CliSpans spans = {&read, size, 0ull, 0ull, NULL, NULL};
-        pair[0] = spans_place(&spans, bracket, read.leaf[bracket].from);
-        pair[1] = spans_place(&spans, mate, read.leaf[mate].from);
+        const CliSpans spans = {&read, args->size, 0ull, 0ull, NULL, NULL};
+        args->pair[0] = EMBED_CALL(spans_place, SymbolsSpansCtx, .spans_read = &spans, .leaf = bracket,
+                                   .byte = read.leaf[bracket].from);
+        args->pair[1] =
+            EMBED_CALL(spans_place, SymbolsSpansCtx, .spans_read = &spans, .leaf = mate, .byte = read.leaf[mate].from);
     }
-    cli_symbols_leaves_given(&read);
-    cli_symbols_languages_given(languages);
+    EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
+    EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
     return paired;
 }

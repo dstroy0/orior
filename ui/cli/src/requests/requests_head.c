@@ -7,56 +7,77 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-int cli_requests_head_stored(CliRequestsAnswer *answer, const char *text, unsigned long long size,
-                             CliRequestsText *text_span)
+int cli_requests_head_store(const CliRequestsTextSizeAnswerCtx *args)
 {
-    if (answer->head_used + size + 1u > sizeof(answer->head))
+    unsigned long long size = args->size;
+    if (args->answer_out->head_used + size + 1u > sizeof(args->answer_out->head))
     {
         return 0;
     }
-    text_span->at = answer->head_used;
-    text_span->size = size;
-    memor.cpy(&(MemoriaCfg){.dst = answer->head + answer->head_used, .src = text, .bytes = (size_t)size});
-    answer->head[answer->head_used + size] = '\0';
-    answer->head_used += size + 1u;
+    args->text_span->at = args->answer_out->head_used;
+    args->text_span->size = size;
+    memor.cpy(&(MemoriaCfg){
+        .dst = args->answer_out->head + args->answer_out->head_used, .src = args->text, .bytes = (size_t)size});
+    args->answer_out->head[args->answer_out->head_used + size] = '\0';
+    args->answer_out->head_used += size + 1u;
     return 1;
 }
 
-int cli_requests_head_line(CliRequestsAnswer *answer, const char *line, unsigned long long size)
+int cli_requests_head_line(const CliRequestsSizeAnswerCtx *args)
 {
-    const char *const colon = memor.chr(&(MemoriaCfg){.src = line, .val = ':', .bytes = (size_t)size});
+    const char *const colon = memor.chr(&(MemoriaCfg){.src = args->line, .val = ':', .bytes = (size_t)args->size});
     if (colon == NULL)
     {
         return 1;
     }
-    if (answer->headers == CLI_REQUESTS_ANSWER_HEADERS)
+    if (args->answer_out->headers == CLI_REQUESTS_ANSWER_HEADERS)
     {
         return 0;
     }
     unsigned long long name_start = 0ull;
-    unsigned long long name_end = (unsigned long long)(colon - line);
+    unsigned long long name_end = (unsigned long long)(colon - args->line);
     unsigned long long value_start = name_end + 1u;
-    unsigned long long value_end = size;
-    cli_requests_trimmed(line, &name_start, &name_end);
-    cli_requests_trimmed(line, &value_start, &value_end);
-    const unsigned int at = answer->headers;
-    if (!cli_requests_head_stored(answer, line + name_start, name_end - name_start, &answer->header_name[at]) ||
-        !cli_requests_head_stored(answer, line + value_start, value_end - value_start, &answer->header_value[at]))
+    unsigned long long value_end = args->size;
+    EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = args->line, .start = &name_start,
+               .end = &name_end);
+    EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = args->line,
+               .start = &value_start, .end = &value_end);
+    const unsigned int at = args->answer_out->headers;
+    if (!EMBED_CALL(cli_requests_text_size_answer_internal.head_store, CliRequestsTextSizeAnswerCtx,
+                    .answer_out = args->answer_out, .text = args->line + name_start, .size = name_end - name_start,
+                    .text_span = &args->answer_out->header_name[at]) ||
+        !EMBED_CALL(cli_requests_text_size_answer_internal.head_store, CliRequestsTextSizeAnswerCtx,
+                    .answer_out = args->answer_out, .text = args->line + value_start, .size = value_end - value_start,
+                    .text_span = &args->answer_out->header_value[at]))
     {
         return 0;
     }
-    answer->headers += 1u;
+    args->answer_out->headers += 1u;
     return 1;
 }
 
-// whether the request has a header named `name`, ASCII case aside
-static int head_has(const CliRequestsSent *hop, const char *name)
+typedef struct
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    for (unsigned int at = 0u; at < hop->headers; at += 1u)
+    const CliRequestsSent *hop;
+    const char *name;
+    const char *lower;
+    const char *value;
+    VerbaLinea *out;
+    const CliRequestsAnswer *answer;
+    const CliRequestsText *value_requests_text_pointer;
+    CliRequestsRoom *room;
+    unsigned long long bytes;
+    VerbaLinea *err_msg;
+} RequestsHeadCtx;
+// whether the request has a header named `name`, ASCII case aside
+EMBED_INLINE int head_has(const RequestsHeadCtx *args)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    for (unsigned int at = 0u; at < args->hop->headers; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = hop->header_name[at], .cap = CLI_CELLS_POOL}) == length) &&
-            cli_requests_contains(hop->header_name[at], length, name))
+        if ((cellul.len(&(CatenaFinitaCfg){.src = args->hop->header_name[at], .cap = CLI_CELLS_POOL}) == length) &&
+            EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                       .text = args->hop->header_name[at], .size = length, .needle = args->name))
         {
             return 1;
         }
@@ -65,100 +86,118 @@ static int head_has(const CliRequestsSent *hop, const char *name)
 }
 
 // a header written where the request names none of its name
-static void head_given(const CliRequestsSent *hop, const char *name, const char *lower, const char *value,
-                       VerbaLinea *out)
+EMBED_INLINE void head_free(const RequestsHeadCtx *args)
 {
-    if (!head_has(hop, lower))
+    if (!EMBED_CALL(head_has, RequestsHeadCtx, .hop = args->hop, .name = args->lower))
     {
-        mmgr_line_put(out, name);
-        mmgr_line_put(out, ": ");
-        mmgr_line_put(out, value);
-        mmgr_line_put(out, "\r\n");
+        mmgr_line_put(args->out, args->name);
+        mmgr_line_put(args->out, ": ");
+        mmgr_line_put(args->out, args->value);
+        mmgr_line_put(args->out, "\r\n");
     }
 }
 
-void cli_requests_head_written(const CliRequestsSent *hop, const CliRequestsAddress *address, VerbaLinea *out)
+void cli_requests_head_write(const CliRequestsOutHopCtx *args)
 {
-    mmgr_line_put(out, hop->method);
-    mmgr_line_ch(out, ' ');
-    mmgr_line_put(out, address->target);
-    mmgr_line_put(out, " HTTP/1.1\r\n");
+    mmgr_line_put(args->out, args->hop->method);
+    mmgr_line_ch(args->out, ' ');
+    mmgr_line_put(args->out, args->address_read->target);
+    mmgr_line_put(args->out, " HTTP/1.1\r\n");
     char host[CLI_REQUESTS_ADDRESS + 16u];
     VerbaLinea host_line = {host, sizeof(host), 0ull};
     const int bracketed =
-        (cellul.chr(&(CatenaFinitaCfg){.src = address->host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL);
+        (cellul.chr(&(CatenaFinitaCfg){.src = args->address_read->host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL);
     mmgr_line_put(&host_line, bracketed ? "[" : "");
-    mmgr_line_put(&host_line, address->host);
+    mmgr_line_put(&host_line, args->address_read->host);
     mmgr_line_put(&host_line, bracketed ? "]" : "");
-    if (address->port != (address->secure ? 443u : 80u))
+    if (args->address_read->port != (args->address_read->secure ? 443u : 80u))
     {
         mmgr_line_ch(&host_line, ':');
-        mmgr_line_decimal(&host_line, address->port, 1u);
+        mmgr_line_decimal(&host_line, args->address_read->port, 1u);
     }
     mmgr_line_finish(&host_line);
-    head_given(hop, "Host", "host", host, out);
-    for (unsigned int at = 0u; at < hop->headers; at += 1u)
+    EMBED_CALL(head_free, RequestsHeadCtx, .hop = args->hop, .name = "Host", .lower = "host", .value = host,
+               .out = args->out);
+    for (unsigned int at = 0u; at < args->hop->headers; at += 1u)
     {
-        mmgr_line_put(out, hop->header_name[at]);
-        mmgr_line_put(out, ": ");
-        mmgr_line_put(out, hop->header_value[at]);
-        mmgr_line_put(out, "\r\n");
+        mmgr_line_put(args->out, args->hop->header_name[at]);
+        mmgr_line_put(args->out, ": ");
+        mmgr_line_put(args->out, args->hop->header_value[at]);
+        mmgr_line_put(args->out, "\r\n");
     }
-    head_given(hop, "User-Agent", "user-agent", "orior/" CLI_VERSION, out);
-    head_given(hop, "Accept", "accept", "*/*", out);
-    head_given(hop, "Accept-Encoding", "accept-encoding", "gzip, deflate", out);
-    const int sends = (cellul.eq(&(CatenaFinitaCfg){.src = hop->method, .other = "POST", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = hop->method, .other = "PUT", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = hop->method, .other = "PATCH", .cap = CLI_CELLS_POOL}));
-    if (((hop->body_size > 0u) || sends) && !head_has(hop, "transfer-encoding"))
+    EMBED_CALL(head_free, RequestsHeadCtx, .hop = args->hop, .name = "User-Agent", .lower = "user-agent",
+               .value = "orior/" CLI_VERSION, .out = args->out);
+    EMBED_CALL(head_free, RequestsHeadCtx, .hop = args->hop, .name = "Accept", .lower = "accept", .value = "*/*",
+               .out = args->out);
+    EMBED_CALL(head_free, RequestsHeadCtx, .hop = args->hop, .name = "Accept-Encoding", .lower = "accept-encoding",
+               .value = "gzip, deflate", .out = args->out);
+    const int sends =
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "POST", .cap = CLI_CELLS_POOL})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "PUT", .cap = CLI_CELLS_POOL})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->hop->method, .other = "PATCH", .cap = CLI_CELLS_POOL}));
+    if (((args->hop->body_size > 0u) || sends) &&
+        !EMBED_CALL(head_has, RequestsHeadCtx, .hop = args->hop, .name = "transfer-encoding"))
     {
         char length[24];
         VerbaLinea length_line = {length, sizeof(length), 0ull};
-        mmgr_line_decimal(&length_line, hop->body_size, 1u);
+        mmgr_line_decimal(&length_line, args->hop->body_size, 1u);
         mmgr_line_finish(&length_line);
-        head_given(hop, "Content-Length", "content-length", length, out);
+        EMBED_CALL(head_free, RequestsHeadCtx, .hop = args->hop, .name = "Content-Length", .lower = "content-length",
+                   .value = length, .out = args->out);
     }
-    head_given(hop, "Connection", "connection", "close", out);
-    mmgr_line_put(out, "\r\n");
+    EMBED_CALL(head_free, RequestsHeadCtx, .hop = args->hop, .name = "Connection", .lower = "connection",
+               .value = "close", .out = args->out);
+    mmgr_line_put(args->out, "\r\n");
 }
 
 // whether a header's value, ASCII case aside, is `lower`
-static int head_is(const CliRequestsAnswer *answer, const CliRequestsText *value, const char *lower)
+EMBED_INLINE int head_is(const RequestsHeadCtx *args)
 {
-    return (value != NULL) && (value->size == cellul.len(&(CatenaFinitaCfg){.src = lower, .cap = CLI_CELLS_POOL})) &&
-           cli_requests_contains(answer->head + value->at, value->size, lower);
+    return (args->value_requests_text_pointer != NULL) &&
+           (args->value_requests_text_pointer->size ==
+            cellul.len(&(CatenaFinitaCfg){.src = args->lower, .cap = CLI_CELLS_POOL})) &&
+           EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                      .text = args->answer->head + args->value_requests_text_pointer->at,
+                      .size = args->value_requests_text_pointer->size, .needle = args->lower);
 }
 
 // the room's unpacked body a cell of `bytes`, CLI_REQUESTS_BODY at the most, the one before given back where it is
 // smaller: 1, or 0 with why given where the cell is refused
-static int head_unpacked_room(CliRequestsRoom *room, unsigned long long bytes, VerbaLinea *err_msg)
+EMBED_INLINE int head_unpacked_room(const RequestsHeadCtx *args)
 {
-    const unsigned long long wanted = (bytes < 1ull) ? 1ull : ((bytes > CLI_REQUESTS_BODY) ? CLI_REQUESTS_BODY : bytes);
-    if ((room->unpacked != NULL) && (room->unpacked_room >= wanted))
+    const unsigned long long wanted =
+        (args->bytes < 1ull) ? 1ull : ((args->bytes > CLI_REQUESTS_BODY) ? CLI_REQUESTS_BODY : args->bytes);
+    if ((args->room->unpacked != NULL) && (args->room->unpacked_room >= wanted))
     {
         return 1;
     }
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(wanted, &g_cli_requests_cells);
     if (cell == NULL)
     {
-        mmgr_line_put(err_msg, "the answer's body undone could not be stored");
+        mmgr_line_put(args->err_msg, "the answer's body undone could not be stored");
         return 0;
     }
-    g_cli_cells->persistent_buf_release(room->unpacked, &g_cli_requests_cells);
-    room->unpacked = cell;
-    room->unpacked_room = wanted;
+    g_cli_cells->persistent_buf_release(args->room->unpacked, &g_cli_requests_cells);
+    args->room->unpacked = cell;
+    args->room->unpacked_room = wanted;
     return 1;
 }
 
-int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, VerbaLinea *err_msg)
+int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
 {
-    CliRequestsAnswer *const answer = &room->answer;
-    const CliRequestsText *const encoding = cli_requests_header(answer, "Content-Encoding");
-    const unsigned char *const raw = (const unsigned char *)room->raw.out;
+    unsigned long long size = args->size;
+    CliRequestsAnswer *const answer = &args->room->answer;
+    const CliRequestsText *const encoding =
+        EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx, .answer = answer,
+                   .name = "Content-Encoding");
+    const unsigned char *const raw = (const unsigned char *)args->room->raw.out;
     unsigned long long unpacked = 0ull;
     answer->body = raw;
     answer->size = size;
-    if (head_is(answer, encoding, "gzip") || head_is(answer, encoding, "x-gzip"))
+    if (EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
+                   .lower = "gzip") ||
+        EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
+                   .lower = "x-gzip"))
     {
         // a gzip ends with its unpacked size, and the room is taken once at that size
         const unsigned long long unpacked_size =
@@ -166,21 +205,28 @@ int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, VerbaLi
                 ? ((unsigned long long)raw[size - 4ull] | ((unsigned long long)raw[size - 3ull] << 8u) |
                    ((unsigned long long)raw[size - 2ull] << 16u) | ((unsigned long long)raw[size - 1ull] << 24u))
                 : 0ull;
-        if (!head_unpacked_room(room, unpacked_size, err_msg) ||
-            !cli_gunzip(raw, size, room->unpacked, room->unpacked_room, &unpacked, err_msg))
+        if (!EMBED_CALL(head_unpacked_room, RequestsHeadCtx, .room = args->room, .bytes = unpacked_size,
+                        .err_msg = args->err_msg) ||
+            !EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = raw, .size = size,
+                        .out = args->room->unpacked, .room = args->room->unpacked_room, .out_size = &unpacked,
+                        .err_msg = args->err_msg))
         {
             return 0;
         }
     }
-    else if (head_is(answer, encoding, "deflate"))
+    else if (EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
+                        .lower = "deflate"))
     {
         // a deflate gives no size: the room is taken at the most a body holds
         const int zlib =
             (size > 2u) && ((raw[0] & 0x0fu) == 8u) && ((((unsigned int)raw[0] << 8u) | raw[1]) % 31u == 0u);
         unsigned long long used = 0ull;
-        if (!head_unpacked_room(room, CLI_REQUESTS_BODY, err_msg) ||
-            !cli_inflate(zlib ? (raw + 2) : raw, zlib ? (size - 2u) : size, room->unpacked, room->unpacked_room,
-                         &unpacked, &used, err_msg))
+        if (!EMBED_CALL(head_unpacked_room, RequestsHeadCtx, .room = args->room, .bytes = CLI_REQUESTS_BODY,
+                        .err_msg = args->err_msg) ||
+            !EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = zlib ? (raw + 2) : raw,
+                        .size = zlib ? (size - 2u) : size, .out = args->room->unpacked,
+                        .room = args->room->unpacked_room, .out_size = &unpacked, .used = &used,
+                        .err_msg = args->err_msg))
         {
             return 0;
         }
@@ -189,27 +235,30 @@ int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, VerbaLi
     {
         return 1;
     }
-    answer->body = room->unpacked;
+    answer->body = args->room->unpacked;
     answer->size = unpacked;
     return 1;
 }
 
-int cli_requests_is_text(const CliRequestsAnswer *answer)
+int cli_requests_is_text(const CliRequestsNameAnswerCtx *args)
 {
-    const CliRequestsText *const type = cli_requests_header(answer, "Content-Type");
+    const CliRequestsText *const type = EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx,
+                                                   .answer = args->answer, .name = "Content-Type");
     const char *kind = "";
     unsigned long long size = 0ull;
     if (type != NULL)
     {
-        kind = answer->head + type->at;
+        kind = args->answer->head + type->at;
         size = type->size;
     }
     static const char *const texts[7] = {"json", "xml", "javascript", "x-www-form-urlencoded",
                                          "yaml", "csv", "graphql"};
-    int text = (size >= 5u) && cli_requests_contains(kind, 5u, "text/");
+    int text = (size >= 5u) && EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                                          .text = kind, .size = 5u, .needle = "text/");
     for (unsigned int at = 0u; !text && (at < 7u); at += 1u)
     {
-        text = cli_requests_contains(kind, size, texts[at]);
+        text = EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = kind,
+                          .size = size, .needle = texts[at]);
     }
     if (text)
     {
@@ -218,16 +267,22 @@ int cli_requests_is_text(const CliRequestsAnswer *answer)
     static const char *const starts[3] = {"image/", "audio/", "video/"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        if ((size >= 6u) && cli_requests_contains(kind, 6u, starts[at]))
+        if ((size >= 6u) && EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                                       .text = kind, .size = 6u, .needle = starts[at]))
         {
             return 0;
         }
     }
-    if (cli_requests_contains(kind, size, "octet-stream") || cli_requests_contains(kind, size, "pdf") ||
-        cli_requests_contains(kind, size, "zip"))
+    if (EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = kind,
+                   .size = size, .needle = "octet-stream") ||
+        EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = kind,
+                   .size = size, .needle = "pdf") ||
+        EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = kind,
+                   .size = size, .needle = "zip"))
     {
         return 0;
     }
-    return cli_utf8_whole((const char *)answer->body, answer->size) &&
-           (memor.chr(&(MemoriaCfg){.src = answer->body, .val = 0, .bytes = (size_t)answer->size}) == NULL);
+    return EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)args->answer->body,
+                      .size = args->answer->size) &&
+           (memor.chr(&(MemoriaCfg){.src = args->answer->body, .val = 0, .bytes = (size_t)args->answer->size}) == NULL);
 }

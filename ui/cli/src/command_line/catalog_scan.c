@@ -6,77 +6,102 @@
 #include "../text/text.h"
 #include "catalog_internal.h"
 
-void cli_catalog_join(const char *folder, const char *name, char *path)
-{
-    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, folder);
-    mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, name);
-    mmgr_line_finish(&line);
-}
-
-void cli_catalog_stem(const char *path, char *out)
-{
-    const char *name = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    name = path + cli_text_back_any(path, (unsigned long long)(name - path), "/\\");
-    const char *const dot =
-        cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
-    const unsigned long long length = ((dot != NULL) && (dot != name))
-                                          ? (unsigned long long)(dot - name)
-                                          : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
-    mmgr_line_put_n(&line, name, length);
-    mmgr_line_finish(&line);
-}
-
 // A line of a text: where it starts and its length, its `\r` before `\n` left off
 typedef struct
 {
     const char *at;
     unsigned long long length;
 } CatalogTextLine;
-
-// the line from `*at` before `end`, `*at` moved past it: 1, or 0 at the end
-static int cli_line(const char **at, const char *end, CatalogTextLine *line)
+void cli_catalog_join(const CliCatalogFolderNameCtx *args)
 {
-    if (*at >= end)
+    VerbaLinea line = {args->path_out, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, args->name);
+    mmgr_line_finish(&line);
+}
+
+void cli_catalog_stem(const CliCatalogPathOutCtx *args)
+{
+    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    name = args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                                   .at = (unsigned long long)(name - args->path), .set = "/\\");
+    const char *const dot =
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
+    const unsigned long long length = ((dot != NULL) && (dot != name))
+                                          ? (unsigned long long)(dot - name)
+                                          : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put_n(&line, name, length);
+    mmgr_line_finish(&line);
+}
+
+typedef struct
+{
+    const char **at;
+    const char *end;
+    CatalogTextLine *line_pointer;
+    char letter;
+    CatalogTextLine line;
+    const char *word;
+    VerbaLinea *out;
+    int *count;
+    const char *text;
+    unsigned long long length;
+    const char *open;
+    unsigned long long size;
+    const char *path;
+    const char *from;
+    char *joined;
+} CatalogScanCtx;
+// the line from `*at` before `end`, `*at` moved past it: 1, or 0 at the end
+EMBED_INLINE int cli_line(const CatalogScanCtx *args)
+{
+    const char **at = args->at;
+    if (*at >= args->end)
     {
         return 0;
     }
     const char *stop = *at;
-    stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
-    line->at = *at;
-    line->length = (unsigned long long)(stop - *at);
-    line->length -= ((line->length != 0ull) && (line->at[line->length - 1u] == '\r')) ? 1ull : 0ull;
-    *at = (stop < end) ? (stop + 1) : stop;
+    stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+                       .size = (unsigned long long)(args->end - stop), .set = "\n");
+    args->line_pointer->at = *at;
+    args->line_pointer->length = (unsigned long long)(stop - *at);
+    args->line_pointer->length -=
+        ((args->line_pointer->length != 0ull) && (args->line_pointer->at[args->line_pointer->length - 1u] == '\r'))
+            ? 1ull
+            : 0ull;
+    *at = (stop < args->end) ? (stop + 1) : stop;
     return 1;
 }
 
-static int cli_space(char letter)
+EMBED_INLINE int cli_space(const CatalogScanCtx *args)
 {
-    return (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
+    return (args->letter == ' ') || ((args->letter >= '\t') && (args->letter <= '\r'));
 }
 
-static CatalogTextLine cli_trimmed(CatalogTextLine line)
+EMBED_INLINE CatalogTextLine cli_trim(const CatalogScanCtx *args)
 {
-    while ((line.length != 0ull) && cli_space(line.at[0]))
+    CatalogTextLine line = args->line;
+    while ((line.length != 0ull) && EMBED_CALL(cli_space, CatalogScanCtx, .letter = line.at[0]))
     {
         line.at += 1;
         line.length -= 1ull;
     }
-    while ((line.length != 0ull) && cli_space(line.at[line.length - 1u]))
+    while ((line.length != 0ull) && EMBED_CALL(cli_space, CatalogScanCtx, .letter = line.at[line.length - 1u]))
     {
         line.length -= 1ull;
     }
     return line;
 }
 
-static int cli_line_contains(CatalogTextLine line, const char *word)
+EMBED_INLINE int cli_line_contains(const CatalogScanCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; (at + size) <= line.length; at += 1ull)
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; (at + size) <= args->line.length; at += 1ull)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = line.at + at, .other = word, .bytes = size}) == 0)
+        if (memor.cmp(&(MemoriaCfg){.src = args->line.at + at, .other = args->word, .bytes = size}) == 0)
         {
             return 1;
         }
@@ -84,51 +109,54 @@ static int cli_line_contains(CatalogTextLine line, const char *word)
     return 0;
 }
 
-static int cli_starts(CatalogTextLine line, const char *word)
+EMBED_INLINE int cli_starts(const CatalogScanCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
-    return (line.length >= size) && (memor.cmp(&(MemoriaCfg){.src = line.at, .other = word, .bytes = size}) == 0);
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    return (args->line.length >= size) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->line.at, .other = args->word, .bytes = size}) == 0);
 }
 
 // a retained line put after the paragraph, a space before each but the first
-static void cli_paragraph_put(VerbaLinea *out, int *count, const char *text, unsigned long long length)
+EMBED_INLINE void cli_paragraph_put(const CatalogScanCtx *args)
 {
-    mmgr_line_put(out, (*count != 0) ? " " : "");
-    mmgr_line_put_n(out, text, length);
+    int *count = args->count;
+    mmgr_line_put(args->out, (*count != 0) ? " " : "");
+    mmgr_line_put_n(args->out, args->text, args->length);
     *count += 1;
 }
 
 // A Python module's docstring: from the line it opens on, each line trimmed of its quotes, up to its close or a blank
 // line after text
-static void cli_docstring(const char *open, const char *end, VerbaLinea *out)
+EMBED_INLINE void cli_docstring(const CatalogScanCtx *args)
 {
     int count = 0;
     int first = 1;
     CatalogTextLine line;
-    const char *at = open;
-    while (cli_line(&at, end, &line))
+    const char *at = args->open;
+    while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = args->end, .line_pointer = &line))
     {
-        line = cli_trimmed(line);
-        while (first && cli_starts(line, "\"\"\""))
+        line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line);
+        while (first && EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = "\"\"\""))
         {
             line.at += 3;
             line.length -= 3ull;
         }
         first = 0;
-        const int ended = cli_line_contains(line, "\"\"\"");
+        const int ended = EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word = "\"\"\"");
         while ((line.length >= 3ull) &&
                (memor.cmp(&(MemoriaCfg){.src = line.at + line.length - 3u, .other = "\"\"\"", .bytes = 3u}) == 0))
         {
             line.length -= 3ull;
         }
-        line = cli_trimmed(line);
+        line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line);
         if ((line.length == 0ull) && (count != 0))
         {
             return;
         }
         if (line.length != 0ull)
         {
-            cli_paragraph_put(out, &count, line.at, line.length);
+            EMBED_CALL(cli_paragraph_put, CatalogScanCtx, .out = args->out, .count = &count, .text = line.at,
+                       .length = line.length);
         }
         if (ended)
         {
@@ -138,33 +166,39 @@ static void cli_docstring(const char *open, const char *end, VerbaLinea *out)
 }
 
 // the end of the first 120 lines of the `size` bytes at `text`, the lines what a file declares of itself is read from
-static const char *cli_about_end(const char *text, unsigned long long size)
+EMBED_INLINE const char *cli_about_end(const CatalogScanCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
     const char *end = text;
     const char *const whole = text + size;
     for (unsigned int lines = 0u; (lines < 120u) && (end < whole); lines += 1u)
     {
-        end += cli_text_to_any(end, 0ull, (unsigned long long)(whole - end), "\n");
+        end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ull,
+                          .size = (unsigned long long)(whole - end), .set = "\n");
         end += (end < whole) ? 1 : 0;
     }
     return end;
 }
 
 // what the file at `path`, its text from `text` to `end`, declares of itself into `out`
-static void cli_about_written(const char *path, const char *text, const char *end, VerbaLinea *out)
+static void cli_about_write(const CatalogScanCtx *args)
 {
-    const char *const dot =
-        cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '.');
+    const char *text = args->text;
+    const char *const dot = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->path,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .byte = '.');
     const char *const extension = (dot != NULL) ? (dot + 1) : "";
     CatalogTextLine line;
     const char *at = text;
     if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "py", .cap = CLI_CELLS_POOL}))
     {
-        while (cli_line(&at, end, &line))
+        while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = args->end, .line_pointer = &line))
         {
-            if (cli_starts(cli_trimmed(line), "\"\"\""))
+            if (EMBED_CALL(cli_starts, CatalogScanCtx, .line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line),
+                           .word = "\"\"\""))
             {
-                cli_docstring(line.at, end, out);
+                EMBED_CALL(cli_docstring, CatalogScanCtx, .open = line.at, .end = args->end, .out = args->out);
                 return;
             }
         }
@@ -176,16 +210,17 @@ static void cli_about_written(const char *path, const char *text, const char *en
                                  ? "#"
                                  : "//";
     int count = 0;
-    while (cli_line(&at, end, &line))
+    while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = args->end, .line_pointer = &line))
     {
-        line = cli_trimmed(line);
-        const int license =
-            cli_line_contains(line, "SPDX") || cli_line_contains(line, "Copyright") || cli_starts(line, "#!");
+        line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line);
+        const int license = EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word = "SPDX") ||
+                            EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word = "Copyright") ||
+                            EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = "#!");
         if ((line.length == 0ull) && (count == 0))
         {
             continue;
         }
-        if (!cli_starts(line, mark))
+        if (!EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = mark))
         {
             if ((count == 0) && license)
             {
@@ -198,17 +233,19 @@ static void cli_about_written(const char *path, const char *text, const char *en
             continue;
         }
         CatalogTextLine about_text = line;
-        while (cli_starts(about_text, mark))
+        while (EMBED_CALL(cli_starts, CatalogScanCtx, .line = about_text, .word = mark))
         {
             about_text.at += cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
             about_text.length -= cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
         }
         {
-            const unsigned long long lead = cli_text_past_any(about_text.at, 0ull, about_text.length, "!");
+            const unsigned long long lead =
+                EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = about_text.at,
+                           .at = 0ull, .size = about_text.length, .set = "!");
             about_text.at += lead;
             about_text.length -= lead;
         }
-        about_text = cli_trimmed(about_text);
+        about_text = EMBED_CALL(cli_trim, CatalogScanCtx, .line = about_text);
         if (about_text.length == 0ull)
         {
             if (count == 0)
@@ -217,56 +254,60 @@ static void cli_about_written(const char *path, const char *text, const char *en
             }
             break;
         }
-        cli_paragraph_put(out, &count, about_text.at, about_text.length);
+        EMBED_CALL(cli_paragraph_put, CatalogScanCtx, .out = args->out, .count = &count, .text = about_text.at,
+                   .length = about_text.length);
     }
 }
 
-void cli_catalog_about(const char *path, VerbaLinea *out)
+void cli_catalog_about(const CliCatalogCfg *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_catalog_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+                                                  .size_pointer = &size, .owner = &g_cli_catalog_cells);
     if (bytes == NULL)
     {
         return;
     }
     // the file's bytes read as its text
     const char *const text = (const char *)bytes;
-    cli_about_written(path, text, cli_about_end(text, size), out);
-    cli_file_given(bytes, &g_cli_catalog_cells);
+    EMBED_CALL(cli_about_write, CatalogScanCtx, .path = args->path, .text = text,
+               .end = EMBED_CALL(cli_about_end, CatalogScanCtx, .text = text, .size = size), .out = args->out);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_catalog_cells);
 }
 
 // what a file declares of itself is the text of the lines it is read from, a space put for each line's end it passes,
 // so it is no longer than those lines
-char *cli_catalog_about_taken(const char *path)
+char *cli_catalog_about_take(const CliCatalogPathCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_catalog_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+                                                  .size_pointer = &size, .owner = &g_cli_catalog_cells);
     if (bytes == NULL)
     {
         return NULL;
     }
     // the file's bytes read as its text
     const char *const text = (const char *)bytes;
-    const char *const end = cli_about_end(text, size);
+    const char *const end = EMBED_CALL(cli_about_end, CatalogScanCtx, .text = text, .size = size);
     const unsigned long long room = (unsigned long long)(end - text) + 1ull;
     char *const about = g_cli_cells->persistent_buf_alloc(room, &g_cli_catalog_cells);
     if (about != NULL)
     {
         VerbaLinea line = {about, room, 0ull};
-        cli_about_written(path, text, end, &line);
+        EMBED_CALL(cli_about_write, CatalogScanCtx, .path = args->path, .text = text, .end = end, .out = &line);
         mmgr_line_finish(&line);
     }
-    cli_file_given(bytes, &g_cli_catalog_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_catalog_cells);
     return about;
 }
 
-unsigned int cli_catalog_case_names(const char *text, const char *variable, char (*names)[CLI_NAME_MAX_LEN],
-                                    unsigned int room)
+unsigned int cli_catalog_case_names(const CliCatalogTextVariableCtx *args)
 {
+    const char *text = args->text_read;
     char opener[CLI_NAME_MAX_LEN];
     VerbaLinea line = {opener, sizeof(opener), 0ull};
     mmgr_line_put(&line, "case \"$");
-    mmgr_line_put(&line, variable);
+    mmgr_line_put(&line, args->variable);
     mmgr_line_put(&line, "\" in");
     mmgr_line_finish(&line);
     const char *const found = cellul.find(
@@ -279,9 +320,9 @@ unsigned int cli_catalog_case_names(const char *text, const char *variable, char
     const char *const end = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
     CatalogTextLine read;
     CatalogTextLine first = {"", 0ull};
-    while (cli_line(&at, end, &read))
+    while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = end, .line_pointer = &read))
     {
-        read = cli_trimmed(read);
+        read = EMBED_CALL(cli_trim, CatalogScanCtx, .line = read);
         if (read.length != 0ull)
         {
             first = read;
@@ -289,7 +330,8 @@ unsigned int cli_catalog_case_names(const char *text, const char *variable, char
         }
     }
     unsigned long long close = 0ull;
-    close = cli_text_to_any(first.at, 0ull, first.length, ")");
+    close = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = first.at, .at = 0ull,
+                       .size = first.length, .set = ")");
     if (close == first.length)
     {
         return 0u;
@@ -301,15 +343,15 @@ unsigned int cli_catalog_case_names(const char *text, const char *variable, char
         if ((cut == close) || (first.at[cut] == '|'))
         {
             CatalogTextLine name = {first.at + from, cut - from};
-            name = cli_trimmed(name);
+            name = EMBED_CALL(cli_trim, CatalogScanCtx, .line = name);
             const int named = (name.length != 0ull) && !((name.length == 1u) && (name.at[0] == '*'));
-            if (named && (names == NULL))
+            if (named && (args->names_callback == NULL))
             {
                 count += 1u;
             }
-            else if (named && (count < room))
+            else if (named && (count < args->room))
             {
-                VerbaLinea name_line = {names[count], CLI_NAME_MAX_LEN, 0ull};
+                VerbaLinea name_line = {args->names_callback[count], CLI_NAME_MAX_LEN, 0ull};
                 mmgr_line_put_n(&name_line, name.at, name.length);
                 count += (mmgr_line_finish(&name_line) != 0ull) ? 1u : 0u;
             }
@@ -321,47 +363,54 @@ unsigned int cli_catalog_case_names(const char *text, const char *variable, char
 
 // the text of the literals from `from` up to the first `\n` written in them, joined into `joined` where it is not
 // NULL: its length
-static unsigned long long cli_driver_joined(const char *from, char *joined)
+EMBED_INLINE unsigned long long cli_driver_join(const CatalogScanCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->from, .cap = CLI_CELLS_POOL});
     unsigned long long length = 0ull;
     // the walk starts inside a literal, and each piece runs to its closing quote
     for (unsigned long long at = 0ull; at < size;)
     {
-        const unsigned long long close = cli_text_to_any(from, at, size, "\"");
-        const unsigned long long stop = cli_text_to_pair(from, at, close, '\\', 'n');
-        if (joined != NULL)
+        const unsigned long long close = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                    .text = args->from, .at = at, .size = size, .set = "\"");
+        const unsigned long long stop =
+            EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = args->from, .at = at,
+                       .size = close, .first = '\\', .second = 'n');
+        if (args->joined != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = joined + length, .src = from + at, .bytes = (size_t)(stop - at)});
+            memor.cpy(
+                &(MemoriaCfg){.dst = args->joined + length, .src = args->from + at, .bytes = (size_t)(stop - at)});
         }
         length += stop - at;
         if (stop < close)
         {
             return length;
         }
-        const unsigned long long open = (close < size) ? cli_text_to_any(from, close + 1ull, size, "\"") : size;
+        const unsigned long long open =
+            (close < size) ? EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->from,
+                                        .at = close + 1ull, .size = size, .set = "\"")
+                           : size;
         at = (open < size) ? (open + 1ull) : size;
     }
     return length;
 }
 
-unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME_MAX_LEN], unsigned int room)
+unsigned int cli_catalog_driver_parts(const CliCatalogRoomCtx *args)
 {
     static const char s_marker[] = "in the order given:";
     const char *const found = cellul.find(
-        &(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL, .other = s_marker, .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = args->source, .cap = CLI_CELLS_POOL, .other = s_marker, .other_cap = CLI_CELLS_POOL});
     if (found == NULL)
     {
         return 0u;
     }
     const char *const literals = found + cellul.len(&(CatenaFinitaCfg){.src = s_marker, .cap = CLI_CELLS_POOL});
-    const unsigned long long length = cli_driver_joined(literals, NULL);
+    const unsigned long long length = EMBED_CALL(cli_driver_join, CatalogScanCtx, .from = literals, .joined = NULL);
     char *const joined = g_cli_cells->temporary_buf_alloc(length + 1ull, &g_cli_catalog_cells);
     if (joined == NULL)
     {
         return 0u;
     }
-    (void)cli_driver_joined(literals, joined);
+    (void)EMBED_CALL(cli_driver_join, CatalogScanCtx, .from = literals, .joined = joined);
     unsigned int count = 0u;
     unsigned long long from = 0ull;
     for (unsigned long long cut = 0ull; cut <= length; cut += 1ull)
@@ -369,14 +418,14 @@ unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME
         if ((cut == length) || (joined[cut] == ','))
         {
             CatalogTextLine part = {joined + from, cut - from};
-            part = cli_trimmed(part);
-            if ((part.length != 0ull) && (parts == NULL))
+            part = EMBED_CALL(cli_trim, CatalogScanCtx, .line = part);
+            if ((part.length != 0ull) && (args->parts == NULL))
             {
                 count += 1u;
             }
-            else if ((part.length != 0ull) && (count < room))
+            else if ((part.length != 0ull) && (count < args->room))
             {
-                VerbaLinea name_line = {parts[count], CLI_NAME_MAX_LEN, 0ull};
+                VerbaLinea name_line = {args->parts[count], CLI_NAME_MAX_LEN, 0ull};
                 mmgr_line_put_n(&name_line, part.at, part.length);
                 count += (mmgr_line_finish(&name_line) != 0ull) ? 1u : 0u;
             }
@@ -389,10 +438,11 @@ unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME
 
 // a README's first paragraph is the text of its lines, a space put for each line's end it passes, so it is no longer
 // than the README
-char *cli_catalog_markdown_taken(const char *path)
+char *cli_catalog_markdown_take(const CliCatalogPathOutCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_catalog_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+                                                  .size_pointer = &size, .owner = &g_cli_catalog_cells);
     if (bytes == NULL)
     {
         return NULL;
@@ -400,7 +450,8 @@ char *cli_catalog_markdown_taken(const char *path)
     char *const opening = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_catalog_cells);
     if (opening == NULL)
     {
-        cli_file_given(bytes, &g_cli_catalog_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
+                   .owner = &g_cli_catalog_cells);
         return NULL;
     }
     VerbaLinea opened = {opening, size + 1ull, 0ull};
@@ -409,10 +460,11 @@ char *cli_catalog_markdown_taken(const char *path)
     const char *const end = at + size;
     int count = 0;
     CatalogTextLine line;
-    while (cli_line(&at, end, &line))
+    while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = end, .line_pointer = &line))
     {
-        line = cli_trimmed(line);
-        if ((line.length == 0ull) || cli_starts(line, "#") || cli_starts(line, "**"))
+        line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line);
+        if ((line.length == 0ull) || EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = "#") ||
+            EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = "**"))
         {
             if (count != 0)
             {
@@ -420,9 +472,10 @@ char *cli_catalog_markdown_taken(const char *path)
             }
             continue;
         }
-        cli_paragraph_put(&opened, &count, line.at, line.length);
+        EMBED_CALL(cli_paragraph_put, CatalogScanCtx, .out = &opened, .count = &count, .text = line.at,
+                   .length = line.length);
     }
     mmgr_line_finish(&opened);
-    cli_file_given(bytes, &g_cli_catalog_cells);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_catalog_cells);
     return opening;
 }

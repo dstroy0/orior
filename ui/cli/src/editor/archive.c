@@ -8,13 +8,14 @@
 // the most names of a .qry's blobs read
 #define CLI_QRY_NAMES 4096u
 
-unsigned int cli_archive_kind_of(const char *name)
+unsigned int cli_archive_kind_get(const CliArchiveCfg *args)
 {
     static const char *const s_zips[10] = {".zip", ".jar",   ".war",  ".ear", ".whl",
                                            ".apk", ".nupkg", ".vsix", ".xpi", ".epub"};
     char lower[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
-    length = cli_text_lowered_into(lower, sizeof(lower), name);
+    length = EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = lower, .room = sizeof(lower),
+                        .text = args->name);
     lower[length] = '\0';
     for (unsigned int at = 0u; at < 10u; at += 1u)
     {
@@ -46,24 +47,26 @@ unsigned int cli_archive_kind_of(const char *name)
     return CLI_ARCHIVE_NONE;
 }
 
-int cli_archive_number(const unsigned char *bytes, unsigned long long size, unsigned long long at, unsigned int width,
-                       unsigned long long *value, VerbaLinea *err_msg)
+int cli_archive_number(const CliArchiveBytesSizeAtCtx *args)
 {
-    if ((at > size) || (width > (size - at)))
+    unsigned long long *value = args->value;
+    if ((args->at > args->size) || (args->width > (args->size - args->at)))
     {
-        mmgr_line_put(err_msg, "the archive is cut");
+        mmgr_line_put(args->err_msg, "the archive is cut");
         return 0;
     }
     *value = 0ull;
-    for (unsigned int byte = 0u; byte < width; byte += 1u)
+    for (unsigned int byte = 0u; byte < args->width; byte += 1u)
     {
-        *value |= (unsigned long long)bytes[at + byte] << (8u * byte);
+        *value |= (unsigned long long)args->bytes[args->at + byte] << (8u * byte);
     }
     return 1;
 }
 
-unsigned int cli_archive_name_stored(CliMembers *members, const char *name, unsigned long long length)
+unsigned int cli_archive_name_store(const CliArchiveMembersCtx *args)
 {
+    const char *name = args->name;
+    unsigned long long length = args->length;
     // a leading `./` and `/` and a trailing `/` left off
     for (;;)
     {
@@ -78,142 +81,173 @@ unsigned int cli_archive_name_stored(CliMembers *members, const char *name, unsi
         }
     }
     {
-        const unsigned long long lead = cli_text_past_any(name, 0ull, length, "/");
+        const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+                                                   .text = name, .at = 0ull, .size = length, .set = "/");
         name += lead;
         length -= lead;
     }
-    length = cli_text_back_past(name, length, "/");
-    if ((members->used + length + 1ull) > CLI_ARCHIVE_NAMES)
+    length =
+        EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = name, .at = length, .set = "/");
+    if ((args->members->used + length + 1ull) > CLI_ARCHIVE_NAMES)
     {
         return 0u;
     }
     // a place is below CLI_ARCHIVE_NAMES, which an unsigned int stores
-    const unsigned int at = (unsigned int)members->used;
-    memor.cpy(&(MemoriaCfg){.dst = members->text + at, .src = name, .bytes = length});
-    members->text[at + length] = '\0';
-    members->used += length + 1ull;
+    const unsigned int at = (unsigned int)args->members->used;
+    memor.cpy(&(MemoriaCfg){.dst = args->members->text + at, .src = name, .bytes = length});
+    args->members->text[at + length] = '\0';
+    args->members->used += length + 1ull;
     return at;
 }
 
-void cli_archive_member_put(CliMembers *members, unsigned int name, unsigned int raw, int has_raw, int dir,
-                            unsigned long long size, unsigned long long at)
+void cli_archive_member_put(const CliArchiveSizeCtx *args)
 {
-    if (members->count >= CLI_ARCHIVE_MEMBERS)
+    if (args->members->count >= CLI_ARCHIVE_MEMBERS)
     {
         return;
     }
-    members->item[members->count] = (CliMember){name, raw, has_raw, dir, size, at};
-    members->count += 1u;
+    args->members->item[args->members->count] =
+        (CliMember){args->name_u32, args->raw, args->has_raw, args->dir, args->size, args->at};
+    args->members->count += 1u;
 }
 
-void cli_gz_inner(const char *name, char *out)
+void cli_gz_inner(const CliArchiveNameOutCtx *args)
 {
     const char *const base =
-        (cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '/') != NULL)
-            ? (cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '/') + 1)
-            : name;
+        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->name,
+                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}),
+                    .byte = '/') != NULL)
+            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->name,
+                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}),
+                          .byte = '/') +
+               1)
+            : args->name;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL});
     const int gz =
         (length >= 3ull) &&
         ((cellul.eq(&(CatenaFinitaCfg){.src = base + length - 3ull, .other = ".gz", .cap = CLI_CELLS_POOL})) ||
          (cellul.eq(&(CatenaFinitaCfg){.src = base + length - 3ull, .other = ".GZ", .cap = CLI_CELLS_POOL})));
-    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out_room, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put_n(&line, base, gz ? (length - 3ull) : length);
     mmgr_line_finish(&line);
 }
 
-int cli_members_of(const unsigned char *bytes, unsigned long long size, unsigned int kind, const char *inner,
-                   CliMembers *members, CliRoom *unpacked, unsigned long long *unpacked_size, VerbaLinea *err_msg)
+int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
 {
+    const unsigned char *bytes = args->bytes;
+    unsigned long long size = args->size;
+    unsigned long long *unpacked_size = args->unpacked_size;
+    VerbaLinea *err_msg = args->err_msg;
     static char s_names[CLI_QRY_NAMES][CLI_NAME_MAX_LEN];
     static CliLock s_lock = CLI_LOCK_INIT;
-    members->count = 0u;
-    members->used = 1ull;
-    members->text[0] = '\0';
+    args->members->count = 0u;
+    args->members->used = 1ull;
+    args->members->text[0] = '\0';
     *unpacked_size = 0ull;
-    if (kind == CLI_ARCHIVE_ZIP)
+    if (args->kind == CLI_ARCHIVE_ZIP)
     {
-        return cli_zip_members(bytes, size, members, err_msg);
+        return EMBED_CALL(cli_archive_bytes_size_err_msg_internal.zip_members, CliArchiveBytesSizeErrMsgCtx,
+                          .bytes = bytes, .size = size, .members = args->members, .err_msg = err_msg);
     }
-    if (kind == CLI_ARCHIVE_TAR)
+    if (args->kind == CLI_ARCHIVE_TAR)
     {
-        return cli_tar_members(bytes, size, members, err_msg);
+        return EMBED_CALL(cli_archive_bytes_size_err_msg_internal.tar_members, CliArchiveBytesSizeErrMsgCtx,
+                          .bytes = bytes, .size = size, .members = args->members, .err_msg = err_msg);
     }
-    if ((kind == CLI_ARCHIVE_TARGZ) || (kind == CLI_ARCHIVE_GZ))
+    if ((args->kind == CLI_ARCHIVE_TARGZ) || (args->kind == CLI_ARCHIVE_GZ))
     {
         // a gzip's trailer ends with the low 32 bits of what it contains unpacked
         unsigned long long trailer_size = 0ull;
-        if ((size < 18ull) || !cli_archive_number(bytes, size, size - 4ull, 4u, &trailer_size, err_msg))
+        if ((size < 18ull) ||
+            !EMBED_CALL(cli_archive_bytes_size_at_internal.number, CliArchiveBytesSizeAtCtx, .bytes = bytes,
+                        .size = size, .at = size - 4ull, .width = 4u, .value = &trailer_size, .err_msg = err_msg))
         {
             mmgr_line_put(err_msg, (size < 18ull) ? "a gzip is cut" : "");
             return 0;
         }
-        if (!cli_archive_room(unpacked, trailer_size + 1ull, "an archive unpacked", err_msg) ||
-            !cli_gunzip(bytes, size, unpacked->bytes, unpacked->room, unpacked_size, err_msg))
+        if (!EMBED_CALL(cli_archive_err_msg_room_internal.room, CliArchiveErrMsgRoomCtx,
+                        .room_room_pointer = args->unpacked, .need = trailer_size + 1ull, .what = "an archive unpacked",
+                        .err_msg = err_msg) ||
+            !EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = bytes, .size = size,
+                        .out = args->unpacked->bytes, .room = args->unpacked->room, .out_size = unpacked_size,
+                        .err_msg = err_msg))
         {
             return 0;
         }
-        if (kind == CLI_ARCHIVE_TARGZ)
+        if (args->kind == CLI_ARCHIVE_TARGZ)
         {
-            return cli_tar_members(unpacked->bytes, *unpacked_size, members, err_msg);
+            return EMBED_CALL(cli_archive_bytes_size_err_msg_internal.tar_members, CliArchiveBytesSizeErrMsgCtx,
+                              .bytes = args->unpacked->bytes, .size = *unpacked_size, .members = args->members,
+                              .err_msg = err_msg);
         }
-        cli_archive_member_put(members,
-                               cli_archive_name_stored(
-                                   members, inner, cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL})),
-                               0u, 0, 0, *unpacked_size, 0ull);
+        EMBED_CALL(cli_archive_size_internal.member_put, CliArchiveSizeCtx, .members = args->members,
+                   .name_u32 =
+                       EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
+                                  .members = args->members, .name = args->inner,
+                                  .length = cellul.len(&(CatenaFinitaCfg){.src = args->inner, .cap = CLI_CELLS_POOL})),
+                   .raw = 0u, .has_raw = 0, .dir = 0, .size = *unpacked_size, .at = 0ull);
         return 1;
     }
     // each name's blobs joined, the name a member of its own
-    cli_lock_take(&s_lock);
-    const unsigned int count = cli_qry_member_names(bytes, size, s_names, CLI_QRY_NAMES);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const unsigned int count = EMBED_CALL(cli_qry_data.member_names, CliQryDataCfg, .data = bytes, .size = size,
+                                          .names = s_names, .room = CLI_QRY_NAMES);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_archive_member_put(
-            members,
-            cli_archive_name_stored(members, s_names[at],
-                                    cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL})),
-            0u, 0, 0, 0ull, 0ull);
+        EMBED_CALL(cli_archive_size_internal.member_put, CliArchiveSizeCtx, .members = args->members,
+                   .name_u32 =
+                       EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
+                                  .members = args->members, .name = s_names[at],
+                                  .length = cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL})),
+                   .raw = 0u, .has_raw = 0, .dir = 0, .size = 0ull, .at = 0ull);
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
-int cli_data_of(const unsigned char *bytes, unsigned long long size, unsigned int kind, const unsigned char *unpacked,
-                unsigned long long unpacked_size, const CliMembers *members, const CliMember *member, CliRoom *out,
-                unsigned long long *out_size, VerbaLinea *err_msg)
+int cli_data_get(const CliArchiveBytesCtx *args)
 {
-    const char *const name = members->text + member->name;
-    const unsigned long long length = (kind == CLI_ARCHIVE_GZ)    ? unpacked_size
-                                      : (kind == CLI_ARCHIVE_QRY) ? cli_qry_member_size(bytes, size, name)
-                                                                  : member->size;
-    if (!cli_archive_room(out, length + 1ull, "a member of an archive", err_msg))
+    const unsigned char *bytes = args->bytes;
+    unsigned long long size = args->size;
+    CliRoom *out = args->out_room_pointer;
+    unsigned long long *out_size = args->out_size;
+    const char *const name = args->members_read->text + args->member->name;
+    const unsigned long long length =
+        (args->kind == CLI_ARCHIVE_GZ) ? args->unpacked_size_value
+        : (args->kind == CLI_ARCHIVE_QRY)
+            ? EMBED_CALL(cli_qry_out.member_size, CliQryOutCfg, .data = bytes, .size = size, .name = name)
+            : args->member->size;
+    if (!EMBED_CALL(cli_archive_err_msg_room_internal.room, CliArchiveErrMsgRoomCtx, .room_room_pointer = out,
+                    .need = length + 1ull, .what = "a member of an archive", .err_msg = args->err_msg))
     {
         return 0;
     }
-    if (kind == CLI_ARCHIVE_ZIP)
+    if (args->kind == CLI_ARCHIVE_ZIP)
     {
-        return cli_zip_data(bytes, size, members, member, out->bytes, out->room, out_size, err_msg);
+        return EMBED_CALL(cli_archive_bytes_size_err_msg_members_internal.zip_data, CliArchiveBytesSizeErrMsgMembersCtx,
+                          .bytes = bytes, .size = size, .members_read = args->members_read, .member = args->member,
+                          .out = out->bytes, .room = out->room, .out_size = out_size, .err_msg = args->err_msg);
     }
-    if (kind == CLI_ARCHIVE_QRY)
+    if (args->kind == CLI_ARCHIVE_QRY)
     {
         VerbaLinea line = {(char *)out->bytes, out->room, 0ull};
-        cli_qry_member_joined(bytes, size, name, &line);
+        EMBED_CALL(cli_qry_out.member_join, CliQryOutCfg, .data = bytes, .size = size, .name = name, .out = &line);
         if (!mmgr_line_ok(&line))
         {
-            mmgr_line_put(err_msg, name);
-            mmgr_line_put(err_msg, " is larger than orior_cli supports");
+            mmgr_line_put(args->err_msg, name);
+            mmgr_line_put(args->err_msg, " is larger than orior_cli supports");
             return 0;
         }
         *out_size = line.at;
         return 1;
     }
-    const unsigned char *const from = (kind == CLI_ARCHIVE_TAR) ? bytes : unpacked;
-    const unsigned long long from_size = (kind == CLI_ARCHIVE_TAR) ? size : unpacked_size;
-    const unsigned long long start = (kind == CLI_ARCHIVE_GZ) ? 0ull : (member->at + 512ull);
+    const unsigned char *const from = (args->kind == CLI_ARCHIVE_TAR) ? bytes : args->unpacked_bytes;
+    const unsigned long long from_size = (args->kind == CLI_ARCHIVE_TAR) ? size : args->unpacked_size_value;
+    const unsigned long long start = (args->kind == CLI_ARCHIVE_GZ) ? 0ull : (args->member->at + 512ull);
     if ((start > from_size) || (length > (from_size - start)))
     {
-        mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " is cut");
+        mmgr_line_put(args->err_msg, name);
+        mmgr_line_put(args->err_msg, " is cut");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = out->bytes, .src = from + start, .bytes = length});

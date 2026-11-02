@@ -9,41 +9,57 @@
 
 #include "../text/text.h"
 
-void cli_link_quote(const char *text, unsigned long long size, VerbaLinea *out)
+void cli_link_quote(const CliLinkTextSizeCfg *args)
 {
-    mmgr_line_ch(out, '\'');
+    mmgr_line_ch(args->out, '\'');
     unsigned long long from = 0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
     {
-        if (text[at] == '\'')
+        if (args->text[at] == '\'')
         {
-            mmgr_line_put_n(out, text + from, at - from);
-            mmgr_line_put(out, "'\\''");
+            mmgr_line_put_n(args->out, args->text + from, at - from);
+            mmgr_line_put(args->out, "'\\''");
             from = at + 1u;
         }
     }
-    mmgr_line_put_n(out, text + from, size - from);
-    mmgr_line_ch(out, '\'');
+    mmgr_line_put_n(args->out, args->text + from, args->size - from);
+    mmgr_line_ch(args->out, '\'');
 }
 
-// whether a letter is white as Rust's char::is_whitespace has it
-static int address_white(unsigned int letter)
+typedef struct
 {
-    return ((letter >= 0x09u) && (letter <= 0x0du)) || (letter == 0x20u) || (letter == 0x85u) || (letter == 0xa0u) ||
-           (letter == 0x1680u) || ((letter >= 0x2000u) && (letter <= 0x200au)) || (letter == 0x2028u) ||
-           (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u);
+    unsigned int letter;
+    const char *text;
+    unsigned long long *start;
+    unsigned long long *size;
+    char *field;
+    unsigned long long size_value;
+} LinkAddressCtx;
+// whether a letter is white as Rust's char::is_whitespace has it
+EMBED_INLINE int address_white(const LinkAddressCtx *args)
+{
+    return ((args->letter >= 0x09u) && (args->letter <= 0x0du)) || (args->letter == 0x20u) || (args->letter == 0x85u) ||
+           (args->letter == 0xa0u) || (args->letter == 0x1680u) ||
+           ((args->letter >= 0x2000u) && (args->letter <= 0x200au)) || (args->letter == 0x2028u) ||
+           (args->letter == 0x2029u) || (args->letter == 0x202fu) || (args->letter == 0x205fu) ||
+           (args->letter == 0x3000u);
 }
 
 // `text` trimmed of white letters at its two ends, as Rust's str::trim trims it: its start and length
-static void address_trimmed(const char *text, unsigned long long *start, unsigned long long *size)
+EMBED_INLINE void address_trim(const LinkAddressCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long *start = args->start;
+    unsigned long long *size = args->size;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
     unsigned long long begin = 0ull;
     unsigned int letter = 0u;
     while (begin < length)
     {
-        const unsigned long long taken = cli_lossy_letter((const unsigned char *)text, length, begin, &letter);
-        if (!address_white(letter))
+        const unsigned long long taken =
+            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)text, .length = length, .at = begin, .letter = &letter);
+        if (!EMBED_CALL(address_white, LinkAddressCtx, .letter = letter))
         {
             break;
         }
@@ -53,32 +69,34 @@ static void address_trimmed(const char *text, unsigned long long *start, unsigne
     unsigned long long at = begin;
     while (at < length)
     {
-        const unsigned long long taken = cli_lossy_letter((const unsigned char *)text, length, at, &letter);
+        const unsigned long long taken =
+            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                       .text_bytes = (const unsigned char *)text, .length = length, .at = at, .letter = &letter);
         at += taken;
-        end = address_white(letter) ? end : at;
+        end = EMBED_CALL(address_white, LinkAddressCtx, .letter = letter) ? end : at;
     }
     *start = begin;
     *size = end - begin;
 }
 
 // `size` bytes of `text` stored as a field of an address: 1, or 0 where they are empty or do not fit
-static int address_field_set(char *field, const char *text, unsigned long long size)
+EMBED_INLINE int address_field_set(const LinkAddressCtx *args)
 {
-    if ((size == 0u) || (size >= CLI_PATH_MAX_LEN))
+    if ((args->size_value == 0u) || (args->size_value >= CLI_PATH_MAX_LEN))
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = field, .src = text, .bytes = (size_t)size});
-    field[size] = '\0';
+    memor.cpy(&(MemoriaCfg){.dst = args->field, .src = args->text, .bytes = (size_t)args->size_value});
+    args->field[args->size_value] = '\0';
     return 1;
 }
 
-int cli_link_address_parse(const char *text, CliLinkAddress *address, VerbaLinea *err_msg)
+int cli_link_address_parse(const CliLinkTextCfg *args)
 {
     unsigned long long start = 0ull;
     unsigned long long size = 0ull;
-    address_trimmed(text, &start, &size);
-    const char *const trimmed = text + start;
+    EMBED_CALL(address_trim, LinkAddressCtx, .text = args->text, .start = &start, .size = &size);
+    const char *const trimmed = args->text + start;
     const char *const first = memor.chr(&(MemoriaCfg){.src = trimmed, .val = ':', .bytes = (size_t)size});
     int read = first != NULL;
     if (read)
@@ -96,136 +114,163 @@ int cli_link_address_parse(const char *text, CliLinkAddress *address, VerbaLinea
             read = second != NULL;
             if (read)
             {
-                address->way = docker ? CLI_LINK_DOCKER : CLI_LINK_WSL;
+                args->address_out->way = docker ? CLI_LINK_DOCKER : CLI_LINK_WSL;
                 const unsigned long long name_size = (unsigned long long)(second - rest);
-                read = address_field_set(address->name, rest, name_size) &&
-                       address_field_set(address->folder, second + 1, rest_size - name_size - 1u);
+                read = EMBED_CALL(address_field_set, LinkAddressCtx, .field = args->address_out->name, .text = rest,
+                                  .size_value = name_size) &&
+                       EMBED_CALL(address_field_set, LinkAddressCtx, .field = args->address_out->folder,
+                                  .text = second + 1, .size_value = rest_size - name_size - 1u);
             }
         }
         else
         {
-            address->way = CLI_LINK_SSH;
-            read = address_field_set(address->name, trimmed, first_size) &&
-                   address_field_set(address->folder, rest, rest_size);
+            args->address_out->way = CLI_LINK_SSH;
+            read = EMBED_CALL(address_field_set, LinkAddressCtx, .field = args->address_out->name, .text = trimmed,
+                              .size_value = first_size) &&
+                   EMBED_CALL(address_field_set, LinkAddressCtx, .field = args->address_out->folder, .text = rest,
+                              .size_value = rest_size);
         }
     }
     if (!read)
     {
-        mmgr_line_put_n(err_msg, trimmed, size);
-        mmgr_line_put(err_msg, " names no machine and folder: user@host:folder, docker:container:folder or "
-                               "wsl:distribution:folder");
+        mmgr_line_put_n(args->err_msg, trimmed, size);
+        mmgr_line_put(args->err_msg, " names no machine and folder: user@host:folder, docker:container:folder or "
+                                     "wsl:distribution:folder");
     }
     return read;
 }
 
-void cli_link_address_text(const CliLinkAddress *address, VerbaLinea *out)
+void cli_link_address_text(const CliLinkOutCfg *args)
 {
     static const char *const ways[3] = {"", "docker:", "wsl:"};
-    mmgr_line_put(out, ways[address->way]);
-    mmgr_line_put(out, address->name);
-    mmgr_line_ch(out, ':');
-    mmgr_line_put(out, address->folder);
+    mmgr_line_put(args->out, ways[args->address->way]);
+    mmgr_line_put(args->out, args->address->name);
+    mmgr_line_ch(args->out, ':');
+    mmgr_line_put(args->out, args->address->folder);
 }
 
-void cli_link_machine(const CliLinkAddress *address, VerbaLinea *out)
+void cli_link_machine(const CliLinkOutCfg *args)
 {
-    const char *const at =
-        cli_text_last(address->name, cellul.len(&(CatenaFinitaCfg){.src = address->name, .cap = CLI_CELLS_POOL}), '@');
-    mmgr_line_put(out, ((address->way == CLI_LINK_SSH) && (at != NULL)) ? (at + 1) : address->name);
+    const char *const at = EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = args->address->name,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->address->name, .cap = CLI_CELLS_POOL}), .byte = '@');
+    mmgr_line_put(args->out, ((args->address->way == CLI_LINK_SSH) && (at != NULL)) ? (at + 1) : args->address->name);
 }
 
-void cli_link_runs(const CliLinkAddress *address, const char *line, int terminal, CliWords *words)
+void cli_link_runs(const CliLinkAddressCfg *args)
 {
+    CliWords *words = args->words;
     memor.set(&(MemoriaCfg){.dst = words, .val = 0, .bytes = sizeof(*words)});
-    if (address->way == CLI_LINK_SSH)
+    if (args->address->way == CLI_LINK_SSH)
     {
-        if (!cli_runner_program_words("ORIOR_SSH", words))
+        if (!EMBED_CALL(cli_runner_variable.program_words, CliRunnerVariableCfg, .variable = "ORIOR_SSH",
+                        .words = words))
         {
             memor.set(&(MemoriaCfg){.dst = words, .val = 0, .bytes = sizeof(*words)});
-            cli_words_put(words, "ssh");
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = "ssh");
         }
-        if (terminal)
+        if (args->terminal)
         {
-            cli_words_put(words, "-tt");
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = "-tt");
         }
         else
         {
-            cli_words_put(words, "-T");
-            cli_words_put(words, "-o");
-            cli_words_put(words, "BatchMode=yes");
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = "-T");
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = "-o");
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = "BatchMode=yes");
         }
         static const char *const alive[4] = {"-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3"};
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            cli_words_put(words, alive[at]);
+            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = alive[at]);
         }
-        cli_words_put(words, address->name);
-        cli_words_put(words, line);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word = args->address->name);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word = args->line);
         return;
     }
-    if (address->way == CLI_LINK_DOCKER)
+    if (args->address->way == CLI_LINK_DOCKER)
     {
-        cli_words_put(words, "docker");
-        cli_words_put(words, "exec");
-        cli_words_put(words, terminal ? "-it" : "-i");
-        cli_words_put(words, address->name);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word = "docker");
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = "exec");
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word = args->terminal ? "-it" : "-i");
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word = args->address->name);
     }
     else
     {
-        cli_words_put(words, "wsl");
-        cli_words_put(words, "-d");
-        cli_words_put(words, address->name);
-        cli_words_put(words, "--");
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = "wsl");
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = "-d");
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word = args->address->name);
+        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = "--");
     }
-    cli_words_put(words, "sh");
-    cli_words_put(words, "-c");
-    cli_words_put(words, line);
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = "sh");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = "-c");
+    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = args->line);
 }
 
-void cli_link_shell_line(const CliLinkAddress *address, const char *folder, VerbaLinea *out)
+void cli_link_shell_line(const CliLinkOutCfg *args)
 {
-    const char *const into = (folder != NULL) ? folder : address->folder;
-    mmgr_line_put(out, "cd ");
-    cli_link_quote(into, cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL}), out);
-    mmgr_line_put(out, " 2>/dev/null || cd; exec \"${SHELL:-sh}\" -l");
+    const char *const into = (args->folder != NULL) ? args->folder : args->address->folder;
+    mmgr_line_put(args->out, "cd ");
+    EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = into,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL}), .out = args->out);
+    mmgr_line_put(args->out, " 2>/dev/null || cd; exec \"${SHELL:-sh}\" -l");
 }
 
-int cli_link_remote_run(const CliLinkAddress *address, const char *line, const char *input, unsigned long long size,
-                        VerbaLinea *out, VerbaLinea *err_msg)
+int cli_link_remote_run(const CliLinkSizeCfg *args)
 {
-    if ((address->way == CLI_LINK_SSH) && !cli_net_reach(address->name, "a command run over ssh", err_msg))
+    if ((args->address->way == CLI_LINK_SSH) &&
+        !EMBED_CALL(cli_net_address.reach, CliNetAddressCfg, .address = args->address->name,
+                    .purpose = "a command run over ssh", .err_msg = args->err_msg))
     {
         return 0;
     }
     CliWords words;
-    cli_link_runs(address, line, 0, &words);
-    CliRan *const ran = cli_ran_taken();
-    const int started = !words.full && cli_ran_fed(words.word, NULL, NULL, 0u, (input != NULL) ? input : "",
-                                                   (input != NULL) ? size : 0ull, ran, err_msg);
+    EMBED_CALL(cli_link_address_table.runs, CliLinkAddressCfg, .address = args->address, .line = args->line,
+               .terminal = 0, .words = &words);
+    CliRan *const ran = cli_ran_take();
+    const int started =
+        !words.full &&
+        EMBED_CALL(cli_words_internal.ran_feed, CliWordsCtx, .words = words.word, .folder = NULL, .settings = NULL,
+                   .count = 0u, .input = (args->input != NULL) ? args->input : "",
+                   .length = (args->input != NULL) ? args->size : 0ull, .ran = ran, .err_msg = args->err_msg);
     if (words.full)
     {
-        mmgr_line_put(err_msg, "the line is longer than orior_cli runs");
+        mmgr_line_put(args->err_msg, "the line is longer than orior_cli runs");
     }
     const int done = started && (ran->code == 0);
     if (started && !done)
     {
         unsigned long long start = 0ull;
         unsigned long long length = 0ull;
-        address_trimmed(ran->err, &start, &length);
+        EMBED_CALL(address_trim, LinkAddressCtx, .text = ran->err, .start = &start, .size = &length);
         if (length > 0u)
         {
-            cli_lossy(err_msg, (const unsigned char *)ran->err + start, length);
+            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
+                       .text_bytes = (const unsigned char *)ran->err + start, .length = length);
         }
         else
         {
-            cli_link_machine(address, err_msg);
-            mmgr_line_put(err_msg, " could not be reached");
+            EMBED_CALL(cli_link_out.machine, CliLinkOutCfg, .address = args->address, .out = args->err_msg);
+            mmgr_line_put(args->err_msg, " could not be reached");
         }
     }
     if (done)
     {
-        cli_lossy(out, (const unsigned char *)ran->out, ran->out_size);
+        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+                   .text_bytes = (const unsigned char *)ran->out, .length = ran->out_size);
     }
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     return done;
 }

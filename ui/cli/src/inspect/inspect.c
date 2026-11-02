@@ -14,14 +14,16 @@ const char *const g_cli_inspect_classes[CLI_INSPECT_CLASSES] = {
 
 const char *const g_cli_inspect_docstring_forms[4] = {"google", "numpy", "rest", "plain"};
 
-const char *cli_inspect_language_of(const char *path)
+const char *cli_inspect_language_get(const CliInspectCfg *args)
 {
-    const char *name = path;
+    const char *name = args->path;
     const unsigned long long name_past =
-        cli_text_back_any(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), "/\\");
-    name = (name_past != 0ull) ? (path + name_past) : name;
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
+    name = (name_past != 0ull) ? (args->path + name_past) : name;
     const char *const dot =
-        cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
     if ((dot == NULL) || (dot == name))
     {
         return NULL;
@@ -36,319 +38,400 @@ const char *cli_inspect_language_of(const char *path)
                : NULL;
 }
 
-const char *cli_inspect_text(const char *pool, CliInspectText text)
+const char *cli_inspect_text(const CliInspectPoolCfg *args)
 {
-    return pool + text.at;
+    return args->pool + args->text_inspect_text.at;
 }
 
-void cli_facts_begun(CliFacts *facts, CliInspectImport *imports, unsigned int imports_most, CliInspectClass *classes,
-                     unsigned int classes_most, CliInspectFunction *functions, unsigned int functions_most,
-                     CliInspectFinding *findings, unsigned int findings_most, CliInspectFix *fixes,
-                     unsigned int fixes_most, CliInspectEdit *edits, unsigned int edits_most, CliInspectName *names,
-                     unsigned int names_most, char *text, unsigned int text_most)
+void cli_facts_begin(const CliInspectFactsCfg *args)
 {
-    *facts = (CliFacts){imports,  0u, imports_most,  classes, 0u, classes_most, functions, 0u, functions_most,
-                        findings, 0u, findings_most, fixes,   0u, fixes_most,   edits,     0u, edits_most,
-                        names,    0u, names_most,    text,    0u, text_most,    0,         0};
-    if (text_most > 0u)
+    CliFacts *facts = args->facts;
+    *facts = (CliFacts){args->imports,
+                        0u,
+                        args->imports_most,
+                        args->classes,
+                        0u,
+                        args->classes_most,
+                        args->functions,
+                        0u,
+                        args->functions_most,
+                        args->findings,
+                        0u,
+                        args->findings_most,
+                        args->fixes,
+                        0u,
+                        args->fixes_most,
+                        args->edits,
+                        0u,
+                        args->edits_most,
+                        args->names,
+                        0u,
+                        args->names_most,
+                        args->text_out,
+                        0u,
+                        args->text_most,
+                        0,
+                        0};
+    if (args->text_most > 0u)
     {
-        text[0] = '\0';
+        args->text_out[0] = '\0';
         facts->used = 1u;
     }
 }
 
-void cli_facts_counting(CliFacts *facts)
+void cli_facts_counting(const CliInspectFactsLanguageCfg *args)
 {
+    CliFacts *facts = args->facts;
     // no room is ever full while counting: a count is an unsigned int's, which no text reaches
     *facts = (CliFacts){NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu,
                         NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu, NULL, 0u, 0xffffffffu,
                         NULL, 0u, 0xffffffffu, NULL, 1u, 0xffffffffu, 0,    1};
 }
 
-CliInspectText cli_inspect_text_stored(CliFacts *facts, const char *text, unsigned long long size)
+CliInspectText cli_inspect_text_store(const CliInspectTextCtx *args)
 {
+    unsigned long long size = args->size;
     CliInspectText stored = {0u, 0u};
-    if (facts->counting)
+    if (args->facts->counting)
     {
         // a text's places are an unsigned int's, so a text past one's reach counts as one that fills
-        const unsigned long long counted = (unsigned long long)facts->used + size + 1ull;
-        facts->used = (counted < 0xffffffffull) ? (unsigned int)counted : 0xffffffffu;
+        const unsigned long long counted = (unsigned long long)args->facts->used + size + 1ull;
+        args->facts->used = (counted < 0xffffffffull) ? (unsigned int)counted : 0xffffffffu;
         return stored;
     }
-    if (facts->used + size + 1u > facts->text_most)
+    if (args->facts->used + size + 1u > args->facts->text_most)
     {
-        facts->full = 1;
+        args->facts->full = 1;
         return stored;
     }
     // a pool contains at most 4 GiB, which its places count
-    stored.at = facts->used;
+    stored.at = args->facts->used;
     stored.size = (unsigned int)size;
-    memor.cpy(&(MemoriaCfg){.dst = facts->text + facts->used, .src = text, .bytes = (size_t)size});
-    facts->text[facts->used + size] = '\0';
-    facts->used += (unsigned int)size + 1u;
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->facts->text + args->facts->used, .src = args->text_text, .bytes = (size_t)size});
+    args->facts->text[args->facts->used + size] = '\0';
+    args->facts->used += (unsigned int)size + 1u;
     return stored;
 }
 
-CliInspectText cli_inspect_line_stored(CliFacts *facts, const VerbaLinea *line)
+CliInspectText cli_inspect_line_store(const CliInspectFactsLineVerbaLineaCtx *args)
 {
-    if (!mmgr_line_ok(line))
+    if (!mmgr_line_ok(args->line_verba_linea_pointer))
     {
-        facts->full = 1;
+        args->facts->full = 1;
         return (CliInspectText){0u, 0u};
     }
-    return cli_inspect_text_stored(facts, line->out, line->at);
+    return EMBED_CALL(cli_inspect_text_internal.text_store, CliInspectTextCtx, .facts = args->facts,
+                      .text_text = args->line_verba_linea_pointer->out, .size = args->line_verba_linea_pointer->at);
 }
 
-void cli_inspect_finding_put(CliFacts *facts, CliInspectPlace from, CliInspectPlace to, int severity,
-                             const VerbaLinea *message, const char *code, const char *href)
+void cli_inspect_finding_put(const CliInspectFromCtx *args)
 {
-    if (facts->findings == facts->findings_most)
+    if (args->facts->findings == args->facts->findings_most)
     {
-        facts->full = 1;
+        args->facts->full = 1;
         return;
     }
-    const CliInspectText stored = cli_inspect_line_stored(facts, message);
-    if (!facts->counting)
+    const CliInspectText stored =
+        EMBED_CALL(cli_inspect_facts_line_verba_linea_internal.line_store, CliInspectFactsLineVerbaLineaCtx,
+                   .facts = args->facts, .line_verba_linea_pointer = args->message);
+    if (!args->facts->counting)
     {
-        facts->finding[facts->findings] = (CliInspectFinding){from, to, severity, stored, code, href, facts->fixes, 0u};
+        args->facts->finding[args->facts->findings] = (CliInspectFinding){
+            args->from, args->to, args->severity, stored, args->code, args->href, args->facts->fixes, 0u};
     }
-    facts->findings += 1u;
+    args->facts->findings += 1u;
 }
 
-void cli_inspect_fix_put(CliFacts *facts, const VerbaLinea *title)
+void cli_inspect_fix_put(const CliInspectFactsCtx *args)
 {
-    if ((facts->findings == 0u) || (facts->fixes == facts->fixes_most))
+    if ((args->facts->findings == 0u) || (args->facts->fixes == args->facts->fixes_most))
     {
-        facts->full = 1;
+        args->facts->full = 1;
         return;
     }
-    const CliInspectFix fix = {cli_inspect_line_stored(facts, title), facts->edits, 0u};
-    if (!facts->counting)
+    const CliInspectFix fix = {EMBED_CALL(cli_inspect_facts_line_verba_linea_internal.line_store,
+                                          CliInspectFactsLineVerbaLineaCtx, .facts = args->facts,
+                                          .line_verba_linea_pointer = args->title),
+                               args->facts->edits, 0u};
+    if (!args->facts->counting)
     {
-        facts->fix[facts->fixes] = fix;
-        facts->finding[facts->findings - 1u].fixes += 1u;
+        args->facts->fix[args->facts->fixes] = fix;
+        args->facts->finding[args->facts->findings - 1u].fixes += 1u;
     }
-    facts->fixes += 1u;
+    args->facts->fixes += 1u;
 }
 
-void cli_inspect_fix_titled(CliFacts *facts, const char *title)
+void cli_inspect_fix_title(const CliInspectFactsTitleCtx *args)
 {
     char text[CLI_NAME_MAX_LEN];
     VerbaLinea line = {text, sizeof(text), 0ull};
-    mmgr_line_put(&line, title);
-    cli_inspect_fix_put(facts, &line);
+    mmgr_line_put(&line, args->title_text);
+    EMBED_CALL(cli_inspect_facts_internal.fix_put, CliInspectFactsCtx, .facts = args->facts, .title = &line);
 }
 
-void cli_inspect_edit_put(CliFacts *facts, CliInspectPlace from, CliInspectPlace to, const char *text,
-                          unsigned long long size)
+void cli_inspect_edit_put(const CliInspectTextCtx *args)
 {
-    if ((facts->fixes == 0u) || (facts->edits == facts->edits_most))
+    if ((args->facts->fixes == 0u) || (args->facts->edits == args->facts->edits_most))
     {
-        facts->full = 1;
+        args->facts->full = 1;
         return;
     }
-    const CliInspectEdit edit = {from, to, cli_inspect_text_stored(facts, text, size)};
-    if (!facts->counting)
+    const CliInspectEdit edit = {args->from, args->to, cli_inspect_text_internal.text_store(args)};
+    if (!args->facts->counting)
     {
-        facts->edit[facts->edits] = edit;
-        facts->fix[facts->fixes - 1u].edits += 1u;
+        args->facts->edit[args->facts->edits] = edit;
+        args->facts->fix[args->facts->fixes - 1u].edits += 1u;
     }
-    facts->edits += 1u;
+    args->facts->edits += 1u;
 }
 
-unsigned int cli_inspect_name_put(CliFacts *facts, const char *name, unsigned long long size, const char *alias,
-                                  unsigned long long alias_size, CliInspectPlace from, CliInspectPlace to)
+unsigned int cli_inspect_name_put(const CliInspectSizeFromCtx *args)
 {
-    if (facts->names == facts->names_most)
+    if (args->facts->names == args->facts->names_most)
     {
-        facts->full = 1;
+        args->facts->full = 1;
         return CLI_INSPECT_FULL;
     }
-    const CliInspectText stored = cli_inspect_text_stored(facts, name, size);
+    const CliInspectText stored = EMBED_CALL(cli_inspect_text_internal.text_store, CliInspectTextCtx,
+                                             .facts = args->facts, .text_text = args->name, .size = args->size);
     const CliInspectText alias_stored =
-        (alias != NULL) ? cli_inspect_text_stored(facts, alias, alias_size) : (CliInspectText){0u, 0u};
-    if (!facts->counting)
+        (args->alias != NULL) ? EMBED_CALL(cli_inspect_text_internal.text_store, CliInspectTextCtx,
+                                           .facts = args->facts, .text_text = args->alias, .size = args->alias_size)
+                              : (CliInspectText){0u, 0u};
+    if (!args->facts->counting)
     {
-        facts->name[facts->names] = (CliInspectName){stored, alias_stored, alias != NULL, from, to};
+        args->facts->name[args->facts->names] =
+            (CliInspectName){stored, alias_stored, args->alias != NULL, args->from, args->to};
     }
-    facts->names += 1u;
-    return facts->names - 1u;
+    args->facts->names += 1u;
+    return args->facts->names - 1u;
 }
 
-int cli_inspect_facts(const char *language, const char *text, unsigned long long size, CliFacts *facts)
+int cli_inspect_facts(const CliInspectFactsLanguageCfg *args)
 {
-    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "python", .cap = CLI_CELLS_POOL}));
-    if (!python && (!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "javascript", .cap = CLI_CELLS_POOL})))
+    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}));
+    if (!python &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_CELLS_POOL})))
     {
         return 0;
     }
-    facts->imports = 0u;
-    facts->classes = 0u;
-    facts->functions = 0u;
-    facts->findings = 0u;
-    facts->fixes = 0u;
-    facts->edits = 0u;
-    facts->names = 0u;
-    facts->used = ((facts->text_most > 0u) || facts->counting) ? 1u : 0u;
-    facts->full = 0;
-    cli_lock_take(&g_cli_inspect_lock);
-    if (!cli_inspect_reading_reserved(language, text, size))
+    args->facts->imports = 0u;
+    args->facts->classes = 0u;
+    args->facts->functions = 0u;
+    args->facts->findings = 0u;
+    args->facts->fixes = 0u;
+    args->facts->edits = 0u;
+    args->facts->names = 0u;
+    args->facts->used = ((args->facts->text_most > 0u) || args->facts->counting) ? 1u : 0u;
+    args->facts->full = 0;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_inspect_lock);
+    if (!EMBED_CALL(cli_inspect_language_internal.reading_reserve, CliInspectLanguageCtx, .language = args->language,
+                    .text_text = args->text, .size = args->size))
     {
-        facts->full = 1;
+        args->facts->full = 1;
     }
     else if (python)
     {
-        cli_inspect_py_facts(text, size, facts);
+        EMBED_CALL(cli_inspect_size_src_facts_internal.py_facts, CliInspectSizeSrcFactsCtx, .src = args->text,
+                   .size = args->size, .facts = args->facts);
     }
     else
     {
-        cli_inspect_js_facts(text, size, facts);
+        EMBED_CALL(cli_inspect_size_src_facts_internal.js_facts, CliInspectSizeSrcFactsCtx, .src = args->text,
+                   .size = args->size, .facts = args->facts);
     }
-    cli_inspect_reading_given();
-    cli_lock_give(&g_cli_inspect_lock);
+    cli_inspect_reading_free();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_inspect_lock);
     return 1;
 }
 
-void cli_parsed_begun(CliParsed *parsed, CliInspectRun *runs, unsigned int runs_most, unsigned int *line_first,
-                      unsigned int *line_runs, unsigned int lines_most, unsigned int *fold_first,
-                      unsigned int *fold_last, unsigned int folds_most, CliInspectSpan *ranges,
-                      unsigned int ranges_most)
+void cli_parsed_begin(const CliInspectParsedCfg *args)
 {
-    *parsed = (CliParsed){runs,      0u, runs_most,  line_first, line_runs, 0u,          lines_most, fold_first,
-                          fold_last, 0u, folds_most, ranges,     0u,        ranges_most, 0};
+    CliParsed *parsed = args->parsed;
+    *parsed = (CliParsed){args->runs,
+                          0u,
+                          args->runs_most,
+                          args->line_first,
+                          args->line_runs,
+                          0u,
+                          args->lines_most,
+                          args->fold_first,
+                          args->fold_last,
+                          0u,
+                          args->folds_most,
+                          args->ranges,
+                          0u,
+                          args->ranges_most,
+                          0};
 }
 
-int cli_inspect_parse(const char *language, const char *text, unsigned long long size, CliParsed *parsed)
+int cli_inspect_parse(const CliInspectLanguageTextCfg *args)
 {
-    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "python", .cap = CLI_CELLS_POOL}));
-    if (!python && (!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "javascript", .cap = CLI_CELLS_POOL})))
+    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}));
+    if (!python &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_CELLS_POOL})))
     {
         return 0;
     }
-    cli_lock_take(&g_cli_inspect_lock);
-    const int reserved = cli_inspect_reading_reserved(language, text, size);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_inspect_lock);
+    const int reserved = EMBED_CALL(cli_inspect_language_internal.reading_reserve, CliInspectLanguageCtx,
+                                    .language = args->language, .text_text = args->text, .size = args->size);
     if (reserved && python)
     {
-        cli_inspect_py_parse(text, size, parsed);
+        EMBED_CALL(cli_inspect_size_src_parsed_internal.py_parse, CliInspectSizeSrcParsedCtx, .src = args->text,
+                   .size = args->size, .parsed = args->parsed);
     }
     else if (reserved)
     {
-        cli_inspect_js_parse(text, size, parsed);
+        EMBED_CALL(cli_inspect_size_src_parsed_internal.js_parse, CliInspectSizeSrcParsedCtx, .src = args->text,
+                   .size = args->size, .parsed = args->parsed);
     }
-    cli_inspect_reading_given();
-    cli_lock_give(&g_cli_inspect_lock);
+    cli_inspect_reading_free();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_inspect_lock);
     return reserved;
 }
 
-int cli_inspect_docstring(const char *language, const char *source, unsigned long long size, unsigned int line,
-                          const char *form, CliInspectEdit *edit, VerbaLinea *text, CliInspectPlace *summary,
-                          VerbaLinea *err_msg)
+int cli_inspect_docstring(const CliInspectLanguageCfg *args)
 {
-    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "python", .cap = CLI_CELLS_POOL}));
-    if (!python && (!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "javascript", .cap = CLI_CELLS_POOL})))
+    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}));
+    if (!python &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_CELLS_POOL})))
     {
-        mmgr_line_put(err_msg, "Write Docstring reads Python and JavaScript.");
+        mmgr_line_put(args->err_msg, "Write Docstring reads Python and JavaScript.");
         return 0;
     }
-    cli_lock_take(&g_cli_inspect_lock);
-    const int reserved = cli_inspect_reading_reserved(language, source, size);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_inspect_lock);
+    const int reserved = EMBED_CALL(cli_inspect_language_internal.reading_reserve, CliInspectLanguageCtx,
+                                    .language = args->language, .text_text = args->source, .size = args->size);
     const int written =
-        reserved && (python ? cli_inspect_py_docstring(source, size, line, form, edit, text, summary, err_msg)
-                            : cli_inspect_js_docstring(source, size, line, edit, text, summary, err_msg));
-    cli_inspect_reading_given();
-    cli_lock_give(&g_cli_inspect_lock);
+        reserved &&
+        (python
+             ? EMBED_CALL(cli_inspect_size_src_internal.py_docstring, CliInspectSizeSrcCtx, .src = args->source,
+                          .size = args->size, .line = args->line, .form = args->form, .edit = args->edit,
+                          .text = args->text_verba_linea_pointer, .summary = args->summary, .err_msg = args->err_msg)
+             : EMBED_CALL(cli_inspect_size_src_internal.js_docstring, CliInspectSizeSrcCtx, .src = args->source,
+                          .size = args->size, .line = args->line, .edit = args->edit,
+                          .text = args->text_verba_linea_pointer, .summary = args->summary, .err_msg = args->err_msg));
+    cli_inspect_reading_free();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_inspect_lock);
     if (!reserved)
     {
-        mmgr_line_put(err_msg, "a reading of the text could not be taken");
+        mmgr_line_put(args->err_msg, "a reading of the text could not be taken");
     }
     return written;
 }
 
-int cli_inspect_sort_methods(const char *language, const char *source, unsigned long long size, unsigned int line,
-                             CliInspectEdit *edit, VerbaLinea *text, VerbaLinea *err_msg)
+int cli_inspect_sort_methods(const CliInspectLanguageCfg *args)
 {
-    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "python", .cap = CLI_CELLS_POOL}));
-    if (!python && (!cellul.eq(&(CatenaFinitaCfg){.src = language, .other = "javascript", .cap = CLI_CELLS_POOL})))
+    const int python = (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}));
+    if (!python &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "javascript", .cap = CLI_CELLS_POOL})))
     {
-        mmgr_line_put(err_msg, "Sort Methods by Name reads Python and JavaScript.");
+        mmgr_line_put(args->err_msg, "Sort Methods by Name reads Python and JavaScript.");
         return 0;
     }
-    cli_lock_take(&g_cli_inspect_lock);
-    const int reserved = cli_inspect_reading_reserved(language, source, size);
-    const int sorted = reserved && (python ? cli_inspect_py_sort_methods(source, size, line, edit, text, err_msg)
-                                           : cli_inspect_js_sort_methods(source, size, line, edit, text, err_msg));
-    cli_inspect_reading_given();
-    cli_lock_give(&g_cli_inspect_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_inspect_lock);
+    const int reserved = EMBED_CALL(cli_inspect_language_internal.reading_reserve, CliInspectLanguageCtx,
+                                    .language = args->language, .text_text = args->source, .size = args->size);
+    const int sorted =
+        reserved &&
+        (python ? EMBED_CALL(cli_inspect_size_src_internal.py_sort_methods, CliInspectSizeSrcCtx, .src = args->source,
+                             .size = args->size, .line = args->line, .edit = args->edit,
+                             .text = args->text_verba_linea_pointer, .err_msg = args->err_msg)
+                : EMBED_CALL(cli_inspect_size_src_internal.js_sort_methods, CliInspectSizeSrcCtx, .src = args->source,
+                             .size = args->size, .line = args->line, .edit = args->edit,
+                             .text = args->text_verba_linea_pointer, .err_msg = args->err_msg));
+    cli_inspect_reading_free();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_inspect_lock);
     if (!reserved)
     {
-        mmgr_line_put(err_msg, "a reading of the text could not be taken");
+        mmgr_line_put(args->err_msg, "a reading of the text could not be taken");
     }
     return sorted;
 }
 
-// a place written as the protocol's `{"line", "character"}`, or as an edit's `{"line", "col"}`
-static void inspect_place_written(CliInspectPlace place, const char *col, VerbaLinea *out)
+typedef struct
 {
-    mmgr_line_put(out, "{\"line\":");
-    mmgr_line_decimal(out, place.line, 1u);
-    mmgr_line_put(out, col);
-    mmgr_line_decimal(out, place.col, 1u);
-    mmgr_line_ch(out, '}');
+    CliInspectPlace place;
+    const char *col;
+    VerbaLinea *out;
+    const char *one;
+    unsigned int one_size;
+    const char *other;
+    unsigned int other_size;
+} InspectCtx;
+// a place written as the protocol's `{"line", "character"}`, or as an edit's `{"line", "col"}`
+EMBED_INLINE void inspect_place_write(const InspectCtx *args)
+{
+    mmgr_line_put(args->out, "{\"line\":");
+    mmgr_line_decimal(args->out, args->place.line, 1u);
+    mmgr_line_put(args->out, args->col);
+    mmgr_line_decimal(args->out, args->place.col, 1u);
+    mmgr_line_ch(args->out, '}');
 }
 
-void cli_inspect_finding_written(const CliFacts *facts, unsigned int finding, VerbaLinea *out)
+void cli_inspect_finding_write(const CliInspectFactsFindingCfg *args)
 {
-    const CliInspectFinding *const found = &facts->finding[finding];
-    mmgr_line_put(out, "{\"range\":{\"start\":");
-    inspect_place_written(found->from, ",\"character\":", out);
-    mmgr_line_put(out, ",\"end\":");
-    inspect_place_written(found->to, ",\"character\":", out);
-    mmgr_line_put(out, (found->severity == CLI_INSPECT_WARNING) ? "},\"severity\":2" : "},\"severity\":3");
-    mmgr_line_put(out, ",\"message\":{\"kind\":\"markdown\",\"value\":");
-    cli_json_quoted(out, facts->text + found->message.at, found->message.size);
-    mmgr_line_put(out, "},\"source\":\"orior\",\"code\":");
-    cli_json_quoted(out, found->code, cellul.len(&(CatenaFinitaCfg){.src = found->code, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, ",\"data\":{\"orior\":[");
+    const CliInspectFinding *const found = &args->facts_read->finding[args->finding];
+    mmgr_line_put(args->out, "{\"range\":{\"start\":");
+    EMBED_CALL(inspect_place_write, InspectCtx, .place = found->from, .col = ",\"character\":", .out = args->out);
+    mmgr_line_put(args->out, ",\"end\":");
+    EMBED_CALL(inspect_place_write, InspectCtx, .place = found->to, .col = ",\"character\":", .out = args->out);
+    mmgr_line_put(args->out, (found->severity == CLI_INSPECT_WARNING) ? "},\"severity\":2" : "},\"severity\":3");
+    mmgr_line_put(args->out, ",\"message\":{\"kind\":\"markdown\",\"value\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+               .text = args->facts_read->text + found->message.at, .length = found->message.size);
+    mmgr_line_put(args->out, "},\"source\":\"orior\",\"code\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = found->code,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = found->code, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->out, ",\"data\":{\"orior\":[");
     for (unsigned int fix = 0u; fix < found->fixes; fix += 1u)
     {
-        const CliInspectFix *const one = &facts->fix[found->fix_first + fix];
-        mmgr_line_put(out, (fix > 0u) ? ",{\"title\":" : "{\"title\":");
-        cli_json_quoted(out, facts->text + one->title.at, one->title.size);
-        mmgr_line_put(out, ",\"edits\":[");
+        const CliInspectFix *const one = &args->facts_read->fix[found->fix_first + fix];
+        mmgr_line_put(args->out, (fix > 0u) ? ",{\"title\":" : "{\"title\":");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = args->facts_read->text + one->title.at, .length = one->title.size);
+        mmgr_line_put(args->out, ",\"edits\":[");
         for (unsigned int edit = 0u; edit < one->edits; edit += 1u)
         {
-            const CliInspectEdit *const change = &facts->edit[one->edit_first + edit];
-            mmgr_line_put(out, (edit > 0u) ? ",{\"from\":" : "{\"from\":");
-            inspect_place_written(change->from, ",\"col\":", out);
-            mmgr_line_put(out, ",\"to\":");
-            inspect_place_written(change->to, ",\"col\":", out);
-            mmgr_line_put(out, ",\"text\":");
-            cli_json_quoted(out, facts->text + change->text.at, change->text.size);
-            mmgr_line_ch(out, '}');
+            const CliInspectEdit *const change = &args->facts_read->edit[one->edit_first + edit];
+            mmgr_line_put(args->out, (edit > 0u) ? ",{\"from\":" : "{\"from\":");
+            EMBED_CALL(inspect_place_write, InspectCtx, .place = change->from, .col = ",\"col\":", .out = args->out);
+            mmgr_line_put(args->out, ",\"to\":");
+            EMBED_CALL(inspect_place_write, InspectCtx, .place = change->to, .col = ",\"col\":", .out = args->out);
+            mmgr_line_put(args->out, ",\"text\":");
+            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                       .text = args->facts_read->text + change->text.at, .length = change->text.size);
+            mmgr_line_ch(args->out, '}');
         }
-        mmgr_line_put(out, "]}");
+        mmgr_line_put(args->out, "]}");
     }
-    mmgr_line_put(out, "]}");
+    mmgr_line_put(args->out, "]}");
     if (found->href != NULL)
     {
-        mmgr_line_put(out, ",\"codeDescription\":{\"href\":");
-        cli_json_quoted(out, found->href, cellul.len(&(CatenaFinitaCfg){.src = found->href, .cap = CLI_CELLS_POOL}));
-        mmgr_line_ch(out, '}');
+        mmgr_line_put(args->out, ",\"codeDescription\":{\"href\":");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = found->href,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = found->href, .cap = CLI_CELLS_POOL}));
+        mmgr_line_ch(args->out, '}');
     }
-    mmgr_line_ch(out, '}');
+    mmgr_line_ch(args->out, '}');
 }
 
-unsigned int cli_inspect_physical(const char *src, unsigned long long size, unsigned long long *starts,
-                                  unsigned long long *ends, unsigned int most)
+unsigned int cli_inspect_physical(const CliInspectSizeSrcStartsCtx *args)
 {
+    const char *src = args->src;
     unsigned int count = 0u;
-    for (unsigned long long at = 0ull; (at <= size) && (count < most);)
+    for (unsigned long long at = 0ull; (at <= args->size) && (count < args->most);)
     {
         const char *const newline =
-            (at < size) ? memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (size_t)(size - at)}) : NULL;
-        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - src) : size;
-        starts[count] = at;
-        ends[count] = end;
+            (at < args->size)
+                ? memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (size_t)(args->size - at)})
+                : NULL;
+        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - src) : args->size;
+        args->starts[count] = at;
+        args->ends[count] = end;
         count += 1u;
         at = end + 1u;
     }
@@ -356,44 +439,43 @@ unsigned int cli_inspect_physical(const char *src, unsigned long long size, unsi
 }
 
 // whether method `one` sorts before method `other`: by their names in lower case, then by their bytes
-static int inspect_sorted_before(const char *one, unsigned int one_size, const char *other, unsigned int other_size)
+EMBED_INLINE int inspect_sorted_before(const InspectCtx *args)
 {
-    const unsigned int least = (one_size < other_size) ? one_size : other_size;
+    const char *other = args->other;
+    const unsigned int least = (args->one_size < args->other_size) ? args->one_size : args->other_size;
     for (unsigned int at = 0u; at < least; at += 1u)
     {
-        const char left = ((one[at] >= 'A') && (one[at] <= 'Z')) ? (char)(one[at] - 'A' + 'a') : one[at];
+        const char left =
+            ((args->one[at] >= 'A') && (args->one[at] <= 'Z')) ? (char)(args->one[at] - 'A' + 'a') : args->one[at];
         const char right = ((other[at] >= 'A') && (other[at] <= 'Z')) ? (char)(other[at] - 'A' + 'a') : other[at];
         if (left != right)
         {
             return (unsigned char)left < (unsigned char)right;
         }
     }
-    if (one_size != other_size)
+    if (args->one_size != args->other_size)
     {
-        return one_size < other_size;
+        return args->one_size < args->other_size;
     }
-    const int order = memor.cmp(&(MemoriaCfg){.src = one, .other = other, .bytes = least});
+    const int order = memor.cmp(&(MemoriaCfg){.src = args->one, .other = other, .bytes = least});
     return order < 0;
 }
 
 // the methods of a body sorted, a list of the reading's cell, one for each token at the most
 static unsigned int *s_methods;
 
-void cli_inspect_sort_laid(CliInspectCarve *carve)
+void cli_inspect_sort_layout(const CliInspectCarveCtx *args)
 {
-    s_methods = cli_inspect_carved(carve, (unsigned long long)CLI_INSPECT_TOKENS * sizeof(unsigned int));
+    s_methods = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+                           .bytes = (unsigned long long)CLI_INSPECT_TOKENS * sizeof(unsigned int));
 }
 
-int cli_inspect_sorted_body(const char *src, unsigned long long size, const unsigned long long *line_starts,
-                            const unsigned long long *line_ends, const unsigned int *firsts, const unsigned int *lasts,
-                            const char *const *names, const unsigned int *name_sizes, unsigned int members,
-                            VerbaLinea *out)
+int cli_inspect_sorted_body(const CliInspectSizeCtx *args)
 {
-    (void)size;
     unsigned int methods = 0u;
-    for (unsigned int at = 0u; (at < members) && (methods < CLI_INSPECT_TOKENS); at += 1u)
+    for (unsigned int at = 0u; (at < args->members) && (methods < CLI_INSPECT_TOKENS); at += 1u)
     {
-        if (names[at] != NULL)
+        if (args->names[at] != NULL)
         {
             s_methods[methods] = at;
             methods += 1u;
@@ -408,8 +490,10 @@ int cli_inspect_sorted_body(const char *src, unsigned long long size, const unsi
     {
         const unsigned int pivot = s_methods[at];
         unsigned int place = at;
-        while ((place > 0u) && inspect_sorted_before(names[pivot], name_sizes[pivot], names[s_methods[place - 1u]],
-                                                     name_sizes[s_methods[place - 1u]]))
+        while ((place > 0u) &&
+               EMBED_CALL(inspect_sorted_before, InspectCtx, .one = args->names[pivot],
+                          .one_size = args->name_sizes[pivot], .other = args->names[s_methods[place - 1u]],
+                          .other_size = args->name_sizes[s_methods[place - 1u]]))
         {
             s_methods[place] = s_methods[place - 1u];
             place -= 1u;
@@ -422,25 +506,27 @@ int cli_inspect_sorted_body(const char *src, unsigned long long size, const unsi
         return 0;
     }
     unsigned int next = 0u;
-    unsigned int at_line = firsts[0];
+    unsigned int at_line = args->firsts[0];
     int first_line = 1;
-    for (unsigned int member = 0u; member < members; member += 1u)
+    for (unsigned int member = 0u; member < args->members; member += 1u)
     {
-        const unsigned int chosen = (names[member] != NULL) ? s_methods[next] : member;
-        next += (names[member] != NULL) ? 1u : 0u;
-        for (unsigned int line = at_line; line < firsts[member]; line += 1u)
+        const unsigned int chosen = (args->names[member] != NULL) ? s_methods[next] : member;
+        next += (args->names[member] != NULL) ? 1u : 0u;
+        for (unsigned int line = at_line; line < args->firsts[member]; line += 1u)
         {
-            mmgr_line_put(out, first_line ? "" : "\n");
-            mmgr_line_put_n(out, src + line_starts[line], line_ends[line] - line_starts[line]);
+            mmgr_line_put(args->out, first_line ? "" : "\n");
+            mmgr_line_put_n(args->out, args->src + args->line_starts[line],
+                            args->line_ends[line] - args->line_starts[line]);
             first_line = 0;
         }
-        for (unsigned int line = firsts[chosen]; line <= lasts[chosen]; line += 1u)
+        for (unsigned int line = args->firsts[chosen]; line <= args->lasts[chosen]; line += 1u)
         {
-            mmgr_line_put(out, first_line ? "" : "\n");
-            mmgr_line_put_n(out, src + line_starts[line], line_ends[line] - line_starts[line]);
+            mmgr_line_put(args->out, first_line ? "" : "\n");
+            mmgr_line_put_n(args->out, args->src + args->line_starts[line],
+                            args->line_ends[line] - args->line_starts[line]);
             first_line = 0;
         }
-        at_line = lasts[member] + 1u;
+        at_line = args->lasts[member] + 1u;
     }
     return 1;
 }

@@ -4,8 +4,9 @@
 // files on it as the file manager puts them, a list of their whole paths, a cut said in its Preferred DropEffect as the
 // file manager's own cut says it, so that a paste of files the file manager cut moves them. What goes on the clipboard
 // is put in memory the system's clipboard takes and owns from then on, as the clipboard takes nothing else. The system
-// keeps another program out while the clipboard is open, but not another thread of this one, so one thread at a time
+// saves another program out while the clipboard is open, but not another thread of this one, so one thread at a time
 // opens it here, from its open to its close
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 
 #if defined(_WIN32)
@@ -34,9 +35,9 @@ static CliLock s_clipboard_lock = CLI_LOCK_INIT;
 
 // the clipboard opened for this thread, the lock taken first, asked for again while another program holds it: 1, or
 // 0 with the lock given back where it stays locked
-static int clipboard_opened(void)
+static int clipboard_open(void)
 {
-    cli_lock_take(&s_clipboard_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_clipboard_lock);
     for (unsigned int asked = 0u; asked < CLI_CLIPBOARD_TRIES; asked += 1u)
     {
         if (OpenClipboard(NULL))
@@ -45,15 +46,15 @@ static int clipboard_opened(void)
         }
         Sleep(CLI_CLIPBOARD_APART);
     }
-    cli_lock_give(&s_clipboard_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_clipboard_lock);
     return 0;
 }
 
 // the clipboard this thread opened closed, and the lock given back
-static void clipboard_closed(void)
+static void clipboard_close(void)
 {
     CloseClipboard();
-    cli_lock_give(&s_clipboard_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_clipboard_lock);
 }
 
 // the format a file manager says a cut or a copy in
@@ -62,9 +63,9 @@ static UINT clipboard_effect_format(void)
     return RegisterClipboardFormatW(L"Preferred DropEffect");
 }
 
-int cli_clipboard_text_read(VerbaLinea *text)
+int cli_clipboard_text_read(const CliCtx *args)
 {
-    if (!clipboard_opened())
+    if (!clipboard_open())
     {
         return 0;
     }
@@ -88,48 +89,57 @@ int cli_clipboard_text_read(VerbaLinea *text)
             // a piece is at most CLI_CLIPBOARD_PIECE units, which an int counts
             const int bytes =
                 WideCharToMultiByte(CP_UTF8, 0u, wide + at, (int)count, piece, (int)sizeof(piece), NULL, NULL);
-            mmgr_line_put_n(text, piece, (bytes > 0) ? (unsigned long long)bytes : 0ull);
+            mmgr_line_put_n(args->text_verba_linea_pointer, piece, (bytes > 0) ? (unsigned long long)bytes : 0ull);
             at += count;
         }
         GlobalUnlock(clipboard_data);
     }
-    clipboard_closed();
+    clipboard_close();
     return 1;
 }
 
+typedef struct
+{
+#if (defined(_WIN32))
+    UINT format;
+    HGLOBAL memory;
+    UINT more_format;
+    HGLOBAL more;
+#endif
+} WindowsClipboardCtx;
 // `memory` put on the clipboard as `format`, and `more` as `more_format` where it is not NULL, the clipboard emptied
 // first: 1, or 0 with each the clipboard did not take given back
-static int clipboard_put(UINT format, HGLOBAL memory, UINT more_format, HGLOBAL more)
+EMBED_INLINE int clipboard_put(const WindowsClipboardCtx *args)
 {
-    if (!clipboard_opened())
+    if (!clipboard_open())
     {
-        GlobalFree(memory);
-        GlobalFree(more);
+        GlobalFree(args->memory);
+        GlobalFree(args->more);
         return 0;
     }
     EmptyClipboard();
-    const int taken = SetClipboardData(format, memory) != NULL;
-    const int more_taken = taken && ((more == NULL) || (SetClipboardData(more_format, more) != NULL));
-    clipboard_closed();
+    const int taken = SetClipboardData(args->format, args->memory) != NULL;
+    const int more_taken = taken && ((args->more == NULL) || (SetClipboardData(args->more_format, args->more) != NULL));
+    clipboard_close();
     if (!taken)
     {
-        GlobalFree(memory);
+        GlobalFree(args->memory);
     }
     if (!more_taken)
     {
-        GlobalFree(more);
+        GlobalFree(args->more);
     }
     return taken && more_taken;
 }
 
-int cli_clipboard_text_written(const char *text, unsigned long long size)
+int cli_clipboard_text_write(const CliSizeTextCtx *args)
 {
-    if (size > INT_MAX)
+    if (args->size > INT_MAX)
     {
         return 0;
     }
     // the size is at most what an int counts, as checked above
-    const int units = (size > 0ull) ? MultiByteToWideChar(CP_UTF8, 0u, text, (int)size, NULL, 0) : 0;
+    const int units = (args->size > 0ull) ? MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, NULL, 0) : 0;
     const HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, ((SIZE_T)units + 1u) * sizeof(wchar_t));
     wchar_t *const wide = (memory != NULL) ? (wchar_t *)GlobalLock(memory) : NULL;
     if (wide == NULL)
@@ -140,20 +150,21 @@ int cli_clipboard_text_written(const char *text, unsigned long long size)
     if (units > 0)
     {
         // the size is at most what an int counts, as checked above
-        (void)MultiByteToWideChar(CP_UTF8, 0u, text, (int)size, wide, units);
+        (void)MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, wide, units);
     }
     wide[units] = L'\0';
     GlobalUnlock(memory);
-    return clipboard_put(CF_UNICODETEXT, memory, 0u, NULL);
+    return EMBED_CALL(clipboard_put, WindowsClipboardCtx, .format = CF_UNICODETEXT, .memory = memory, .more_format = 0u,
+                      .more = NULL);
 }
 
-int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cut)
+int cli_clipboard_files_put(const CliCountCtx *args)
 {
     // the list's head, then each path in UTF-16 with a 0 after it, and one 0 more at the end
     SIZE_T units = 1u;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const int path_units = MultiByteToWideChar(CP_UTF8, 0u, paths[at], -1, NULL, 0);
+        const int path_units = MultiByteToWideChar(CP_UTF8, 0u, args->paths[at], -1, NULL, 0);
         if (path_units <= 0)
         {
             return 0;
@@ -175,25 +186,27 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
     files->fWide = TRUE;
     wchar_t *at = (wchar_t *)(void *)((unsigned char *)files + sizeof(DROPFILES));
     SIZE_T left = units;
-    for (unsigned int path = 0u; path < count; path += 1u)
+    for (unsigned int path = 0u; path < args->count; path += 1u)
     {
         // what is left is at most the units counted above, which an int counts
-        const int written = MultiByteToWideChar(CP_UTF8, 0u, paths[path], -1, at, (int)left);
+        const int written = MultiByteToWideChar(CP_UTF8, 0u, args->paths[path], -1, at, (int)left);
         // a count the system gave is positive here
         at += (written > 0) ? (SIZE_T)written : 0u;
         left -= (written > 0) ? (SIZE_T)written : 0u;
     }
     *at = L'\0';
     GlobalUnlock(memory);
-    *effect_value = cut ? CLI_CLIPBOARD_MOVE : (CLI_CLIPBOARD_COPY | CLI_CLIPBOARD_LINK);
+    *effect_value = args->cut ? CLI_CLIPBOARD_MOVE : (CLI_CLIPBOARD_COPY | CLI_CLIPBOARD_LINK);
     GlobalUnlock(effect);
-    return clipboard_put(CF_HDROP, memory, clipboard_effect_format(), effect);
+    return EMBED_CALL(clipboard_put, WindowsClipboardCtx, .format = CF_HDROP, .memory = memory,
+                      .more_format = clipboard_effect_format(), .more = effect);
 }
 
-unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *path), void *context, int *cut)
+unsigned int cli_clipboard_files_read(const CliEachCtx *args)
 {
+    int *cut = args->cut_pointer;
     *cut = -1;
-    if (!clipboard_opened())
+    if (!clipboard_open())
     {
         return 0u;
     }
@@ -208,7 +221,7 @@ unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *pa
                               (WideCharToMultiByte(CP_UTF8, 0u, wide, -1, path, (int)sizeof(path), NULL, NULL) > 0);
         if (converted)
         {
-            each(context, path);
+            EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = path);
             count += 1u;
         }
     }
@@ -219,16 +232,16 @@ unsigned int cli_clipboard_files_read(void (*each)(void *context, const char *pa
         *cut = ((*effect_value & CLI_CLIPBOARD_MOVE) != 0u) && ((*effect_value & CLI_CLIPBOARD_COPY) == 0u);
         GlobalUnlock(effect);
     }
-    clipboard_closed();
+    clipboard_close();
     return count;
 }
 
-void cli_clipboard_emptied(void)
+void cli_clipboard_clear(void)
 {
-    if (clipboard_opened())
+    if (clipboard_open())
     {
         EmptyClipboard();
-        clipboard_closed();
+        clipboard_close();
     }
 }
 #endif

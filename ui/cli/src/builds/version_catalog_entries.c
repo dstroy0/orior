@@ -15,9 +15,28 @@ static const char *const s_library_keys[5] = {"module", "group", "name", "versio
 static const char *const s_plugin_keys[3] = {"id", "version", "version.ref"};
 static const char *const s_reserved[6] = {"bundles", "versions", "plugins", "extensions", "class", "convention"};
 
-// whether `size` bytes of `text` split at `:` are `count` parts, none of them blank
-static int entries_parts(const char *text, unsigned long long size, unsigned int count)
+typedef struct
 {
+    const char *text;
+    unsigned long long size;
+    unsigned int count;
+    CliVersionsCheck *check;
+    const CliVersionsField *field;
+    const char *code;
+    const char *rest;
+    const CliVersionsField *table;
+    const char *key;
+    int *present;
+    const CliVersionsField *entry;
+    const char *section;
+    unsigned int first;
+    const CliVersionsSection *section_versions_section_pointer;
+} VersionCatalogEntriesCtx;
+// whether `size` bytes of `text` split at `:` are `count` parts, none of them blank
+EMBED_INLINE int entries_parts(const VersionCatalogEntriesCtx *args)
+{
+    const char *text = args->text;
+    unsigned long long size = args->size;
     unsigned int parts = 0u;
     unsigned long long start = 0ull;
     for (unsigned long long at = 0ull; at <= size; at += 1u)
@@ -28,7 +47,8 @@ static int entries_parts(const char *text, unsigned long long size, unsigned int
         }
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
-        cli_text_trimmed(text + start, at - start, &from, &to);
+        EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = text + start, .size = at - start,
+                   .from_u64s = &from, .to_u64s = &to);
         if (to == from)
         {
             return 0;
@@ -36,176 +56,237 @@ static int entries_parts(const char *text, unsigned long long size, unsigned int
         parts += 1u;
         start = at + 1u;
     }
-    return parts == count;
+    return parts == args->count;
 }
 
 // an error over the span inside a string's quotes: the string between backticks, then `rest`
-static void entries_text_error(CliVersionsCheck *check, const CliVersionsField *field, const char *code,
-                               const char *rest)
+EMBED_INLINE void entries_text_error(const VersionCatalogEntriesCtx *args)
 {
-    VerbaLinea msg = cli_build_msg_line(check->found);
+    const char *code = args->code;
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
     mmgr_line_ch(&msg, '`');
-    mmgr_line_put_n(&msg, cli_versions_text(field->text_at), field->text_size);
-    mmgr_line_put(&msg, rest);
-    (void)cli_build_finding(check->found, &msg, check->lines, field->value_from, field->value_to, CLI_BUILD_ERROR,
-                            code);
+    mmgr_line_put_n(
+        &msg, EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = args->field->text_at),
+        args->field->text_size);
+    mmgr_line_put(&msg, args->rest);
+    (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found, .message = &msg,
+                     .lines = args->check->lines, .from = args->field->value_from, .to = args->field->value_to,
+                     .severity = CLI_BUILD_ERROR, .code = code);
 }
 
 // the string a table's field keyed `key` contains, NULL where it contains none or the field is none
-static const CliVersionsField *entries_text_of(const CliVersionsField *table, const char *key, int *present)
+EMBED_INLINE const CliVersionsField *entries_text_get(const VersionCatalogEntriesCtx *args)
 {
-    const unsigned int at = cli_versions_get(table->first, key);
+    const char *key = args->key;
+    int *present = args->present;
+    const unsigned int at = EMBED_CALL(cli_version_catalog_first_internal.versions_get, CliVersionCatalogFirstCtx,
+                                       .first = args->table->first, .key = key);
     *present = (at != CLI_VERSIONS_NONE);
     return (*present && (g_cli_versions.field[at].shape == CLI_VERSIONS_TEXT)) ? &g_cli_versions.field[at] : NULL;
 }
 
 // a library: a string of `group:name:version`, or a table naming its module and its version
-static void entries_library(CliVersionsCheck *check, const CliVersionsField *entry)
+EMBED_INLINE void entries_library(const VersionCatalogEntriesCtx *args)
 {
-    if (entry->shape == CLI_VERSIONS_TEXT)
+    CliVersionsCheck *check = args->check;
+    if (args->entry->shape == CLI_VERSIONS_TEXT)
     {
-        const char *const text = cli_versions_text(entry->text_at);
-        unsigned long long last = entry->text_size;
-        last = cli_text_back_any(text, last, ":");
-        if (!entries_parts(text, entry->text_size, 3u))
+        const char *const text =
+            EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = args->entry->text_at);
+        unsigned long long last = args->entry->text_size;
+        last = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = text, .at = last,
+                          .set = ":");
+        if (!EMBED_CALL(entries_parts, VersionCatalogEntriesCtx, .text = text, .size = args->entry->text_size,
+                        .count = 3u))
         {
-            entries_text_error(check, entry, "catalog-library",
-                               "` is no library: a library's string is `group:name:version`");
+            EMBED_CALL(entries_text_error, VersionCatalogEntriesCtx, .check = check, .field = args->entry,
+                       .code = "catalog-library",
+                       .rest = "` is no library: a library's string is `group:name:version`");
         }
-        else if (cli_build_snapshot(text + last, entry->text_size - last))
+        else if (EMBED_CALL(cli_builds_size_version.build_snapshot, CliBuildsSizeVersionCfg, .version = text + last,
+                            .size = args->entry->text_size - last))
         {
-            cli_versions_snapshot(check, entry->value_from, entry->value_to, text, entry->text_size);
+            EMBED_CALL(cli_version_catalog_text_size_internal.versions_snapshot, CliVersionCatalogTextSizeCtx,
+                       .check = check, .from = args->entry->value_from, .to = args->entry->value_to, .text = text,
+                       .size = args->entry->text_size);
         }
         return;
     }
-    if (entry->shape != CLI_VERSIONS_TABLE)
+    if (args->entry->shape != CLI_VERSIONS_TABLE)
     {
-        cli_versions_entry_error(check, entry, "catalog-library",
-                                 "` is a library written as a string, `group:name:version`, or a table");
+        EMBED_CALL(cli_version_catalog_field_internal.versions_entry_error, CliVersionCatalogFieldCtx, .check = check,
+                   .field = args->entry, .code = "catalog-library",
+                   .rest = "` is a library written as a string, `group:name:version`, or a table");
         return;
     }
-    cli_versions_keys(check, entry, s_library_keys, 5u, "A library's table");
+    EMBED_CALL(cli_version_catalog_check_internal.versions_keys, CliVersionCatalogCheckCtx, .check = check,
+               .table = args->entry, .known = s_library_keys, .count = 5u, .of = "A library's table");
     int module_present = 0;
     int group_present = 0;
     int name_present = 0;
-    const CliVersionsField *const module = entries_text_of(entry, "module", &module_present);
-    const CliVersionsField *const group = entries_text_of(entry, "group", &group_present);
-    const CliVersionsField *const name = entries_text_of(entry, "name", &name_present);
+    const CliVersionsField *const module = EMBED_CALL(entries_text_get, VersionCatalogEntriesCtx, .table = args->entry,
+                                                      .key = "module", .present = &module_present);
+    const CliVersionsField *const group = EMBED_CALL(entries_text_get, VersionCatalogEntriesCtx, .table = args->entry,
+                                                     .key = "group", .present = &group_present);
+    const CliVersionsField *const name = EMBED_CALL(entries_text_get, VersionCatalogEntriesCtx, .table = args->entry,
+                                                    .key = "name", .present = &name_present);
     VerbaLinea coordinates = {check->coordinates, check->room, 0ull};
     if (module != NULL)
     {
-        if (!entries_parts(cli_versions_text(module->text_at), module->text_size, 2u))
+        if (!EMBED_CALL(entries_parts, VersionCatalogEntriesCtx,
+                        .text = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
+                                           .at = module->text_at),
+                        .size = module->text_size, .count = 2u))
         {
-            entries_text_error(check, module, "catalog-library", "` is no module: a module is `group:name`");
+            EMBED_CALL(entries_text_error, VersionCatalogEntriesCtx, .check = check, .field = module,
+                       .code = "catalog-library", .rest = "` is no module: a module is `group:name`");
         }
-        mmgr_line_put_n(&coordinates, cli_versions_text(module->text_at), module->text_size);
+        mmgr_line_put_n(
+            &coordinates,
+            EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = module->text_at),
+            module->text_size);
     }
     else if (!module_present && (group != NULL) && (name != NULL))
     {
-        mmgr_line_put_n(&coordinates, cli_versions_text(group->text_at), group->text_size);
+        mmgr_line_put_n(
+            &coordinates,
+            EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = group->text_at),
+            group->text_size);
         mmgr_line_ch(&coordinates, ':');
-        mmgr_line_put_n(&coordinates, cli_versions_text(name->text_at), name->text_size);
+        mmgr_line_put_n(
+            &coordinates,
+            EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = name->text_at),
+            name->text_size);
     }
     else
     {
-        cli_versions_entry_error(check, entry, "catalog-library",
-                                 "` names its library by `module`, or by `group` and `name`");
+        EMBED_CALL(cli_version_catalog_field_internal.versions_entry_error, CliVersionCatalogFieldCtx, .check = check,
+                   .field = args->entry, .code = "catalog-library",
+                   .rest = "` names its library by `module`, or by `group` and `name`");
     }
-    cli_versions_versioned(check, entry, check->coordinates, coordinates.at);
+    EMBED_CALL(cli_version_catalog_check_table_internal.versions_version, CliVersionCatalogCheckTableCtx,
+               .check = check, .table = args->entry, .coordinates = check->coordinates,
+               .coordinates_size = coordinates.at);
 }
 
 // a plugin: a string of `id:version`, or a table naming its id and its version
-static void entries_plugin(CliVersionsCheck *check, const CliVersionsField *entry)
+EMBED_INLINE void entries_plugin(const VersionCatalogEntriesCtx *args)
 {
-    if (entry->shape == CLI_VERSIONS_TEXT)
+    CliVersionsCheck *check = args->check;
+    if (args->entry->shape == CLI_VERSIONS_TEXT)
     {
-        if (!entries_parts(cli_versions_text(entry->text_at), entry->text_size, 2u))
+        if (!EMBED_CALL(entries_parts, VersionCatalogEntriesCtx,
+                        .text = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
+                                           .at = args->entry->text_at),
+                        .size = args->entry->text_size, .count = 2u))
         {
-            entries_text_error(check, entry, "catalog-plugin", "` is no plugin: a plugin's string is `id:version`");
+            EMBED_CALL(entries_text_error, VersionCatalogEntriesCtx, .check = check, .field = args->entry,
+                       .code = "catalog-plugin", .rest = "` is no plugin: a plugin's string is `id:version`");
         }
         return;
     }
-    if (entry->shape != CLI_VERSIONS_TABLE)
+    if (args->entry->shape != CLI_VERSIONS_TABLE)
     {
-        cli_versions_entry_error(check, entry, "catalog-plugin",
-                                 "` is a plugin written as a string, `id:version`, or a table");
+        EMBED_CALL(cli_version_catalog_field_internal.versions_entry_error, CliVersionCatalogFieldCtx, .check = check,
+                   .field = args->entry, .code = "catalog-plugin",
+                   .rest = "` is a plugin written as a string, `id:version`, or a table");
         return;
     }
-    cli_versions_keys(check, entry, s_plugin_keys, 3u, "A plugin's table");
+    EMBED_CALL(cli_version_catalog_check_internal.versions_keys, CliVersionCatalogCheckCtx, .check = check,
+               .table = args->entry, .known = s_plugin_keys, .count = 3u, .of = "A plugin's table");
     int present = 0;
-    const CliVersionsField *const id = entries_text_of(entry, "id", &present);
+    const CliVersionsField *const id =
+        EMBED_CALL(entries_text_get, VersionCatalogEntriesCtx, .table = args->entry, .key = "id", .present = &present);
     if (id == NULL)
     {
-        cli_versions_entry_error(check, entry, "catalog-plugin", "` names its plugin by `id`");
+        EMBED_CALL(cli_version_catalog_field_internal.versions_entry_error, CliVersionCatalogFieldCtx, .check = check,
+                   .field = args->entry, .code = "catalog-plugin", .rest = "` names its plugin by `id`");
         return;
     }
-    cli_versions_versioned(check, entry, cli_versions_text(id->text_at), id->text_size);
+    EMBED_CALL(cli_version_catalog_check_table_internal.versions_version, CliVersionCatalogCheckTableCtx,
+               .check = check, .table = args->entry,
+               .coordinates =
+                   EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = id->text_at),
+               .coordinates_size = id->text_size);
 }
 
 // a bundle: a list of the libraries' aliases, each one the catalog's
-static void entries_bundle(CliVersionsCheck *check, const CliVersionsField *entry)
+EMBED_INLINE void entries_bundle(const VersionCatalogEntriesCtx *args)
 {
-    if (entry->shape != CLI_VERSIONS_LIST)
+    CliVersionsCheck *check = args->check;
+    if (args->entry->shape != CLI_VERSIONS_LIST)
     {
-        cli_versions_entry_error(check, entry, "catalog-bundle",
-                                 "` is a bundle written as a list of libraries' aliases");
+        EMBED_CALL(cli_version_catalog_field_internal.versions_entry_error, CliVersionCatalogFieldCtx, .check = check,
+                   .field = args->entry, .code = "catalog-bundle",
+                   .rest = "` is a bundle written as a list of libraries' aliases");
         return;
     }
-    for (unsigned int at = 0u; at < entry->count; at += 1u)
+    for (unsigned int at = 0u; at < args->entry->count; at += 1u)
     {
-        const CliVersionsItem *const member = &g_cli_versions.item[entry->first + at];
-        const char *const text = cli_versions_text(member->text_at);
+        const CliVersionsItem *const member = &g_cli_versions.item[args->entry->first + at];
+        const char *const text =
+            EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = member->text_at);
         char accessor[1u << 12u];
         VerbaLinea line = {accessor, sizeof(accessor), 0ull};
-        if (cli_versions_contains(&g_cli_versions_libraries, text, member->text_size, &line))
+        if (EMBED_CALL(cli_version_catalog_size_out_internal.versions_contains, CliVersionCatalogSizeOutCtx,
+                       .names = &g_cli_versions_libraries, .name = text, .size = member->text_size, .out = &line))
         {
             continue;
         }
-        VerbaLinea msg = cli_build_msg_line(check->found);
+        VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_put(&msg, "The catalog's `[libraries]` has no `");
         mmgr_line_put_n(&msg, text, member->text_size);
         mmgr_line_ch(&msg, '`');
-        const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, member->from, member->to,
-                                                       CLI_BUILD_ERROR, "catalog-reference");
-        cli_versions_near(check, finding, accessor, line.at, NULL, 0u, &g_cli_versions_libraries, member->from,
-                          member->to, "", "");
+        const unsigned int finding =
+            EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+                       .lines = check->lines, .from = member->from, .to = member->to, .severity = CLI_BUILD_ERROR,
+                       .code = "catalog-reference");
+        EMBED_CALL(cli_version_catalog_size_internal.versions_near, CliVersionCatalogSizeCtx, .check = check,
+                   .finding = finding, .name = accessor, .size = line.at, .known = NULL, .count = 0u,
+                   .names = &g_cli_versions_libraries, .from = member->from, .to = member->to, .open = "", .close = "");
     }
 }
 
 // an entry's alias checked against its form and the aliases above it in its section, `seen` of them from `first`
-static void entries_alias(CliVersionsCheck *check, const CliVersionsField *entry, const char *section,
-                          unsigned int first)
+EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
 {
-    const char *const alias = cli_versions_text(entry->key_at);
+    CliVersionsCheck *check = args->check;
+    const char *const alias =
+        EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = args->entry->key_at);
     char named[1u << 12u];
     VerbaLinea line = {named, sizeof(named), 0ull};
-    cli_versions_accessor(alias, entry->key_size, &line);
-    for (unsigned int above = first; above != CLI_VERSIONS_NONE; above = g_cli_versions.field[above].next)
+    EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
+               .alias = alias, .size = args->entry->key_size, .out = &line);
+    for (unsigned int above = args->first; above != CLI_VERSIONS_NONE; above = g_cli_versions.field[above].next)
     {
         const CliVersionsField *const other = &g_cli_versions.field[above];
-        if (other == entry)
+        if (other == args->entry)
         {
             break;
         }
         char other_named[1u << 12u];
         VerbaLinea other_line = {other_named, sizeof(other_named), 0ull};
-        cli_versions_accessor(cli_versions_text(other->key_at), other->key_size, &other_line);
+        EMBED_CALL(
+            cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
+            .alias = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = other->key_at),
+            .size = other->key_size, .out = &other_line);
         if ((other_line.at == line.at) &&
             (memor.cmp(&(MemoriaCfg){.src = other_named, .other = named, .bytes = (size_t)line.at}) == 0))
         {
-            VerbaLinea msg = cli_build_msg_line(check->found);
+            VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
             mmgr_line_ch(&msg, '`');
-            mmgr_line_put_n(&msg, alias, entry->key_size);
+            mmgr_line_put_n(&msg, alias, args->entry->key_size);
             mmgr_line_put(&msg, "` has the accessor of an alias above it, `");
             mmgr_line_put_n(&msg, named, line.at);
             mmgr_line_ch(&msg, '`');
-            (void)cli_build_finding(check->found, &msg, check->lines, entry->from, entry->to, CLI_BUILD_ERROR,
-                                    "catalog-alias");
+            (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+                             .lines = check->lines, .from = args->entry->from, .to = args->entry->to,
+                             .severity = CLI_BUILD_ERROR, .code = "catalog-alias");
             break;
         }
     }
-    int shaped = (entry->key_size > 1u) && (alias[0] >= 'a') && (alias[0] <= 'z');
-    for (unsigned int at = 0u; shaped && (at < entry->key_size); at += 1u)
+    int shaped = (args->entry->key_size > 1u) && (alias[0] >= 'a') && (alias[0] <= 'z');
+    for (unsigned int at = 0u; shaped && (at < args->entry->key_size); at += 1u)
     {
         const char one = alias[at];
         shaped = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) || ((one >= '0') && (one <= '9')) ||
@@ -213,86 +294,106 @@ static void entries_alias(CliVersionsCheck *check, const CliVersionsField *entry
     }
     if (!shaped)
     {
-        cli_versions_entry_error(check, entry, "catalog-alias",
-                                 "` is no alias: an alias starts with a lowercase letter and goes on in letters, "
-                                 "digits, `-`, `_` and `.`");
+        EMBED_CALL(cli_version_catalog_field_internal.versions_entry_error, CliVersionCatalogFieldCtx, .check = check,
+                   .field = args->entry, .code = "catalog-alias",
+                   .rest = "` is no alias: an alias starts with a lowercase letter and goes on in letters, "
+                           "digits, `-`, `_` and `.`");
     }
     const char *const dot = memor.chr(&(MemoriaCfg){.src = named, .val = '.', .bytes = (size_t)line.at});
     const unsigned long long head = (dot != NULL) ? (unsigned long long)(dot - named) : line.at;
     for (unsigned int at = 0u;
-         (cellul.eq(&(CatenaFinitaCfg){.src = section, .other = "libraries", .cap = CLI_CELLS_POOL})) && (at < 6u);
+         (cellul.eq(&(CatenaFinitaCfg){.src = args->section, .other = "libraries", .cap = CLI_CELLS_POOL})) &&
+         (at < 6u);
          at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_reserved[at], .cap = CLI_CELLS_POOL}) == head) &&
             (memor.cmp(&(MemoriaCfg){.src = s_reserved[at], .other = named, .bytes = (size_t)head}) == 0))
         {
-            VerbaLinea msg = cli_build_msg_line(check->found);
+            VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
             mmgr_line_put(&msg, "A library's alias cannot start with `");
             mmgr_line_put_n(&msg, named, head);
             mmgr_line_put(&msg, "`, the name of a section of the catalog's accessor");
-            (void)cli_build_finding(check->found, &msg, check->lines, entry->from, entry->to, CLI_BUILD_ERROR,
-                                    "catalog-alias");
+            (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+                             .lines = check->lines, .from = args->entry->from, .to = args->entry->to,
+                             .severity = CLI_BUILD_ERROR, .code = "catalog-alias");
         }
     }
 }
 
 // a section no catalog contains, with the sections near its name
-static void entries_unknown_section(CliVersionsCheck *check, const CliVersionsSection *section)
+EMBED_INLINE void entries_unknown_section(const VersionCatalogEntriesCtx *args)
 {
-    const char *const name = cli_versions_text(section->name_at);
-    VerbaLinea msg = cli_build_msg_line(check->found);
+    CliVersionsCheck *check = args->check;
+    const char *const name = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
+                                        .at = args->section_versions_section_pointer->name_at);
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
     mmgr_line_put(&msg, "A catalog has no section `[");
-    mmgr_line_put_n(&msg, name, section->name_size);
+    mmgr_line_put_n(&msg, name, args->section_versions_section_pointer->name_size);
     mmgr_line_put(&msg, "]`: its sections are `[versions]`, `[libraries]`, `[bundles]` and `[plugins]`");
-    const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, section->from, section->to,
-                                                   CLI_BUILD_WARNING, "catalog-section");
-    cli_versions_near(check, finding, name, section->name_size, s_sections, 5u, NULL, section->from, section->to, "[",
-                      "]");
+    const unsigned int finding = EMBED_CALL(
+        cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
+        .lines = check->lines, .from = args->section_versions_section_pointer->from,
+        .to = args->section_versions_section_pointer->to, .severity = CLI_BUILD_WARNING, .code = "catalog-section");
+    EMBED_CALL(cli_version_catalog_size_internal.versions_near, CliVersionCatalogSizeCtx, .check = check,
+               .finding = finding, .name = name, .size = args->section_versions_section_pointer->name_size,
+               .known = s_sections, .count = 5u, .names = NULL, .from = args->section_versions_section_pointer->from,
+               .to = args->section_versions_section_pointer->to, .open = "[", .close = "]");
 }
 
-void cli_versions_check(const char *root, const char *path, const char *text, unsigned long long size,
-                        const CliBuildLines *lines, CliBuildFindings *found)
+void cli_versions_check(const CliVersionCatalogTextCtx *args)
 {
+    const char *root = args->root;
+    const CliBuildLines *lines = args->lines;
+    CliBuildFindings *found = args->found;
     static CliVersionsCheck s_check;
-    cli_lock_take(&g_cli_versions_lock);
-    if (!cli_versions_parse(text, size))
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_versions_lock);
+    if (!cli_version_catalog_text_internal.versions_parse(args))
     {
-        cli_versions_released();
-        cli_lock_give(&g_cli_versions_lock);
+        cli_versions_release();
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
         return;
     }
     s_check.lines = lines;
     s_check.found = found;
     char folder[CLI_PATH_MAX_LEN];
     char above[CLI_PATH_MAX_LEN];
-    if (!cli_path_parent(path, above) || !cli_path_parent(above, folder))
+    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = above) ||
+        !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = above, .out = folder))
     {
         VerbaLinea copy = {folder, sizeof(folder), 0ull};
         mmgr_line_put(&copy, root);
         (void)mmgr_line_finish(&copy);
     }
-    cli_build_inside(root, folder, s_check.folder);
+    EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = root, .folder = folder,
+               .out_room = s_check.folder);
     char build[CLI_PATH_MAX_LEN];
-    cli_full(root, s_check.folder, build);
-    cli_gradle_program(build, s_check.program);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = s_check.folder, .joined = build);
+    EMBED_CALL(cli_builds_internal.gradle_program, CliBuildsCtx, .folder = build, .out = s_check.program);
     for (unsigned int at = 0u; at < g_cli_versions.errors; at += 1u)
     {
         const CliVersionsError *const error = &g_cli_versions.error[at];
-        const VerbaLinea msg = {(char *)cli_versions_text(error->message_at), error->message_size + 1u,
-                                error->message_size};
-        (void)cli_build_finding(found, &msg, lines, error->from, error->to, CLI_BUILD_ERROR, "catalog-syntax");
+        const VerbaLinea msg = {(char *)EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
+                                                   .at = error->message_at),
+                                error->message_size + 1u, error->message_size};
+        (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = found, .message = &msg,
+                         .lines = lines, .from = error->from, .to = error->to, .severity = CLI_BUILD_ERROR,
+                         .code = "catalog-syntax");
     }
     // a dependency's coordinates are a module, or a group and a name, of the catalog's texts, and with its version
     // twice that; the entries are checked only where these and the accessors are met
     s_check.room = g_cli_versions.used + 2ull;
     s_check.coordinates = g_cli_cells->persistent_buf_alloc(3ull * s_check.room, &g_cli_versions_cells);
     s_check.full = (s_check.coordinates != NULL) ? s_check.coordinates + s_check.room : NULL;
-    const int met = (s_check.coordinates != NULL) && cli_versions_names_of("versions", &g_cli_versions_known) &&
-                    cli_versions_names_of("libraries", &g_cli_versions_libraries);
+    const int met = (s_check.coordinates != NULL) &&
+                    EMBED_CALL(cli_version_catalog_name_internal.versions_names_get, CliVersionCatalogNameCtx,
+                               .name = "versions", .names_out = &g_cli_versions_known) &&
+                    EMBED_CALL(cli_version_catalog_name_internal.versions_names_get, CliVersionCatalogNameCtx,
+                               .name = "libraries", .names_out = &g_cli_versions_libraries);
     for (unsigned int at = 0u; met && (at < g_cli_versions.sections); at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
-        const char *const name = cli_versions_text(section->name_at);
+        const char *const name =
+            EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = section->name_at);
         unsigned int kind = 5u;
         for (unsigned int one = 0u; one < 5u; one += 1u)
         {
@@ -301,35 +402,38 @@ void cli_versions_check(const char *root, const char *path, const char *text, un
         }
         if (kind == 5u)
         {
-            entries_unknown_section(&s_check, section);
+            EMBED_CALL(entries_unknown_section, VersionCatalogEntriesCtx, .check = &s_check,
+                       .section_versions_section_pointer = section);
             continue;
         }
         for (unsigned int entry = section->first; (kind < 4u) && (entry != CLI_VERSIONS_NONE);
              entry = g_cli_versions.field[entry].next)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
-            entries_alias(&s_check, field, name, section->first);
+            EMBED_CALL(entries_alias, VersionCatalogEntriesCtx, .check = &s_check, .entry = field, .section = name,
+                       .first = section->first);
             if (kind == 0u)
             {
-                cli_versions_check_version(&s_check, field);
+                EMBED_CALL(cli_version_catalog_check_entry_internal.versions_check_version,
+                           CliVersionCatalogCheckEntryCtx, .check = &s_check, .entry = field);
             }
             else if (kind == 1u)
             {
-                entries_library(&s_check, field);
+                EMBED_CALL(entries_library, VersionCatalogEntriesCtx, .check = &s_check, .entry = field);
             }
             else if (kind == 2u)
             {
-                entries_bundle(&s_check, field);
+                EMBED_CALL(entries_bundle, VersionCatalogEntriesCtx, .check = &s_check, .entry = field);
             }
             else
             {
-                entries_plugin(&s_check, field);
+                EMBED_CALL(entries_plugin, VersionCatalogEntriesCtx, .check = &s_check, .entry = field);
             }
         }
     }
     g_cli_cells->persistent_buf_release(s_check.coordinates, &g_cli_versions_cells);
     s_check.coordinates = NULL;
     s_check.full = NULL;
-    cli_versions_released();
-    cli_lock_give(&g_cli_versions_lock);
+    cli_versions_release();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
 }

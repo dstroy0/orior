@@ -15,8 +15,28 @@
 // version_catalog*.c, gradle*.c, maven*.c, scons*.c)
 #ifndef BUILDS_H
 #define BUILDS_H
+typedef struct CliBuildsTextCfg CliBuildsTextCfg;
+typedef struct CliBuildsPathCfg CliBuildsPathCfg;
+typedef struct CliBuildsItemsCfg CliBuildsItemsCfg;
+typedef struct CliBuildsLinesCfg CliBuildsLinesCfg;
+typedef struct CliBuildsFoundCfg CliBuildsFoundCfg;
+typedef struct CliBuildsPathTextCfg CliBuildsPathTextCfg;
+typedef struct CliBuildsItemsKindCfg CliBuildsItemsKindCfg;
+typedef struct CliBuildsTextSizeCfg CliBuildsTextSizeCfg;
+typedef struct CliBuildsPathRootCfg CliBuildsPathRootCfg;
+typedef struct CliBuildsACfg CliBuildsACfg;
+typedef struct CliBuildsRootCfg CliBuildsRootCfg;
+typedef struct CliBuildsSizeCfg CliBuildsSizeCfg;
+typedef struct CliBuildsSizeNearCfg CliBuildsSizeNearCfg;
+typedef struct CliBuildsTextAtCfg CliBuildsTextAtCfg;
+typedef struct CliBuildsCfg CliBuildsCfg;
+typedef struct CliBuildsLineCfg CliBuildsLineCfg;
+typedef struct CliBuildsLinesAtCfg CliBuildsLinesAtCfg;
+typedef struct CliBuildsSizeVersionCfg CliBuildsSizeVersionCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../text/edits.h"
+#include "embed_dispatch_layout.h"
 
 // the kinds of build file read here, 0 for none
 #define CLI_BUILD_GRADLE 1u
@@ -43,24 +63,22 @@
 extern CellOwner g_cli_build_cells;
 
 // the kind of build file at `path`, by its name, 0 where it is none
-unsigned int cli_build_kind_of(const char *path);
+unsigned int cli_build_kind_get(const CliBuildsPathCfg *args);
 
 // the diagnostics of the build file at `path` of the tree at `root`, `size` bytes of its text, written as the
 // protocol's array of them into `out`
-void cli_build_check(const char *root, const char *path, const char *text, unsigned long long size, VerbaLinea *out);
+void cli_build_check(const CliBuildsPathCfg *args);
 // what completes the word before `line`, `col` of the build file at `path`, `size` bytes of its text, into `items`,
 // each label once
-void cli_build_complete(const char *root, const char *path, const char *text, unsigned long long size,
-                        unsigned int line, unsigned int col, CliCompletions *items);
+void cli_build_complete(const CliBuildsPathCfg *args);
 // the names SCons gives the SConstruct or SConscript at `path` without its importing them: its globals and the names
 // its `Import` calls take, each handed to `each`; none for any other file
-void cli_build_given_names(const char *path, const char *text, unsigned long long size,
-                           void (*each)(void *context, const char *name, unsigned long long size), void *context);
+void cli_build_input_names(const CliBuildsPathTextCfg *args);
 // the folder, in the tree, and the command line that update every snapshot dependency of the build `path`, NULL for
 // none, belongs to: Maven's where it is a POM or a POM stands beside it, Gradle's where it is a Gradle file or one
 // stands beside it, and either one at the tree's top where `path` is neither; each into what is sized for
 // CLI_PATH_MAX_LEN: 1, or 0 with why given
-int cli_build_snapshots_line(const char *root, const char *path, char *folder, char *line, VerbaLinea *err_msg);
+int cli_build_snapshots_line(const CliBuildsPathRootCfg *args);
 
 // Where each line of a text starts, to turn a byte of it into a place: the starts of its first `count` lines, those
 // past them found by reading on
@@ -74,14 +92,13 @@ typedef struct
 
 // the lines of `size` bytes of `text`, their starts stored in `starts`, sized for `most`; the line and the column, in
 // UTF-16 units, of byte `at`; and the byte line `line` starts at, the text's end past its last (builds_help.c)
-void cli_build_lines_of(const char *text, unsigned long long size, unsigned int *starts, unsigned int most,
-                        CliBuildLines *lines);
+void cli_build_lines_get(const CliBuildsTextSizeCfg *args);
 // the lines of `size` bytes of `text` indexed whole, their starts in a cell counted to g_cli_build_cells sized to
 // them: the cell, given back with g_cli_cells->persistent_buf_release once the lines are done with, or NULL with no
 // line indexed where it is refused
-unsigned int *cli_build_lines_taken(const char *text, unsigned long long size, CliBuildLines *lines);
-CliTextPlace cli_build_place(const CliBuildLines *lines, unsigned long long at);
-unsigned long long cli_build_line_start(const CliBuildLines *lines, unsigned int line);
+unsigned int *cli_build_lines_take(const CliBuildsTextSizeCfg *args);
+CliTextPlace cli_build_place(const CliBuildsLinesAtCfg *args);
+unsigned long long cli_build_line_start(const CliBuildsLineCfg *args);
 
 // A finding in a file: its span, how bad it is, its code, and its message in Markdown, a text of its findings'
 typedef struct
@@ -135,40 +152,30 @@ typedef struct
 // fix made of it next, one at a time; a finding of `message` over the bytes `from` to `to`: its place, or
 // CLI_BUILD_NONE where it does not fit; a fix of the finding at `finding` that writes `size` bytes of `text` over the
 // bytes `from` to `to`; and one that runs `line` in the terminal in `folder` of the tree (builds_help.c)
-void cli_build_findings_begun(CliBuildFindings *found);
-void cli_build_findings_given(CliBuildFindings *found);
-VerbaLinea cli_build_msg_line(CliBuildFindings *found);
-unsigned int cli_build_finding(CliBuildFindings *found, const VerbaLinea *message, const CliBuildLines *lines,
-                               unsigned long long from, unsigned long long to, unsigned int severity, const char *code);
-void cli_build_edit_fix(CliBuildFindings *found, unsigned int finding, const VerbaLinea *title,
-                        const CliBuildLines *lines, unsigned long long from, unsigned long long to, const char *text,
-                        unsigned long long size);
-void cli_build_run_fix(CliBuildFindings *found, unsigned int finding, const VerbaLinea *title, const char *folder,
-                       unsigned long long folder_size, const char *line, unsigned long long line_size);
+void cli_build_findings_begin(const CliBuildsLinesCfg *args);
+void cli_build_findings_free(const CliBuildsLinesCfg *args);
+VerbaLinea cli_build_msg_line(const CliBuildsLinesCfg *args);
+unsigned int cli_build_finding(const CliBuildsLinesCfg *args);
+void cli_build_edit_fix(const CliBuildsTextCfg *args);
+void cli_build_run_fix(const CliBuildsFoundCfg *args);
 // a fix of the finding at `finding` that writes `size` bytes of `text` over the bytes `from` to `to` and over
 // `also_from` to `also_to` (builds_help.c)
-void cli_build_edit_fix_twice(CliBuildFindings *found, unsigned int finding, const VerbaLinea *title,
-                              const CliBuildLines *lines, unsigned long long from, unsigned long long to,
-                              unsigned long long also_from, unsigned long long also_to, const char *text,
-                              unsigned long long size);
+void cli_build_edit_fix_twice(const CliBuildsTextCfg *args);
 // the findings written as the protocol's array of diagnostics, each `{"range", "severity", "message": {"kind",
 // "value"}, "source": "orior", "code", "data": {"orior": fixes}}`
-void cli_build_findings_written(const CliBuildFindings *found, VerbaLinea *out);
+void cli_build_findings_write(const CliBuildsCfg *args);
 
 // the byte of `size` bytes of `text` at `line`, `col`, the column in UTF-16 units; whether a letter is of a word, as
 // the editor reads one; and the start of the run of letters `of` takes that ends at byte `at`, on its line
-unsigned long long cli_build_byte_at(const char *text, unsigned long long size, unsigned int line, unsigned int col);
-int cli_build_word_letter(unsigned int letter);
-unsigned long long cli_build_run_before(const char *text, unsigned long long at, int (*of)(unsigned int letter));
+unsigned long long cli_build_byte_at(const CliBuildsPathCfg *args);
+int cli_build_word_letter(const CliEachLetterCfg *args);
+unsigned long long cli_build_run_before(const CliBuildsTextAtCfg *args);
 
 // the item of a value put where it stands after what was typed before the word the cursor is in: of
 // `maven.compiler.so` typed, `source` for `maven.compiler.source`; a value that does not start with what was typed is
 // left out; and plain items for `words`, `count` of them, each of `kind` with `detail`, `()` left off what each shows
-void cli_build_relative(CliCompletions *items, const char *token, unsigned long long token_size, const char *value,
-                        unsigned long long value_size, const char *kind, const char *detail,
-                        unsigned long long detail_size);
-void cli_build_items(CliCompletions *items, const char *const *words, unsigned int count, const char *kind,
-                     const char *detail);
+void cli_build_relative(const CliBuildsItemsCfg *args);
+void cli_build_items(const CliBuildsItemsKindCfg *args);
 
 // The names nearest one that is not known, near enough to be what was meant, the nearest first, at most three, each a
 // text of the caller's
@@ -184,14 +191,356 @@ typedef struct
 
 // the fewest edits of one letter that turn `a` into `b`; the nearest names begun for `name`; and a known name offered
 // to them
-unsigned long long cli_build_distance(const char *a, unsigned long long a_size, const char *b,
-                                      unsigned long long b_size);
-void cli_build_near_begun(CliBuildNear *near, const char *name, unsigned long long size);
-void cli_build_near_offered(CliBuildNear *near, const char *one, unsigned long long size);
+unsigned long long cli_build_distance(const CliBuildsACfg *args);
+void cli_build_near_begin(const CliBuildsSizeCfg *args);
+void cli_build_near_offer(const CliBuildsSizeNearCfg *args);
 
 // `folder` as a path in the tree at `root`, with forward slashes, empty for the top, into `out`, sized for
 // CLI_PATH_MAX_LEN; and whether a version is a snapshot's
-void cli_build_inside(const char *root, const char *folder, char *out);
-int cli_build_snapshot(const char *version, unsigned long long size);
+void cli_build_inside(const CliBuildsRootCfg *args);
+int cli_build_snapshot(const CliBuildsSizeVersionCfg *args);
+
+struct CliBuildsTextCfg
+{
+    const char *text;
+    unsigned long long size;
+    const CliBuildLines *lines;
+    CliBuildFindings *found;
+    unsigned long long from;
+    unsigned long long to;
+    unsigned int finding;
+    const VerbaLinea *title;
+    unsigned long long also_from;
+    unsigned long long also_to;
+};
+
+struct CliBuildsPathCfg
+{
+    const char *path;
+    const char *root;
+    const char *text;
+    unsigned long long size;
+    VerbaLinea *out;
+    unsigned int line;
+    unsigned int col;
+    CliCompletions *items;
+};
+
+struct CliBuildsItemsCfg
+{
+    CliCompletions *items;
+    const char *token;
+    unsigned long long token_size;
+    const char *value;
+    unsigned long long value_size;
+    const char *kind;
+    const char *detail;
+    unsigned long long detail_size;
+};
+
+struct CliBuildsLinesCfg
+{
+    const CliBuildLines *lines;
+    CliBuildFindings *found;
+    const VerbaLinea *message;
+    unsigned long long from;
+    unsigned long long to;
+    unsigned int severity;
+    const char *code;
+};
+
+struct CliBuildsFoundCfg
+{
+    CliBuildFindings *found;
+    unsigned int finding;
+    const VerbaLinea *title;
+    const char *folder;
+    unsigned long long folder_size;
+    const char *line_text;
+    unsigned long long line_size;
+};
+
+struct CliBuildsPathTextCfg
+{
+    const char *path;
+    const char *text;
+    unsigned long long size;
+    void (*each)(const CliEachNameSizeCfg *args);
+    void *context;
+};
+
+struct CliBuildsItemsKindCfg
+{
+    CliCompletions *items;
+    const char *kind;
+    const char *detail;
+    const char *const *words;
+    unsigned int count;
+};
+
+struct CliBuildsTextSizeCfg
+{
+    const char *text;
+    unsigned long long size;
+    unsigned int *starts;
+    unsigned int most;
+    CliBuildLines *lines_out;
+};
+
+struct CliBuildsPathRootCfg
+{
+    const char *path;
+    const char *root;
+    char *folder_out;
+    char *line_room;
+    VerbaLinea *err_msg;
+};
+
+struct CliBuildsACfg
+{
+    const char *a;
+    unsigned long long a_size;
+    const char *b;
+    unsigned long long b_size;
+};
+
+struct CliBuildsRootCfg
+{
+    const char *root;
+    const char *folder;
+    char *out_room;
+};
+
+struct CliBuildsSizeCfg
+{
+    unsigned long long size;
+    CliBuildNear *near;
+    const char *name;
+};
+
+struct CliBuildsSizeNearCfg
+{
+    unsigned long long size;
+    CliBuildNear *near;
+    const char *one;
+};
+
+struct CliBuildsTextAtCfg
+{
+    const char *text;
+    unsigned long long at;
+    int (*of)(const CliEachLetterCfg *args);
+};
+
+struct CliBuildsCfg
+{
+    VerbaLinea *out;
+    const CliBuildFindings *found_read;
+};
+
+struct CliBuildsLineCfg
+{
+    unsigned int line;
+    const CliBuildLines *lines;
+};
+
+struct CliBuildsLinesAtCfg
+{
+    const CliBuildLines *lines;
+    unsigned long long at;
+};
+
+struct CliBuildsSizeVersionCfg
+{
+    unsigned long long size;
+    const char *version;
+};
+
+typedef struct
+{
+    unsigned int (*build_kind_get)(const CliBuildsPathCfg *args);
+    void (*build_check)(const CliBuildsPathCfg *args);
+    void (*build_complete)(const CliBuildsPathCfg *args);
+    unsigned long long (*build_byte_at)(const CliBuildsPathCfg *args);
+} CliBuildsPathNs;
+EMBED_TABLE_LAYOUT(CliBuildsPathNs, build_kind_get, build_check, build_complete, build_byte_at);
+EMBED_TABLE_STORAGE CliBuildsPathNs cli_builds_path EMBED_UNUSED = {
+    .build_kind_get = cli_build_kind_get,
+    .build_check = cli_build_check,
+    .build_complete = cli_build_complete,
+    .build_byte_at = cli_build_byte_at,
+};
+
+typedef struct
+{
+    void (*build_input_names)(const CliBuildsPathTextCfg *args);
+} CliBuildsPathTextNs;
+EMBED_TABLE_LAYOUT(CliBuildsPathTextNs, build_input_names);
+EMBED_TABLE_STORAGE CliBuildsPathTextNs cli_builds_path_text EMBED_UNUSED = {
+    .build_input_names = cli_build_input_names,
+};
+
+typedef struct
+{
+    int (*build_snapshots_line)(const CliBuildsPathRootCfg *args);
+} CliBuildsPathRootNs;
+EMBED_TABLE_LAYOUT(CliBuildsPathRootNs, build_snapshots_line);
+EMBED_TABLE_STORAGE CliBuildsPathRootNs cli_builds_path_root EMBED_UNUSED = {
+    .build_snapshots_line = cli_build_snapshots_line,
+};
+
+typedef struct
+{
+    void (*build_lines_get)(const CliBuildsTextSizeCfg *args);
+    unsigned int *(*build_lines_take)(const CliBuildsTextSizeCfg *args);
+} CliBuildsTextSizeNs;
+EMBED_TABLE_LAYOUT(CliBuildsTextSizeNs, build_lines_get, build_lines_take);
+EMBED_TABLE_STORAGE CliBuildsTextSizeNs cli_builds_text_size EMBED_UNUSED = {
+    .build_lines_get = cli_build_lines_get,
+    .build_lines_take = cli_build_lines_take,
+};
+
+typedef struct
+{
+    CliTextPlace (*build_place)(const CliBuildsLinesAtCfg *args);
+} CliBuildsLinesAtNs;
+EMBED_TABLE_LAYOUT(CliBuildsLinesAtNs, build_place);
+EMBED_TABLE_STORAGE CliBuildsLinesAtNs cli_builds_lines_at EMBED_UNUSED = {
+    .build_place = cli_build_place,
+};
+
+typedef struct
+{
+    unsigned long long (*build_line_start)(const CliBuildsLineCfg *args);
+} CliBuildsLineNs;
+EMBED_TABLE_LAYOUT(CliBuildsLineNs, build_line_start);
+EMBED_TABLE_STORAGE CliBuildsLineNs cli_builds_line EMBED_UNUSED = {
+    .build_line_start = cli_build_line_start,
+};
+
+typedef struct
+{
+    void (*build_findings_begin)(const CliBuildsLinesCfg *args);
+    void (*build_findings_free)(const CliBuildsLinesCfg *args);
+    VerbaLinea (*build_msg_line)(const CliBuildsLinesCfg *args);
+    unsigned int (*build_finding)(const CliBuildsLinesCfg *args);
+} CliBuildsLinesNs;
+EMBED_TABLE_LAYOUT(CliBuildsLinesNs, build_findings_begin, build_findings_free, build_msg_line, build_finding);
+EMBED_TABLE_STORAGE CliBuildsLinesNs cli_builds_lines EMBED_UNUSED = {
+    .build_findings_begin = cli_build_findings_begin,
+    .build_findings_free = cli_build_findings_free,
+    .build_msg_line = cli_build_msg_line,
+    .build_finding = cli_build_finding,
+};
+
+typedef struct
+{
+    void (*build_edit_fix)(const CliBuildsTextCfg *args);
+    void (*build_edit_fix_twice)(const CliBuildsTextCfg *args);
+} CliBuildsTextNs;
+EMBED_TABLE_LAYOUT(CliBuildsTextNs, build_edit_fix, build_edit_fix_twice);
+EMBED_TABLE_STORAGE CliBuildsTextNs cli_builds_text EMBED_UNUSED = {
+    .build_edit_fix = cli_build_edit_fix,
+    .build_edit_fix_twice = cli_build_edit_fix_twice,
+};
+
+typedef struct
+{
+    void (*build_run_fix)(const CliBuildsFoundCfg *args);
+} CliBuildsFoundNs;
+EMBED_TABLE_LAYOUT(CliBuildsFoundNs, build_run_fix);
+EMBED_TABLE_STORAGE CliBuildsFoundNs cli_builds_found EMBED_UNUSED = {
+    .build_run_fix = cli_build_run_fix,
+};
+
+typedef struct
+{
+    void (*build_findings_write)(const CliBuildsCfg *args);
+} CliBuildsNsTable;
+EMBED_TABLE_LAYOUT(CliBuildsNsTable, build_findings_write);
+EMBED_TABLE_STORAGE CliBuildsNsTable cli_builds_table EMBED_UNUSED = {
+    .build_findings_write = cli_build_findings_write,
+};
+
+typedef struct
+{
+    int (*build_word_letter)(const CliEachLetterCfg *args);
+} CliEachLetterNs;
+EMBED_TABLE_LAYOUT(CliEachLetterNs, build_word_letter);
+EMBED_TABLE_STORAGE CliEachLetterNs cli_each_letter EMBED_UNUSED = {
+    .build_word_letter = cli_build_word_letter,
+};
+
+typedef struct
+{
+    unsigned long long (*build_run_before)(const CliBuildsTextAtCfg *args);
+} CliBuildsTextAtNs;
+EMBED_TABLE_LAYOUT(CliBuildsTextAtNs, build_run_before);
+EMBED_TABLE_STORAGE CliBuildsTextAtNs cli_builds_text_at EMBED_UNUSED = {
+    .build_run_before = cli_build_run_before,
+};
+
+typedef struct
+{
+    void (*build_relative)(const CliBuildsItemsCfg *args);
+} CliBuildsItemsNs;
+EMBED_TABLE_LAYOUT(CliBuildsItemsNs, build_relative);
+EMBED_TABLE_STORAGE CliBuildsItemsNs cli_builds_items EMBED_UNUSED = {
+    .build_relative = cli_build_relative,
+};
+
+typedef struct
+{
+    void (*build_items)(const CliBuildsItemsKindCfg *args);
+} CliBuildsItemsKindNs;
+EMBED_TABLE_LAYOUT(CliBuildsItemsKindNs, build_items);
+EMBED_TABLE_STORAGE CliBuildsItemsKindNs cli_builds_items_kind EMBED_UNUSED = {
+    .build_items = cli_build_items,
+};
+
+typedef struct
+{
+    unsigned long long (*build_distance)(const CliBuildsACfg *args);
+} CliBuildsANs;
+EMBED_TABLE_LAYOUT(CliBuildsANs, build_distance);
+EMBED_TABLE_STORAGE CliBuildsANs cli_builds_a EMBED_UNUSED = {
+    .build_distance = cli_build_distance,
+};
+
+typedef struct
+{
+    void (*build_near_begin)(const CliBuildsSizeCfg *args);
+} CliBuildsSizeNs;
+EMBED_TABLE_LAYOUT(CliBuildsSizeNs, build_near_begin);
+EMBED_TABLE_STORAGE CliBuildsSizeNs cli_builds_size EMBED_UNUSED = {
+    .build_near_begin = cli_build_near_begin,
+};
+
+typedef struct
+{
+    void (*build_near_offer)(const CliBuildsSizeNearCfg *args);
+} CliBuildsSizeNearNs;
+EMBED_TABLE_LAYOUT(CliBuildsSizeNearNs, build_near_offer);
+EMBED_TABLE_STORAGE CliBuildsSizeNearNs cli_builds_size_near EMBED_UNUSED = {
+    .build_near_offer = cli_build_near_offer,
+};
+
+typedef struct
+{
+    void (*build_inside)(const CliBuildsRootCfg *args);
+} CliBuildsRootNs;
+EMBED_TABLE_LAYOUT(CliBuildsRootNs, build_inside);
+EMBED_TABLE_STORAGE CliBuildsRootNs cli_builds_root EMBED_UNUSED = {
+    .build_inside = cli_build_inside,
+};
+
+typedef struct
+{
+    int (*build_snapshot)(const CliBuildsSizeVersionCfg *args);
+} CliBuildsSizeVersionNs;
+EMBED_TABLE_LAYOUT(CliBuildsSizeVersionNs, build_snapshot);
+EMBED_TABLE_STORAGE CliBuildsSizeVersionNs cli_builds_size_version EMBED_UNUSED = {
+    .build_snapshot = cli_build_snapshot,
+};
 
 #endif

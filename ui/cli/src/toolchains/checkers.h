@@ -14,25 +14,86 @@
 // and pylint write them; and the JSON of ruff, ESLint and ShellCheck (checkers.c, checkers_read.c)
 #ifndef CHECKERS_H
 #define CHECKERS_H
+typedef struct CliCheckersOutCfg CliCheckersOutCfg;
+typedef struct CliCheckersCfg CliCheckersCfg;
+typedef struct CliCheckersNameCfg CliCheckersNameCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the checker a name names, by its toolchain's id or its name in any case, its id into `id`, sized for
 // CLI_NAME_MAX_LEN: 1, or 0 where none does; whether the checker `id` checks a tree whole, whether it reads a file's
 // text on its input, and whether it checks `language`; and the languages of every checker, written as a JSON object of
 // each checker's id and its languages
-int cli_checkers_named(const char *name, char *id);
-int cli_checkers_reads_tree(const char *id);
-int cli_checkers_reads_input(const char *id);
-int cli_checkers_checks(const char *id, const char *language);
-void cli_checkers_languages(VerbaLinea *out);
+int cli_checkers_by_name(const CliCheckersNameCfg *args);
+int cli_checkers_reads_tree(const CliCheckersCfg *args);
+int cli_checkers_reads_input(const CliCheckersCfg *args);
+int cli_checkers_checks(const CliCheckersCfg *args);
+void cli_checkers_languages(const CliCheckersOutCfg *args);
 
 // the file at `path` of the tree at `root` checked by the checker `id`, as `length` bytes of `text` where the checker
 // reads its input and `text` is given, and as the disk stores it otherwise; and the tree at `root` checked whole, where
 // the checker reads a tree. Each writes the findings by file, the file's own first where it checks a file, as
 // `[[path, [diagnostic]]]`: 1, or 0 with why given. A checker runs no tree whose own code is disabled
-int cli_checkers_check_file(const char *id, const char *root, const char *path, const char *text,
-                            unsigned long long length, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_checkers_check_tree(const char *id, const char *root, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_checkers_check_file(const CliCheckersOutCfg *args);
+int cli_checkers_check_tree(const CliCheckersOutCfg *args);
+
+struct CliCheckersOutCfg
+{
+    const char *id;
+    VerbaLinea *out;
+    const char *root;
+    const char *path;
+    const char *text;
+    unsigned long long length;
+    VerbaLinea *err_msg;
+};
+
+struct CliCheckersCfg
+{
+    const char *id;
+    const char *language;
+};
+
+struct CliCheckersNameCfg
+{
+    const char *name;
+    char *id_out;
+};
+
+typedef struct
+{
+    int (*by_name)(const CliCheckersNameCfg *args);
+} CliCheckersNameNs;
+EMBED_TABLE_LAYOUT(CliCheckersNameNs, by_name);
+EMBED_TABLE_STORAGE CliCheckersNameNs cli_checkers_name EMBED_UNUSED = {
+    .by_name = cli_checkers_by_name,
+};
+
+typedef struct
+{
+    int (*reads_tree)(const CliCheckersCfg *args);
+    int (*reads_input)(const CliCheckersCfg *args);
+    int (*checks)(const CliCheckersCfg *args);
+} CliCheckersNs;
+EMBED_TABLE_LAYOUT(CliCheckersNs, reads_tree, reads_input, checks);
+EMBED_TABLE_STORAGE CliCheckersNs cli_checkers EMBED_UNUSED = {
+    .reads_tree = cli_checkers_reads_tree,
+    .reads_input = cli_checkers_reads_input,
+    .checks = cli_checkers_checks,
+};
+
+typedef struct
+{
+    void (*languages)(const CliCheckersOutCfg *args);
+    int (*check_file)(const CliCheckersOutCfg *args);
+    int (*check_tree)(const CliCheckersOutCfg *args);
+} CliCheckersOutNs;
+EMBED_TABLE_LAYOUT(CliCheckersOutNs, languages, check_file, check_tree);
+EMBED_TABLE_STORAGE CliCheckersOutNs cli_checkers_out EMBED_UNUSED = {
+    .languages = cli_checkers_languages,
+    .check_file = cli_checkers_check_file,
+    .check_tree = cli_checkers_check_tree,
+};
 
 #endif

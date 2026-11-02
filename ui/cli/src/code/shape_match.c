@@ -13,121 +13,139 @@
 #define CLI_SHAPE_STEPS 20000u
 #define CLI_SHAPE_ENDS (1u << 20u)
 
-void cli_shape_ends_given(CliShapeMatcher *matcher)
+void cli_shape_ends_free(const CliShapeMatcherCtx *args)
 {
-    g_cli_cells->persistent_buf_release(matcher->ends, &g_cli_shape_cells);
-    matcher->ends = NULL;
-    matcher->ends_top = 0u;
-    matcher->ends_room = 0u;
+    g_cli_cells->persistent_buf_release(args->matcher->ends, &g_cli_shape_cells);
+    args->matcher->ends = NULL;
+    args->matcher->ends_top = 0u;
+    args->matcher->ends_room = 0u;
 }
 
-// the text of the code's token at `at`, its size into `size`
-static const char *match_text(const CliShapeMatcher *matcher, unsigned int at, unsigned long long *size)
+typedef struct
 {
-    *size = matcher->tokens->end[at] - matcher->tokens->start[at];
-    return matcher->src + matcher->tokens->start[at];
+    const CliShapeMatcher *matcher;
+    unsigned int at;
+    unsigned long long *size;
+    CliShapeMatcher *matcher_out;
+    unsigned int end;
+    unsigned int hole;
+    int last;
+    unsigned int bound;
+    unsigned int *end_pointer;
+} ShapeMatchCtx;
+// the text of the code's token at `at`, its size into `size`
+EMBED_INLINE const char *match_text(const ShapeMatchCtx *args)
+{
+    unsigned long long *size = args->size;
+    *size = args->matcher->tokens->end[args->at] - args->matcher->tokens->start[args->at];
+    return args->matcher->src + args->matcher->tokens->start[args->at];
 }
 
 // how much a token opens or closes a bracket, as its roles name it
-static int match_depth_of(const CliShapeMatcher *matcher, unsigned int at)
+EMBED_INLINE int match_depth_get(const ShapeMatchCtx *args)
 {
-    const unsigned char role = matcher->tokens->role[at];
+    const unsigned char role = args->matcher->tokens->role[args->at];
     return ((role & CLI_SHAPE_OPENS) != 0u) ? 1 : ((role & CLI_SHAPE_CLOSES) != 0u) ? -1 : 0;
 }
 
 // whether the code's token at `at` ends a statement where it stands outside brackets
-static int match_ends_statement(const CliShapeMatcher *matcher, unsigned int at)
+EMBED_INLINE int match_ends_statement(const ShapeMatchCtx *args)
 {
-    return (matcher->tokens->kind[at] == CLI_SHAPE_BREAK) || ((matcher->tokens->role[at] & CLI_SHAPE_STATEMENT) != 0u);
+    return (args->matcher->tokens->kind[args->at] == CLI_SHAPE_BREAK) ||
+           ((args->matcher->tokens->role[args->at] & CLI_SHAPE_STATEMENT) != 0u);
 }
 
 // an end put on the stack where it fits: the stack one cell, taken as its first end is put, of a token's end for each
 // part of the pattern at the most, the end not put where it is full or the cellblock cannot meet it
-static void match_end_put(CliShapeMatcher *matcher, unsigned int end)
+EMBED_INLINE void match_end_put(const ShapeMatchCtx *args)
 {
-    if (matcher->ends_room == 0u)
+    if (args->matcher_out->ends_room == 0u)
     {
-        const unsigned long long wanted =
-            ((unsigned long long)matcher->tokens->count + 1ull) * ((unsigned long long)matcher->part_count + 1ull);
+        const unsigned long long wanted = ((unsigned long long)args->matcher_out->tokens->count + 1ull) *
+                                          ((unsigned long long)args->matcher_out->part_count + 1ull);
         const unsigned int room = (wanted < CLI_SHAPE_ENDS) ? (unsigned int)wanted : CLI_SHAPE_ENDS;
-        matcher->ends = g_cli_cells->temporary_buf_alloc(room * sizeof(*matcher->ends), &g_cli_shape_cells);
-        matcher->ends_room = (matcher->ends != NULL) ? room : 0u;
+        args->matcher_out->ends =
+            g_cli_cells->temporary_buf_alloc(room * sizeof(*args->matcher_out->ends), &g_cli_shape_cells);
+        args->matcher_out->ends_room = (args->matcher_out->ends != NULL) ? room : 0u;
     }
-    if (matcher->ends_top < matcher->ends_room)
+    if (args->matcher_out->ends_top < args->matcher_out->ends_room)
     {
-        matcher->ends[matcher->ends_top] = end;
-        matcher->ends_top += 1u;
+        args->matcher_out->ends[args->matcher_out->ends_top] = args->end;
+        args->matcher_out->ends_top += 1u;
     }
 }
 
 // the ends after `at` a placeholder of `hole` may reach, in the order they are tried, put on the stack
-static void match_ends(CliShapeMatcher *matcher, unsigned int hole, unsigned int at, int last)
+EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
 {
-    const unsigned int first = matcher->ends_top;
+    const unsigned int first = args->matcher_out->ends_top;
     long long depth = 0;
-    unsigned int at_end = at;
-    for (; at_end < matcher->tokens->count; at_end += 1u)
+    unsigned int at_end = args->at;
+    for (; at_end < args->matcher_out->tokens->count; at_end += 1u)
     {
-        const int change = match_depth_of(matcher, at_end);
+        const int change = EMBED_CALL(match_depth_get, ShapeMatchCtx, .matcher = args->matcher_out, .at = at_end);
         if ((change < 0) && (depth == 0))
         {
             break;
         }
-        if (hole == CLI_SHAPE_HOLE_NAME)
+        if (args->hole == CLI_SHAPE_HOLE_NAME)
         {
-            if (matcher->tokens->kind[at_end] == CLI_SHAPE_NAME)
+            if (args->matcher_out->tokens->kind[at_end] == CLI_SHAPE_NAME)
             {
-                match_end_put(matcher, at_end + 1u);
+                EMBED_CALL(match_end_put, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             }
             break;
         }
-        if (hole == CLI_SHAPE_HOLE_EXPR)
+        if (args->hole == CLI_SHAPE_HOLE_EXPR)
         {
-            if ((depth == 0) && match_ends_statement(matcher, at_end))
+            if ((depth == 0) &&
+                EMBED_CALL(match_ends_statement, ShapeMatchCtx, .matcher = args->matcher_out, .at = at_end))
             {
                 break;
             }
             depth += change;
             if (depth == 0)
             {
-                match_end_put(matcher, at_end + 1u);
+                EMBED_CALL(match_end_put, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             }
             continue;
         }
         depth += change;
-        if ((depth == 0) && (match_ends_statement(matcher, at_end) ||
-                             (((matcher->tokens->role[at_end] & CLI_SHAPE_REGION) != 0u) && (change < 0))))
+        if ((depth == 0) &&
+            (EMBED_CALL(match_ends_statement, ShapeMatchCtx, .matcher = args->matcher_out, .at = at_end) ||
+             (((args->matcher_out->tokens->role[at_end] & CLI_SHAPE_REGION) != 0u) && (change < 0))))
         {
-            match_end_put(matcher, at_end + 1u);
-            if (last)
+            EMBED_CALL(match_end_put, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
+            if (args->last)
             {
                 break;
             }
         }
     }
-    if ((hole == CLI_SHAPE_HOLE_STMT) && (depth == 0) && (at_end > at) &&
-        ((matcher->ends_top == first) || (matcher->ends[matcher->ends_top - 1u] != at_end)))
+    if ((args->hole == CLI_SHAPE_HOLE_STMT) && (depth == 0) && (at_end > args->at) &&
+        ((args->matcher_out->ends_top == first) ||
+         (args->matcher_out->ends[args->matcher_out->ends_top - 1u] != at_end)))
     {
-        match_end_put(matcher, at_end);
+        EMBED_CALL(match_end_put, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end);
     }
-    if ((hole == CLI_SHAPE_HOLE_EXPR) && last)
+    if ((args->hole == CLI_SHAPE_HOLE_EXPR) && args->last)
     {
-        for (unsigned int low = first, high = matcher->ends_top; low + 1u < high; low += 1u, high -= 1u)
+        for (unsigned int low = first, high = args->matcher_out->ends_top; low + 1u < high; low += 1u, high -= 1u)
         {
-            const unsigned int pivot = matcher->ends[low];
-            matcher->ends[low] = matcher->ends[high - 1u];
-            matcher->ends[high - 1u] = pivot;
+            const unsigned int pivot = args->matcher_out->ends[low];
+            args->matcher_out->ends[low] = args->matcher_out->ends[high - 1u];
+            args->matcher_out->ends[high - 1u] = pivot;
         }
     }
 }
 
-unsigned int cli_shape_bound(const CliShapeMatcher *matcher, const char *name, unsigned long long size)
+unsigned int cli_shape_bind(const CliShapeCtx *args)
 {
-    for (unsigned int at = 0u; at < matcher->bound_count; at += 1u)
+    for (unsigned int at = 0u; at < args->matcher_read->bound_count; at += 1u)
     {
-        const CliShapeHole *const hole = &matcher->holes->hole[matcher->bound[at]];
-        if ((hole->name_size == size) &&
-            (memor.cmp(&(MemoriaCfg){.src = hole->name, .other = name, .bytes = (size_t)size}) == 0))
+        const CliShapeHole *const hole = &args->matcher_read->holes->hole[args->matcher_read->bound[at]];
+        if ((hole->name_size == args->size) &&
+            (memor.cmp(&(MemoriaCfg){.src = hole->name, .other = args->name, .bytes = (size_t)args->size}) == 0))
         {
             return at;
         }
@@ -136,11 +154,12 @@ unsigned int cli_shape_bound(const CliShapeMatcher *matcher, const char *name, u
 }
 
 // whether the tokens from `at` are the same as those a bound placeholder took
-static int match_same(const CliShapeMatcher *matcher, unsigned int bound, unsigned int at, unsigned int *end)
+EMBED_INLINE int match_same(const ShapeMatchCtx *args)
 {
-    const unsigned int from = matcher->bound_from[bound];
-    const unsigned int length = matcher->bound_to[bound] - from;
-    if (at + length > matcher->tokens->count)
+    unsigned int *end = args->end_pointer;
+    const unsigned int from = args->matcher->bound_from[args->bound];
+    const unsigned int length = args->matcher->bound_to[args->bound] - from;
+    if (args->at + length > args->matcher->tokens->count)
     {
         return 0;
     }
@@ -148,75 +167,87 @@ static int match_same(const CliShapeMatcher *matcher, unsigned int bound, unsign
     {
         unsigned long long one_size = 0ull;
         unsigned long long other_size = 0ull;
-        const char *const one = match_text(matcher, from + offset, &one_size);
-        const char *const other = match_text(matcher, at + offset, &other_size);
+        const char *const one =
+            EMBED_CALL(match_text, ShapeMatchCtx, .matcher = args->matcher, .at = from + offset, .size = &one_size);
+        const char *const other = EMBED_CALL(match_text, ShapeMatchCtx, .matcher = args->matcher,
+                                             .at = args->at + offset, .size = &other_size);
         if ((one_size != other_size) ||
             (memor.cmp(&(MemoriaCfg){.src = one, .other = other, .bytes = (size_t)one_size}) != 0))
         {
             return 0;
         }
     }
-    *end = at + length;
+    *end = args->at + length;
     return 1;
 }
 
-int cli_shape_from(CliShapeMatcher *matcher, unsigned int part, unsigned int at, unsigned int *end)
+int cli_shape_from(const CliShapeMatcherCtx *args)
 {
-    matcher->steps += 1u;
-    if (matcher->steps > CLI_SHAPE_STEPS)
+    unsigned int *end = args->end;
+    args->matcher->steps += 1u;
+    if (args->matcher->steps > CLI_SHAPE_STEPS)
     {
         return 0;
     }
-    if (part == matcher->part_count)
+    if (args->part == args->matcher->part_count)
     {
-        *end = at;
+        *end = args->at;
         return 1;
     }
-    const unsigned int hole_at = matcher->hole_of[part];
+    const unsigned int hole_at = args->matcher->hole_of[args->part];
     if (hole_at == CLI_SHAPE_HOLES)
     {
-        const unsigned char kind = matcher->parts->kind[part];
-        if (at >= matcher->tokens->count || (matcher->tokens->kind[at] != kind))
+        const unsigned char kind = args->matcher->parts->kind[args->part];
+        if (args->at >= args->matcher->tokens->count || (args->matcher->tokens->kind[args->at] != kind))
         {
             return 0;
         }
-        const unsigned long long size = matcher->parts->end[part] - matcher->parts->start[part];
+        const unsigned long long size = args->matcher->parts->end[args->part] - args->matcher->parts->start[args->part];
         unsigned long long own_size = 0ull;
-        const char *const own = match_text(matcher, at, &own_size);
+        const char *const own =
+            EMBED_CALL(match_text, ShapeMatchCtx, .matcher = args->matcher, .at = args->at, .size = &own_size);
         if ((kind != CLI_SHAPE_BREAK) &&
             ((own_size != size) ||
-             (memor.cmp(&(MemoriaCfg){
-                  .src = own, .other = matcher->pattern + matcher->parts->start[part], .bytes = (size_t)size}) != 0)))
+             (memor.cmp(&(MemoriaCfg){.src = own,
+                                      .other = args->matcher->pattern + args->matcher->parts->start[args->part],
+                                      .bytes = (size_t)size}) != 0)))
         {
             return 0;
         }
-        return cli_shape_from(matcher, part + 1u, at + 1u, end);
+        return EMBED_CALL(cli_shape_matcher_internal.from, CliShapeMatcherCtx, .matcher = args->matcher,
+                          .part = args->part + 1u, .at = args->at + 1u, .end = end);
     }
-    const CliShapeHole *const hole = &matcher->holes->hole[hole_at];
-    const unsigned int bound = cli_shape_bound(matcher, hole->name, hole->name_size);
+    const CliShapeHole *const hole = &args->matcher->holes->hole[hole_at];
+    const unsigned int bound = EMBED_CALL(cli_shape_internal.bind, CliShapeCtx, .matcher_read = args->matcher,
+                                          .name = hole->name, .size = hole->name_size);
     if (bound != CLI_SHAPE_HOLES)
     {
         unsigned int after = 0u;
-        return match_same(matcher, bound, at, &after) && cli_shape_from(matcher, part + 1u, after, end);
+        return EMBED_CALL(match_same, ShapeMatchCtx, .matcher = args->matcher, .bound = bound, .at = args->at,
+                          .end_pointer = &after) &&
+               EMBED_CALL(cli_shape_matcher_internal.from, CliShapeMatcherCtx, .matcher = args->matcher,
+                          .part = args->part + 1u, .at = after, .end = end);
     }
-    const unsigned int first = matcher->ends_top;
-    match_ends(matcher, hole->hole, at, part + 1u == matcher->part_count);
-    const unsigned int top = matcher->ends_top;
-    for (unsigned int tried = first; (tried < top) && (matcher->bound_count < CLI_SHAPE_HOLES); tried += 1u)
+    const unsigned int first = args->matcher->ends_top;
+    EMBED_CALL(match_ends, ShapeMatchCtx, .matcher_out = args->matcher, .hole = hole->hole, .at = args->at,
+               .last = args->part + 1u == args->matcher->part_count);
+    const unsigned int top = args->matcher->ends_top;
+    for (unsigned int tried = first; (tried < top) && (args->matcher->bound_count < CLI_SHAPE_HOLES); tried += 1u)
     {
-        const unsigned int end_at = matcher->ends[tried];
-        const unsigned int bound_at = matcher->bound_count;
-        matcher->bound[bound_at] = hole_at;
-        matcher->bound_from[bound_at] = at;
-        matcher->bound_to[bound_at] = end_at;
-        matcher->bound_count += 1u;
-        if (cli_shape_from(matcher, part + 1u, end_at, end))
+        const unsigned int end_at = args->matcher->ends[tried];
+        const unsigned int bound_at = args->matcher->bound_count;
+        args->matcher->bound[bound_at] = hole_at;
+        args->matcher->bound_from[bound_at] = args->at;
+        args->matcher->bound_to[bound_at] = end_at;
+        args->matcher->bound_count += 1u;
+        if (EMBED_CALL(cli_shape_matcher_internal.from, CliShapeMatcherCtx, .matcher = args->matcher,
+                       .part = args->part + 1u, .at = end_at, .end = end))
         {
-            matcher->ends_top = first;
+            args->matcher->ends_top = first;
             return 1;
         }
-        matcher->bound_count = bound_at;
+        args->matcher->bound_count = bound_at;
     }
-    matcher->ends_top = first;
+    args->matcher->ends_top = first;
     return 0;
 }

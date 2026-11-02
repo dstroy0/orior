@@ -3,6 +3,7 @@
 // serve_call_bring.c: files from outside the window copied into a folder of the tree on a thread of their own, each
 // reporting how far along it is and the copy reporting where each went once done; the tree on another machine, the
 // files read here and written there over the link a part at a time
+#include "../command_line/callback_cfg.h"
 #include "../comms/link.h"
 #include "../editor/files.h"
 #include "serve_internal.h"
@@ -30,32 +31,36 @@ static CliLock s_bring_lock = CLI_LOCK_INIT;
 static CliWake s_bring_wake = CLI_WAKE_INIT;
 
 // how far a file is copied reported as bring-progress
-static void bring_progress(void *context, const char *path, unsigned long long done, unsigned long long size)
+static void bring_progress(const CliProgressCfg *args)
 {
-    (void)context;
+    unsigned long long size = args->size;
     char body[CLI_PATH_MAX_LEN + 128u];
     VerbaLinea line = {body, sizeof(body), 0ull};
     mmgr_line_put(&line, "{\"path\":");
-    cli_json_quoted_lossy(&line, (const unsigned char *)path,
-                          cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &line,
+               .text_bytes = (const unsigned char *)args->path,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&line, ",\"done\":");
-    mmgr_line_decimal(&line, done, 1u);
+    mmgr_line_decimal(&line, args->done, 1u);
     mmgr_line_put(&line, ",\"size\":");
     mmgr_line_decimal(&line, size, 1u);
     mmgr_line_ch(&line, '}');
     if (mmgr_line_ok(&line))
     {
-        cli_serve_emitted("bring-progress", body, line.at);
+        EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "bring-progress", .body = body,
+                   .size = line.at);
     }
 }
 
 // a call of the tree's side on another machine, over the link
-static int bring_linked_call(void *context, const char *name, const char *arguments, VerbaLinea *out,
-                             VerbaLinea *err_msg)
+static int bring_linked_call(const CliCallCfg *args)
 {
-    (void)context;
-    return cli_link_call(name, arguments, cellul.len(&(CatenaFinitaCfg){.src = arguments, .cap = CLI_CELLS_POOL}), out,
-                         err_msg);
+    const char *name = args->name;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(cli_link_size_out.call, CliLinkSizeOutCfg, .name = name, .request = args->arguments,
+                      .size = cellul.len(&(CatenaFinitaCfg){.src = args->arguments, .cap = CLI_CELLS_POOL}), .out = out,
+                      .err_msg = err_msg);
 }
 
 // the files of the bring copied, or read here and written over the link where the tree is on another machine, and
@@ -69,16 +74,21 @@ static void bring_run(void *context)
     char *const brought_cell = g_cli_cells->temporary_buf_alloc(brought_room, &g_cli_serve_strings_cells);
     VerbaLinea brought = mmgr_line_over(brought_cell, brought_room);
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int done = bring->linked ? cli_files_bring_over(bring_linked_call, NULL, bring->into, bring->from,
-                                                          bring->count, bring_progress, NULL, &brought, &err_msg)
-                                   : cli_files_bring(bring->root, bring->into, bring->from, bring->count,
-                                                     bring_progress, NULL, &brought, &err_msg);
+    const int done =
+        bring->linked
+            ? EMBED_CALL(cli_files_context.bring_over, CliFilesContextCfg, .call = bring_linked_call,
+                         .call_context = NULL, .into = bring->into, .from = bring->from, .count = bring->count,
+                         .progress = bring_progress, .context = NULL, .out = &brought, .err_msg = &err_msg)
+            : EMBED_CALL(cli_files_root.bring, CliFilesRootCfg, .root = bring->root, .into = bring->into,
+                         .from = bring->from, .count = bring->count, .progress = bring_progress, .context = NULL,
+                         .out = &brought, .err_msg = &err_msg);
     const unsigned long long line_room = brought.at + CLI_SERVE_BRING_MORE;
     char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_serve_strings_cells);
     VerbaLinea line = mmgr_line_over(line_cell, line_room);
     mmgr_line_put(&line, "{\"into\":");
-    cli_json_quoted_lossy(&line, (const unsigned char *)bring->into,
-                          cellul.len(&(CatenaFinitaCfg){.src = bring->into, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &line,
+               .text_bytes = (const unsigned char *)bring->into,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = bring->into, .cap = CLI_CELLS_POOL}));
     if (done)
     {
         mmgr_line_put(&line, ",\"brought\":");
@@ -87,34 +97,50 @@ static void bring_run(void *context)
     else
     {
         mmgr_line_put(&line, ",\"error\":");
-        cli_json_quoted_lossy(&line, (const unsigned char *)why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &line,
+                   .text_bytes = (const unsigned char *)why, .length = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
     }
     mmgr_line_ch(&line, '}');
-    cli_serve_emitted("bring-done", line.out, mmgr_line_ok(&line) ? line.at : 0ull);
+    EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "bring-done", .body = line.out,
+               .size = mmgr_line_ok(&line) ? line.at : 0ull);
     g_cli_cells->persistent_buf_release(line.out, &g_cli_serve_strings_cells);
     g_cli_cells->persistent_buf_release(brought.out, &g_cli_serve_strings_cells);
-    cli_lock_take(&s_bring_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_bring_lock);
     g_cli_cells->persistent_buf_release(bring->from, &g_cli_serve_strings_cells);
     bring->from = NULL;
     bring->count = 0u;
     bring->busy = 0;
-    cli_wake_all(&s_bring_wake);
-    cli_lock_give(&s_bring_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_bring_wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_bring_lock);
 }
 
+typedef struct
+{
+    const CliServeArgs *request;
+    int linked;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+} ServeCallBringCtx;
 // the bring the call's arguments name started, into the tree open here or, where `linked`, into the tree on another
 // machine the link is open to: null into `out`, 1, or 0 with why given
-static int bring_started(const CliServeArgs *args, int linked, VerbaLinea *out, VerbaLinea *err_msg)
+static int bring_start(const ServeCallBringCtx *args)
 {
+    const CliServeArgs *arguments = args->request;
+    int linked = args->linked;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     root[0] = '\0';
     unsigned int count = 0u;
     const char **given = NULL;
-    const char *const into = cli_serve_string(args, "into", err_msg);
-    if ((into == NULL) || !cli_serve_strings_taken(args, "paths", CLI_SERVE_BRINGS, &given, &count, err_msg) ||
-        (!linked && !cli_serve_tree(root, err_msg)))
+    const char *const into = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "into", .err_msg = err_msg);
+    if ((into == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_internal.strings_take, CliServeErrMsgCtx, .request = arguments, .key = "paths",
+                    .most = CLI_SERVE_BRINGS, .items_pointer = &given, .count = &count, .err_msg = err_msg) ||
+        (!linked && !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx,
+                                .root = root, .err_msg = err_msg)))
     {
-        cli_serve_strings_given(given);
+        EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = given);
         return 0;
     }
     // the paths retained past the call, CLI_SERVE_BRING_PATHS of them at the most, in a cell of their pointers and
@@ -129,15 +155,15 @@ static int bring_started(const CliServeArgs *args, int linked, VerbaLinea *out, 
         g_cli_cells->persistent_buf_alloc(((count + 1ull) * sizeof(*from)) + bytes + 1ull, &g_cli_serve_strings_cells);
     if (from == NULL)
     {
-        cli_serve_strings_given(given);
+        EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = given);
         mmgr_line_put(err_msg, "the files a bring copies could not be given a cell");
         return 0;
     }
     char *const paths = (char *)(void *)(from + count + 1u);
-    cli_lock_take(&s_bring_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_bring_lock);
     while (s_bring.busy)
     {
-        cli_wake_wait(&s_bring_wake, &s_bring_lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_bring_wake, .lock = &s_bring_lock);
     }
     s_bring.busy = 1;
     s_bring.linked = linked;
@@ -159,40 +185,59 @@ static int bring_started(const CliServeArgs *args, int linked, VerbaLinea *out, 
             used += size;
         }
     }
-    cli_serve_strings_given(given);
+    EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = given);
     s_bring.thread = (CliThread){bring_run, &s_bring};
-    const int started = cli_thread_started(&s_bring.thread);
+    const int started = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_bring.thread);
     s_bring.busy = started;
-    cli_lock_give(&s_bring_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_bring_lock);
     if (!started)
     {
         bring_run(&s_bring);
     }
-    mmgr_line_put(out, "null");
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-int cli_serve_files_bring(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_files_bring(const CliServeAnswerCfg *args)
 {
-    return bring_started(args, 0, out, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(bring_start, ServeCallBringCtx, .request = arguments, .linked = 0, .out = out,
+                      .err_msg = err_msg);
 }
 
-int cli_serve_files_bring_over(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_files_bring_over(const CliServeAnswerCfg *args)
 {
-    return bring_started(args, 1, out, err_msg);
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
+    return EMBED_CALL(bring_start, ServeCallBringCtx, .request = arguments, .linked = 1, .out = out,
+                      .err_msg = err_msg);
 }
 
-int cli_serve_bring_name(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_bring_name(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    const char *const into = cli_serve_string(args, "into", err_msg);
-    const char *const name = (into != NULL) ? cli_serve_string(args, "name", err_msg) : NULL;
-    if ((name == NULL) || !cli_serve_tree(root, err_msg) || !cli_files_free_in(root, into, name, path, err_msg))
+    const char *const into = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
+                                        .key = "into", .err_msg = err_msg);
+    const char *const name = (into != NULL) ? EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx,
+                                                         .request = arguments, .key = "name", .err_msg = err_msg)
+                                            : NULL;
+    if ((name == NULL) ||
+        !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg) ||
+        !EMBED_CALL(cli_files_root_err_msg.free_in, CliFilesRootErrMsgCfg, .root = root, .into = into, .name = name,
+                    .path_out = path, .err_msg = err_msg))
     {
         return 0;
     }
-    cli_json_quoted_lossy(out, (const unsigned char *)path,
-                          cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
+               .text_bytes = (const unsigned char *)path,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
     return 1;
 }

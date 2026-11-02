@@ -4,13 +4,14 @@
 // sessions occupy
 #include "tls.h"
 
-int cli_tls_written(CliTls *tls, const void *data, unsigned long long size, VerbaLinea *err_msg)
+int cli_tls_on_write(const CliTlsDataCfg *args)
 {
-    const unsigned char *const bytes = (const unsigned char *)data;
+    const unsigned char *const bytes = (const unsigned char *)args->data;
     unsigned long long done = 0ull;
-    while (done < size)
+    while (done < args->size)
     {
-        const long long taken = cli_tls_write(tls, bytes + done, size - done, err_msg);
+        const long long taken = EMBED_CALL(cli_tls_data.write, CliTlsDataCfg, .tls = args->tls, .data = bytes + done,
+                                           .size = args->size - done, .err_msg = args->err_msg);
         if (taken <= 0ll)
         {
             return 0;

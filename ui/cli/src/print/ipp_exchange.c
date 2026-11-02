@@ -15,22 +15,55 @@
 static unsigned char *s_answer;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the text `prefix` begins `text` with, where it does: what follows it, else NULL
-static const char *cli_after(const char *text, const char *prefix)
+typedef struct
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = CLI_CELLS_POOL});
-    return cli_text_same(text, prefix, length) ? (text + length) : NULL;
+    const char *text;
+    const char *prefix;
+    const char *from;
+    const char *to;
+    unsigned int *port;
+    unsigned long long length;
+    const char *word;
+    const unsigned char *bytes;
+    unsigned long long size;
+    unsigned long long at;
+    unsigned long long *stop;
+    const unsigned char *from_bytes;
+    const unsigned char *to_bytes;
+    unsigned long long *size_pointer;
+    const CliSocket *socket;
+    const char *host;
+    unsigned int port_value;
+    const char *path;
+    const CliIppMessage *request;
+    const unsigned char *document;
+    unsigned long long read;
+    int chunked;
+    int has_length;
+    VerbaLinea *err_msg;
+    const char *uri;
+    CliIppMessage *answer;
+} IppExchangeCtx;
+// the text `prefix` begins `text` with, where it does: what follows it, else NULL
+EMBED_INLINE const char *cli_after(const IppExchangeCtx *args)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->prefix, .cap = CLI_CELLS_POOL});
+    return EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->text, .other_pointer = args->prefix,
+                      .size = length)
+               ? (args->text + length)
+               : NULL;
 }
 
 // a port as the address writes it: 1, or 0 where it writes none
-static int cli_port(const char *from, const char *to, unsigned int *port)
+EMBED_INLINE int cli_port(const IppExchangeCtx *args)
 {
+    unsigned int *port = args->port;
     unsigned long long value = 0ull;
-    if (from == to)
+    if (args->from == args->to)
     {
         return 0;
     }
-    for (const char *at = from; at < to; at += 1)
+    for (const char *at = args->from; at < args->to; at += 1)
     {
         if ((at[0] < '0') || (at[0] > '9'))
         {
@@ -47,43 +80,46 @@ static int cli_port(const char *from, const char *to, unsigned int *port)
     return 1;
 }
 
-int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path, VerbaLinea *err_msg)
+int cli_ipp_address(const CliIppErrMsgCfg *args)
 {
-    const char *rest = cli_after(uri, "ipp://");
-    if ((rest == NULL) && (cli_after(uri, "ipps://") != NULL))
+    unsigned int *port = args->port;
+    const char *rest = EMBED_CALL(cli_after, IppExchangeCtx, .text = args->uri, .prefix = "ipp://");
+    if ((rest == NULL) && (EMBED_CALL(cli_after, IppExchangeCtx, .text = args->uri, .prefix = "ipps://") != NULL))
     {
-        mmgr_line_put(err_msg, uri);
-        mmgr_line_put(err_msg,
+        mmgr_line_put(args->err_msg, args->uri);
+        mmgr_line_put(args->err_msg,
                       " takes only encrypted IPP, which orior_cli does not support; the printer's ipp:// address, "
                       "where it has one, reaches it");
         return 0;
     }
-    rest = (rest != NULL) ? rest : cli_after(uri, "http://");
+    rest = (rest != NULL) ? rest : EMBED_CALL(cli_after, IppExchangeCtx, .text = args->uri, .prefix = "http://");
     if (rest == NULL)
     {
-        mmgr_line_put(err_msg, uri);
-        mmgr_line_put(err_msg, " is no ipp:// address");
+        mmgr_line_put(args->err_msg, args->uri);
+        mmgr_line_put(args->err_msg, " is no ipp:// address");
         return 0;
     }
     const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '/'});
     const char *const end =
         (slash != NULL) ? slash : (rest + cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}));
-    cli_text_copied_or(path, slash, "/");
-    VerbaLinea named = {host, CLI_PATH_MAX_LEN, 0ull};
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = args->path, .text = slash, .otherwise = "/");
+    VerbaLinea named = {args->host, CLI_PATH_MAX_LEN, 0ull};
     *port = 631u;
     if (rest[0] == '[')
     {
         const char *close = rest + 1;
-        close += cli_text_to_any(close, 0ull, (unsigned long long)(end - close), "]");
+        close += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = close, .at = 0ull,
+                            .size = (unsigned long long)(end - close), .set = "]");
         if (close == end)
         {
-            mmgr_line_put(err_msg, uri);
-            mmgr_line_put(err_msg, " has an address that does not close");
+            mmgr_line_put(args->err_msg, args->uri);
+            mmgr_line_put(args->err_msg, " has an address that does not close");
             return 0;
         }
         mmgr_line_put_n(&named, rest + 1, (unsigned long long)(close - rest - 1));
         mmgr_line_finish(&named);
-        if (((close + 1) < end) && (close[1] == ':') && !cli_port(close + 2, end, port))
+        if (((close + 1) < end) && (close[1] == ':') &&
+            !EMBED_CALL(cli_port, IppExchangeCtx, .from = close + 2, .to = end, .port = port))
         {
             *port = 631u;
         }
@@ -96,26 +132,27 @@ int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path,
     }
     mmgr_line_put_n(&named, rest, (unsigned long long)(((colon != NULL) ? colon : end) - rest));
     mmgr_line_finish(&named);
-    if ((colon != NULL) && !cli_port(colon + 1, end, port))
+    if ((colon != NULL) && !EMBED_CALL(cli_port, IppExchangeCtx, .from = colon + 1, .to = end, .port = port))
     {
-        mmgr_line_put(err_msg, uri);
-        mmgr_line_put(err_msg, " names no port");
+        mmgr_line_put(args->err_msg, args->uri);
+        mmgr_line_put(args->err_msg, " names no port");
         return 0;
     }
     return 1;
 }
 
 // whether `length` bytes at `text` are `word` in ASCII's either case
-static int cli_same(const char *text, unsigned long long length, const char *word)
+EMBED_INLINE int cli_same(const IppExchangeCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}) != length)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) != args->length)
     {
         return 0;
     }
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
     {
-        const char letter = ((text[at] >= 'A') && (text[at] <= 'Z')) ? (char)(text[at] + 32) : text[at];
-        if (letter != word[at])
+        const char letter =
+            ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + 32) : args->text[at];
+        if (letter != args->word[at])
         {
             return 0;
         }
@@ -125,24 +162,30 @@ static int cli_same(const char *text, unsigned long long length, const char *wor
 
 // the line of the answer from `at`, its end into `stop` with its spaces after it left off: where the next starts, or
 // the answer's size where it has no end
-static unsigned long long cli_line(const unsigned char *bytes, unsigned long long size, unsigned long long at,
-                                   unsigned long long *stop)
+EMBED_INLINE unsigned long long cli_line(const IppExchangeCtx *args)
 {
+    unsigned long long size = args->size;
+    unsigned long long at = args->at;
+    unsigned long long *stop = args->stop;
     unsigned long long end = at;
-    end = cli_text_to_any((const char *)bytes, end, size, "\n");
+    end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)args->bytes,
+                     .at = end, .size = size, .set = "\n");
     *stop = end;
-    *stop = (at + cli_text_back_past((const char *)(bytes + at), *stop - at, "\r \t"));
+    *stop = (at + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+                             .text = (const char *)(args->bytes + at), .at = *stop - at, .set = "\r \t"));
     return (end < size) ? (end + 1ull) : size;
 }
 
 // a number of hex digits from `from` to `to`, up to a `;`: 1, or 0 where it writes none
-static int cli_chunk_size(const unsigned char *from, const unsigned char *to, unsigned long long *size)
+EMBED_INLINE int cli_chunk_size(const IppExchangeCtx *args)
 {
+    unsigned long long *size = args->size_pointer;
     unsigned long long value = 0ull;
-    const unsigned char *at = from;
-    at += cli_text_past_any((const char *)at, 0ull, (unsigned long long)(to - at), " \t");
+    const unsigned char *at = args->from_bytes;
+    at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = (const char *)at, .at = 0ull,
+                     .size = (unsigned long long)(args->to_bytes - at), .set = " \t");
     const unsigned char *const digits = at;
-    for (; (at < to) && (at[0] != ';') && (at[0] != ' '); at += 1)
+    for (; (at < args->to_bytes) && (at[0] != ';') && (at[0] != ' '); at += 1)
     {
         const unsigned int digit = ((at[0] >= '0') && (at[0] <= '9'))   ? (unsigned int)(at[0] - '0')
                                    : ((at[0] >= 'a') && (at[0] <= 'f')) ? (unsigned int)(at[0] - 'a') + 10u
@@ -159,16 +202,17 @@ static int cli_chunk_size(const unsigned char *from, const unsigned char *to, un
 }
 
 // The request sent: the HTTP head, the message, the document; 1, or 0 where the printer could not be written to
-static int cli_sent(const CliSocket *socket, const char *host, unsigned int port, const char *path,
-                    const CliIppMessage *request, const unsigned char *document, unsigned long long size)
+EMBED_INLINE int cli_send(const IppExchangeCtx *args)
 {
+    unsigned long long size = args->size;
     char *const body_cell = g_cli_cells->temporary_buf_alloc(CLI_IPP_REQUEST_ROOM, &g_cli_print_cells);
     VerbaLinea body = mmgr_line_over(body_cell, CLI_IPP_REQUEST_ROOM);
     if (body.out == NULL)
     {
         return 0;
     }
-    cli_ipp_encode(request, &body);
+    EMBED_CALL(cli_ipp_message_out_verba_linea.encode, CliIppMessageOutVerbaLineaCfg, .message_read = args->request,
+               .out_verba_linea_pointer = &body);
     if (!mmgr_line_ok(&body))
     {
         g_cli_cells->persistent_buf_release(body.out, &g_cli_print_cells);
@@ -177,34 +221,39 @@ static int cli_sent(const CliSocket *socket, const char *host, unsigned int port
     char head[CLI_PATH_MAX_LEN * 3u];
     VerbaLinea line = {head, sizeof(head), 0ull};
     mmgr_line_put(&line, "POST ");
-    mmgr_line_put(&line, path);
+    mmgr_line_put(&line, args->path);
     mmgr_line_put(&line, " HTTP/1.1\r\nHost: ");
-    const int bracketed = cellul.chr(&(CatenaFinitaCfg){.src = host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL;
+    const int bracketed = cellul.chr(&(CatenaFinitaCfg){.src = args->host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL;
     mmgr_line_put(&line, bracketed ? "[" : "");
-    mmgr_line_put(&line, host);
+    mmgr_line_put(&line, args->host);
     mmgr_line_put(&line, bracketed ? "]:" : ":");
-    mmgr_line_decimal(&line, port, 1u);
+    mmgr_line_decimal(&line, args->port_value, 1u);
     mmgr_line_put(&line, "\r\nContent-Type: application/ipp\r\nContent-Length: ");
     mmgr_line_decimal(&line, body.at + size, 1u);
     mmgr_line_put(&line, "\r\nConnection: close\r\nUser-Agent: orior\r\n\r\n");
-    const int sent = mmgr_line_ok(&line) && cli_socket_written(socket, head, line.at) &&
-                     cli_socket_written(socket, body.out, body.at) &&
-                     ((size == 0ull) || cli_socket_written(socket, document, size));
+    const int sent = mmgr_line_ok(&line) &&
+                     EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->socket,
+                                .bytes = head, .size = line.at) &&
+                     EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->socket,
+                                .bytes = body.out, .size = body.at) &&
+                     ((size == 0ull) || EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx,
+                                                   .sock = args->socket, .bytes = args->document, .size = size));
     g_cli_cells->persistent_buf_release(body.out, &g_cli_print_cells);
     return sent;
 }
 
 // The answer's body put together in place from what was read past its head, from `at` on: by its length, in chunks,
 // each moved down over the chunk sizes before it, or to the end; its size into `size`: 1, or 0 with why given
-static int cli_body(const char *host, unsigned long long at, unsigned long long read, int chunked, int has_length,
-                    unsigned long long length, unsigned long long *size, VerbaLinea *err_msg)
+EMBED_INLINE int cli_body(const IppExchangeCtx *args)
 {
-    if (!chunked)
+    unsigned long long at = args->at;
+    unsigned long long *size = args->size_pointer;
+    if (!args->chunked)
     {
-        const unsigned long long taken = has_length ? length : (read - at);
-        if ((at + taken) > read)
+        const unsigned long long taken = args->has_length ? args->length : (args->read - at);
+        if ((at + taken) > args->read)
         {
-            mmgr_line_put(err_msg, "the printer's answer is cut short");
+            mmgr_line_put(args->err_msg, "the printer's answer is cut short");
             return 0;
         }
         *size = taken;
@@ -215,51 +264,59 @@ static int cli_body(const char *host, unsigned long long at, unsigned long long 
     for (;;)
     {
         unsigned long long stop = 0ull;
-        const unsigned long long next = cli_line(s_answer, read, at, &stop);
+        const unsigned long long next =
+            EMBED_CALL(cli_line, IppExchangeCtx, .bytes = s_answer, .size = args->read, .at = at, .stop = &stop);
         unsigned long long chunk = 0ull;
-        if (!cli_chunk_size(s_answer + at, s_answer + stop, &chunk))
+        if (!EMBED_CALL(cli_chunk_size, IppExchangeCtx, .from_bytes = s_answer + at, .to_bytes = s_answer + stop,
+                        .size_pointer = &chunk))
         {
-            mmgr_line_put(err_msg, host);
-            mmgr_line_put(err_msg, " sent a chunk orior_cli cannot read");
+            mmgr_line_put(args->err_msg, args->host);
+            mmgr_line_put(args->err_msg, " sent a chunk orior_cli cannot read");
             return 0;
         }
         if (chunk == 0ull)
         {
             break;
         }
-        if ((next + chunk) > read)
+        if ((next + chunk) > args->read)
         {
-            mmgr_line_put(err_msg, "the printer's answer is cut short");
+            mmgr_line_put(args->err_msg, "the printer's answer is cut short");
             return 0;
         }
         // a chunk's bytes follow its size's line: where they go is at or below where they are
         memor.move_down(&(MemoriaCfg){.dst = s_answer + body + put, .src = s_answer + next, .bytes = chunk});
         put += chunk;
-        at = cli_line(s_answer, read, next + chunk, &stop);
+        at = EMBED_CALL(cli_line, IppExchangeCtx, .bytes = s_answer, .size = args->read, .at = next + chunk,
+                        .stop = &stop);
     }
     *size = put;
     return 1;
 }
 
-static int cli_exchanged(const char *uri, const CliIppMessage *request, const unsigned char *document,
-                         unsigned long long size, CliIppMessage *answer, VerbaLinea *err_msg)
+EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
 {
+    const char *uri = args->uri;
+    unsigned long long size = args->size;
+    VerbaLinea *err_msg = args->err_msg;
     char host[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     unsigned int port = 631u;
-    if (!cli_ipp_address(uri, host, &port, path, err_msg))
+    if (!EMBED_CALL(cli_ipp_err_msg.address, CliIppErrMsgCfg, .uri = uri, .host = host, .port = &port, .path = path,
+                    .err_msg = err_msg))
     {
         return 0;
     }
     CliSocket socket = {0ull};
-    if (!cli_socket_connected(&socket, host, port, err_msg))
+    if (!EMBED_CALL(cli_err_msg_internal.socket_connect, CliErrMsgCtx, .sock_out = &socket, .host = host, .port = port,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    cli_socket_waited(&socket, 30000u);
-    if (!cli_sent(&socket, host, port, path, request, document, size))
+    EMBED_CALL(cli_sock_internal.socket_wait, CliSockCtx, .sock = &socket, .milliseconds = 30000u);
+    if (!EMBED_CALL(cli_send, IppExchangeCtx, .socket = &socket, .host = host, .port_value = port, .path = path,
+                    .request = args->request, .document = args->document, .size = size))
     {
-        cli_socket_closed(&socket);
+        EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &socket);
         mmgr_line_put(err_msg, host);
         mmgr_line_put(err_msg, ": the job did not go");
         return 0;
@@ -269,12 +326,13 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
     int reading = answer_cell != NULL;
     while (reading && (read < CLI_IPP_ANSWER))
     {
-        const long long got = cli_socket_some(&socket, answer_cell + read, CLI_IPP_ANSWER - read);
+        const long long got = EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &socket,
+                                         .bytes_out = answer_cell + read, .room = CLI_IPP_ANSWER - read);
         reading = got > 0ll;
         // a count read is below the room requested
         read += reading ? (unsigned long long)got : 0ull;
     }
-    cli_socket_closed(&socket);
+    EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &socket);
     s_answer = (unsigned char *)answer_cell;
     if (s_answer == NULL)
     {
@@ -282,15 +340,19 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
         return 0;
     }
     unsigned long long stop = 0ull;
-    unsigned long long at = cli_line(s_answer, read, 0ull, &stop);
+    unsigned long long at =
+        EMBED_CALL(cli_line, IppExchangeCtx, .bytes = s_answer, .size = read, .at = 0ull, .stop = &stop);
     // the status line's second word, the code
     unsigned long long word = 0ull;
-    word = cli_text_to_any((const char *)s_answer, word, stop, " ");
-    word = cli_text_past_any((const char *)s_answer, word, stop, " ");
+    word = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
+                      .at = word, .size = stop, .set = " ");
+    word = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
+                      .at = word, .size = stop, .set = " ");
     unsigned long long code = 0ull;
     unsigned long long digits = 0ull;
     unsigned long long end = word;
-    code = cli_text_number((const char *)s_answer, word, stop, &end);
+    code = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = (const char *)s_answer, .at = word,
+                      .size = stop, .end = &end);
     digits = ((end - word) <= 5ull) ? (end - word) : 0ull;
     if ((digits == 0ull) || (((word + digits) < stop) && (s_answer[word + digits] != ' ')))
     {
@@ -305,19 +367,24 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
     for (;;)
     {
         const unsigned long long line_start = at;
-        at = cli_line(s_answer, read, at, &stop);
+        at = EMBED_CALL(cli_line, IppExchangeCtx, .bytes = s_answer, .size = read, .at = at, .stop = &stop);
         if ((stop == line_start) || (at == line_start))
         {
             break;
         }
         unsigned long long colon = line_start;
-        colon = cli_text_to_any((const char *)s_answer, colon, stop, ":");
+        colon = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
+                           .at = colon, .size = stop, .set = ":");
         unsigned long long key_end = colon;
-        key_end = (line_start + cli_text_back_past((const char *)(s_answer + line_start), key_end - line_start, " "));
+        key_end = (line_start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+                                           .text = (const char *)(s_answer + line_start), .at = key_end - line_start,
+                                           .set = " "));
         unsigned long long value = colon + 1ull;
-        value = cli_text_past_any((const char *)s_answer, value, stop, " ");
+        value = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
+                           .at = value, .size = stop, .set = " ");
         const char *const key = (const char *)(s_answer + line_start);
-        if ((colon < stop) && cli_same(key, key_end - line_start, "content-length"))
+        if ((colon < stop) &&
+            EMBED_CALL(cli_same, IppExchangeCtx, .text = key, .length = key_end - line_start, .word = "content-length"))
         {
             length = 0ull;
             has_length = value < stop;
@@ -327,8 +394,11 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
                 length = (length * 10ull) + (unsigned long long)(s_answer[digit] - '0');
             }
         }
-        else if ((colon < stop) && cli_same(key, key_end - line_start, "transfer-encoding") &&
-                 cli_same((const char *)(s_answer + value), stop - value, "chunked"))
+        else if ((colon < stop) &&
+                 EMBED_CALL(cli_same, IppExchangeCtx, .text = key, .length = key_end - line_start,
+                            .word = "transfer-encoding") &&
+                 EMBED_CALL(cli_same, IppExchangeCtx, .text = (const char *)(s_answer + value), .length = stop - value,
+                            .word = "chunked"))
         {
             chunked = 1;
         }
@@ -347,20 +417,23 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
         return 0;
     }
     unsigned long long body = 0ull;
-    return cli_body(host, at, read, chunked, has_length, length, &body, err_msg) &&
-           cli_ipp_decode(s_answer + at, body, answer, err_msg);
+    return EMBED_CALL(cli_body, IppExchangeCtx, .host = host, .at = at, .read = read, .chunked = chunked,
+                      .has_length = has_length, .length = length, .size_pointer = &body, .err_msg = err_msg) &&
+           EMBED_CALL(cli_ipp_message.decode, CliIppMessageCfg, .bytes = s_answer + at, .size = body,
+                      .message = args->answer, .err_msg = err_msg);
 }
 
-int cli_ipp_exchange(const char *uri, const CliIppMessage *request, const unsigned char *document,
-                     unsigned long long size, CliIppMessage *answer, VerbaLinea *err_msg)
+int cli_ipp_exchange(const CliIppSizeCfg *args)
 {
-    cli_lock_take(&s_lock);
-    const int done = cli_exchanged(uri, request, document, size, answer, err_msg);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    const int done =
+        EMBED_CALL(cli_exchange, IppExchangeCtx, .uri = args->uri, .request = args->request, .document = args->document,
+                   .size = args->size, .answer = args->answer, .err_msg = args->err_msg);
     // the answer's own texts are in its bytes; a document after them lay in the answer read, which is given back
-    answer->data = NULL;
-    answer->data_length = 0ull;
+    args->answer->data = NULL;
+    args->answer->data_length = 0ull;
     g_cli_cells->persistent_buf_release(s_answer, &g_cli_print_cells);
     s_answer = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }

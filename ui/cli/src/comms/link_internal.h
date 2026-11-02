@@ -4,7 +4,13 @@
 // lines read and handed on (link.c, link_supervisor.c)
 #ifndef LINK_INTERNAL_H
 #define LINK_INTERNAL_H
+typedef struct CliLinkStateCtx CliLinkStateCtx;
+typedef struct CliLinkSizeWholeCtx CliLinkSizeWholeCtx;
+typedef struct CliLinkSizeCtx CliLinkSizeCtx;
+typedef struct CliLinkCtx CliLinkCtx;
 
+#include "../command_line/callback_cfg.h"
+#include "embed_dispatch_layout.h"
 #include "link.h"
 
 // how long a call waits for the link to be made, and the longest wait between one try at making it and the next, in
@@ -53,14 +59,14 @@ typedef struct
     unsigned long long standing_size;
     CliLinkCall calls[CLI_LINK_CALLS];
     unsigned long long next;
-    CliThread keeper;
+    CliThread store;
     CliThread errors;
     char piece[1u << 16u];
     unsigned long long piece_at;
     unsigned long long piece_end;
 } CliLink;
 
-// the one link; the line of the server's output read last, a cell of CLI_LINK_LINE the keeper owns while it runs; the
+// the one link; the line of the server's output read last, a cell of CLI_LINK_LINE the store owns while it runs; the
 // link's lock, the lock of the server's input, which a writer takes before the link's, and the wake of a change in how
 // it stands (link.c)
 extern CliLink g_cli_link;
@@ -69,16 +75,85 @@ extern CliLock g_cli_link_lock;
 extern CliLock g_cli_link_writing;
 extern CliWake g_cli_link_changed;
 
-// the link's state reported and stored as how it stands, by the keeper's thread alone; the same as preparing the server
+// the link's state reported and stored as how it stands, by the store's thread alone; the same as preparing the server
 // reports it; what the transport prints on its errors read until it ends, run on a thread of its own; the end of what
 // it printed, trimmed, into `out`; the next line the server wrote into g_cli_link_line, `*size` bytes, `*whole` 0
 // where it was longer than that fits: 1, or 0 at the output's end; and that line handed on, an event to the
 // link's teller and an answer to the call waiting on its id (link.c)
-void cli_link_state_set(const char *state, const char *detail, unsigned long long size);
-void cli_link_stated(void *context, const char *state, const char *detail);
+void cli_link_state_set(const CliLinkStateCtx *args);
+void cli_link_state(const CliLinkStatedCfg *args);
 void cli_link_errors_read(void *context);
-void cli_link_stderr_written(VerbaLinea *out);
-int cli_link_line(unsigned long long *size, int *whole);
-void cli_link_recv(unsigned long long size, int whole);
+void cli_link_stderr_write(const CliLinkCtx *args);
+int cli_link_line(const CliLinkSizeWholeCtx *args);
+void cli_link_recv(const CliLinkSizeCtx *args);
+
+struct CliLinkStateCtx
+{
+    const char *state;
+    const char *detail;
+    unsigned long long size;
+};
+
+struct CliLinkSizeWholeCtx
+{
+    unsigned long long *size_pointer;
+    int *whole;
+};
+
+struct CliLinkSizeCtx
+{
+    unsigned long long size;
+    int whole_value;
+};
+
+struct CliLinkCtx
+{
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    void (*state_set)(const CliLinkStateCtx *args);
+} CliLinkStateNs;
+EMBED_TABLE_LAYOUT(CliLinkStateNs, state_set);
+EMBED_TABLE_STORAGE CliLinkStateNs cli_link_state_internal EMBED_UNUSED = {
+    .state_set = cli_link_state_set,
+};
+
+typedef struct
+{
+    void (*state)(const CliLinkStatedCfg *args);
+} CliLinkStatedNs;
+EMBED_TABLE_LAYOUT(CliLinkStatedNs, state);
+EMBED_TABLE_STORAGE CliLinkStatedNs cli_link_stated_table EMBED_UNUSED = {
+    .state = cli_link_state,
+};
+
+typedef struct
+{
+    void (*stderr_write)(const CliLinkCtx *args);
+} CliLinkNsTable;
+EMBED_TABLE_LAYOUT(CliLinkNsTable, stderr_write);
+EMBED_TABLE_STORAGE CliLinkNsTable cli_link_internal EMBED_UNUSED = {
+    .stderr_write = cli_link_stderr_write,
+};
+
+typedef struct
+{
+    int (*line)(const CliLinkSizeWholeCtx *args);
+} CliLinkSizeWholeNs;
+EMBED_TABLE_LAYOUT(CliLinkSizeWholeNs, line);
+EMBED_TABLE_STORAGE CliLinkSizeWholeNs cli_link_size_whole_internal EMBED_UNUSED = {
+    .line = cli_link_line,
+};
+
+typedef struct
+{
+    void (*recv)(const CliLinkSizeCtx *args);
+} CliLinkSizeNsTable;
+EMBED_TABLE_LAYOUT(CliLinkSizeNsTable, recv);
+EMBED_TABLE_STORAGE CliLinkSizeNsTable cli_link_size_internal EMBED_UNUSED = {
+    .recv = cli_link_recv,
+};
 
 #endif

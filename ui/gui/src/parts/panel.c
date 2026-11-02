@@ -1,22 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // panel.c: the panels' box and their Markdown. The layout runs once over the text, drawing as it measures, and runs
-// again with no raster to measure alone, which keeps one set of rules for both
+// again with no raster to measure alone, which saves one set of rules for both
 #include "panel.h"
 
 #include "../../../cli/src/text/text.h"
 #include "../frame.h"
-
-void gui_panel_box_drawn(GuiRaster *raster, const GuiPalette *palette, GuiRect rect, float scale)
-{
-    const unsigned int radius = (unsigned int)gui_scaled(GUI_PANEL_RADIUS, scale);
-    const int line = gui_scaled(1, scale);
-    gui_raster_rounded(raster, rect, radius, palette->widget_line);
-    const GuiRect inside = {rect.x + line, rect.y + line, rect.width - (2 * line), rect.height - (2 * line)};
-    // the inner corners round by the radius less the line, no less than nothing
-    const unsigned int inner = ((unsigned int)line < radius) ? radius - (unsigned int)line : 0u;
-    gui_raster_rounded(raster, inside, inner, palette->surface);
-}
 
 // What a layout holds as it runs: where it draws, the width, the scale, the pen's x on the line being laid, the y of
 // the line's top and the line's height, and the faces' sizes
@@ -34,96 +23,154 @@ typedef struct
     unsigned int code_size;
     int text_line;
     int code_line;
-    float scale;
+    int scale;
 } GuiLayout;
-
-// the baseline of a line `tall` pixels high whose top is `y`, the face centered in it
-static int layout_baseline(const GuiLayout *layout, unsigned int face, unsigned int size, int y, int tall)
+void gui_panel_box_draw(const GuiPanelCfg *args)
 {
-    const float ascent = gui_glyphs_ascent(layout->glyphs, face, size);
-    const float descent = gui_glyphs_descent(layout->glyphs, face, size);
-    return y + (int)((((float)tall - ascent - descent) / 2.0f) + ascent + 0.5f);
+    int scale = args->scale;
+    const unsigned int radius =
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_RADIUS, .scale = scale);
+    const int line = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = args->rect,
+               .radius = radius, .color = args->palette->widget_line);
+    const GuiRect inside = {args->rect.x + line, args->rect.y + line, args->rect.width - (2 * line),
+                            args->rect.height - (2 * line)};
+    // the inner corners round by the radius less the line, no less than nothing
+    const unsigned int inner = ((unsigned int)line < radius) ? radius - (unsigned int)line : 0u;
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = inside,
+               .radius = inner, .color = args->palette->surface);
+}
+
+typedef struct
+{
+    const GuiLayout *layout_read;
+    unsigned int face;
+    unsigned int size;
+    int y;
+    int tall;
+    GuiLayout *layout;
+    const char *text;
+    unsigned long long length;
+    GuiColor color;
+    char mark;
+} PanelCtx;
+// the baseline of a line `tall` pixels high whose top is `y`, the face centered in it
+EMBED_INLINE int layout_baseline(const PanelCtx *args)
+{
+    unsigned int face = args->face;
+    unsigned int size = args->size;
+    const float ascent = EMBED_CALL(gui_glyphs_face.ascent, GuiGlyphsFaceCfg, .glyphs_read = args->layout_read->glyphs,
+                                    .face = face, .size = size);
+    const float descent = EMBED_CALL(gui_glyphs_face.descent, GuiGlyphsFaceCfg,
+                                     .glyphs_read = args->layout_read->glyphs, .face = face, .size = size);
+    return args->y + (int)((((float)args->tall - ascent - descent) / 2.0f) + ascent + 0.5f);
 }
 
 // `length` bytes of `text` drawn in `face` at `size` from the pen on the line whose top is `y`, where there is a
 // raster: the pen moved past them
-static void layout_run(GuiLayout *layout, unsigned int face, unsigned int size, int tall, const char *text,
-                       unsigned long long length, GuiColor color)
+EMBED_INLINE void layout_run(const PanelCtx *args)
 {
-    if (layout->raster != NULL)
+    unsigned int face = args->face;
+    unsigned int size = args->size;
+    const char *text = args->text;
+    unsigned long long length = args->length;
+    GuiColor color = args->color;
+    if (args->layout->raster != NULL)
     {
-        const int baseline = layout_baseline(layout, face, size, layout->y, tall);
-        layout->x = gui_text_drawn(layout->raster, layout->glyphs, face, size, layout->x, baseline, text, length, color,
-                                   layout->clip);
+        const int baseline = EMBED_CALL(layout_baseline, PanelCtx, .layout_read = args->layout, .face = face,
+                                        .size = size, .y = args->layout->y, .tall = args->tall);
+        args->layout->x =
+            EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->layout->raster,
+                       .glyphs = args->layout->glyphs, .face = face, .size = size, .x_f32 = args->layout->x,
+                       .y = baseline, .text = text, .length = length, .color = color, .clip = args->layout->clip);
     }
     else
     {
-        layout->x += gui_text_width(layout->glyphs, face, size, text, length);
+        args->layout->x +=
+            EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
+                       .face = face, .size = size, .text = text, .length = length);
     }
 }
 
 // a line of code laid from `text`, `length` bytes, broken by letters where it is wider than the width: each piece on
 // a line of its own
-static void layout_code_line(GuiLayout *layout, const char *text, unsigned long long length, GuiColor color)
+EMBED_INLINE void layout_code_line(const PanelCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long length = args->length;
     unsigned long long at = 0ull;
-    layout->x = (float)layout->left;
+    args->layout->x = (float)args->layout->left;
     while (at < length)
     {
         unsigned long long took = 0ull;
-        (void)cli_text_letter(text, length, at, &took);
+        (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length, .at = at, .length = &took);
         took = (took != 0ull) ? took : 1ull;
-        const float letter_wide = gui_text_width(layout->glyphs, GUI_FACE_CODE, layout->code_size, text + at, took);
-        if ((layout->x + letter_wide > (float)(layout->left + layout->wide)) && (layout->x > (float)layout->left))
+        const float letter_wide =
+            EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
+                       .face = GUI_FACE_CODE, .size = args->layout->code_size, .text = text + at, .length = took);
+        if ((args->layout->x + letter_wide > (float)(args->layout->left + args->layout->wide)) &&
+            (args->layout->x > (float)args->layout->left))
         {
-            layout->y += layout->code_line;
-            layout->x = (float)layout->left;
+            args->layout->y += args->layout->code_line;
+            args->layout->x = (float)args->layout->left;
         }
-        layout_run(layout, GUI_FACE_CODE, layout->code_size, layout->code_line, text + at, took, color);
+        EMBED_CALL(layout_run, PanelCtx, .layout = args->layout, .face = GUI_FACE_CODE, .size = args->layout->code_size,
+                   .tall = args->layout->code_line, .text = text + at, .length = took, .color = args->color);
         at += took;
     }
-    layout->y += layout->code_line;
+    args->layout->y += args->layout->code_line;
 }
 
 // a word of a paragraph laid from `text`, `length` bytes, in `face`, wrapped to the next line where it does not fit
 // after the pen, and broken by letters where it is wider than the whole width
-static void layout_word(GuiLayout *layout, unsigned int face, unsigned int size, const char *text,
-                        unsigned long long length, GuiColor color)
+EMBED_INLINE void layout_word(const PanelCtx *args)
 {
-    const float wide = gui_text_width(layout->glyphs, face, size, text, length);
-    const float right = (float)(layout->left + layout->wide);
-    if ((layout->x + wide > right) && (layout->x > (float)layout->left))
+    unsigned int face = args->face;
+    unsigned int size = args->size;
+    const char *text = args->text;
+    unsigned long long length = args->length;
+    const float wide = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
+                                  .face = face, .size = size, .text = text, .length = length);
+    const float right = (float)(args->layout->left + args->layout->wide);
+    if ((args->layout->x + wide > right) && (args->layout->x > (float)args->layout->left))
     {
-        layout->y += layout->text_line;
-        layout->x = (float)layout->left;
+        args->layout->y += args->layout->text_line;
+        args->layout->x = (float)args->layout->left;
     }
-    if (layout->x + wide <= right)
+    if (args->layout->x + wide <= right)
     {
-        layout_run(layout, face, size, layout->text_line, text, length, color);
+        EMBED_CALL(layout_run, PanelCtx, .layout = args->layout, .face = face, .size = size,
+                   .tall = args->layout->text_line, .text = text, .length = length, .color = args->color);
         return;
     }
     unsigned long long at = 0ull;
     while (at < length)
     {
         unsigned long long took = 0ull;
-        (void)cli_text_letter(text, length, at, &took);
+        (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length, .at = at, .length = &took);
         took = (took != 0ull) ? took : 1ull;
-        const float letter_wide = gui_text_width(layout->glyphs, face, size, text + at, took);
-        if ((layout->x + letter_wide > right) && (layout->x > (float)layout->left))
+        const float letter_wide =
+            EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
+                       .face = face, .size = size, .text = text + at, .length = took);
+        if ((args->layout->x + letter_wide > right) && (args->layout->x > (float)args->layout->left))
         {
-            layout->y += layout->text_line;
-            layout->x = (float)layout->left;
+            args->layout->y += args->layout->text_line;
+            args->layout->x = (float)args->layout->left;
         }
-        layout_run(layout, face, size, layout->text_line, text + at, took, color);
+        EMBED_CALL(layout_run, PanelCtx, .layout = args->layout, .face = face, .size = size,
+                   .tall = args->layout->text_line, .text = text + at, .length = took, .color = args->color);
         at += took;
     }
 }
 
 // a paragraph's line laid from `text`, `length` bytes, word by word, the text between single backticks in the code
 // face in the type's color; the pen left after its last word, a blank's width on, for the next line's words
-static void layout_paragraph_line(GuiLayout *layout, const char *text, unsigned long long length)
+EMBED_INLINE void layout_paragraph_line(const PanelCtx *args)
 {
-    const GuiColor type = gui_palette_token(layout->palette, "type", 4ull);
+    const char *text = args->text;
+    unsigned long long length = args->length;
+    const GuiColor type = EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = args->layout->palette,
+                                     .name_read = "type", .length = 4ull);
     int code = 0;
     unsigned long long at = 0ull;
     while (at < length)
@@ -136,80 +183,97 @@ static void layout_paragraph_line(GuiLayout *layout, const char *text, unsigned 
         }
         if (text[at] == ' ')
         {
-            layout->x += gui_text_width(layout->glyphs, GUI_FACE_TEXT, layout->text_size, " ", 1ull);
+            args->layout->x +=
+                EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
+                           .face = GUI_FACE_TEXT, .size = args->layout->text_size, .text = " ", .length = 1ull);
             at += 1ull;
             continue;
         }
         unsigned long long end = at;
-        end = cli_text_to_any(text, end, length, " `");
+        end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = end,
+                         .size = length, .set = " `");
         if (code)
         {
-            layout_word(layout, GUI_FACE_CODE, layout->code_size, text + at, end - at, type);
+            EMBED_CALL(layout_word, PanelCtx, .layout = args->layout, .face = GUI_FACE_CODE,
+                       .size = args->layout->code_size, .text = text + at, .length = end - at, .color = type);
         }
         else
         {
-            layout_word(layout, GUI_FACE_TEXT, layout->text_size, text + at, end - at, layout->palette->text);
+            EMBED_CALL(layout_word, PanelCtx, .layout = args->layout, .face = GUI_FACE_TEXT,
+                       .size = args->layout->text_size, .text = text + at, .length = end - at,
+                       .color = args->layout->palette->text);
         }
         at = end;
     }
-    layout->x += gui_text_width(layout->glyphs, GUI_FACE_TEXT, layout->text_size, " ", 1ull);
+    args->layout->x += EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->layout->glyphs,
+                                  .face = GUI_FACE_TEXT, .size = args->layout->text_size, .text = " ", .length = 1ull);
 }
 
 // whether `length` bytes of a line are `fence`, the three backticks, or three dashes, with blanks about them
-static int layout_line_is(const char *text, unsigned long long length, char mark)
+EMBED_INLINE int layout_line_is(const PanelCtx *args)
 {
+    const char *text = args->text;
     unsigned long long from = 0ull;
-    unsigned long long to = length;
-    from = cli_text_past_any(text, from, to, " \t\r");
-    to = (from + cli_text_back_past(text + from, to - from, " \t\r"));
+    unsigned long long to = args->length;
+    from = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = from, .size = to,
+                      .set = " \t\r");
+    to = (from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = text + from,
+                            .at = to - from, .set = " \t\r"));
     if (to - from < 3ull)
     {
         return 0;
     }
     for (unsigned long long at = from; at < from + 3ull; at += 1ull)
     {
-        if (text[at] != mark)
+        if (text[at] != args->mark)
         {
             return 0;
         }
     }
     // a fence may name its language after the backticks; a rule is its dashes alone
-    return (mark == '`') || (to - from == 3ull);
+    return (args->mark == '`') || (to - from == 3ull);
 }
 
-int gui_panel_markdown(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const char *text,
-                       unsigned long long length, int x, int y, int wide, float scale, GuiRect clip)
+int gui_panel_markdown(const GuiPanelRasterCfg *args)
 {
-    GuiLayout layout = {raster,
-                        glyphs,
-                        palette,
-                        clip,
-                        x,
-                        wide,
-                        (float)x,
-                        y,
-                        (unsigned int)(((float)GUI_PANEL_TEXT_SIZE * scale) + 0.5f),
-                        (unsigned int)(((float)GUI_PANEL_CODE_SIZE * scale) + 0.5f),
-                        gui_scaled(GUI_PANEL_TEXT_LINE, scale),
-                        gui_scaled(GUI_PANEL_CODE_LINE, scale),
-                        scale};
+    int x = args->x;
+    int y = args->y;
+    int scale = args->scale;
+    GuiLayout layout = {
+        args->raster,
+        args->glyphs,
+        args->palette,
+        args->clip,
+        x,
+        args->wide,
+        (float)x,
+        y,
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_TEXT_SIZE,
+                                 .scale = scale),
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_CODE_SIZE,
+                                 .scale = scale),
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_TEXT_LINE, .scale = scale),
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_CODE_LINE, .scale = scale),
+        scale};
     int fenced = 0;
     int in_paragraph = 0;
     unsigned long long at = 0ull;
-    while (at < length)
+    while (at < args->length)
     {
         unsigned long long end = at;
-        end = cli_text_to_any(text, end, length, "\n");
+        end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = end,
+                         .size = args->length, .set = "\n");
         unsigned long long line_length = end - at;
         line_length =
-            ((line_length > 0ull) && (text[at + line_length - 1ull] == '\r')) ? line_length - 1ull : line_length;
-        const char *const line = text + at;
-        at = (end < length) ? end + 1ull : end;
-        if (layout_line_is(line, line_length, '`'))
+            ((line_length > 0ull) && (args->text[at + line_length - 1ull] == '\r')) ? line_length - 1ull : line_length;
+        const char *const line = args->text + at;
+        at = (end < args->length) ? end + 1ull : end;
+        if (EMBED_CALL(layout_line_is, PanelCtx, .text = line, .length = line_length, .mark = '`'))
         {
             if (in_paragraph)
             {
-                layout.y += layout.text_line + gui_scaled(GUI_PANEL_PARAGRAPH, scale);
+                layout.y += layout.text_line + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                          .pixels = GUI_PANEL_PARAGRAPH, .scale = scale);
                 in_paragraph = 0;
             }
             fenced = !fenced;
@@ -217,31 +281,40 @@ int gui_panel_markdown(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *p
         }
         if (fenced)
         {
-            layout_code_line(&layout, line, line_length, palette->editor_text);
+            EMBED_CALL(layout_code_line, PanelCtx, .layout = &layout, .text = line, .length = line_length,
+                       .color = args->palette->editor_text);
             continue;
         }
-        if (layout_line_is(line, line_length, '-'))
+        if (EMBED_CALL(layout_line_is, PanelCtx, .text = line, .length = line_length, .mark = '-'))
         {
             if (in_paragraph)
             {
-                layout.y += layout.text_line + gui_scaled(GUI_PANEL_PARAGRAPH, scale);
+                layout.y += layout.text_line + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                          .pixels = GUI_PANEL_PARAGRAPH, .scale = scale);
                 in_paragraph = 0;
             }
-            const int margin = gui_scaled(GUI_PANEL_RULE, scale);
-            if (raster != NULL)
+            const int margin =
+                EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_RULE, .scale = scale);
+            if (args->raster != NULL)
             {
-                gui_raster_filled(raster,
-                                  gui_rect_met((GuiRect){x, layout.y + margin, wide, gui_scaled(1, scale)}, clip),
-                                  palette->widget_line);
+                EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+                           .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                              .one = (GuiRect){x, layout.y + margin, args->wide,
+                                                               EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                                          .pixels = 1, .scale = scale)},
+                                              .other = args->clip),
+                           .color = args->palette->widget_line);
             }
-            layout.y += (2 * margin) + gui_scaled(1, scale);
+            layout.y +=
+                (2 * margin) + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
             continue;
         }
         if (line_length == 0ull)
         {
             if (in_paragraph)
             {
-                layout.y += layout.text_line + gui_scaled(GUI_PANEL_PARAGRAPH, scale);
+                layout.y += layout.text_line + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                          .pixels = GUI_PANEL_PARAGRAPH, .scale = scale);
                 in_paragraph = 0;
             }
             continue;
@@ -251,7 +324,7 @@ int gui_panel_markdown(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *p
             layout.x = (float)x;
             in_paragraph = 1;
         }
-        layout_paragraph_line(&layout, line, line_length);
+        EMBED_CALL(layout_paragraph_line, PanelCtx, .layout = &layout, .text = line, .length = line_length);
     }
     if (in_paragraph)
     {
@@ -260,27 +333,28 @@ int gui_panel_markdown(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *p
     return layout.y - y;
 }
 
-GuiRect gui_panel_placed(GuiRect anchor, int wide, int tall, int back, GuiRect bounds, int above, float scale)
+GuiRect gui_panel_place(const GuiPanelWideCfg *args)
 {
-    const int off = gui_scaled(GUI_PANEL_OFF, scale);
-    const int below_y = anchor.y + anchor.height + off;
-    const int above_y = anchor.y - off - tall;
-    const int fits_below = below_y + tall <= bounds.y + bounds.height;
-    const int fits_above = above_y >= bounds.y;
+    int scale = args->scale;
+    const int off = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_OFF, .scale = scale);
+    const int below_y = args->anchor.y + args->anchor.height + off;
+    const int above_y = args->anchor.y - off - args->tall;
+    const int fits_below = below_y + args->tall <= args->bounds.y + args->bounds.height;
+    const int fits_above = above_y >= args->bounds.y;
     int y = below_y;
-    if ((above && fits_above) || (!fits_below && fits_above))
+    if ((args->above && fits_above) || (!fits_below && fits_above))
     {
         y = above_y;
     }
     else if (!fits_below)
     {
         // neither side has the room: the box stands as low as the bounds allow
-        y = bounds.y + bounds.height - tall;
-        y = (y < bounds.y) ? bounds.y : y;
+        y = args->bounds.y + args->bounds.height - args->tall;
+        y = (y < args->bounds.y) ? args->bounds.y : y;
     }
-    int x = anchor.x - back;
-    const int right = bounds.x + bounds.width - wide;
+    int x = args->anchor.x - args->back;
+    const int right = args->bounds.x + args->bounds.width - args->wide;
     x = (x > right) ? right : x;
-    x = (x < bounds.x) ? bounds.x : x;
-    return (GuiRect){x, y, wide, tall};
+    x = (x < args->bounds.x) ? args->bounds.x : x;
+    return (GuiRect){x, y, args->wide, args->tall};
 }

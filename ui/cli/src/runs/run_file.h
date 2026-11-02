@@ -12,13 +12,35 @@
 // the same folder (run_file.c)
 #ifndef RUN_FILE_H
 #define RUN_FILE_H
+typedef struct CliRunFileCfg CliRunFileCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // a path as a POSIX shell takes it, with forward slashes, in single quotes, after `out`
-void cli_run_file_quoted(VerbaLinea *out, const char *path);
+void cli_run_file_quote(const CliRunFileCfg *args);
 // the line that runs the file at `path`, under the tree at `root`, in `language`, written as `{"line", "tool"}`: 1, or
 // 0 with why given
-int cli_run_file_line(const char *root, const char *path, const char *language, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_run_file_line(const CliRunFileCfg *args);
+
+struct CliRunFileCfg
+{
+    VerbaLinea *out;
+    const char *path;
+    const char *root;
+    const char *language;
+    VerbaLinea *err_msg;
+};
+
+typedef struct
+{
+    void (*quote)(const CliRunFileCfg *args);
+    int (*line)(const CliRunFileCfg *args);
+} CliRunFileNs;
+EMBED_TABLE_LAYOUT(CliRunFileNs, quote, line);
+EMBED_TABLE_STORAGE CliRunFileNs cli_run_file EMBED_UNUSED = {
+    .quote = cli_run_file_quote,
+    .line = cli_run_file_line,
+};
 
 #endif

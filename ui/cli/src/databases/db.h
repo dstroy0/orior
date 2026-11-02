@@ -20,9 +20,24 @@
 // db_children.c, db_history.c, platform/windows_keychain.c, platform/posix_keychain.c)
 #ifndef DB_H
 #define DB_H
+typedef struct CliDbOutCfg CliDbOutCfg;
+typedef struct CliDbOutFailureCfg CliDbOutFailureCfg;
+typedef struct CliDbOutCountCfg CliDbOutCountCfg;
+typedef struct CliDbOutRootCfg CliDbOutRootCfg;
+typedef struct CliDbOutFailureOpenCfg CliDbOutFailureOpenCfg;
+typedef struct CliDbOutSizeCfg CliDbOutSizeCfg;
+typedef struct CliDbRootCfg CliDbRootCfg;
+typedef struct CliDbConnectionErrMsgCfg CliDbConnectionErrMsgCfg;
+typedef struct CliDbRootNameCfg CliDbRootNameCfg;
+typedef struct CliDbConnectionCfg CliDbConnectionCfg;
+typedef struct CliDbConnectionOutKindCfg CliDbConnectionOutKindCfg;
+typedef struct CliDbErrMsgCfg CliDbErrMsgCfg;
+typedef struct CliDbCfg CliDbCfg;
 
+#include "../command_line/callback_cfg.h"
 #include "../text/json_tree.h"
 #include "db_wire.h"
+#include "embed_dispatch_layout.h"
 
 // A connection a tree names: its name; its kind, postgres, mysql or sqlite; its host, port, user and database; a SQLite
 // database's file, by its path in the tree or whole; the machine, as ssh names it, a tunnel to the server goes
@@ -51,55 +66,291 @@ typedef struct CliDbOpen CliDbOpen;
 // and its password out of the keychain: each 1, or 0 with why given; and what the window shows of each connection, its
 // settings and whether it is open, with its transaction's state and its session's zone, the open connections `opens`,
 // `count` of them, written into `out`: 1, or 0 with why given (db_config.c)
-unsigned int cli_db_port(const CliDbConnection *connection);
-void cli_db_account(const CliDbConnection *connection, VerbaLinea *out);
-int cli_db_named(const char *root, const char *name, CliDbConnection *connection, VerbaLinea *err_msg);
-int cli_db_connection_of(const CliJson *json, unsigned int node, CliDbConnection *connection, VerbaLinea *err_msg);
-int cli_db_save(const char *root, const CliDbConnection *connection, const char *was, VerbaLinea *err_msg);
-int cli_db_remove(const char *root, const char *name, VerbaLinea *err_msg);
-int cli_db_listed(const char *root, CliDbOpen *const *opens, unsigned int count, VerbaLinea *out, VerbaLinea *err_msg);
+unsigned int cli_db_port(const CliDbConnectionOutKindCfg *args);
+void cli_db_account(const CliDbConnectionOutKindCfg *args);
+int cli_db_by_name(const CliDbRootNameCfg *args);
+int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args);
+int cli_db_save(const CliDbConnectionCfg *args);
+int cli_db_remove(const CliDbRootNameCfg *args);
+int cli_db_list(const CliDbOutRootCfg *args);
 
 // `config`'s two links opened, signed in with `password`, or with the one the keychain stores where it is NULL: the
 // connection, or NULL with the failure into `failure`; and its links and its tunnel ended and the connection let go
 // (db_open.c)
-CliDbOpen *cli_db_connect(const char *root, const CliDbConnection *config, const char *password, CliDbFailure *failure);
-void cli_db_close(CliDbOpen *open);
+CliDbOpen *cli_db_connect(const CliDbRootCfg *args);
+void cli_db_close(const CliDbErrMsgCfg *args);
 // the connection's name, its server's version, its transaction's state on the query link, busy where a statement
 // occupies it, and the zone the session reads times in into `out`
-const char *cli_db_name(const CliDbOpen *open);
-const char *cli_db_version(const CliDbOpen *open);
-const char *cli_db_transaction(CliDbOpen *open);
-void cli_db_zone(CliDbOpen *open, VerbaLinea *out);
+const char *cli_db_name(const CliDbCfg *args);
+const char *cli_db_version(const CliDbCfg *args);
+const char *cli_db_transaction(const CliDbErrMsgCfg *args);
+void cli_db_zone(const CliDbOutCountCfg *args);
 
 // `size` bytes of `statement` run, confirming first where it must and the reader has not `answered`, its first `page`
 // rows or what it did written into `out`; the rows buffered from `from`, `count` of them, read from the run where they
 // are not buffered yet; and the rows buffered, then the rest the run gives, written to `path` as csv, tsv or json
 // lines, `progress` handed how many it has written after each 4096 it reads on. Each 1, or 0 with the failure into
 // `failure` (db_run.c, db_results.c)
-int cli_db_run(CliDbOpen *open, const char *statement, unsigned long long size, int answered, unsigned long long page,
-               VerbaLinea *out, CliDbFailure *failure);
-int cli_db_rows(CliDbOpen *open, unsigned long long from, unsigned long long count, VerbaLinea *out,
-                CliDbFailure *failure);
-int cli_db_export(CliDbOpen *open, const char *path, const char *format,
-                  void (*progress)(void *context, unsigned long long written), void *context, VerbaLinea *out,
-                  CliDbFailure *failure);
+int cli_db_run(const CliDbOutFailureCfg *args);
+int cli_db_rows(const CliDbOutFailureOpenCfg *args);
+int cli_db_export(const CliDbOutCfg *args);
 
 // the statement running stopped, and the schema's reading stopped: 1, or 0 with why given (db_run.c)
-int cli_db_stop(CliDbOpen *open, VerbaLinea *err_msg);
-int cli_db_stop_reading(CliDbOpen *open, VerbaLinea *err_msg);
+int cli_db_stop(const CliDbErrMsgCfg *args);
+int cli_db_stop_reading(const CliDbErrMsgCfg *args);
 
 // the level of the schema under `path`, `count` names: the schemas or databases at the top, a schema's objects under
 // it, and a table's columns, indexes, keys and triggers under it, written into `out`: 1, or 0 with the failure into
 // `failure` (db_children.c)
-int cli_db_children(CliDbOpen *open, const char *const *path, unsigned int count, VerbaLinea *out,
-                    CliDbFailure *failure);
+int cli_db_children(const CliDbOutCountCfg *args);
 
 // the statements run on the connection, the newest first, written into `out`; the span of the statement `size` bytes
 // of `text` occupy at `offset`, counted in characters, as the editor counts them, as [start, end], null where the place
 // stands in no statement; and each statement of `text` by its span in characters (db_history.c)
-void cli_db_history(CliDbOpen *open, VerbaLinea *out);
-void cli_db_statement_at(const char *text, unsigned long long size, unsigned long long offset, const char *kind,
-                         VerbaLinea *out);
-void cli_db_statements(const char *text, unsigned long long size, const char *kind, VerbaLinea *out);
+void cli_db_history(const CliDbOutCountCfg *args);
+void cli_db_statement_at(const CliDbOutSizeCfg *args);
+void cli_db_statements(const CliDbOutSizeCfg *args);
+
+struct CliDbOutCfg
+{
+    VerbaLinea *out;
+    CliDbFailure *failure;
+    CliDbOpen *open;
+    const char *path;
+    const char *format;
+    void (*progress)(const CliEachWrittenCfg *args);
+    void *context;
+};
+
+struct CliDbOutFailureCfg
+{
+    VerbaLinea *out;
+    CliDbFailure *failure;
+    CliDbOpen *open;
+    const char *statement;
+    unsigned long long size;
+    int answered;
+    unsigned long long page;
+};
+
+struct CliDbOutCountCfg
+{
+    VerbaLinea *out;
+    unsigned int count;
+    CliDbFailure *failure;
+    CliDbOpen *open;
+    const char *const *path_pointer;
+};
+
+struct CliDbOutRootCfg
+{
+    VerbaLinea *out;
+    const char *root;
+    VerbaLinea *err_msg;
+    CliDbOpen *const *opens;
+    unsigned int count;
+};
+
+struct CliDbOutFailureOpenCfg
+{
+    VerbaLinea *out;
+    CliDbFailure *failure;
+    CliDbOpen *open;
+    unsigned long long from;
+    unsigned long long count_u64;
+};
+
+struct CliDbOutSizeCfg
+{
+    VerbaLinea *out;
+    unsigned long long size;
+    const char *text;
+    unsigned long long offset;
+    const char *kind;
+};
+
+struct CliDbRootCfg
+{
+    const char *root;
+    const CliDbConnection *config;
+    const char *password;
+    CliDbFailure *failure;
+};
+
+struct CliDbConnectionErrMsgCfg
+{
+    CliDbConnection *connection_out;
+    VerbaLinea *err_msg;
+    const CliJson *json;
+    unsigned int node;
+};
+
+struct CliDbRootNameCfg
+{
+    const char *root;
+    const char *name;
+    CliDbConnection *connection_out;
+    VerbaLinea *err_msg;
+};
+
+struct CliDbConnectionCfg
+{
+    const CliDbConnection *connection;
+    const char *root;
+    VerbaLinea *err_msg;
+    const char *was;
+};
+
+struct CliDbConnectionOutKindCfg
+{
+    const CliDbConnection *connection;
+    VerbaLinea *out;
+};
+
+struct CliDbErrMsgCfg
+{
+    VerbaLinea *err_msg;
+    CliDbOpen *open;
+};
+
+struct CliDbCfg
+{
+    const CliDbOpen *open_read;
+};
+
+typedef struct
+{
+    unsigned int (*port)(const CliDbConnectionOutKindCfg *args);
+    void (*account)(const CliDbConnectionOutKindCfg *args);
+} CliDbConnectionOutKindNs;
+EMBED_TABLE_LAYOUT(CliDbConnectionOutKindNs, port, account);
+EMBED_TABLE_STORAGE CliDbConnectionOutKindNs cli_db_connection_out_kind EMBED_UNUSED = {
+    .port = cli_db_port,
+    .account = cli_db_account,
+};
+
+typedef struct
+{
+    int (*by_name)(const CliDbRootNameCfg *args);
+    int (*remove)(const CliDbRootNameCfg *args);
+} CliDbRootNameNs;
+EMBED_TABLE_LAYOUT(CliDbRootNameNs, by_name, remove);
+EMBED_TABLE_STORAGE CliDbRootNameNs cli_db_root_name EMBED_UNUSED = {
+    .by_name = cli_db_by_name,
+    .remove = cli_db_remove,
+};
+
+typedef struct
+{
+    int (*connection_get)(const CliDbConnectionErrMsgCfg *args);
+} CliDbConnectionErrMsgNs;
+EMBED_TABLE_LAYOUT(CliDbConnectionErrMsgNs, connection_get);
+EMBED_TABLE_STORAGE CliDbConnectionErrMsgNs cli_db_connection_err_msg EMBED_UNUSED = {
+    .connection_get = cli_db_connection_get,
+};
+
+typedef struct
+{
+    int (*save)(const CliDbConnectionCfg *args);
+} CliDbConnectionNs;
+EMBED_TABLE_LAYOUT(CliDbConnectionNs, save);
+EMBED_TABLE_STORAGE CliDbConnectionNs cli_db_connection EMBED_UNUSED = {
+    .save = cli_db_save,
+};
+
+typedef struct
+{
+    int (*list)(const CliDbOutRootCfg *args);
+} CliDbOutRootNs;
+EMBED_TABLE_LAYOUT(CliDbOutRootNs, list);
+EMBED_TABLE_STORAGE CliDbOutRootNs cli_db_out_root EMBED_UNUSED = {
+    .list = cli_db_list,
+};
+
+typedef struct
+{
+    CliDbOpen *(*connect)(const CliDbRootCfg *args);
+} CliDbRootNs;
+EMBED_TABLE_LAYOUT(CliDbRootNs, connect);
+EMBED_TABLE_STORAGE CliDbRootNs cli_db_root EMBED_UNUSED = {
+    .connect = cli_db_connect,
+};
+
+typedef struct
+{
+    void (*close)(const CliDbErrMsgCfg *args);
+    const char *(*transaction)(const CliDbErrMsgCfg *args);
+    int (*stop)(const CliDbErrMsgCfg *args);
+    int (*stop_reading)(const CliDbErrMsgCfg *args);
+} CliDbErrMsgNs;
+EMBED_TABLE_LAYOUT(CliDbErrMsgNs, close, transaction, stop, stop_reading);
+EMBED_TABLE_STORAGE CliDbErrMsgNs cli_db_err_msg EMBED_UNUSED = {
+    .close = cli_db_close,
+    .transaction = cli_db_transaction,
+    .stop = cli_db_stop,
+    .stop_reading = cli_db_stop_reading,
+};
+
+typedef struct
+{
+    const char *(*name)(const CliDbCfg *args);
+    const char *(*version)(const CliDbCfg *args);
+} CliDbNs;
+EMBED_TABLE_LAYOUT(CliDbNs, name, version);
+EMBED_TABLE_STORAGE CliDbNs cli_db EMBED_UNUSED = {
+    .name = cli_db_name,
+    .version = cli_db_version,
+};
+
+typedef struct
+{
+    void (*zone)(const CliDbOutCountCfg *args);
+    int (*children)(const CliDbOutCountCfg *args);
+    void (*history)(const CliDbOutCountCfg *args);
+} CliDbOutCountNs;
+EMBED_TABLE_LAYOUT(CliDbOutCountNs, zone, children, history);
+EMBED_TABLE_STORAGE CliDbOutCountNs cli_db_out_count EMBED_UNUSED = {
+    .zone = cli_db_zone,
+    .children = cli_db_children,
+    .history = cli_db_history,
+};
+
+typedef struct
+{
+    int (*run)(const CliDbOutFailureCfg *args);
+} CliDbOutFailureNs;
+EMBED_TABLE_LAYOUT(CliDbOutFailureNs, run);
+EMBED_TABLE_STORAGE CliDbOutFailureNs cli_db_out_failure EMBED_UNUSED = {
+    .run = cli_db_run,
+};
+
+typedef struct
+{
+    int (*rows)(const CliDbOutFailureOpenCfg *args);
+} CliDbOutFailureOpenNs;
+EMBED_TABLE_LAYOUT(CliDbOutFailureOpenNs, rows);
+EMBED_TABLE_STORAGE CliDbOutFailureOpenNs cli_db_out_failure_open EMBED_UNUSED = {
+    .rows = cli_db_rows,
+};
+
+typedef struct
+{
+    int (*export)(const CliDbOutCfg *args);
+} CliDbOutNs;
+EMBED_TABLE_LAYOUT(CliDbOutNs, export);
+EMBED_TABLE_STORAGE CliDbOutNs cli_db_out EMBED_UNUSED = {
+    .export = cli_db_export,
+};
+
+typedef struct
+{
+    void (*statement_at)(const CliDbOutSizeCfg *args);
+    void (*statements)(const CliDbOutSizeCfg *args);
+} CliDbOutSizeNs;
+EMBED_TABLE_LAYOUT(CliDbOutSizeNs, statement_at, statements);
+EMBED_TABLE_STORAGE CliDbOutSizeNs cli_db_out_size EMBED_UNUSED = {
+    .statement_at = cli_db_statement_at,
+    .statements = cli_db_statements,
+};
 
 #endif

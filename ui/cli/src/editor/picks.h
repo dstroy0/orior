@@ -6,8 +6,11 @@
 // milliseconds, spread over the cores (picks.c)
 #ifndef PICKS_H
 #define PICKS_H
+typedef struct CliPicksIdCfg CliPicksIdCfg;
+typedef struct CliPicksCfg CliPicksCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the most lists stored at once
 #define CLI_PICKS_LISTS 64u
@@ -17,9 +20,43 @@
 // go; and the rows of the list stored under `id` that answer `query`, at most `most` of them, the best first and rows
 // that score alike in the list's order, with no query its first `most` rows, written as `[{"at", "score", "hits"}]`: 1,
 // or 0 with why given where no list is stored under `id`
-unsigned long long cli_picks_store(const char *texts, unsigned long long length);
-void cli_picks_forget(unsigned long long id);
-int cli_picks_find(unsigned long long id, const char *query, unsigned long long most, VerbaLinea *out,
-                   VerbaLinea *err_msg);
+unsigned long long cli_picks_store(const CliPicksCfg *args);
+void cli_picks_forget(const CliPicksIdCfg *args);
+int cli_picks_find(const CliPicksIdCfg *args);
+
+struct CliPicksIdCfg
+{
+    unsigned long long id;
+    const char *query;
+    unsigned long long most;
+    VerbaLinea *out;
+    VerbaLinea *err_msg;
+};
+
+struct CliPicksCfg
+{
+    const char *texts;
+    unsigned long long length;
+};
+
+typedef struct
+{
+    unsigned long long (*store)(const CliPicksCfg *args);
+} CliPicksNs;
+EMBED_TABLE_LAYOUT(CliPicksNs, store);
+EMBED_TABLE_STORAGE CliPicksNs cli_picks EMBED_UNUSED = {
+    .store = cli_picks_store,
+};
+
+typedef struct
+{
+    void (*forget)(const CliPicksIdCfg *args);
+    int (*find)(const CliPicksIdCfg *args);
+} CliPicksIdNs;
+EMBED_TABLE_LAYOUT(CliPicksIdNs, forget, find);
+EMBED_TABLE_STORAGE CliPicksIdNs cli_picks_id EMBED_UNUSED = {
+    .forget = cli_picks_forget,
+    .find = cli_picks_find,
+};
 
 #endif

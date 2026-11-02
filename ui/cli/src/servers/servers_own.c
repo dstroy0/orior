@@ -9,6 +9,7 @@
 // written through pieces into a cell of the size it writes to
 #include "../builds/builds.h"
 #include "../code/schema.h"
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "servers_internal.h"
 
@@ -32,35 +33,56 @@ typedef struct
     unsigned int count;
 } CliServersOwnTreeJob;
 
-int cli_servers_own_reads(const char *path)
+int cli_servers_own_reads(const CliServersPathSizeRootSinkCtx *args)
 {
-    return (cli_build_kind_of(path) != 0u) || cli_schema_reads(path);
+    const char *path = args->path;
+    return (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) != 0u) ||
+           EMBED_CALL(cli_schema.reads, CliSchemaCfg, .path = path);
 }
 
-// the diagnostics orior's own reading of the file at `path` finds, written as an array
-static void own_check(const char *root, const char *path, const char *text, unsigned long long size, VerbaLinea *out)
+typedef struct
 {
-    if (cli_build_kind_of(path) != 0u)
+    const char *root;
+    const char *path;
+    const char *text;
+    unsigned long long size;
+    VerbaLinea *out;
+    const char *key;
+    int *written;
+    VerbaLinea *items;
+    VerbaLinea *found;
+} ServersOwnCtx;
+// the diagnostics orior's own reading of the file at `path` finds, written as an array
+EMBED_INLINE void own_check(const ServersOwnCtx *args)
+{
+    const char *root = args->root;
+    const char *path = args->path;
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    VerbaLinea *out = args->out;
+    if (EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = path) != 0u)
     {
-        cli_build_check(root, path, text, size, out);
+        EMBED_CALL(cli_builds_path.build_check, CliBuildsPathCfg, .root = root, .path = path, .text = text,
+                   .size = size, .out = out);
         return;
     }
-    cli_schema_check(root, path, text, size, out);
+    EMBED_CALL(cli_schema.check, CliSchemaCfg, .root = root, .path = path, .text = text, .size = size, .out = out);
 }
 
 // a name a build tool gives a file put on its own line
-static void own_name_put(void *context, const char *name, unsigned long long size)
+static void own_name_put(const CliEachNameSizeCfg *args)
 {
-    VerbaLinea *const names = context;
-    mmgr_line_put_n(names, name, size);
+    VerbaLinea *const names = args->context;
+    mmgr_line_put_n(names, args->name, args->size);
     mmgr_line_ch(names, '\n');
 }
 
 // one file checked as its text stands, its findings stored and passed on where its run is still the last
-static void own_job(const void *job, unsigned long long size)
+static void own_job(const CliServersJobCfg *args)
 {
-    const CliServersOwnJob *const own = job;
-    const char *const text = (const char *)job + sizeof(*own);
+    unsigned long long size = args->size;
+    const CliServersOwnJob *const own = args->job;
+    const char *const text = (const char *)args->job + sizeof(*own);
     if (size < sizeof(*own) + own->size)
     {
         return;
@@ -68,36 +90,43 @@ static void own_job(const void *job, unsigned long long size)
     char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
     VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_ANSWER);
     mmgr_line_put(&found, "[[");
-    cli_json_quoted_lossy(&found, (const unsigned char *)own->path,
-                          cellul.len(&(CatenaFinitaCfg){.src = own->path, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &found,
+               .text_bytes = (const unsigned char *)own->path,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = own->path, .cap = CLI_CELLS_POOL}));
     mmgr_line_ch(&found, ',');
-    own_check(own->root, own->path, text, own->size, &found);
+    EMBED_CALL(own_check, ServersOwnCtx, .root = own->root, .path = own->path, .text = text, .size = own->size,
+               .out = &found);
     mmgr_line_put(&found, "]]");
-    if (mmgr_line_ok(&found) && cli_servers_run_last(own->key, CLI_SERVERS_OWN, own->run))
+    if (mmgr_line_ok(&found) && EMBED_CALL(cli_servers_key_internal.run_last, CliServersKeyCtx, .key = own->key,
+                                           .id = CLI_SERVERS_OWN, .run_u64 = own->run))
     {
-        cli_servers_findings_stored(CLI_SERVERS_OWN, found.out, found.at, 1, &own->sink);
+        EMBED_CALL(cli_servers_size_internal.findings_store, CliServersSizeCtx, .id = CLI_SERVERS_OWN,
+                   .found = found.out, .size = found.at, .always = 1, .sink = &own->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
-void cli_servers_check_own(const char *root, const char *path, const char *text, unsigned long long size,
-                           const CliServersSink *sink)
+void cli_servers_check_own(const CliServersPathSizeRootSinkCtx *args)
 {
-    if (!cli_servers_own_reads(path) || (size > CLI_SERVERS_LARGEST))
+    unsigned long long size = args->size;
+    const CliServersSink *sink = args->sink;
+    if (!cli_servers_path_size_root_sink_internal.own_reads(args) || (size > CLI_SERVERS_LARGEST))
     {
         return;
     }
     char key[CLI_PATH_MAX_LEN];
-    cli_servers_key_of(path, key);
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
     // each name a part of the file's text, and a break after it
     const unsigned long long room = (size * 2ull) + 1ull;
     char *const given = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
     VerbaLinea names = mmgr_line_over(given, room);
-    cli_build_given_names(path, text, size, own_name_put, &names);
+    EMBED_CALL(cli_builds_path_text.build_input_names, CliBuildsPathTextCfg, .path = args->path, .text = args->text,
+               .size = size, .each = own_name_put, .context = &names);
     const int whole = mmgr_line_ok(&names);
-    cli_lock_take(&g_cli_servers_checks_lock);
-    (void)cli_keyed_put(&g_cli_servers_given, key, "", whole ? names.out : "", whole ? names.at : 0ull);
-    cli_lock_give(&g_cli_servers_checks_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
+    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_given, .key = key,
+                     .beside_value = "", .text = whole ? names.out : "", .size_value = whole ? names.at : 0ull);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     g_cli_cells->persistent_buf_release(given, &g_cli_servers_cells);
     char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersOwnJob) + size, &g_cli_servers_cells);
     if (job == NULL)
@@ -107,80 +136,96 @@ void cli_servers_check_own(const char *root, const char *path, const char *text,
     CliServersOwnJob *const own = (CliServersOwnJob *)(void *)job;
     memor.set(&(MemoriaCfg){.dst = own, .val = 0, .bytes = sizeof(*own)});
     VerbaLinea line = {own->root, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, root);
+    mmgr_line_put(&line, args->root);
     (void)mmgr_line_finish(&line);
     line = (VerbaLinea){own->path, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, path);
+    mmgr_line_put(&line, args->path);
     (void)mmgr_line_finish(&line);
     memor.cpy(&(MemoriaCfg){.dst = own->key, .src = key, .bytes = sizeof(key)});
-    own->run = cli_servers_run_counted(key, CLI_SERVERS_OWN);
+    own->run = EMBED_CALL(cli_servers_key_internal.run_count, CliServersKeyCtx, .key = key, .id = CLI_SERVERS_OWN);
     own->sink = *sink;
     own->size = size;
     // a size under CLI_SERVERS_LARGEST fits a size_t
-    memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*own), .src = text, .bytes = (size_t)size});
-    (void)cli_servers_later_handed(own_job, job, sizeof(*own) + size);
+    memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*own), .src = args->text, .bytes = (size_t)size});
+    (void)EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = own_job, .bytes = job,
+                     .size = sizeof(*own) + size);
 }
 
 // whether the file of `key` had findings of orior's own before; under the checks' lock
-static int own_had(const char *key)
+EMBED_INLINE int own_had(const ServersOwnCtx *args)
 {
+    const char *key = args->key;
     const char *beside = NULL;
     unsigned long long size = 0ull;
-    const char *const stored = cli_keyed_get(&g_cli_servers_checked, key, &beside, &size);
+    const char *const stored =
+        EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_checked, .key = key,
+                   .beside = &beside, .size = &size);
     unsigned long long at = 0ull;
     unsigned long long length = 0ull;
-    if ((stored == NULL) || !cli_lsp_member(stored, size, CLI_SERVERS_OWN, &at, &length))
+    if ((stored == NULL) || !EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = stored, .size_value = size,
+                                        .name = CLI_SERVERS_OWN, .start = &at, .length_pointer = &length))
     {
         return 0;
     }
-    const unsigned long long lead = cli_text_lead(stored + at, length);
+    const unsigned long long lead =
+        EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = stored + at, .size = length);
     if ((lead == length) || (stored[at + lead] != '['))
     {
         return 0;
     }
-    const unsigned long long inner = lead + 1ull + cli_text_lead(stored + at + lead + 1ull, length - lead - 1ull);
+    const unsigned long long inner = lead + 1ull +
+                                     EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg,
+                                                .text = stored + at + lead + 1ull, .size = length - lead - 1ull);
     return (inner < length) && (stored[at + inner] != ']');
 }
 
 // the findings of the file at `path` of the tree `root`, read where it lies on the disk and written on `items`, the
 // one line every file of the tree's job uses, put after those `found` contains, `*written` stating whether any are:
 // none where it is not read whole, or where it has none and had none before
-static void own_tree_file(const char *root, const char *path, int *written, VerbaLinea *items, VerbaLinea *found)
+EMBED_INLINE void own_tree_file(const ServersOwnCtx *args)
 {
+    const char *path = args->path;
+    int *written = args->written;
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_taken(path, &size, &g_cli_servers_cells);
-    if ((mapped == NULL) || !cli_utf8_whole((const char *)mapped, size))
+    const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                   .size_pointer = &size, .owner = &g_cli_servers_cells);
+    if ((mapped == NULL) ||
+        !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size))
     {
-        cli_file_given(mapped, &g_cli_servers_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
+                   .owner = &g_cli_servers_cells);
         return;
     }
-    items->at = 0ull;
-    own_check(root, path, (const char *)mapped, size, items);
-    cli_file_given(mapped, &g_cli_servers_cells);
-    const int whole = mmgr_line_ok(items);
-    const int empty =
-        whole && (items->at == 2ull) && (memor.cmp(&(MemoriaCfg){.src = items->out, .other = "[]", .bytes = 2u}) == 0);
+    args->items->at = 0ull;
+    EMBED_CALL(own_check, ServersOwnCtx, .root = args->root, .path = path, .text = (const char *)mapped, .size = size,
+               .out = args->items);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_servers_cells);
+    const int whole = mmgr_line_ok(args->items);
+    const int empty = whole && (args->items->at == 2ull) &&
+                      (memor.cmp(&(MemoriaCfg){.src = args->items->out, .other = "[]", .bytes = 2u}) == 0);
     char key[CLI_PATH_MAX_LEN];
-    cli_servers_key_of(path, key);
-    cli_lock_take(&g_cli_servers_checks_lock);
-    const int had = own_had(key);
-    cli_lock_give(&g_cli_servers_checks_lock);
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
+    const int had = EMBED_CALL(own_had, ServersOwnCtx, .key = key);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     if (whole && (!empty || had))
     {
-        mmgr_line_put(found, *written ? ",[" : "[");
-        cli_json_quoted_lossy(found, (const unsigned char *)path,
-                              cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-        mmgr_line_ch(found, ',');
-        (void)mmgr_line_put_n(found, items->out, items->at);
-        mmgr_line_ch(found, ']');
+        mmgr_line_put(args->found, *written ? ",[" : "[");
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->found,
+                   .text_bytes = (const unsigned char *)path,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+        mmgr_line_ch(args->found, ',');
+        (void)mmgr_line_put_n(args->found, args->items->out, args->items->at);
+        mmgr_line_ch(args->found, ']');
         *written = 1;
     }
 }
 
 // each file of the tree orior_cli reads itself checked as the disk stores it, its findings stored and passed on
-static void own_tree_job(const void *job, unsigned long long size)
+static void own_tree_job(const CliServersJobCfg *args)
 {
-    const CliServersOwnTreeJob *const tree = job;
+    unsigned long long size = args->size;
+    const CliServersOwnTreeJob *const tree = args->job;
     char *const findings = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FINDINGS, &g_cli_servers_cells);
     VerbaLinea found = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
     char *const item_text = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
@@ -190,29 +235,33 @@ static void own_tree_job(const void *job, unsigned long long size)
     unsigned long long at = sizeof(*tree);
     for (unsigned int file = 0u; (file < tree->count) && (at < size); file += 1u)
     {
-        const char *const path = (const char *)job + at;
+        const char *const path = (const char *)args->job + at;
         at += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u;
-        own_tree_file(tree->root, path, &written, &items, &found);
+        EMBED_CALL(own_tree_file, ServersOwnCtx, .root = tree->root, .path = path, .written = &written, .items = &items,
+                   .found = &found);
     }
     g_cli_cells->persistent_buf_release(item_text, &g_cli_servers_cells);
     mmgr_line_ch(&found, ']');
     if (mmgr_line_ok(&found))
     {
-        cli_servers_findings_stored(CLI_SERVERS_OWN, found.out, found.at, 0, &tree->sink);
+        EMBED_CALL(cli_servers_size_internal.findings_store, CliServersSizeCtx, .id = CLI_SERVERS_OWN,
+                   .found = found.out, .size = found.at, .always = 0, .sink = &tree->sink);
     }
     g_cli_cells->persistent_buf_release(findings, &g_cli_servers_cells);
 }
 
-void cli_servers_check_tree_own(const char *root, const char *const *files, unsigned int count,
-                                const CliServersSink *sink)
+void cli_servers_check_tree_own(const CliServersFilesCtx *args)
 {
+    unsigned int count = args->count;
+    const CliServersSink *sink = args->sink;
     // the paths counted, then the job made in a cell of their size
     unsigned long long used = sizeof(CliServersOwnTreeJob);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        cli_full(root, files[at], path);
-        used += cli_servers_own_reads(files[at])
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->files[at], .joined = path);
+        used += EMBED_CALL(cli_servers_path_size_root_sink_internal.own_reads, CliServersPathSizeRootSinkCtx,
+                           .path = args->files[at])
                     ? (cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u)
                     : 0u;
     }
@@ -228,22 +277,24 @@ void cli_servers_check_tree_own(const char *root, const char *const *files, unsi
     CliServersOwnTreeJob *const tree = (CliServersOwnTreeJob *)(void *)job;
     memor.set(&(MemoriaCfg){.dst = tree, .val = 0, .bytes = sizeof(*tree)});
     VerbaLinea line = {tree->root, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, root);
+    mmgr_line_put(&line, args->root);
     (void)mmgr_line_finish(&line);
     tree->sink = *sink;
     unsigned long long at_byte = sizeof(*tree);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (!cli_servers_own_reads(files[at]))
+        if (!EMBED_CALL(cli_servers_path_size_root_sink_internal.own_reads, CliServersPathSizeRootSinkCtx,
+                        .path = args->files[at]))
         {
             continue;
         }
         char path[CLI_PATH_MAX_LEN];
-        cli_full(root, files[at], path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->files[at], .joined = path);
         const size_t size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u;
         memor.cpy(&(MemoriaCfg){.dst = job + at_byte, .src = path, .bytes = size});
         at_byte += size;
         tree->count += 1u;
     }
-    (void)cli_servers_later_handed(own_tree_job, job, used);
+    (void)EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = own_tree_job,
+                     .bytes = job, .size = used);
 }

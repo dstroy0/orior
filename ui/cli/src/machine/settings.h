@@ -18,9 +18,16 @@
 // `${system}`. A tree's file does not set the settings the reader's alone are
 #ifndef SETTINGS_H
 #define SETTINGS_H
+typedef struct CliSettingsChainCfg CliSettingsChainCfg;
+typedef struct CliSettingsRootCfg CliSettingsRootCfg;
+typedef struct CliSettingsPathCfg CliSettingsPathCfg;
+typedef struct CliSettingsKeyCfg CliSettingsKeyCfg;
+typedef struct CliSettingsCfg CliSettingsCfg;
+typedef struct CliSettingsOutCfg CliSettingsOutCfg;
 
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
 
 // the cells the settings are read and laid in (settings.c)
 extern CellOwner g_cli_settings_cells;
@@ -114,28 +121,134 @@ typedef struct
 // the system orior_cli runs on, as a settings file names it; and whether `key` is one of a settings file's own keys and
 // no setting: `takes`, a system's, `machine` or a kind's
 const char *cli_settings_system(void);
-int cli_settings_is_file_key(const char *key);
+int cli_settings_is_file_key(const CliSettingsKeyCfg *args);
 // the file at `path` and each it takes, the one taken first, each shown by its path from `root` where it is under it,
 // else as it is; a file not there gives none; a file taken that is not there, or that a chain takes twice, is a
 // problem. The tree's settings, its file and each it takes, shown from the tree's top folder; and the reader's,
 // settings.json in orior's own folder and each file it takes. Each into `chain`, which contains nothing before, its
-// tree given back by cli_settings_chain_given (settings.c)
-void cli_settings_chain(const char *path, const char *root, CliChain *chain);
-void cli_settings_tree(const char *root, CliChain *chain);
-void cli_settings_reader(CliChain *chain);
+// tree given back by cli_settings_chain_free (settings.c)
+void cli_settings_chain(const CliSettingsPathCfg *args);
+void cli_settings_tree(const CliSettingsPathCfg *args);
+void cli_settings_reader(const CliSettingsPathCfg *args);
 // a chain written as the window reads it, `{"files": [{"file", "values"}], "problems"}`, after `out`; a chain the
 // window hands back, so written, read into `chain`, which contains nothing before: 1, or 0 with why given; and a
 // chain's tree given back, the chain left containing nothing (settings_chain_text.c)
-void cli_settings_chain_written(const CliChain *chain, VerbaLinea *out);
-int cli_settings_chain_read(const char *text, unsigned long long length, CliChain *chain, VerbaLinea *err_msg);
-void cli_settings_chain_given(CliChain *chain);
+void cli_settings_chain_write(const CliSettingsCfg *args);
+int cli_settings_chain_read(const CliSettingsChainCfg *args);
+void cli_settings_chain_free(const CliSettingsPathCfg *args);
 // the settings in force from the reader's chain and the tree's, for the tree at `root`, into `layers`, which contain
 // nothing before, their texts in a cell at their most; the layers' texts given back, the layers left containing none;
 // the layers written as the window reads them after `out`; and the text of `key` the layers set over the reader's own,
 // or under it, NULL where they set none (settings_layers.c)
-void cli_settings_layers(const CliChain *reader, const CliChain *tree, const char *root, CliLayers *layers);
-void cli_settings_layers_given(CliLayers *layers);
-void cli_settings_layers_written(const CliLayers *layers, VerbaLinea *out);
-const char *cli_settings_layer(const CliLayers *layers, const char *key, int over);
+void cli_settings_layers(const CliSettingsRootCfg *args);
+void cli_settings_layers_free(const CliSettingsRootCfg *args);
+void cli_settings_layers_write(const CliSettingsOutCfg *args);
+const char *cli_settings_layer(const CliSettingsKeyCfg *args);
+
+struct CliSettingsChainCfg
+{
+    CliChain *chain;
+    const char *text;
+    unsigned long long length;
+    VerbaLinea *err_msg;
+};
+
+struct CliSettingsRootCfg
+{
+    const char *root;
+    const CliChain *reader;
+    const CliChain *tree;
+    CliLayers *layers;
+};
+
+struct CliSettingsPathCfg
+{
+    const char *path;
+    const char *root;
+    CliChain *chain;
+};
+
+struct CliSettingsKeyCfg
+{
+    const char *key;
+    const CliLayers *layers_read;
+    int over;
+};
+
+struct CliSettingsCfg
+{
+    const CliChain *chain_read;
+    VerbaLinea *out;
+};
+
+struct CliSettingsOutCfg
+{
+    VerbaLinea *out;
+    const CliLayers *layers_read;
+};
+
+typedef struct
+{
+    int (*is_file_key)(const CliSettingsKeyCfg *args);
+    const char *(*layer)(const CliSettingsKeyCfg *args);
+} CliSettingsKeyNs;
+EMBED_TABLE_LAYOUT(CliSettingsKeyNs, is_file_key, layer);
+EMBED_TABLE_STORAGE CliSettingsKeyNs cli_settings_key EMBED_UNUSED = {
+    .is_file_key = cli_settings_is_file_key,
+    .layer = cli_settings_layer,
+};
+
+typedef struct
+{
+    void (*chain)(const CliSettingsPathCfg *args);
+    void (*tree)(const CliSettingsPathCfg *args);
+    void (*reader)(const CliSettingsPathCfg *args);
+    void (*chain_free)(const CliSettingsPathCfg *args);
+} CliSettingsPathNs;
+EMBED_TABLE_LAYOUT(CliSettingsPathNs, chain, tree, reader, chain_free);
+EMBED_TABLE_STORAGE CliSettingsPathNs cli_settings_path_table EMBED_UNUSED = {
+    .chain = cli_settings_chain,
+    .tree = cli_settings_tree,
+    .reader = cli_settings_reader,
+    .chain_free = cli_settings_chain_free,
+};
+
+typedef struct
+{
+    void (*chain_write)(const CliSettingsCfg *args);
+} CliSettingsNs;
+EMBED_TABLE_LAYOUT(CliSettingsNs, chain_write);
+EMBED_TABLE_STORAGE CliSettingsNs cli_settings_table EMBED_UNUSED = {
+    .chain_write = cli_settings_chain_write,
+};
+
+typedef struct
+{
+    int (*chain_read)(const CliSettingsChainCfg *args);
+} CliSettingsChainNs;
+EMBED_TABLE_LAYOUT(CliSettingsChainNs, chain_read);
+EMBED_TABLE_STORAGE CliSettingsChainNs cli_settings_chain_table EMBED_UNUSED = {
+    .chain_read = cli_settings_chain_read,
+};
+
+typedef struct
+{
+    void (*layers)(const CliSettingsRootCfg *args);
+    void (*layers_free)(const CliSettingsRootCfg *args);
+} CliSettingsRootNs;
+EMBED_TABLE_LAYOUT(CliSettingsRootNs, layers, layers_free);
+EMBED_TABLE_STORAGE CliSettingsRootNs cli_settings_root EMBED_UNUSED = {
+    .layers = cli_settings_layers,
+    .layers_free = cli_settings_layers_free,
+};
+
+typedef struct
+{
+    void (*layers_write)(const CliSettingsOutCfg *args);
+} CliSettingsOutNs;
+EMBED_TABLE_LAYOUT(CliSettingsOutNs, layers_write);
+EMBED_TABLE_STORAGE CliSettingsOutNs cli_settings_out EMBED_UNUSED = {
+    .layers_write = cli_settings_layers_write,
+};
 
 #endif

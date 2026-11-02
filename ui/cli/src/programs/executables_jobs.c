@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // executables_jobs.c: the facts of this machine a build job is made from, the C compiler and linker a build for another
 // machine needs, and the params of the job that builds each program the tree's scripts make
+#include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 #include "executables_internal.h"
 
@@ -16,40 +17,44 @@ static const char *const s_rust_targets[8] = {
     s_this_machine,           "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-unknown-linux-gnu",
     "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc",   "x86_64-apple-darwin",        "aarch64-apple-darwin"};
 
-void cli_program_file(const char *name, char *out)
+void cli_program_file(const CliExecutablesNameOutFolderCtx *args)
 {
-    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
-    mmgr_line_put(&line, name);
+    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->name);
 #if defined(_WIN32)
     mmgr_line_put(&line, ".exe");
 #endif
     mmgr_line_finish(&line);
 }
 
-void cli_folder_of(const char *root, const char *script, char *out)
+void cli_folder_get(const CliExecutablesOutCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    if (!cli_path_parent(script, folder))
+    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->script, .out = folder))
     {
-        memor.cpy(&(MemoriaCfg){.dst = folder,
-                                .src = root,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = folder,
+                          .src = args->root,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_relative(root, folder, out);
-    if (out[0] == '\0')
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->root, .path = folder,
+               .relative_out = args->out);
+    if (args->out[0] == '\0')
     {
-        memor.cpy(&(MemoriaCfg){
-            .dst = out, .src = ".", .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = args->out,
+                                .src = ".",
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
 }
 
-void cli_build_folder(const char *root, const char *script, const char *tool, char *out)
+void cli_build_folder(const CliExecutablesOutCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    cli_folder_of(root, script, folder);
-    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
+    EMBED_CALL(cli_executables_out_internal.folder_get, CliExecutablesOutCtx, .root = args->root,
+               .script = args->script, .out = folder);
+    VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, "build/");
-    mmgr_line_put(&line, tool);
+    mmgr_line_put(&line, args->tool);
     mmgr_line_ch(&line, '/');
     if (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = ".", .cap = CLI_CELLS_POOL}))
     {
@@ -59,8 +64,10 @@ void cli_build_folder(const char *root, const char *script, const char *tool, ch
     mmgr_line_finish(&line);
 }
 
-void cli_go_host(const char **system, const char **processor)
+void cli_go_host(const CliExecutablesSystemCtx *args)
 {
+    const char **system = args->system;
+    const char **processor = args->processor;
 #if defined(_WIN32)
     *system = "windows";
 #elif defined(__APPLE__)
@@ -81,36 +88,53 @@ void cli_go_host(const char **system, const char **processor)
 #endif
 }
 
-const char *cli_first(const CliValues *values, const char *key, const char *fallback)
+const char *cli_first(const CliExecutablesKeyCtx *args)
 {
-    const char *const first = cli_values_first(values, key);
-    return ((first != NULL) && (first[0] != '\0')) ? first : fallback;
+    const char *const first =
+        EMBED_CALL(cli_catalog_key.values_first, CliCatalogKeyCfg, .values = args->values, .key = args->key);
+    return ((first != NULL) && (first[0] != '\0')) ? first : args->fallback;
 }
 
+typedef struct
+{
+    const char *system;
+    const char *processor;
+    char *out;
+    const char *zig;
+    const char *language;
+    const char *target;
+    unsigned long long room;
+    CliCatalog *catalog;
+    const char *key;
+    const char *const *choices;
+    unsigned int count;
+    const CliExecutable *exe;
+} ExecutablesJobsCtx;
 // Zig's name for a system and processor, as `zig cc -target` takes it, from Go's names or Rust's target, into `out`,
 // sized for CLI_NAME_MAX_LEN: 1, or 0 where Zig has none
-static int cli_zig_target(const char *system, const char *processor, char *out)
+EMBED_INLINE int cli_zig_target(const ExecutablesJobsCtx *args)
 {
     const char *const zig_processor =
-        ((cellul.eq(&(CatenaFinitaCfg){.src = processor, .other = "amd64", .cap = CLI_CELLS_POOL})) ||
-         (cellul.eq(&(CatenaFinitaCfg){.src = processor, .other = "x86_64", .cap = CLI_CELLS_POOL})))
+        ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "amd64", .cap = CLI_CELLS_POOL})) ||
+         (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "x86_64", .cap = CLI_CELLS_POOL})))
             ? "x86_64"
-        : ((cellul.eq(&(CatenaFinitaCfg){.src = processor, .other = "arm64", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = processor, .other = "aarch64", .cap = CLI_CELLS_POOL})))
+        : ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "arm64", .cap = CLI_CELLS_POOL})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "aarch64", .cap = CLI_CELLS_POOL})))
             ? "aarch64"
             : NULL;
     const char *const zig_system =
-        (cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "linux", .cap = CLI_CELLS_POOL}))     ? "linux-musl"
-        : (cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "windows", .cap = CLI_CELLS_POOL})) ? "windows-gnu"
-        : ((cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "darwin", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "macos", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "linux", .cap = CLI_CELLS_POOL})) ? "linux-musl"
+        : (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "windows", .cap = CLI_CELLS_POOL}))
+            ? "windows-gnu"
+        : ((cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "darwin", .cap = CLI_CELLS_POOL})) ||
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "macos", .cap = CLI_CELLS_POOL})))
             ? "macos"
             : NULL;
     if ((zig_processor == NULL) || (zig_system == NULL))
     {
         return 0;
     }
-    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put(&line, zig_processor);
     mmgr_line_ch(&line, '-');
     mmgr_line_put(&line, zig_system);
@@ -118,26 +142,26 @@ static int cli_zig_target(const char *system, const char *processor, char *out)
 }
 
 // `zig cc` or `zig c++` for a Zig target, as a variable of the environment stores it, into `out`
-static void cli_zig_command(const char *zig, const char *language, const char *target, char *out,
-                            unsigned long long room)
+EMBED_INLINE void cli_zig_command(const ExecutablesJobsCtx *args)
 {
-    VerbaLinea line = {out, room, 0ull};
-    mmgr_line_put(&line, zig);
+    VerbaLinea line = {args->out, args->room, 0ull};
+    mmgr_line_put(&line, args->zig);
     mmgr_line_ch(&line, ' ');
-    mmgr_line_put(&line, language);
+    mmgr_line_put(&line, args->language);
     mmgr_line_put(&line, " -target ");
-    mmgr_line_put(&line, target);
+    mmgr_line_put(&line, args->target);
     mmgr_line_finish(&line);
 }
 
-void cli_executables_cross_env(const char *kind, const CliValues *values,
-                               void (*each)(void *context, const char *name, const char *value), void *context)
+void cli_executables_cross_env(const CliExecutablesKindCfg *args)
 {
+    const CliValues *values = args->values;
     char zig[CLI_PATH_MAX_LEN + 2u];
     char found[CLI_PATH_MAX_LEN];
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int has_zig = cli_executables_program("zig", "zig", found, &err_msg);
+    const int has_zig = EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "zig", .name = "zig",
+                                   .path = found, .err_msg = &err_msg);
     VerbaLinea quoted = {zig, sizeof(zig), 0ull};
     const int spaced = cellul.chr(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL, .byte = ' '}) != NULL;
     mmgr_line_put(&quoted, (has_zig && spaced) ? "\"" : "");
@@ -146,32 +170,42 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
     mmgr_line_finish(&quoted);
     char target[CLI_NAME_MAX_LEN];
     char command[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "go", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "go", .cap = CLI_CELLS_POOL}))
     {
         const char *host_system = NULL;
         const char *host_processor = NULL;
-        cli_go_host(&host_system, &host_processor);
-        const char *const system = cli_first(values, "GOOS", host_system);
-        const char *const processor = cli_first(values, "GOARCH", host_processor);
+        EMBED_CALL(cli_executables_system_internal.go_host, CliExecutablesSystemCtx, .system = &host_system,
+                   .processor = &host_processor);
+        const char *const system = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
+                                              .values = values, .key = "GOOS", .fallback = host_system);
+        const char *const processor = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
+                                                 .values = values, .key = "GOARCH", .fallback = host_processor);
         const int other =
             (!cellul.eq(&(CatenaFinitaCfg){.src = system, .other = host_system, .cap = CLI_CELLS_POOL})) ||
             (!cellul.eq(&(CatenaFinitaCfg){.src = processor, .other = host_processor, .cap = CLI_CELLS_POOL}));
-        if ((cellul.eq(&(CatenaFinitaCfg){
-                .src = cli_first(values, "CGO_ENABLED", s_as_go_chooses), .other = "1", .cap = CLI_CELLS_POOL})) &&
-            other && has_zig && cli_zig_target(system, processor, target))
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
+                                                            .values = values, .key = "CGO_ENABLED",
+                                                            .fallback = s_as_go_chooses),
+                                          .other = "1",
+                                          .cap = CLI_CELLS_POOL})) &&
+            other && has_zig &&
+            EMBED_CALL(cli_zig_target, ExecutablesJobsCtx, .system = system, .processor = processor, .out = target))
         {
-            cli_zig_command(zig, "cc", target, command, sizeof(command));
-            each(context, "CC", command);
-            cli_zig_command(zig, "c++", target, command, sizeof(command));
-            each(context, "CXX", command);
+            EMBED_CALL(cli_zig_command, ExecutablesJobsCtx, .zig = zig, .language = "cc", .target = target,
+                       .out = command, .room = sizeof(command));
+            EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = "CC", .value = command);
+            EMBED_CALL(cli_zig_command, ExecutablesJobsCtx, .zig = zig, .language = "c++", .target = target,
+                       .out = command, .room = sizeof(command));
+            EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = "CXX", .value = command);
         }
         return;
     }
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "rust", .cap = CLI_CELLS_POOL}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->kind, .other = "rust", .cap = CLI_CELLS_POOL}))
     {
         return;
     }
-    const char *const rust = cli_first(values, "target", s_this_machine);
+    const char *const rust = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx, .values = values,
+                                        .key = "target", .fallback = s_this_machine);
     if (cellul.eq(&(CatenaFinitaCfg){.src = rust, .other = s_this_machine, .cap = CLI_CELLS_POOL}))
     {
         return;
@@ -184,9 +218,11 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
     memor.cpy(&(MemoriaCfg){
         .dst = lower, .src = rust, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL}) + 1u});
     const unsigned long long upper_size = cellul.len(&(CatenaFinitaCfg){.src = upper, .cap = CLI_CELLS_POOL});
-    cli_text_swapped(upper, upper_size, '-', '_');
-    cli_text_raised(upper, upper_size);
-    cli_text_swapped(lower, upper_size, '-', '_');
+    EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = upper, .size = upper_size, .from = '-',
+               .to = '_');
+    EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = upper, .size = upper_size);
+    EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = lower, .size = upper_size, .from = '-',
+               .to = '_');
     char linker[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea named = {linker, sizeof(linker), 0ull};
     mmgr_line_put(&named, "CARGO_TARGET_");
@@ -202,9 +238,11 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
 #endif
     if ((length >= 11ull) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = rust + length - 11ull, .other = "-linux-musl", .cap = CLI_CELLS_POOL})) &&
-        !on_linux && !query_environment_read(linker, set, sizeof(set)))
+        !on_linux &&
+        !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = linker, .value_out = set,
+                    .room = sizeof(set)))
     {
-        each(context, linker, "rust-lld");
+        EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = linker, .value = "rust-lld");
     }
     char processor[CLI_NAME_MAX_LEN];
     const char *const dash = cellul.chr(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL, .byte = '-'});
@@ -222,30 +260,36 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
                .src = rust, .cap = CLI_CELLS_POOL, .other = "apple", .other_cap = CLI_CELLS_POOL}) != NULL)
             ? "darwin"
             : "";
-    if (has_zig && cli_zig_target(system, processor, target))
+    if (has_zig &&
+        EMBED_CALL(cli_zig_target, ExecutablesJobsCtx, .system = system, .processor = processor, .out = target))
     {
         char compiler[CLI_NAME_MAX_LEN * 2u];
         VerbaLinea name = {compiler, sizeof(compiler), 0ull};
         mmgr_line_put(&name, "CC_");
         mmgr_line_put(&name, lower);
         mmgr_line_finish(&name);
-        cli_zig_command(zig, "cc", target, command, sizeof(command));
-        each(context, compiler, command);
+        EMBED_CALL(cli_zig_command, ExecutablesJobsCtx, .zig = zig, .language = "cc", .target = target, .out = command,
+                   .room = sizeof(command));
+        EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = compiler, .value = command);
     }
 }
 
 // a choice param put on the last job, its first choice its default
-static void cli_choice(CliCatalog *catalog, const char *key, const char *const *choices, unsigned int count)
+EMBED_INLINE void cli_choice(const ExecutablesJobsCtx *args)
 {
-    cli_catalog_param(catalog, key, "choice", 1);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    CliCatalog *catalog = args->catalog;
+    const char *key = args->key;
+    EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = key, .kind = "choice",
+               .required = 1);
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        cli_catalog_choice(catalog, choices[at]);
+        EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = catalog,
+                   .choice = args->choices[at]);
     }
 }
 
 // the params a kind of build takes before those every build takes
-static void cli_kind_params(const CliExecutable *exe, CliCatalog *catalog)
+EMBED_INLINE void cli_kind_params(const ExecutablesJobsCtx *args)
 {
     static const char *const s_profiles[2] = {"dev", "release"};
     static const char *const s_configs[4] = {"Debug", "Release", "RelWithDebInfo", "MinSizeRel"};
@@ -254,24 +298,29 @@ static void cli_kind_params(const CliExecutable *exe, CliCatalog *catalog)
     static const char *const s_dotnet_configs[2] = {"Debug", "Release"};
     static const char *const s_outputs[2] = {"files", "one file"};
     static const char *const s_optimize[4] = {"Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall"};
-    if (exe->kind == CLI_KIND_CARGO)
+    if (args->exe->kind == CLI_KIND_CARGO)
     {
-        cli_choice(catalog, "profile", s_profiles, 2u);
-        cli_choice(catalog, "target", s_rust_targets, 8u);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "profile", .choices = s_profiles,
+                   .count = 2u);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "target", .choices = s_rust_targets,
+                   .count = 8u);
     }
-    else if (exe->kind == CLI_KIND_CMAKE)
+    else if (args->exe->kind == CLI_KIND_CMAKE)
     {
-        cli_choice(catalog, "config", s_configs, 4u);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "config", .choices = s_configs,
+                   .count = 4u);
     }
-    else if (exe->kind == CLI_KIND_MESON)
+    else if (args->exe->kind == CLI_KIND_MESON)
     {
-        cli_choice(catalog, "buildtype", s_buildtypes, 4u);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "buildtype",
+                   .choices = s_buildtypes, .count = 4u);
     }
-    else if (exe->kind == CLI_KIND_GO)
+    else if (args->exe->kind == CLI_KIND_GO)
     {
         const char *system = NULL;
         const char *processor = NULL;
-        cli_go_host(&system, &processor);
+        EMBED_CALL(cli_executables_system_internal.go_host, CliExecutablesSystemCtx, .system = &system,
+                   .processor = &processor);
         // each choice with this machine's first
         const char *const systems_all[3] = {"windows", "linux", "darwin"};
         const char *const processors_all[2] = {"amd64", "arm64"};
@@ -295,29 +344,38 @@ static void cli_kind_params(const CliExecutable *exe, CliCatalog *catalog)
                 processor_count += 1u;
             }
         }
-        cli_choice(catalog, "GOOS", systems, system_count);
-        cli_choice(catalog, "GOARCH", processors, processor_count);
-        cli_choice(catalog, "CGO_ENABLED", s_cgo, 3u);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "GOOS", .choices = systems,
+                   .count = system_count);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "GOARCH", .choices = processors,
+                   .count = processor_count);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "CGO_ENABLED", .choices = s_cgo,
+                   .count = 3u);
     }
-    else if (exe->kind == CLI_KIND_DOTNET)
+    else if (args->exe->kind == CLI_KIND_DOTNET)
     {
-        cli_choice(catalog, "configuration", s_dotnet_configs, 2u);
-        cli_choice(catalog, "output", s_outputs, 2u);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "configuration",
+                   .choices = s_dotnet_configs, .count = 2u);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "output", .choices = s_outputs,
+                   .count = 2u);
     }
-    else if ((exe->kind == CLI_KIND_ZIG) && exe->optimize)
+    else if ((args->exe->kind == CLI_KIND_ZIG) && args->exe->optimize)
     {
-        cli_choice(catalog, "optimize", s_optimize, 4u);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "optimize", .choices = s_optimize,
+                   .count = 4u);
     }
-    else if ((exe->kind == CLI_KIND_NPM) && (exe->withs != 0u))
+    else if ((args->exe->kind == CLI_KIND_NPM) && (args->exe->withs != 0u))
     {
-        cli_choice(catalog, "with", exe->with, exe->withs);
+        EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = args->catalog, .key = "with", .choices = args->exe->with,
+                   .count = args->exe->withs);
     }
 }
 
-void cli_executables_jobs(const char *root, CliCatalog *catalog)
+void cli_executables_jobs(const CliCatalogRootCfg *args)
 {
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
     CliExecutables found = {NULL, 0u, 0u, NULL};
-    cli_executables_read(root, &found);
+    EMBED_CALL(cli_executables_found_internal.read, CliExecutablesFoundCtx, .root = root, .found = &found);
     for (unsigned int index = 0u; index < found.count; index += 1u)
     {
         const CliExecutable *const exe = &found.item[found.order[index]];
@@ -335,11 +393,13 @@ void cli_executables_jobs(const char *root, CliCatalog *catalog)
         {
             char folder[CLI_PATH_MAX_LEN];
             const char *base = "";
-            if (cli_path_parent(exe->script, folder))
+            if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = exe->script,
+                           .out = folder))
             {
                 base = folder;
-                const unsigned long long base_past = cli_text_back_any(
-                    folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), "/\\");
+                const unsigned long long base_past = EMBED_CALL(
+                    cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
+                    .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
                 base = (base_past != 0ull) ? (folder + base_past) : base;
             }
             mmgr_line_put(&line, base);
@@ -347,15 +407,19 @@ void cli_executables_jobs(const char *root, CliCatalog *catalog)
         }
         mmgr_line_put(&line, exe->name);
         mmgr_line_finish(&line);
-        if (cli_executables_job_begun(root, exe, title, catalog))
+        if (EMBED_CALL(cli_executables_root_internal.job_begin, CliExecutablesRootCtx, .root = root, .exe = exe,
+                       .title = title, .catalog = catalog))
         {
-            cli_kind_params(exe, catalog);
+            EMBED_CALL(cli_kind_params, ExecutablesJobsCtx, .exe = exe, .catalog = catalog);
             static const char *const s_then[3] = {"build", "run", "run as the system runs it"};
-            cli_choice(catalog, "then", s_then, 3u);
-            cli_catalog_trace(catalog);
-            cli_catalog_param(catalog, "folder", "dir", 0);
-            cli_executables_steps(root, exe, catalog);
+            EMBED_CALL(cli_choice, ExecutablesJobsCtx, .catalog = catalog, .key = "then", .choices = s_then,
+                       .count = 3u);
+            EMBED_CALL(cli_catalog_choice_table.trace, CliCatalogChoiceCfg, .catalog = catalog);
+            EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = catalog, .key = "folder",
+                       .kind = "dir", .required = 0);
+            EMBED_CALL(cli_executables_root_internal.steps, CliExecutablesRootCtx, .root = root, .exe = exe,
+                       .catalog = catalog);
         }
     }
-    cli_executables_given(&found);
+    EMBED_CALL(cli_executables_found_internal.free, CliExecutablesFoundCtx, .found = &found);
 }

@@ -5,129 +5,156 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-// a text of the pool written as a JSON string
-static void parse_quoted(const CliRequestsParsed *parsed, CliRequestsText text, VerbaLinea *out)
+typedef struct
 {
-    cli_json_quoted(out, parsed->text + text.at, text.size);
+    const CliRequestsParsed *parsed;
+    CliRequestsText text;
+    VerbaLinea *out;
+    const CliRequestsText *names;
+    const CliRequestsText *values;
+    unsigned int count;
+    const CliRequest *request;
+} RequestsWrittenCtx;
+
+// a text of the pool written as a JSON string
+EMBED_INLINE void parse_quote(const RequestsWrittenCtx *args)
+{
+    CliRequestsText text = args->text;
+    VerbaLinea *out = args->out;
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
+               .text = args->parsed->text + text.at, .length = text.size);
 }
 
 // pairs of the pool written as a JSON array of arrays of two strings
-static void parse_pairs(const CliRequestsParsed *parsed, const CliRequestsText *names, const CliRequestsText *values,
-                        unsigned int count, VerbaLinea *out)
+EMBED_INLINE void parse_pairs(const RequestsWrittenCtx *args)
 {
-    mmgr_line_ch(out, '[');
-    for (unsigned int index = 0u; index < count; index += 1u)
+    mmgr_line_ch(args->out, '[');
+    for (unsigned int index = 0u; index < args->count; index += 1u)
     {
-        mmgr_line_put(out, (index > 0u) ? ",[" : "[");
-        parse_quoted(parsed, names[index], out);
-        mmgr_line_ch(out, ',');
-        parse_quoted(parsed, values[index], out);
-        mmgr_line_ch(out, ']');
+        mmgr_line_put(args->out, (index > 0u) ? ",[" : "[");
+        EMBED_CALL(parse_quote, RequestsWrittenCtx, .parsed = args->parsed, .text = args->names[index],
+                   .out = args->out);
+        mmgr_line_ch(args->out, ',');
+        EMBED_CALL(parse_quote, RequestsWrittenCtx, .parsed = args->parsed, .text = args->values[index],
+                   .out = args->out);
+        mmgr_line_ch(args->out, ']');
     }
-    mmgr_line_ch(out, ']');
+    mmgr_line_ch(args->out, ']');
 }
 
 // a request written as serde writes its struct
-static void parse_request_written(const CliRequestsParsed *parsed, const CliRequest *request, VerbaLinea *out)
+EMBED_INLINE void parse_request_write(const RequestsWrittenCtx *args)
 {
-    mmgr_line_put(out, "{\"name\":");
-    parse_quoted(parsed, request->name, out);
-    mmgr_line_put(out, ",\"start\":");
-    mmgr_line_decimal(out, request->start, 1u);
-    mmgr_line_put(out, ",\"end\":");
-    mmgr_line_decimal(out, request->end, 1u);
-    mmgr_line_put(out, ",\"line\":");
-    mmgr_line_decimal(out, request->line, 1u);
-    mmgr_line_put(out, ",\"method\":");
-    parse_quoted(parsed, request->method, out);
-    mmgr_line_put(out, ",\"url\":");
-    parse_quoted(parsed, request->url, out);
-    mmgr_line_put(out, ",\"headers\":");
-    parse_pairs(parsed, request->header_name, request->header_value, request->headers, out);
-    mmgr_line_put(out, ",\"body\":");
-    if (request->has_body)
+    mmgr_line_put(args->out, "{\"name\":");
+    EMBED_CALL(parse_quote, RequestsWrittenCtx, .parsed = args->parsed, .text = args->request->name, .out = args->out);
+    mmgr_line_put(args->out, ",\"start\":");
+    mmgr_line_decimal(args->out, args->request->start, 1u);
+    mmgr_line_put(args->out, ",\"end\":");
+    mmgr_line_decimal(args->out, args->request->end, 1u);
+    mmgr_line_put(args->out, ",\"line\":");
+    mmgr_line_decimal(args->out, args->request->line, 1u);
+    mmgr_line_put(args->out, ",\"method\":");
+    EMBED_CALL(parse_quote, RequestsWrittenCtx, .parsed = args->parsed, .text = args->request->method,
+               .out = args->out);
+    mmgr_line_put(args->out, ",\"url\":");
+    EMBED_CALL(parse_quote, RequestsWrittenCtx, .parsed = args->parsed, .text = args->request->url, .out = args->out);
+    mmgr_line_put(args->out, ",\"headers\":");
+    EMBED_CALL(parse_pairs, RequestsWrittenCtx, .parsed = args->parsed, .names = args->request->header_name,
+               .values = args->request->header_value, .count = args->request->headers, .out = args->out);
+    mmgr_line_put(args->out, ",\"body\":");
+    if (args->request->has_body)
     {
-        parse_quoted(parsed, request->body, out);
+        EMBED_CALL(parse_quote, RequestsWrittenCtx, .parsed = args->parsed, .text = args->request->body,
+                   .out = args->out);
     }
     else
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
     }
-    mmgr_line_put(out, ",\"body_file\":");
-    if (request->has_body_file)
+    mmgr_line_put(args->out, ",\"body_file\":");
+    if (args->request->has_body_file)
     {
-        parse_quoted(parsed, request->body_file, out);
+        EMBED_CALL(parse_quote, RequestsWrittenCtx, .parsed = args->parsed, .text = args->request->body_file,
+                   .out = args->out);
     }
     else
     {
-        mmgr_line_put(out, "null");
+        mmgr_line_put(args->out, "null");
     }
-    mmgr_line_put(out, request->redirect ? ",\"redirect\":true}" : ",\"redirect\":false}");
+    mmgr_line_put(args->out, args->request->redirect ? ",\"redirect\":true}" : ",\"redirect\":false}");
 }
 
 // the reason a file of requests was not read whole
-void cli_requests_full_err(VerbaLinea *err_msg)
+void cli_requests_full_err(const CliRequestsTextCtx *args)
 {
-    mmgr_line_put(err_msg, "the file of requests is larger than orior_cli supports");
+    mmgr_line_put(args->err_msg, "the file of requests is larger than orior_cli supports");
 }
 
-int cli_requests_parsed(const char *text, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_requests_on_parse(const CliRequestsTextCfg *args)
 {
-    cli_lock_take(&g_cli_requests_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_requests_lock);
     const CliRequestsParsed *const parsed = &g_cli_requests_parsed;
-    const int whole = cli_requests_parse(text, size, &g_cli_requests_parsed);
+    const int whole = EMBED_CALL(cli_requests_text_size_parsed_internal.parse, CliRequestsTextSizeParsedCtx,
+                                 .text = args->text, .size = args->size, .parsed = &g_cli_requests_parsed);
     if (whole)
     {
-        mmgr_line_put(out, "{\"requests\":[");
+        mmgr_line_put(args->out, "{\"requests\":[");
         for (unsigned int index = 0u; index < parsed->count; index += 1u)
         {
-            mmgr_line_put(out, (index > 0u) ? "," : "");
-            parse_request_written(parsed, &parsed->requests[index], out);
+            mmgr_line_put(args->out, (index > 0u) ? "," : "");
+            EMBED_CALL(parse_request_write, RequestsWrittenCtx, .parsed = parsed, .request = &parsed->requests[index],
+                       .out = args->out);
         }
-        mmgr_line_put(out, "],\"variables\":");
-        parse_pairs(parsed, parsed->variable_name, parsed->variable_value, parsed->variables, out);
-        mmgr_line_ch(out, '}');
+        mmgr_line_put(args->out, "],\"variables\":");
+        EMBED_CALL(parse_pairs, RequestsWrittenCtx, .parsed = parsed, .names = parsed->variable_name,
+                   .values = parsed->variable_value, .count = parsed->variables, .out = args->out);
+        mmgr_line_ch(args->out, '}');
     }
-    cli_requests_parsed_given(&g_cli_requests_parsed);
-    cli_lock_give(&g_cli_requests_lock);
+    EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx,
+               .parsed = &g_cli_requests_parsed);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_requests_lock);
     if (!whole)
     {
-        cli_requests_full_err(err_msg);
+        EMBED_CALL(cli_requests_text_internal.full_err, CliRequestsTextCtx, .err_msg = args->err_msg);
     }
     return whole;
 }
 
-void cli_requests_key(const CliRequestsParsed *parsed, const CliRequest *request, VerbaLinea *out)
+void cli_requests_key(const CliRequestsParsedCtx *args)
 {
-    if (request->name.size > 0u)
+    if (args->request->name.size > 0u)
     {
-        mmgr_line_put_n(out, parsed->text + request->name.at, request->name.size);
+        mmgr_line_put_n(args->out, args->parsed_read->text + args->request->name.at, args->request->name.size);
         return;
     }
-    mmgr_line_put_n(out, parsed->text + request->method.at, request->method.size);
-    mmgr_line_ch(out, ' ');
-    mmgr_line_put_n(out, parsed->text + request->url.at, request->url.size);
+    mmgr_line_put_n(args->out, args->parsed_read->text + args->request->method.at, args->request->method.size);
+    mmgr_line_ch(args->out, ' ');
+    mmgr_line_put_n(args->out, args->parsed_read->text + args->request->url.at, args->request->url.size);
 }
 
-int cli_requests_key_at(const char *text, unsigned long long size, unsigned long long line, VerbaLinea *out,
-                        VerbaLinea *err_msg)
+int cli_requests_key_at(const CliRequestsTextCfg *args)
 {
-    cli_lock_take(&g_cli_requests_lock);
-    const int whole = cli_requests_parse(text, size, &g_cli_requests_parsed);
-    const CliRequest *const request = whole ? cli_requests_at(&g_cli_requests_parsed, line) : NULL;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_requests_lock);
+    const int whole = EMBED_CALL(cli_requests_text_size_parsed_internal.parse, CliRequestsTextSizeParsedCtx,
+                                 .text = args->text, .size = args->size, .parsed = &g_cli_requests_parsed);
+    const CliRequest *const request = whole ? EMBED_CALL(cli_requests_internal.at, CliRequestsCtx,
+                                                         .parsed_read = &g_cli_requests_parsed, .line_u64 = args->line)
+                                            : NULL;
     if (request != NULL)
     {
-        cli_requests_key(&g_cli_requests_parsed, request, out);
+        EMBED_CALL(cli_requests_parsed_internal.key, CliRequestsParsedCtx, .parsed_read = &g_cli_requests_parsed,
+                   .request = request, .out = args->out);
     }
-    cli_requests_parsed_given(&g_cli_requests_parsed);
-    cli_lock_give(&g_cli_requests_lock);
+    EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx,
+               .parsed = &g_cli_requests_parsed);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_requests_lock);
     if (!whole)
     {
-        cli_requests_full_err(err_msg);
+        EMBED_CALL(cli_requests_text_internal.full_err, CliRequestsTextCtx, .err_msg = args->err_msg);
     }
     else if (request == NULL)
     {
-        mmgr_line_put(err_msg, "the file contains no request");
+        mmgr_line_put(args->err_msg, "the file contains no request");
     }
     return request != NULL;
 }

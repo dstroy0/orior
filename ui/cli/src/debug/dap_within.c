@@ -3,6 +3,7 @@
 // dap_within.c: a debug adapter that runs in orior_cli on a thread of its own, connected to through two queues framed
 // as a program's input and output are. Each message waits in a cell of its own size: a request the client writes is
 // taken into one as its head gives its length, and a message the adapter sends is framed as the client reads it
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "dap_internal.h"
@@ -15,7 +16,6 @@ typedef struct CliDapQueuedStruct
     unsigned long long size;
     char bytes[];
 } CliDapQueued;
-
 // The messages waiting one way: the first and the last, and whether no more come
 typedef struct
 {
@@ -47,9 +47,19 @@ static void *s_serve_context;
 static CliThread s_serve_thread;
 static int s_serving;
 
-// a message of `size` bytes in a cell of its size, its bytes to be put in, or NULL where the cells cannot meet it
-static CliDapQueued *within_message_taken(unsigned long long size)
+typedef struct
 {
+    unsigned long long size;
+    CliDapQueue *queue;
+    CliDapQueued *message;
+    const char *bytes;
+    unsigned long long head;
+    unsigned long long *length;
+} DapWithinCtx;
+// a message of `size` bytes in a cell of its size, its bytes to be put in, or NULL where the cells cannot meet it
+EMBED_INLINE CliDapQueued *within_message_take(const DapWithinCtx *args)
+{
+    unsigned long long size = args->size;
     CliDapQueued *const message = g_cli_cells->persistent_buf_alloc(sizeof(CliDapQueued) + size, &g_cli_debug_cells);
     if (message != NULL)
     {
@@ -60,74 +70,76 @@ static CliDapQueued *within_message_taken(unsigned long long size)
 }
 
 // a message put on a queue: 1, or 0 where no more come, the message given back
-static int within_queued(CliDapQueue *queue, CliDapQueued *message)
+EMBED_INLINE int within_queue(const DapWithinCtx *args)
 {
-    cli_lock_take(&s_queue_lock);
-    if (queue->closed)
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
+    if (args->queue->closed)
     {
-        cli_lock_give(&s_queue_lock);
-        g_cli_cells->persistent_buf_release(message, &g_cli_debug_cells);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
+        g_cli_cells->persistent_buf_release(args->message, &g_cli_debug_cells);
         return 0;
     }
-    if (queue->last != NULL)
+    if (args->queue->last != NULL)
     {
-        queue->last->next = message;
+        args->queue->last->next = args->message;
     }
     else
     {
-        queue->first = message;
+        args->queue->first = args->message;
     }
-    queue->last = message;
-    cli_wake_all(&s_queue_wake);
-    cli_lock_give(&s_queue_lock);
+    args->queue->last = args->message;
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_queue_wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     return 1;
 }
 
 // `size` bytes of a message put on a queue in a cell of their size: 1, or 0 where no more come or the cells cannot meet
 // it
-static int within_pushed(CliDapQueue *queue, const char *bytes, unsigned long long size)
+EMBED_INLINE int within_push(const DapWithinCtx *args)
 {
-    CliDapQueued *const message = within_message_taken(size);
+    const char *bytes = args->bytes;
+    CliDapQueued *const message = within_message_take(args);
     if (message == NULL)
     {
         return 0;
     }
     // a message's size, which a size_t counts
-    memor.cpy(&(MemoriaCfg){.dst = message->bytes, .src = bytes, .bytes = (size_t)size});
-    return within_queued(queue, message);
+    memor.cpy(&(MemoriaCfg){.dst = message->bytes, .src = bytes, .bytes = (size_t)args->size});
+    return EMBED_CALL(within_queue, DapWithinCtx, .queue = args->queue, .message = message);
 }
 
 // the next message of a queue, waiting while it is empty, for the caller to give back: the message, or NULL where no
 // more come
-static CliDapQueued *within_popped(CliDapQueue *queue)
+EMBED_INLINE CliDapQueued *within_pop(const DapWithinCtx *args)
 {
-    cli_lock_take(&s_queue_lock);
-    while ((queue->first == NULL) && !queue->closed)
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
+    while ((args->queue->first == NULL) && !args->queue->closed)
     {
-        cli_wake_wait(&s_queue_wake, &s_queue_lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_queue_wake, .lock = &s_queue_lock);
     }
-    CliDapQueued *const message = queue->first;
+    CliDapQueued *const message = args->queue->first;
     if (message != NULL)
     {
-        queue->first = message->next;
-        queue->last = (queue->first != NULL) ? queue->last : NULL;
+        args->queue->first = message->next;
+        args->queue->last = (args->queue->first != NULL) ? args->queue->last : NULL;
     }
-    cli_lock_give(&s_queue_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     return message;
 }
 
 // a queue notified no more comes
-static void within_closed(CliDapQueue *queue)
+EMBED_INLINE void within_close(const DapWithinCtx *args)
 {
-    cli_lock_take(&s_queue_lock);
-    queue->closed = 1;
-    cli_wake_all(&s_queue_wake);
-    cli_lock_give(&s_queue_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
+    args->queue->closed = 1;
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_queue_wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
 }
 
 // a queue's messages given back and the queue made open again
-static void within_emptied(CliDapQueue *queue)
+EMBED_INLINE void within_clear(const DapWithinCtx *args)
 {
+    CliDapQueue *queue = args->queue;
     CliDapQueued *message = queue->first;
     while (message != NULL)
     {
@@ -138,26 +150,26 @@ static void within_emptied(CliDapQueue *queue)
     *queue = (CliDapQueue){NULL, NULL, 0};
 }
 
-int cli_dap_send(CliDap *dap, const char *message, unsigned long long size)
+int cli_dap_send(const CliDapMessageCfg *args)
 {
-    (void)dap;
-    return within_pushed(&s_outgoing, message, size);
+    return EMBED_CALL(within_push, DapWithinCtx, .queue = &s_outgoing, .bytes = args->message, .size = args->size);
 }
 
-int cli_dap_itself(CliDap *dap, const char *message, unsigned long long size)
+int cli_dap_itself(const CliDapMessageCfg *args)
 {
-    (void)dap;
-    return within_pushed(&s_incoming, message, size);
+    return EMBED_CALL(within_push, DapWithinCtx, .queue = &s_incoming, .bytes = args->message, .size = args->size);
 }
 
 // the Content-Length the head of `head` bytes of s_head gives into `length`: 1, or 0 where it gives none
-static int within_length(unsigned long long head, unsigned long long *length)
+EMBED_INLINE int within_length(const DapWithinCtx *args)
 {
+    unsigned long long *length = args->length;
     static const char s_length[] = "Content-Length:";
     int has_length = 0;
-    for (unsigned long long line = 0ull; !has_length && (line < head);)
+    for (unsigned long long line = 0ull; !has_length && (line < args->head);)
     {
-        const unsigned long long end = cli_text_line_at(s_head, line, head).stop;
+        const unsigned long long end =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = s_head, .at = line, .size = args->head).stop;
         if ((end - line >= sizeof(s_length) - 1ull) &&
             (memor.cmp(&(MemoriaCfg){.src = s_head + line, .other = s_length, .bytes = sizeof(s_length) - 1ull}) == 0))
         {
@@ -193,19 +205,21 @@ static int within_request_whole(void)
     VerbaLinea checked = {tiny, sizeof(tiny), 0ull};
     CliDapQueued *const request = s_coming;
     s_coming = NULL;
-    if (!cli_json_compacted(request->bytes, request->size, &checked))
+    if (!EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = request->bytes, .size = request->size,
+                    .out = &checked))
     {
         g_cli_cells->persistent_buf_release(request, &g_cli_debug_cells);
         return 0;
     }
-    return within_queued(&s_incoming, request);
+    return EMBED_CALL(within_queue, DapWithinCtx, .queue = &s_incoming, .message = request);
 }
 
 // bytes the client writes to its adapter in orior: the head of each message read to the empty line that ends it, the
 // request taken for the length it gives and filled as its bytes come, and handed to the adapter whole
-static int within_framed(void *sink, const void *bytes, unsigned long long size)
+static int within_frame(const CliSinkBytesSizeCfg *args)
 {
-    (void)sink;
+    const void *bytes = args->bytes;
+    unsigned long long size = args->size;
     const char *at = (const char *)bytes;
     unsigned long long left = size;
     while (left > 0ull)
@@ -226,12 +240,12 @@ static int within_framed(void *sink, const void *bytes, unsigned long long size)
             {
                 continue;
             }
-            if (!within_length(s_head_size - 4ull, &length))
+            if (!EMBED_CALL(within_length, DapWithinCtx, .head = s_head_size - 4ull, .length = &length))
             {
                 return 0;
             }
             s_head_size = 0ull;
-            s_coming = within_message_taken(length);
+            s_coming = EMBED_CALL(within_message_take, DapWithinCtx, .size = length);
             s_coming_got = 0ull;
             if (s_coming == NULL)
             {
@@ -258,13 +272,12 @@ static int within_framed(void *sink, const void *bytes, unsigned long long size)
 
 // what the client reads of its adapter in orior: each message it sends framed as one from a program, the head before
 // its bytes
-static unsigned long long within_unframed(void *source, char *piece, unsigned long long room)
+static unsigned long long within_unframed(const CliSourcePieceRoomCfg *args)
 {
-    (void)source;
     if ((s_pending == NULL) || (s_pending_at >= s_pending_head_size + s_pending->size))
     {
         g_cli_cells->persistent_buf_release(s_pending, &g_cli_debug_cells);
-        s_pending = within_popped(&s_outgoing);
+        s_pending = EMBED_CALL(within_pop, DapWithinCtx, .queue = &s_outgoing);
         if (s_pending == NULL)
         {
             return 0ull;
@@ -281,61 +294,64 @@ static unsigned long long within_unframed(void *source, char *piece, unsigned lo
         in_head ? (s_pending_head + s_pending_at) : (s_pending->bytes + (s_pending_at - s_pending_head_size));
     const unsigned long long left =
         in_head ? (s_pending_head_size - s_pending_at) : (s_pending_head_size + s_pending->size - s_pending_at);
-    const unsigned long long count = (room < left) ? room : left;
+    const unsigned long long count = (args->room < left) ? args->room : left;
     // a piece of a message, which a size_t counts
-    memor.cpy(&(MemoriaCfg){.dst = piece, .src = from, .bytes = (size_t)count});
+    memor.cpy(&(MemoriaCfg){.dst = args->piece, .src = from, .bytes = (size_t)count});
     s_pending_at += count;
     return count;
 }
 
 // each request handed to the adapter in orior_cli until it reports it goes no further or no more come; then the client
 // notified no more comes from it
-static void within_served(void *context)
+static void within_serve(void *context)
 {
     CliDap *const dap = (CliDap *)context;
     CliDapQueued *request = NULL;
-    while ((request = within_popped(&s_incoming)) != NULL)
+    while ((request = EMBED_CALL(within_pop, DapWithinCtx, .queue = &s_incoming)) != NULL)
     {
-        const int goes_on = s_serve(s_serve_context, dap, request->bytes, request->size);
+        const int goes_on = EMBED_CALL(s_serve, CliDapServeCfg, .context = s_serve_context, .dap = dap,
+                                       .request = request->bytes, .size = request->size);
         g_cli_cells->persistent_buf_release(request, &g_cli_debug_cells);
         if (!goes_on)
         {
             break;
         }
     }
-    within_closed(&s_incoming);
-    within_closed(&s_outgoing);
-    cli_lock_take(&s_queue_lock);
+    EMBED_CALL(within_close, DapWithinCtx, .queue = &s_incoming);
+    EMBED_CALL(within_close, DapWithinCtx, .queue = &s_outgoing);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     s_serving = 0;
-    cli_wake_all(&s_queue_wake);
-    cli_lock_give(&s_queue_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_queue_wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
 }
 
-void cli_dap_within_let_go(CliDap *dap)
+void cli_dap_within_let_go(const CliDapCtx *args)
 {
-    (void)dap;
-    within_closed(&s_incoming);
-    within_closed(&s_outgoing);
+    (void)args;
+    EMBED_CALL(within_close, DapWithinCtx, .queue = &s_incoming);
+    EMBED_CALL(within_close, DapWithinCtx, .queue = &s_outgoing);
 }
 
-CliDap *cli_dap_within(CliDapServe serve, void *serve_context, CliDapEventFn emit, void *context, VerbaLinea *err_msg)
+CliDap *cli_dap_within(const CliDapEmitCfg *args)
 {
-    cli_lock_take(&s_queue_lock);
+    CliDapEventFn emit = args->emit;
+    void *context = args->context;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     while (s_serving)
     {
-        cli_wake_wait(&s_queue_wake, &s_queue_lock);
+        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_queue_wake, .lock = &s_queue_lock);
     }
-    cli_lock_give(&s_queue_lock);
-    CliDap *const dap = cli_dap_place_taken();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
+    CliDap *const dap = cli_dap_place_take();
     if (dap == NULL)
     {
-        mmgr_line_put(err_msg, "no more debug adapters are open at once");
+        mmgr_line_put(args->err_msg, "no more debug adapters are open at once");
         return NULL;
     }
     s_within = dap;
     // what the adapter before this one left given back
-    within_emptied(&s_incoming);
-    within_emptied(&s_outgoing);
+    EMBED_CALL(within_clear, DapWithinCtx, .queue = &s_incoming);
+    EMBED_CALL(within_clear, DapWithinCtx, .queue = &s_outgoing);
     s_head_size = 0ull;
     g_cli_cells->persistent_buf_release(s_coming, &g_cli_debug_cells);
     s_coming = NULL;
@@ -343,28 +359,28 @@ CliDap *cli_dap_within(CliDapServe serve, void *serve_context, CliDapEventFn emi
     s_pending = NULL;
     s_pending_head_size = 0ull;
     s_pending_at = 0ull;
-    s_serve = serve;
-    s_serve_context = serve_context;
+    s_serve = args->serve;
+    s_serve_context = args->serve_context;
     dap->kind = CLI_DAP_WITHIN;
     dap->ends_program = 1;
     dap->emit = emit;
     dap->context = context;
-    dap->input = (CliLspWriter){within_framed, NULL};
+    dap->input = (CliLspWriter){within_frame, NULL};
     dap->reader.read = within_unframed;
     dap->reader.source = dap;
     dap->reader.start = 0ull;
     dap->reader.end = 0ull;
     s_serving = 1;
-    s_serve_thread = (CliThread){within_served, dap};
-    if (!cli_thread_started(&s_serve_thread))
+    s_serve_thread = (CliThread){within_serve, dap};
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_serve_thread))
     {
         s_serving = 0;
-        cli_lock_take(&g_cli_daps_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
         dap->taken = 0;
-        cli_lock_give(&g_cli_daps_lock);
-        mmgr_line_put(err_msg, "the adapter's thread did not start");
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
+        mmgr_line_put(args->err_msg, "the adapter's thread did not start");
         return NULL;
     }
-    cli_dap_readers_started(dap, 0);
+    EMBED_CALL(cli_dap_internal.readers_start, CliDapCtx, .dap = dap, .complaints = 0);
     return dap;
 }

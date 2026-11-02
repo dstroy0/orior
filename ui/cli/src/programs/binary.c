@@ -29,49 +29,75 @@ static char s_seen[CLI_BINARY_LIBRARIES][CLI_NAME_MAX_LEN];
 static char s_system_path[CLI_PATH_FOLDERS][CLI_PATH_MAX_LEN];
 static CliLock s_lock = CLI_LOCK_INIT;
 
-unsigned long long cli_binary_number(const unsigned char *bytes, unsigned long long size, unsigned long long at,
-                                     unsigned int width)
+unsigned long long cli_binary_number(const CliBinaryBytesSizeCfg *args)
 {
-    if ((at + width) > size)
+    if ((args->at + args->width) > args->size)
     {
         return 0ull;
     }
     unsigned long long value = 0ull;
-    for (unsigned int byte = width; byte > 0u; byte -= 1u)
+    for (unsigned int byte = args->width; byte > 0u; byte -= 1u)
     {
-        value = (value << 8u) | bytes[at + byte - 1u];
+        value = (value << 8u) | args->bytes[args->at + byte - 1u];
     }
     return value;
 }
 
-int cli_binary_text(const unsigned char *bytes, unsigned long long size, unsigned long long at, char *out,
-                    unsigned long long room)
+int cli_binary_text(const CliBinaryBytesCfg *args)
 {
-    unsigned long long end = at;
+    const unsigned char *bytes = args->bytes;
+    unsigned long long end = args->at;
     const unsigned char *const zero =
-        (at < size) ? memor.chr(&(MemoriaCfg){.src = bytes + at, .val = 0, .bytes = size - at}) : NULL;
-    end = (zero != NULL) ? (unsigned long long)(zero - bytes) : size;
-    if (end >= size)
+        (args->at < args->size)
+            ? memor.chr(&(MemoriaCfg){.src = bytes + args->at, .val = 0, .bytes = args->size - args->at})
+            : NULL;
+    end = (zero != NULL) ? (unsigned long long)(zero - bytes) : args->size;
+    if (end >= args->size)
     {
         return 0;
     }
-    VerbaLinea line = {out, room, 0ull};
+    VerbaLinea line = {args->out, args->room, 0ull};
     // the bytes of a name read as the text they write
-    mmgr_line_put_n(&line, (const char *)(bytes + at), end - at);
+    mmgr_line_put_n(&line, (const char *)(bytes + args->at), end - args->at);
     return mmgr_line_finish(&line) != 0ull;
 }
 
-// a name in lower case into `out`, sized for CLI_NAME_MAX_LEN
-static void cli_lower(const char *name, char *out)
+typedef struct
 {
-    (void)cli_text_lowered_into(out, CLI_NAME_MAX_LEN, name);
+    const char *name;
+    char *out;
+    const char *lower;
+    const char *const *names;
+    unsigned int count;
+    const unsigned char *bytes;
+    unsigned long long size;
+    unsigned long long table;
+    unsigned int sections;
+    unsigned long long rva;
+    unsigned long long *offset;
+    unsigned int machine;
+    char (*folders)[CLI_PATH_MAX_LEN];
+    const char (*folders_callback)[CLI_PATH_MAX_LEN];
+    char *at;
+    const char *path;
+    const char (*orior_path)[CLI_PATH_MAX_LEN];
+    unsigned int orior_count;
+    CliBinaryReport *report;
+    VerbaLinea *err_msg;
+} BinaryCtx;
+// a name in lower case into `out`, sized for CLI_NAME_MAX_LEN
+EMBED_INLINE void cli_lower(const BinaryCtx *args)
+{
+    char *out = args->out;
+    (void)EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = out, .room = CLI_NAME_MAX_LEN,
+                     .text = args->name);
 }
 
-static int cli_listed(const char *lower, const char *const *names, unsigned int count)
+EMBED_INLINE int cli_on_list(const BinaryCtx *args)
 {
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = names[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->lower, .other = args->names[at], .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -80,49 +106,64 @@ static int cli_listed(const char *lower, const char *const *names, unsigned int 
 }
 
 // The place in the file of a virtual address of the program, by its sections: 1, or 0 where none contains it
-static int cli_offset(const unsigned char *bytes, unsigned long long size, unsigned long long table,
-                      unsigned int sections, unsigned long long rva, unsigned long long *offset)
+EMBED_INLINE int cli_offset(const BinaryCtx *args)
 {
-    for (unsigned int index = 0u; index < sections; index += 1u)
+    const unsigned char *bytes = args->bytes;
+    unsigned long long size = args->size;
+    unsigned long long *offset = args->offset;
+    for (unsigned int index = 0u; index < args->sections; index += 1u)
     {
-        const unsigned long long at = table + (index * 40ull);
-        const unsigned long long virtual_size = cli_binary_number(bytes, size, at + 8u, 4u);
-        const unsigned long long raw_size = cli_binary_number(bytes, size, at + 16u, 4u);
+        const unsigned long long at = args->table + (index * 40ull);
+        const unsigned long long virtual_size = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg,
+                                                           .bytes = bytes, .size = size, .at = at + 8u, .width = 4u);
+        const unsigned long long raw_size = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg,
+                                                       .bytes = bytes, .size = size, .at = at + 16u, .width = 4u);
         const unsigned long long length = (virtual_size > raw_size) ? virtual_size : raw_size;
-        const unsigned long long start = cli_binary_number(bytes, size, at + 12u, 4u);
-        const unsigned long long raw = cli_binary_number(bytes, size, at + 20u, 4u);
-        if ((at + 24ull) <= size && (rva >= start) && (rva < (start + length)))
+        const unsigned long long start = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                    .size = size, .at = at + 12u, .width = 4u);
+        const unsigned long long raw = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                  .size = size, .at = at + 20u, .width = 4u);
+        if ((at + 24ull) <= size && (args->rva >= start) && (args->rva < (start + length)))
         {
-            *offset = rva - start + raw;
+            *offset = args->rva - start + raw;
             return 1;
         }
     }
     return 0;
 }
 
-int cli_pe_imports(const unsigned char *bytes, unsigned long long size, unsigned int *machine,
-                   char (*names)[CLI_NAME_MAX_LEN], int count, unsigned int room, VerbaLinea *err_msg)
+int cli_pe_imports(const CliBinaryErrMsgCfg *args)
 {
+    const unsigned char *bytes = args->bytes;
+    unsigned long long size = args->size;
+    unsigned int *machine = args->machine;
+    int count = args->count_i32;
+    unsigned int room = args->room_u32;
     if (size < 0x40ull)
     {
-        mmgr_line_put(err_msg, "the file ends inside its headers");
+        mmgr_line_put(args->err_msg, "the file ends inside its headers");
         return -1;
     }
-    const unsigned long long pe = cli_binary_number(bytes, size, 0x3cu, 4u);
+    const unsigned long long pe = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                             .size = size, .at = 0x3cu, .width = 4u);
     if (((pe + 4ull) > size) || (memor.cmp(&(MemoriaCfg){.src = bytes + pe, .other = "PE\0\0", .bytes = 4u}) != 0))
     {
-        mmgr_line_put(err_msg, "the file is no Windows program");
+        mmgr_line_put(args->err_msg, "the file is no Windows program");
         return -1;
     }
     // a machine and a count of sections are 16 bits
-    *machine = (unsigned int)cli_binary_number(bytes, size, pe + 4u, 2u);
-    const unsigned int sections = (unsigned int)cli_binary_number(bytes, size, pe + 6u, 2u);
-    const unsigned long long optional_size = cli_binary_number(bytes, size, pe + 20u, 2u);
+    *machine = (unsigned int)EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                        .size = size, .at = pe + 4u, .width = 2u);
+    const unsigned int sections = (unsigned int)EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg,
+                                                           .bytes = bytes, .size = size, .at = pe + 6u, .width = 2u);
+    const unsigned long long optional_size = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg,
+                                                        .bytes = bytes, .size = size, .at = pe + 20u, .width = 2u);
     const unsigned long long optional = pe + 24ull;
-    const unsigned long long magic = cli_binary_number(bytes, size, optional, 2u);
+    const unsigned long long magic = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
+                                                .size = size, .at = optional, .width = 2u);
     if ((magic != 0x20bu) && (magic != 0x10bu))
     {
-        mmgr_line_put(err_msg, "the file's optional header is of no kind orior_cli reads");
+        mmgr_line_put(args->err_msg, "the file's optional header is of no kind orior_cli reads");
         return -1;
     }
     const unsigned long long directories = optional + ((magic == 0x20bu) ? 112ull : 96ull);
@@ -131,9 +172,12 @@ int cli_pe_imports(const unsigned char *bytes, unsigned long long size, unsigned
     static const unsigned int s_reads[2][3] = {{1u, 20u, 12u}, {13u, 32u, 4u}};
     for (unsigned int each = 0u; each < 2u; each += 1u)
     {
-        const unsigned long long rva = cli_binary_number(bytes, size, directories + (s_reads[each][0] * 8ull), 4u);
+        const unsigned long long rva =
+            EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = size,
+                       .at = directories + (s_reads[each][0] * 8ull), .width = 4u);
         unsigned long long at = 0ull;
-        if ((rva == 0ull) || !cli_offset(bytes, size, table, sections, rva, &at))
+        if ((rva == 0ull) || !EMBED_CALL(cli_offset, BinaryCtx, .bytes = bytes, .size = size, .table = table,
+                                         .sections = sections, .rva = rva, .offset = &at))
         {
             continue;
         }
@@ -145,29 +189,33 @@ int cli_pe_imports(const unsigned char *bytes, unsigned long long size, unsigned
             {
                 zeros = bytes[at + byte] == 0u;
             }
-            const unsigned long long name_rva = cli_binary_number(bytes, size, at + s_reads[each][2], 4u);
+            const unsigned long long name_rva =
+                EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = size,
+                           .at = at + s_reads[each][2], .width = 4u);
             if (((at + step) > size) || zeros || (name_rva == 0ull))
             {
                 break;
             }
             unsigned long long name_at = 0ull;
             char name[CLI_NAME_MAX_LEN];
-            if (cli_offset(bytes, size, table, sections, name_rva, &name_at) &&
-                cli_binary_text(bytes, size, name_at, name, sizeof(name)))
+            if (EMBED_CALL(cli_offset, BinaryCtx, .bytes = bytes, .size = size, .table = table, .sections = sections,
+                           .rva = name_rva, .offset = &name_at) &&
+                EMBED_CALL(cli_binary_bytes.text, CliBinaryBytesCfg, .bytes = bytes, .size = size, .at = name_at,
+                           .out = name, .room = sizeof(name)))
             {
                 char lower[CLI_NAME_MAX_LEN];
-                cli_lower(name, lower);
+                EMBED_CALL(cli_lower, BinaryCtx, .name = name, .out = lower);
                 int known = 0;
                 for (int index = 0; !known && (index < count); index += 1)
                 {
                     char other[CLI_NAME_MAX_LEN];
-                    cli_lower(names[index], other);
+                    EMBED_CALL(cli_lower, BinaryCtx, .name = args->names[index], .out = other);
                     known = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = lower, .cap = CLI_CELLS_POOL});
                 }
                 if (!known && ((unsigned int)count < room))
                 {
                     memor.cpy(&(MemoriaCfg){
-                        .dst = names[count],
+                        .dst = args->names[count],
                         .src = name,
                         .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
                     count += 1;
@@ -181,10 +229,11 @@ int cli_pe_imports(const unsigned char *bytes, unsigned long long size, unsigned
 
 // The folders Windows itself loads a program's DLLs from: System32, or SysWOW64 for a 32-bit program on a 64-bit
 // system, the old 16-bit System folder, and the Windows folder
-static unsigned int cli_windows_folders(unsigned int machine, char (*folders)[CLI_PATH_MAX_LEN])
+EMBED_INLINE unsigned int cli_windows_folders(const BinaryCtx *args)
 {
     char windows[CLI_PATH_MAX_LEN];
-    if (!query_environment_read("SystemRoot", windows, sizeof(windows)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "SystemRoot",
+                    .value_out = windows, .room = sizeof(windows)))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = windows,
@@ -196,30 +245,34 @@ static unsigned int cli_windows_folders(unsigned int machine, char (*folders)[CL
     mmgr_line_put(&line, windows);
     mmgr_line_put(&line, "\\SysWOW64");
     mmgr_line_finish(&line);
-    VerbaLinea system = {folders[0], CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea system = {args->folders[0], CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&system, windows);
-    mmgr_line_put(&system, ((machine == 0x14cu) && query_is_folder(wow)) ? "\\SysWOW64" : "\\System32");
+    mmgr_line_put(&system, ((args->machine == 0x14cu) &&
+                            EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = wow))
+                               ? "\\SysWOW64"
+                               : "\\System32");
     mmgr_line_finish(&system);
-    VerbaLinea old = {folders[1], CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea old = {args->folders[1], CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&old, windows);
     mmgr_line_put(&old, "\\System");
     mmgr_line_finish(&old);
-    memor.cpy(&(MemoriaCfg){.dst = folders[2],
+    memor.cpy(&(MemoriaCfg){.dst = args->folders[2],
                             .src = windows,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = windows, .cap = CLI_CELLS_POOL}) + 1u});
     return 3u;
 }
 
 // the library `name` in one of the folders, its path into `at`: 1, or 0
-static int cli_in_folders(const char (*folders)[CLI_PATH_MAX_LEN], unsigned int count, const char *name, char *at)
+EMBED_INLINE int cli_in_folders(const BinaryCtx *args)
 {
-    for (unsigned int each = 0u; each < count; each += 1u)
+    for (unsigned int each = 0u; each < args->count; each += 1u)
     {
-        VerbaLinea line = {at, CLI_PATH_MAX_LEN, 0ull};
-        mmgr_line_put(&line, folders[each]);
+        VerbaLinea line = {args->at, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, args->folders_callback[each]);
         mmgr_line_ch(&line, '/');
-        mmgr_line_put(&line, name);
-        if ((mmgr_line_finish(&line) != 0ull) && query_is_file(at))
+        mmgr_line_put(&line, args->name);
+        if ((mmgr_line_finish(&line) != 0ull) &&
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->at))
         {
             return 1;
         }
@@ -229,17 +282,19 @@ static int cli_in_folders(const char (*folders)[CLI_PATH_MAX_LEN], unsigned int 
 
 // A Windows program's libraries read into the report, each looked for and those found beside it or on a PATH read for
 // their own in turn
-static int cli_pe_read(const unsigned char *bytes, unsigned long long size, const char *path,
-                       const char (*orior_path)[CLI_PATH_MAX_LEN], unsigned int orior_count, CliBinaryReport *report,
-                       VerbaLinea *err_msg)
+EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
 {
+    const unsigned char *bytes = args->bytes;
+    unsigned long long size = args->size;
+    const char *path = args->path;
     static char s_imports[CLI_BINARY_LIBRARIES][CLI_NAME_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char windows[3][CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = folder, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     char *cut = folder + cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
-    cut = folder + cli_text_back_any(folder, (unsigned long long)(cut - folder), "/\\");
+    cut = folder + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
+                              .at = (unsigned long long)(cut - folder), .set = "/\\");
     const char *const program = path + (cut - folder);
     if (cut > folder)
     {
@@ -251,14 +306,17 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
                                 .src = ".",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    const unsigned int system_count = cli_toolchains_system_path(s_system_path, CLI_PATH_FOLDERS);
+    const unsigned int system_count = EMBED_CALL(cli_toolchains_count.system_path, CliToolchainsCountCfg,
+                                                 .folders = s_system_path, .room = CLI_PATH_FOLDERS);
     unsigned int machine = 0u;
-    const int imports = cli_pe_imports(bytes, size, &machine, s_imports, 0, CLI_BINARY_LIBRARIES, err_msg);
+    const int imports =
+        EMBED_CALL(cli_binary_err_msg.pe_imports, CliBinaryErrMsgCfg, .bytes = bytes, .size = size, .machine = &machine,
+                   .names = s_imports, .count_i32 = 0, .room_u32 = CLI_BINARY_LIBRARIES, .err_msg = args->err_msg);
     if (imports < 0)
     {
         return 0;
     }
-    const unsigned int system = cli_windows_folders(machine, windows);
+    const unsigned int system = EMBED_CALL(cli_windows_folders, BinaryCtx, .machine = machine, .folders = windows);
     unsigned int queued = 0u;
     for (int at = 0; (at < imports) && (queued < CLI_BINARY_LIBRARIES); at += 1)
     {
@@ -276,14 +334,14 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
     {
         const CliQueued *const one = &s_queue[next];
         char lower[CLI_NAME_MAX_LEN];
-        cli_lower(one->name, lower);
+        EMBED_CALL(cli_lower, BinaryCtx, .name = one->name, .out = lower);
         int known = (cellul.starts(&(CatenaFinitaCfg){.src = lower, .other = "api-ms-", .cap = CLI_CELLS_POOL})) ||
                     (cellul.starts(&(CatenaFinitaCfg){.src = lower, .other = "ext-ms-", .cap = CLI_CELLS_POOL}));
         for (unsigned int at = 0u; !known && (at < seen); at += 1u)
         {
             known = cellul.eq(&(CatenaFinitaCfg){.src = s_seen[at], .other = lower, .cap = CLI_CELLS_POOL});
         }
-        if (known || (seen >= CLI_BINARY_LIBRARIES) || (report->libraries >= CLI_BINARY_LIBRARIES))
+        if (known || (seen >= CLI_BINARY_LIBRARIES) || (args->report->libraries >= CLI_BINARY_LIBRARIES))
         {
             continue;
         }
@@ -291,8 +349,8 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
                                 .src = lower,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = lower, .cap = CLI_CELLS_POOL}) + 1u});
         seen += 1u;
-        CliLibrary *const library = &report->library[report->libraries];
-        report->libraries += 1u;
+        CliLibrary *const library = &args->report->library[args->report->libraries];
+        args->report->libraries += 1u;
         memor.cpy(&(MemoriaCfg){.dst = library->name,
                                 .src = one->name,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->name, .cap = CLI_CELLS_POOL}) + 1u});
@@ -304,42 +362,55 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
                                 .src = folder,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
         library->has_at = 1;
-        if (cli_in_folders((const char (*)[CLI_PATH_MAX_LEN])beside, 1u, one->name, library->at))
+        if (EMBED_CALL(cli_in_folders, BinaryCtx, .folders_callback = (const char (*)[CLI_PATH_MAX_LEN])beside,
+                       .count = 1u, .name = one->name, .at = library->at))
         {
             library->found = CLI_FOUND_BESIDE;
         }
-        else if (cli_in_folders((const char (*)[CLI_PATH_MAX_LEN])windows, system, one->name, library->at))
+        else if (EMBED_CALL(cli_in_folders, BinaryCtx, .folders_callback = (const char (*)[CLI_PATH_MAX_LEN])windows,
+                            .count = system, .name = one->name, .at = library->at))
         {
-            library->found = cli_listed(lower, s_debug_runtime, 7u)     ? CLI_FOUND_DEBUG_RUNTIME
-                             : cli_listed(lower, s_redistributable, 9u) ? CLI_FOUND_REDISTRIBUTABLE
-                                                                        : CLI_FOUND_SYSTEM;
+            library->found =
+                EMBED_CALL(cli_on_list, BinaryCtx, .lower = lower, .names = s_debug_runtime, .count = 7u)
+                    ? CLI_FOUND_DEBUG_RUNTIME
+                : EMBED_CALL(cli_on_list, BinaryCtx, .lower = lower, .names = s_redistributable, .count = 9u)
+                    ? CLI_FOUND_REDISTRIBUTABLE
+                    : CLI_FOUND_SYSTEM;
         }
-        else if (cli_in_folders((const char (*)[CLI_PATH_MAX_LEN])s_system_path, system_count, one->name, library->at))
+        else if (EMBED_CALL(cli_in_folders, BinaryCtx,
+                            .folders_callback = (const char (*)[CLI_PATH_MAX_LEN])s_system_path, .count = system_count,
+                            .name = one->name, .at = library->at))
         {
             library->found = CLI_FOUND_SYSTEM_PATH;
         }
-        else if (cli_in_folders(orior_path, orior_count, one->name, library->at))
+        else if (EMBED_CALL(cli_in_folders, BinaryCtx, .folders_callback = args->orior_path, .count = args->orior_count,
+                            .name = one->name, .at = library->at))
         {
             library->found = CLI_FOUND_ORIOR_PATH;
         }
         else
         {
-            library->found = cli_listed(lower, s_debug_runtime, 7u) ? CLI_FOUND_DEBUG_RUNTIME : CLI_FOUND_MISSING;
+            library->found = EMBED_CALL(cli_on_list, BinaryCtx, .lower = lower, .names = s_debug_runtime, .count = 7u)
+                                 ? CLI_FOUND_DEBUG_RUNTIME
+                                 : CLI_FOUND_MISSING;
             library->has_at = 0;
         }
         const int looked =
             library->has_at && ((library->found == CLI_FOUND_BESIDE) || (library->found == CLI_FOUND_SYSTEM_PATH) ||
                                 (library->found == CLI_FOUND_ORIOR_PATH));
         unsigned long long more_size = 0ull;
-        const unsigned char *const more =
-            looked ? cli_file_taken(library->at, &more_size, &g_cli_programs_cells) : NULL;
+        const unsigned char *const more = looked
+                                              ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = library->at,
+                                                           .size_pointer = &more_size, .owner = &g_cli_programs_cells)
+                                              : NULL;
         if (more != NULL)
         {
             char err_buf[CLI_PATH_MAX_LEN];
             VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
             unsigned int more_machine = 0u;
-            const int found =
-                cli_pe_imports(more, more_size, &more_machine, s_imports, 0, CLI_BINARY_LIBRARIES, &ignored);
+            const int found = EMBED_CALL(cli_binary_err_msg.pe_imports, CliBinaryErrMsgCfg, .bytes = more,
+                                         .size = more_size, .machine = &more_machine, .names = s_imports,
+                                         .count_i32 = 0, .room_u32 = CLI_BINARY_LIBRARIES, .err_msg = &ignored);
             for (int at = 0; (at < found) && (queued < CLI_BINARY_LIBRARIES); at += 1)
             {
                 memor.cpy(&(MemoriaCfg){
@@ -352,39 +423,46 @@ static int cli_pe_read(const unsigned char *bytes, unsigned long long size, cons
                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = library->name, .cap = CLI_CELLS_POOL}) + 1u});
                 queued += 1u;
             }
-            cli_file_given(more, &g_cli_programs_cells);
+            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = more,
+                       .owner = &g_cli_programs_cells);
         }
     }
     return 1;
 }
 
-int cli_binary_read(const char *path, const char (*orior_path)[CLI_PATH_MAX_LEN], unsigned int count,
-                    CliBinaryReport *report, VerbaLinea *err_msg)
+int cli_binary_read(const CliBinaryPathOriorPathCfg *args)
 {
+    const char *path = args->path;
+    const char (*orior_path)[CLI_PATH_MAX_LEN] = args->orior_path;
+    CliBinaryReport *report = args->report;
+    VerbaLinea *err_msg = args->err_msg;
     report->libraries = 0u;
     report->build_paths = 0u;
     report->has_glibc = 0;
     report->glibc[0] = '\0';
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_taken(path, &size, &g_cli_programs_cells);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                  .size_pointer = &size, .owner = &g_cli_programs_cells);
     if (bytes == NULL)
     {
         mmgr_line_put(err_msg, path);
         mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     int read = 0;
     if ((size >= 2u) && (bytes[0] == 'M') && (bytes[1] == 'Z'))
     {
-        read = cli_pe_read(bytes, size, path, orior_path, count, report, err_msg);
+        read = EMBED_CALL(cli_pe_read, BinaryCtx, .bytes = bytes, .size = size, .path = path, .orior_path = orior_path,
+                          .orior_count = args->count, .report = report, .err_msg = err_msg);
     }
     else if ((size >= 4u) && (memor.cmp(&(MemoriaCfg){.src = bytes,
                                                       .other = "\x7f"
                                                                "ELF",
                                                       .bytes = 4u}) == 0))
     {
-        read = cli_binary_elf_read(bytes, size, path, report, err_msg);
+        read = EMBED_CALL(cli_binary_path_report.elf_read, CliBinaryPathReportCfg, .bytes = bytes, .size = size,
+                          .path = path, .report = report, .err_msg = err_msg);
     }
     else if ((size >= 4u) && ((memor.cmp(&(MemoriaCfg){.src = bytes, .other = "\xcf\xfa\xed\xfe", .bytes = 4u}) == 0) ||
                               (memor.cmp(&(MemoriaCfg){.src = bytes, .other = "\xca\xfe\xba\xbe", .bytes = 4u}) == 0)))
@@ -398,7 +476,7 @@ int cli_binary_read(const char *path, const char (*orior_path)[CLI_PATH_MAX_LEN]
         mmgr_line_put(err_msg, path);
         mmgr_line_put(err_msg, " is no program orior_cli reads");
     }
-    cli_lock_give(&s_lock);
-    cli_file_given(bytes, &g_cli_programs_cells);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_programs_cells);
     return read;
 }

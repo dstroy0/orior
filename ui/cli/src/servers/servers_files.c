@@ -19,48 +19,69 @@ CliLock g_cli_servers_texts_lock = CLI_LOCK_INIT;
 // the files closed, one at a time, each read where it lies on the disk as the editor closes it
 static CliLock s_disk_lock = CLI_LOCK_INIT;
 
-// the text of `path` stored as the editor has it, by its key with its path
-static void files_text_stored(const char *path, const char *text, unsigned long long size)
+typedef struct
 {
+    const char *path;
+    const char *text;
+    unsigned long long size;
+    char *root;
+    CliServersSink *sink;
+} ServersFilesCtx;
+// the text of `path` stored as the editor has it, by its key with its path
+EMBED_INLINE void files_text_store(const ServersFilesCtx *args)
+{
+    const char *path = args->path;
+    const char *text = args->text;
+    unsigned long long size = args->size;
     char key[CLI_PATH_MAX_LEN];
-    cli_servers_key_of(path, key);
-    cli_lock_take(&g_cli_servers_texts_lock);
-    (void)cli_keyed_put(&g_cli_servers_texts, key, path, text, size);
-    cli_lock_give(&g_cli_servers_texts_lock);
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
+    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_texts, .key = key,
+                     .beside_value = path, .text = text, .size_value = size);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
 }
 
 // the tree the checkers check and where what is reported goes, where a file was opened: 1, or 0 where none was
-static int files_checked_sink(char *root, CliServersSink *sink)
+EMBED_INLINE int files_checked_sink(const ServersFilesCtx *args)
 {
-    cli_lock_take(&g_cli_servers.lock);
+    CliServersSink *sink = args->sink;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     const int has = g_cli_servers.has_sink && (g_cli_servers.checked_root[0] != '\0');
     if (has)
     {
-        memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_servers.checked_root, .bytes = CLI_PATH_MAX_LEN});
+        memor.cpy(&(MemoriaCfg){.dst = args->root, .src = g_cli_servers.checked_root, .bytes = CLI_PATH_MAX_LEN});
         *sink = g_cli_servers.sink;
     }
-    cli_lock_give(&g_cli_servers.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return has;
 }
 
-int cli_servers_open(const char *root, const char *path, const char *language, const char *text,
-                     unsigned long long size, const CliServersSink *sink, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_servers_open(const CliServersRootCfg *args)
 {
-    cli_servers_inspect(root, path, text, size, sink);
-    files_text_stored(path, text, size);
-    cli_lock_take(&g_cli_servers.lock);
+    const char *path = args->path;
+    const char *text = args->text;
+    const CliServersSink *sink = args->sink;
+    VerbaLinea *err_msg = args->err_msg;
+    EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = args->root,
+               .path = path, .text = text, .size = args->size, .sink = sink);
+    EMBED_CALL(files_text_store, ServersFilesCtx, .path = path, .text = text, .size = args->size);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     g_cli_servers.sink = *sink;
     g_cli_servers.has_sink = 1;
     VerbaLinea checked = {g_cli_servers.checked_root, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&checked, root);
+    mmgr_line_put(&checked, args->root);
     (void)mmgr_line_finish(&checked);
-    cli_lock_give(&g_cli_servers.lock);
-    cli_servers_run_checkers(root, path, text, size, 1, sink);
-    cli_servers_check_own(root, path, text, size, sink);
-    const int plugged = cli_servers_plugins_opened(path, language, text, size);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
+    EMBED_CALL(cli_servers_path_size_root_sink_internal.run_checkers, CliServersPathSizeRootSinkCtx, .root = args->root,
+               .path = path, .text = text, .size = args->size, .disk = 1, .sink = sink);
+    EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = args->root,
+               .path = path, .text = text, .size = args->size, .sink = sink);
+    const int plugged = EMBED_CALL(cli_servers_path_size_language_internal.plugins_open, CliServersPathSizeLanguageCtx,
+                                   .path = path, .language = args->language, .text = text, .size = args->size);
     static CliServerSpec s_spec;
     const unsigned long long before = err_msg->at;
-    CliLsp *const server = cli_servers_server(root, language, sink, &s_spec, err_msg);
+    CliLsp *const server = EMBED_CALL(cli_servers_language_internal.server, CliServersLanguageCtx, .root = args->root,
+                                      .language = args->language, .sink = sink, .spec = &s_spec, .err_msg = err_msg);
     if (server == NULL)
     {
         // a file a plugin's server took is the editor's to report of its changes and its closing, its language's own
@@ -69,153 +90,185 @@ int cli_servers_open(const char *root, const char *path, const char *language, c
         {
             return 0;
         }
-        mmgr_line_put(out, plugged ? "true" : "false");
+        mmgr_line_put(args->out, plugged ? "true" : "false");
         return 1;
     }
     char id[CLI_NAME_MAX_LEN];
-    cli_servers_id_of(&s_spec, path, language, id);
+    EMBED_CALL(cli_servers_path_language_internal.id_get, CliServersPathLanguageCtx, .spec_read = &s_spec, .path = path,
+               .language = args->language, .id_out = id);
     // a file the check has open is the editor's from here, and its clearing as it closes is received; one the check
     // gives in slices is the editor's to slice for its view, and its diagnostics are passed on as they come
     char uri[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
-    cli_servers_uri_of(path, uri);
-    cli_lsp_key_of(uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), key);
-    cli_lock_take(&g_cli_servers_check_open_lock);
-    const int check_had = cli_servers_check_open(uri);
-    cli_servers_check_open_set(uri, 0);
-    cli_servers_let_go_cleared(key);
-    cli_servers_gathering_ended(key);
+    EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = path, .uri_out = uri);
+    EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .key = key);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
+    const int check_had = EMBED_CALL(cli_servers_uri_internal.check_open, CliServersUriCtx, .uri = uri);
+    EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 0);
+    EMBED_CALL(cli_servers_key_checker_internal.let_go_clear, CliServersKeyCheckerCtx, .key = key);
+    EMBED_CALL(cli_servers_key_checker_internal.gathering_end, CliServersKeyCheckerCtx, .key = key);
     if (check_had)
     {
-        cli_servers_slice_closed(path);
+        EMBED_CALL(cli_servers_path_lsp_internal.slice_close, CliServersPathLspCtx, .path = path);
     }
     int done = 0;
-    if (cli_lsp_has(server, path))
+    if (EMBED_CALL(cli_lsp_path_out.has, CliLspPathOutCfg, .lsp = server, .path = path))
     {
-        done = s_spec.slices ? cli_servers_slice_sent(server, root, path, NULL, text, size, err_msg)
-                             : cli_lsp_changed(server, path, text, size, err_msg);
+        done = s_spec.slices ? EMBED_CALL(cli_servers_path_size_root_internal.slice_send, CliServersPathSizeRootCtx,
+                                          .server = server, .root = args->root, .path = path, .id = NULL, .text = text,
+                                          .size = args->size, .err_msg = err_msg)
+                             : EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = server, .path = path,
+                                          .text = text, .length = args->size, .err_msg = err_msg);
         // a tab opened again on a file the server has open receives the diagnostics it last gave
         if (done)
         {
-            cli_servers_emit_whole(key, uri, sink);
+            EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
+                       .sink = sink);
         }
     }
     else
     {
-        done = s_spec.slices ? cli_servers_slice_sent(server, root, path, id, text, size, err_msg)
-                             : cli_lsp_opened(server, path, id, text, size, err_msg);
+        done = s_spec.slices ? EMBED_CALL(cli_servers_path_size_root_internal.slice_send, CliServersPathSizeRootCtx,
+                                          .server = server, .root = args->root, .path = path, .id = id, .text = text,
+                                          .size = args->size, .err_msg = err_msg)
+                             : EMBED_CALL(cli_lsp_err_msg_text.open, CliLspErrMsgTextCfg, .lsp = server, .path = path,
+                                          .language_id = id, .text = text, .length = args->size, .err_msg = err_msg);
     }
     // a file given its server as a slice is opened again as its language in the server started after one let go
     if (done && s_spec.slices)
     {
-        cli_servers_language_noted(path, language);
+        EMBED_CALL(cli_servers_path_language_internal.language_note, CliServersPathLanguageCtx, .path = path,
+                   .language = args->language);
     }
-    cli_lock_give(&g_cli_servers_check_open_lock);
-    cli_lsp_unref(server);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
+    EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     if (done)
     {
-        mmgr_line_put(out, "true");
+        mmgr_line_put(args->out, "true");
     }
     return done;
 }
 
-int cli_servers_change(const char *path, const char *text, unsigned long long size, VerbaLinea *err_msg)
+int cli_servers_change(const CliServersRootCfg *args)
 {
-    cli_servers_inspect_again(path, text, size);
-    files_text_stored(path, text, size);
+    const char *path = args->path;
+    const char *text = args->text;
+    VerbaLinea *err_msg = args->err_msg;
+    EMBED_CALL(cli_servers_path_size_language_internal.inspect_again, CliServersPathSizeLanguageCtx, .path = path,
+               .text = text, .size = args->size);
+    EMBED_CALL(files_text_store, ServersFilesCtx, .path = path, .text = text, .size = args->size);
     char root[CLI_PATH_MAX_LEN];
     static CliServersSink s_sink;
     static CliLock s_sink_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_sink_lock);
-    if (files_checked_sink(root, &s_sink))
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sink_lock);
+    if (EMBED_CALL(files_checked_sink, ServersFilesCtx, .root = root, .sink = &s_sink))
     {
-        cli_servers_run_checkers(root, path, text, size, 0, &s_sink);
-        cli_servers_check_own(root, path, text, size, &s_sink);
+        EMBED_CALL(cli_servers_path_size_root_sink_internal.run_checkers, CliServersPathSizeRootSinkCtx, .root = root,
+                   .path = path, .text = text, .size = args->size, .disk = 0, .sink = &s_sink);
+        EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = root,
+                   .path = path, .text = text, .size = args->size, .sink = &s_sink);
     }
-    cli_lock_give(&s_sink_lock);
-    cli_servers_plugins_changed(path, text, size);
-    cli_lock_take(&g_cli_servers_check_open_lock);
-    CliLsp *const server = cli_servers_owner_started(path);
-    const int done = (server == NULL) ||
-                     (cli_servers_sliced(path) ? cli_servers_slice_sent(server, NULL, path, NULL, text, size, err_msg)
-                                               : cli_lsp_changed(server, path, text, size, err_msg));
-    cli_lock_give(&g_cli_servers_check_open_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sink_lock);
+    EMBED_CALL(cli_servers_path_size_language_internal.plugins_change, CliServersPathSizeLanguageCtx, .path = path,
+               .text = text, .size = args->size);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
+    CliLsp *const server = EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx, .path = path);
+    const int done =
+        (server == NULL) ||
+        (EMBED_CALL(cli_servers_path_lsp_internal.slice, CliServersPathLspCtx, .path = path)
+             ? EMBED_CALL(cli_servers_path_size_root_internal.slice_send, CliServersPathSizeRootCtx, .server = server,
+                          .root = NULL, .path = path, .id = NULL, .text = text, .size = args->size, .err_msg = err_msg)
+             : EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = server, .path = path, .text = text,
+                          .length = args->size, .err_msg = err_msg));
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     if (server != NULL)
     {
-        cli_lsp_unref(server);
+        EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     }
     return done;
 }
 
-int cli_servers_close(const char *path, VerbaLinea *err_msg)
+int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
 {
+    const char *path = args->path;
+    VerbaLinea *err_msg = args->err_msg;
     char key[CLI_PATH_MAX_LEN];
-    cli_servers_key_of(path, key);
-    cli_lock_take(&g_cli_servers_texts_lock);
-    cli_keyed_remove(&g_cli_servers_texts, key);
-    cli_keyed_remove(&g_cli_servers_parses, key);
-    cli_lock_give(&g_cli_servers_texts_lock);
-    cli_lock_take(&s_disk_lock);
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
+    EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_texts, .key = key);
+    EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_parses, .key = key);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_disk_lock);
     unsigned long long read = 0ull;
-    const unsigned char *const mapped = cli_file_taken(path, &read, &g_cli_servers_cells);
+    const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                                   .size_pointer = &read, .owner = &g_cli_servers_cells);
     const char *const disk = (const char *)mapped;
-    const int whole = (mapped != NULL) && cli_utf8_whole(disk, read);
-    cli_servers_inspect_again(path, whole ? disk : NULL, whole ? read : 0ull);
+    const int whole =
+        (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = disk, .size = read);
+    EMBED_CALL(cli_servers_path_size_language_internal.inspect_again, CliServersPathSizeLanguageCtx, .path = path,
+               .text = whole ? disk : NULL, .size = whole ? read : 0ull);
     char root[CLI_PATH_MAX_LEN];
     static CliServersSink s_sink;
-    if (whole && files_checked_sink(root, &s_sink))
+    if (whole && EMBED_CALL(files_checked_sink, ServersFilesCtx, .root = root, .sink = &s_sink))
     {
-        cli_servers_check_own(root, path, disk, read, &s_sink);
+        EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = root,
+                   .path = path, .text = disk, .size = read, .sink = &s_sink);
     }
-    cli_file_given(mapped, &g_cli_servers_cells);
-    cli_lock_give(&s_disk_lock);
-    cli_servers_plugins_closed(path);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_servers_cells);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_disk_lock);
+    EMBED_CALL(cli_servers_path_lsp_internal.plugins_close, CliServersPathLspCtx, .path = path);
     // a file the editor closes is the check's to give its server, in slices of the disk's text where it slices; a
     // server let go is not started again to close it
-    cli_servers_slice_closed(path);
-    cli_servers_language_forgotten(path);
-    CliLsp *const server = cli_servers_owner_of(path);
+    EMBED_CALL(cli_servers_path_lsp_internal.slice_close, CliServersPathLspCtx, .path = path);
+    EMBED_CALL(cli_servers_path_lsp_internal.language_forgotten, CliServersPathLspCtx, .path = path);
+    CliLsp *const server = EMBED_CALL(cli_servers_path_lsp_internal.owner_get, CliServersPathLspCtx, .path = path);
     if (server == NULL)
     {
         return 1;
     }
-    cli_lock_take(&g_cli_servers_check_open_lock);
-    const int done = cli_servers_check_takes(path, server) || cli_lsp_closed(server, path, err_msg);
-    cli_lock_give(&g_cli_servers_check_open_lock);
-    cli_lsp_unref(server);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
+    const int done =
+        EMBED_CALL(cli_servers_path_lsp_internal.check_takes, CliServersPathLspCtx, .path = path, .lsp = server) ||
+        EMBED_CALL(cli_lsp_err_msg_text.close, CliLspErrMsgTextCfg, .lsp = server, .path = path, .err_msg = err_msg);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
+    EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     return done;
 }
 
-int cli_servers_text_of(const char *path, VerbaLinea *out)
+int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
-    cli_servers_key_of(path, key);
-    cli_lock_take(&g_cli_servers_texts_lock);
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
-    const char *const text = cli_keyed_get(&g_cli_servers_texts, key, &beside, &size);
+    const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_texts,
+                                        .key = key, .beside = &beside, .size = &size);
     if (text != NULL)
     {
-        mmgr_line_put_n(out, text, size);
+        mmgr_line_put_n(args->out, text, size);
     }
-    cli_lock_give(&g_cli_servers_texts_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     return text != NULL;
 }
 
-char *cli_servers_text_taken(const char *path, unsigned long long *size)
+char *cli_servers_text_take(const CliServersPathSizeKindCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
-    cli_servers_key_of(path, key);
-    cli_lock_take(&g_cli_servers_texts_lock);
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     const char *beside = NULL;
-    const char *const text = cli_keyed_get(&g_cli_servers_texts, key, &beside, size);
-    char *const taken = (text != NULL) ? g_cli_cells->persistent_buf_alloc(*size + 1ull, &g_cli_servers_cells) : NULL;
+    const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_texts,
+                                        .key = key, .beside = &beside, .size = args->size_pointer);
+    char *const taken =
+        (text != NULL) ? g_cli_cells->persistent_buf_alloc(*args->size_pointer + 1ull, &g_cli_servers_cells) : NULL;
     if (taken != NULL)
     {
-        // a size the keeper stored fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = taken, .src = text, .bytes = (size_t)*size});
-        taken[*size] = '\0';
+        // a size the store stored fits a size_t
+        memor.cpy(&(MemoriaCfg){.dst = taken, .src = text, .bytes = (size_t)*args->size_pointer});
+        taken[*args->size_pointer] = '\0';
     }
-    cli_lock_give(&g_cli_servers_texts_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     return taken;
 }

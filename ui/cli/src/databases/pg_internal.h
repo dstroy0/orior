@@ -4,7 +4,14 @@
 // the server reported of itself and noted
 #ifndef PG_INTERNAL_H
 #define PG_INTERNAL_H
+typedef struct CliPgFailurePasswordCtx CliPgFailurePasswordCtx;
+typedef struct CliPgFailureCtx CliPgFailureCtx;
+typedef struct CliPgFailureKindCtx CliPgFailureKindCtx;
+typedef struct CliPgCtx CliPgCtx;
+typedef struct CliPgKindCtx CliPgKindCtx;
+typedef struct CliPgBodyCtx CliPgBodyCtx;
 
+#include "embed_dispatch_layout.h"
 #include "pg.h"
 
 // the most connections at once; the bytes read off the socket at a time; the most bytes of one message's body; the
@@ -46,23 +53,129 @@ struct CliPg
 // failure given; a message of `kind` sent, `count` parts of its body, each `sizes` bytes of `parts`: 1, or 0 with the
 // failure given; what a server reported went wrong read from a message's body; a parameter the server reported
 // recorded; and a notice it gave recorded as the reader reads a failure (pg.c)
-int cli_pg_message(CliPg *pg, unsigned char *kind, CliDbFailure *failure);
-int cli_pg_sent(CliPg *pg, unsigned char kind, const void *const *parts, const unsigned long long *sizes,
-                unsigned int count, CliDbFailure *failure);
-void cli_pg_failure_of(const unsigned char *body, unsigned long long size, CliDbFailure *failure);
-void cli_pg_parameter_stored(CliPg *pg, const unsigned char *body, unsigned long long size);
-void cli_pg_notice_stored(CliPg *pg);
+int cli_pg_message(const CliPgKindCtx *args);
+int cli_pg_send(const CliPgFailureKindCtx *args);
+void cli_pg_failure_get(const CliPgCtx *args);
+void cli_pg_parameter_store(const CliPgBodyCtx *args);
+void cli_pg_notice_store(const CliPgFailurePasswordCtx *args);
 
 // the room one sign-in's texts are made in
 #define CLI_PG_SIGN_TEXT 1024u
 
 // the client's final message of SCRAM-SHA-256, and the server's signature it must answer with, base64, each into what
 // sized for CLI_PG_SIGN_TEXT: 1, or 0 with the failure given (pg_sign.c)
-int cli_pg_scram_final(const char *password, const char *first_bare, const char *nonce, const char *server_first,
-                       char *client_final, char *signature, CliDbFailure *failure);
+int cli_pg_scram_final(const CliPgFailureCtx *args);
 
 // the startup and sign-in, as the server requires: 1, or 0 with the failure given (pg_sign.c)
-int cli_pg_signed_in(CliPg *pg, const char *host, unsigned int port, const char *user, const char *password,
-                     const char *database, CliDbFailure *failure);
+int cli_pg_signed_in(const CliPgFailurePasswordCtx *args);
+
+struct CliPgFailurePasswordCtx
+{
+    CliPg *pg;
+    CliDbFailure *failure;
+    const char *password;
+    const char *host;
+    unsigned int port;
+    const char *user;
+    const char *database;
+};
+
+struct CliPgFailureCtx
+{
+    CliDbFailure *failure;
+    const char *password;
+    const char *first_bare;
+    const char *nonce;
+    const char *server_first;
+    char *client_final;
+    char *signature;
+};
+
+struct CliPgFailureKindCtx
+{
+    CliPg *pg;
+    CliDbFailure *failure;
+    unsigned char kind_value;
+    const void *const *parts;
+    const unsigned long long *sizes;
+    unsigned int count;
+};
+
+struct CliPgCtx
+{
+    CliDbFailure *failure;
+    const unsigned char *body;
+    unsigned long long size;
+};
+
+struct CliPgKindCtx
+{
+    CliPg *pg;
+    unsigned char *kind;
+    CliDbFailure *failure;
+};
+
+struct CliPgBodyCtx
+{
+    CliPg *pg;
+    const unsigned char *body;
+    unsigned long long size;
+};
+
+typedef struct
+{
+    int (*message)(const CliPgKindCtx *args);
+} CliPgKindNs;
+EMBED_TABLE_LAYOUT(CliPgKindNs, message);
+EMBED_TABLE_STORAGE CliPgKindNs cli_pg_kind_internal EMBED_UNUSED = {
+    .message = cli_pg_message,
+};
+
+typedef struct
+{
+    int (*send)(const CliPgFailureKindCtx *args);
+} CliPgFailureKindNs;
+EMBED_TABLE_LAYOUT(CliPgFailureKindNs, send);
+EMBED_TABLE_STORAGE CliPgFailureKindNs cli_pg_failure_kind_internal EMBED_UNUSED = {
+    .send = cli_pg_send,
+};
+
+typedef struct
+{
+    void (*failure_get)(const CliPgCtx *args);
+} CliPgNsTable;
+EMBED_TABLE_LAYOUT(CliPgNsTable, failure_get);
+EMBED_TABLE_STORAGE CliPgNsTable cli_pg_internal EMBED_UNUSED = {
+    .failure_get = cli_pg_failure_get,
+};
+
+typedef struct
+{
+    void (*parameter_store)(const CliPgBodyCtx *args);
+} CliPgBodyNs;
+EMBED_TABLE_LAYOUT(CliPgBodyNs, parameter_store);
+EMBED_TABLE_STORAGE CliPgBodyNs cli_pg_body_internal EMBED_UNUSED = {
+    .parameter_store = cli_pg_parameter_store,
+};
+
+typedef struct
+{
+    void (*notice_store)(const CliPgFailurePasswordCtx *args);
+    int (*signed_in)(const CliPgFailurePasswordCtx *args);
+} CliPgFailurePasswordNs;
+EMBED_TABLE_LAYOUT(CliPgFailurePasswordNs, notice_store, signed_in);
+EMBED_TABLE_STORAGE CliPgFailurePasswordNs cli_pg_failure_password_internal EMBED_UNUSED = {
+    .notice_store = cli_pg_notice_store,
+    .signed_in = cli_pg_signed_in,
+};
+
+typedef struct
+{
+    int (*scram_final)(const CliPgFailureCtx *args);
+} CliPgFailureNsTable;
+EMBED_TABLE_LAYOUT(CliPgFailureNsTable, scram_final);
+EMBED_TABLE_STORAGE CliPgFailureNsTable cli_pg_failure_internal EMBED_UNUSED = {
+    .scram_final = cli_pg_scram_final,
+};
 
 #endif

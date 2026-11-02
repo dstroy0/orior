@@ -28,8 +28,19 @@
 // `.js`, `.mjs` or `/index.js` after it where the path names no file (inspect.c, inspect_*.c)
 #ifndef INSPECT_H
 #define INSPECT_H
+typedef struct CliInspectFactsCfg CliInspectFactsCfg;
+typedef struct CliInspectParsedCfg CliInspectParsedCfg;
+typedef struct CliInspectLanguageCfg CliInspectLanguageCfg;
+typedef struct CliInspectRangesCfg CliInspectRangesCfg;
+typedef struct CliInspectFactsLanguageCfg CliInspectFactsLanguageCfg;
+typedef struct CliInspectLanguageTextCfg CliInspectLanguageTextCfg;
+typedef struct CliInspectFactsFindingCfg CliInspectFactsFindingCfg;
+typedef struct CliInspectCountCfg CliInspectCountCfg;
+typedef struct CliInspectPoolCfg CliInspectPoolCfg;
+typedef struct CliInspectCfg CliInspectCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // the classes a parse gives a column, by their index: none, then each the page's own, as its colors name them
 #define CLI_INSPECT_NONE 0u
@@ -228,49 +239,232 @@ extern const char *const g_cli_inspect_docstring_forms[4];
 
 // the language of a path by its extension, where the inspections read it: "python" or "javascript", NULL where none;
 // and a text of a pool
-const char *cli_inspect_language_of(const char *path);
-const char *cli_inspect_text(const char *pool, CliInspectText text);
+const char *cli_inspect_language_get(const CliInspectCfg *args);
+const char *cli_inspect_text(const CliInspectPoolCfg *args);
 
 // facts made empty over the storage handed them; facts that count what a walk would store and store nothing, so the
 // walk sizes the room the next one fills; and the facts of `size` bytes of a file's text in `language`, where the
 // inspections read the language: 1, or 0 where they do not
-void cli_facts_counting(CliFacts *facts);
-void cli_facts_begun(CliFacts *facts, CliInspectImport *imports, unsigned int imports_most, CliInspectClass *classes,
-                     unsigned int classes_most, CliInspectFunction *functions, unsigned int functions_most,
-                     CliInspectFinding *findings, unsigned int findings_most, CliInspectFix *fixes,
-                     unsigned int fixes_most, CliInspectEdit *edits, unsigned int edits_most, CliInspectName *names,
-                     unsigned int names_most, char *text, unsigned int text_most);
-int cli_inspect_facts(const char *language, const char *text, unsigned long long size, CliFacts *facts);
+void cli_facts_counting(const CliInspectFactsLanguageCfg *args);
+void cli_facts_begin(const CliInspectFactsCfg *args);
+int cli_inspect_facts(const CliInspectFactsLanguageCfg *args);
 
 // a finding of `facts` written as a diagnostic of the protocol's form, its message Markdown and its fixes stored in its
 // data: `{"range", "severity", "message": {"kind", "value"}, "source": "orior", "code", "data": {"orior": fixes},
 // "codeDescription"}`
-void cli_inspect_finding_written(const CliFacts *facts, unsigned int finding, VerbaLinea *out);
+void cli_inspect_finding_write(const CliInspectFactsFindingCfg *args);
 
 // a parse made empty over the storage handed it; and the parse of `size` bytes of a file's text in `language`: 1, or 0
 // where the inspections do not read the language
-void cli_parsed_begun(CliParsed *parsed, CliInspectRun *runs, unsigned int runs_most, unsigned int *line_first,
-                      unsigned int *line_runs, unsigned int lines_most, unsigned int *fold_first,
-                      unsigned int *fold_last, unsigned int folds_most, CliInspectSpan *ranges,
-                      unsigned int ranges_most);
-int cli_inspect_parse(const char *language, const char *text, unsigned long long size, CliParsed *parsed);
+void cli_parsed_begin(const CliInspectParsedCfg *args);
+int cli_inspect_parse(const CliInspectLanguageTextCfg *args);
 // the spans of `ranges`, `count` of them, that contain `from` to `to` and are more than it, the least first, each once,
 // into `out`, sized for `most`: their count
-unsigned int cli_inspect_ranges_at(const CliInspectSpan *ranges, unsigned int count, CliInspectPlace from,
-                                   CliInspectPlace to, CliInspectSpan *out, unsigned int most);
+unsigned int cli_inspect_ranges_at(const CliInspectRangesCfg *args);
 // folds by their first line, each the widest that starts there, one line or more below it, sorted: `count` pairs of
 // `first` and `last` taken in place, their count after
-unsigned int cli_inspect_folds_of(unsigned int *first, unsigned int *last, unsigned int count);
+unsigned int cli_inspect_folds_get(const CliInspectCountCfg *args);
 
 // a docstring drawn up for the function at or around `line` of `size` bytes of a file's text in `language`, in
 // `form`: the edit that writes it, its text into `text`, and the place to write its summary: 1, or 0 with why given;
 // and the methods of the class at or around `line` sorted by name, each with the comments and decorators over it, the
 // class's other members and its blank lines staying where they stand: the edit that writes the class's body again, its
 // text into `text`: 1, or 0 with why given
-int cli_inspect_docstring(const char *language, const char *source, unsigned long long size, unsigned int line,
-                          const char *form, CliInspectEdit *edit, VerbaLinea *text, CliInspectPlace *summary,
-                          VerbaLinea *err_msg);
-int cli_inspect_sort_methods(const char *language, const char *source, unsigned long long size, unsigned int line,
-                             CliInspectEdit *edit, VerbaLinea *text, VerbaLinea *err_msg);
+int cli_inspect_docstring(const CliInspectLanguageCfg *args);
+int cli_inspect_sort_methods(const CliInspectLanguageCfg *args);
+
+struct CliInspectFactsCfg
+{
+    CliFacts *facts;
+    CliInspectImport *imports;
+    unsigned int imports_most;
+    CliInspectClass *classes;
+    unsigned int classes_most;
+    CliInspectFunction *functions;
+    unsigned int functions_most;
+    CliInspectFinding *findings;
+    unsigned int findings_most;
+    CliInspectFix *fixes;
+    unsigned int fixes_most;
+    CliInspectEdit *edits;
+    unsigned int edits_most;
+    CliInspectName *names;
+    unsigned int names_most;
+    char *text_out;
+    unsigned int text_most;
+};
+
+struct CliInspectParsedCfg
+{
+    CliParsed *parsed;
+    CliInspectRun *runs;
+    unsigned int runs_most;
+    unsigned int *line_first;
+    unsigned int *line_runs;
+    unsigned int lines_most;
+    unsigned int *fold_first;
+    unsigned int *fold_last;
+    unsigned int folds_most;
+    CliInspectSpan *ranges;
+    unsigned int ranges_most;
+};
+
+struct CliInspectLanguageCfg
+{
+    const char *language;
+    unsigned long long size;
+    const char *source;
+    unsigned int line;
+    const char *form;
+    CliInspectEdit *edit;
+    VerbaLinea *text_verba_linea_pointer;
+    CliInspectPlace *summary;
+    VerbaLinea *err_msg;
+};
+
+struct CliInspectRangesCfg
+{
+    const CliInspectSpan *ranges_read;
+    unsigned int count;
+    CliInspectPlace from;
+    CliInspectPlace to;
+    CliInspectSpan *out_inspect_span_pointer;
+    unsigned int most;
+};
+
+struct CliInspectFactsLanguageCfg
+{
+    CliFacts *facts;
+    const char *language;
+    const char *text;
+    unsigned long long size;
+};
+
+struct CliInspectLanguageTextCfg
+{
+    const char *language;
+    const char *text;
+    unsigned long long size;
+    CliParsed *parsed;
+};
+
+struct CliInspectFactsFindingCfg
+{
+    const CliFacts *facts_read;
+    unsigned int finding;
+    VerbaLinea *out;
+};
+
+struct CliInspectCountCfg
+{
+    unsigned int count;
+    unsigned int *first;
+    unsigned int *last;
+};
+
+struct CliInspectPoolCfg
+{
+    const char *pool;
+    CliInspectText text_inspect_text;
+};
+
+struct CliInspectCfg
+{
+    const char *path;
+};
+
+typedef struct
+{
+    const char *(*language_get)(const CliInspectCfg *args);
+} CliInspectNs;
+EMBED_TABLE_LAYOUT(CliInspectNs, language_get);
+EMBED_TABLE_STORAGE CliInspectNs cli_inspect_table EMBED_UNUSED = {
+    .language_get = cli_inspect_language_get,
+};
+
+typedef struct
+{
+    const char *(*text)(const CliInspectPoolCfg *args);
+} CliInspectPoolNs;
+EMBED_TABLE_LAYOUT(CliInspectPoolNs, text);
+EMBED_TABLE_STORAGE CliInspectPoolNs cli_inspect_pool EMBED_UNUSED = {
+    .text = cli_inspect_text,
+};
+
+typedef struct
+{
+    void (*facts_counting)(const CliInspectFactsLanguageCfg *args);
+    int (*facts)(const CliInspectFactsLanguageCfg *args);
+} CliInspectFactsLanguageNs;
+EMBED_TABLE_LAYOUT(CliInspectFactsLanguageNs, facts_counting, facts);
+EMBED_TABLE_STORAGE CliInspectFactsLanguageNs cli_inspect_facts_language EMBED_UNUSED = {
+    .facts_counting = cli_facts_counting,
+    .facts = cli_inspect_facts,
+};
+
+typedef struct
+{
+    void (*facts_begin)(const CliInspectFactsCfg *args);
+} CliInspectFactsNs;
+EMBED_TABLE_LAYOUT(CliInspectFactsNs, facts_begin);
+EMBED_TABLE_STORAGE CliInspectFactsNs cli_inspect_facts_table EMBED_UNUSED = {
+    .facts_begin = cli_facts_begin,
+};
+
+typedef struct
+{
+    void (*finding_write)(const CliInspectFactsFindingCfg *args);
+} CliInspectFactsFindingNs;
+EMBED_TABLE_LAYOUT(CliInspectFactsFindingNs, finding_write);
+EMBED_TABLE_STORAGE CliInspectFactsFindingNs cli_inspect_facts_finding EMBED_UNUSED = {
+    .finding_write = cli_inspect_finding_write,
+};
+
+typedef struct
+{
+    void (*parsed_begin)(const CliInspectParsedCfg *args);
+} CliInspectParsedNs;
+EMBED_TABLE_LAYOUT(CliInspectParsedNs, parsed_begin);
+EMBED_TABLE_STORAGE CliInspectParsedNs cli_inspect_parsed EMBED_UNUSED = {
+    .parsed_begin = cli_parsed_begin,
+};
+
+typedef struct
+{
+    int (*parse)(const CliInspectLanguageTextCfg *args);
+} CliInspectLanguageTextNs;
+EMBED_TABLE_LAYOUT(CliInspectLanguageTextNs, parse);
+EMBED_TABLE_STORAGE CliInspectLanguageTextNs cli_inspect_language_text EMBED_UNUSED = {
+    .parse = cli_inspect_parse,
+};
+
+typedef struct
+{
+    unsigned int (*ranges_at)(const CliInspectRangesCfg *args);
+} CliInspectRangesNs;
+EMBED_TABLE_LAYOUT(CliInspectRangesNs, ranges_at);
+EMBED_TABLE_STORAGE CliInspectRangesNs cli_inspect_ranges EMBED_UNUSED = {
+    .ranges_at = cli_inspect_ranges_at,
+};
+
+typedef struct
+{
+    unsigned int (*folds_get)(const CliInspectCountCfg *args);
+} CliInspectCountNs;
+EMBED_TABLE_LAYOUT(CliInspectCountNs, folds_get);
+EMBED_TABLE_STORAGE CliInspectCountNs cli_inspect_count EMBED_UNUSED = {
+    .folds_get = cli_inspect_folds_get,
+};
+
+typedef struct
+{
+    int (*docstring)(const CliInspectLanguageCfg *args);
+    int (*sort_methods)(const CliInspectLanguageCfg *args);
+} CliInspectLanguageNs;
+EMBED_TABLE_LAYOUT(CliInspectLanguageNs, docstring, sort_methods);
+EMBED_TABLE_STORAGE CliInspectLanguageNs cli_inspect_language EMBED_UNUSED = {
+    .docstring = cli_inspect_docstring,
+    .sort_methods = cli_inspect_sort_methods,
+};
 
 #endif

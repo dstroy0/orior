@@ -6,9 +6,12 @@
 // status bar across the foot its own (statusbar.h)
 #ifndef GUI_PARTS_CHROME_H
 #define GUI_PARTS_CHROME_H
+typedef struct GuiChromeRasterCfg GuiChromeRasterCfg;
+typedef struct GuiChromeCfg GuiChromeCfg;
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
+#include "embed_dispatch_layout.h"
 
 // the controls, left to right, and none
 #define GUI_CONTROL_MINIMIZE 0u
@@ -21,14 +24,53 @@
 
 // the bar drawn on its pane, which the frame's base lays: `title`, the tree's name, in the interface face at its
 // right before the controls, and the controls, their own pane and its shadow on the `table`
-void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const GuiFrame *frame,
-                   const char *title, GuiUnder table, GuiMask *shadow);
-// the controls' own pane while it comes down from the bar's place: its shadow, kept in `shadow` once it is wanted and
+void gui_bar_draw(const GuiChromeRasterCfg *args);
+// the controls' own pane while it comes down from the bar's place: its shadow, saved in `shadow` once it is wanted and
 // made again for a pane of another size, laid at the pane's share of the glass; a pane on the `table` thickening from
 // the sheet's tint to a pane's by the frame's share of it, whole; and the three controls drawn in the frame's controls
 // rectangle, minimize, maximize and close; the shadow's cell given back; and the control the pointer at x, y stands
 // on, GUI_CONTROL_NONE off them all
-void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame, GuiUnder table, GuiMask *shadow);
-void gui_controls_shadow_given(GuiMask *shadow);
-unsigned int gui_controls_hit(const GuiFrame *frame, int x, int y);
+void gui_controls_draw(const GuiChromeRasterCfg *args);
+void gui_controls_shadow_free(const GuiChromeRasterCfg *args);
+unsigned int gui_controls_hit(const GuiChromeCfg *args);
+struct GuiChromeRasterCfg
+{
+    GuiRaster *raster;
+    GuiGlyphs *glyphs;
+    const GuiPalette *palette;
+    const GuiFrame *frame;
+    const char *title;
+    GuiUnder table;
+    GuiMask *shadow;
+};
+
+struct GuiChromeCfg
+{
+    const GuiFrame *frame;
+    int x;
+    int y;
+};
+
+typedef struct
+{
+    void (*bar_draw)(const GuiChromeRasterCfg *args);
+    void (*controls_draw)(const GuiChromeRasterCfg *args);
+    void (*controls_shadow_free)(const GuiChromeRasterCfg *args);
+} GuiChromeRasterNs;
+EMBED_TABLE_LAYOUT(GuiChromeRasterNs, bar_draw, controls_draw, controls_shadow_free);
+EMBED_TABLE_STORAGE GuiChromeRasterNs gui_chrome_raster EMBED_UNUSED = {
+    .bar_draw = gui_bar_draw,
+    .controls_draw = gui_controls_draw,
+    .controls_shadow_free = gui_controls_shadow_free,
+};
+
+typedef struct
+{
+    unsigned int (*controls_hit)(const GuiChromeCfg *args);
+} GuiChromeNs;
+EMBED_TABLE_LAYOUT(GuiChromeNs, controls_hit);
+EMBED_TABLE_STORAGE GuiChromeNs gui_chrome EMBED_UNUSED = {
+    .controls_hit = gui_controls_hit,
+};
+
 #endif

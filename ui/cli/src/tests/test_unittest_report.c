@@ -5,15 +5,27 @@
 #include "../text/text.h"
 #include "test_runs_internal.h"
 
+typedef struct
+{
+    CliTestWorker *worker;
+    const char *block;
+    unsigned long long size;
+} TestUnittestReportCtx;
+
 // one failure of unittest's report reported: its name as pytest gives it, the last line of its traceback, and the line
 // of its file the traceback last names, the rule under its head and the rule after it bounding the traceback
-static void report_failure_emitted(CliTestWorker *worker, const char *block, unsigned long long size)
+EMBED_INLINE void report_failure_emit(const TestUnittestReportCtx *args)
 {
+    CliTestWorker *worker = args->worker;
+    unsigned long long size = args->size;
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
     unsigned long long end = 0ull;
-    (void)cli_report_line(block, size, &at, &start, &end);
-    const unsigned long long open = cli_report_find(block, end, " (");
+    (void)EMBED_CALL(cli_test_runs_text_size_internal.report_line, CliTestRunsTextSizeCtx, .text = args->block,
+                     .size = size, .at = &at, .start = &start, .end = &end);
+    const unsigned long long open =
+        EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
+                   .text = args->block, .length = end, .needle = " (");
     if (open >= end)
     {
         return;
@@ -21,10 +33,14 @@ static void report_failure_emitted(CliTestWorker *worker, const char *block, uns
     unsigned long long dotted_end = end;
     if (dotted_end > (open + 2ull))
     {
-        dotted_end = (open + 2ull) + cli_text_back_past(block + open + 2ull, dotted_end - (open + 2ull), ")");
+        dotted_end =
+            (open + 2ull) + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+                                       .text = args->block + open + 2ull, .at = dotted_end - (open + 2ull), .set = ")");
     }
     char id[CLI_PATH_MAX_LEN * 2u];
-    if (!cli_test_unittest_id(block + open + 2ull, dotted_end - open - 2ull, id, sizeof(id)))
+    if (!EMBED_CALL(cli_test_runs_length_internal.test_unittest_id, CliTestRunsLengthCtx,
+                    .dotted = args->block + open + 2ull, .length = dotted_end - open - 2ull, .id_out = id,
+                    .room = sizeof(id)))
     {
         return;
     }
@@ -37,18 +53,22 @@ static void report_failure_emitted(CliTestWorker *worker, const char *block, uns
         '\0';
     unsigned long long body = size;
     unsigned long long body_end = size;
-    while (cli_report_line(block, size, &at, &start, &end))
+    while (EMBED_CALL(cli_test_runs_text_size_internal.report_line, CliTestRunsTextSizeCtx, .text = args->block,
+                      .size = size, .at = &at, .start = &start, .end = &end))
     {
-        if ((end - start >= 3ull) && (memor.cmp(&(MemoriaCfg){.src = block + start, .other = "---", .bytes = 3u}) == 0))
+        if ((end - start >= 3ull) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->block + start, .other = "---", .bytes = 3u}) == 0))
         {
             body = at;
             break;
         }
     }
     at = body;
-    while (cli_report_line(block, size, &at, &start, &end))
+    while (EMBED_CALL(cli_test_runs_text_size_internal.report_line, CliTestRunsTextSizeCtx, .text = args->block,
+                      .size = size, .at = &at, .start = &start, .end = &end))
     {
-        if ((end - start >= 3ull) && (memor.cmp(&(MemoriaCfg){.src = block + start, .other = "---", .bytes = 3u}) == 0))
+        if ((end - start >= 3ull) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->block + start, .other = "---", .bytes = 3u}) == 0))
         {
             body_end = start;
             break;
@@ -57,54 +77,70 @@ static void report_failure_emitted(CliTestWorker *worker, const char *block, uns
     body = (body < body_end) ? body : body_end;
     long long line = -1ll;
     at = body;
-    while (cli_report_line(block, body_end, &at, &start, &end))
+    while (EMBED_CALL(cli_test_runs_text_size_internal.report_line, CliTestRunsTextSizeCtx, .text = args->block,
+                      .size = body_end, .at = &at, .start = &start, .end = &end))
     {
-        while ((start < end) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = block[start]}) != NULL))
+        while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
+                                     .src = " \t", .cap = CLI_CELLS_POOL, .byte = args->block[start]}) != NULL))
         {
             start += 1ull;
         }
         if ((end - start < 6ull) ||
-            (memor.cmp(&(MemoriaCfg){.src = block + start, .other = "File \"", .bytes = 6u}) != 0))
+            (memor.cmp(&(MemoriaCfg){.src = args->block + start, .other = "File \"", .bytes = 6u}) != 0))
         {
             continue;
         }
-        const unsigned long long quote = start + 6ull + cli_report_find(block + start + 6ull, end - start - 6ull, "\"");
+        const unsigned long long quote =
+            start + 6ull +
+            EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
+                       .text = args->block + start + 6ull, .length = end - start - 6ull, .needle = "\"");
         if (quote >= end)
         {
             continue;
         }
         unsigned long long number = quote + 1ull;
         while ((number + 7ull <= end) &&
-               (memor.cmp(&(MemoriaCfg){.src = block + number, .other = ", line ", .bytes = 7u}) == 0))
+               (memor.cmp(&(MemoriaCfg){.src = args->block + number, .other = ", line ", .bytes = 7u}) == 0))
         {
             number += 7ull;
         }
-        const unsigned long long number_end = number + cli_report_find(block + number, end - number, ",");
+        const unsigned long long number_end =
+            number + EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
+                                .text = args->block + number, .length = end - number, .needle = ",");
         long long value = 0ll;
-        if (cli_report_ends_with(block + start + 6ull, quote - start - 6ull, wanted) &&
-            cli_report_count(block + number, number_end - number, &value))
+        if (EMBED_CALL(cli_test_runs_length_path_internal.report_ends_with, CliTestRunsLengthPathCtx,
+                       .path = args->block + start + 6ull, .length = quote - start - 6ull, .wanted = wanted) &&
+            EMBED_CALL(cli_test_runs_text_length_internal.report_count, CliTestRunsTextLengthCtx,
+                       .text = args->block + number, .length = number_end - number, .value = &value))
         {
             line = (value > 0ll) ? value - 1ll : 0ll;
         }
     }
     unsigned long long last = 0ull;
     unsigned long long last_size = 0ull;
-    const int found = cli_report_last_line(block + body, body_end - body, 1, &last, &last_size);
-    cli_test_result_emitted(worker, id, "failed", found ? block + body + last : "", found ? last_size : 0ull, wanted,
-                            line, 0.0);
+    const int found =
+        EMBED_CALL(cli_test_runs_text_internal.report_last_line, CliTestRunsTextCtx, .text = args->block + body,
+                   .size = body_end - body, .skip_rules = 1, .last = &last, .last_size = &last_size);
+    EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker, .id = id,
+               .outcome = "failed", .message = found ? args->block + body + last : "",
+               .message_size = found ? last_size : 0ull, .file = wanted, .line_i64 = line, .seconds = 0.0);
 }
 
-void cli_test_unittest_failures_emitted(CliTestWorker *worker, const char *text, unsigned long long size)
+void cli_test_unittest_failures_emit(const CliTestRunsTextWorkerCtx *args)
 {
     static const char s_rule[] = "\n======================================================================\n";
     const unsigned long long rule = sizeof(s_rule) - 1ull;
-    unsigned long long at = cli_report_find(text, size, s_rule);
-    while (at < size)
+    unsigned long long at =
+        EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
+                   .text = args->text, .length = args->size, .needle = s_rule);
+    while (at < args->size)
     {
         const unsigned long long from = at + rule;
-        const unsigned long long next = from + cli_report_find(text + from, size - from, s_rule);
-        report_failure_emitted(worker, text + from, ((next < size) ? next : size) - from);
+        const unsigned long long next =
+            from + EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
+                              .text = args->text + from, .length = args->size - from, .needle = s_rule);
+        EMBED_CALL(report_failure_emit, TestUnittestReportCtx, .worker = args->worker, .block = args->text + from,
+                   .size = ((next < args->size) ? next : args->size) - from);
         at = next;
     }
 }

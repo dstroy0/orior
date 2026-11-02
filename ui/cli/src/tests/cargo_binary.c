@@ -16,15 +16,37 @@ static CliCargoTests s_binary_tests;
 static char s_path[CLI_PATH_TEXT];
 static CliLock s_binary_lock = CLI_LOCK_INIT;
 
-// whether Cargo's word of an artifact, its target's kinds and name, is of the target
-static int binary_is(const CliCargoTarget *target, const CliJson *json, unsigned int kinds, const char *name)
+typedef struct
 {
+    const CliCargoTarget *target;
+    const CliJson *json;
+    unsigned int kinds;
+    const char *name;
+    const CliCargoFound *one;
+    const char *line;
+    unsigned long long size;
+    char *program;
+    const char *out;
+    const char *root;
+    const char *package;
+    VerbaLinea *err_msg;
+} CargoBinaryCtx;
+// whether Cargo's word of an artifact, its target's kinds and name, is of the target
+EMBED_INLINE int binary_is(const CargoBinaryCtx *args)
+{
+    const CliJson *json = args->json;
     int is_lib = 0;
     int is_bin = 0;
     int is_test = 0;
-    for (unsigned int index = 0u; cli_json_item(json, kinds, index) != CLI_JSON_NONE; index += 1u)
+    for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = json, .array = args->kinds, .index = index) != CLI_JSON_NONE;
+         index += 1u)
     {
-        const char *const kind = cli_json_string(json, cli_json_item(json, kinds, index), NULL);
+        const char *const kind =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = args->kinds, .index = index),
+                       .length_pointer = NULL);
         if (kind == NULL)
         {
             continue;
@@ -37,56 +59,86 @@ static int binary_is(const CliCargoTarget *target, const CliJson *json, unsigned
         is_bin = is_bin || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "bin", .cap = CLI_CELLS_POOL}));
         is_test = is_test || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "test", .cap = CLI_CELLS_POOL}));
     }
-    return (target->kind == CLI_CARGO_LIB) ? is_lib
-           : (target->kind == CLI_CARGO_BIN)
-               ? (is_bin && (cellul.eq(&(CatenaFinitaCfg){.src = target->name, .other = name, .cap = CLI_CELLS_POOL})))
-               : (is_test &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = target->name, .other = name, .cap = CLI_CELLS_POOL})));
+    return (args->target->kind == CLI_CARGO_LIB) ? is_lib
+           : (args->target->kind == CLI_CARGO_BIN)
+               ? (is_bin && (cellul.eq(&(CatenaFinitaCfg){
+                                .src = args->target->name, .other = args->name, .cap = CLI_CELLS_POOL})))
+               : (is_test && (cellul.eq(&(CatenaFinitaCfg){
+                                 .src = args->target->name, .other = args->name, .cap = CLI_CELLS_POOL})));
 }
 
 // the program one line of Cargo's words, `size` bytes of `line`, names for the test into `program`, the line read
 // into a tree sized to it and given back: 1, or 0 where it names none
-static int binary_line(const CliCargoFound *one, const char *line, unsigned long long size, char *program)
+EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
 {
+    unsigned long long size = args->size;
     CliJson json;
-    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
+               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int message = (size <= CLI_CARGO_LINE_TEXT)
-                                     ? cli_json_taken(&json, line, size, 0u, 0ull, &unread, &g_cli_tests_cells)
-                                     : CLI_JSON_NONE;
-    const char *const reason = cli_json_string(&json, cli_json_member(&json, message, "reason"), NULL);
-    const unsigned int test = cli_json_member(&json, cli_json_member(&json, message, "profile"), "test");
-    const unsigned int target = cli_json_member(&json, message, "target");
-    const char *const name = cli_json_string(&json, cli_json_member(&json, target, "name"), NULL);
-    const char *const executable = cli_json_string(&json, cli_json_member(&json, message, "executable"), NULL);
+    const unsigned int message =
+        (size <= CLI_CARGO_LINE_TEXT)
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                         .text = args->line, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &unread,
+                         .owner = &g_cli_tests_cells)
+            : CLI_JSON_NONE;
+    const char *const reason =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = message, .name = "reason"),
+                   .length_pointer = NULL);
+    const unsigned int test = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                         .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                              .json_read = &json, .object = message, .name = "profile"),
+                                         .name = "test");
+    const unsigned int target = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                           .object = message, .name = "target");
+    const char *const name =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = target, .name = "name"),
+                   .length_pointer = NULL);
+    const char *const executable =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                      .object = message, .name = "executable"),
+                   .length_pointer = NULL);
     const int named =
         (reason != NULL) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "compiler-artifact", .cap = CLI_CELLS_POOL})) &&
-        cli_json_is(&json, test, CFG_JSON_TRUE) && (executable != NULL) &&
-        binary_is(&one->target, &json, cli_json_member(&json, target, "kind"), (name != NULL) ? name : "");
+        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = test,
+                   .kind = CFG_JSON_TRUE) &&
+        (executable != NULL) &&
+        EMBED_CALL(binary_is, CargoBinaryCtx, .target = &args->one->target, .json = &json,
+                   .kinds = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                       .object = target, .name = "kind"),
+                   .name = (name != NULL) ? name : "");
     if (named)
     {
         memor.cpy(
-            &(MemoriaCfg){.dst = program,
+            &(MemoriaCfg){.dst = args->program,
                           .src = executable,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = executable, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     return named;
 }
 
 // the program Cargo's words name for the test, read line by line from what it wrote: 1, or 0 where none does
-static int binary_read(const CliCargoFound *one, const char *out, unsigned long long size, char *program)
+EMBED_INLINE int binary_read(const CargoBinaryCtx *args)
 {
+    unsigned long long size = args->size;
     unsigned long long at = 0ull;
     while (at < size)
     {
-        const CliTextLine bounds = cli_text_line_at(out, at, size);
+        const CliTextLine bounds =
+            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = args->out, .at = at, .size = size);
         const unsigned long long end = bounds.stop;
         const unsigned long long start = at;
         at = bounds.next;
-        if (binary_line(one, out + start, end - start, program))
+        if (EMBED_CALL(binary_line, CargoBinaryCtx, .one = args->one, .line = args->out + start, .size = end - start,
+                       .program = args->program))
         {
             return 1;
         }
@@ -95,46 +147,52 @@ static int binary_read(const CliCargoFound *one, const char *out, unsigned long 
 }
 
 // the program for the test found `one` built, read and written into `program`: 1, or 0 with why given
-static int binary_built(const char *root, const CliCargoFound *one, const char *package, char *program,
-                        VerbaLinea *err_msg)
+EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
 {
+    const char *root = args->root;
+    VerbaLinea *err_msg = args->err_msg;
     char cargo[CLI_PATH_MAX_LEN];
     char manifest[CLI_PATH_MAX_LEN];
-    if (!cli_executables_program("rust", "cargo", cargo, err_msg))
+    if (!EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "rust", .name = "cargo", .path = cargo,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    cli_full(root, one->manifest, manifest);
-    const char *words[12] = {cargo, "test", "--no-run", "--message-format=json", "--package", one->package};
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = args->one->manifest, .joined = manifest);
+    const char *words[12] = {cargo, "test", "--no-run", "--message-format=json", "--package", args->one->package};
     unsigned int count = 6u;
-    words[count] = (one->target.kind == CLI_CARGO_LIB)   ? "--lib"
-                   : (one->target.kind == CLI_CARGO_BIN) ? "--bin"
-                                                         : "--test";
+    words[count] = (args->one->target.kind == CLI_CARGO_LIB)   ? "--lib"
+                   : (args->one->target.kind == CLI_CARGO_BIN) ? "--bin"
+                                                               : "--test";
     count += 1u;
-    if (one->target.kind != CLI_CARGO_LIB)
+    if (args->one->target.kind != CLI_CARGO_LIB)
     {
-        words[count] = one->target.name;
+        words[count] = args->one->target.name;
         count += 1u;
     }
     words[count] = "--manifest-path";
     words[count + 1u] = manifest;
     words[count + 2u] = NULL;
-    cli_toolchains_run_path(s_path, sizeof(s_path));
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
     const CliSetting settings[1] = {{"PATH", s_path}};
-    CliRan *const ran = cli_ran_taken();
-    if (!cli_ran(words, package, settings, 1u, ran, err_msg))
+    CliRan *const ran = cli_ran_take();
+    if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->package, .settings = settings,
+                    .count = 1u, .ran = ran, .err_msg = err_msg))
     {
-        cli_ran_given(ran);
+        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return 0;
     }
-    const int built = binary_read(one, ran->out, ran->out_size, program);
+    const int built = EMBED_CALL(binary_read, CargoBinaryCtx, .one = args->one, .out = ran->out, .size = ran->out_size,
+                                 .program = args->program);
     if (!built)
     {
         char error[4096];
         char path[CLI_PATH_MAX_LEN];
         long long line = 0ll;
         unsigned long long length = 0ull;
-        if (cli_cargo_build_error(ran->err, ran->err_size, error, sizeof(error), &length, path, &line))
+        if (EMBED_CALL(cli_cargo_report_size.cargo_build_error, CliCargoReportSizeCfg, .output = ran->err,
+                       .size = ran->err_size, .error = error, .room = sizeof(error), .length = &length, .path = path,
+                       .line = &line))
         {
             mmgr_line_put(err_msg, "The test's build failed: ");
             mmgr_line_put_n(err_msg, error, length);
@@ -142,30 +200,30 @@ static int binary_built(const char *root, const CliCargoFound *one, const char *
         else
         {
             mmgr_line_put(err_msg, "cargo test built no program for ");
-            mmgr_line_put(err_msg, one->test.id);
+            mmgr_line_put(err_msg, args->one->test.id);
         }
     }
-    cli_ran_given(ran);
+    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
     return built;
 }
 
-int cli_cargo_binary(const char *root, const char *id, char *program, char *full, char *package, VerbaLinea *err_msg)
+int cli_cargo_binary(const CliCargoTestsIdCfg *args)
 {
-    cli_lock_take(&s_binary_lock);
-    cli_cargo_found(root, &s_binary_tests);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_binary_lock);
+    EMBED_CALL(cli_cargo_tests_table.cargo_find, CliCargoTestsCfg, .root = args->root, .tests = &s_binary_tests);
     const CliCargoFound *one = NULL;
     for (unsigned int at = 0u; (one == NULL) && (at < s_binary_tests.count); at += 1u)
     {
-        one =
-            (cellul.eq(&(CatenaFinitaCfg){.src = s_binary_tests.found[at].test.id, .other = id, .cap = CLI_CELLS_POOL}))
-                ? &s_binary_tests.found[at]
-                : NULL;
+        one = (cellul.eq(&(CatenaFinitaCfg){
+                  .src = s_binary_tests.found[at].test.id, .other = args->id, .cap = CLI_CELLS_POOL}))
+                  ? &s_binary_tests.found[at]
+                  : NULL;
     }
     int built = 0;
     if (one == NULL)
     {
-        mmgr_line_put(err_msg, id);
-        mmgr_line_put(err_msg, " is no Rust test of this tree");
+        mmgr_line_put(args->err_msg, args->id);
+        mmgr_line_put(args->err_msg, " is no Rust test of this tree");
     }
     else
     {
@@ -174,17 +232,18 @@ int cli_cargo_binary(const char *root, const char *id, char *program, char *full
         mmgr_line_put_n(&folder_line, one->manifest,
                         cellul.len(&(CatenaFinitaCfg){.src = one->manifest, .cap = CLI_CELLS_POOL}) - 10u);
         mmgr_line_finish(&folder_line);
-        cli_full(root, folder, package);
-        built = binary_built(root, one, package, program, err_msg);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = folder, .joined = args->package);
+        built = EMBED_CALL(binary_build, CargoBinaryCtx, .root = args->root, .one = one, .package = args->package,
+                           .program = args->program, .err_msg = args->err_msg);
         if (built)
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = full,
+                &(MemoriaCfg){.dst = args->full,
                               .src = one->full,
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_CELLS_POOL}) + 1u});
         }
     }
-    cli_cargo_tests_given(&s_binary_tests);
-    cli_lock_give(&s_binary_lock);
+    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_binary_tests);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_binary_lock);
     return built;
 }

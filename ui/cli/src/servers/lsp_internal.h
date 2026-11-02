@@ -4,9 +4,12 @@
 // the requests waiting on answers, what it reported it can do and what it wrote to its errors
 #ifndef LSP_INTERNAL_H
 #define LSP_INTERNAL_H
+typedef struct CliLspCtx CliLspCtx;
+typedef struct CliLspKindCtx CliLspKindCtx;
 
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
+#include "embed_dispatch_layout.h"
 #include "lsp.h"
 
 // A request waiting on its answer: its id, where its answer is handed over, whether it came, and the error it came
@@ -58,12 +61,42 @@ extern CliLock g_cli_lsps_lock;
 // the server's readers started: what it writes read on a thread of its own, each answer handed to the request waiting
 // on it and what it sends unprompted to its receiver; and what it writes to its errors retained, its last
 // CLI_LSP_COMPLAINT bytes (lsp.c)
-void cli_lsp_readers_started(CliLsp *lsp);
+void cli_lsp_readers_start(const CliLspCtx *args);
 // the server's process ended where it runs, and waited on (lsp.c)
-void cli_lsp_ended(CliLsp *lsp);
+void cli_lsp_end(const CliLspCtx *args);
 // each file a server has open let go, as it is let go; and the cells the files open are allocated in, counted: the
 // table of them, each one's URI while it is open, and the copies one walk over a server's files takes (lsp_files.c)
-void cli_lsp_files_let_go(const CliLsp *lsp);
+void cli_lsp_files_let_go(const CliLspKindCtx *args);
 extern CellOwner g_cli_lsp_files_cells;
+
+struct CliLspCtx
+{
+    CliLsp *lsp;
+};
+
+struct CliLspKindCtx
+{
+    const CliLsp *lsp_read;
+};
+
+typedef struct
+{
+    void (*readers_start)(const CliLspCtx *args);
+    void (*end)(const CliLspCtx *args);
+} CliLspNsTable;
+EMBED_TABLE_LAYOUT(CliLspNsTable, readers_start, end);
+EMBED_TABLE_STORAGE CliLspNsTable cli_lsp_internal EMBED_UNUSED = {
+    .readers_start = cli_lsp_readers_start,
+    .end = cli_lsp_end,
+};
+
+typedef struct
+{
+    void (*files_let_go)(const CliLspKindCtx *args);
+} CliLspKindNs;
+EMBED_TABLE_LAYOUT(CliLspKindNs, files_let_go);
+EMBED_TABLE_STORAGE CliLspKindNs cli_lsp_kind_internal EMBED_UNUSED = {
+    .files_let_go = cli_lsp_files_let_go,
+};
 
 #endif

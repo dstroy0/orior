@@ -3,7 +3,13 @@
 // runner_internal.h: a run as runner_run.c stores it and runner_lines.c carries its lines
 #ifndef RUNNER_INTERNAL_H
 #define RUNNER_INTERNAL_H
+typedef struct CliRunnerRunCtx CliRunnerRunCtx;
+typedef struct CliRunnerRootCtx CliRunnerRootCtx;
+typedef struct CliRunnerRunStreamCtx CliRunnerRunStreamCtx;
+typedef struct CliRunnerRunSpawnedCtx CliRunnerRunSpawnedCtx;
+typedef struct CliRunnerCtx CliRunnerCtx;
 
+#include "embed_dispatch_layout.h"
 #include "runner.h"
 
 // the most runs open at once, and the most steps a run's job takes
@@ -38,23 +44,22 @@ typedef struct
 
 // the run's job copied from `catalog` into a cell sized to it, and a cell taken for its lines: 1, or 0 with why given
 // and neither taken; and both given back (runner_start.c)
-int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job, VerbaLinea *err_msg);
-void cli_run_cells_given(CliRun *run);
+int cli_run_cells_take(const CliRunnerRunCtx *args);
+void cli_run_cells_free(const CliRunnerRunSpawnedCtx *args);
 
 // the lock every run's state is read and changed under
 void cli_runs_take(void);
 void cli_runs_give(void);
 // the milliseconds since a run began, to the microsecond (runner_run.c)
-double cli_run_since(const CliRun *run);
+double cli_run_since(const CliRunnerCtx *args);
 // a line printed on a run's stream, stored among its lines where it is output (runner_lines.c)
-void cli_run_line(CliRun *run, const char *stream, const char *text);
+void cli_run_line(const CliRunnerRunStreamCtx *args);
 // each line of a started process's output and errors carried to the run as it comes, the errors on a thread of their
 // own, until both end
-void cli_run_carry(CliRun *run, const CliSpawned *spawned);
+void cli_run_carry(const CliRunnerRunSpawnedCtx *args);
 // the pages a job wrote: every .html file in its view folder, and every .html path its output names that is a file,
 // each by its path in the tree, in order and each once, into `views`, sized for CLI_VIEWS_MOST: their count
-unsigned int cli_run_pages(const char *root, const char *view_out, const CliLines *lines,
-                           char (*views)[CLI_PATH_MAX_LEN]);
+unsigned int cli_run_pages(const CliRunnerRootCtx *args);
 
 // the runs open, the next run's number, and the lock and wake over them (runner_run.c)
 extern CliRun g_cli_runs[CLI_RUNS_MOST];
@@ -63,5 +68,86 @@ extern CliLock g_cli_runs_lock;
 extern CliWake g_cli_runs_wake;
 // a run's steps taken in turn, its end reported after the last: the function its thread runs
 void cli_run_steps(void *context);
+
+struct CliRunnerRunCtx
+{
+    CliRun *run;
+    const CliCatalog *catalog;
+    unsigned int job;
+    VerbaLinea *err_msg;
+};
+
+struct CliRunnerRootCtx
+{
+    const char *root;
+    const char *view_out;
+    const CliLines *lines;
+    char (*views)[CLI_PATH_MAX_LEN];
+};
+
+struct CliRunnerRunStreamCtx
+{
+    CliRun *run;
+    const char *stream;
+    const char *text;
+};
+
+struct CliRunnerRunSpawnedCtx
+{
+    CliRun *run;
+    const CliSpawned *spawned;
+};
+
+struct CliRunnerCtx
+{
+    const CliRun *run_read;
+};
+
+typedef struct
+{
+    int (*run_cells_take)(const CliRunnerRunCtx *args);
+} CliRunnerRunNs;
+EMBED_TABLE_LAYOUT(CliRunnerRunNs, run_cells_take);
+EMBED_TABLE_STORAGE CliRunnerRunNs cli_runner_run_internal EMBED_UNUSED = {
+    .run_cells_take = cli_run_cells_take,
+};
+
+typedef struct
+{
+    void (*run_cells_free)(const CliRunnerRunSpawnedCtx *args);
+    void (*run_carry)(const CliRunnerRunSpawnedCtx *args);
+} CliRunnerRunSpawnedNs;
+EMBED_TABLE_LAYOUT(CliRunnerRunSpawnedNs, run_cells_free, run_carry);
+EMBED_TABLE_STORAGE CliRunnerRunSpawnedNs cli_runner_run_spawned_internal EMBED_UNUSED = {
+    .run_cells_free = cli_run_cells_free,
+    .run_carry = cli_run_carry,
+};
+
+typedef struct
+{
+    double (*run_since)(const CliRunnerCtx *args);
+} CliRunnerNsTable;
+EMBED_TABLE_LAYOUT(CliRunnerNsTable, run_since);
+EMBED_TABLE_STORAGE CliRunnerNsTable cli_runner_internal EMBED_UNUSED = {
+    .run_since = cli_run_since,
+};
+
+typedef struct
+{
+    void (*run_line)(const CliRunnerRunStreamCtx *args);
+} CliRunnerRunStreamNs;
+EMBED_TABLE_LAYOUT(CliRunnerRunStreamNs, run_line);
+EMBED_TABLE_STORAGE CliRunnerRunStreamNs cli_runner_run_stream_internal EMBED_UNUSED = {
+    .run_line = cli_run_line,
+};
+
+typedef struct
+{
+    unsigned int (*run_pages)(const CliRunnerRootCtx *args);
+} CliRunnerRootNs;
+EMBED_TABLE_LAYOUT(CliRunnerRootNs, run_pages);
+EMBED_TABLE_STORAGE CliRunnerRootNs cli_runner_root_internal EMBED_UNUSED = {
+    .run_pages = cli_run_pages,
+};
 
 #endif

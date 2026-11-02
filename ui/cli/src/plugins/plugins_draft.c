@@ -14,132 +14,209 @@
 // the number's pattern a grammar made from nothing reads
 static const char s_number[] = "0[xX][\\da-fA-F_]+|0[bB][01_]+|(?:\\d[\\d_]*)?\\.?\\d[\\d_]*(?:[eE][+-]?\\d+)?";
 
-// the answer `name` of the spec as text, trimmed, into `out`, sized for `room`: its length
-static unsigned long long cli_answer(const CliJson *json, unsigned int spec, const char *name, char *out,
-                                     unsigned long long room)
+typedef struct
 {
+    const CliJson *json_read;
+    unsigned int spec;
+    const char *name;
+    char *out;
+    unsigned long long room;
+    CliJson *json;
+    unsigned int list;
+    VerbaLinea *line;
+    const char *text;
+    const char *const *texts;
+    unsigned int extra;
+    unsigned int pattern;
+    const char *token;
+    const char *next;
+    unsigned int quotes;
+} PluginsDraftCtx;
+// the answer `name` of the spec as text, trimmed, into `out`, sized for `room`: its length
+EMBED_INLINE unsigned long long cli_answer(const PluginsDraftCtx *args)
+{
+    const CliJson *json = args->json_read;
+    const char *name = args->name;
     unsigned long long length = 0ull;
-    const char *const text = cli_json_string(json, cli_json_member(json, spec, name), &length);
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->spec, .name = name),
+                   .length_pointer = &length);
     const char *from = (text != NULL) ? text : "";
     const char *to = from + (length);
-    from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
-    to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
-    VerbaLinea line = {out, room, 0ull};
+    from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+                       .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
+    to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+                           .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
+    VerbaLinea line = {args->out, args->room, 0ull};
     mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
     return mmgr_line_finish(&line);
 }
 
 // the words of a list of the answers, trimmed, each once, in the order first given, made an array node
-static unsigned int cli_words(CliJson *json, unsigned int list)
+EMBED_INLINE unsigned int cli_words(const PluginsDraftCtx *args)
 {
-    const unsigned int words = cli_json_made(json, CFG_JSON_ARRAY);
-    for (unsigned int item = cli_json_is(json, list, CFG_JSON_ARRAY) ? json->node[list].first : CLI_JSON_NONE;
+    CliJson *json = args->json;
+    const unsigned int words =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                        .node = args->list, .kind = CFG_JSON_ARRAY)
+                                 ? json->node[args->list].first
+                                 : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
         unsigned long long length = 0ull;
-        const char *const text = cli_json_string(json, item, &length);
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = item, .length_pointer = &length);
         const char *from = (text != NULL) ? text : "";
         const char *to = from + (length);
-        from += cli_text_past_any(from, 0ull, (unsigned long long)(to - from), CLI_TEXT_WHITE);
-        to = from + cli_text_back_past(from, (unsigned long long)(to - from), CLI_TEXT_WHITE);
+        from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+                           .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
+        to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+                               .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
         const unsigned long long size = (unsigned long long)(to - from);
         int seen = size == 0ull;
         for (unsigned int word_node = json->node[words].first; !seen && (word_node != CLI_JSON_NONE);
              word_node = json->node[word_node].next)
         {
             unsigned long long word_length = 0ull;
-            const char *const word = cli_json_string(json, word_node, &word_length);
+            const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                .json_read = json, .node = word_node, .length_pointer = &word_length);
             seen = (word_length == size) && (memor.cmp(&(MemoriaCfg){.src = word, .other = from, .bytes = size}) == 0);
         }
         if (!seen)
         {
-            cli_json_append(json, words, cli_json_string_made(json, from, size));
+            EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = words,
+                       .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init,
+                                           CliJsonTreeTextLengthKindCfg, .json = json, .text = from, .length = size));
         }
     }
     return words;
 }
 
 // `text` as a pattern that matches only `text`, put after the line
-static void cli_escaped(VerbaLinea *line, const char *text)
+EMBED_INLINE void cli_on_escape(const PluginsDraftCtx *args)
 {
-    cli_text_put_marked(line, text, "\\^$.|?*+()[]{}/", '\\');
+    const char *text = args->text;
+    EMBED_CALL(cli_text_size_set.put_mark, CliTextSizeSetCfg, .out = args->line, .text = text,
+               .set = "\\^$.|?*+()[]{}/", .mark = '\\');
 }
 
 // a string node of the line's text, the line let go
-static unsigned int cli_line_made(CliJson *json, VerbaLinea *line)
+EMBED_INLINE unsigned int cli_line_init(const PluginsDraftCtx *args)
 {
-    const unsigned long long length = mmgr_line_ok(line) ? line->at : 0ull;
-    return cli_json_string_made(json, line->out, length);
+    CliJson *json = args->json;
+    const unsigned long long length = mmgr_line_ok(args->line) ? args->line->at : 0ull;
+    return EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
+                      .text = args->line->out, .length = length);
 }
 
-static unsigned int cli_text_made(CliJson *json, const char *text)
+EMBED_INLINE unsigned int cli_text_init(const PluginsDraftCtx *args)
 {
-    return cli_json_string_made(json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    CliJson *json = args->json;
+    const char *text = args->text;
+    return EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
+                      .text = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
 // the strings given, NULL after the last, made a JSON array, the node `extra` after them where it is not none
-static unsigned int cli_array(CliJson *json, const char *const *texts, unsigned int extra)
+EMBED_INLINE unsigned int cli_array(const PluginsDraftCtx *args)
 {
-    const unsigned int array = cli_json_made(json, CFG_JSON_ARRAY);
-    for (unsigned int at = 0u; texts[at] != NULL; at += 1u)
+    CliJson *json = args->json;
+    const unsigned int array =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+    for (unsigned int at = 0u; args->texts[at] != NULL; at += 1u)
     {
-        cli_json_append(json, array, cli_text_made(json, texts[at]));
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = array,
+                   .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = args->texts[at]));
     }
-    if (extra != CLI_JSON_NONE)
+    if (args->extra != CLI_JSON_NONE)
     {
-        cli_json_append(json, array, extra);
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = array,
+                   .value = args->extra);
     }
     return array;
 }
 
 // [`pattern`, `token`, `next`], `next` left out where NULL
-static unsigned int cli_rule(CliJson *json, unsigned int pattern, const char *token, const char *next)
+EMBED_INLINE unsigned int cli_rule(const PluginsDraftCtx *args)
 {
-    const unsigned int rule = cli_json_made(json, CFG_JSON_ARRAY);
-    cli_json_append(json, rule, pattern);
-    cli_json_append(json, rule, cli_text_made(json, token));
-    if (next != NULL)
+    CliJson *json = args->json;
+    const unsigned int rule =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = rule,
+               .value = args->pattern);
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = rule,
+               .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = args->token));
+    if (args->next != NULL)
     {
-        cli_json_append(json, rule, cli_text_made(json, next));
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = rule,
+                   .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = args->next));
     }
     return rule;
 }
 
 // The grammar the answers request, made from nothing
-static unsigned int cli_grammar_of(CliJson *json, unsigned int spec, unsigned int quotes)
+EMBED_INLINE unsigned int cli_grammar_get(const PluginsDraftCtx *args)
 {
+    CliJson *json = args->json;
     static const char *const s_lists[3][3] = {
         {"keywords", "@keywords", "keyword"}, {"types", "@types", "type"}, {"constants", "@constants", "predefined"}};
     char pattern[CLI_PATTERN_MAX_LEN];
     char state[CLI_NAME_MAX_LEN];
-    const unsigned int grammar = cli_json_made(json, CFG_JSON_OBJECT);
-    const unsigned int cases = cli_json_made(json, CFG_JSON_OBJECT);
+    const unsigned int grammar =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+    const unsigned int cases =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        const unsigned int list = cli_words(json, cli_json_member(json, spec, s_lists[at][0]));
+        const unsigned int list =
+            EMBED_CALL(cli_words, PluginsDraftCtx, .json = json,
+                       .list = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->spec, .name = s_lists[at][0]));
         if (json->node[list].count != 0u)
         {
-            cli_json_set(json, grammar, s_lists[at][0], list);
-            cli_json_set(json, cases, s_lists[at][1], cli_text_made(json, s_lists[at][2]));
+            EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = grammar,
+                       .name = s_lists[at][0], .value = list);
+            EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = cases,
+                       .name = s_lists[at][1],
+                       .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = s_lists[at][2]));
         }
     }
-    cli_json_set(json, cases, "@default", cli_text_made(json, "identifier"));
-    const unsigned int root = cli_json_made(json, CFG_JSON_ARRAY);
-    const unsigned int include = cli_json_made(json, CFG_JSON_OBJECT);
-    cli_json_set(json, include, "include", cli_text_made(json, "@whitespace"));
-    cli_json_append(json, root, include);
-    const unsigned int picked = cli_json_made(json, CFG_JSON_OBJECT);
-    cli_json_set(json, picked, "cases", cases);
-    const unsigned int named = cli_json_made(json, CFG_JSON_ARRAY);
-    cli_json_append(json, named, cli_text_made(json, "[A-Za-z_]\\w*"));
-    cli_json_append(json, named, picked);
-    cli_json_append(json, root, named);
-    cli_json_append(json, root, cli_rule(json, cli_text_made(json, s_number), "number", NULL));
-    const unsigned int tokenizer = cli_json_made(json, CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = cases,
+               .name = "@default",
+               .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = "identifier"));
+    const unsigned int root =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+    const unsigned int include =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = include,
+               .name = "include",
+               .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = "@whitespace"));
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = root, .value = include);
+    const unsigned int picked =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = picked,
+               .name = "cases", .value = cases);
+    const unsigned int named =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = named,
+               .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = "[A-Za-z_]\\w*"));
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = named, .value = picked);
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = root, .value = named);
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = root,
+               .value =
+                   EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                              .pattern = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = s_number),
+                              .token = "number", .next = NULL));
+    const unsigned int tokenizer =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
     unsigned int index = 0u;
-    for (unsigned int quote = json->node[quotes].first; quote != CLI_JSON_NONE; quote = json->node[quote].next)
+    for (unsigned int quote = json->node[args->quotes].first; quote != CLI_JSON_NONE; quote = json->node[quote].next)
     {
-        const char *const text = cli_json_string(json, quote, NULL);
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = quote, .length_pointer = NULL);
         VerbaLinea named_state = {state, sizeof(state), 0ull};
         mmgr_line_put(&named_state, "string");
         mmgr_line_decimal(&named_state, index, 1u);
@@ -150,80 +227,156 @@ static unsigned int cli_grammar_of(CliJson *json, unsigned int spec, unsigned in
         mmgr_line_put(&next_line, state);
         mmgr_line_finish(&next_line);
         VerbaLinea escaped = {pattern, sizeof(pattern), 0ull};
-        cli_escaped(&escaped, text);
-        cli_json_append(json, root, cli_rule(json, cli_line_made(json, &escaped), "string", next));
-        const unsigned int rules = cli_json_made(json, CFG_JSON_ARRAY);
+        EMBED_CALL(cli_on_escape, PluginsDraftCtx, .line = &escaped, .text = text);
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = root,
+                   .value =
+                       EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                  .pattern = EMBED_CALL(cli_line_init, PluginsDraftCtx, .json = json, .line = &escaped),
+                                  .token = "string", .next = next));
+        const unsigned int rules =
+            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
         VerbaLinea inner = {pattern, sizeof(pattern), 0ull};
         mmgr_line_put(&inner, "(?:(?!");
-        cli_escaped(&inner, text);
+        EMBED_CALL(cli_on_escape, PluginsDraftCtx, .line = &inner, .text = text);
         mmgr_line_put(&inner, "|\\\\).)+");
-        cli_json_append(json, rules, cli_rule(json, cli_line_made(json, &inner), "string", NULL));
-        cli_json_append(json, rules, cli_rule(json, cli_text_made(json, "\\\\."), "string.escape", NULL));
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = rules,
+                   .value =
+                       EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                  .pattern = EMBED_CALL(cli_line_init, PluginsDraftCtx, .json = json, .line = &inner),
+                                  .token = "string", .next = NULL));
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = rules,
+                   .value =
+                       EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                  .pattern = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = "\\\\."),
+                                  .token = "string.escape", .next = NULL));
         VerbaLinea closing = {pattern, sizeof(pattern), 0ull};
-        cli_escaped(&closing, text);
-        cli_json_append(json, rules, cli_rule(json, cli_line_made(json, &closing), "string", "@pop"));
-        cli_json_set(json, tokenizer, state, rules);
+        EMBED_CALL(cli_on_escape, PluginsDraftCtx, .line = &closing, .text = text);
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = rules,
+                   .value =
+                       EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                  .pattern = EMBED_CALL(cli_line_init, PluginsDraftCtx, .json = json, .line = &closing),
+                                  .token = "string", .next = "@pop"));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = tokenizer,
+                   .name = state, .value = rules);
         index += 1u;
     }
-    cli_json_append(json, root, cli_rule(json, cli_text_made(json, "[{}()\\[\\]]"), "@brackets", NULL));
-    cli_json_append(json, root, cli_rule(json, cli_text_made(json, "[<>=!~?:&|+\\-*/^%]+"), "operator", NULL));
-    cli_json_append(json, root, cli_rule(json, cli_text_made(json, "[;,.]"), "delimiter", NULL));
-    const unsigned int whitespace = cli_json_made(json, CFG_JSON_ARRAY);
-    cli_json_append(json, whitespace, cli_rule(json, cli_text_made(json, "\\s+"), "", NULL));
-    const unsigned int block = cli_json_member(json, spec, "blockComment");
-    const char *const open = cli_json_string(json, cli_json_item(json, block, 0u), NULL);
-    const char *const close = cli_json_string(json, cli_json_item(json, block, 1u), NULL);
-    if (cli_json_is(json, block, CFG_JSON_ARRAY) && (json->node[block].count == 2u) && (open != NULL) &&
-        (close != NULL))
+    EMBED_CALL(
+        cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = root,
+        .value = EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                            .pattern = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = "[{}()\\[\\]]"),
+                            .token = "@brackets", .next = NULL));
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = root,
+               .value = EMBED_CALL(
+                   cli_rule, PluginsDraftCtx, .json = json,
+                   .pattern = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = "[<>=!~?:&|+\\-*/^%]+"),
+                   .token = "operator", .next = NULL));
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = root,
+               .value = EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                   .pattern = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = "[;,.]"),
+                                   .token = "delimiter", .next = NULL));
+    const unsigned int whitespace =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = whitespace,
+               .value = EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                   .pattern = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = "\\s+"),
+                                   .token = "", .next = NULL));
+    const unsigned int block = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->spec, .name = "blockComment");
+    const char *const open =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
+                                      .array = block, .index = 0u),
+                   .length_pointer = NULL);
+    const char *const close =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
+                                      .array = block, .index = 1u),
+                   .length_pointer = NULL);
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = block,
+                   .kind = CFG_JSON_ARRAY) &&
+        (json->node[block].count == 2u) && (open != NULL) && (close != NULL))
     {
         VerbaLinea opening = {pattern, sizeof(pattern), 0ull};
-        cli_escaped(&opening, open);
-        cli_json_append(json, whitespace, cli_rule(json, cli_line_made(json, &opening), "comment", "@comment"));
-        const unsigned int rules = cli_json_made(json, CFG_JSON_ARRAY);
+        EMBED_CALL(cli_on_escape, PluginsDraftCtx, .line = &opening, .text = open);
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = whitespace,
+                   .value =
+                       EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                  .pattern = EMBED_CALL(cli_line_init, PluginsDraftCtx, .json = json, .line = &opening),
+                                  .token = "comment", .next = "@comment"));
+        const unsigned int rules =
+            EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_ARRAY);
         VerbaLinea inner = {pattern, sizeof(pattern), 0ull};
         mmgr_line_put(&inner, "(?:(?!");
-        cli_escaped(&inner, close);
+        EMBED_CALL(cli_on_escape, PluginsDraftCtx, .line = &inner, .text = close);
         mmgr_line_put(&inner, ").)+");
-        cli_json_append(json, rules, cli_rule(json, cli_line_made(json, &inner), "comment", NULL));
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = rules,
+                   .value =
+                       EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                  .pattern = EMBED_CALL(cli_line_init, PluginsDraftCtx, .json = json, .line = &inner),
+                                  .token = "comment", .next = NULL));
         VerbaLinea closing = {pattern, sizeof(pattern), 0ull};
-        cli_escaped(&closing, close);
-        cli_json_append(json, rules, cli_rule(json, cli_line_made(json, &closing), "comment", "@pop"));
-        cli_json_set(json, tokenizer, "comment", rules);
+        EMBED_CALL(cli_on_escape, PluginsDraftCtx, .line = &closing, .text = close);
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = rules,
+                   .value =
+                       EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                  .pattern = EMBED_CALL(cli_line_init, PluginsDraftCtx, .json = json, .line = &closing),
+                                  .token = "comment", .next = "@pop"));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = tokenizer,
+                   .name = "comment", .value = rules);
     }
     char line_comment[CLI_NAME_MAX_LEN];
-    if (cli_answer(json, spec, "lineComment", line_comment, sizeof(line_comment)) != 0ull)
+    if (EMBED_CALL(cli_answer, PluginsDraftCtx, .json_read = json, .spec = args->spec, .name = "lineComment",
+                   .out = line_comment, .room = sizeof(line_comment)) != 0ull)
     {
         VerbaLinea commented = {pattern, sizeof(pattern), 0ull};
-        cli_escaped(&commented, line_comment);
+        EMBED_CALL(cli_on_escape, PluginsDraftCtx, .line = &commented, .text = line_comment);
         mmgr_line_put(&commented, ".*$");
-        cli_json_append(json, whitespace, cli_rule(json, cli_line_made(json, &commented), "comment", NULL));
+        EMBED_CALL(
+            cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = whitespace,
+            .value = EMBED_CALL(cli_rule, PluginsDraftCtx, .json = json,
+                                .pattern = EMBED_CALL(cli_line_init, PluginsDraftCtx, .json = json, .line = &commented),
+                                .token = "comment", .next = NULL));
     }
-    const unsigned int ordered = cli_json_made(json, CFG_JSON_OBJECT);
-    cli_json_set(json, ordered, "root", root);
-    cli_json_set(json, ordered, "whitespace", whitespace);
+    const unsigned int ordered =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = ordered,
+               .name = "root", .value = root);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = ordered,
+               .name = "whitespace", .value = whitespace);
     for (unsigned int each = json->node[tokenizer].first; each != CLI_JSON_NONE;)
     {
         const unsigned int next = json->node[each].next;
-        cli_json_set(json, ordered, json->text + json->node[each].key, each);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = ordered,
+                   .name = json->text + json->node[each].key, .value = each);
         each = next;
     }
-    cli_json_set(json, grammar, "tokenizer", ordered);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = grammar,
+               .name = "tokenizer", .value = ordered);
     return grammar;
 }
 
 // the comments the answers name: `line` where one is given, `block` where two are
-static unsigned int cli_comments_of(CliJson *json, unsigned int spec)
+EMBED_INLINE unsigned int cli_comments_get(const PluginsDraftCtx *args)
 {
-    const unsigned int comments = cli_json_made(json, CFG_JSON_OBJECT);
+    CliJson *json = args->json;
+    const unsigned int comments =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
     char line[CLI_NAME_MAX_LEN];
-    if (cli_answer(json, spec, "lineComment", line, sizeof(line)) != 0ull)
+    if (EMBED_CALL(cli_answer, PluginsDraftCtx, .json_read = json, .spec = args->spec, .name = "lineComment",
+                   .out = line, .room = sizeof(line)) != 0ull)
     {
-        cli_json_set(json, comments, "line", cli_text_made(json, line));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = comments,
+                   .name = "line", .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = json, .text = line));
     }
-    const unsigned int block = cli_json_member(json, spec, "blockComment");
-    if (cli_json_is(json, block, CFG_JSON_ARRAY) && (json->node[block].count == 2u))
+    const unsigned int block = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->spec, .name = "blockComment");
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = block,
+                   .kind = CFG_JSON_ARRAY) &&
+        (json->node[block].count == 2u))
     {
-        cli_json_set(json, comments, "block", cli_json_copy(json, block));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = comments,
+                   .name = "block",
+                   .value = EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = json, .node = block));
     }
     return comments;
 }
@@ -237,10 +390,10 @@ typedef struct
     int seen;
 } CliTemplate;
 
-static void cli_template_each(void *context, const CliPlugin *plugin)
+static void cli_template_each(const CliEachPluginCfg *args)
 {
-    CliTemplate *const template_of = (CliTemplate *)context;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = plugin->id, .other = template_of->id, .cap = CLI_CELLS_POOL}))
+    CliTemplate *const template_of = (CliTemplate *)args->context;
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = template_of->id, .cap = CLI_CELLS_POOL}))
     {
         return;
     }
@@ -248,12 +401,16 @@ static void cli_template_each(void *context, const CliPlugin *plugin)
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the plugin's tokens in a cell of their count, given back once they are read into the tree
-    const unsigned int count = cli_json_tokens_counted(plugin->text, plugin->size) + 1u;
+    const unsigned int count = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
+                                          .text = args->plugin->text, .size = args->plugin->size) +
+                               1u;
     CfgJsonToken *const tokens =
         g_cli_cells->temporary_buf_alloc((unsigned long long)count * sizeof(*tokens), &g_cli_plugins_cells);
-    template_of->found = (tokens != NULL)
-                             ? cli_json_read(template_of->json, plugin->text, plugin->size, tokens, count, &err_msg)
-                             : CLI_JSON_NONE;
+    template_of->found =
+        (tokens != NULL) ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
+                                      .json = template_of->json, .text = args->plugin->text, .size = args->plugin->size,
+                                      .tokens = tokens, .tokens_most = count, .err_msg = &err_msg)
+                         : CLI_JSON_NONE;
     g_cli_cells->persistent_buf_release(tokens, &g_cli_plugins_cells);
 }
 
@@ -265,67 +422,95 @@ typedef struct
     unsigned long long text;
 } CliTemplateRoom;
 
-static void cli_template_room_each(void *context, const CliPlugin *plugin)
+static void cli_template_room_each(const CliEachPluginCfg *args)
 {
-    CliTemplateRoom *const room = (CliTemplateRoom *)context;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = plugin->id, .other = room->id, .cap = CLI_CELLS_POOL}))
+    CliTemplateRoom *const room = (CliTemplateRoom *)args->context;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = room->id, .cap = CLI_CELLS_POOL}))
     {
-        room->nodes = cli_json_tokens_counted(plugin->text, plugin->size) + 1u;
-        room->text = plugin->size;
+        room->nodes = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = args->plugin->text,
+                                 .size = args->plugin->size) +
+                      1u;
+        room->text = args->plugin->size;
     }
 }
 
-unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigned int spec, VerbaLinea *err_msg)
+unsigned int cli_plugins_draft_tree(const CliPluginsErrMsgJsonSpecCfg *args)
 {
     unsigned int nodes = 0u;
     unsigned long long text = 0ull;
-    cli_json_extent(json, spec, &nodes, &text);
+    EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = args->json,
+               .node = args->spec, .nodes_pointer = &nodes, .text_u64s = &text);
     char from[CLI_NAME_MAX_LEN];
     CliTemplateRoom room = {from, 0u, 0ull};
-    if (cli_answer(json, spec, "from", from, sizeof(from)) != 0ull)
+    if (EMBED_CALL(cli_answer, PluginsDraftCtx, .json_read = args->json, .spec = args->spec, .name = "from",
+                   .out = from, .room = sizeof(from)) != 0ull)
     {
-        cli_plugins_each(cli_template_room_each, &room);
+        EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_template_room_each, .context = &room);
     }
     // the answers twice over, as the draft copies their words, the plugin started from, and the members, patterns and
     // lists the draft makes besides
-    if (!cli_json_reserved(draft, (2u * nodes) + room.nodes + CLI_DRAFT_NODES_MORE,
-                           (2ull * text) + room.text + CLI_DRAFT_TEXT_MORE, "a plugin's draft", &g_cli_plugins_cells))
+    if (!EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = args->draft,
+                    .nodes_most = (2u * nodes) + room.nodes + CLI_DRAFT_NODES_MORE,
+                    .text_most = (2ull * text) + room.text + CLI_DRAFT_TEXT_MORE, .what = "a plugin's draft",
+                    .owner = &g_cli_plugins_cells))
     {
-        mmgr_line_put(err_msg, "the cells cannot meet a plugin's draft");
+        mmgr_line_put(args->err_msg, "the cells cannot meet a plugin's draft");
         return CLI_JSON_NONE;
     }
-    return cli_json_copy_from(draft, json, spec);
+    return EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .to = args->draft, .from = args->json,
+                      .node = args->spec);
 }
 
-unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, VerbaLinea *err_msg)
+unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecKindCfg *args)
 {
     char name[CLI_NAME_MAX_LEN];
     char given[CLI_NAME_MAX_LEN];
     char id[CLI_NAME_MAX_LEN];
     char from[CLI_NAME_MAX_LEN];
-    cli_answer(json, spec, "name", name, sizeof(name));
-    cli_answer(json, spec, "id", given, sizeof(given));
-    const char *const raw_name = cli_json_string(json, cli_json_member(json, spec, "name"), NULL);
-    const char *const raw_id = cli_json_string(json, cli_json_member(json, spec, "id"), NULL);
-    cli_plugins_slug((given[0] == '\0') ? ((raw_name != NULL) ? raw_name : "") : ((raw_id != NULL) ? raw_id : ""), id);
+    EMBED_CALL(cli_answer, PluginsDraftCtx, .json_read = args->json_out, .spec = args->spec, .name = "name",
+               .out = name, .room = sizeof(name));
+    EMBED_CALL(cli_answer, PluginsDraftCtx, .json_read = args->json_out, .spec = args->spec, .name = "id", .out = given,
+               .room = sizeof(given));
+    const char *const raw_name =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json_out,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                      .json_read = args->json_out, .object = args->spec, .name = "name"),
+                   .length_pointer = NULL);
+    const char *const raw_id =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json_out,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                      .json_read = args->json_out, .object = args->spec, .name = "id"),
+                   .length_pointer = NULL);
+    EMBED_CALL(cli_plugins_id_name.slug, CliPluginsIdNameCfg,
+               .name = (given[0] == '\0') ? ((raw_name != NULL) ? raw_name : "") : ((raw_id != NULL) ? raw_id : ""),
+               .id_out = id);
     if (id[0] == '\0')
     {
-        mmgr_line_put(err_msg, "a plugin needs a name made of letters or digits");
+        mmgr_line_put(args->err_msg, "a plugin needs a name made of letters or digits");
         return CLI_JSON_NONE;
     }
-    const unsigned int extensions = cli_json_made(json, CFG_JSON_ARRAY);
-    const unsigned int extensions_node = cli_json_member(json, spec, "extensions");
-    for (unsigned int item = cli_json_is(json, extensions_node, CFG_JSON_ARRAY) ? json->node[extensions_node].first
-                                                                                : CLI_JSON_NONE;
-         item != CLI_JSON_NONE; item = json->node[item].next)
+    const unsigned int extensions =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json_out, .kind = CFG_JSON_ARRAY);
+    const unsigned int extensions_node =
+        EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json_out,
+                   .object = args->spec, .name = "extensions");
+    for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                        .json_read = args->json_out, .node = extensions_node, .kind = CFG_JSON_ARRAY)
+                                 ? args->json_out->node[extensions_node].first
+                                 : CLI_JSON_NONE;
+         item != CLI_JSON_NONE; item = args->json_out->node[item].next)
     {
         unsigned long long size = 0ull;
-        const char *const text = cli_json_string(json, item, &size);
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = args->json_out, .node = item, .length_pointer = &size);
         const char *at = (text != NULL) ? text : "";
         const char *end = at + (size);
-        at += cli_text_past_any(at, 0ull, (unsigned long long)(end - at), CLI_TEXT_WHITE);
-        end = at + cli_text_back_past(at, (unsigned long long)(end - at), CLI_TEXT_WHITE);
-        at += cli_text_past_any(at, 0ull, (unsigned long long)(end - at), ".");
+        at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+                         .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
+        end = at + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = at,
+                              .at = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
+        at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+                         .size = (unsigned long long)(end - at), .set = ".");
         char lower[CLI_NAME_MAX_LEN];
         VerbaLinea line = {lower, sizeof(lower), 0ull};
         for (const char *letter = at; letter < end; letter += 1)
@@ -334,85 +519,140 @@ unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, VerbaLinea *err
         }
         if (mmgr_line_finish(&line) != 0ull)
         {
-            cli_json_append(json, extensions, cli_text_made(json, lower));
+            EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = args->json_out,
+                       .array = extensions,
+                       .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = args->json_out, .text = lower));
         }
     }
-    if (json->node[extensions].count == 0u)
+    if (args->json_out->node[extensions].count == 0u)
     {
-        mmgr_line_put(err_msg, "a plugin needs an extension to open, such as --ext foo");
+        mmgr_line_put(args->err_msg, "a plugin needs an extension to open, such as --ext foo");
         return CLI_JSON_NONE;
     }
-    const unsigned int quotes_node = cli_json_member(json, spec, "quotes");
-    const int quoted = cli_json_is(json, quotes_node, CFG_JSON_ARRAY) && (json->node[quotes_node].count != 0u);
+    const unsigned int quotes_node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = args->json_out, .object = args->spec, .name = "quotes");
+    const int quoted = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json_out,
+                                  .node = quotes_node, .kind = CFG_JSON_ARRAY) &&
+                       (args->json_out->node[quotes_node].count != 0u);
     static const char *const s_default_quotes[3] = {"\"", "'", NULL};
     const unsigned int quotes =
-        quoted ? cli_words(json, quotes_node) : cli_array(json, s_default_quotes, CLI_JSON_NONE);
-    const unsigned int plugin = cli_json_made(json, CFG_JSON_OBJECT);
-    cli_json_set(json, plugin, "id", cli_text_made(json, id));
-    cli_json_set(json, plugin, "name", cli_text_made(json, (name[0] != '\0') ? name : id));
-    cli_json_set(json, plugin, "version", cli_text_made(json, "1.0.0"));
-    cli_json_set(json, plugin, "kind", cli_text_made(json, "language"));
-    cli_json_set(json, plugin, "extensions", extensions);
-    if (cli_answer(json, spec, "from", from, sizeof(from)) == 0ull)
+        quoted ? EMBED_CALL(cli_words, PluginsDraftCtx, .json = args->json_out, .list = quotes_node)
+               : EMBED_CALL(cli_array, PluginsDraftCtx, .json = args->json_out, .texts = s_default_quotes,
+                            .extra = CLI_JSON_NONE);
+    const unsigned int plugin =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json_out, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out, .object = plugin,
+               .name = "id", .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = args->json_out, .text = id));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out, .object = plugin,
+               .name = "name",
+               .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = args->json_out,
+                                   .text = (name[0] != '\0') ? name : id));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out, .object = plugin,
+               .name = "version",
+               .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = args->json_out, .text = "1.0.0"));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out, .object = plugin,
+               .name = "kind",
+               .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = args->json_out, .text = "language"));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out, .object = plugin,
+               .name = "extensions", .value = extensions);
+    if (EMBED_CALL(cli_answer, PluginsDraftCtx, .json_read = args->json_out, .spec = args->spec, .name = "from",
+                   .out = from, .room = sizeof(from)) == 0ull)
     {
         static const char *const s_pairs[4] = {"()", "[]", "{}", NULL};
-        cli_json_set(json, plugin, "comments", cli_comments_of(json, spec));
-        cli_json_set(json, plugin, "pairs", cli_array(json, s_pairs, CLI_JSON_NONE));
-        cli_json_set(json, plugin, "quotes", quotes);
-        cli_json_set(json, plugin, "indentAfter", cli_text_made(json, "[{[(]\\s*$"));
-        cli_json_set(json, plugin, "grammar", cli_grammar_of(json, spec, quotes));
-        cli_json_set(json, plugin, "hovers", cli_json_made(json, CFG_JSON_OBJECT));
-        cli_json_set(json, plugin, "snippets", cli_json_made(json, CFG_JSON_ARRAY));
-        return json->full ? CLI_JSON_NONE : plugin;
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "comments",
+                   .value = EMBED_CALL(cli_comments_get, PluginsDraftCtx, .json = args->json_out, .spec = args->spec));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "pairs",
+                   .value = EMBED_CALL(cli_array, PluginsDraftCtx, .json = args->json_out, .texts = s_pairs,
+                                       .extra = CLI_JSON_NONE));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "quotes", .value = quotes);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "indentAfter",
+                   .value = EMBED_CALL(cli_text_init, PluginsDraftCtx, .json = args->json_out, .text = "[{[(]\\s*$"));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "grammar",
+                   .value = EMBED_CALL(cli_grammar_get, PluginsDraftCtx, .json = args->json_out, .spec = args->spec,
+                                       .quotes = quotes));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "hovers",
+                   .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json_out,
+                                       .kind = CFG_JSON_OBJECT));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "snippets",
+                   .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json_out,
+                                       .kind = CFG_JSON_ARRAY));
+        return args->json_out->full ? CLI_JSON_NONE : plugin;
     }
-    CliTemplate template_of = {from, json, CLI_JSON_NONE, 0};
-    cli_plugins_each(cli_template_each, &template_of);
+    CliTemplate template_of = {from, args->json_out, CLI_JSON_NONE, 0};
+    EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_template_each, .context = &template_of);
     if (!template_of.seen || (template_of.found == CLI_JSON_NONE))
     {
-        mmgr_line_put(err_msg, template_of.seen ? "plugin " : "no plugin ");
-        mmgr_line_put(err_msg, from);
-        mmgr_line_put(err_msg, template_of.seen ? " does not read" : " to start from");
+        mmgr_line_put(args->err_msg, template_of.seen ? "plugin " : "no plugin ");
+        mmgr_line_put(args->err_msg, from);
+        mmgr_line_put(args->err_msg, template_of.seen ? " does not read" : " to start from");
         return CLI_JSON_NONE;
     }
-    if (!cli_json_is(json, template_of.found, CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json_out,
+                    .node = template_of.found, .kind = CFG_JSON_OBJECT))
     {
-        mmgr_line_put(err_msg, "plugin ");
-        mmgr_line_put(err_msg, from);
-        mmgr_line_put(err_msg, " is not an object");
+        mmgr_line_put(args->err_msg, "plugin ");
+        mmgr_line_put(args->err_msg, from);
+        mmgr_line_put(args->err_msg, " is not an object");
         return CLI_JSON_NONE;
     }
-    for (unsigned int member = json->node[template_of.found].first; member != CLI_JSON_NONE;)
+    for (unsigned int member = args->json_out->node[template_of.found].first; member != CLI_JSON_NONE;)
     {
-        const unsigned int next = json->node[member].next;
-        const char *const key = json->text + json->node[member].key;
-        if (cli_json_member(json, plugin, key) == CLI_JSON_NONE)
+        const unsigned int next = args->json_out->node[member].next;
+        const char *const key = args->json_out->text + args->json_out->node[member].key;
+        if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json_out,
+                       .object = plugin, .name = key) == CLI_JSON_NONE)
         {
-            cli_json_set(json, plugin, key, member);
+            EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                       .object = plugin, .name = key, .value = member);
         }
         member = next;
     }
     char line_comment[CLI_NAME_MAX_LEN];
-    const unsigned int block = cli_json_member(json, spec, "blockComment");
-    if ((cli_answer(json, spec, "lineComment", line_comment, sizeof(line_comment)) != 0ull) ||
-        (cli_json_is(json, block, CFG_JSON_ARRAY) && (json->node[block].count == 2u)))
+    const unsigned int block = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = args->json_out, .object = args->spec, .name = "blockComment");
+    if ((EMBED_CALL(cli_answer, PluginsDraftCtx, .json_read = args->json_out, .spec = args->spec, .name = "lineComment",
+                    .out = line_comment, .room = sizeof(line_comment)) != 0ull) ||
+        (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json_out, .node = block,
+                    .kind = CFG_JSON_ARRAY) &&
+         (args->json_out->node[block].count == 2u)))
     {
-        cli_json_set(json, plugin, "comments", cli_comments_of(json, spec));
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "comments",
+                   .value = EMBED_CALL(cli_comments_get, PluginsDraftCtx, .json = args->json_out, .spec = args->spec));
     }
     if (quoted)
     {
-        cli_json_set(json, plugin, "quotes", quotes);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = plugin, .name = "quotes", .value = quotes);
     }
-    const unsigned int grammar = cli_json_member(json, plugin, "grammar");
+    const unsigned int grammar = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                            .json_read = args->json_out, .object = plugin, .name = "grammar");
     static const char *const s_lists[3] = {"keywords", "types", "constants"};
-    for (unsigned int at = 0u; cli_json_is(json, grammar, CFG_JSON_OBJECT) && (at < 3u); at += 1u)
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                          .json_read = args->json_out, .node = grammar, .kind = CFG_JSON_OBJECT) &&
+                               (at < 3u);
+         at += 1u)
     {
-        const unsigned int list = cli_words(json, cli_json_member(json, spec, s_lists[at]));
-        if (json->node[list].count == 0u)
+        const unsigned int list =
+            EMBED_CALL(cli_words, PluginsDraftCtx, .json = args->json_out,
+                       .list = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = args->json_out, .object = args->spec, .name = s_lists[at]));
+        if (args->json_out->node[list].count == 0u)
         {
             continue;
         }
-        const int words = (at == 0u) && (cli_json_member(json, grammar, "words") != CLI_JSON_NONE);
-        cli_json_set(json, grammar, words ? "words" : s_lists[at], list);
+        const int words = (at == 0u) && (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                    .json_read = args->json_out, .object = grammar,
+                                                    .name = "words") != CLI_JSON_NONE);
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json_out,
+                   .object = grammar, .name = words ? "words" : s_lists[at], .value = list);
     }
-    return json->full ? CLI_JSON_NONE : plugin;
+    return args->json_out->full ? CLI_JSON_NONE : plugin;
 }

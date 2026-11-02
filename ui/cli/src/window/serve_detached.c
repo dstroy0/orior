@@ -41,33 +41,46 @@ static unsigned long long s_last;
 // a detached run's number: the milliseconds since 1970 it started at, each after the last
 static unsigned long long detached_number(void)
 {
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long now = cli_wall_milliseconds();
     s_last = (now > s_last) ? now : s_last + 1ull;
     const unsigned long long number = s_last;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return number;
 }
 
+typedef struct
+{
+    const char *line;
+    unsigned long long size;
+    VerbaLinea *lines;
+    VerbaLinea *ended;
+    const char *base;
+} ServeDetachedCtx;
 // a line of a detached run's output file taken: a start sent at once, a line put among the lines read, and an end into
 // `ended`; 1 where the run ended
-static int detached_line_taken(const char *line, unsigned long long size, VerbaLinea *lines, VerbaLinea *ended)
+EMBED_INLINE int detached_line_take(const ServeDetachedCtx *args)
 {
+    unsigned long long size = args->size;
     unsigned long long at = 0ull;
     unsigned long long length = 0ull;
-    if (cli_lsp_member(line, size, "end", &at, &length))
+    if (EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->line, .size_value = size, .name = "end",
+                   .start = &at, .length_pointer = &length))
     {
-        mmgr_line_put_n(ended, line + at, length);
+        mmgr_line_put_n(args->ended, args->line + at, length);
         return 1;
     }
-    if (cli_lsp_member(line, size, "start", &at, &length))
+    if (EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->line, .size_value = size, .name = "start",
+                   .start = &at, .length_pointer = &length))
     {
-        cli_serve_emitted("run-start", line + at, length);
+        EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-start", .body = args->line + at,
+                   .size = length);
     }
-    else if (cli_lsp_member(line, size, "line", &at, &length))
+    else if (EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->line, .size_value = size, .name = "line",
+                        .start = &at, .length_pointer = &length))
     {
-        mmgr_line_put(lines, (lines->at > 1ull) ? "," : "");
-        mmgr_line_put_n(lines, line + at, length);
+        mmgr_line_put(args->lines, (args->lines->at > 1ull) ? "," : "");
+        mmgr_line_put_n(args->lines, args->line + at, length);
     }
     return 0;
 }
@@ -78,8 +91,10 @@ static void detached_follower(void *context)
     CliServeFollower *const one = context;
     char lines_file[CLI_PATH_MAX_LEN];
     char pid_file[CLI_PATH_MAX_LEN];
-    cli_serve_detached_file(one->base, "output", lines_file);
-    cli_serve_detached_file(one->base, "pid", pid_file);
+    EMBED_CALL(cli_serve_base_internal.detached_file, CliServeBaseCtx, .base = one->base, .kind = "output",
+               .path_out = lines_file);
+    EMBED_CALL(cli_serve_base_internal.detached_file, CliServeBaseCtx, .base = one->base, .kind = "pid",
+               .path_out = pid_file);
     unsigned long long at = 0ull;
     unsigned int quiet = 0u;
     unsigned int unstarted = 0u;
@@ -87,12 +102,16 @@ static void detached_follower(void *context)
     for (;;)
     {
         unsigned long long size = 0ull;
-        const unsigned long long whole = cli_file_size(lines_file, &size) ? size : 0ull;
+        const unsigned long long whole =
+            EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = lines_file, .size_pointer = &size)
+                ? size
+                : 0ull;
         unsigned long long read = 0ull;
         if (whole > at)
         {
             unsigned long long mapped_size = 0ull;
-            const unsigned char *const mapped = cli_file_taken(lines_file, &mapped_size, &g_cli_window_cells);
+            const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = lines_file,
+                                                           .size_pointer = &mapped_size, .owner = &g_cli_window_cells);
             if (mapped != NULL)
             {
                 const unsigned long long room = sizeof(one->pending) - one->pending_size;
@@ -101,7 +120,8 @@ static void detached_follower(void *context)
                 memor.cpy(
                     &(MemoriaCfg){.dst = one->pending + one->pending_size, .src = mapped + at, .bytes = (size_t)read});
                 one->pending_size += read;
-                cli_file_given(mapped, &g_cli_window_cells);
+                EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
+                           .owner = &g_cli_window_cells);
             }
         }
         if (read > 0ull)
@@ -119,7 +139,8 @@ static void detached_follower(void *context)
             {
                 if (one->pending[cut] == '\n')
                 {
-                    finished = detached_line_taken(one->pending + start, cut - start, &lines, &ended);
+                    finished = EMBED_CALL(detached_line_take, ServeDetachedCtx, .line = one->pending + start,
+                                          .size = cut - start, .lines = &lines, .ended = &ended);
                     start = cut + 1ull;
                 }
             }
@@ -129,11 +150,13 @@ static void detached_follower(void *context)
             mmgr_line_ch(&lines, ']');
             if ((lines.at > 2ull) && mmgr_line_ok(&lines))
             {
-                cli_serve_emitted("run-lines", one->lines, lines.at);
+                EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-lines", .body = one->lines,
+                           .size = lines.at);
             }
             if (finished)
             {
-                cli_serve_emitted("run-end", ended_room, ended.at);
+                EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-end", .body = ended_room,
+                           .size = ended.at);
                 break;
             }
             continue;
@@ -154,7 +177,8 @@ static void detached_follower(void *context)
                 mmgr_line_put(&line, "{\"run\":");
                 mmgr_line_decimal(&line, one->run, 1u);
                 mmgr_line_put(&line, ",\"code\":null,\"stopped\":true,\"views\":[],\"ms\":0.0}");
-                cli_serve_emitted("run-end", ended, line.at);
+                EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-end", .body = ended,
+                           .size = line.at);
                 break;
             }
             unsigned long long pid = 0ull;
@@ -166,34 +190,37 @@ static void detached_follower(void *context)
                 number = white || ((letter >= '0') && (letter <= '9'));
                 pid = (number && !white) ? (pid * 10ull) + (unsigned long long)(letter - '0') : pid;
             }
-            if (number && (pid <= 0xffffffffull) && !cli_process_running((unsigned int)pid) && (whole == at))
+            if (number && (pid <= 0xffffffffull) &&
+                !EMBED_CALL(cli_pid_internal.process_running, CliPidCtx, .pid = (unsigned int)pid) && (whole == at))
             {
                 char ended[256];
                 VerbaLinea line = {ended, sizeof(ended), 0ull};
                 mmgr_line_put(&line, "{\"run\":");
                 mmgr_line_decimal(&line, one->run, 1u);
                 mmgr_line_put(&line, ",\"code\":null,\"stopped\":true,\"views\":[],\"ms\":0.0}");
-                cli_serve_emitted("run-end", ended, line.at);
+                EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-end", .body = ended,
+                           .size = line.at);
                 break;
             }
         }
-        query_paused(CLI_SERVE_FOLLOW_EVERY);
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = CLI_SERVE_FOLLOW_EVERY);
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_follower[one->place] = NULL;
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(one, &g_cli_window_cells);
 }
 
 // the detached run `base` followed on a thread of its own: 1, or 0 where every follower is taken or no room for one is
 // left
-static int detached_followed(const char *base)
+EMBED_INLINE int detached_follow(const ServeDetachedCtx *args)
 {
-    const char *name = base;
+    const char *name = args->base;
     const unsigned long long name_past =
-        cli_text_back_any(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), "/\\");
-    name = (name_past != 0ull) ? (base + name_past) : name;
-    cli_lock_take(&s_lock);
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->base,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .set = "/\\");
+    name = (name_past != 0ull) ? (args->base + name_past) : name;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int at = 0u;
     while ((at < CLI_SERVE_FOLLOWERS) && (s_follower[at] != NULL))
     {
@@ -207,37 +234,43 @@ static int detached_followed(const char *base)
         s_follower[at] = one;
         one->place = at;
         VerbaLinea line = {one->base, CLI_PATH_MAX_LEN, 0ull};
-        mmgr_line_put(&line, base);
+        mmgr_line_put(&line, args->base);
         (void)mmgr_line_finish(&line);
         one->run = strtoull(name, NULL, 10);
         one->thread = (CliThread){detached_follower, one};
-        if (!cli_thread_started(&one->thread))
+        if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &one->thread))
         {
             s_follower[at] = NULL;
             g_cli_cells->persistent_buf_release(one, &g_cli_window_cells);
         }
     }
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return one != NULL;
 }
 
-int cli_serve_detached_start(const char *detached_dir, const char *job, const CliServeArgs *args, VerbaLinea *out,
-                             VerbaLinea *err_msg)
+int cli_serve_detached_start(const CliServeErrMsgOutCtx *args)
 {
+    const char *job = args->job;
+    VerbaLinea *out = args->out;
+    VerbaLinea *err_msg = args->err_msg;
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_tree(root, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
+                    .err_msg = err_msg))
     {
         return 0;
     }
-    CliCatalog *const catalog = cli_serve_catalog_taken(root, err_msg);
+    CliCatalog *const catalog = EMBED_CALL(cli_serve_err_msg_root_internal.catalog_take, CliServeErrMsgRootCtx,
+                                           .root_read = root, .err_msg = err_msg);
     if (catalog == NULL)
     {
         return 0;
     }
-    const unsigned int found = cli_catalog_find(catalog, job);
-    const CliValues *const values = cli_serve_values_of(args);
-    const int checked = (found != CLI_CATALOG_NONE) && cli_runner_check(catalog, found, values, err_msg);
-    cli_serve_catalog_given();
+    const unsigned int found = EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = catalog, .id = job);
+    const CliValues *const values = cli_serve_err_msg_out_internal.values_get(args);
+    const int checked =
+        (found != CLI_CATALOG_NONE) && EMBED_CALL(cli_runner_err_msg.check, CliRunnerErrMsgCfg, .catalog = catalog,
+                                                  .job = found, .values = values, .err_msg = err_msg);
+    cli_serve_catalog_free();
     if (found == CLI_CATALOG_NONE)
     {
         mmgr_line_put(err_msg, "no job ");
@@ -247,9 +280,9 @@ int cli_serve_detached_start(const char *detached_dir, const char *job, const Cl
     {
         return 0;
     }
-    if (!query_folder_made(detached_dir))
+    if (!EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = args->detached_dir))
     {
-        mmgr_line_put(err_msg, detached_dir);
+        mmgr_line_put(err_msg, args->detached_dir);
         mmgr_line_put(err_msg, ": it could not be made");
         return 0;
     }
@@ -259,31 +292,38 @@ int cli_serve_detached_start(const char *detached_dir, const char *job, const Cl
     VerbaLinea named = {number, sizeof(number), 0ull};
     mmgr_line_decimal(&named, run, 1u);
     (void)mmgr_line_finish(&named);
-    cli_full(detached_dir, number, base);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->detached_dir, .relative = number, .joined = base);
     char job_file[CLI_PATH_MAX_LEN];
-    cli_serve_detached_file(base, "job", job_file);
+    EMBED_CALL(cli_serve_base_internal.detached_file, CliServeBaseCtx, .base = base, .kind = "job",
+               .path_out = job_file);
     static char s_spec[1u << 20u];
     static CliLock s_spec_lock = CLI_LOCK_INIT;
-    cli_lock_take(&s_spec_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_spec_lock);
     VerbaLinea spec = {s_spec, sizeof(s_spec), 0ull};
     mmgr_line_put(&spec, "{\"job\":");
-    cli_json_quoted(&spec, job, cellul.len(&(CatenaFinitaCfg){.src = job, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &spec, .text = job,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = job, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&spec, ",\"root\":");
-    cli_json_quoted_lossy(&spec, (const unsigned char *)root,
-                          cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &spec,
+               .text_bytes = (const unsigned char *)root,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&spec, ",\"values\":");
-    const unsigned int given = cli_serve_arg(args, "values");
+    const unsigned int given =
+        EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = args->request, .key = "values");
     if (given != CLI_JSON_NONE)
     {
-        cli_json_write(args->json, given, &spec, 0u, 1);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->request->json,
+                   .node = given, .out = &spec, .indent = 0u, .sorted = 1);
     }
     else
     {
         mmgr_line_put(&spec, "{}");
     }
     mmgr_line_ch(&spec, '}');
-    const int written = mmgr_line_ok(&spec) && query_file_written(job_file, s_spec, spec.at);
-    cli_lock_give(&s_spec_lock);
+    const int written =
+        mmgr_line_ok(&spec) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
+                                          .path = job_file, .bytes = s_spec, .size = spec.at);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_spec_lock);
     if (!written)
     {
         mmgr_line_put(err_msg, job_file);
@@ -291,36 +331,41 @@ int cli_serve_detached_start(const char *detached_dir, const char *job, const Cl
         return 0;
     }
     char program[CLI_PATH_MAX_LEN];
-    if (!cli_program_own(program, sizeof(program)))
+    if (!EMBED_CALL(cli_path_room_internal.program_own, CliPathRoomCtx, .path_out = program,
+                    .room_size = sizeof(program)))
     {
         mmgr_line_put(err_msg, "orior's program could not be found");
         return 0;
     }
     const char *const words[4] = {program, "detached-run", base, NULL};
     CliSpawned spawned;
-    if (!cli_spawn(&spawned, words, NULL, NULL, 0u, 1, err_msg))
+    if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = words,
+                    .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = err_msg))
     {
         return 0;
     }
-    (void)detached_followed(base);
+    (void)EMBED_CALL(detached_follow, ServeDetachedCtx, .base = base);
     mmgr_line_decimal(out, run, 1u);
     return 1;
 }
 
-int cli_serve_run_follow(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_run_follow(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long run = 0ull;
     char detached_dir[CLI_PATH_MAX_LEN];
-    cli_lock_take(&g_cli_serve.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int has_detached_dir = g_cli_serve.has_detached_dir;
     memor.cpy(&(MemoriaCfg){.dst = detached_dir, .src = g_cli_serve.detached_dir, .bytes = sizeof(detached_dir)});
-    cli_lock_give(&g_cli_serve.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (!has_detached_dir)
     {
         mmgr_line_put(err_msg, "this tree stores no runs");
         return 0;
     }
-    if (!cli_serve_whole(args, "run", &run, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "run",
+                    .value = &run, .err_msg = err_msg))
     {
         return 0;
     }
@@ -329,24 +374,27 @@ int cli_serve_run_follow(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
     mmgr_line_decimal(&named, run, 1u);
     (void)mmgr_line_finish(&named);
     char base[CLI_PATH_MAX_LEN];
-    cli_full(detached_dir, number, base);
-    (void)detached_followed(base);
-    mmgr_line_put(out, "null");
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = detached_dir, .relative = number, .joined = base);
+    (void)EMBED_CALL(detached_follow, ServeDetachedCtx, .base = base);
+    mmgr_line_put(args->out, "null");
     return 1;
 }
 
-int cli_serve_job_stop(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_serve_job_stop(const CliServeAnswerCfg *args)
 {
+    const CliServeArgs *arguments = args->request;
+    VerbaLinea *err_msg = args->err_msg;
     unsigned long long run = 0ull;
-    if (!cli_serve_whole(args, "run", &run, err_msg))
+    if (!EMBED_CALL(cli_serve_err_msg_internal.whole, CliServeErrMsgCtx, .request = arguments, .key = "run",
+                    .value = &run, .err_msg = err_msg))
     {
         return 0;
     }
     char detached_dir[CLI_PATH_MAX_LEN];
-    cli_lock_take(&g_cli_serve.lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int has_detached_dir = g_cli_serve.has_detached_dir;
     memor.cpy(&(MemoriaCfg){.dst = detached_dir, .src = g_cli_serve.detached_dir, .bytes = sizeof(detached_dir)});
-    cli_lock_give(&g_cli_serve.lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (has_detached_dir)
     {
         char number[32];
@@ -355,23 +403,27 @@ int cli_serve_job_stop(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
         (void)mmgr_line_finish(&named);
         char base[CLI_PATH_MAX_LEN];
         char job_file[CLI_PATH_MAX_LEN];
-        cli_full(detached_dir, number, base);
-        cli_serve_detached_file(base, "job", job_file);
-        if (query_is_file(job_file))
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = detached_dir, .relative = number, .joined = base);
+        EMBED_CALL(cli_serve_base_internal.detached_file, CliServeBaseCtx, .base = base, .kind = "job",
+                   .path_out = job_file);
+        if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = job_file))
         {
             char stop_file[CLI_PATH_MAX_LEN];
-            cli_serve_detached_file(base, "stop", stop_file);
-            if (!query_file_written(stop_file, "", 0ull))
+            EMBED_CALL(cli_serve_base_internal.detached_file, CliServeBaseCtx, .base = base, .kind = "stop",
+                       .path_out = stop_file);
+            if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = stop_file,
+                            .bytes = "", .size = 0ull))
             {
                 mmgr_line_put(err_msg, stop_file);
                 mmgr_line_put(err_msg, ": it could not be written");
                 return 0;
             }
-            mmgr_line_put(out, "null");
+            mmgr_line_put(args->out, "null");
             return 1;
         }
     }
-    const int stopped = cli_runs_stop(run, err_msg);
-    mmgr_line_put(out, stopped ? "null" : "");
+    const int stopped = EMBED_CALL(cli_runner_err_msg_run_number.runs_stop, CliRunnerErrMsgRunNumberCfg,
+                                   .run_number = run, .err_msg = err_msg);
+    mmgr_line_put(args->out, stopped ? "null" : "");
     return stopped;
 }

@@ -6,9 +6,17 @@
 // each entry's median over every sweep recorded, and qry_host.h written for the writer and files_host.js for the window
 // from the fastest, once QUERY_SWEEP_LEAST sweeps report
 #include "../../../../src/cu/includes/file_defs/qry/writer/qry_writer_internal.h"
+#include "../../../cli/src/command_line/callback_cfg.h"
 #include "../../../cli/src/text/text.h"
 #include "retention_internal.h"
 
+// An entry of the sweep: what it times, its size, and what is done at that size, the bytes done or 0
+typedef struct
+{
+    const char *what;
+    unsigned long long size;
+    unsigned long long (*act)(const QuerySizeCfg *args);
+} QuerySweepEntry;
 // the sweeps' run folder, the files written from them, the rounds an entry is timed, the sweeps the files are written
 // from at least, how far past the fastest a smaller slice is still taken in parts a thousand, and the bytes timed over
 #define QUERY_SWEEPS "build/qry_sweep/qry"
@@ -26,12 +34,12 @@ static unsigned char *s_bytes;
 static volatile unsigned long long s_read_sum;
 
 // a run's region made whole for a request of `size` bytes, as the writer makes it, and every page of it touched
-static unsigned long long sweep_region(unsigned long long size)
+static unsigned long long sweep_region(const QuerySizeCfg *args)
 {
     unsigned long long members = 0ull;
     unsigned long long places = 0ull;
     unsigned long long run_bytes = 0ull;
-    const unsigned long long whole = qry_shared_laid(size, &members, &places, &run_bytes);
+    const unsigned long long whole = qry_shared_laid(args->size, &members, &places, &run_bytes);
     QryShared *const shared = qry_writer_shared_made(s_scratch, whole);
     if (shared == NULL)
     {
@@ -47,13 +55,13 @@ static unsigned long long sweep_region(unsigned long long size)
 }
 
 // the writer's write call: a file written whole `size` bytes a call, flushed to the disk and taken away
-static unsigned long long sweep_write(unsigned long long size)
+static unsigned long long sweep_write(const QuerySizeCfg *args)
 {
     const long long file = qry_writer_file_made(s_scratch);
     int whole = (file >= 0ll);
-    for (unsigned long long at = 0ull; whole && (at < QUERY_SWEEP_WRITE_BYTES); at += size)
+    for (unsigned long long at = 0ull; whole && (at < QUERY_SWEEP_WRITE_BYTES); at += args->size)
     {
-        whole = qry_writer_file_put(file, s_bytes + (at % QUERY_SWEEP_READ_BYTES), size);
+        whole = qry_writer_file_put(file, s_bytes + (at % QUERY_SWEEP_READ_BYTES), args->size);
     }
     whole = (file >= 0ll) && qry_writer_file_closed(file) && whole;
     (void)qry_writer_file_removed(s_scratch);
@@ -61,9 +69,11 @@ static unsigned long long sweep_write(unsigned long long size)
 }
 
 // the window's slice: a file mapped, `size` bytes of it read and let go, as the editor reads a slice, over the file
-static unsigned long long sweep_slice(unsigned long long size)
+static unsigned long long sweep_slice(const QuerySizeCfg *args)
 {
-    if (!query_file_written(s_scratch, s_bytes, QUERY_SWEEP_READ_BYTES))
+    unsigned long long size = args->size;
+    if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = s_scratch,
+                    .bytes = s_bytes, .size = QUERY_SWEEP_READ_BYTES))
     {
         return 0ull;
     }
@@ -82,17 +92,9 @@ static unsigned long long sweep_slice(unsigned long long size)
         }
     }
     s_read_sum = sum;
-    (void)query_removed(s_scratch);
+    (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = s_scratch);
     return QUERY_SWEEP_READ_BYTES;
 }
-
-// An entry of the sweep: what it times, its size, and what is done at that size, the bytes done or 0
-typedef struct
-{
-    const char *what;
-    unsigned long long size;
-    unsigned long long (*act)(unsigned long long size);
-} QuerySweepEntry;
 
 static const QuerySweepEntry s_entries[] = {
     {"region", 16ull << 20u, sweep_region},  {"region", 64ull << 20u, sweep_region},
@@ -107,43 +109,58 @@ static const QuerySweepEntry s_entries[] = {
 
 #define QUERY_SWEEP_ENTRIES ((unsigned int)(sizeof(s_entries) / sizeof(s_entries[0])))
 
+typedef struct
+{
+    const QuerySweepEntry *entry;
+    const QueryContext *context_read;
+    const char *relative;
+    char *path;
+    unsigned long long *timed;
+    unsigned int count;
+    const char *what;
+    unsigned long long near;
+    const unsigned long long *median;
+    QueryContext *context;
+    const VerbaLinea *text;
+    const QueryWriter *own;
+} SweepCtx;
 // the entry timed on the run's clock: the nanoseconds it took a MiB, 0 where it did nothing
-static unsigned long long sweep_timed(const QuerySweepEntry *entry)
+EMBED_INLINE unsigned long long sweep_time(const SweepCtx *args)
 {
     const unsigned long long began = qry_member_clock();
-    const unsigned long long bytes = entry->act(entry->size);
+    const unsigned long long bytes = EMBED_CALL(args->entry->act, QuerySizeCfg, .size = args->entry->size);
     return (bytes != 0ull) ? (((qry_member_clock() - began) << 20u) / bytes) : 0ull;
 }
 
 // `relative` under the tree's top joined into `path`, sized for QUERY_PATH_MAX_LEN
-static void sweep_path(const QueryContext *context, const char *relative, char *path)
+EMBED_INLINE void sweep_path(const SweepCtx *args)
 {
-    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, context->root);
+    VerbaLinea line = {args->path, QUERY_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->context_read->root);
     mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, relative);
+    mmgr_line_put(&line, args->relative);
     (void)mmgr_line_finish(&line);
 }
 
 // the median of the `count` timings at `timed`, sorted in place, 0 where there are none
-static unsigned long long sweep_median(unsigned long long *timed, unsigned int count)
+EMBED_INLINE unsigned long long sweep_median(const SweepCtx *args)
 {
-    for (unsigned int at = 1u; at < count; at += 1u)
+    for (unsigned int at = 1u; at < args->count; at += 1u)
     {
-        const unsigned long long pivot = timed[at];
+        const unsigned long long pivot = args->timed[at];
         unsigned int place = at;
-        while ((place > 0u) && (timed[place - 1u] > pivot))
+        while ((place > 0u) && (args->timed[place - 1u] > pivot))
         {
-            timed[place] = timed[place - 1u];
+            args->timed[place] = args->timed[place - 1u];
             place -= 1u;
         }
-        timed[place] = pivot;
+        args->timed[place] = pivot;
     }
-    return (count != 0u) ? timed[count / 2u] : 0ull;
+    return (args->count != 0u) ? args->timed[args->count / 2u] : 0ull;
 }
 
 // the size of `what` whose median is least, or the smallest within `near` parts a thousand of that least
-static unsigned long long sweep_taken(const char *what, unsigned long long near, const unsigned long long *median)
+EMBED_INLINE unsigned long long sweep_take(const SweepCtx *args)
 {
     unsigned long long least = ~0ull;
     unsigned long long taken = 0ull;
@@ -151,11 +168,12 @@ static unsigned long long sweep_taken(const char *what, unsigned long long near,
     {
         for (unsigned int entry = 0u; entry < QUERY_SWEEP_ENTRIES; entry += 1u)
         {
-            const int ours = (median[entry] != 0ull) &&
-                             cellul.eq(&(CatenaFinitaCfg){.src = s_entries[entry].what, .other = what, .cap = 16u});
-            least = (ours && (pass == 0u) && (median[entry] < least)) ? median[entry] : least;
+            const int ours =
+                (args->median[entry] != 0ull) &&
+                cellul.eq(&(CatenaFinitaCfg){.src = s_entries[entry].what, .other = args->what, .cap = 16u});
+            least = (ours && (pass == 0u) && (args->median[entry] < least)) ? args->median[entry] : least;
             taken = (ours && (pass == 1u) && ((taken == 0ull) || (s_entries[entry].size < taken)) &&
-                     ((median[entry] * 1000ull) <= (least * (1000ull + near))))
+                     ((args->median[entry] * 1000ull) <= (least * (1000ull + args->near))))
                         ? s_entries[entry].size
                         : taken;
         }
@@ -164,32 +182,37 @@ static unsigned long long sweep_taken(const char *what, unsigned long long near,
 }
 
 // the file at the tree's `relative` written with `text` where it contains anything else, and reported
-static void sweep_written(QueryContext *context, const char *relative, const VerbaLinea *text)
+EMBED_INLINE void sweep_on_write(const SweepCtx *args)
 {
+    QueryContext *context = args->context;
+    const VerbaLinea *text = args->text;
     char path[QUERY_PATH_MAX_LEN];
-    sweep_path(context, relative, path);
+    EMBED_CALL(sweep_path, SweepCtx, .context_read = context, .relative = args->relative, .path = path);
     static unsigned char s_was[4096];
     const unsigned long long was = qry_member_file_read(path, s_was, sizeof(s_was));
     const int same =
         (was == text->at) && (memor.cmp(&(MemoriaCfg){.src = s_was, .other = text->out, .bytes = was}) == 0);
-    const int written = same || query_file_written(path, text->out, text->at);
+    const int written = same || EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
+                                           .path = path, .bytes = text->out, .size = text->at);
     char print_buf[QUERY_PATH_MAX_LEN + 64u];
     VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
     mmgr_line_put(&line, "  ");
-    mmgr_line_put(&line, relative);
+    mmgr_line_put(&line, args->relative);
     mmgr_line_put(&line, same ? " stays as it was" : (written ? " written" : " could not be written"));
     (void)mmgr_line_finish(&line);
-    query_print(context, print_buf);
+    EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = print_buf);
 }
 
 // every sweep recorded walked, each entry's timings gathered, and qry_host.h and files_host.js written from their
 // medians: 0, or 1 where fewer than QUERY_SWEEP_LEAST sweeps report
-static int sweep_picked(QueryContext *context, const QueryWriter *own)
+EMBED_INLINE int sweep_pick(const SweepCtx *args)
 {
+    QueryContext *context = args->context;
+    const QueryWriter *own = args->own;
     char folder[QUERY_PATH_MAX_LEN];
-    sweep_path(context, QUERY_SWEEPS, folder);
+    EMBED_CALL(sweep_path, SweepCtx, .context_read = context, .relative = QUERY_SWEEPS, .path = folder);
     QueryRuns runs;
-    (void)query_runs_taken(folder, &runs);
+    (void)EMBED_CALL(query_folder_runs_internal.runs_take, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
     const unsigned int room = runs.count * QUERY_SWEEP_ROUNDS;
     unsigned long long *const rates =
         (room != 0u)
@@ -199,10 +222,12 @@ static int sweep_picked(QueryContext *context, const QueryWriter *own)
     for (unsigned int at = 0u; (rates != NULL) && (at < runs.count); at += 1u)
     {
         QueryWriter writer;
-        query_writer_of(own, runs.path[at], &writer);
+        EMBED_CALL(query_retention_own_internal.writer_get, QueryRetentionOwnCtx, .own = own, .qry = runs.path[at],
+                   .writer = &writer);
         const unsigned char *blob = NULL;
         unsigned long long size = 0ull;
-        if (query_writer_latest(&writer, "sweep", &blob, &size) &&
+        if (EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &writer, .name = "sweep",
+                       .bytes_u8s = &blob, .size_pointer = &size) &&
             (size == (QUERY_SWEEP_ENTRIES * QUERY_SWEEP_ROUNDS * 8ull)))
         {
             for (unsigned int entry = 0u; entry < QUERY_SWEEP_ENTRIES; entry += 1u)
@@ -214,7 +239,7 @@ static int sweep_picked(QueryContext *context, const QueryWriter *own)
             sweeps += 1u;
         }
     }
-    query_runs_given(&runs);
+    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
     unsigned long long median[QUERY_SWEEP_ENTRIES] = {0ull};
     for (unsigned int entry = 0u; (sweeps >= QUERY_SWEEP_LEAST) && (entry < QUERY_SWEEP_ENTRIES); entry += 1u)
     {
@@ -226,15 +251,18 @@ static int sweep_picked(QueryContext *context, const QueryWriter *own)
             timed[count] = timed[at];
             count += (timed[at] != 0ull) ? 1u : 0u;
         }
-        median[entry] = sweep_median(timed, count);
+        median[entry] = EMBED_CALL(sweep_median, SweepCtx, .timed = timed, .count = count);
     }
     g_cli_cells->persistent_buf_release(rates, &g_query_cells);
-    const unsigned long long region = sweep_taken("region", 0ull, median);
-    const unsigned long long write = sweep_taken("write", 0ull, median);
-    const unsigned long long slice = sweep_taken("slice", QUERY_SWEEP_SLICE_NEAR, median);
+    const unsigned long long region =
+        EMBED_CALL(sweep_take, SweepCtx, .what = "region", .near = 0ull, .median = median);
+    const unsigned long long write = EMBED_CALL(sweep_take, SweepCtx, .what = "write", .near = 0ull, .median = median);
+    const unsigned long long slice =
+        EMBED_CALL(sweep_take, SweepCtx, .what = "slice", .near = QUERY_SWEEP_SLICE_NEAR, .median = median);
     if ((region == 0ull) || (write == 0ull) || (slice == 0ull))
     {
-        query_print(context, "  fewer sweeps report than the host's sizes are written from");
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
+                   .text = "  fewer sweeps report than the host's sizes are written from");
         return 1;
     }
     char text[1024];
@@ -247,7 +275,7 @@ static int sweep_picked(QueryContext *context, const QueryWriter *own)
                   "QRY_WRITER_PIECE_BYTES ");
     mmgr_line_decimal(&header, write, 0u);
     mmgr_line_put(&header, "ull\n\n#endif\n");
-    sweep_written(context, QUERY_SWEEP_HOST_HEADER, &header);
+    EMBED_CALL(sweep_on_write, SweepCtx, .context = context, .relative = QUERY_SWEEP_HOST_HEADER, .text = &header);
     VerbaLinea module = {text, sizeof(text), 0ull};
     mmgr_line_put(&module, "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR "
                            "LicenseRef-Educational\n\n// The file window's sizes on this host, the slice the fastest "
@@ -258,25 +286,28 @@ static int sweep_picked(QueryContext *context, const QueryWriter *own)
     mmgr_line_put(&module, ";\nexport const SLICE = ");
     mmgr_line_decimal(&module, slice, 0u);
     mmgr_line_put(&module, ";\n");
-    sweep_written(context, QUERY_SWEEP_WINDOW_MODULE, &module);
+    EMBED_CALL(sweep_on_write, SweepCtx, .context = context, .relative = QUERY_SWEEP_WINDOW_MODULE, .text = &module);
     return 0;
 }
 
-int query_sweep_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
+int query_sweep_run(const QueryLoopCfg *args)
 {
-    (void)words;
-    if (count != 0u)
+    QueryContext *context = args->context;
+    VerbaLinea *err_msg = args->err_msg;
+    if (args->count != 0u)
     {
         mmgr_line_put(err_msg, "sweep takes no words");
         return -1;
     }
-    query_environment_set("QRY", "");
+    EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY", .value = "");
     static QueryRun s_run;
-    if (!query_context_started(context, &s_run, QUERY_SWEEPS, err_msg))
+    if (!EMBED_CALL(query_loops_context_run.context_start, QueryLoopsContextRunCfg, .context = context,
+                    .run_out = &s_run, .folder = QUERY_SWEEPS, .err_msg = err_msg))
     {
         return -1;
     }
-    sweep_path(context, "build/qry_sweep/scratch.bin", s_scratch);
+    EMBED_CALL(sweep_path, SweepCtx, .context_read = context, .relative = "build/qry_sweep/scratch.bin",
+               .path = s_scratch);
     s_bytes = g_cli_cells->persistent_buf_alloc(QUERY_SWEEP_READ_BYTES, &g_query_cells);
     static unsigned long long s_rates[QUERY_SWEEP_ENTRIES][QUERY_SWEEP_ROUNDS];
     const int timed = s_bytes != NULL;
@@ -288,13 +319,13 @@ int query_sweep_run(QueryContext *context, const char *const *words, unsigned in
             s_bytes[at] = (unsigned char)((at * 2654435761ull) >> 13u);
         }
         // the first entry done once before any timing is recorded, to warm the pages and the caches
-        (void)sweep_timed(&s_entries[0]);
+        (void)EMBED_CALL(sweep_time, SweepCtx, .entry = &s_entries[0]);
         for (unsigned int round = 0u; round < QUERY_SWEEP_ROUNDS; round += 1u)
         {
             for (unsigned int step = 0u; step < QUERY_SWEEP_ENTRIES; step += 1u)
             {
                 const unsigned int entry = (round + step) % QUERY_SWEEP_ENTRIES;
-                s_rates[entry][round] = sweep_timed(&s_entries[entry]);
+                s_rates[entry][round] = EMBED_CALL(sweep_time, SweepCtx, .entry = &s_entries[entry]);
             }
         }
         (void)qry_member_append("sweep", s_rates, sizeof(s_rates), QRY_CRITICAL);
@@ -302,7 +333,8 @@ int query_sweep_run(QueryContext *context, const char *const *words, unsigned in
     g_cli_cells->persistent_buf_release(s_bytes, &g_query_cells);
     s_bytes = NULL;
     const QueryWriter own = s_run.writer;
-    if (!query_context_ended(context, &s_run, err_msg))
+    if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
+                    .err_msg = err_msg))
     {
         return -1;
     }
@@ -311,37 +343,44 @@ int query_sweep_run(QueryContext *context, const char *const *words, unsigned in
         mmgr_line_put(err_msg, "the sweep's bytes could not be taken");
         return -1;
     }
-    return sweep_picked(context, &own);
+    return EMBED_CALL(sweep_pick, SweepCtx, .context = context, .own = &own);
 }
 
-void query_swept_again(QueryContext *context)
+void query_swept_again(const QueryRetentionContextCtx *args)
 {
+    QueryContext *context = args->context;
     char text[32];
     unsigned long long hours = 0ull;
-    const int given = query_environment_read("QRY_SWEEP_HOURS", text, sizeof(text));
-    hours = given
-                ? cli_text_number(text, 0ull, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), NULL)
-                : 0ull;
+    const int given = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx,
+                                 .name = "QRY_SWEEP_HOURS", .value_out = text, .room = sizeof(text));
+    hours = given ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = text, .at = 0ull,
+                               .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .end = NULL)
+                  : 0ull;
     hours = (hours != 0ull) ? hours : 12ull;
     char folder[QUERY_PATH_MAX_LEN];
-    sweep_path(context, QUERY_SWEEPS, folder);
+    EMBED_CALL(sweep_path, SweepCtx, .context_read = context, .relative = QUERY_SWEEPS, .path = folder);
     QueryRuns runs;
-    (void)query_runs_taken(folder, &runs);
+    (void)EMBED_CALL(query_folder_runs_internal.runs_take, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
     int within = 0;
     for (unsigned int at = 0u; !within && (at < runs.count); at += 1u)
     {
         unsigned long long seconds = 0ull;
-        within = query_modified(runs.path[at], &seconds) && ((seconds + (hours * 3600ull)) > query_now());
+        within = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = runs.path[at],
+                            .seconds = &seconds) &&
+                 ((seconds + (hours * 3600ull)) > query_now());
     }
-    query_runs_given(&runs);
+    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
     char why[QUERY_LINE_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (within)
     {
-        query_print(context, "  a sweep of the host is newer than QRY_SWEEP_HOURS: none is run");
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
+                   .text = "  a sweep of the host is newer than QRY_SWEEP_HOURS: none is run");
     }
-    else if ((query_sweep_run(context, NULL, 0u, &err_msg) < 0) && (mmgr_line_finish(&err_msg) != 0ull))
+    else if ((EMBED_CALL(query_loop.sweep_run, QueryLoopCfg, .context = context, .words = NULL, .count = 0u,
+                         .err_msg = &err_msg) < 0) &&
+             (mmgr_line_finish(&err_msg) != 0ull))
     {
-        query_print(context, why);
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = why);
     }
 }

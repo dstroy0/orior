@@ -13,12 +13,13 @@ static int measured_put(void *context, const char *bytes, size_t size)
     return 1;
 }
 
-void cli_measure_begun(VerbaLinea *line, char *piece, unsigned long long piece_size)
+void cli_measure_begin(const CliMeasuredPieceCfg *args)
 {
-    *line = (VerbaLinea){piece, piece_size, 0ull, measured_put, NULL, 0ull};
+    VerbaLinea *line = args->line;
+    *line = (VerbaLinea){args->piece, args->piece_size, 0ull, measured_put, NULL, 0ull};
 }
 
-unsigned long long cli_measured(const VerbaLinea *line)
+unsigned long long cli_measure(const CliMeasuredCfg *args)
 {
-    return line->flushed + line->at;
+    return args->line_read->flushed + args->line_read->at;
 }

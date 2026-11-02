@@ -30,7 +30,7 @@ thread_local int t_pair = -1;
 thread_local int t_dangerous = 0;
 
 // `format` and what follows it added to the end of `log`'s bytes, as fprintf writes them
-__attribute__((format(gnu_printf, 2, 3))) void query_log_print(QueryLog *log, const char *format, ...)
+void query_log_print(QueryLog *log, const char *format, ...)
 {
     va_list values;
     va_start(values, format);

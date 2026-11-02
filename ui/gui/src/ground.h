@@ -1,66 +1,113 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ground.h: the window's ground: the lattice behind every part, laid out over the window in the page's pixels, its
-// dots drawn soft-edged and dithered over the deep color into a raster of the ground's own that every frame starts
-// from; drawn again only at a moment the loop shows a change, which the lattice finds, and its clock standing still
-// while the window is off the screen, the loop taking up where it stood (ground.c)
+// ground.h: the window's background: the lattice drawn into a raster every frame starts from. It is redrawn only when
+// the lattice next changes on screen, and its clock stops while the window is off screen (ground.c)
 #ifndef GUI_GROUND_H
 #define GUI_GROUND_H
+typedef struct GuiGroundRasterCfg GuiGroundRasterCfg;
+typedef struct GuiGroundCfg GuiGroundCfg;
+typedef struct GuiGroundClockCfg GuiGroundClockCfg;
+#include "embed_dispatch_layout.h"
 #include "lattice.h"
 #include "palette.h"
 
-// the pens the dots are shaded from, as the page's lattice/pens.js writes them: the share of ink a point puts down
-// from the least ordered, the faintest, to the most ordered, the brightest, the faintest dimmed by the dim; and a
-// point's radius in the page's pixels, the least ordered the smallest, growing by the spread as it orders
+// How a dot is shaded by its order: ink from the least ordered to the most, and radius in page pixels
 #define GUI_GROUND_DIM 0.85
 #define GUI_GROUND_FAINTEST (0.426 * GUI_GROUND_DIM)
 #define GUI_GROUND_BRIGHTEST 0.42
 #define GUI_GROUND_RADIUS 0.59
 #define GUI_GROUND_RADIUS_SPREAD 0.16
 
-// The ground: its raster, the deep color with the dots over it, a view of the region's ground raster; its `slot`
-// of the lattice; the size and scale it is laid out for and whether it is; the shades its dots take; its clock, when
-// it began, the milliseconds lost to every stretch it was kept still and when the stretch holding it now began, 0
-// while none does; the loop's moment it was last drawn at, in seconds, and the moment the loop next shows a change
-// after it, found once as it is drawn; and how many times it has been drawn
+// The clock is `now - start_ms`, or `paused_ms - start_ms` while paused. `paused_ms` is 0 while it runs. `next_draw_ms`
+// is on that clock.
 typedef struct
 {
     GuiRaster raster;
-    uint32_t slot;
+    uint32_t lattice_index;
     unsigned int width;
     unsigned int height;
-    float scale;
+    int scale;
     int laid;
     LatticeShades shades;
-    unsigned long long began_ms;
-    unsigned long long lost_ms;
-    unsigned long long paused_since_ms;
-    double drawn_at;
-    double shows_at;
+    unsigned long long start_ms;
+    unsigned long long paused_ms;
+    unsigned long long next_draw_ms;
     unsigned int frames;
 } GuiGround;
 
-// the ground made at `now`, its `slot` of the lattice taken: 1, or 0 where all LATTICE_SLOTS are taken; and given
-// back, its raster and its `slot` with it
-int gui_ground_made(GuiGround *ground, unsigned long long now);
-void gui_ground_given(GuiGround *ground);
-// the ground laid out for a window `width` by `height` at `scale` in `palette`'s colors at `now` on `raster`, the
-// region's ground raster at that size, which the ground draws into and never gives back: the lattice laid over the
-// window in the page's pixels, its shades made from the palette's lattice colors, and the raster drawn: 1, or 0 where
-// the lattice's cells could not be taken, the raster drawn in the deep color alone
-int gui_ground_laid(GuiGround *ground, const GuiRaster *raster, unsigned int width, unsigned int height, float scale,
-                    const GuiPalette *palette, unsigned long long now);
-// the ground drawn at the loop's moment at `now`: the deep color, and every dot over it where it stands
-void gui_ground_drawn(GuiGround *ground, const GuiPalette *palette, unsigned long long now);
-// the tick come at `now`: the ground drawn again where the loop has moved since it was drawn enough to be seen: 1
-// where it was, a frame owed, else 0
-int gui_ground_ticked(GuiGround *ground, const GuiPalette *palette, unsigned long long now);
-// the milliseconds from `now` until the loop next shows a change, 0 for never while the ground is kept still or not
-// laid
-unsigned long long gui_ground_due(const GuiGround *ground, unsigned long long now);
-// the ground kept still from `now` where `paused` is 1, its clock standing, or let go where 0, the clock taking up
-// where it stood
-void gui_ground_paused(GuiGround *ground, int paused, unsigned long long now);
-// the loop's moment at `now`, in seconds
-double gui_ground_seconds(const GuiGround *ground, unsigned long long now);
+// Takes a lattice instance and starts the clock at `now`. Returns 0 when every instance is taken.
+int gui_ground_init(const GuiGroundCfg *args);
+// Lets go of the raster, which the caller owns, and of the lattice instance.
+void gui_ground_free(const GuiGroundCfg *args);
+// Stops the clock at `now` when `paused` is 1, and restarts it where it stopped when 0.
+void gui_ground_pause(const GuiGroundCfg *args);
+// Lays the lattice over a `width` by `height` window at `scale` and draws into `raster`, which the caller owns. Returns
+// 0 when the lattice could not be laid; the raster then holds the deep color alone.
+int gui_ground_layout(const GuiGroundRasterCfg *args);
+// Draws the deep color and every dot at the clock's time.
+void gui_ground_draw(const GuiGroundRasterCfg *args);
+// Redraws when the clock has reached `next_draw_ms`. Returns 1 when it drew.
+int gui_ground_tick(const GuiGroundRasterCfg *args);
+// Milliseconds until the next draw, at least 1, or 0 for never while paused or not laid.
+unsigned long long gui_ground_next_deadline_ms(const GuiGroundClockCfg *args);
+// Milliseconds the clock has run at `now`.
+unsigned long long gui_ground_elapsed_ms(const GuiGroundClockCfg *args);
+struct GuiGroundCfg
+{
+    GuiGround *ground;
+    int paused;
+};
+
+struct GuiGroundRasterCfg
+{
+    GuiGround *ground;
+    const GuiRaster *raster;
+    unsigned int width;
+    unsigned int height;
+    int scale;
+    const GuiPalette *palette;
+};
+
+struct GuiGroundClockCfg
+{
+    const GuiGround *ground;
+};
+
+typedef struct
+{
+    int (*init)(const GuiGroundCfg *args);
+    void (*free)(const GuiGroundCfg *args);
+    void (*pause)(const GuiGroundCfg *args);
+} GuiGroundNs;
+EMBED_TABLE_LAYOUT(GuiGroundNs, init, free, pause);
+EMBED_TABLE_STORAGE GuiGroundNs gui_ground EMBED_UNUSED = {
+    .init = gui_ground_init,
+    .free = gui_ground_free,
+    .pause = gui_ground_pause,
+};
+
+typedef struct
+{
+    int (*layout)(const GuiGroundRasterCfg *args);
+    void (*draw)(const GuiGroundRasterCfg *args);
+    int (*tick)(const GuiGroundRasterCfg *args);
+} GuiGroundRasterNs;
+EMBED_TABLE_LAYOUT(GuiGroundRasterNs, layout, draw, tick);
+EMBED_TABLE_STORAGE GuiGroundRasterNs gui_ground_raster EMBED_UNUSED = {
+    .layout = gui_ground_layout,
+    .draw = gui_ground_draw,
+    .tick = gui_ground_tick,
+};
+
+typedef struct
+{
+    unsigned long long (*next_deadline_ms)(const GuiGroundClockCfg *args);
+    unsigned long long (*elapsed_ms)(const GuiGroundClockCfg *args);
+} GuiGroundClockNs;
+EMBED_TABLE_LAYOUT(GuiGroundClockNs, next_deadline_ms, elapsed_ms);
+EMBED_TABLE_STORAGE GuiGroundClockNs gui_ground_clock EMBED_UNUSED = {
+    .next_deadline_ms = gui_ground_next_deadline_ms,
+    .elapsed_ms = gui_ground_elapsed_ms,
+};
+
 #endif

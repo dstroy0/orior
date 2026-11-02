@@ -18,47 +18,67 @@ static const unsigned int s_round[64] = {
 static const unsigned int s_start[8] = {0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
                                         0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u};
 
-static unsigned int cli_right(unsigned int word, unsigned int count)
+typedef struct
 {
-    return (word >> count) | (word << (32u - count));
+    unsigned int word;
+    unsigned int count;
+    unsigned int *state;
+    const unsigned char *block;
+    const unsigned char *bytes;
+    unsigned int size;
+    VerbaLinea *text;
+    unsigned long long size_u64;
+    unsigned long long index;
+    int big;
+    unsigned char *block_out;
+} DigestCtx;
+EMBED_INLINE unsigned int cli_right(const DigestCtx *args)
+{
+    return (args->word >> args->count) | (args->word << (32u - args->count));
 }
 
-static unsigned int cli_left(unsigned int word, unsigned int count)
+EMBED_INLINE unsigned int cli_leave(const DigestCtx *args)
 {
-    return (word << count) | (word >> (32u - count));
+    return (args->word << args->count) | (args->word >> (32u - args->count));
 }
 
 // one block of 64 bytes taken into the state
-static void cli_sha256_block(unsigned int *state, const unsigned char *block)
+EMBED_INLINE void cli_sha256_block(const DigestCtx *args)
 {
     unsigned int words[64];
     for (unsigned int at = 0u; at < 16u; at += 1u)
     {
-        words[at] = ((unsigned int)block[at * 4u] << 24u) | ((unsigned int)block[(at * 4u) + 1u] << 16u) |
-                    ((unsigned int)block[(at * 4u) + 2u] << 8u) | (unsigned int)block[(at * 4u) + 3u];
+        words[at] = ((unsigned int)args->block[at * 4u] << 24u) | ((unsigned int)args->block[(at * 4u) + 1u] << 16u) |
+                    ((unsigned int)args->block[(at * 4u) + 2u] << 8u) | (unsigned int)args->block[(at * 4u) + 3u];
     }
     for (unsigned int at = 16u; at < 64u; at += 1u)
     {
-        const unsigned int low =
-            cli_right(words[at - 15u], 7u) ^ cli_right(words[at - 15u], 18u) ^ (words[at - 15u] >> 3u);
-        const unsigned int high =
-            cli_right(words[at - 2u], 17u) ^ cli_right(words[at - 2u], 19u) ^ (words[at - 2u] >> 10u);
+        const unsigned int low = EMBED_CALL(cli_right, DigestCtx, .word = words[at - 15u], .count = 7u) ^
+                                 EMBED_CALL(cli_right, DigestCtx, .word = words[at - 15u], .count = 18u) ^
+                                 (words[at - 15u] >> 3u);
+        const unsigned int high = EMBED_CALL(cli_right, DigestCtx, .word = words[at - 2u], .count = 17u) ^
+                                  EMBED_CALL(cli_right, DigestCtx, .word = words[at - 2u], .count = 19u) ^
+                                  (words[at - 2u] >> 10u);
         words[at] = words[at - 16u] + low + words[at - 7u] + high;
     }
-    unsigned int a = state[0];
-    unsigned int b = state[1];
-    unsigned int c = state[2];
-    unsigned int d = state[3];
-    unsigned int e = state[4];
-    unsigned int f = state[5];
-    unsigned int g = state[6];
-    unsigned int h = state[7];
+    unsigned int a = args->state[0];
+    unsigned int b = args->state[1];
+    unsigned int c = args->state[2];
+    unsigned int d = args->state[3];
+    unsigned int e = args->state[4];
+    unsigned int f = args->state[5];
+    unsigned int g = args->state[6];
+    unsigned int h = args->state[7];
     for (unsigned int at = 0u; at < 64u; at += 1u)
     {
-        const unsigned int sum_e = cli_right(e, 6u) ^ cli_right(e, 11u) ^ cli_right(e, 25u);
+        const unsigned int sum_e = EMBED_CALL(cli_right, DigestCtx, .word = e, .count = 6u) ^
+                                   EMBED_CALL(cli_right, DigestCtx, .word = e, .count = 11u) ^
+                                   EMBED_CALL(cli_right, DigestCtx, .word = e, .count = 25u);
         const unsigned int choose = (e & f) ^ (~e & g);
         const unsigned int first = h + sum_e + choose + s_round[at] + words[at];
-        const unsigned int sum_a = cli_right(a, 2u) ^ cli_right(a, 13u) ^ cli_right(a, 22u);
+        const unsigned int sum_a = EMBED_CALL(cli_right, DigestCtx, .word = a, .count = 2u) ^
+                                   EMBED_CALL(cli_right, DigestCtx, .word = a, .count = 13u) ^
+                                   EMBED_CALL(cli_right, DigestCtx, .word = a, .count = 22u);
         const unsigned int most = (a & b) ^ (a & c) ^ (b & c);
         h = g;
         g = f;
@@ -69,100 +89,101 @@ static void cli_sha256_block(unsigned int *state, const unsigned char *block)
         b = a;
         a = first + sum_a + most;
     }
-    state[0] += a;
-    state[1] += b;
-    state[2] += c;
-    state[3] += d;
-    state[4] += e;
-    state[5] += f;
-    state[6] += g;
-    state[7] += h;
+    args->state[0] += a;
+    args->state[1] += b;
+    args->state[2] += c;
+    args->state[3] += d;
+    args->state[4] += e;
+    args->state[5] += f;
+    args->state[6] += g;
+    args->state[7] += h;
 }
 
-void cli_sha256_begun(CliSha256 *sha)
+void cli_sha256_begin(const CliDigestCfg *args)
 {
-    memor.cpy(&(MemoriaCfg){.dst = sha->state, .src = s_start, .bytes = sizeof(s_start)});
-    sha->buffered = 0u;
-    sha->total = 0ull;
+    memor.cpy(&(MemoriaCfg){.dst = args->sha->state, .src = s_start, .bytes = sizeof(s_start)});
+    args->sha->buffered = 0u;
+    args->sha->total = 0ull;
 }
 
-void cli_sha256_taken(CliSha256 *sha, const void *bytes, unsigned long long size)
+void cli_sha256_take(const CliDigestShaCfg *args)
 {
-    const unsigned char *const from = (const unsigned char *)bytes;
-    sha->total += size;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    const unsigned char *const from = (const unsigned char *)args->bytes;
+    args->sha->total += args->size;
+    for (unsigned long long at = 0ull; at < args->size; at += 1ull)
     {
-        sha->block[sha->buffered] = from[at];
-        sha->buffered += 1u;
-        if (sha->buffered == 64u)
+        args->sha->block[args->sha->buffered] = from[at];
+        args->sha->buffered += 1u;
+        if (args->sha->buffered == 64u)
         {
-            cli_sha256_block(sha->state, sha->block);
-            sha->buffered = 0u;
+            EMBED_CALL(cli_sha256_block, DigestCtx, .state = args->sha->state, .block = args->sha->block);
+            args->sha->buffered = 0u;
         }
     }
 }
 
-void cli_sha256_ended(CliSha256 *sha, unsigned char *digest)
+void cli_sha256_end(const CliDigestCfg *args)
 {
-    const unsigned long long bits = sha->total * 8ull;
+    const unsigned long long bits = args->sha->total * 8ull;
     const unsigned char one = 0x80u;
     const unsigned char zero = 0u;
-    cli_sha256_taken(sha, &one, 1ull);
-    while (sha->buffered != 56u)
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = args->sha, .bytes = &one, .size = 1ull);
+    while (args->sha->buffered != 56u)
     {
-        cli_sha256_taken(sha, &zero, 1ull);
+        EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = args->sha, .bytes = &zero, .size = 1ull);
     }
     unsigned char length[8];
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         length[at] = (unsigned char)((bits >> (56u - (8u * at))) & 0xffull);
     }
-    cli_sha256_taken(sha, length, 8ull);
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = args->sha, .bytes = length, .size = 8ull);
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        digest[at * 4u] = (unsigned char)(sha->state[at] >> 24u);
-        digest[(at * 4u) + 1u] = (unsigned char)(sha->state[at] >> 16u);
-        digest[(at * 4u) + 2u] = (unsigned char)(sha->state[at] >> 8u);
-        digest[(at * 4u) + 3u] = (unsigned char)sha->state[at];
+        args->digest[at * 4u] = (unsigned char)(args->sha->state[at] >> 24u);
+        args->digest[(at * 4u) + 1u] = (unsigned char)(args->sha->state[at] >> 16u);
+        args->digest[(at * 4u) + 2u] = (unsigned char)(args->sha->state[at] >> 8u);
+        args->digest[(at * 4u) + 3u] = (unsigned char)args->sha->state[at];
     }
 }
 
-void cli_sha256_bytes(const void *bytes, unsigned long long size, unsigned char *digest)
+void cli_sha256_bytes(const CliDigestBytesSizeCfg *args)
 {
     CliSha256 sha;
-    cli_sha256_begun(&sha);
-    cli_sha256_taken(&sha, bytes, size);
-    cli_sha256_ended(&sha, digest);
+    EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = args->bytes, .size = args->size);
+    EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = args->digest);
 }
 
 // `size` bytes as lowercase hex
-static void cli_hex(const unsigned char *bytes, unsigned int size, VerbaLinea *text)
+EMBED_INLINE void cli_hex(const DigestCtx *args)
 {
-    for (unsigned int at = 0u; at < size; at += 1u)
+    for (unsigned int at = 0u; at < args->size; at += 1u)
     {
-        mmgr_line_hex(text, bytes[at], 2u);
+        mmgr_line_hex(args->text, args->bytes[at], 2u);
     }
 }
 
-void cli_sha256_text(const void *bytes, unsigned long long size, VerbaLinea *text)
+void cli_sha256_text(const CliDigestBytesCfg *args)
 {
     unsigned char digest[32];
-    cli_sha256_bytes(bytes, size, digest);
-    cli_hex(digest, 32u, text);
+    EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = args->bytes, .size = args->size,
+               .digest = digest);
+    EMBED_CALL(cli_hex, DigestCtx, .bytes = digest, .size = 32u, .text = args->text);
 }
 
-void cli_hmac_sha256_bytes(const void *key, unsigned long long key_size, const void *message,
-                           unsigned long long message_size, unsigned char *signed_digest)
+void cli_hmac_sha256_bytes(const CliDigestKeyCfg *args)
 {
     unsigned char block[64];
     memor.set(&(MemoriaCfg){.dst = block, .val = 0, .bytes = sizeof(block)});
-    if (key_size > 64ull)
+    if (args->key_size > 64ull)
     {
-        cli_sha256_bytes(key, key_size, block);
+        EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = args->key,
+                   .size = args->key_size, .digest = block);
     }
     else
     {
-        memor.cpy(&(MemoriaCfg){.dst = block, .src = key, .bytes = (size_t)key_size});
+        memor.cpy(&(MemoriaCfg){.dst = block, .src = args->key, .bytes = (size_t)args->key_size});
     }
     unsigned char pad[64];
     for (unsigned int at = 0u; at < 64u; at += 1u)
@@ -171,49 +192,52 @@ void cli_hmac_sha256_bytes(const void *key, unsigned long long key_size, const v
     }
     CliSha256 sha;
     unsigned char inner[32];
-    cli_sha256_begun(&sha);
-    cli_sha256_taken(&sha, pad, 64ull);
-    cli_sha256_taken(&sha, message, message_size);
-    cli_sha256_ended(&sha, inner);
+    EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = 64ull);
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = args->message,
+               .size = args->message_size);
+    EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = inner);
     for (unsigned int at = 0u; at < 64u; at += 1u)
     {
         pad[at] = block[at] ^ 0x5cu;
     }
-    cli_sha256_begun(&sha);
-    cli_sha256_taken(&sha, pad, 64ull);
-    cli_sha256_taken(&sha, inner, 32ull);
-    cli_sha256_ended(&sha, signed_digest);
+    EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = 64ull);
+    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = inner, .size = 32ull);
+    EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = args->signed_digest);
 }
 
-void cli_hmac_sha256_text(const void *key, unsigned long long key_size, const void *message,
-                          unsigned long long message_size, VerbaLinea *text)
+void cli_hmac_sha256_text(const CliDigestTextCfg *args)
 {
     unsigned char signed_digest[32];
-    cli_hmac_sha256_bytes(key, key_size, message, message_size, signed_digest);
-    cli_hex(signed_digest, 32u, text);
+    EMBED_CALL(cli_digest_key.hmac_sha256_bytes, CliDigestKeyCfg, .key = args->key, .key_size = args->key_size,
+               .message = args->message, .message_size = args->message_size, .signed_digest = signed_digest);
+    EMBED_CALL(cli_hex, DigestCtx, .bytes = signed_digest, .size = 32u, .text = args->text);
 }
 
-void cli_pbkdf2_sha256(const void *password, unsigned long long password_size, const void *salt,
-                       unsigned long long salt_size, unsigned int rounds, unsigned char *derived)
+void cli_pbkdf2_sha256(const CliDigestPasswordCfg *args)
 {
     // the salt and the block's number, 1, big-endian, as the first round's message
     static unsigned char s_first[4096u + 4u];
-    const unsigned long long salt_len = (salt_size < 4096ull) ? salt_size : 4096ull;
-    memor.cpy(&(MemoriaCfg){.dst = s_first, .src = salt, .bytes = (size_t)salt_len});
+    const unsigned long long salt_len = (args->salt_size < 4096ull) ? args->salt_size : 4096ull;
+    memor.cpy(&(MemoriaCfg){.dst = s_first, .src = args->salt, .bytes = (size_t)salt_len});
     s_first[salt_len] = 0u;
     s_first[salt_len + 1u] = 0u;
     s_first[salt_len + 2u] = 0u;
     s_first[salt_len + 3u] = 1u;
     unsigned char last[32];
-    cli_hmac_sha256_bytes(password, password_size, s_first, salt_len + 4ull, last);
-    memor.cpy(&(MemoriaCfg){.dst = derived, .src = last, .bytes = 32u});
-    for (unsigned int round = 1u; round < rounds; round += 1u)
+    EMBED_CALL(cli_digest_key.hmac_sha256_bytes, CliDigestKeyCfg, .key = args->password,
+               .key_size = args->password_size, .message = s_first, .message_size = salt_len + 4ull,
+               .signed_digest = last);
+    memor.cpy(&(MemoriaCfg){.dst = args->derived, .src = last, .bytes = 32u});
+    for (unsigned int round = 1u; round < args->rounds; round += 1u)
     {
         unsigned char now[32];
-        cli_hmac_sha256_bytes(password, password_size, last, 32ull, now);
+        EMBED_CALL(cli_digest_key.hmac_sha256_bytes, CliDigestKeyCfg, .key = args->password,
+                   .key_size = args->password_size, .message = last, .message_size = 32ull, .signed_digest = now);
         for (unsigned int at = 0u; at < 32u; at += 1u)
         {
-            derived[at] ^= now[at];
+            args->derived[at] ^= now[at];
         }
         memor.cpy(&(MemoriaCfg){.dst = last, .src = now, .bytes = 32u});
     }
@@ -221,32 +245,32 @@ void cli_pbkdf2_sha256(const void *password, unsigned long long password_size, c
 
 // the padded message's block `index` of the `size` bytes at `bytes`: the bytes, the 0x80, zeros, and the length in
 // bits, big-endian for SHA-1 and little for MD5, written into `block`
-static void cli_padded_block(const unsigned char *bytes, unsigned long long size, unsigned long long index, int big,
-                             unsigned char *block)
+EMBED_INLINE void cli_padded_block(const DigestCtx *args)
 {
-    const unsigned long long bits = size * 8ull;
-    const unsigned long long blocks = ((size + 8ull) / 64ull) + 1ull;
+    const unsigned long long bits = args->size_u64 * 8ull;
+    const unsigned long long blocks = ((args->size_u64 + 8ull) / 64ull) + 1ull;
     for (unsigned int at = 0u; at < 64u; at += 1u)
     {
-        const unsigned long long byte = (index * 64ull) + at;
-        unsigned char value = (byte < size) ? bytes[byte] : ((byte == size) ? 0x80u : 0u);
-        if ((index == (blocks - 1u)) && (at >= 56u))
+        const unsigned long long byte = (args->index * 64ull) + at;
+        unsigned char value = (byte < args->size_u64) ? args->bytes[byte] : ((byte == args->size_u64) ? 0x80u : 0u);
+        if ((args->index == (blocks - 1u)) && (at >= 56u))
         {
-            const unsigned int shift = big ? (8u * (63u - at)) : (8u * (at - 56u));
+            const unsigned int shift = args->big ? (8u * (63u - at)) : (8u * (at - 56u));
             value = (unsigned char)((bits >> shift) & 0xffull);
         }
-        block[at] = value;
+        args->block_out[at] = value;
     }
 }
 
-void cli_sha1_bytes(const void *bytes, unsigned long long size, unsigned char *digest)
+void cli_sha1_bytes(const CliDigestBytesSizeCfg *args)
 {
     unsigned int state[5] = {0x67452301u, 0xefcdab89u, 0x98badcfeu, 0x10325476u, 0xc3d2e1f0u};
-    const unsigned long long blocks = ((size + 8ull) / 64ull) + 1ull;
+    const unsigned long long blocks = ((args->size + 8ull) / 64ull) + 1ull;
     for (unsigned long long index = 0ull; index < blocks; index += 1ull)
     {
         unsigned char block[64];
-        cli_padded_block((const unsigned char *)bytes, size, index, 1, block);
+        EMBED_CALL(cli_padded_block, DigestCtx, .bytes = (const unsigned char *)args->bytes, .size_u64 = args->size,
+                   .index = index, .big = 1, .block_out = block);
         unsigned int words[80];
         for (unsigned int at = 0u; at < 16u; at += 1u)
         {
@@ -255,7 +279,9 @@ void cli_sha1_bytes(const void *bytes, unsigned long long size, unsigned char *d
         }
         for (unsigned int at = 16u; at < 80u; at += 1u)
         {
-            words[at] = cli_left(words[at - 3u] ^ words[at - 8u] ^ words[at - 14u] ^ words[at - 16u], 1u);
+            words[at] =
+                EMBED_CALL(cli_leave, DigestCtx,
+                           .word = words[at - 3u] ^ words[at - 8u] ^ words[at - 14u] ^ words[at - 16u], .count = 1u);
         }
         unsigned int a = state[0];
         unsigned int b = state[1];
@@ -272,10 +298,11 @@ void cli_sha1_bytes(const void *bytes, unsigned long long size, unsigned char *d
                                           : (at < 40u) ? 0x6ed9eba1u
                                           : (at < 60u) ? 0x8f1bbcdcu
                                                        : 0xca62c1d6u;
-            const unsigned int next = cli_left(a, 5u) + mixed + e + constant + words[at];
+            const unsigned int next =
+                EMBED_CALL(cli_leave, DigestCtx, .word = a, .count = 5u) + mixed + e + constant + words[at];
             e = d;
             d = c;
-            c = cli_left(b, 30u);
+            c = EMBED_CALL(cli_leave, DigestCtx, .word = b, .count = 30u);
             b = a;
             a = next;
         }
@@ -287,10 +314,10 @@ void cli_sha1_bytes(const void *bytes, unsigned long long size, unsigned char *d
     }
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        digest[at * 4u] = (unsigned char)(state[at] >> 24u);
-        digest[(at * 4u) + 1u] = (unsigned char)(state[at] >> 16u);
-        digest[(at * 4u) + 2u] = (unsigned char)(state[at] >> 8u);
-        digest[(at * 4u) + 3u] = (unsigned char)state[at];
+        args->digest[at * 4u] = (unsigned char)(state[at] >> 24u);
+        args->digest[(at * 4u) + 1u] = (unsigned char)(state[at] >> 16u);
+        args->digest[(at * 4u) + 2u] = (unsigned char)(state[at] >> 8u);
+        args->digest[(at * 4u) + 3u] = (unsigned char)state[at];
     }
 }
 
@@ -306,14 +333,15 @@ static const unsigned int s_md5_round[64] = {
 
 static const unsigned int s_md5_shift[16] = {7u, 12u, 17u, 22u, 5u, 9u, 14u, 20u, 4u, 11u, 16u, 23u, 6u, 10u, 15u, 21u};
 
-void cli_md5_text(const void *bytes, unsigned long long size, VerbaLinea *text)
+void cli_md5_text(const CliDigestBytesCfg *args)
 {
     unsigned int state[4] = {0x67452301u, 0xefcdab89u, 0x98badcfeu, 0x10325476u};
-    const unsigned long long blocks = ((size + 8ull) / 64ull) + 1ull;
+    const unsigned long long blocks = ((args->size + 8ull) / 64ull) + 1ull;
     for (unsigned long long index = 0ull; index < blocks; index += 1ull)
     {
         unsigned char block[64];
-        cli_padded_block((const unsigned char *)bytes, size, index, 0, block);
+        EMBED_CALL(cli_padded_block, DigestCtx, .bytes = (const unsigned char *)args->bytes, .size_u64 = args->size,
+                   .index = index, .big = 0, .block_out = block);
         unsigned int words[16];
         for (unsigned int at = 0u; at < 16u; at += 1u)
         {
@@ -336,7 +364,8 @@ void cli_md5_text(const void *bytes, unsigned long long size, VerbaLinea *text)
                                       : (quarter == 2u) ? (((3u * at) + 5u) % 16u)
                                                         : ((7u * at) % 16u);
             const unsigned int turned =
-                cli_left(a + mixed + s_md5_round[at] + words[word], s_md5_shift[(quarter * 4u) + (at % 4u)]);
+                EMBED_CALL(cli_leave, DigestCtx, .word = a + mixed + s_md5_round[at] + words[word],
+                           .count = s_md5_shift[(quarter * 4u) + (at % 4u)]);
             a = d;
             d = c;
             c = b;
@@ -351,7 +380,7 @@ void cli_md5_text(const void *bytes, unsigned long long size, VerbaLinea *text)
     {
         for (unsigned int byte = 0u; byte < 4u; byte += 1u)
         {
-            mmgr_line_hex(text, (state[at] >> (8u * byte)) & 0xffu, 2u);
+            mmgr_line_hex(args->text, (state[at] >> (8u * byte)) & 0xffu, 2u);
         }
     }
 }

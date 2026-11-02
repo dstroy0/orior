@@ -3,8 +3,14 @@
 // checkers_internal.h: what the checkers sources share: the findings read from what a checker wrote, by file
 #ifndef CHECKERS_INTERNAL_H
 #define CHECKERS_INTERNAL_H
+typedef struct CliCheckersNameCtx CliCheckersNameCtx;
+typedef struct CliCheckersPathCtx CliCheckersPathCtx;
+typedef struct CliCheckersCtx CliCheckersCtx;
+typedef struct CliCheckersFileCtx CliCheckersFileCtx;
+typedef struct CliCheckersTextCtx CliCheckersTextCtx;
 
 #include "checkers.h"
+#include "embed_dispatch_layout.h"
 
 // the most files and findings one check reads, and the bytes of their diagnostics
 #define CLI_CHECK_FILES 1024u
@@ -30,10 +36,8 @@ typedef struct
 // read into `findings` by file: `path`, where it is given, stands for a file named `-`, `<stdin>` or `stdin`, and a
 // relative path is read from `root`; and the file at `path` among the findings: its place, put first where it is not
 // there and `first` is set (checkers_read.c)
-void cli_checkers_read(const char *name, const char *reads, const char *out, unsigned long long out_size,
-                       const char *err, unsigned long long err_size, const char *root, const char *path,
-                       CliFindings *findings);
-unsigned int cli_checkers_file(CliFindings *findings, const char *path, int first);
+void cli_checkers_read(const CliCheckersNameCtx *args);
+unsigned int cli_checkers_file(const CliCheckersPathCtx *args);
 
 // A finding as the protocol's diagnostic: where it starts, counted from one, where it ends where it is given, its
 // severity, its message and code, each as bytes that may not be UTF-8, and its fixes as JSON
@@ -56,8 +60,91 @@ typedef struct
 // checked where it names `-`, `<stdin>` or `stdin` and one was, else the name read from the tree's top where it is
 // relative, its place among the findings (checkers_read.c); and the findings `size` bytes of `text` write a line
 // each, put among the findings (checkers_lines.c)
-void cli_checkers_finding_put(unsigned int file, const CliFinding *finding);
-unsigned int cli_checkers_file_of(const char *name, unsigned long long length);
-void cli_checkers_lines_read(const char *text, unsigned long long size);
+void cli_checkers_finding_put(const CliCheckersFileCtx *args);
+unsigned int cli_checkers_file_get(const CliCheckersCtx *args);
+void cli_checkers_lines_read(const CliCheckersTextCtx *args);
+
+struct CliCheckersNameCtx
+{
+    const char *name;
+    const char *reads;
+    const char *out;
+    unsigned long long out_size;
+    const char *err;
+    unsigned long long err_size;
+    const char *root;
+    const char *path;
+    CliFindings *findings;
+};
+
+struct CliCheckersPathCtx
+{
+    const char *path;
+    CliFindings *findings;
+    int first;
+};
+
+struct CliCheckersCtx
+{
+    const char *name;
+    unsigned long long length;
+};
+
+struct CliCheckersFileCtx
+{
+    unsigned int file;
+    const CliFinding *finding;
+};
+
+struct CliCheckersTextCtx
+{
+    const char *text;
+    unsigned long long size;
+};
+
+typedef struct
+{
+    void (*read)(const CliCheckersNameCtx *args);
+} CliCheckersNameNsTable;
+EMBED_TABLE_LAYOUT(CliCheckersNameNsTable, read);
+EMBED_TABLE_STORAGE CliCheckersNameNsTable cli_checkers_name_internal EMBED_UNUSED = {
+    .read = cli_checkers_read,
+};
+
+typedef struct
+{
+    unsigned int (*file)(const CliCheckersPathCtx *args);
+} CliCheckersPathNs;
+EMBED_TABLE_LAYOUT(CliCheckersPathNs, file);
+EMBED_TABLE_STORAGE CliCheckersPathNs cli_checkers_path_internal EMBED_UNUSED = {
+    .file = cli_checkers_file,
+};
+
+typedef struct
+{
+    void (*finding_put)(const CliCheckersFileCtx *args);
+} CliCheckersFileNs;
+EMBED_TABLE_LAYOUT(CliCheckersFileNs, finding_put);
+EMBED_TABLE_STORAGE CliCheckersFileNs cli_checkers_file_internal EMBED_UNUSED = {
+    .finding_put = cli_checkers_finding_put,
+};
+
+typedef struct
+{
+    unsigned int (*file_get)(const CliCheckersCtx *args);
+} CliCheckersNsTable;
+EMBED_TABLE_LAYOUT(CliCheckersNsTable, file_get);
+EMBED_TABLE_STORAGE CliCheckersNsTable cli_checkers_internal EMBED_UNUSED = {
+    .file_get = cli_checkers_file_get,
+};
+
+typedef struct
+{
+    void (*lines_read)(const CliCheckersTextCtx *args);
+} CliCheckersTextNs;
+EMBED_TABLE_LAYOUT(CliCheckersTextNs, lines_read);
+EMBED_TABLE_STORAGE CliCheckersTextNs cli_checkers_text_internal EMBED_UNUSED = {
+    .lines_read = cli_checkers_lines_read,
+};
 
 #endif

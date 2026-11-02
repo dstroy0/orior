@@ -10,8 +10,10 @@
 // thousand edits, at either step, the two texts read as too far apart
 #ifndef STRUCTURE_H
 #define STRUCTURE_H
+typedef struct CliStructureCfg CliStructureCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // What a line, or a token of it, is: the same in both texts, changed, moved, reshaped, or changed only by names renamed
 enum
@@ -28,7 +30,24 @@ enum
 // line's kind], "right": [...], "left_marks": [[line, from, to, kind]...] for each token that is not the same,
 // "right_marks": [...], "renames": [[was, became, places]...], "moved": lines, "reshaped": lines}`, or `null` where
 // they are too far apart
-void cli_structure_compare(const char *then, unsigned long long then_size, const char *now, unsigned long long now_size,
-                           VerbaLinea *out);
+void cli_structure_compare(const CliStructureCfg *args);
+
+struct CliStructureCfg
+{
+    const char *then;
+    unsigned long long then_size;
+    const char *now;
+    unsigned long long now_size;
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    void (*compare)(const CliStructureCfg *args);
+} CliStructureNs;
+EMBED_TABLE_LAYOUT(CliStructureNs, compare);
+EMBED_TABLE_STORAGE CliStructureNs cli_structure EMBED_UNUSED = {
+    .compare = cli_structure_compare,
+};
 
 #endif

@@ -10,8 +10,11 @@
 // `[abc]` and `[!abc]` one letter of or not of those, `{a,b}` either text, and `{1..3}` any whole number between
 #ifndef EDITORCONFIG_H
 #define EDITORCONFIG_H
+typedef struct CliEditorconfigPatternCfg CliEditorconfigPatternCfg;
+typedef struct CliEditorconfigCfg CliEditorconfigCfg;
 
 #include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
 
 // The indentation found: tabs where `tabs` is 1, spaces where it is 0, and -1 where nothing set it; the width of a
 // step in `size` where `sized` is 1
@@ -23,9 +26,41 @@ typedef struct
 } CliIndent;
 
 // the indentation the `.editorconfig` files above the file at `path` give it
-void cli_indent(const char *path, CliIndent *indent);
+void cli_indent(const CliEditorconfigCfg *args);
 // whether a section's pattern, `size` bytes, names the file at `relative` from the `.editorconfig`'s folder, whose
 // name is `name` (editorconfig_names.c)
-int cli_editorconfig_names(const char *pattern, unsigned long long size, const char *relative, const char *name);
+int cli_editorconfig_names(const CliEditorconfigPatternCfg *args);
+
+struct CliEditorconfigPatternCfg
+{
+    const char *pattern;
+    unsigned long long size;
+    const char *relative;
+    const char *name;
+};
+
+struct CliEditorconfigCfg
+{
+    const char *path;
+    CliIndent *indent;
+};
+
+typedef struct
+{
+    void (*indent)(const CliEditorconfigCfg *args);
+} CliEditorconfigNs;
+EMBED_TABLE_LAYOUT(CliEditorconfigNs, indent);
+EMBED_TABLE_STORAGE CliEditorconfigNs cli_editorconfig EMBED_UNUSED = {
+    .indent = cli_indent,
+};
+
+typedef struct
+{
+    int (*names)(const CliEditorconfigPatternCfg *args);
+} CliEditorconfigPatternNs;
+EMBED_TABLE_LAYOUT(CliEditorconfigPatternNs, names);
+EMBED_TABLE_STORAGE CliEditorconfigPatternNs cli_editorconfig_pattern EMBED_UNUSED = {
+    .names = cli_editorconfig_names,
+};
 
 #endif

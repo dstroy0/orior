@@ -17,66 +17,94 @@
 static CliJson s_json;
 static unsigned long long s_seq;
 
-// a node of the request written as it came, null where it is none
-static void request_raw(VerbaLinea *out, unsigned int node)
+typedef struct
 {
+    VerbaLinea *out;
+    unsigned int node;
+    CliDap *dap;
+    unsigned int message;
+    const char *command;
+    int success;
+    const VerbaLinea *body;
+    const VerbaLinea *err_msg;
+    unsigned int arguments;
+    VerbaLinea *body_out;
+} RecordingRequestCtx;
+// a node of the request written as it came, null where it is none
+EMBED_INLINE void request_raw(const RecordingRequestCtx *args)
+{
+    VerbaLinea *out = args->out;
+    unsigned int node = args->node;
     if (node == CLI_JSON_NONE)
     {
         mmgr_line_put(out, "null");
     }
     else
     {
-        cli_json_write(&s_json, node, out, 0u, 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &s_json, .node = node,
+                   .out = out, .indent = 0u, .sorted = 0);
     }
 }
 
 // the reply to request `message` sent, written into a cell of the most it holds: the body the line `body` holds where
 // it succeeded, why it failed where it did not
-static void request_answered(CliDap *dap, unsigned int message, const char *command, int success,
-                             const VerbaLinea *body, const VerbaLinea *err_msg)
+EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
 {
+    CliDap *dap = args->dap;
+    unsigned int message = args->message;
     s_seq += 1ull;
-    const int body_whole = mmgr_line_ok(body);
-    const unsigned long long command_size = cellul.len(&(CatenaFinitaCfg){.src = command, .cap = CLI_CELLS_POOL});
+    const int body_whole = mmgr_line_ok(args->body);
+    const unsigned long long command_size = cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_CELLS_POOL});
     // the members around the body, the body or null, and the command and the reason with every byte escaped
-    const unsigned long long room = (body_whole ? body->at : 4ull) + ((command_size + err_msg->at) * 6ull) + 512ull;
+    const unsigned long long room =
+        (body_whole ? args->body->at : 4ull) + ((command_size + args->err_msg->at) * 6ull) + 512ull;
     char *const sent = g_cli_cells->temporary_buf_alloc(room, &g_cli_debug_cells);
     VerbaLinea reply = mmgr_line_over(sent, room);
     mmgr_line_put(&reply, "{\"seq\":");
     mmgr_line_decimal(&reply, s_seq, 1u);
     mmgr_line_put(&reply, ",\"type\":\"response\",\"request_seq\":");
-    request_raw(&reply, cli_json_member(&s_json, message, "seq"));
+    EMBED_CALL(request_raw, RecordingRequestCtx, .out = &reply,
+               .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                  .object = message, .name = "seq"));
     mmgr_line_put(&reply, ",\"command\":");
-    cli_json_quoted_lossy(&reply, (const unsigned char *)command, command_size);
-    mmgr_line_put(&reply, success ? ",\"success\":true,\"body\":" : ",\"success\":false,\"message\":");
-    if (success && body_whole)
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &reply,
+               .text_bytes = (const unsigned char *)args->command, .length = command_size);
+    mmgr_line_put(&reply, args->success ? ",\"success\":true,\"body\":" : ",\"success\":false,\"message\":");
+    if (args->success && body_whole)
     {
-        (void)mmgr_line_put_n(&reply, body->out, body->at);
+        (void)mmgr_line_put_n(&reply, args->body->out, args->body->at);
     }
-    else if (success)
+    else if (args->success)
     {
         mmgr_line_put(&reply, "null");
     }
     else
     {
-        cli_json_quoted_lossy(&reply, (const unsigned char *)err_msg->out, err_msg->at);
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &reply,
+                   .text_bytes = (const unsigned char *)args->err_msg->out, .length = args->err_msg->at);
     }
     mmgr_line_ch(&reply, '}');
     if (mmgr_line_ok(&reply))
     {
-        (void)cli_dap_send(dap, reply.out, reply.at);
+        (void)EMBED_CALL(cli_dap_message.send, CliDapMessageCfg, .dap = dap, .message = reply.out, .size = reply.at);
     }
     g_cli_cells->persistent_buf_release(sent, &g_cli_debug_cells);
 }
 
 // the breakpoints of one file set, each line once, its place among the files the one its path's key had, or a new
 // one; and each reported as placed and verified at the line the client requested
-static void request_breakpoints(unsigned int arguments, VerbaLinea *body)
+EMBED_INLINE void request_breakpoints(const RecordingRequestCtx *args)
 {
-    const unsigned int source = cli_json_member(&s_json, arguments, "source");
-    const char *const path = cli_json_string(&s_json, cli_json_member(&s_json, source, "path"), NULL);
+    const unsigned int source = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                           .object = args->arguments, .name = "source");
+    const char *const path =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                      .object = source, .name = "path"),
+                   .length_pointer = NULL);
     char key[CLI_PATH_MAX_LEN];
-    cli_replay_key((path != NULL) ? path : "", key);
+    EMBED_CALL(cli_recording_path_internal.replay_key, CliRecordingPathCtx, .path = (path != NULL) ? path : "",
+               .key = key);
     unsigned int file = 0u;
     while (
         (file < g_cli_replay->break_file_count) &&
@@ -96,14 +124,20 @@ static void request_breakpoints(unsigned int arguments, VerbaLinea *body)
     {
         g_cli_replay->break_count[file] = 0u;
     }
-    const unsigned int breakpoints = cli_json_member(&s_json, arguments, "breakpoints");
-    mmgr_line_put(body, "{\"breakpoints\":[");
-    for (unsigned int at = 0u; cli_json_item(&s_json, breakpoints, at) != CLI_JSON_NONE; at += 1u)
+    const unsigned int breakpoints = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = &s_json, .object = args->arguments, .name = "breakpoints");
+    mmgr_line_put(args->body_out, "{\"breakpoints\":[");
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = &s_json, .array = breakpoints, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
-        const unsigned int one = cli_json_item(&s_json, breakpoints, at);
-        const unsigned int line_node = cli_json_member(&s_json, one, "line");
+        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                            .json_read = &s_json, .array = breakpoints, .index = at);
+        const unsigned int line_node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                  .json_read = &s_json, .object = one, .name = "line");
         unsigned long long line = 0ull;
-        const int whole = cli_replay_whole(&s_json, line_node, &line);
+        const int whole = EMBED_CALL(cli_recording_json_internal.replay_whole, CliRecordingJsonCtx, .json = &s_json,
+                                     .id = line_node, .value = &line);
         // a line past 32 bits retains its low 32, the width of the line numbers the recording stores
         const unsigned int narrow = (unsigned int)(line & 0xffffffffull);
         unsigned int count = 0u;
@@ -117,22 +151,29 @@ static void request_breakpoints(unsigned int arguments, VerbaLinea *body)
             g_cli_replay->break_lines[file][count] = narrow;
             g_cli_replay->break_count[file] += 1u;
         }
-        mmgr_line_put(body, (at > 0u) ? ",{\"id\":" : "{\"id\":");
-        mmgr_line_decimal(body, (unsigned long long)at + 1ull, 1u);
-        mmgr_line_put(body, ",\"verified\":true,\"line\":");
-        request_raw(body, line_node);
-        mmgr_line_ch(body, '}');
+        mmgr_line_put(args->body_out, (at > 0u) ? ",{\"id\":" : "{\"id\":");
+        mmgr_line_decimal(args->body_out, (unsigned long long)at + 1ull, 1u);
+        mmgr_line_put(args->body_out, ",\"verified\":true,\"line\":");
+        EMBED_CALL(request_raw, RecordingRequestCtx, .out = args->body_out, .node = line_node);
+        mmgr_line_ch(args->body_out, '}');
     }
-    mmgr_line_put(body, "]}");
+    mmgr_line_put(args->body_out, "]}");
 }
 
 // whether the exception filters requested take in the raised one
-static int request_on_raised(unsigned int arguments)
+EMBED_INLINE int request_on_raise(const RecordingRequestCtx *args)
 {
-    const unsigned int filters = cli_json_member(&s_json, arguments, "filters");
-    for (unsigned int at = 0u; cli_json_item(&s_json, filters, at) != CLI_JSON_NONE; at += 1u)
+    const unsigned int filters = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                            .json_read = &s_json, .object = args->arguments, .name = "filters");
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = &s_json, .array = filters, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
-        const char *const filter = cli_json_string(&s_json, cli_json_item(&s_json, filters, at), NULL);
+        const char *const filter =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = &s_json, .array = filters, .index = at),
+                       .length_pointer = NULL);
         if ((filter != NULL) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = filter, .other = "raised", .cap = CLI_CELLS_POOL})))
         {
@@ -142,7 +183,7 @@ static int request_on_raised(unsigned int arguments)
     return 0;
 }
 
-int cli_replay_locked(void)
+int cli_replay_lock(void)
 {
     if (g_cli_replay == NULL)
     {
@@ -156,17 +197,17 @@ int cli_replay_locked(void)
     return g_cli_replay != NULL;
 }
 
-void *cli_recording_begun(const char *root)
+void *cli_recording_begin(const CliRecordingCfg *args)
 {
-    cli_recording_run_ended();
+    cli_recording_run_end();
     cli_recording_let_go();
-    if (!cli_replay_locked())
+    if (!cli_replay_lock())
     {
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = g_cli_replay->root,
-                            .src = root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = args->root,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     g_cli_replay->program[0] = '\0';
     g_cli_replay->python[0] = '\0';
     g_cli_replay->at = 0u;
@@ -176,28 +217,41 @@ void *cli_recording_begun(const char *root)
     return g_cli_replay;
 }
 
-int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigned long long size)
+int cli_recording_serve(const CliDapServeCfg *args)
 {
-    (void)context;
+    CliDap *dap = args->dap;
+    unsigned long long size = args->size;
     char why[CLI_RECORDING_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the request before this one given back with its tree, and this one read into a tree of its size
-    cli_json_given(&s_json);
-    const unsigned int message = cli_json_taken(&s_json, request, size, 0u, 0ull, &err_msg, &g_cli_debug_cells);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
+    const unsigned int message = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+                                            .json = &s_json, .text = args->request, .size = size, .nodes_more = 0u,
+                                            .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
     if (message == CLI_JSON_NONE)
     {
         return 1;
     }
-    const char *const type = cli_json_string(&s_json, cli_json_member(&s_json, message, "type"), NULL);
+    const char *const type =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                      .object = message, .name = "type"),
+                   .length_pointer = NULL);
     if ((type != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "orior", .cap = CLI_CELLS_POOL})))
     {
-        cli_recording_recorded(dap, &s_json, message);
+        EMBED_CALL(cli_recording_dap_json_internal.record, CliRecordingDapJsonCtx, .dap = dap, .json = &s_json,
+                   .message = message);
         return 1;
     }
     char command[CLI_RECORDING_COMMAND];
-    const char *const named = cli_json_string(&s_json, cli_json_member(&s_json, message, "command"), NULL);
-    cli_text_copied_or(command, named, "");
-    const unsigned int arguments = cli_json_member(&s_json, message, "arguments");
+    const char *const named =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                      .object = message, .name = "command"),
+                   .length_pointer = NULL);
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = command, .text = named, .otherwise = "");
+    const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = &s_json, .object = message, .name = "arguments");
     // the answer's body in a cell of the most it holds, given back once the reply is sent
     char *const body_text = g_cli_cells->temporary_buf_alloc(CLI_RECORDING_BODY, &g_cli_debug_cells);
     VerbaLinea body = mmgr_line_over(body_text, CLI_RECORDING_BODY);
@@ -211,53 +265,71 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "launch", .cap = CLI_CELLS_POOL}))
     {
-        const char *const program = cli_json_string(&s_json, cli_json_member(&s_json, arguments, "program"), NULL);
-        const char *const python = cli_json_string(&s_json, cli_json_member(&s_json, arguments, "python"), NULL);
-        cli_text_copied_or(g_cli_replay->program, program, "");
-        cli_text_copied_or(g_cli_replay->python, python, "");
+        const char *const program =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                          .object = arguments, .name = "program"),
+                       .length_pointer = NULL);
+        const char *const python =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                          .object = arguments, .name = "python"),
+                       .length_pointer = NULL);
+        EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = g_cli_replay->program, .text = program,
+                   .otherwise = "");
+        EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = g_cli_replay->python, .text = python,
+                   .otherwise = "");
         mmgr_line_put(&body, "null");
-        request_answered(dap, message, command, 1, &body, &err_msg);
+        EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
+                   .success = 1, .body = &body, .err_msg = &err_msg);
         g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
         const char initialized[] = "{\"type\":\"event\",\"event\":\"initialized\"}";
-        (void)cli_dap_send(dap, initialized, sizeof(initialized) - 1u);
+        (void)EMBED_CALL(cli_dap_message.send, CliDapMessageCfg, .dap = dap, .message = initialized,
+                         .size = sizeof(initialized) - 1u);
         return 1;
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "setBreakpoints", .cap = CLI_CELLS_POOL}))
     {
-        request_breakpoints(arguments, &body);
+        EMBED_CALL(request_breakpoints, RecordingRequestCtx, .arguments = arguments, .body_out = &body);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "setExceptionBreakpoints", .cap = CLI_CELLS_POOL}))
     {
-        g_cli_replay->on_raised = request_on_raised(arguments);
+        g_cli_replay->on_raised = EMBED_CALL(request_on_raise, RecordingRequestCtx, .arguments = arguments);
         mmgr_line_put(&body, "null");
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "configurationDone", .cap = CLI_CELLS_POOL}))
     {
-        success = cli_recording_run(dap, &err_msg);
+        success = EMBED_CALL(cli_recording_dap_internal.run, CliRecordingDapCtx, .dap = dap, .err_msg = &err_msg);
         mmgr_line_put(&body, "null");
-        request_answered(dap, message, command, success, &body, &err_msg);
+        EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
+                   .success = success, .body = &body, .err_msg = &err_msg);
         g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
         if (!success)
         {
             const char terminated[] = "{\"type\":\"event\",\"event\":\"terminated\",\"body\":{}}";
-            (void)cli_dap_send(dap, terminated, sizeof(terminated) - 1u);
+            (void)EMBED_CALL(cli_dap_message.send, CliDapMessageCfg, .dap = dap, .message = terminated,
+                             .size = sizeof(terminated) - 1u);
         }
         return 1;
     }
     else if ((cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_CELLS_POOL})) ||
              (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "terminate", .cap = CLI_CELLS_POOL})))
     {
-        cli_recording_run_killed();
+        cli_recording_run_kill();
         mmgr_line_put(&body, "null");
-        request_answered(dap, message, command, 1, &body, &err_msg);
+        EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
+                   .success = 1, .body = &body, .err_msg = &err_msg);
         g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
         return !cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_CELLS_POOL});
     }
     else
     {
-        success = cli_replay_answer(dap, command, &s_json, arguments, &body, &err_msg);
+        success =
+            EMBED_CALL(cli_recording_dap_internal.replay_answer, CliRecordingDapCtx, .dap = dap, .command = command,
+                       .json = &s_json, .arguments = arguments, .body = &body, .err_msg = &err_msg);
     }
-    request_answered(dap, message, command, success, &body, &err_msg);
+    EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
+               .success = success, .body = &body, .err_msg = &err_msg);
     g_cli_cells->persistent_buf_release(body_text, &g_cli_debug_cells);
     return 1;
 }

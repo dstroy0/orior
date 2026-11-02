@@ -5,19 +5,34 @@
 // `orior_tables_read` tool over the architecture's instruction set
 #include "tables_internal.h"
 
+typedef struct
+{
+    QueryContext *context;
+    const QueryRun *run;
+    const char *const *words;
+    unsigned int count;
+    VerbaLinea *err_msg;
+} TablesPullCtx;
+
 // The tables of every architecture wanted that lacks them pulled: 0 where each now stands, 1 where the funnel found
 // no tables in some capture, -1 with why given. Each program runs through the writer's tee, the capture as
 // `tables_capture.console` and the funnel as `orior_tables_funnel.console`
-static int query_pulled(QueryContext *context, const QueryRun *run, const char *const *words, unsigned int count,
-                        VerbaLinea *err_msg)
+EMBED_INLINE int query_pull(const TablesPullCtx *args)
 {
+    QueryContext *context = args->context;
+    const QueryRun *run = args->run;
+    const char *const *words = args->words;
+    VerbaLinea *err_msg = args->err_msg;
     char out[QUERY_PATH_MAX_LEN];
     char tables[QUERY_PATH_MAX_LEN];
-    query_at(context, QUERY_TABLES_OUT, out);
-    query_tables_in(out, "tables", tables);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_TABLES_OUT, .path_out = out);
+    EMBED_CALL(query_tables_folder_internal.in, QueryTablesFolderCtx, .folder = out, .name = "tables", .path = tables);
     static char s_wanted[QUERY_ARCHITECTURES_MOST][16];
     static char s_missing[QUERY_ARCHITECTURES_MOST][16];
-    const unsigned int wanted = query_architectures(context, run, words, count, s_wanted, err_msg);
+    const unsigned int wanted =
+        EMBED_CALL(query_tables_err_msg_internal.architectures, QueryTablesErrMsgCtx, .context = context, .run = run,
+                   .words = words, .count = args->count, .arches = s_wanted, .err_msg = err_msg);
     if (wanted == 0u)
     {
         return -1;
@@ -29,15 +44,17 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
     VerbaLinea line = {line_text, sizeof(line_text), 0ull};
     for (unsigned int at = 0u; at < wanted; at += 1u)
     {
-        query_tables_of(out, s_wanted[at], instructions, latencies);
-        if (query_is_file(instructions) && query_is_file(latencies))
+        EMBED_CALL(query_tables_out_internal.get, QueryTablesOutCtx, .out = out, .arch = s_wanted[at],
+                   .instructions = instructions, .latencies = latencies);
+        if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = instructions) &&
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = latencies))
         {
             line.at = 0ull;
             mmgr_line_put(&line, "  ");
             mmgr_line_put(&line, s_wanted[at]);
             mmgr_line_put(&line, ": its tables stand");
             mmgr_line_finish(&line);
-            query_print(context, line_text);
+            EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
             continue;
         }
         memor.cpy(&(MemoriaCfg){.dst = s_missing[missing], .src = s_wanted[at], .bytes = 16u});
@@ -51,24 +68,27 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
         mmgr_line_put(&line, " architectures stands under ");
         mmgr_line_put(&line, tables);
         mmgr_line_finish(&line);
-        query_print(context, line_text);
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
         return 0;
     }
     static char s_disassembler[QUERY_PATH_MAX_LEN];
     static char s_cubins[QUERY_ARCHITECTURES_MOST][QUERY_PATH_MAX_LEN];
-    if (!query_disassembler(context, run, out, s_disassembler, err_msg))
+    if (!EMBED_CALL(query_tables_out_err_msg_internal.disassembler, QueryTablesOutErrMsgCtx, .context = context,
+                    .run = run, .out = out, .program = s_disassembler, .err_msg = err_msg))
     {
         return -1;
     }
     for (unsigned int at = 0u; at < missing; at += 1u)
     {
-        if (!query_key_cubin(context, run, out, s_missing[at], s_cubins[at], err_msg))
+        if (!EMBED_CALL(query_tables_out_arch_internal.key_cubin, QueryTablesOutArchCtx, .context = context, .run = run,
+                        .out = out, .arch = s_missing[at], .cubin = s_cubins[at], .err_msg = err_msg))
         {
             return -1;
         }
     }
     static char s_docker[QUERY_PATH_MAX_LEN];
-    if (!query_program(context, QUERY_ROLE_DOCKER, s_docker, err_msg))
+    if (!EMBED_CALL(query_tables_path_internal.program, QueryTablesPathCtx, .context_read = context,
+                    .role = QUERY_ROLE_DOCKER, .path = s_docker, .err_msg = err_msg))
     {
         return -1;
     }
@@ -82,37 +102,49 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
     char intercept[QUERY_PATH_MAX_LEN];
     char captures[QUERY_PATH_MAX_LEN];
     char inside_disassembler[QUERY_PATH_MAX_LEN];
-    query_at(context, QUERY_TABLES_SOURCE, source);
-    query_tables_in(source, "tables_capture.sh", capture_script);
-    query_tables_in(source, "tables_intercept.c", intercept);
-    query_tables_in(out, "captures", captures);
+    EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+               .under = QUERY_TABLES_SOURCE, .path_out = source);
+    EMBED_CALL(query_tables_folder_internal.in, QueryTablesFolderCtx, .folder = source, .name = "tables_capture.sh",
+               .path = capture_script);
+    EMBED_CALL(query_tables_folder_internal.in, QueryTablesFolderCtx, .folder = source, .name = "tables_intercept.c",
+               .path = intercept);
+    EMBED_CALL(query_tables_folder_internal.in, QueryTablesFolderCtx, .folder = out, .name = "captures",
+               .path = captures);
     static QueryWords s_docker_words;
     memor.set(&(MemoriaCfg){.dst = &s_docker_words, .val = 0, .bytes = sizeof(s_docker_words)});
     static const char *const s_head[6] = {"run", "--rm", "-v", NULL, QUERY_TABLES_IMAGE, "sh"};
-    query_words_add(&s_docker_words, s_docker);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_docker_words,
+               .word = s_docker);
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        query_words_add(&s_docker_words, (at == 3u) ? mount : s_head[at]);
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_docker_words,
+                   .word = (at == 3u) ? mount : s_head[at]);
     }
     const char *const inside_of[4] = {capture_script, s_disassembler, intercept, captures};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        query_in_container(context->root, inside_of[at], inside_disassembler);
-        query_words_text(&s_docker_words, inside_disassembler);
+        EMBED_CALL(query_tables_root_internal.in_container, QueryTablesRootCtx, .root = context->root,
+                   .path_read = inside_of[at], .inside = inside_disassembler);
+        EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
+                   .words_words_pointer = &s_docker_words, .text = inside_disassembler);
     }
     for (unsigned int at = 0u; at < missing; at += 1u)
     {
-        query_in_container(context->root, s_cubins[at], inside_disassembler);
-        query_words_text(&s_docker_words, inside_disassembler);
+        EMBED_CALL(query_tables_root_internal.in_container, QueryTablesRootCtx, .root = context->root,
+                   .path_read = s_cubins[at], .inside = inside_disassembler);
+        EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
+                   .words_words_pointer = &s_docker_words, .text = inside_disassembler);
     }
     line.at = 0ull;
     mmgr_line_put(&line, "  the disassembler run over ");
     mmgr_line_decimal(&line, missing, 0u);
     mmgr_line_put(&line, " key cubins in " QUERY_TABLES_IMAGE);
     mmgr_line_finish(&line);
-    query_print(context, line_text);
+    EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
     long long code = -1ll;
-    if (!query_context_teed(context, run, "tables_capture", s_docker_words.word, &code, err_msg))
+    if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
+                    .context = context, .run = run, .name = "tables_capture", .words = s_docker_words.word,
+                    .code = &code, .err_msg = err_msg))
     {
         return -1;
     }
@@ -122,7 +154,9 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
         return -1;
     }
     static char s_funnel[QUERY_PATH_MAX_LEN];
-    if (!query_context_tool(context, "orior_tables_funnel", s_funnel, err_msg) || !query_folder_made(tables))
+    if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
+                    .name = "orior_tables_funnel", .binary = s_funnel, .err_msg = err_msg) ||
+        !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = tables))
     {
         return -1;
     }
@@ -135,10 +169,14 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
         mmgr_line_put(&capture_line, s_missing[at]);
         mmgr_line_put(&capture_line, ".capture");
         mmgr_line_finish(&capture_line);
-        query_tables_in(captures, capture_name, capture);
-        query_tables_of(out, s_missing[at], instructions, latencies);
+        EMBED_CALL(query_tables_folder_internal.in, QueryTablesFolderCtx, .folder = captures, .name = capture_name,
+                   .path = capture);
+        EMBED_CALL(query_tables_out_internal.get, QueryTablesOutCtx, .out = out, .arch = s_missing[at],
+                   .instructions = instructions, .latencies = latencies);
         const char *const funnel[5] = {s_funnel, capture, instructions, latencies, NULL};
-        if (!query_context_teed(context, run, "orior_tables_funnel", funnel, &code, err_msg))
+        if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
+                        .context = context, .run = run, .name = "orior_tables_funnel", .words = funnel, .code = &code,
+                        .err_msg = err_msg))
         {
             return -1;
         }
@@ -156,7 +194,7 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
             mmgr_line_decimal(&line, (unsigned long long)code, 0u);
         }
         mmgr_line_finish(&line);
-        query_print(context, line_text);
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
     }
     line.at = 0ull;
     mmgr_line_put(&line, "tables: ");
@@ -166,63 +204,72 @@ static int query_pulled(QueryContext *context, const QueryRun *run, const char *
     mmgr_line_put(&line, " architectures written under ");
     mmgr_line_put(&line, tables);
     mmgr_line_finish(&line);
-    query_print(context, line_text);
+    EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
     return (written == missing) ? 0 : 1;
 }
 
 // The two readings of a pulled table, `read <arch> [--bank <size>] <low> <high>...` and `fields <arch>`: 1 where the
 // words request one, its mode in `mode`, 0 where they request a pull, -1 with why given
-int query_reading(const char *const *words, unsigned int count, const char **mode, VerbaLinea *err_msg)
+int query_reading(const QueryLoopsErrMsgWordsCountModeCfg *args)
 {
-    if (count == 0u)
+    const char **mode = args->mode;
+    if (args->count == 0u)
     {
         return 0;
     }
-    *mode = (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "read", .cap = CLI_CELLS_POOL}))     ? "class"
-            : (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "fields", .cap = CLI_CELLS_POOL})) ? "spans"
-                                                                                                         : NULL;
+    *mode = (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "read", .cap = CLI_CELLS_POOL}))     ? "class"
+            : (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "fields", .cap = CLI_CELLS_POOL})) ? "spans"
+                                                                                                               : NULL;
     if (*mode == NULL)
     {
         return 0;
     }
-    if (count < 2u)
+    if (args->count < 2u)
     {
-        mmgr_line_put(err_msg, "tables ");
-        mmgr_line_put(err_msg, words[0]);
-        mmgr_line_put(err_msg, " takes the architecture, sm_86, first");
+        mmgr_line_put(args->err_msg, "tables ");
+        mmgr_line_put(args->err_msg, args->words[0]);
+        mmgr_line_put(args->err_msg, " takes the architecture, sm_86, first");
         return -1;
     }
-    const unsigned int tail = count - 2u;
+    const unsigned int tail = args->count - 2u;
     if ((cellul.eq(&(CatenaFinitaCfg){.src = *mode, .other = "spans", .cap = CLI_CELLS_POOL})) && (tail != 0u))
     {
-        mmgr_line_put(err_msg, "tables fields takes the architecture alone");
+        mmgr_line_put(args->err_msg, "tables fields takes the architecture alone");
         return -1;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = *mode, .other = "class", .cap = CLI_CELLS_POOL}))
     {
         const int banked =
-            (tail != 0u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[2], .other = "--bank", .cap = CLI_CELLS_POOL}));
+            (tail != 0u) &&
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->words[2], .other = "--bank", .cap = CLI_CELLS_POOL}));
         const unsigned int encodings = (banked && (tail >= 2u)) ? (tail - 2u) : (banked ? 0u : tail);
         if ((banked && (tail < 2u)) || (encodings < 2u) || ((encodings % 2u) != 0u))
         {
-            mmgr_line_put(err_msg, "tables read takes the architecture, --bank <size> where the bank's size is known, "
-                                   "then each encoding's two words");
+            mmgr_line_put(args->err_msg,
+                          "tables read takes the architecture, --bank <size> where the bank's size is known, "
+                          "then each encoding's two words");
             return -1;
         }
     }
     return 1;
 }
 
-int query_tables_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
+int query_tables_run(const QueryLoopCfg *args)
 {
+    QueryContext *context = args->context;
+    const char *const *words = args->words;
+    unsigned int count = args->count;
+    VerbaLinea *err_msg = args->err_msg;
     const char *mode = NULL;
-    const int parsed = query_reading(words, count, &mode, err_msg);
+    const int parsed = EMBED_CALL(query_loops_err_msg_words_count_mode.reading, QueryLoopsErrMsgWordsCountModeCfg,
+                                  .words = words, .count = count, .mode = &mode, .err_msg = err_msg);
     if (parsed < 0)
     {
         return -1;
     }
     static QueryRun s_run;
-    if (!query_context_started(context, &s_run, QUERY_TABLES_OUT "/qry", err_msg))
+    if (!EMBED_CALL(query_loops_context_run.context_start, QueryLoopsContextRunCfg, .context = context,
+                    .run_out = &s_run, .folder = QUERY_TABLES_OUT "/qry", .err_msg = err_msg))
     {
         return -1;
     }
@@ -231,7 +278,8 @@ int query_tables_run(QueryContext *context, const char *const *words, unsigned i
     int code = -1;
     if (parsed == 0)
     {
-        code = query_pulled(context, &s_run, words, count, &failed);
+        code = EMBED_CALL(query_pull, TablesPullCtx, .context = context, .run = &s_run, .words = words, .count = count,
+                          .err_msg = &failed);
     }
     else
     {
@@ -239,10 +287,12 @@ int query_tables_run(QueryContext *context, const char *const *words, unsigned i
         char out[QUERY_PATH_MAX_LEN];
         char instructions[QUERY_PATH_MAX_LEN];
         char latencies[QUERY_PATH_MAX_LEN];
-        query_at(context, QUERY_TABLES_OUT, out);
-        query_tables_of(out, words[1], instructions, latencies);
+        EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
+                   .under = QUERY_TABLES_OUT, .path_out = out);
+        EMBED_CALL(query_tables_out_internal.get, QueryTablesOutCtx, .out = out, .arch = words[1],
+                   .instructions = instructions, .latencies = latencies);
         static char s_reader[QUERY_PATH_MAX_LEN];
-        if (!query_is_file(instructions))
+        if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = instructions))
         {
             mmgr_line_put(&failed, "no table for ");
             mmgr_line_put(&failed, words[1]);
@@ -250,28 +300,38 @@ int query_tables_run(QueryContext *context, const char *const *words, unsigned i
             mmgr_line_put(&failed, words[1]);
             mmgr_line_put(&failed, " first");
         }
-        else if (query_context_tool(context, "orior_tables_read", s_reader, &failed))
+        else if (EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg,
+                            .context_read = context, .name = "orior_tables_read", .binary = s_reader,
+                            .err_msg = &failed))
         {
             static QueryWords s_words;
             memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
-            query_words_add(&s_words, s_reader);
-            query_words_add(&s_words, instructions);
-            query_words_add(&s_words, mode);
+            EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
+                       .word = s_reader);
+            EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
+                       .word = instructions);
+            EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
+                       .word = mode);
             for (unsigned int at = 2u; at < count; at += 1u)
             {
-                query_words_add(&s_words, words[at]);
+                EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
+                           .word = words[at]);
             }
             long long ran = -1ll;
             // an exit code is far below what an int represents
-            code =
-                query_context_teed(context, &s_run, "orior_tables_read", s_words.word, &ran, &failed) ? (int)ran : -1;
+            code = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
+                              .context = context, .run = &s_run, .name = "orior_tables_read", .words = s_words.word,
+                              .code = &ran, .err_msg = &failed)
+                       ? (int)ran
+                       : -1;
         }
     }
     if ((code < 0) && (mmgr_line_finish(&failed) != 0ull))
     {
-        query_print(context, why);
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = why);
     }
-    if (!query_context_ended(context, &s_run, err_msg))
+    if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
+                    .err_msg = err_msg))
     {
         return -1;
     }

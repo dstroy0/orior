@@ -5,6 +5,7 @@
 // servers and the tree's check are notified of the files on a thread of their own, the batches that come while they
 // work taken as one, so that no check of many files blocks the page's word of them. A file git leaves out, as a
 // build's output is, is shown in the tree and not checked
+#include "../command_line/callback_cfg.h"
 #include "../editor/files.h"
 #include "../editor/watch.h"
 #include "../runs/qry.h"
@@ -36,12 +37,18 @@ static CliThread s_thread;
 // two paths in the order of their bytes
 static int watch_order(const void *one, const void *other)
 {
-    return cli_text_order(*(const char *const *)one, *(const char *const *)other);
+    return EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = *(const char *const *)one,
+                      .other_pointer = *(const char *const *)other);
 }
 
-// a chain of rounds given back
-static void watch_batches_given(CliWatched *batch)
+typedef struct
 {
+    CliWatched *batch;
+} ServeWatchCtx;
+// a chain of rounds given back
+EMBED_INLINE void watch_batches_free(const ServeWatchCtx *args)
+{
+    CliWatched *batch = args->batch;
     while (batch != NULL)
     {
         CliWatched *const next = batch->next;
@@ -58,17 +65,17 @@ static void watch_taker(void *context)
     char root[CLI_PATH_MAX_LEN];
     for (;;)
     {
-        cli_lock_take(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         while (s_waiting == NULL)
         {
-            cli_wake_wait(&s_wake, &s_lock);
+            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
         }
         CliWatched *const taken = s_waiting;
         const unsigned int files = s_waiting_files;
         s_waiting = NULL;
         s_waiting_files = 0u;
         memor.cpy(&(MemoriaCfg){.dst = root, .src = s_tree, .bytes = sizeof(root)});
-        cli_lock_give(&s_lock);
+        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         const char **const paths =
             g_cli_cells->temporary_buf_alloc((files + 1ull) * sizeof(const char *), &g_cli_window_cells);
         unsigned int count = 0u;
@@ -92,7 +99,7 @@ static void watch_taker(void *context)
             const int again = (unique_count > 0u) &&
                               (cellul.eq(&(CatenaFinitaCfg){
                                   .src = paths[unique_count - 1u], .other = paths[at], .cap = CLI_CELLS_POOL}));
-            if (!again && cli_files_tracked(root, paths[at]))
+            if (!again && EMBED_CALL(cli_files_root_path.track, CliFilesRootPathCfg, .root = root, .path = paths[at]))
             {
                 paths[unique_count] = paths[at];
                 unique_count += 1u;
@@ -100,40 +107,53 @@ static void watch_taker(void *context)
         }
         if (unique_count > 0u)
         {
-            cli_tree_branches_walked(root, paths, unique_count);
-            cli_servers_changed(root, paths, unique_count);
+            EMBED_CALL(cli_symbols_root.tree_branches_walk, CliSymbolsRootCfg, .root = root, .paths = paths,
+                       .count = unique_count);
+            EMBED_CALL(cli_servers_root_sink_count.change, CliServersRootSinkCountCfg, .root = root, .files = paths,
+                       .count = unique_count);
         }
         g_cli_cells->persistent_buf_release(paths, &g_cli_window_cells);
-        watch_batches_given(taken);
+        EMBED_CALL(watch_batches_free, ServeWatchCtx, .batch = taken);
     }
 }
 
 // a round of changes sent to the page, each run it wrote noted among the tree's runs and a lost round marked for them,
 // and its files handed to the thread that takes them to the servers in a cell sized to them; where no cell meets the
 // round's reading or its files, the page alone is notified of it
-static void watch_took(void *context, const char *batch, unsigned long long size)
+static void watch_took(const CliEachBatchSizeCfg *args)
 {
-    (void)context;
-    cli_serve_emitted("tree-changed", batch, size);
+    unsigned long long size = args->size;
+    EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "tree-changed", .body = args->batch,
+               .size = size);
     char tree[CLI_PATH_MAX_LEN];
-    const int rooted = cli_serve_root_now(tree);
+    const int rooted = EMBED_CALL(cli_serve_err_msg_root.root_now, CliServeErrMsgRootCfg, .root_out = tree);
     CliJson json;
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    const unsigned int root = cli_json_taken_temporary(&json, batch, size, 0u, 0ull, &err_msg, &g_cli_window_cells);
-    const unsigned int lost = cli_json_member(&json, root, "lost");
-    if (rooted && cli_json_is(&json, lost, CFG_JSON_TRUE))
+    const unsigned int root =
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                   .text = args->batch, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg,
+                   .owner = &g_cli_window_cells);
+    const unsigned int lost = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                         .object = root, .name = "lost");
+    if (rooted && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = lost,
+                             .kind = CFG_JSON_TRUE))
     {
-        cli_qry_runs_lost(tree);
+        EMBED_CALL(cli_qry_out_root.runs_lose, CliQryOutRootCfg, .root = tree);
     }
-    const unsigned int files = cli_json_member(&json, root, "files");
-    const unsigned int first = cli_json_is(&json, files, CFG_JSON_ARRAY) ? json.node[files].first : CLI_JSON_NONE;
+    const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = root, .name = "files");
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
+                                          .node = files, .kind = CFG_JSON_ARRAY)
+                                   ? json.node[files].first
+                                   : CLI_JSON_NONE;
     unsigned int count = 0u;
     unsigned long long bytes = 0ull;
     for (unsigned int one = first; one != CLI_JSON_NONE; one = json.node[one].next)
     {
         unsigned long long length = 0ull;
-        const char *const path = cli_json_string(&json, one, &length);
+        const char *const path = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = &json, .node = one, .length_pointer = &length);
         if (path != NULL)
         {
             count += 1u;
@@ -141,7 +161,7 @@ static void watch_took(void *context, const char *batch, unsigned long long size
         }
         if ((path != NULL) && rooted)
         {
-            cli_qry_run_written(tree, path, length);
+            EMBED_CALL(cli_qry_path_root.run_write, CliQryPathRootCfg, .root = tree, .path = path, .length = length);
         }
     }
     CliWatched *const watched =
@@ -150,7 +170,8 @@ static void watch_took(void *context, const char *batch, unsigned long long size
     for (unsigned int one = (watched != NULL) ? first : CLI_JSON_NONE; one != CLI_JSON_NONE; one = json.node[one].next)
     {
         unsigned long long length = 0ull;
-        const char *const path = cli_json_string(&json, one, &length);
+        const char *const path = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = &json, .node = one, .length_pointer = &length);
         if (path != NULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = watched->room + used, .src = path, .bytes = (size_t)length});
@@ -158,40 +179,40 @@ static void watch_took(void *context, const char *batch, unsigned long long size
             used += length + 1ull;
         }
     }
-    cli_json_given(&json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     if (watched == NULL)
     {
         return;
     }
     watched->files = count;
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     watched->next = s_waiting;
     s_waiting = watched;
     s_waiting_files += count;
-    cli_wake_all(&s_wake);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 void cli_serve_watch(void)
 {
     char root[CLI_PATH_MAX_LEN];
-    if (!cli_serve_root_now(root))
+    if (!EMBED_CALL(cli_serve_err_msg_root.root_now, CliServeErrMsgRootCfg, .root_out = root))
     {
         return;
     }
-    cli_lock_take(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     memor.cpy(&(MemoriaCfg){.dst = s_tree, .src = root, .bytes = sizeof(s_tree)});
     CliWatched *const pending = s_waiting;
     s_waiting = NULL;
     s_waiting_files = 0u;
     const int started = s_started;
     s_started = 1;
-    cli_lock_give(&s_lock);
-    watch_batches_given(pending);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(watch_batches_free, ServeWatchCtx, .batch = pending);
     if (!started)
     {
         s_thread = (CliThread){watch_taker, NULL};
-        (void)cli_thread_started(&s_thread);
+        (void)EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread);
     }
-    cli_watch_start(root, watch_took, NULL);
+    EMBED_CALL(cli_watch.start, CliWatchCfg, .root = root, .take = watch_took, .context = NULL);
 }

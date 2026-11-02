@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lsp_wire.c: the Language Server Protocol's wire: a message framed with its Content-Length and written, a message
 // read back by its length, the members of its top object found, and a file's path and its URI each read as the other
+#include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -11,18 +12,34 @@
 #define CLI_LSP_PIECE 2048u
 #define CLI_LSP_ESCAPED 16384u
 
-int cli_lsp_send(const CliLspWriter *writer, CliLock *lock, const char *body, unsigned long long size,
-                 VerbaLinea *err_msg)
+int cli_lsp_send(const CliLspWriterCfg *args)
 {
-    const CliLspPart part = {body, size, 0};
-    return cli_lsp_send_parts(writer, lock, &part, 1u, err_msg);
+    const CliLspPart part = {args->body, args->size_value, 0};
+    return EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = args->writer, .lock = args->lock,
+                      .parts = &part, .count = 1u, .err_msg = args->err_msg);
 }
 
-// the end of the next piece of a text to escape from `at`, a letter never cut
-static unsigned long long wire_piece_end(const char *text, unsigned long long size, unsigned long long at)
+typedef struct
 {
-    unsigned long long end = (size - at > CLI_LSP_PIECE) ? at + CLI_LSP_PIECE : size;
-    while ((end < size) && (end > at + 1ull) && (((unsigned char)text[end] & 0xc0u) == 0x80u))
+    const char *text;
+    unsigned long long size;
+    unsigned long long at;
+    const CliLspWriter *writer;
+    const CliLspPart *part;
+    int *failed;
+    CliLspReader *reader;
+    char *byte;
+    char *into;
+    unsigned long long *length;
+    const char *body;
+    unsigned long long length_value;
+    char letter;
+} LspWireCtx;
+// the end of the next piece of a text to escape from `at`, a letter never cut
+EMBED_INLINE unsigned long long wire_piece_end(const LspWireCtx *args)
+{
+    unsigned long long end = (args->size - args->at > CLI_LSP_PIECE) ? args->at + CLI_LSP_PIECE : args->size;
+    while ((end < args->size) && (end > args->at + 1ull) && (((unsigned char)args->text[end] & 0xc0u) == 0x80u))
     {
         end -= 1ull;
     }
@@ -31,96 +48,107 @@ static unsigned long long wire_piece_end(const char *text, unsigned long long si
 
 // a part's bytes as they go on the wire, written by `writer` where it is given, else only counted: their count, or the
 // count with 1 into `failed` where the writer failed
-static unsigned long long wire_part(const CliLspWriter *writer, const CliLspPart *part, int *failed)
+EMBED_INLINE unsigned long long wire_part(const LspWireCtx *args)
 {
-    if (!part->quoted)
+    int *failed = args->failed;
+    if (!args->part->quoted)
     {
-        *failed = *failed || ((writer != NULL) && !writer->write(writer->sink, part->bytes, part->size));
-        return part->size;
+        *failed = *failed || ((args->writer != NULL) &&
+                              !EMBED_CALL(args->writer->write, CliSinkBytesSizeCfg, .sink = args->writer->sink,
+                                          .bytes = args->part->bytes, .size = args->part->size));
+        return args->part->size;
     }
     char escaped[CLI_LSP_ESCAPED];
     unsigned long long count = 0ull;
     unsigned long long at = 0ull;
-    while (at < part->size)
+    while (at < args->part->size)
     {
-        const unsigned long long end = wire_piece_end(part->bytes, part->size, at);
+        const unsigned long long end =
+            EMBED_CALL(wire_piece_end, LspWireCtx, .text = args->part->bytes, .size = args->part->size, .at = at);
         VerbaLinea line = {escaped, sizeof(escaped), 0ull};
-        cli_json_escaped_lossy(&line, (const unsigned char *)part->bytes + at, end - at);
-        *failed = *failed || ((writer != NULL) && !writer->write(writer->sink, escaped, line.at));
+        EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = &line,
+                   .text_bytes = (const unsigned char *)args->part->bytes + at, .length = end - at);
+        *failed = *failed || ((args->writer != NULL) &&
+                              !EMBED_CALL(args->writer->write, CliSinkBytesSizeCfg, .sink = args->writer->sink,
+                                          .bytes = escaped, .size = line.at));
         count += line.at;
         at = end;
     }
     return count;
 }
 
-int cli_lsp_send_parts(const CliLspWriter *writer, CliLock *lock, const CliLspPart *parts, unsigned int count,
-                       VerbaLinea *err_msg)
+int cli_lsp_send_parts(const CliLspWriterLockCfg *args)
 {
     int failed = 0;
     unsigned long long length = 0ull;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        length += wire_part(NULL, &parts[at], &failed);
+        length += EMBED_CALL(wire_part, LspWireCtx, .writer = NULL, .part = &args->parts[at], .failed = &failed);
     }
     char head[64];
     VerbaLinea line = {head, sizeof(head), 0ull};
     mmgr_line_put(&line, "Content-Length: ");
     mmgr_line_decimal(&line, length, 1u);
     mmgr_line_put(&line, "\r\n\r\n");
-    cli_lock_take(lock);
-    failed = !writer->write(writer->sink, head, line.at);
-    for (unsigned int at = 0u; !failed && (at < count); at += 1u)
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = args->lock);
+    failed = !EMBED_CALL(args->writer->write, CliSinkBytesSizeCfg, .sink = args->writer->sink, .bytes = head,
+                         .size = line.at);
+    for (unsigned int at = 0u; !failed && (at < args->count); at += 1u)
     {
-        (void)wire_part(writer, &parts[at], &failed);
+        (void)EMBED_CALL(wire_part, LspWireCtx, .writer = args->writer, .part = &args->parts[at], .failed = &failed);
     }
-    cli_lock_give(lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = args->lock);
     if (failed)
     {
-        mmgr_line_put(err_msg, "the server stopped: its input could not be written");
+        mmgr_line_put(args->err_msg, "the server stopped: its input could not be written");
         return 0;
     }
     return 1;
 }
 
 // the next byte the reader buffers, more read from its source where it buffers none: 1, or 0 at the source's end
-static int wire_byte(CliLspReader *reader, char *byte)
+EMBED_INLINE int wire_byte(const LspWireCtx *args)
 {
-    if (reader->start == reader->end)
+    char *byte = args->byte;
+    if (args->reader->start == args->reader->end)
     {
-        reader->start = 0ull;
-        reader->end = reader->read(reader->source, reader->buf, sizeof(reader->buf));
-        if (reader->end == 0ull)
+        args->reader->start = 0ull;
+        args->reader->end = EMBED_CALL(args->reader->read, CliSourcePieceRoomCfg, .source = args->reader->source,
+                                       .piece = args->reader->buf, .room = sizeof(args->reader->buf));
+        if (args->reader->end == 0ull)
         {
             return 0;
         }
     }
-    *byte = reader->buf[reader->start];
-    reader->start += 1ull;
+    *byte = args->reader->buf[args->reader->start];
+    args->reader->start += 1ull;
     return 1;
 }
 
 // `size` bytes read from the reader into `into`, or passed over where it is NULL: 1, or 0 at the source's end
-static int wire_bytes(CliLspReader *reader, char *into, unsigned long long size)
+EMBED_INLINE int wire_bytes(const LspWireCtx *args)
 {
     unsigned long long done = 0ull;
-    while (done < size)
+    while (done < args->size)
     {
-        if (reader->start == reader->end)
+        if (args->reader->start == args->reader->end)
         {
-            reader->start = 0ull;
-            reader->end = reader->read(reader->source, reader->buf, sizeof(reader->buf));
-            if (reader->end == 0ull)
+            args->reader->start = 0ull;
+            args->reader->end = EMBED_CALL(args->reader->read, CliSourcePieceRoomCfg, .source = args->reader->source,
+                                           .piece = args->reader->buf, .room = sizeof(args->reader->buf));
+            if (args->reader->end == 0ull)
             {
                 return 0;
             }
         }
-        const unsigned long long buffered = reader->end - reader->start;
-        const unsigned long long taken = (buffered < size - done) ? buffered : size - done;
-        if (into != NULL)
+        const unsigned long long buffered = args->reader->end - args->reader->start;
+        const unsigned long long taken = (buffered < args->size - done) ? buffered : args->size - done;
+        if (args->into != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = into + done, .src = reader->buf + reader->start, .bytes = taken});
+            memor.cpy(&(MemoriaCfg){
+                .dst = args->into + done, .src = args->reader->buf + args->reader->start, .bytes = taken});
         }
-        reader->start += taken;
+        args->reader->start += taken;
         done += taken;
     }
     return 1;
@@ -128,8 +156,9 @@ static int wire_bytes(CliLspReader *reader, char *into, unsigned long long size)
 
 // a message's head read, up to the empty line that ends it, its Content-Length into `length`: 1, or 0 at the source's
 // end or where the head names no length
-static int wire_head_read(CliLspReader *reader, unsigned long long *length)
+static int wire_head_read(const LspWireCtx *args)
 {
+    unsigned long long *length = args->length;
     int has_length = 0;
     for (;;)
     {
@@ -137,7 +166,7 @@ static int wire_head_read(CliLspReader *reader, unsigned long long *length)
         unsigned long long used = 0ull;
         char byte = '\0';
         int read = 0;
-        while (wire_byte(reader, &byte))
+        while (EMBED_CALL(wire_byte, LspWireCtx, .reader = args->reader, .byte = &byte))
         {
             read = 1;
             if (byte == '\n')
@@ -184,74 +213,80 @@ static int wire_head_read(CliLspReader *reader, unsigned long long *length)
 }
 
 // whether `length` bytes of a body are a JSON body whole, its letters UTF-8 whole
-static int wire_body_whole(const char *body, unsigned long long length)
+EMBED_INLINE int wire_body_whole(const LspWireCtx *args)
 {
     char tiny[1];
     VerbaLinea checked = {tiny, sizeof(tiny), 0ull};
-    return cli_utf8_whole(body, length) && cli_json_compacted(body, length, &checked);
+    return EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = args->body,
+                      .size = args->length_value) &&
+           EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = args->body,
+                      .size = args->length_value, .out = &checked);
 }
 
-char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size, CellOwner *owner)
+char *cli_lsp_message_take(const CliLspReaderSizeCfg *args)
 {
+    unsigned long long *size = args->size;
     for (;;)
     {
         unsigned long long length = 0ull;
-        if (!wire_head_read(reader, &length))
+        if (!EMBED_CALL(wire_head_read, LspWireCtx, .reader = args->reader, .length = &length))
         {
             return NULL;
         }
         // one byte past the body, and an empty body is a cell too; a body the cells cannot meet is passed over whole
-        char *const body = g_cli_cells->temporary_buf_alloc(length + 1ull, owner);
-        if (!wire_bytes(reader, body, length))
+        char *const body = g_cli_cells->temporary_buf_alloc(length + 1ull, args->owner);
+        if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = body, .size = length))
         {
-            g_cli_cells->persistent_buf_release(body, owner);
+            g_cli_cells->persistent_buf_release(body, args->owner);
             return NULL;
         }
-        if ((body != NULL) && wire_body_whole(body, length))
+        if ((body != NULL) && EMBED_CALL(wire_body_whole, LspWireCtx, .body = body, .length_value = length))
         {
             body[length] = '\0';
             *size = length;
             return body;
         }
-        g_cli_cells->persistent_buf_release(body, owner);
+        g_cli_cells->persistent_buf_release(body, args->owner);
     }
 }
 
-int cli_lsp_read_message(CliLspReader *reader, char *body, unsigned long long room, unsigned long long *size)
+int cli_lsp_read_message(const CliLspReaderCfg *args)
 {
+    unsigned long long *size = args->size;
     for (;;)
     {
         unsigned long long length = 0ull;
-        if (!wire_head_read(reader, &length))
+        if (!EMBED_CALL(wire_head_read, LspWireCtx, .reader = args->reader, .length = &length))
         {
             return 0;
         }
-        if (length > room)
+        if (length > args->room)
         {
             // a body larger than the room is passed over whole, and the next message read
-            if (!wire_bytes(reader, NULL, length))
+            if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = NULL, .size = length))
             {
                 return 0;
             }
             continue;
         }
-        if (!wire_bytes(reader, body, length))
+        if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = args->body_out, .size = length))
         {
             return 0;
         }
         *size = length;
-        return wire_body_whole(body, length);
+        return EMBED_CALL(wire_body_whole, LspWireCtx, .body = args->body_out, .length_value = length);
     }
 }
 
 // where a JSON value that starts at `at` ends
-static unsigned long long wire_value_end(const char *text, unsigned long long size, unsigned long long at)
+static unsigned long long wire_value_end(const LspWireCtx *args)
 {
+    unsigned long long at = args->at;
     unsigned long long depth = 0ull;
     int in_string = 0;
-    while (at < size)
+    while (at < args->size)
     {
-        const char letter = text[at];
+        const char letter = args->text[at];
         if (in_string)
         {
             at += (letter == '\\') ? 2ull : 1ull;
@@ -293,62 +328,70 @@ static unsigned long long wire_value_end(const char *text, unsigned long long si
 }
 
 // the whitespace JSON allows passed over from `at`
-static unsigned long long wire_white(const char *text, unsigned long long size, unsigned long long at)
+EMBED_INLINE unsigned long long wire_white(const LspWireCtx *args)
 {
-    while ((at < size) &&
-           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = text[at]}) != NULL))
+    unsigned long long at = args->at;
+    while ((at < args->size) &&
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n", .cap = CLI_CELLS_POOL, .byte = args->text[at]}) != NULL))
     {
         at += 1ull;
     }
     return at;
 }
 
-int cli_lsp_member(const char *body, unsigned long long size, const char *name, unsigned long long *start,
-                   unsigned long long *length)
+int cli_lsp_member(const CliLspBodyCfg *args)
 {
-    unsigned long long at = wire_white(body, size, 0ull);
-    if ((at >= size) || (body[at] != '{'))
+    unsigned long long *start = args->start;
+    unsigned long long *length = args->length_pointer;
+    unsigned long long at =
+        EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = 0ull);
+    if ((at >= args->size_value) || (args->body[at] != '{'))
     {
         return 0;
     }
-    at = wire_white(body, size, at + 1ull);
-    const unsigned long long wanted = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    while ((at < size) && (body[at] == '"'))
+    at = EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = at + 1ull);
+    const unsigned long long wanted = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    while ((at < args->size_value) && (args->body[at] == '"'))
     {
-        const unsigned long long key_end = wire_value_end(body, size, at);
-        const int named = (key_end - at == wanted + 2ull) &&
-                          (memor.cmp(&(MemoriaCfg){.src = body + at + 1ull, .other = name, .bytes = wanted}) == 0);
-        at = wire_white(body, size, key_end);
-        at = wire_white(body, size, at + 1ull);
-        const unsigned long long value_end = wire_value_end(body, size, at);
+        const unsigned long long key_end =
+            EMBED_CALL(wire_value_end, LspWireCtx, .text = args->body, .size = args->size_value, .at = at);
+        const int named =
+            (key_end - at == wanted + 2ull) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->body + at + 1ull, .other = args->name, .bytes = wanted}) == 0);
+        at = EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = key_end);
+        at = EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = at + 1ull);
+        const unsigned long long value_end =
+            EMBED_CALL(wire_value_end, LspWireCtx, .text = args->body, .size = args->size_value, .at = at);
         if (named)
         {
             *start = at;
             *length = value_end - at;
             return 1;
         }
-        at = wire_white(body, size, value_end);
-        at = wire_white(body, size, at + 1ull);
+        at = EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = value_end);
+        at = EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = at + 1ull);
     }
     return 0;
 }
 
-void cli_lsp_uri_of(const char *path, char *uri, unsigned long long room)
+void cli_lsp_uri_get(const CliLspRoomPathCfg *args)
 {
     static const char s_hex[17] = "0123456789ABCDEF";
-    VerbaLinea out = {uri, room, 0ull};
-    mmgr_line_put(&out, ((path[0] == '/') || (path[0] == '\\')) ? "file://" : "file:///");
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+    VerbaLinea out = {args->uri_out, args->room, 0ull};
+    mmgr_line_put(&out, ((args->path[0] == '/') || (args->path[0] == '\\')) ? "file://" : "file:///");
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at < whole;)
     {
         const unsigned long long stop =
-            cli_text_past_class(path, at, whole, CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, "-._~/:\\");
+            EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->path, .at = at,
+                       .size = whole, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "-._~/:\\");
         const size_t from = out.at;
-        const size_t taken = mmgr_line_put_n(&out, path + at, (size_t)(stop - at));
-        cli_text_swapped(out.out + from, taken, '\\', '/');
+        const size_t taken = mmgr_line_put_n(&out, args->path + at, (size_t)(stop - at));
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = out.out + from, .size = taken, .from = '\\',
+                   .to = '/');
         if (stop < whole)
         {
-            const unsigned char byte = (unsigned char)path[stop];
+            const unsigned char byte = (unsigned char)args->path[stop];
             mmgr_line_ch(&out, '%');
             mmgr_line_ch(&out, s_hex[byte >> 4u]);
             mmgr_line_ch(&out, s_hex[byte & 0x0fu]);
@@ -359,29 +402,30 @@ void cli_lsp_uri_of(const char *path, char *uri, unsigned long long room)
 }
 
 // a hex digit's value, or 16 where it is none
-static unsigned int wire_hex(char letter)
+EMBED_INLINE unsigned int wire_hex(const LspWireCtx *args)
 {
-    return ((letter >= '0') && (letter <= '9'))   ? (unsigned int)(letter - '0')
-           : ((letter >= 'a') && (letter <= 'f')) ? (unsigned int)(letter - 'a' + 10)
-           : ((letter >= 'A') && (letter <= 'F')) ? (unsigned int)(letter - 'A' + 10)
-                                                  : 16u;
+    return ((args->letter >= '0') && (args->letter <= '9'))   ? (unsigned int)(args->letter - '0')
+           : ((args->letter >= 'a') && (args->letter <= 'f')) ? (unsigned int)(args->letter - 'a' + 10)
+           : ((args->letter >= 'A') && (args->letter <= 'F')) ? (unsigned int)(args->letter - 'A' + 10)
+                                                              : 16u;
 }
 
-int cli_lsp_path_of(const char *uri, unsigned long long length, char *path)
+int cli_lsp_path_get(const CliLspLengthUriCfg *args)
 {
-    if ((length < 7ull) || (memor.cmp(&(MemoriaCfg){.src = uri, .other = "file://", .bytes = 7u}) != 0))
+    if ((args->length < 7ull) || (memor.cmp(&(MemoriaCfg){.src = args->uri, .other = "file://", .bytes = 7u}) != 0))
     {
         return 0;
     }
-    VerbaLinea out = {path, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea out = {args->path_out, CLI_PATH_MAX_LEN, 0ull};
     unsigned long long at = 7ull;
-    while (at < length)
+    while (at < args->length)
     {
-        if ((uri[at] == '%') && (at + 3ull <= length))
+        if ((args->uri[at] == '%') && (at + 3ull <= args->length))
         {
             // two hex digits, or a + and one, as Rust's u8 reading in base 16 takes them
-            const unsigned int high = (uri[at + 1ull] == '+') ? 0u : wire_hex(uri[at + 1ull]);
-            const unsigned int low = wire_hex(uri[at + 2ull]);
+            const unsigned int high =
+                (args->uri[at + 1ull] == '+') ? 0u : EMBED_CALL(wire_hex, LspWireCtx, .letter = args->uri[at + 1ull]);
+            const unsigned int low = EMBED_CALL(wire_hex, LspWireCtx, .letter = args->uri[at + 2ull]);
             if ((high < 16u) && (low < 16u))
             {
                 mmgr_line_ch(&out, (char)((high << 4u) | low));
@@ -389,71 +433,79 @@ int cli_lsp_path_of(const char *uri, unsigned long long length, char *path)
                 continue;
             }
         }
-        mmgr_line_ch(&out, uri[at]);
+        mmgr_line_ch(&out, args->uri[at]);
         at += 1ull;
     }
-    if ((mmgr_line_finish(&out) == 0ull) || !cli_utf8_whole(path, out.at))
+    if ((mmgr_line_finish(&out) == 0ull) ||
+        !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = args->path_out, .size = out.at))
     {
         return 0;
     }
     // file:///D:/x names D:/x, and file:///x names /x
-    if ((out.at > 2ull) && (path[0] == '/') && (path[2] == ':'))
+    if ((out.at > 2ull) && (args->path_out[0] == '/') && (args->path_out[2] == ':'))
     {
-        memor.move_down(&(MemoriaCfg){.dst = path, .src = path + 1, .bytes = out.at});
+        memor.move_down(&(MemoriaCfg){.dst = args->path_out, .src = args->path_out + 1, .bytes = out.at});
     }
     return 1;
 }
 
-void cli_lsp_key_of(const char *uri, unsigned long long length, char *key)
+void cli_lsp_key_get(const CliLspLengthCfg *args)
 {
-    if (!cli_lsp_path_of(uri, length, key))
+    if (!EMBED_CALL(cli_lsp_length_uri.path_get, CliLspLengthUriCfg, .uri = args->uri, .length = args->length,
+                    .path_out = args->key))
     {
-        VerbaLinea out = {key, CLI_PATH_MAX_LEN, 0ull};
-        mmgr_line_put_n(&out, uri, length);
+        VerbaLinea out = {args->key, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put_n(&out, args->uri, args->length);
         mmgr_line_finish(&out);
     }
-    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
-    cli_text_swapped(key, key_size, '\\', '/');
+    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->key, .size = key_size, .from = '\\',
+               .to = '/');
 #if defined(_WIN32)
-    cli_text_lowered(key, key_size);
+    EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->key, .size = key_size);
 #endif
 }
 
-int cli_lsp_string(const char *text, unsigned long long length, char *out, unsigned long long room)
+int cli_lsp_string(const CliLspRoomCfg *args)
 {
     CliJsonNode node[1];
     CfgJsonToken token[1];
     CliJson json;
-    cli_json_begun(&json, node, 1u, out, room);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
+               .node_json_node_pointer = node, .nodes_most = 1u, .text_out = args->out_room, .text_most = args->room);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_read(&json, text, length, token, 1u, &unread);
+    const unsigned int root =
+        EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &json,
+                   .text = args->text, .size = args->length, .tokens = token, .tokens_most = 1u, .err_msg = &unread);
     unsigned long long size = 0ull;
-    const char *const letters = cli_json_string(&json, root, &size);
-    if ((letters == NULL) || (size >= room))
+    const char *const letters = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                           .json_read = &json, .node = root, .length_pointer = &size);
+    if ((letters == NULL) || (size >= args->room))
     {
         return 0;
     }
-    memor.move_down(&(MemoriaCfg){.dst = out, .src = letters, .bytes = size});
-    out[size] = '\0';
+    memor.move_down(&(MemoriaCfg){.dst = args->out_room, .src = letters, .bytes = size});
+    args->out_room[size] = '\0';
     return 1;
 }
 
-void cli_lsp_at(const char *path, unsigned int line, unsigned int col, const char *added, VerbaLinea *params)
+void cli_lsp_at(const CliLspPathCfg *args)
 {
     char uri[CLI_PATH_MAX_LEN * 3u];
-    cli_lsp_uri_of(path, uri, sizeof(uri));
-    mmgr_line_put(params, "{\"textDocument\":{\"uri\":");
-    cli_json_quoted(params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(params, "},\"position\":{\"line\":");
-    mmgr_line_decimal(params, line, 1u);
-    mmgr_line_put(params, ",\"character\":");
-    mmgr_line_decimal(params, col, 1u);
-    mmgr_line_ch(params, '}');
-    if (added != NULL)
+    EMBED_CALL(cli_lsp_room_path.uri_get, CliLspRoomPathCfg, .path = args->path, .uri_out = uri, .room = sizeof(uri));
+    mmgr_line_put(args->params_verba_linea_pointer, "{\"textDocument\":{\"uri\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->params_verba_linea_pointer,
+               .text = uri, .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(args->params_verba_linea_pointer, "},\"position\":{\"line\":");
+    mmgr_line_decimal(args->params_verba_linea_pointer, args->line, 1u);
+    mmgr_line_put(args->params_verba_linea_pointer, ",\"character\":");
+    mmgr_line_decimal(args->params_verba_linea_pointer, args->col, 1u);
+    mmgr_line_ch(args->params_verba_linea_pointer, '}');
+    if (args->added != NULL)
     {
-        mmgr_line_ch(params, ',');
-        mmgr_line_put(params, added);
+        mmgr_line_ch(args->params_verba_linea_pointer, ',');
+        mmgr_line_put(args->params_verba_linea_pointer, args->added);
     }
-    mmgr_line_ch(params, '}');
+    mmgr_line_ch(args->params_verba_linea_pointer, '}');
 }

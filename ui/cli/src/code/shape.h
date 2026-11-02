@@ -16,8 +16,11 @@
 // shape_match.c, shape_search.c)
 #ifndef SHAPE_H
 #define SHAPE_H
+typedef struct CliShapeLanguagesCfg CliShapeLanguagesCfg;
+typedef struct CliShapeCfg CliShapeCfg;
 
 #include "../text/edits.h"
+#include "embed_dispatch_layout.h"
 #include "symbols.h"
 
 // A match: its span, its first line as the file has it, its whitespace at its end taken off, and what the template
@@ -33,16 +36,58 @@ typedef struct
     int has_with;
 } CliShapeFound;
 
+typedef struct
+{
+    void *context;
+    const CliShapeFound *found;
+} CliShapeEachCfg;
+
 // A match found, handed on with its texts retained while the call lasts
-typedef void (*CliShapeEach)(void *context, const CliShapeFound *found);
+typedef void (*CliShapeEach)(const CliShapeEachCfg *args);
 
 // every match of `pattern` in `size` bytes of `src`, a file of `language`, both read by `languages`, each handed to
 // `each` under the search's lock with what `template_text` writes in its place, where it is not NULL; a match whose
 // written text does not fit 1 MiB is handed on without it. A language none of `languages` reads has no match
-void cli_shape_search(CliSymbolsLanguages *languages, const char *language, const char *src, unsigned long long size,
-                      const char *pattern, const char *template_text, CliShapeEach each, void *context);
+void cli_shape_search(const CliShapeLanguagesCfg *args);
 
 // a match of the file at `path` written as the page reads one, `{"path", "from", "to", "line", "with"}`
-void cli_shape_found_written(const char *path, const CliShapeFound *found, VerbaLinea *out);
+void cli_shape_found_write(const CliShapeCfg *args);
+
+struct CliShapeLanguagesCfg
+{
+    CliSymbolsLanguages *languages;
+    const char *language;
+    const char *src;
+    unsigned long long size;
+    const char *pattern;
+    const char *template_text;
+    CliShapeEach each;
+    void *context;
+};
+
+struct CliShapeCfg
+{
+    const char *path;
+    const CliShapeFound *found;
+    VerbaLinea *out;
+};
+
+typedef struct
+{
+    void (*search)(const CliShapeLanguagesCfg *args);
+} CliShapeLanguagesNs;
+EMBED_TABLE_LAYOUT(CliShapeLanguagesNs, search);
+EMBED_TABLE_STORAGE CliShapeLanguagesNs cli_shape_languages EMBED_UNUSED = {
+    .search = cli_shape_search,
+};
+
+typedef struct
+{
+    void (*found_write)(const CliShapeCfg *args);
+} CliShapeNs;
+EMBED_TABLE_LAYOUT(CliShapeNs, found_write);
+EMBED_TABLE_STORAGE CliShapeNs cli_shape_table EMBED_UNUSED = {
+    .found_write = cli_shape_found_write,
+};
 
 #endif

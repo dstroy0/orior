@@ -24,42 +24,75 @@ typedef struct
 } CliStateWriting;
 
 // a piece added to the file the answers are written in, the first made anew: 1, or 0 where it could not be
-static int history_appended(void *context, const char *bytes, size_t size)
+static int history_append(void *context, const char *bytes, size_t size)
 {
     CliStateWriting *const writing = context;
-    const int put = cli_file_appended(writing->path, bytes, size, writing->fresh);
+    const int put = EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = writing->path,
+                               .bytes = bytes, .size = size, .fresh = writing->fresh);
     writing->fresh = 0;
     return put;
 }
 
-// the first 16 hex digits of the SHA-256 of `size` bytes written into `out`
-static void history_named(const char *bytes, unsigned long long size, VerbaLinea *out)
+typedef struct
 {
+    const char *bytes;
+    unsigned long long size;
+    VerbaLinea *out;
+    const char *root;
+    const char *path;
+    char *folder;
+    VerbaLinea *err_msg;
+    const char *folder_read;
+    const char *key;
+    unsigned long long key_size;
+    char *file;
+    char *writing;
+    unsigned char byte;
+    const char *file_read;
+    const unsigned char **bytes_u8s;
+    unsigned long long *size_pointer;
+    unsigned long long *first;
+    VerbaLinea *piece;
+    const unsigned char *bytes_bytes;
+    unsigned long long at;
+} RequestsHistoryCtx;
+// the first 16 hex digits of the SHA-256 of `size` bytes written into `out`
+EMBED_INLINE void history_by_name(const RequestsHistoryCtx *args)
+{
+    const char *bytes = args->bytes;
+    unsigned long long size = args->size;
     char digest[65];
     VerbaLinea digest_line = {digest, sizeof(digest), 0ull};
-    cli_sha256_text(bytes, size, &digest_line);
-    mmgr_line_put_n(out, digest, 16u);
+    EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &digest_line);
+    mmgr_line_put_n(args->out, digest, 16u);
 }
 
 // the folder in orior's own folder that stores the answers of the requests of the file at `path`, into `folder`, which
 // is sized for CLI_PATH_MAX_LEN: 1, or 0 with why given. The path is named with the system's own separator, as Rust's
 // PathBuf writes it
-static int history_folder(const char *root, const char *path, char *folder, VerbaLinea *err_msg)
+EMBED_INLINE int history_folder(const RequestsHistoryCtx *args)
 {
+    const char *root = args->root;
+    char *folder = args->folder;
+    VerbaLinea *err_msg = args->err_msg;
     char file[CLI_PATH_MAX_LEN];
     char home[CLI_PATH_MAX_LEN];
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea none = {why, sizeof(why), 0ull};
     VerbaLinea line = {folder, CLI_PATH_MAX_LEN, 0ull};
-    const int known = cli_inside(root, path, file, &none) && cli_home_folder(home);
+    const int known = EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = root, .relative = args->path,
+                                 .joined = file, .err_msg = &none) &&
+                      EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home);
     if (known)
     {
 #if defined(_WIN32)
-        cli_text_swapped(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '/', '\\');
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = file,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), .from = '/', .to = '\\');
 #endif
         mmgr_line_put(&line, home);
         mmgr_line_put(&line, "/requests/");
-        history_named(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), &line);
+        EMBED_CALL(history_by_name, RequestsHistoryCtx, .bytes = file,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), .out = &line);
     }
     if (!known || (mmgr_line_finish(&line) == 0ull))
     {
@@ -72,41 +105,46 @@ static int history_folder(const char *root, const char *path, char *folder, Verb
 // the file in `folder` that stores the answers of the request named `key`, and the file it is written as before it
 // takes that one's place, into `file` and `writing`, which each are sized for CLI_PATH_MAX_LEN: 1, or 0 where a path
 // does not fit
-static int history_file(const char *folder, const char *key, unsigned long long key_size, char *file, char *writing)
+EMBED_INLINE int history_file(const RequestsHistoryCtx *args)
 {
-    VerbaLinea line = {file, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put(&line, folder);
+    VerbaLinea line = {args->file, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, args->folder_read);
     mmgr_line_ch(&line, '/');
-    history_named(key, key_size, &line);
+    EMBED_CALL(history_by_name, RequestsHistoryCtx, .bytes = args->key, .size = args->key_size, .out = &line);
     mmgr_line_put(&line, ".json");
-    VerbaLinea writing_line = {writing, CLI_PATH_MAX_LEN, 0ull};
-    mmgr_line_put_n(&writing_line, file, line.at);
+    VerbaLinea writing_line = {args->writing, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put_n(&writing_line, args->file, line.at);
     mmgr_line_put(&writing_line, ".writing");
     return (mmgr_line_finish(&line) != 0ull) && (mmgr_line_finish(&writing_line) != 0ull);
 }
 
 // whether a byte is white as JSON has it
-static int history_white(unsigned char byte)
+EMBED_INLINE int history_white(const RequestsHistoryCtx *args)
 {
-    return (byte == ' ') || (byte == '\t') || (byte == '\r') || (byte == '\n');
+    return (args->byte == ' ') || (args->byte == '\t') || (args->byte == '\r') || (args->byte == '\n');
 }
 
 // the answers the file at `file` stores, an array of them, its bytes mapped into `*bytes`, `*size` of them, and where
 // its first item may start into `*first`: 1, or 0 where there is none or it contains no array, nothing then mapped
-static int history_read(const char *file, const unsigned char **bytes, unsigned long long *size,
-                        unsigned long long *first)
+EMBED_INLINE int history_read(const RequestsHistoryCtx *args)
 {
-    *bytes = cli_file_taken(file, size, &g_cli_requests_cells);
+    const unsigned char **bytes = args->bytes_u8s;
+    unsigned long long *size = args->size_pointer;
+    unsigned long long *first = args->first;
+    *bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->file_read, .size_pointer = size,
+                        .owner = &g_cli_requests_cells);
     VerbaLinea none = {NULL, 0ull, 0ull};
     unsigned long long at = 0ull;
-    while ((*bytes != NULL) && (at < *size) && history_white((*bytes)[at]))
+    while ((*bytes != NULL) && (at < *size) && EMBED_CALL(history_white, RequestsHistoryCtx, .byte = (*bytes)[at]))
     {
         at += 1u;
     }
-    if ((*bytes != NULL) &&
-        ((at == *size) || ((*bytes)[at] != '[') || !cli_json_compacted((const char *)*bytes, *size, &none)))
+    if ((*bytes != NULL) && ((at == *size) || ((*bytes)[at] != '[') ||
+                             !EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
+                                         .text = (const char *)*bytes, .size = *size, .out = &none)))
     {
-        cli_file_given(*bytes, &g_cli_requests_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = *bytes,
+                   .owner = &g_cli_requests_cells);
         *bytes = NULL;
     }
     *first = at + 1u;
@@ -115,113 +153,131 @@ static int history_read(const char *file, const unsigned char **bytes, unsigned 
 
 // the answers stored before, from `at` of `size` bytes, the first CLI_REQUESTS_HISTORY_MAX - 1 of them written into
 // `piece`, each after a comma: 1, or 0 where one could not be
-static int history_before(VerbaLinea *piece, const unsigned char *bytes, unsigned long long size, unsigned long long at)
+EMBED_INLINE int history_before(const RequestsHistoryCtx *args)
 {
+    unsigned long long size = args->size;
+    unsigned long long at = args->at;
     for (unsigned int entry = 1u; entry < CLI_REQUESTS_HISTORY_MAX; entry += 1u)
     {
-        const unsigned long long end = cli_json_value_end((const char *)bytes, size, at);
+        const unsigned long long end = EMBED_CALL(cli_json_tree_text_size.json_value_end, CliJsonTreeTextSizeCfg,
+                                                  .text = (const char *)args->bytes_bytes, .size = size, .at = at);
         if (end == at)
         {
             return 1;
         }
-        mmgr_line_ch(piece, ',');
-        if (!cli_json_compacted((const char *)bytes + at, end - at, piece) || !mmgr_line_ok(piece))
+        mmgr_line_ch(args->piece, ',');
+        if (!EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
+                        .text = (const char *)args->bytes_bytes + at, .size = end - at, .out = args->piece) ||
+            !mmgr_line_ok(args->piece))
         {
             return 0;
         }
         at = end;
-        while ((at < size) && history_white(bytes[at]))
+        while ((at < size) && EMBED_CALL(history_white, RequestsHistoryCtx, .byte = args->bytes_bytes[at]))
         {
             at += 1u;
         }
-        at += ((at < size) && (bytes[at] == ',')) ? 1u : 0u;
+        at += ((at < size) && (args->bytes_bytes[at] == ',')) ? 1u : 0u;
     }
     return 1;
 }
 
-int cli_requests_history_save(const char *root, const char *path, const char *key, unsigned long long key_size,
-                              const CliRequestsAnswer *answer, const CliRequestsSent *sent, VerbaLinea *err_msg)
+int cli_requests_history_save(const CliRequestsErrMsgCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
     char writing[CLI_PATH_MAX_LEN];
-    if (!history_folder(root, path, folder, err_msg))
+    if (!EMBED_CALL(history_folder, RequestsHistoryCtx, .root = args->root, .path = args->path, .folder = folder,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
-    if (!history_file(folder, key, key_size, file, writing))
+    if (!EMBED_CALL(history_file, RequestsHistoryCtx, .folder_read = folder, .key = args->key_text,
+                    .key_size = args->key_size, .file = file, .writing = writing))
     {
-        mmgr_line_put(err_msg, folder);
-        mmgr_line_put(err_msg, ": its path is too long");
+        mmgr_line_put(args->err_msg, folder);
+        mmgr_line_put(args->err_msg, ": its path is too long");
         return 0;
     }
-    cli_lock_take(&s_history_lock);
-    const int made = query_folder_made(folder);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_history_lock);
+    const int made = EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long first = 0ull;
-    const int before = made && history_read(file, &bytes, &size, &first);
+    const int before = made && EMBED_CALL(history_read, RequestsHistoryCtx, .file_read = file, .bytes_u8s = &bytes,
+                                          .size_pointer = &size, .first = &first);
     // the answers written into a room of their own, each piece added to the file as the room fills
     char room[CLI_REQUESTS_ROOM];
     CliStateWriting target = {writing, 1};
-    VerbaLinea piece = {room, sizeof(room), 0ull, history_appended, &target, 0ull};
+    VerbaLinea piece = {room, sizeof(room), 0ull, history_append, &target, 0ull};
     int done = made;
     if (done)
     {
         mmgr_line_ch(&piece, '[');
-        cli_requests_answer_written(answer, sent, CLI_REQUESTS_HISTORY_BODY_MAX, &piece);
+        EMBED_CALL(cli_requests_out_internal.answer_write, CliRequestsOutCtx, .answer = args->answer,
+                   .sent = args->sent, .most = CLI_REQUESTS_HISTORY_BODY_MAX, .out = &piece);
         done = mmgr_line_ok(&piece) && ((piece.flushed + piece.at) <= CLI_REQUESTS_PIECE) &&
-               (!before || history_before(&piece, bytes, size, first));
+               (!before || EMBED_CALL(history_before, RequestsHistoryCtx, .piece = &piece, .bytes_bytes = bytes,
+                                      .size = size, .at = first));
     }
     if (before)
     {
-        cli_file_given(bytes, &g_cli_requests_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
+                   .owner = &g_cli_requests_cells);
     }
     mmgr_line_ch(&piece, ']');
-    done = done && mmgr_line_flush(&piece) && cli_moved(writing, file);
-    cli_lock_give(&s_history_lock);
+    done = done && mmgr_line_flush(&piece) &&
+           EMBED_CALL(cli_err_msg_from_internal.move, CliErrMsgFromCtx, .from_text = writing, .to = file);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_history_lock);
     if (!done)
     {
-        mmgr_line_put(err_msg, made ? file : folder);
-        mmgr_line_put(err_msg, ": it could not be written");
+        mmgr_line_put(args->err_msg, made ? file : folder);
+        mmgr_line_put(args->err_msg, ": it could not be written");
     }
     return done;
 }
 
-int cli_requests_answers(const char *root, const char *path, const char *text, unsigned long long size,
-                         unsigned long long line, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_requests_answers(const CliRequestsTextCfg *args)
 {
     char key[CLI_REQUESTS_ADDRESS + CLI_REQUESTS_NAME];
     VerbaLinea key_line = {key, sizeof(key), 0ull};
     char folder[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
     char writing[CLI_PATH_MAX_LEN];
-    if (!cli_requests_key_at(text, size, line, &key_line, err_msg) || !history_folder(root, path, folder, err_msg))
+    if (!EMBED_CALL(cli_requests_text_table.key_at, CliRequestsTextCfg, .text = args->text, .size = args->size,
+                    .line = args->line, .out = &key_line, .err_msg = args->err_msg) ||
+        !EMBED_CALL(history_folder, RequestsHistoryCtx, .root = args->root, .path = args->path, .folder = folder,
+                    .err_msg = args->err_msg))
     {
         return 0;
     }
-    if (!mmgr_line_ok(&key_line) || !history_file(folder, key, key_line.at, file, writing))
+    if (!mmgr_line_ok(&key_line) || !EMBED_CALL(history_file, RequestsHistoryCtx, .folder_read = folder, .key = key,
+                                                .key_size = key_line.at, .file = file, .writing = writing))
     {
-        mmgr_line_put(err_msg, "the request is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the request is larger than orior_cli supports");
         return 0;
     }
-    mmgr_line_put(out, "{\"key\":");
-    cli_json_quoted(out, key, key_line.at);
-    mmgr_line_put(out, ",\"answers\":");
-    cli_lock_take(&s_history_lock);
+    mmgr_line_put(args->out, "{\"key\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = key,
+               .length = key_line.at);
+    mmgr_line_put(args->out, ",\"answers\":");
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_history_lock);
     const unsigned char *bytes = NULL;
     unsigned long long byte_count = 0ull;
     unsigned long long first = 0ull;
-    if (history_read(file, &bytes, &byte_count, &first))
+    if (EMBED_CALL(history_read, RequestsHistoryCtx, .file_read = file, .bytes_u8s = &bytes,
+                   .size_pointer = &byte_count, .first = &first))
     {
-        (void)cli_json_compacted((const char *)bytes, byte_count, out);
-        cli_file_given(bytes, &g_cli_requests_cells);
+        (void)EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = (const char *)bytes,
+                         .size = byte_count, .out = args->out);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
+                   .owner = &g_cli_requests_cells);
     }
     else
     {
-        mmgr_line_put(out, "[]");
+        mmgr_line_put(args->out, "[]");
     }
-    cli_lock_give(&s_history_lock);
-    mmgr_line_ch(out, '}');
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_history_lock);
+    mmgr_line_ch(args->out, '}');
     return 1;
 }

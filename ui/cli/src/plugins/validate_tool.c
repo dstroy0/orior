@@ -10,14 +10,21 @@
 // the most tool plugins looked over
 #define CLI_VALIDATE_TOOLS (CLI_USER_PLUGINS + 256u)
 
-int cli_validate_in_array(const CliJson *json, unsigned int array, const char *text, unsigned long long length)
+int cli_validate_in_array(const CliValidateJsonCtx *args)
 {
-    for (unsigned int index = 0u; cli_json_item(json, array, index) != CLI_JSON_NONE; index += 1u)
+    for (unsigned int index = 0u;
+         EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = args->json,
+                    .array = args->array, .index = index) != CLI_JSON_NONE;
+         index += 1u)
     {
         unsigned long long size = 0ull;
-        const char *const one = cli_json_string(json, cli_json_item(json, array, index), &size);
-        if ((one != NULL) && (size == length) &&
-            (memor.cmp(&(MemoriaCfg){.src = one, .other = text, .bytes = length}) == 0))
+        const char *const one =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = args->json, .array = args->array, .index = index),
+                       .length_pointer = &size);
+        if ((one != NULL) && (size == args->length) &&
+            (memor.cmp(&(MemoriaCfg){.src = one, .other = args->text, .bytes = args->length}) == 0))
         {
             return 1;
         }
@@ -25,12 +32,12 @@ int cli_validate_in_array(const CliJson *json, unsigned int array, const char *t
     return 0;
 }
 
-int cli_validate_contains(const char *text, unsigned long long length, const char *part)
+int cli_validate_contains(const CliValidateTextLengthCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; at + size <= length; at += 1ull)
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; at + size <= args->length; at += 1ull)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = text + at, .other = part, .bytes = size}) == 0)
+        if (memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = args->part, .bytes = size}) == 0)
         {
             return 1;
         }
@@ -38,31 +45,66 @@ int cli_validate_contains(const char *text, unsigned long long length, const cha
     return 0;
 }
 
+typedef struct
+{
+    const CliJson *json;
+    unsigned int object;
+    const char *name;
+    int needed;
+    const char **value;
+    unsigned int *array_pointer;
+    const unsigned long long *fallback;
+    unsigned long long most;
+    unsigned long long *value_u64s;
+    unsigned int array;
+    CliTool *tool;
+    unsigned int audit;
+    unsigned int root;
+    const char *language;
+} ValidateToolCtx;
 // the string member `name` of `object` into `value`: 1, or 0 where it is no string, or absent and `needed`; "" where
 // it is absent and not needed
-static int tool_string(const CliJson *json, unsigned int object, const char *name, int needed, const char **value)
+EMBED_INLINE int tool_string(const ValidateToolCtx *args)
 {
-    const unsigned int member = cli_json_member(json, object, name);
-    *value = (member == CLI_JSON_NONE) ? "" : cli_json_string(json, member, NULL);
-    return (member == CLI_JSON_NONE) ? !needed : (*value != NULL);
+    const CliJson *json = args->json;
+    unsigned int object = args->object;
+    const char *name = args->name;
+    const char **value = args->value;
+    const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = object, .name = name);
+    *value = (member == CLI_JSON_NONE) ? ""
+                                       : EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                    .json_read = json, .node = member, .length_pointer = NULL);
+    return (member == CLI_JSON_NONE) ? !args->needed : (*value != NULL);
 }
 
 // the array of strings `name` of `object` into `array`: 1, or 0 where it is no array of strings, or absent and
 // `needed`; CLI_JSON_NONE, an array with none, where it is absent and not needed
-static int tool_strings(const CliJson *json, unsigned int object, const char *name, int needed, unsigned int *array)
+EMBED_INLINE int tool_strings(const ValidateToolCtx *args)
 {
-    *array = cli_json_member(json, object, name);
+    const CliJson *json = args->json;
+    unsigned int object = args->object;
+    const char *name = args->name;
+    unsigned int *array = args->array_pointer;
+    *array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = object,
+                        .name = name);
     if (*array == CLI_JSON_NONE)
     {
-        return !needed;
+        return !args->needed;
     }
-    if (!cli_json_is(json, *array, CFG_JSON_ARRAY))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = *array,
+                    .kind = CFG_JSON_ARRAY))
     {
         return 0;
     }
-    for (unsigned int index = 0u; cli_json_item(json, *array, index) != CLI_JSON_NONE; index += 1u)
+    for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = json, .array = *array, .index = index) != CLI_JSON_NONE;
+         index += 1u)
     {
-        if (!cli_json_is(json, cli_json_item(json, *array, index), CFG_JSON_STRING))
+        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                           .json_read = json, .array = *array, .index = index),
+                        .kind = CFG_JSON_STRING))
         {
             return 0;
         }
@@ -72,16 +114,21 @@ static int tool_strings(const CliJson *json, unsigned int object, const char *na
 
 // the whole number `name` of `object`, no greater than `most`, into `value`: 1, or 0 where it is none, as serde reads
 // an unsigned integer, or absent and no `fallback` is given; `*fallback` where it is absent
-static int tool_count(const CliJson *json, unsigned int object, const char *name, const unsigned long long *fallback,
-                      unsigned long long most, unsigned long long *value)
+EMBED_INLINE int tool_count(const ValidateToolCtx *args)
 {
-    const unsigned int member = cli_json_member(json, object, name);
+    const CliJson *json = args->json;
+    unsigned int object = args->object;
+    const char *name = args->name;
+    unsigned long long *value = args->value_u64s;
+    const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = object, .name = name);
     if (member == CLI_JSON_NONE)
     {
-        *value = (fallback != NULL) ? *fallback : 0ull;
-        return fallback != NULL;
+        *value = (args->fallback != NULL) ? *args->fallback : 0ull;
+        return args->fallback != NULL;
     }
-    if (!cli_json_is(json, member, CFG_JSON_NUMBER))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
+                    .kind = CFG_JSON_NUMBER))
     {
         return 0;
     }
@@ -95,7 +142,7 @@ static int tool_count(const CliJson *json, unsigned int object, const char *name
             return 0;
         }
         const unsigned long long digit = (unsigned long long)(text[at] - '0');
-        if (sum > (most - digit) / 10ull)
+        if (sum > (args->most - digit) / 10ull)
         {
             return 0;
         }
@@ -106,124 +153,190 @@ static int tool_count(const CliJson *json, unsigned int object, const char *name
 }
 
 // the barriers of a tool read: 1, or 0 where one is not a Barrier
-static int tool_barriers(const CliJson *json, unsigned int array, CliTool *tool)
+EMBED_INLINE int tool_barriers(const ValidateToolCtx *args)
 {
-    tool->barrier_count = 0u;
-    for (unsigned int index = 0u; cli_json_item(json, array, index) != CLI_JSON_NONE; index += 1u)
+    const CliJson *json = args->json;
+    unsigned int array = args->array;
+    args->tool->barrier_count = 0u;
+    for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = json, .array = array, .index = index) != CLI_JSON_NONE;
+         index += 1u)
     {
-        const unsigned int one = cli_json_item(json, array, index);
-        if ((tool->barrier_count == CLI_VALIDATE_BARRIERS) || !cli_json_is(json, one, CFG_JSON_OBJECT))
+        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                            .json_read = json, .array = array, .index = index);
+        if ((args->tool->barrier_count == CLI_VALIDATE_BARRIERS) ||
+            !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = one,
+                        .kind = CFG_JSON_OBJECT))
         {
             return 0;
         }
-        CliBarrier *const barrier = &tool->barriers[tool->barrier_count];
-        if (!tool_string(json, one, "name", 1, &barrier->name) ||
-            !tool_string(json, one, "about", 0, &barrier->about) ||
-            !tool_strings(json, one, "kinds", 0, &barrier->kinds) ||
-            !tool_strings(json, one, "phrases", 0, &barrier->phrases) ||
-            !tool_strings(json, one, "not", 0, &barrier->unless) ||
-            !tool_string(json, one, "lift", 1, &barrier->lift) ||
-            !tool_count(json, one, "default", NULL, ~0ull, &barrier->start) ||
-            !tool_count(json, one, "grow", NULL, ~0ull, &barrier->grow) ||
-            !tool_count(json, one, "ceiling", NULL, ~0ull, &barrier->ceiling))
+        CliBarrier *const barrier = &args->tool->barriers[args->tool->barrier_count];
+        if (!EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = one, .name = "name", .needed = 1,
+                        .value = &barrier->name) ||
+            !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = one, .name = "about", .needed = 0,
+                        .value = &barrier->about) ||
+            !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = one, .name = "kinds", .needed = 0,
+                        .array_pointer = &barrier->kinds) ||
+            !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = one, .name = "phrases", .needed = 0,
+                        .array_pointer = &barrier->phrases) ||
+            !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = one, .name = "not", .needed = 0,
+                        .array_pointer = &barrier->unless) ||
+            !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = one, .name = "lift", .needed = 1,
+                        .value = &barrier->lift) ||
+            !EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = one, .name = "default", .fallback = NULL,
+                        .most = ~0ull, .value_u64s = &barrier->start) ||
+            !EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = one, .name = "grow", .fallback = NULL,
+                        .most = ~0ull, .value_u64s = &barrier->grow) ||
+            !EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = one, .name = "ceiling", .fallback = NULL,
+                        .most = ~0ull, .value_u64s = &barrier->ceiling))
         {
             return 0;
         }
-        tool->barrier_count += 1u;
+        args->tool->barrier_count += 1u;
     }
     return 1;
 }
 
 // the flags of a tool read: 1, or 0 where one is not a Flag
-static int tool_flags(const CliJson *json, unsigned int array, CliTool *tool)
+EMBED_INLINE int tool_flags(const ValidateToolCtx *args)
 {
-    tool->flag_count = 0u;
-    for (unsigned int index = 0u; cli_json_item(json, array, index) != CLI_JSON_NONE; index += 1u)
+    const CliJson *json = args->json;
+    unsigned int array = args->array;
+    args->tool->flag_count = 0u;
+    for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = json, .array = array, .index = index) != CLI_JSON_NONE;
+         index += 1u)
     {
-        const unsigned int one = cli_json_item(json, array, index);
-        CliFlag *const flag = &tool->flags[tool->flag_count];
+        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                            .json_read = json, .array = array, .index = index);
+        CliFlag *const flag = &args->tool->flags[args->tool->flag_count];
         unsigned long long severity = 0ull;
-        if ((tool->flag_count == CLI_VALIDATE_FLAGS) || !cli_json_is(json, one, CFG_JSON_OBJECT) ||
-            !tool_strings(json, one, "words", 1, &flag->words) ||
-            !tool_count(json, one, "severity", NULL, 255ull, &severity) ||
-            !tool_string(json, one, "message", 1, &flag->phrases))
+        if ((args->tool->flag_count == CLI_VALIDATE_FLAGS) ||
+            !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = one,
+                        .kind = CFG_JSON_OBJECT) ||
+            !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = one, .name = "words", .needed = 1,
+                        .array_pointer = &flag->words) ||
+            !EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = one, .name = "severity", .fallback = NULL,
+                        .most = 255ull, .value_u64s = &severity) ||
+            !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = one, .name = "message", .needed = 1,
+                        .value = &flag->phrases))
         {
             return 0;
         }
         flag->severity = (unsigned int)severity;
-        tool->flag_count += 1u;
+        args->tool->flag_count += 1u;
     }
     return 1;
 }
 
 // a tool's audit read, none where it is absent or null: 1, or 0 where it is not an Audit
-static int tool_audit(const CliJson *json, unsigned int audit, CliTool *tool)
+EMBED_INLINE int tool_audit(const ValidateToolCtx *args)
 {
-    tool->audited = (audit != CLI_JSON_NONE) && !cli_json_is(json, audit, CFG_JSON_NULL);
-    tool->declarations = CLI_JSON_NONE;
-    tool->trusted = CLI_JSON_NONE;
-    tool->gaps = CLI_JSON_NONE;
-    tool->explains = CLI_JSON_NONE;
-    tool->repeats = CLI_JSON_NONE;
-    tool->print = "";
-    if (!tool->audited)
+    const CliJson *json = args->json;
+    args->tool->audited =
+        (args->audit != CLI_JSON_NONE) && !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                      .json_read = json, .node = args->audit, .kind = CFG_JSON_NULL);
+    args->tool->declarations = CLI_JSON_NONE;
+    args->tool->trusted = CLI_JSON_NONE;
+    args->tool->gaps = CLI_JSON_NONE;
+    args->tool->explains = CLI_JSON_NONE;
+    args->tool->repeats = CLI_JSON_NONE;
+    args->tool->print = "";
+    if (!args->tool->audited)
     {
         return 1;
     }
-    if (!cli_json_is(json, audit, CFG_JSON_OBJECT) ||
-        !tool_strings(json, audit, "declarations", 1, &tool->declarations) ||
-        !tool_string(json, audit, "print", 1, &tool->print) ||
-        !tool_strings(json, audit, "trusted", 1, &tool->trusted) ||
-        !tool_strings(json, audit, "gaps", 0, &tool->gaps) || !tool_strings(json, audit, "repeats", 0, &tool->repeats))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->audit,
+                    .kind = CFG_JSON_OBJECT) ||
+        !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = args->audit, .name = "declarations",
+                    .needed = 1, .array_pointer = &args->tool->declarations) ||
+        !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = args->audit, .name = "print", .needed = 1,
+                    .value = &args->tool->print) ||
+        !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = args->audit, .name = "trusted", .needed = 1,
+                    .array_pointer = &args->tool->trusted) ||
+        !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = args->audit, .name = "gaps", .needed = 0,
+                    .array_pointer = &args->tool->gaps) ||
+        !EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = args->audit, .name = "repeats", .needed = 0,
+                    .array_pointer = &args->tool->repeats))
     {
         return 0;
     }
-    tool->explains = cli_json_member(json, audit, "explains");
-    if (tool->explains == CLI_JSON_NONE)
+    args->tool->explains = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = args->audit, .name = "explains");
+    if (args->tool->explains == CLI_JSON_NONE)
     {
         return 1;
     }
-    if (!cli_json_is(json, tool->explains, CFG_JSON_OBJECT))
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                    .node = args->tool->explains, .kind = CFG_JSON_OBJECT))
     {
         return 0;
     }
-    for (unsigned int member = json->node[tool->explains].first; member != CLI_JSON_NONE;
+    for (unsigned int member = json->node[args->tool->explains].first; member != CLI_JSON_NONE;
          member = json->node[member].next)
     {
-        if (!cli_json_is(json, member, CFG_JSON_STRING))
+        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = member,
+                        .kind = CFG_JSON_STRING))
         {
             return 0;
         }
     }
     // an explanation is found by its key in the order a BTreeMap orders them
-    cli_json_sorted((CliJson *)json, tool->explains);
+    EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = (CliJson *)json,
+               .object = args->tool->explains);
     return 1;
 }
 
 // the tool `root` declares read into `tool`: 1, or 0 where it is no tool plugin, or not a Tool as serde reads one
-static int tool_read(const CliJson *json, unsigned int root, CliTool *tool)
+EMBED_INLINE int tool_read(const ValidateToolCtx *args)
 {
+    const CliJson *json = args->json;
     const char *kind = NULL;
-    if (!cli_json_is(json, root, CFG_JSON_OBJECT) || !tool_string(json, root, "kind", 1, &kind) ||
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->root,
+                    .kind = CFG_JSON_OBJECT) ||
+        !EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = args->root, .name = "kind", .needed = 1,
+                    .value = &kind) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "tool", .cap = CLI_CELLS_POOL})))
     {
         return 0;
     }
-    const unsigned int run = cli_json_member(json, root, "run");
-    const unsigned int barriers = cli_json_member(json, root, "barriers");
-    const unsigned int flags = cli_json_member(json, root, "flags");
+    const unsigned int run = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = args->root, .name = "run");
+    const unsigned int barriers = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                             .object = args->root, .name = "barriers");
+    const unsigned int flags = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->root, .name = "flags");
     static const unsigned long long s_patience = 600ull;
-    return tool_string(json, root, "id", 1, &tool->id) && tool_string(json, root, "name", 1, &tool->name) &&
-           tool_strings(json, root, "languages", 0, &tool->languages) &&
-           tool_string(json, root, "toolchain", 1, &tool->toolchain) && cli_json_is(json, run, CFG_JSON_OBJECT) &&
-           tool_string(json, run, "program", 1, &tool->program) && tool_strings(json, run, "args", 1, &tool->args) &&
-           tool_strings(json, run, "project", 0, &tool->project) &&
-           tool_strings(json, run, "inProject", 0, &tool->in_project) &&
-           tool_count(json, run, "patience", &s_patience, ~0ull, &tool->patience) &&
-           ((barriers == CLI_JSON_NONE) || cli_json_is(json, barriers, CFG_JSON_ARRAY)) &&
-           tool_barriers(json, barriers, tool) &&
-           ((flags == CLI_JSON_NONE) || cli_json_is(json, flags, CFG_JSON_ARRAY)) && tool_flags(json, flags, tool) &&
-           tool_audit(json, cli_json_member(json, root, "audit"), tool);
+    return EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = args->root, .name = "id", .needed = 1,
+                      .value = &args->tool->id) &&
+           EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = args->root, .name = "name", .needed = 1,
+                      .value = &args->tool->name) &&
+           EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = args->root, .name = "languages",
+                      .needed = 0, .array_pointer = &args->tool->languages) &&
+           EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = args->root, .name = "toolchain",
+                      .needed = 1, .value = &args->tool->toolchain) &&
+           EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = run,
+                      .kind = CFG_JSON_OBJECT) &&
+           EMBED_CALL(tool_string, ValidateToolCtx, .json = json, .object = run, .name = "program", .needed = 1,
+                      .value = &args->tool->program) &&
+           EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = run, .name = "args", .needed = 1,
+                      .array_pointer = &args->tool->args) &&
+           EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = run, .name = "project", .needed = 0,
+                      .array_pointer = &args->tool->project) &&
+           EMBED_CALL(tool_strings, ValidateToolCtx, .json = json, .object = run, .name = "inProject", .needed = 0,
+                      .array_pointer = &args->tool->in_project) &&
+           EMBED_CALL(tool_count, ValidateToolCtx, .json = json, .object = run, .name = "patience",
+                      .fallback = &s_patience, .most = ~0ull, .value_u64s = &args->tool->patience) &&
+           ((barriers == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                      .json_read = json, .node = barriers, .kind = CFG_JSON_ARRAY)) &&
+           EMBED_CALL(tool_barriers, ValidateToolCtx, .json = json, .array = barriers, .tool = args->tool) &&
+           ((flags == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                   .json_read = json, .node = flags, .kind = CFG_JSON_ARRAY)) &&
+           EMBED_CALL(tool_flags, ValidateToolCtx, .json = json, .array = flags, .tool = args->tool) &&
+           EMBED_CALL(tool_audit, ValidateToolCtx, .json = json,
+                      .audit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                          .object = args->root, .name = "audit"),
+                      .tool = args->tool);
 }
 
 // What a look over the tool plugins finds: each tool by its id, the last plugin of an id standing for it, with its
@@ -247,9 +360,9 @@ static CliLock s_look_lock = CLI_LOCK_INIT;
 
 // a plugin looked at: a tool recorded by its id, or, as one is read again, the tool at the place sought read into the
 // room
-static void tool_looked(void *context, const CliPlugin *plugin)
+static void tool_look(const CliEachPluginCfg *args)
 {
-    CliToolLook *const look = (CliToolLook *)context;
+    CliToolLook *const look = (CliToolLook *)args->context;
     const unsigned int place = look->seen;
     look->seen += 1u;
     if (look->loading && (place != look->sought))
@@ -258,15 +371,18 @@ static void tool_looked(void *context, const CliPlugin *plugin)
     }
     // the plugin's tree in a cell of its own sized to its text, the one before given back, retained until the room is
     CliJson *const json = &g_cli_validate->json;
-    cli_json_given(json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root =
-        cli_utf8_whole(plugin->text, plugin->size)
-            ? cli_json_taken(json, plugin->text, plugin->size, 0u, 0ull, &unread, &g_cli_plugins_cells)
+        EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = args->plugin->text,
+                   .size = args->plugin->size)
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = json,
+                         .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
+                         .err_msg = &unread, .owner = &g_cli_plugins_cells)
             : CLI_JSON_NONE;
     CliTool *const tool = &g_cli_validate->tool;
-    if ((root == CLI_JSON_NONE) || !tool_read(json, root, tool))
+    if ((root == CLI_JSON_NONE) || !EMBED_CALL(tool_read, ValidateToolCtx, .json = json, .root = root, .tool = tool))
     {
         return;
     }
@@ -297,54 +413,57 @@ static void tool_looked(void *context, const CliPlugin *plugin)
     look->places[at] = place;
     look->checks[at] =
         (look->language != NULL) &&
-        cli_validate_in_array(json, tool->languages, look->language,
-                              cellul.len(&(CatenaFinitaCfg){.src = look->language, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json, .array = tool->languages,
+                   .text = look->language,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = look->language, .cap = CLI_CELLS_POOL}));
 }
 
 // every tool plugin looked over, each id's last recorded, under the look's lock, which the caller gives back
-static void tool_looked_over(const char *language)
+EMBED_INLINE void tool_looked_over(const ValidateToolCtx *args)
 {
-    cli_lock_take(&s_look_lock);
+    const char *language = args->language;
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_look_lock);
     s_look.language = language;
     s_look.count = 0u;
     s_look.seen = 0u;
     s_look.loading = 0;
-    cli_plugins_each(tool_looked, &s_look);
+    EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = tool_look, .context = &s_look);
 }
 
-int cli_validate_tool_for(const char *language, char *id)
+int cli_validate_tool_for(const CliValidateCfg *args)
 {
     // each plugin is read into the validation's room, retained for the look as a validation retains it
-    if (!cli_validate_locked())
+    if (!cli_validate_lock())
     {
         return 0;
     }
-    tool_looked_over(language);
+    EMBED_CALL(tool_looked_over, ValidateToolCtx, .language = args->language);
     const char *least = NULL;
     for (unsigned int at = 0u; at < s_look.count; at += 1u)
     {
-        if (s_look.checks[at] && ((least == NULL) || (cli_text_order(s_look.ids[at], least) < 0)))
+        if (s_look.checks[at] && ((least == NULL) || (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                                                 .one = s_look.ids[at], .other_pointer = least) < 0)))
         {
             least = s_look.ids[at];
         }
     }
     if (least != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = id,
+        memor.cpy(&(MemoriaCfg){.dst = args->id,
                                 .src = least,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = least, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_lock_give(&s_look_lock);
-    cli_validate_released();
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_look_lock);
+    cli_validate_release();
     return least != NULL;
 }
 
-int cli_validate_tool_read(const char *id)
+int cli_validate_tool_read(const CliValidateIdCtx *args)
 {
-    tool_looked_over(NULL);
+    EMBED_CALL(tool_looked_over, ValidateToolCtx, .language = NULL);
     unsigned int at = 0u;
     while ((at < s_look.count) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = s_look.ids[at], .other = id, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = s_look.ids[at], .other = args->id, .cap = CLI_CELLS_POOL})))
     {
         at += 1u;
     }
@@ -354,9 +473,9 @@ int cli_validate_tool_read(const char *id)
         s_look.seen = 0u;
         s_look.loading = 1;
         s_look.sought = s_look.places[at];
-        cli_plugins_each(tool_looked, &s_look);
+        EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = tool_look, .context = &s_look);
     }
     const int loaded = s_look.loaded;
-    cli_lock_give(&s_look_lock);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_look_lock);
     return loaded;
 }

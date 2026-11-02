@@ -1,0 +1,6 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+# Unity's generator options for every suite's runner. A runner includes a suite's local headers and no system header, since the
+# generator reads includes without regard to #if and a suite's <windows.h> or <unistd.h> is inside one.
+:unity:
+  :use_system_files: false

@@ -4,39 +4,43 @@
 #include "../text/text.h"
 #include "executables_internal.h"
 
-void cli_executables_ordered(CliExecutables *found)
+void cli_executables_order(const CliExecutablesFoundCtx *args)
 {
-    g_cli_cells->persistent_buf_release(found->order, &g_cli_executables_cells);
-    found->order = (found->count != 0u) ? g_cli_cells->persistent_buf_alloc(found->count * sizeof(*found->order),
-                                                                            &g_cli_executables_cells)
-                                        : NULL;
-    if (found->order == NULL)
+    g_cli_cells->persistent_buf_release(args->found->order, &g_cli_executables_cells);
+    args->found->order = (args->found->count != 0u)
+                             ? g_cli_cells->persistent_buf_alloc(args->found->count * sizeof(*args->found->order),
+                                                                 &g_cli_executables_cells)
+                             : NULL;
+    if (args->found->order == NULL)
     {
-        found->count = 0u;
+        args->found->count = 0u;
         return;
     }
     // the programs by script, then by name, their places sorted and the programs left where they are
-    for (unsigned int at = 0u; at < found->count; at += 1u)
+    for (unsigned int at = 0u; at < args->found->count; at += 1u)
     {
         unsigned int place = at;
         while (place > 0u)
         {
-            const CliExecutable *const before = &found->item[found->order[place - 1u]];
-            const CliExecutable *const one = &found->item[at];
-            const int order = cli_text_order(before->script, one->script);
-            if ((order < 0) || ((order == 0) && (cli_text_order(before->name, one->name) <= 0)))
+            const CliExecutable *const before = &args->found->item[args->found->order[place - 1u]];
+            const CliExecutable *const one = &args->found->item[at];
+            const int order = EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = before->script,
+                                         .other_pointer = one->script);
+            if ((order < 0) || ((order == 0) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                                            .one = before->name, .other_pointer = one->name) <= 0)))
             {
                 break;
             }
-            found->order[place] = found->order[place - 1u];
+            args->found->order[place] = args->found->order[place - 1u];
             place -= 1u;
         }
-        found->order[place] = at;
+        args->found->order[place] = at;
     }
 }
 
-void cli_executables_given(CliExecutables *found)
+void cli_executables_free(const CliExecutablesFoundCtx *args)
 {
+    CliExecutables *found = args->found;
     g_cli_cells->persistent_buf_release(found->item, &g_cli_executables_cells);
     g_cli_cells->persistent_buf_release(found->order, &g_cli_executables_cells);
     *found = (CliExecutables){NULL, 0u, 0u, NULL};

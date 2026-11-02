@@ -9,13 +9,20 @@
 // closed on its line, so the longest line contains it
 #include "version_catalog_internal.h"
 
-// `count` up to `most`
-static unsigned long long cells_most(unsigned long long count, unsigned long long most)
+typedef struct
 {
-    return (count < most) ? count : most;
+    unsigned long long count;
+    unsigned long long most;
+    CliVersionsNames *names;
+} VersionCatalogCellsCtx;
+
+// `count` up to `most`
+EMBED_INLINE unsigned long long cells_most(const VersionCatalogCellsCtx *args)
+{
+    return (args->count < args->most) ? args->count : args->most;
 }
 
-int cli_versions_taken(const char *text, unsigned long long size)
+int cli_versions_take(const CliVersionCatalogTextCtx *args)
 {
     CliVersionsParsed *const parsed = &g_cli_versions;
     unsigned long long opens = 0ull;
@@ -26,9 +33,9 @@ int cli_versions_taken(const char *text, unsigned long long size)
     unsigned long long lines = 1ull;
     unsigned long long line_from = 0ull;
     parsed->longest = 0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1u)
+    for (unsigned long long at = 0ull; at < args->size; at += 1u)
     {
-        const char here = text[at];
+        const char here = args->text[at];
         opens += (here == '[') ? 1ull : 0ull;
         equals += (here == '=') ? 1ull : 0ull;
         quotes += ((here == '"') || (here == '\'')) ? 1ull : 0ull;
@@ -41,16 +48,23 @@ int cli_versions_taken(const char *text, unsigned long long size)
             lines += 1ull;
         }
     }
-    parsed->longest = (size - line_from > parsed->longest) ? size - line_from : parsed->longest;
+    parsed->longest = (args->size - line_from > parsed->longest) ? args->size - line_from : parsed->longest;
     // each room is under its most, so it fits an unsigned int
-    parsed->sections_room = (unsigned int)cells_most(opens, CLI_VERSIONS_SECTIONS);
-    parsed->fields_room = (unsigned int)cells_most(equals, CLI_VERSIONS_FIELDS);
-    parsed->items_room = (unsigned int)cells_most(quotes / 2u, CLI_VERSIONS_ITEMS);
-    parsed->errors_room = (unsigned int)cells_most((4ull * lines) + braces + commas + 1ull, CLI_VERSIONS_ERRORS);
+    parsed->sections_room =
+        (unsigned int)EMBED_CALL(cells_most, VersionCatalogCellsCtx, .count = opens, .most = CLI_VERSIONS_SECTIONS);
+    parsed->fields_room =
+        (unsigned int)EMBED_CALL(cells_most, VersionCatalogCellsCtx, .count = equals, .most = CLI_VERSIONS_FIELDS);
+    parsed->items_room =
+        (unsigned int)EMBED_CALL(cells_most, VersionCatalogCellsCtx, .count = quotes / 2u, .most = CLI_VERSIONS_ITEMS);
+    parsed->errors_room =
+        (unsigned int)EMBED_CALL(cells_most, VersionCatalogCellsCtx, .count = (4ull * lines) + braces + commas + 1ull,
+                                 .most = CLI_VERSIONS_ERRORS);
     const unsigned long long rooms_total =
         parsed->sections_room + (2ull * parsed->fields_room) + parsed->items_room + parsed->errors_room;
-    parsed->pool_room = (unsigned int)cells_most(
-        size + rooms_total + ((unsigned long long)parsed->errors_room * CLI_VERSIONS_MSG_MAX_LEN), CLI_VERSIONS_POOL);
+    parsed->pool_room = (unsigned int)EMBED_CALL(
+        cells_most, VersionCatalogCellsCtx,
+        .count = args->size + rooms_total + ((unsigned long long)parsed->errors_room * CLI_VERSIONS_MSG_MAX_LEN),
+        .most = CLI_VERSIONS_POOL);
     // a part of none is a cell of one, so every part is a cell
     parsed->section = g_cli_cells->persistent_buf_alloc((parsed->sections_room + 1ull) * sizeof(CliVersionsSection),
                                                         &g_cli_versions_cells);
@@ -67,30 +81,30 @@ int cli_versions_taken(const char *text, unsigned long long size)
     if ((parsed->section == NULL) || (parsed->field == NULL) || (parsed->item == NULL) || (parsed->error == NULL) ||
         (parsed->pool == NULL) || (parsed->line == NULL))
     {
-        cli_versions_released();
+        cli_versions_release();
         return 0;
     }
     return 1;
 }
 
 // a section's accessors given back
-static void cells_names_given(CliVersionsNames *names)
+EMBED_INLINE void cells_names_free(const VersionCatalogCellsCtx *args)
 {
-    g_cli_cells->persistent_buf_release(names->text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(names->at, &g_cli_versions_cells);
-    names->at = NULL;
-    names->size = NULL;
-    names->text = NULL;
-    names->count = 0u;
-    names->most = 0u;
-    names->used = 0u;
-    names->room = 0u;
+    g_cli_cells->persistent_buf_release(args->names->text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(args->names->at, &g_cli_versions_cells);
+    args->names->at = NULL;
+    args->names->size = NULL;
+    args->names->text = NULL;
+    args->names->count = 0u;
+    args->names->most = 0u;
+    args->names->used = 0u;
+    args->names->room = 0u;
 }
 
-void cli_versions_released(void)
+void cli_versions_release(void)
 {
-    cells_names_given(&g_cli_versions_libraries);
-    cells_names_given(&g_cli_versions_known);
+    EMBED_CALL(cells_names_free, VersionCatalogCellsCtx, .names = &g_cli_versions_libraries);
+    EMBED_CALL(cells_names_free, VersionCatalogCellsCtx, .names = &g_cli_versions_known);
     CliVersionsParsed *const parsed = &g_cli_versions;
     g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
     g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);

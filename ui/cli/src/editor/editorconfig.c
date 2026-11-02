@@ -4,6 +4,13 @@
 #include "editorconfig.h"
 #include "../text/text.h"
 
+#define CLI_VALUE_MAX_LEN 64u
+// A key's value as the last section that names the file sets it, lower case: 1 in `set` where one did
+typedef struct
+{
+    char text[CLI_VALUE_MAX_LEN];
+    int set;
+} CliValue;
 // the lock acquired while the files' bytes and a pattern's letters are stored
 static CliLock s_lock = CLI_LOCK_INIT;
 
@@ -12,29 +19,53 @@ static CliLock s_lock = CLI_LOCK_INIT;
 
 #define CLI_EDITORCONFIG_FOLDERS 256u
 
-#define CLI_VALUE_MAX_LEN 64u
-
 static unsigned char s_text[CLI_EDITORCONFIG_BYTES];
 
-// The bytes from `from` up to `to` with the ASCII spaces at each end left off
-static void cli_trimmed(const char **from, const char **to)
+typedef struct
 {
-    *from += cli_text_past_any(*from, 0ull, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
-    *to = *from + cli_text_back_past(*from, (unsigned long long)(*to - *from), CLI_TEXT_WHITE);
+    const char **from_pointer;
+    const char **to_pointer;
+    const char *from;
+    const char *to;
+    const char *word;
+    const char *text;
+    unsigned long long size;
+    CliValue *value;
+    const char *relative;
+    const char *name;
+    CliValue *style;
+    CliValue *size_value;
+    CliValue *width;
+    const CliValue *value_read;
+    unsigned int *number;
+    char letter;
+    const char *path;
+    CliIndent *indent;
+} EditorconfigCtx;
+// The bytes from `from` up to `to` with the ASCII spaces at each end left off
+EMBED_INLINE void cli_trim(const EditorconfigCtx *args)
+{
+    const char **from = args->from_pointer;
+    const char **to = args->to_pointer;
+    *from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
+                        .size = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
+    *to = *from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = *from,
+                             .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
 }
 
 // whether the bytes from `from` up to `to` are `word`, the ASCII letters of either case the same
-static int cli_folded_is(const char *from, const char *to, const char *word)
+EMBED_INLINE int cli_folded_is(const EditorconfigCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
-    if ((unsigned long long)(to - from) != length)
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    if ((unsigned long long)(args->to - args->from) != length)
     {
         return 0;
     }
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
-        const char letter = ((from[at] >= 'A') && (from[at] <= 'Z')) ? (char)(from[at] + 32) : from[at];
-        if (letter != word[at])
+        const char letter =
+            ((args->from[at] >= 'A') && (args->from[at] <= 'Z')) ? (char)(args->from[at] + 32) : args->from[at];
+        if (letter != args->word[at])
         {
             return 0;
         }
@@ -43,30 +74,35 @@ static int cli_folded_is(const char *from, const char *to, const char *word)
 }
 
 // whether the file's lines before its first section contain `root = true`
-static int cli_is_root(const char *text, unsigned long long size)
+EMBED_INLINE int cli_is_root(const EditorconfigCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
     const char *line = text;
     const char *const end = text + size;
     while (line < end)
     {
         const char *stop = line;
-        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+                           .size = (unsigned long long)(end - stop), .set = "\n");
         const char *from = line;
         const char *to = stop;
-        cli_trimmed(&from, &to);
+        EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &from, .to_pointer = &to);
         if ((from < to) && (from[0] == '['))
         {
             return 0;
         }
         const char *equals = line;
-        equals += cli_text_to_any(equals, 0ull, (unsigned long long)(stop - equals), "=");
+        equals += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = equals, .at = 0ull,
+                             .size = (unsigned long long)(stop - equals), .set = "=");
         const char *key = line;
         const char *key_end = equals;
         const char *value = equals + 1;
         const char *value_end = stop;
-        cli_trimmed(&key, &key_end);
-        cli_trimmed(&value, &value_end);
-        if ((equals < stop) && cli_folded_is(key, key_end, "root") && cli_folded_is(value, value_end, "true"))
+        EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &key, .to_pointer = &key_end);
+        EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &value, .to_pointer = &value_end);
+        if ((equals < stop) && EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word = "root") &&
+            EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = value, .to = value_end, .word = "true"))
         {
             return 1;
         }
@@ -75,51 +111,50 @@ static int cli_is_root(const char *text, unsigned long long size)
     return 0;
 }
 
-// A key's value as the last section that names the file sets it, lower case: 1 in `set` where one did
-typedef struct
+EMBED_INLINE void cli_value_store(const EditorconfigCtx *args)
 {
-    char text[CLI_VALUE_MAX_LEN];
-    int set;
-} CliValue;
-
-static void cli_value_stored(CliValue *value, const char *from, const char *to)
-{
-    VerbaLinea line = {value->text, sizeof(value->text), 0ull};
-    for (const char *at = from; at < to; at += 1)
+    VerbaLinea line = {args->value->text, sizeof(args->value->text), 0ull};
+    for (const char *at = args->from; at < args->to; at += 1)
     {
         mmgr_line_ch(&line, ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0]);
     }
     // a value too long to store is stored as none of the words or numbers it is read for
-    value->set = mmgr_line_ok(&line) ? 1 : 2;
+    args->value->set = mmgr_line_ok(&line) ? 1 : 2;
     mmgr_line_finish(&line);
 }
 
 // the lines of one `.editorconfig`, each key of a section that names the file over what was stored before
-static void cli_sections_read(const char *text, unsigned long long size, const char *relative, const char *name,
-                              CliValue *style, CliValue *size_value, CliValue *width)
+EMBED_INLINE void cli_sections_read(const EditorconfigCtx *args)
 {
+    const char *text = args->text;
+    unsigned long long size = args->size;
+    const char *relative = args->relative;
+    const char *name = args->name;
     const char *line = text;
     const char *const end = text + size;
     int inside = 0;
     while (line < end)
     {
         const char *stop = line;
-        stop += cli_text_to_any(stop, 0ull, (unsigned long long)(end - stop), "\n");
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
+                           .size = (unsigned long long)(end - stop), .set = "\n");
         const char *from = line;
         const char *to = stop;
         line = stop + 1;
-        cli_trimmed(&from, &to);
+        EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &from, .to_pointer = &to);
         if ((from == to) || (from[0] == '#') || (from[0] == ';'))
         {
             continue;
         }
         if ((from[0] == '[') && ((to - from) >= 2) && (to[-1] == ']'))
         {
-            inside = cli_editorconfig_names(from + 1, (unsigned long long)(to - from - 2), relative, name);
+            inside = EMBED_CALL(cli_editorconfig_pattern.names, CliEditorconfigPatternCfg, .pattern = from + 1,
+                                .size = (unsigned long long)(to - from - 2), .relative = relative, .name = name);
             continue;
         }
         const char *equals = from;
-        equals += cli_text_to_any(equals, 0ull, (unsigned long long)(to - equals), "=");
+        equals += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = equals, .at = 0ull,
+                             .size = (unsigned long long)(to - equals), .set = "=");
         if ((equals == to) || !inside)
         {
             continue;
@@ -128,27 +163,30 @@ static void cli_sections_read(const char *text, unsigned long long size, const c
         const char *key_end = equals;
         const char *value = equals + 1;
         const char *value_end = to;
-        cli_trimmed(&key, &key_end);
-        cli_trimmed(&value, &value_end);
-        CliValue *const target = cli_folded_is(key, key_end, "indent_style")  ? style
-                                 : cli_folded_is(key, key_end, "indent_size") ? size_value
-                                 : cli_folded_is(key, key_end, "tab_width")   ? width
-                                                                              : NULL;
+        EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &key, .to_pointer = &key_end);
+        EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &value, .to_pointer = &value_end);
+        CliValue *const target =
+            EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word = "indent_style") ? args->style
+            : EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word = "indent_size")
+                ? args->size_value
+            : EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word = "tab_width") ? args->width
+                                                                                                          : NULL;
         if (target != NULL)
         {
-            cli_value_stored(target, value, value_end);
+            EMBED_CALL(cli_value_store, EditorconfigCtx, .value = target, .from = value, .to = value_end);
         }
     }
 }
 
 // the whole number a stored value writes, as an unsigned 32-bit number reads: 1, or 0 where it writes none
-static int cli_value_number(const CliValue *value, unsigned int *number)
+EMBED_INLINE int cli_value_number(const EditorconfigCtx *args)
 {
-    if (value->set != 1)
+    unsigned int *number = args->number;
+    if (args->value_read->set != 1)
     {
         return 0;
     }
-    const char *at = value->text;
+    const char *at = args->value_read->text;
     at += (at[0] == '+') ? 1 : 0;
     if (at[0] == '\0')
     {
@@ -156,11 +194,12 @@ static int cli_value_number(const CliValue *value, unsigned int *number)
     }
     unsigned long long size = 0ull;
     const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL});
-    if (cli_text_past_class(at, 0ull, digits, CLI_TEXT_DIGITS, "") != digits)
+    if (EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = at, .at = 0ull, .size = digits,
+                   .classes = CLI_TEXT_DIGITS, .set = "") != digits)
     {
         return 0;
     }
-    size = cli_text_number(at, 0ull, digits, NULL);
+    size = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at, .at = 0ull, .size = digits, .end = NULL);
     if (size > 0xffffffffull)
     {
         return 0;
@@ -171,21 +210,21 @@ static int cli_value_number(const CliValue *value, unsigned int *number)
     return 1;
 }
 
-static int cli_is_separator(char letter)
+EMBED_INLINE int cli_is_separator(const EditorconfigCtx *args)
 {
-    return (letter == '/') || (letter == '\\');
+    return (args->letter == '/') || (args->letter == '\\');
 }
 
-static void cli_indent_resolved(const char *path, CliIndent *indent)
+EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
 {
     unsigned long long ends[CLI_EDITORCONFIG_FOLDERS];
     unsigned int folders = 0u;
-    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     // each folder from the file's up, the length of `path` it is, until one declares it is the root
     while (folders < CLI_EDITORCONFIG_FOLDERS)
     {
         unsigned long long cut = end;
-        while ((cut > 0ull) && !cli_is_separator(path[cut - 1u]))
+        while ((cut > 0ull) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[cut - 1u]))
         {
             cut -= 1ull;
         }
@@ -193,7 +232,7 @@ static void cli_indent_resolved(const char *path, CliIndent *indent)
         {
             break;
         }
-        const int top = (cut == 1ull) || ((cut == 3ull) && (path[1] == ':'));
+        const int top = (cut == 1ull) || ((cut == 3ull) && (args->path[1] == ':'));
         const unsigned long long folder = top ? cut : (cut - 1ull);
         if (folder == end)
         {
@@ -201,7 +240,7 @@ static void cli_indent_resolved(const char *path, CliIndent *indent)
         }
         char file[CLI_PATH_MAX_LEN];
         VerbaLinea line = {file, sizeof(file), 0ull};
-        mmgr_line_put_n(&line, path, folder);
+        mmgr_line_put_n(&line, args->path, folder);
         mmgr_line_put(&line, top ? ".editorconfig" : "/.editorconfig");
         const unsigned long long size =
             (mmgr_line_finish(&line) != 0ull) ? qry_member_file_read(file, s_text, sizeof(s_text)) : QRY_MEMBER_UNREAD;
@@ -210,7 +249,7 @@ static void cli_indent_resolved(const char *path, CliIndent *indent)
             ends[folders] = folder;
             folders += 1u;
             // the file's bytes read as text: a char and an unsigned char share their width
-            if (cli_is_root((const char *)s_text, size))
+            if (EMBED_CALL(cli_is_root, EditorconfigCtx, .text = (const char *)s_text, .size = size))
             {
                 break;
             }
@@ -224,8 +263,8 @@ static void cli_indent_resolved(const char *path, CliIndent *indent)
     CliValue style = {{0}, 0};
     CliValue size_value = {{0}, 0};
     CliValue width = {{0}, 0};
-    const char *name = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    while ((name > path) && !cli_is_separator(name[-1]))
+    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    while ((name > args->path) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = name[-1]))
     {
         name -= 1;
     }
@@ -235,56 +274,65 @@ static void cli_indent_resolved(const char *path, CliIndent *indent)
         char relative[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){
             .dst = relative,
-            .src = path + folder + (cli_is_separator(path[folder]) ? 1u : 0u),
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path + folder + (cli_is_separator(path[folder]) ? 1u : 0u),
-                                                   .cap = CLI_CELLS_POOL}) +
+            .src = args->path + folder +
+                   (EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[folder]) ? 1u : 0u),
+            .bytes = cellul.len(&(CatenaFinitaCfg){
+                         .src = args->path + folder +
+                                (EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[folder]) ? 1u : 0u),
+                         .cap = CLI_CELLS_POOL}) +
                      1u});
-        cli_text_swapped(relative, cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}), '\\', '/');
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = relative,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}), .from = '\\',
+                   .to = '/');
         char file[CLI_PATH_MAX_LEN];
         VerbaLinea line = {file, sizeof(file), 0ull};
-        mmgr_line_put_n(&line, path, folder);
-        mmgr_line_put(&line,
-                      ((folder != 0ull) && cli_is_separator(path[folder - 1u])) ? ".editorconfig" : "/.editorconfig");
+        mmgr_line_put_n(&line, args->path, folder);
+        mmgr_line_put(&line, ((folder != 0ull) &&
+                              EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[folder - 1u]))
+                                 ? ".editorconfig"
+                                 : "/.editorconfig");
         const unsigned long long size =
             (mmgr_line_finish(&line) != 0ull) ? qry_member_file_read(file, s_text, sizeof(s_text)) : QRY_MEMBER_UNREAD;
         if (size != QRY_MEMBER_UNREAD)
         {
-            cli_sections_read((const char *)s_text, size, relative, name, &style, &size_value, &width);
+            EMBED_CALL(cli_sections_read, EditorconfigCtx, .text = (const char *)s_text, .size = size,
+                       .relative = relative, .name = name, .style = &style, .size_value = &size_value, .width = &width);
         }
     }
-    indent->tabs = (style.set != 1)                                                                              ? -1
-                   : (cellul.eq(&(CatenaFinitaCfg){.src = style.text, .other = "tab", .cap = CLI_CELLS_POOL}))   ? 1
-                   : (cellul.eq(&(CatenaFinitaCfg){.src = style.text, .other = "space", .cap = CLI_CELLS_POOL})) ? 0
-                                                                                                                 : -1;
+    args->indent->tabs = (style.set != 1) ? -1
+                         : (cellul.eq(&(CatenaFinitaCfg){.src = style.text, .other = "tab", .cap = CLI_CELLS_POOL})) ? 1
+                         : (cellul.eq(&(CatenaFinitaCfg){.src = style.text, .other = "space", .cap = CLI_CELLS_POOL}))
+                             ? 0
+                             : -1;
     unsigned int tab_width = 0u;
-    const int has_width = cli_value_number(&width, &tab_width);
+    const int has_width = EMBED_CALL(cli_value_number, EditorconfigCtx, .value_read = &width, .number = &tab_width);
     unsigned int number = 0u;
     if (size_value.set == 0)
     {
-        indent->sized = (indent->tabs == 1) && has_width;
-        indent->size = tab_width;
+        args->indent->sized = (args->indent->tabs == 1) && has_width;
+        args->indent->size = tab_width;
     }
     else if ((size_value.set == 1) &&
              (cellul.eq(&(CatenaFinitaCfg){.src = size_value.text, .other = "tab", .cap = CLI_CELLS_POOL})))
     {
-        indent->sized = has_width;
-        indent->size = tab_width;
+        args->indent->sized = has_width;
+        args->indent->size = tab_width;
     }
-    else if (cli_value_number(&size_value, &number))
+    else if (EMBED_CALL(cli_value_number, EditorconfigCtx, .value_read = &size_value, .number = &number))
     {
-        indent->sized = 1;
-        indent->size = number;
+        args->indent->sized = 1;
+        args->indent->size = number;
     }
     else
     {
-        indent->sized = has_width;
-        indent->size = tab_width;
+        args->indent->sized = has_width;
+        args->indent->size = tab_width;
     }
 }
 
-void cli_indent(const char *path, CliIndent *indent)
+void cli_indent(const CliEditorconfigCfg *args)
 {
-    cli_lock_take(&s_lock);
-    cli_indent_resolved(path, indent);
-    cli_lock_give(&s_lock);
+    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_indent_resolve, EditorconfigCtx, .path = args->path, .indent = args->indent);
+    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

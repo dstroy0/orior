@@ -11,13 +11,26 @@
 #define CLI_SEARCH_HITS_ROOM (32ull << 20u)
 #define CLI_SEARCH_LINE_MORE 64ull
 
+typedef struct
+{
+    const CliJson *hits;
+    unsigned int hit;
+} CommandLineSearchCtx;
 // one hit of the tree `hits` written to the output as path:line:column: line
-static void search_hit_written(const CliJson *hits, unsigned int hit)
+EMBED_INLINE void search_hit_write(const CommandLineSearchCtx *args)
 {
     unsigned long long path_length = 0ull;
-    const char *const path = cli_json_string(hits, cli_json_member(hits, hit, "path"), &path_length);
+    const char *const path =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->hits,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->hits,
+                                      .object = args->hit, .name = "path"),
+                   .length_pointer = &path_length);
     unsigned long long length = 0ull;
-    const char *const text = cli_json_string(hits, cli_json_member(hits, hit, "text"), &length);
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->hits,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->hits,
+                                      .object = args->hit, .name = "text"),
+                   .length_pointer = &length);
     const unsigned long long line_room = path_length + length + CLI_SEARCH_LINE_MORE;
     char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_command_line_cells);
     VerbaLinea line = mmgr_line_over(line_cell, line_room);
@@ -25,52 +38,61 @@ static void search_hit_written(const CliJson *hits, unsigned int hit)
     static const char *const s_numbers[2] = {"line", "col"};
     for (unsigned int number = 0u; number < 2u; number += 1u)
     {
-        const unsigned int node = cli_json_member(hits, hit, s_numbers[number]);
+        const unsigned int node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                             .json_read = args->hits, .object = args->hit, .name = s_numbers[number]);
         mmgr_line_ch(&line, ':');
-        if (cli_json_is(hits, node, CFG_JSON_NUMBER))
+        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->hits, .node = node,
+                       .kind = CFG_JSON_NUMBER))
         {
-            mmgr_line_put_n(&line, hits->text + hits->node[node].text, hits->node[node].length);
+            mmgr_line_put_n(&line, args->hits->text + args->hits->node[node].text, args->hits->node[node].length);
         }
     }
     mmgr_line_put(&line, ": ");
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
     const char *const found = (text != NULL) ? text : "";
-    cli_text_trimmed(found, length, &from, &to);
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = found, .size = length, .from_u64s = &from,
+               .to_u64s = &to);
     mmgr_line_put_n(&line, found + from, to - from);
-    cli_out_line(line.out, mmgr_line_ok(&line) ? line.at : 0ull);
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line.out,
+               .size = mmgr_line_ok(&line) ? line.at : 0ull);
     g_cli_cells->persistent_buf_release(line.out, &g_cli_command_line_cells);
 }
 
-int cli_console_search(const char *named, const char *const *words, unsigned int count)
+int cli_console_search(const CliCommandLineWordsCountCtx *args)
 {
+    const char *named = args->named;
     CliSearching how = {0, 0, 0};
     static char s_query[1u << 12u];
     VerbaLinea query = {s_query, sizeof(s_query), 0ull};
-    for (unsigned int at = 0u; at < count; at += 1u)
+    for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        how.match_case |= (cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--case", .cap = CLI_CELLS_POOL}));
-        how.word |= (cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--word", .cap = CLI_CELLS_POOL}));
-        how.regex |= (cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--regex", .cap = CLI_CELLS_POOL}));
-        if ((!cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--case", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--word", .cap = CLI_CELLS_POOL})) &&
-            (!cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--regex", .cap = CLI_CELLS_POOL})))
+        how.match_case |=
+            (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--case", .cap = CLI_CELLS_POOL}));
+        how.word |= (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--word", .cap = CLI_CELLS_POOL}));
+        how.regex |= (cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--regex", .cap = CLI_CELLS_POOL}));
+        if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--case", .cap = CLI_CELLS_POOL})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--word", .cap = CLI_CELLS_POOL})) &&
+            (!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--regex", .cap = CLI_CELLS_POOL})))
         {
             mmgr_line_put(&query, (query.at > 0ull) ? " " : "");
-            mmgr_line_put(&query, words[at]);
+            mmgr_line_put(&query, args->words[at]);
         }
     }
     if (mmgr_line_finish(&query) == 0ull)
     {
-        cli_err("search needs text: orior_cli edit search <text>");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text = "search needs text: orior_cli edit search <text>");
         return CLI_WRONG;
     }
     static char s_root[CLI_PATH_MAX_LEN];
     char why[1u << 14u];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (!cli_command_line_tree(named, s_root, &err_msg))
+    if (!EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,
+                    .err_msg = &err_msg))
     {
-        cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+        EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_NO_CODE;
     }
     static CliPatterns s_none;
@@ -78,27 +100,35 @@ int cli_console_search(const char *named, const char *const *words, unsigned int
     VerbaLinea found = mmgr_line_over(found_cell, CLI_SEARCH_HITS_ROOM);
     if (found.out == NULL)
     {
-        cli_err("the hits of a search could not be given a cell");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text = "the hits of a search could not be given a cell");
         return CLI_WRONG;
     }
-    if (!cli_files_search(s_root, s_query, how, &s_none, &found, &err_msg))
+    if (!EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = s_root, .query = s_query,
+                    .how = how, .set = &s_none, .out = &found, .err_msg = &err_msg))
     {
         g_cli_cells->persistent_buf_release(found.out, &g_cli_command_line_cells);
-        cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+        EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_WRONG;
     }
     CliJson hits;
-    cli_json_begun(&hits, NULL, 0u, NULL, 0ull);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &hits,
+               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
     err_msg.at = 0ull;
-    const unsigned int list = cli_json_taken(&hits, found.out, mmgr_line_ok(&found) ? found.at : 0ull, 0u, 0ull,
-                                             &err_msg, &g_cli_command_line_cells);
+    const unsigned int list =
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &hits,
+                   .text = found.out, .size = mmgr_line_ok(&found) ? found.at : 0ull, .nodes_more = 0u,
+                   .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_command_line_cells);
     g_cli_cells->persistent_buf_release(found.out, &g_cli_command_line_cells);
-    const int any = cli_json_is(&hits, list, CFG_JSON_ARRAY) && (hits.node[list].count != 0u);
+    const int any = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &hits,
+                               .node = list, .kind = CFG_JSON_ARRAY) &&
+                    (hits.node[list].count != 0u);
     for (unsigned int hit = any ? hits.node[list].first : CLI_JSON_NONE; hit != CLI_JSON_NONE;
          hit = hits.node[hit].next)
     {
-        search_hit_written(&hits, hit);
+        EMBED_CALL(search_hit_write, CommandLineSearchCtx, .hits = &hits, .hit = hit);
     }
-    cli_json_given(&hits);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &hits);
     return any ? 0 : 1;
 }

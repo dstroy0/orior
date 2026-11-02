@@ -14,13 +14,13 @@
 
 #include <stdint.h>
 
-int cli_random_bytes(void *bytes, unsigned long long size)
+int cli_random_bytes(const CliSizeBytesCtx *args)
 {
-    unsigned char *const into = (unsigned char *)bytes;
+    unsigned char *const into = (unsigned char *)args->bytes_out;
     unsigned long long given = 0ull;
-    while (given < size)
+    while (given < args->size)
     {
-        const unsigned long long left = size - given;
+        const unsigned long long left = args->size - given;
         // a piece is at most what a ULONG counts
         const ULONG piece = (left > 0xFFFFFFFFull) ? 0xFFFFFFFFul : (ULONG)left;
         if (!RtlGenRandom(into + given, piece))
@@ -32,19 +32,20 @@ int cli_random_bytes(void *bytes, unsigned long long size)
     return 1;
 }
 
-void cli_temp_folder(char *folder)
+void cli_temp_folder(const CliFolderCtx *args)
 {
-    const DWORD length = GetTempPathA(CLI_PATH_MAX_LEN, folder);
+    const DWORD length = GetTempPathA(CLI_PATH_MAX_LEN, args->folder_out);
     if ((length == 0u) || (length >= CLI_PATH_MAX_LEN))
     {
-        memor.cpy(&(MemoriaCfg){.dst = folder,
+        memor.cpy(&(MemoriaCfg){.dst = args->folder_out,
                                 .src = ".",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
         return;
     }
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
-    end = (size_t)(3u + cli_text_back_past(folder + 3u, end - 3u, "\\/"));
-    folder[end] = '\0';
+    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_CELLS_POOL});
+    end = (size_t)(3u + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+                                   .text = args->folder_out + 3u, .at = end - 3u, .set = "\\/"));
+    args->folder_out[end] = '\0';
 }
 
 unsigned long long cli_event_inheritable(void)
@@ -55,28 +56,29 @@ unsigned long long cli_event_inheritable(void)
     return (event != NULL) ? (unsigned long long)(uintptr_t)event : 0ull;
 }
 
-int cli_event_set(unsigned long long event)
+int cli_event_set(const CliEventCtx *args)
 {
-    return (event != 0ull) && SetEvent((HANDLE)(uintptr_t)event);
+    return (args->event != 0ull) && SetEvent((HANDLE)(uintptr_t)args->event);
 }
 
-void cli_event_closed(unsigned long long event)
+void cli_event_close(const CliEventCtx *args)
 {
-    if (event != 0ull)
+    if (args->event != 0ull)
     {
-        CloseHandle((HANDLE)(uintptr_t)event);
+        CloseHandle((HANDLE)(uintptr_t)args->event);
     }
 }
 
 // a folder and a file of the reader's own are the reader's alone by the profile's own rights on Windows
-int cli_private_folder_made(const char *folder)
+int cli_private_folder_init(const CliWordsErrMsgCtx *args)
 {
-    return query_folder_made(folder);
+    return EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = args->folder);
 }
 
-int cli_private_file_written(const char *path, const void *bytes, unsigned long long size)
+int cli_private_file_write(const CliPathBytesCtx *args)
 {
-    return query_file_written(path, bytes, size);
+    return EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = args->path,
+                      .bytes = args->bytes, .size = args->size);
 }
 
 // the seconds from 1601, where the system's clock begins, to 1970, and the clock's ticks in a second
@@ -94,9 +96,9 @@ unsigned long long cli_booted_seconds(void)
 }
 
 // the logon session this process's token stands in, which every log in makes new, its id written in hexadecimal
-void cli_logon_named(char *logon, size_t room)
+void cli_logon_by_name(const CliRoomLogonCtx *args)
 {
-    VerbaLinea named = {logon, room, 0ull};
+    VerbaLinea named = {args->logon, args->room_size, 0ull};
     HANDLE token = NULL;
     if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
     {
