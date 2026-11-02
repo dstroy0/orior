@@ -54,13 +54,7 @@ jobs:
       - name: Linux libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev libx11-dev build-essential clang lld llvm cmake ninja-build ruby
-
-      # Clippy's findings as JSON, which the scan reads as Rust's issues.
-      - name: Clippy
-        run: |
-          mkdir -p build/sonarqube
-          cargo clippy --manifest-path ui/gui/src-tauri/Cargo.toml --all-targets --message-format=json > build/sonarqube/clippy.json || true
+          sudo apt-get install -y libssl-dev libx11-dev build-essential clang lld llvm cmake ninja-build ruby
 
       - name: Install gcovr
         run: pip install --upgrade gcovr
@@ -69,7 +63,9 @@ jobs:
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8
 
       - name: Build (wrapped)
-        run: build-wrapper-linux-x86-64 --out-dir build/sonarqube/bw-output python utils/test/harness.py cli coverage build
+        run: |
+          mkdir -p build/sonarqube
+          build-wrapper-linux-x86-64 --out-dir build/sonarqube/bw-output python utils/test/harness.py cli coverage build
 
       # The suites write the .gcda. A failing test still lets the scan report, and fails this job at its last step.
       - name: Test
